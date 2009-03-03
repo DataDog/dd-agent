@@ -54,9 +54,13 @@ class checks:
 		return loadAvrgs # We only use loadAvrgs[0] but may use more in the future, so return all
 		
 	def getMemoryUsage(self):
+		self.checksLogger.debug('Getting memoryUsage')
+		
 		# See http://stackoverflow.com/questions/446209/possible-values-from-sys-platform/446210#446210 for possible
 		# sys.platform values
 		if sys.platform == 'linux2':
+			self.checksLogger.debug('memoryUsage - linux2')
+			
 			free = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
 			
 			lines = free.split('\n')
@@ -65,6 +69,8 @@ class checks:
 		
 			return {'physUsed' : physParts[2], 'physFree' : physParts[3], 'swapUsed' : swapParts[2], 'swapFree' : swapParts[3]}			
 		elif sys.platform == 'darwin':
+			self.checksLogger.debug('memoryUsage - darwin')
+			
 			top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
 			sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE).communicate()[0]
 			
@@ -99,7 +105,7 @@ class checks:
 		return i
 		
 	def doPostBack(self, postBackData):
-		self.checksLogger.debug('Doing postback')
+		self.checksLogger.debug('Doing postback to ' + self.SD_URL)
 		
 		# Build the request handler
 		request = urllib2.Request(self.SD_URL + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
