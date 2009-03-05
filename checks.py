@@ -116,12 +116,14 @@ class checks:
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.code))
 		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to postback - URLError = ' + e.reason)			
+			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))			
 		
 		self.checksLogger.debug('Posted back')
 	
 	def doChecks(self, sc):
 		self.checksLogger = logging.getLogger('checks')
+		
+		self.checksLogger.debug('doChecks')
 				
 		# Do the checks
 		loadAvrgs = self.getLoadAvrgs()
