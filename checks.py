@@ -67,9 +67,9 @@ class checks:
 			physParts = re.findall(r'([0-9]+)', lines[1])
 			swapParts = re.findall(r'([0-9]+)', lines[3])
 			
-			self.checksLogger.debug('Got memoryUsage, returning')
+			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[2] + ' / ' + physParts[3] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 			
-			return {'physUsed' : physParts[2], 'physFree' : physParts[3], 'swapUsed' : swapParts[2], 'swapFree' : swapParts[3]}			
+			return {'physUsed' : physParts[2], 'physFree' : physParts[3], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('memoryUsage - darwin')
 			
@@ -83,7 +83,7 @@ class checks:
 			# Deal with sysctl
 			swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
 			
-			self.checksLogger.debug('Got memoryUsage, returning')
+			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[3] + ' / ' + physParts[4] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 		
 			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
 		else:

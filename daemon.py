@@ -100,6 +100,8 @@ class Daemon:
 			pf.close()
 		except IOError:
 			pid = None
+		except SystemExit:
+			pid = None
 	
 		if pid:
 			message = "pidfile %s already exists. Is it already running?\n"
@@ -158,3 +160,4 @@ class Daemon:
 		You should override this method when you subclass Daemon. It will be called after the process has been
 		daemonized by start() or restart().
 		"""
+

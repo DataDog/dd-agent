@@ -8,8 +8,8 @@
 '''
 
 # General config
-DEBUG_MODE = 0
-CHECK_FREQUENCY = 60
+DEBUG_MODE = 1
+CHECK_FREQUENCY = 5
 
 VERSION = '1.0.0b1'
 
@@ -83,3 +83,4 @@ if __name__ == '__main__':
 	else:
 		print 'usage: %s start|stop|restart' % sys.argv[0]
 		sys.exit(2)
+
