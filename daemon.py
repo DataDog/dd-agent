@@ -13,6 +13,8 @@
 				- Added OS check to conditionally remove code that doesn't work on OS X
 				- Added output to console on completion
 				- Tidied up formatting 
+				11th Mar 2009 (David Mytton <david@boxedice.com>)
+				- Fixed problem with daemon exiting on Python 2.4 (before SystemExit was part of the Exception base)
 '''
 
 # Core modules
