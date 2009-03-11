@@ -8,8 +8,8 @@
 '''
 
 # General config
-DEBUG_MODE = 1
-CHECK_FREQUENCY = 5
+DEBUG_MODE = 0
+CHECK_FREQUENCY = 60
 
 VERSION = '1.0.0b1'
 
