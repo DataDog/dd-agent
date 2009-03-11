@@ -67,9 +67,9 @@ class checks:
 			physParts = re.findall(r'([0-9]+)', lines[1])
 			swapParts = re.findall(r'([0-9]+)', lines[3])
 			
-			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[2] + ' / ' + physParts[3] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
+			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[1] + ' / ' + physParts[2] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 			
-			return {'physUsed' : physParts[2], 'physFree' : physParts[3], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
+			return {'physUsed' : physParts[1], 'physFree' : physParts[2], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('memoryUsage - darwin')
 			
