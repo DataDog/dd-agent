@@ -66,7 +66,9 @@ class checks:
 			lines = free.split('\n')
 			physParts = re.findall(r'([0-9]+)', lines[1])
 			swapParts = re.findall(r'([0-9]+)', lines[3])
-		
+			
+			self.checksLogger.debug('Got memoryUsage, returning')
+			
 			return {'physUsed' : physParts[2], 'physFree' : physParts[3], 'swapUsed' : swapParts[2], 'swapFree' : swapParts[3]}			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('memoryUsage - darwin')
@@ -80,6 +82,8 @@ class checks:
 			
 			# Deal with sysctl
 			swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
+			
+			self.checksLogger.debug('Got memoryUsage, returning')
 		
 			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
 		else:
@@ -129,6 +133,8 @@ class checks:
 		loadAvrgs = self.getLoadAvrgs()
 		processes = self.getProcessCount()
 		memory = self.getMemoryUsage()
+		
+		self.checksLogger.debug('All checks done, now to post back')
 		
 		# Post back the data
 		postBackData = urllib.urlencode({'agentKey' : self.AGENT_KEY, 'loadAvrg' : loadAvrgs[0], 'processCount' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
