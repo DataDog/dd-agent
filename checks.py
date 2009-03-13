@@ -8,6 +8,7 @@
 '''
 
 # Core modules
+import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
 import re
@@ -120,7 +121,9 @@ class checks:
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.code))
 		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))			
+			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))
+		except httplib.HTTPException, e: # Added for case #26701
+			self.checksLogger.error('Unable to postback - HTTPException')	
 		
 		self.checksLogger.debug('Posted back')
 	
