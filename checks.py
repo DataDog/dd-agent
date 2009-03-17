@@ -48,7 +48,7 @@ class checks:
 		uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
 		
 		# Split out the 3 load average values (we actually only use the 5 min average)
-		loadAvrgs = re.findall(r'([0-9]\.\d+)', uptime)
+		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
 		
 		self.checksLogger.debug('Got loadAvrgs - ' + uptime)
 	
