@@ -11,7 +11,7 @@
 DEBUG_MODE = 0
 CHECK_FREQUENCY = 60
 
-VERSION = '1.0.0b1'
+VERSION = '1.0.0b2'
 
 # Core modules
 import ConfigParser
@@ -76,11 +76,45 @@ if __name__ == '__main__':
 		elif 'restart' == sys.argv[1]:
 			mainLogger.debug('Restart daemon')
 			daemon.restart()
+		elif 'update' == sys.argv[1]:
+			mainLogger.debug('Updating agent')
+			
+			import os
+			import shutil
+			import tarfile
+			import urllib
+			
+			print 'Downloading latest version...'
+			mainLogger.debug('Update: downloading')
+			
+			# Download the latest version
+			downloadedFile = urllib.urlretrieve('http://www.serverdensity.com/downloads/sd-agent.tar.gz', 'sd-agent.tar.gz')
+			
+			print 'Extracting...'
+			mainLogger.debug('Update: extracting')
+			
+			# Extract it
+			tar = tarfile.open('sd-agent.tar.gz')
+			tar.extractall()
+			tar.close()
+			
+			print 'Updating existing files...'
+			mainLogger.debug('Update: updating')
+			
+			# Update existing files
+			shutil.move('sd-agent/agent.py', 'agent.py')
+			shutil.move('sd-agent/checks.py', 'checks.py')
+			shutil.move('sd-agent/daemon.py', 'daemon.py')
+			shutil.rmtree('sd-agent')
+			os.remove('sd-agent.tar.gz')
+			
+			mainLogger.debug('Update: done')
+			
+			print 'Update completed. Please restart the agent.'
 		else:
 			print 'Unknown command'
 			sys.exit(2)
 		sys.exit(0)
 	else:
-		print 'usage: %s start|stop|restart' % sys.argv[0]
+		print 'usage: %s start|stop|restart|update' % sys.argv[0]
 		sys.exit(2)
-
