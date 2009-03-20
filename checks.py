@@ -23,12 +23,16 @@ class checks:
 		self.SD_URL = SD_URL
 		self.AGENT_KEY = AGENT_KEY
 		self.CHECK_FREQUENCY = CHECK_FREQUENCY
-	
+		
 	def getDf(self):
 		# CURRENTLY UNUSED
 		
 		# Get output from df
-		df = subprocess.Popen(['df'], stdout=subprocess.PIPE).communicate()[0]
+		try:
+			df = subprocess.Popen(['df'], stdout=subprocess.PIPE).communicate()[0]
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('getDf - Exception = ' + traceback.format_exc())
 		
 		# Split out each volume
 		volumes = df.split('\n')
@@ -45,8 +49,12 @@ class checks:
 		self.checksLogger.debug('Getting loadAvrgs')
 		
 		# Get output from uptime
-		uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
-		
+		try:
+			uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('getLoadAvrgs - Exception = ' + traceback.format_exc())
+			
 		# Split out the 3 load average values (we actually only use the 5 min average)
 		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
 		
@@ -62,7 +70,11 @@ class checks:
 		if sys.platform == 'linux2':
 			self.checksLogger.debug('memoryUsage - linux2')
 			
-			free = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			try:
+				free = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getMemoryUsage (linux2) - Exception = ' + traceback.format_exc())
 			
 			lines = free.split('\n')
 			physParts = re.findall(r'([0-9]+)', lines[1])
@@ -74,8 +86,12 @@ class checks:
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('memoryUsage - darwin')
 			
-			top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
-			sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE).communicate()[0]
+			try:
+				top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
+				sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE).communicate()[0]
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getMemoryUsage (darwin) - Exception = ' + traceback.format_exc())
 			
 			# Deal with top			
 			lines = top.split('\n')
@@ -94,7 +110,11 @@ class checks:
 		self.checksLogger.debug('Getting process count')
 		
 		# Get output from ps
-		ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE).communicate()[0]
+		try:
+			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE).communicate()[0]
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('getProcessCount - Exception = ' + traceback.format_exc())
 		
 		# Split out each process
 		processes = ps.split('\n')
@@ -110,20 +130,23 @@ class checks:
 		return i
 		
 	def doPostBack(self, postBackData):
-		self.checksLogger.debug('Doing postback to ' + self.SD_URL)
+		self.checksLogger.debug('Doing postback to ' + self.SD_URL)	
 		
-		# Build the request handler
-		request = urllib2.Request(self.SD_URL + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
-		
-		# Do the request, log any errors
 		try: 
+			# Build the request handler
+			request = urllib2.Request(self.SD_URL + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
+			
+			# Do the request, log any errors
 			response = urllib2.urlopen(request)
 		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.code))
+			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))
 		except urllib2.URLError, e:
 			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))
 		except httplib.HTTPException, e: # Added for case #26701
 			self.checksLogger.error('Unable to postback - HTTPException')	
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to postback - Exception = ' + traceback.format_exc())
 		
 		self.checksLogger.debug('Posted back')
 	
@@ -140,7 +163,12 @@ class checks:
 		self.checksLogger.debug('All checks done, now to post back')
 		
 		# Post back the data
-		postBackData = urllib.urlencode({'agentKey' : self.AGENT_KEY, 'loadAvrg' : loadAvrgs[0], 'processCount' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+		try:
+			postBackData = urllib.urlencode({'agentKey' : self.AGENT_KEY, 'loadAvrg' : loadAvrgs[0], 'processCount' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('doChecks - Exception = ' + traceback.format_exc())
+
 		self.doPostBack(postBackData)
 		
 		self.checksLogger.debug('Rescheduling checks')
