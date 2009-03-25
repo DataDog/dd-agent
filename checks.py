@@ -11,18 +11,31 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
+import md5
+import platform
 import re
 import subprocess
 import sys
 import urllib
 import urllib2
 
+# We need to return the data using JSON. As of Python 2.6+, there is a core JSON
+# module. We have a 2.4/2.5 compatible lib included with the agent but if we're
+# on 2.6 or above, we should use the core module which will be faster
+pythonVersion = platform.python_version_tuple()
+
+if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
+	import json
+else:
+	import minjson
+
 class checks:
 	
-	def __init__(self, SD_URL, AGENT_KEY, CHECK_FREQUENCY):
+	def __init__(self, SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION):
 		self.SD_URL = SD_URL
 		self.AGENT_KEY = AGENT_KEY
 		self.CHECK_FREQUENCY = CHECK_FREQUENCY
+		self.VERSION = VERSION
 		
 	def getDf(self):
 		# CURRENTLY UNUSED
@@ -106,8 +119,8 @@ class checks:
 		else:
 			return false
 		
-	def getProcessCount(self):
-		self.checksLogger.debug('Getting process count')
+	def getProcesses(self):
+		self.checksLogger.debug('Getting processes')
 		
 		# Get output from ps
 		try:
@@ -116,18 +129,22 @@ class checks:
 			import traceback
 			self.checksLogger.error('getProcessCount - Exception = ' + traceback.format_exc())
 		
+		self.checksLogger.debug('Got processes, now to split')
+		
 		# Split out each process
-		processes = ps.split('\n')
+		processLines = ps.split('\n')
 		
-		# Loop through each process and increment count
-		i = 0
+		del processLines[0] # Removes the headers
+		processLines.pop() # Removes a trailing empty line
 		
-		for process in processes:
-			i = i + 1
+		processes = []
 		
-		self.checksLogger.debug('Got process count - ' + str(i))
+		# http://stackoverflow.com/questions/682446/splitting-out-the-output-of-ps-using-python/682464#682464
+		for line in processLines:
+			line = line.split(None, 10)
+			processes.append(line)
 			
-		return i
+		return processes
 		
 	def doPostBack(self, postBackData):
 		self.checksLogger.debug('Doing postback to ' + self.SD_URL)	
@@ -138,6 +155,7 @@ class checks:
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
+			print response.read()
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))
 		except urllib2.URLError, e:
@@ -157,17 +175,19 @@ class checks:
 				
 		# Do the checks
 		loadAvrgs = self.getLoadAvrgs()
-		processes = self.getProcessCount()
+		processes = self.getProcesses()
 		memory = self.getMemoryUsage()
 		
 		self.checksLogger.debug('All checks done, now to post back')
 		
 		# Post back the data
-		try:
-			postBackData = urllib.urlencode({'agentKey' : self.AGENT_KEY, 'loadAvrg' : loadAvrgs[0], 'processCount' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('doChecks - Exception = ' + traceback.format_exc())
+		if int(pythonVersion[1]) >= 6:
+			payload = json.dumps({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+		else:
+			payload = minjson.write({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+		
+		payloadHash = md5.new(payload).hexdigest()
+		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
 
 		self.doPostBack(postBackData)
 		

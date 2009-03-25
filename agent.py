@@ -11,7 +11,7 @@
 DEBUG_MODE = 0
 CHECK_FREQUENCY = 60
 
-VERSION = '1.0.0b2'
+VERSION = '1.0.0b3'
 
 # Core modules
 import ConfigParser
@@ -45,7 +45,7 @@ class agent(Daemon):
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
-		c = checks(SD_URL, AGENT_KEY, CHECK_FREQUENCY)
+		c = checks(SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION)
 		
 		# Schedule the checks
 		agentLogger.debug('Scheduling checks every ' + str(CHECK_FREQUENCY) + ' seconds')
