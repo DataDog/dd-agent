@@ -155,7 +155,9 @@ class checks:
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
-			print response.read()
+			
+			if DEBUG_MODE:
+				print response.read()
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))
 		except urllib2.URLError, e:
