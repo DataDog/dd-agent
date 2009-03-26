@@ -4,6 +4,7 @@
 	----
 	A web based server resource monitoring application
 
+	Licensed under Simplified BSD License (see LICENSE)
 	(C) Boxed Ice 2009 all rights reserved
 '''
 
@@ -31,11 +32,12 @@ else:
 
 class checks:
 	
-	def __init__(self, SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION):
+	def __init__(self, SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION, DEBUG_MODE):
 		self.SD_URL = SD_URL
 		self.AGENT_KEY = AGENT_KEY
 		self.CHECK_FREQUENCY = CHECK_FREQUENCY
 		self.VERSION = VERSION
+		self.DEBUG_MODE = DEBUG_MODE
 		
 	def getDf(self):
 		# CURRENTLY UNUSED
@@ -156,7 +158,7 @@ class checks:
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
 			
-			if DEBUG_MODE:
+			if self.DEBUG_MODE:
 				print response.read()
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))

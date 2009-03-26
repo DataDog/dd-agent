@@ -4,6 +4,7 @@
 	----
 	A web based server resource monitoring application
 
+	Licensed under Simplified BSD License (see LICENSE)
 	(C) Boxed Ice 2009 all rights reserved
 '''
 
@@ -45,7 +46,7 @@ class agent(Daemon):
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
-		c = checks(SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION)
+		c = checks(SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION, DEBUG_MODE)
 		
 		# Schedule the checks
 		agentLogger.debug('Scheduling checks every ' + str(CHECK_FREQUENCY) + ' seconds')
