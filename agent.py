@@ -106,6 +106,9 @@ if __name__ == '__main__':
 			shutil.move('sd-agent/agent.py', 'agent.py')
 			shutil.move('sd-agent/checks.py', 'checks.py')
 			shutil.move('sd-agent/daemon.py', 'daemon.py')
+			shutil.move('sd-agent/minjson.py', 'minjson.py')
+			
+			# Delete the downloaded files
 			shutil.rmtree('sd-agent')
 			os.remove('sd-agent.tar.gz')
 			
