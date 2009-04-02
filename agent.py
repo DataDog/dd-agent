@@ -21,6 +21,12 @@ import sched
 import time
 import sys
 
+# Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
+# were only introduced in 2.4.
+if int(sys.version_info[1]) <= 6:
+	print 'You are using an outdated version of Python. Please update to v2.4 or above (v3 is not supported).'
+	sys.exit(2)
+	
 # Custom modules
 from checks import checks
 from daemon import Daemon
