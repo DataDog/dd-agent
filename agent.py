@@ -117,16 +117,20 @@ if __name__ == '__main__':
 				
 			except urllib2.HTTPError, e:
 				print 'Unable to get latest version info - HTTPError = ' + str(e.reason)
+				quit()
 				
 			except urllib2.URLError, e:
 				print 'Unable to get latest version info - URLError = ' + str(e.reason)
+				quit()
 				
 			except httplib.HTTPException, e:
 				print 'Unable to get latest version info - HTTPException'
+				quit()
 				
 			except Exception, e:
 				import traceback
 				print 'Unable to get latest version info - Exception = ' + traceback.format_exc()
+				quit()
 			
 			mainLogger.debug('Update: importing json/minjson')
 			

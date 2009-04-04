@@ -228,17 +228,21 @@ class checks:
 				
 		except urllib2.HTTPError, e:
 			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))
+			return False
 			
 		except urllib2.URLError, e:
 			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))
+			return False
 			
 		except httplib.HTTPException, e: # Added for case #26701
 			self.checksLogger.error('Unable to postback - HTTPException')
+			return False
 				
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('Unable to postback - Exception = ' + traceback.format_exc())
-		
+			return False
+			
 		self.checksLogger.debug('Posted back')
 	
 	def doChecks(self, sc):
