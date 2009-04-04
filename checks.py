@@ -107,7 +107,8 @@ class checks:
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getDf - Exception = ' + traceback.format_exc())
-		
+			return False
+			
 		# Split out each volume
 		volumes = df.split('\n')
 		
@@ -129,6 +130,7 @@ class checks:
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getLoadAvrgs - Exception = ' + traceback.format_exc())
+			return False
 			
 		# Split out the 3 load average values (we actually only use the 5 min average)
 		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
@@ -151,6 +153,7 @@ class checks:
 			except Exception, e:
 				import traceback
 				self.checksLogger.error('getMemoryUsage (linux2) - Exception = ' + traceback.format_exc())
+				return False
 			
 			lines = free.split('\n')
 			physParts = re.findall(r'([0-9]+)', lines[1])
@@ -170,6 +173,7 @@ class checks:
 			except Exception, e:
 				import traceback
 				self.checksLogger.error('getMemoryUsage (darwin) - Exception = ' + traceback.format_exc())
+				return False
 			
 			# Deal with top			
 			lines = top.split('\n')
@@ -195,6 +199,7 @@ class checks:
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getProcessCount - Exception = ' + traceback.format_exc())
+			return False
 		
 		self.checksLogger.debug('Got processes, now to split')
 		

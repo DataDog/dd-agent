@@ -46,16 +46,16 @@ try:
 	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
-	quit()
+	sys.exit(2)
 	
 except ConfigParser.ParsingError, e:
 	print 'Config file not found or incorrectly formatted'
-	quit()
+	sys.exit(2)
 	
 # Check to make sure the default config values have been changed (only core config values)
 if agentConfig['sdUrl'] == 'http://www.example.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
-	quit()
+	sys.exit(2)
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
@@ -117,20 +117,20 @@ if __name__ == '__main__':
 				
 			except urllib2.HTTPError, e:
 				print 'Unable to get latest version info - HTTPError = ' + str(e.reason)
-				quit()
+				sys.exit(2)
 				
 			except urllib2.URLError, e:
 				print 'Unable to get latest version info - URLError = ' + str(e.reason)
-				quit()
+				sys.exit(2)
 				
 			except httplib.HTTPException, e:
 				print 'Unable to get latest version info - HTTPException'
-				quit()
+				sys.exit(2)
 				
 			except Exception, e:
 				import traceback
 				print 'Unable to get latest version info - Exception = ' + traceback.format_exc()
-				quit()
+				sys.exit(2)
 			
 			mainLogger.debug('Update: importing json/minjson')
 			
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 					updateInfo = json.loads(response)
 				except Exception, e:
 					print 'Unable to get latest version info. Try again later.'
-					quit()
+					sys.exit(2)
 				
 			else:
 				import minjson
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 					updateInfo = minjson.safeRead(response)
 				except Exception, e:
 					print 'Unable to get latest version info. Try again later.'
-					quit()
+					sys.exit(2)
 			
 			# Do the version check	
 			if updateInfo['version'] != agentConfig['version']:			
@@ -202,7 +202,7 @@ if __name__ == '__main__':
 						
 						else:
 							print agentFile['name'] + ' did not match its checksum - it is corrupted. This may be caused by network issues so please try again in a moment.'
-							quit()
+							sys.exit(2)
 				
 				# Loop through the new files and call the download function
 				for agentFile in updateInfo['files']:
@@ -231,6 +231,7 @@ if __name__ == '__main__':
 		else:
 			print 'Unknown command'
 			sys.exit(2)
+			
 		sys.exit(0)
 		
 	else:
