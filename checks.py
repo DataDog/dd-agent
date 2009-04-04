@@ -45,6 +45,7 @@ class checks:
 		# Get output from df
 		try:
 			df = subprocess.Popen(['df'], stdout=subprocess.PIPE).communicate()[0]
+			
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getDf - Exception = ' + traceback.format_exc())
@@ -66,6 +67,7 @@ class checks:
 		# Get output from uptime
 		try:
 			uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
+			
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getLoadAvrgs - Exception = ' + traceback.format_exc())
@@ -87,6 +89,7 @@ class checks:
 			
 			try:
 				free = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+				
 			except Exception, e:
 				import traceback
 				self.checksLogger.error('getMemoryUsage (linux2) - Exception = ' + traceback.format_exc())
@@ -97,13 +100,15 @@ class checks:
 			
 			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[1] + ' / ' + physParts[2] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 			
-			return {'physUsed' : physParts[1], 'physFree' : physParts[2], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
+			return {'physUsed' : physParts[1], 'physFree' : physParts[2], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}		
+				
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('memoryUsage - darwin')
 			
 			try:
 				top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
 				sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE).communicate()[0]
+				
 			except Exception, e:
 				import traceback
 				self.checksLogger.error('getMemoryUsage (darwin) - Exception = ' + traceback.format_exc())
@@ -117,7 +122,8 @@ class checks:
 			
 			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[3] + ' / ' + physParts[4] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 		
-			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}			
+			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}	
+					
 		else:
 			return false
 		
@@ -127,6 +133,7 @@ class checks:
 		# Get output from ps
 		try:
 			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE).communicate()[0]
+			
 		except Exception, e:
 			import traceback
 			self.checksLogger.error('getProcessCount - Exception = ' + traceback.format_exc())
@@ -191,6 +198,7 @@ class checks:
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
 			payload = json.dumps({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+		
 		else:
 			payload = minjson.write({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
 		
