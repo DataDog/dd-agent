@@ -35,6 +35,68 @@ class checks:
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
 		
+	def getApacheStatus(self):
+		self.checksLogger.debug('Getting apacheStatus')
+		
+		if self.agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+			self.checksLogger.debug('Apache config value set')
+			
+			try: 
+				request = urllib2.urlopen(self.agentConfig['apacheStatusUrl'])
+				response = request.read()
+				
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get Apache status - HTTPError = ' + str(e.reason))
+				return False
+				
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get Apache status - URLError = ' + str(e.reason))
+				return False
+				
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get Apache status - HTTPException = ' + str(e.reason))
+				return False
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get Apache status - Exception = ' + traceback.format_exc())
+				return False
+				
+			self.checksLogger.debug('Got server response')
+			
+			# Split out each line
+			lines = response.split('\n')
+			
+			# Loop over each line and get the values
+			apacheStatus = []
+			
+			self.checksLogger.debug('Looping over lines')
+			
+			# Loop through and extract the numerical values
+			for line in lines:
+				value = re.findall(r'([0-9+]*\.?\d+)', line)
+				
+				try:
+					apacheStatus.append(value[0])
+					
+				except IndexError:
+					break
+			
+			if apacheStatus[4] != False and apacheStatus[7] != False and apacheStatus[8] != False:
+				self.checksLogger.debug('Returning statuses')
+				
+				return {'reqPerSec': apacheStatus[4], 'busyWorkers': apacheStatus[7], 'idleWorkers': apacheStatus[8]}
+			
+			else:
+				self.checksLogger.debug('One of the statuses was empty')
+				
+				return False
+			
+		else:
+			self.checksLogger.debug('Apache config not set')
+			
+			return False
+		
 	def getDf(self):
 		# CURRENTLY UNUSED
 		
@@ -121,7 +183,7 @@ class checks:
 			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}	
 					
 		else:
-			return false
+			return False
 		
 	def getProcesses(self):
 		self.checksLogger.debug('Getting processes')
@@ -188,15 +250,24 @@ class checks:
 		loadAvrgs = self.getLoadAvrgs()
 		processes = self.getProcesses()
 		memory = self.getMemoryUsage()
+		apacheStatus = self.getApacheStatus()
 		
 		self.checksLogger.debug('All checks done, now to post back')
 		
+		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']}
+		
+		# Apache Status
+		if apacheStatus != False:
+			checksData['apacheReqPerSec'] = apacheStatus['reqPerSec']
+			checksData['apacheBusyWorkers'] = apacheStatus['busyWorkers']
+			checksData['apacheIdleWorkers'] = apacheStatus['idleWorkers']
+		
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
-			payload = json.dumps({'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+			payload = json.dumps(checksData)
 		
 		else:
-			payload = minjson.write({'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+			payload = minjson.write(checksData)
 		
 		payloadHash = md5.new(payload).hexdigest()
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})

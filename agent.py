@@ -41,6 +41,9 @@ try:
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
 	
+	# Optional config
+	agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
+	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	quit()
