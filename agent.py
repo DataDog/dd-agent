@@ -23,7 +23,7 @@ import sys
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
-if int(sys.version_info[1]) <= 6:
+if int(sys.version_info[1]) <= 4:
 	print 'You are using an outdated version of Python. Please update to v2.4 or above (v3 is not supported).'
 	sys.exit(2)
 	
@@ -86,41 +86,73 @@ if __name__ == '__main__':
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
-			import os
-			import shutil
-			import tarfile
-			import urllib
+			import httplib
+			import platform
+			import urllib2
 			
-			print 'Downloading latest version...'
-			mainLogger.debug('Update: downloading')
+			print 'Checking if there is a new version';
 			
-			# Download the latest version
-			downloadedFile = urllib.urlretrieve('http://www.serverdensity.com/downloads/sd-agent.tar.gz', 'sd-agent.tar.gz')
+			# Get the latest version info
+			try: 
+				mainLogger.debug('Update: checking for update')
+				
+				request = urllib2.urlopen('http://www.serverdensity.com/agentupdate/')
+				response = request.read()
+				
+			except urllib2.HTTPError, e:
+				print 'Unable to get latest version info - HTTPError = ' + str(e.reason)
+				
+			except urllib2.URLError, e:
+				print 'Unable to get latest version info - URLError = ' + str(e.reason)
+				
+			except httplib.HTTPException, e:
+				print 'Unable to get latest version info - HTTPException'
+				
+			except Exception, e:
+				import traceback
+				print 'Unable to get latest version info - Exception = ' + traceback.format_exc()
 			
-			print 'Extracting...'
-			mainLogger.debug('Update: extracting')
+			mainLogger.debug('Update: importing json/minjson')
 			
-			# Extract it
-			tar = tarfile.open('sd-agent.tar.gz')
-			tar.extractall()
-			tar.close()
+			# We need to return the data using JSON. As of Python 2.6+, there is a core JSON
+			# module. We have a 2.4/2.5 compatible lib included with the agent but if we're
+			# on 2.6 or above, we should use the core module which will be faster
+			pythonVersion = platform.python_version_tuple()
 			
-			print 'Updating existing files...'
-			mainLogger.debug('Update: updating')
+			# Decode the JSON
+			if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
+				import json
+				
+				mainLogger.debug('Update: decoding JSON (json)')
+				
+				updateInfo = json.loads(response)
+				
+			else:
+				import minjson
+				
+				mainLogger.debug('Update: decoding JSON minjson')
+				
+				updateInfo = minjson.safeRead(response)
 			
-			# Update existing files
-			shutil.move('sd-agent/agent.py', 'agent.py')
-			shutil.move('sd-agent/checks.py', 'checks.py')
-			shutil.move('sd-agent/daemon.py', 'daemon.py')
-			shutil.move('sd-agent/minjson.py', 'minjson.py')
-			
-			# Delete the downloaded files
-			shutil.rmtree('sd-agent')
-			os.remove('sd-agent.tar.gz')
-			
-			mainLogger.debug('Update: done')
-			
-			print 'Update completed. Please restart the agent.'
+			# Do the version check	
+			if updateInfo['version'] != VERSION:			
+				import urllib
+				
+				print 'A new version is available. Downloading...'
+				
+				# Loop through the new files and download each, overwriting the existing one
+				for file in updateInfo['files']:
+					mainLogger.debug('Update: downloading ' + file)
+					
+					print file
+					
+					downloadedFile = urllib.urlretrieve('http://www.serverdensity.com/downloads/sd-agent/' + file, file)
+				
+				mainLogger.debug('Update: done')
+				
+				print 'Update completed. Please restart the agent.'
+			else:
+				print 'The agent is already up to date'
 		else:
 			print 'Unknown command'
 			sys.exit(2)
