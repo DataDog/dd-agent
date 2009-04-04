@@ -37,9 +37,11 @@ try:
 	config.read('config.cfg')
 	SD_URL = config.get('Main', 'sd_url')
 	AGENT_KEY = config.get('Main', 'agent_key')
+	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	quit()
+	
 except ConfigParser.ParsingError, e:
 	print 'Config file not found or incorrectly formatted'
 	quit()
@@ -77,12 +79,15 @@ if __name__ == '__main__':
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
 			daemon.start()
+			
 		elif 'stop' == sys.argv[1]:
 			mainLogger.debug('Stop daemon')
 			daemon.stop()
+			
 		elif 'restart' == sys.argv[1]:
 			mainLogger.debug('Restart daemon')
 			daemon.restart()
+			
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
@@ -151,12 +156,15 @@ if __name__ == '__main__':
 				mainLogger.debug('Update: done')
 				
 				print 'Update completed. Please restart the agent.'
+				
 			else:
 				print 'The agent is already up to date'
+		
 		else:
 			print 'Unknown command'
 			sys.exit(2)
 		sys.exit(0)
+		
 	else:
 		print 'usage: %s start|stop|restart|update' % sys.argv[0]
 		sys.exit(2)
