@@ -12,7 +12,7 @@
 DEBUG_MODE = 0
 CHECK_FREQUENCY = 60
 
-VERSION = '1.0.0b3'
+VERSION = '1.0.0b4'
 
 # Core modules
 import ConfigParser
@@ -130,32 +130,85 @@ if __name__ == '__main__':
 				
 				mainLogger.debug('Update: decoding JSON (json)')
 				
-				updateInfo = json.loads(response)
+				try:
+					updateInfo = json.loads(response)
+				except Exception, e:
+					print 'Unable to get latest version info. Try again later.'
+					quit()
 				
 			else:
 				import minjson
 				
 				mainLogger.debug('Update: decoding JSON minjson')
 				
-				updateInfo = minjson.safeRead(response)
+				try:
+					updateInfo = minjson.safeRead(response)
+				except Exception, e:
+					print 'Unable to get latest version info. Try again later.'
+					quit()
 			
 			# Do the version check	
 			if updateInfo['version'] != VERSION:			
+				import md5
 				import urllib
 				
-				print 'A new version is available. Downloading...'
+				print 'A new version is available.'
 				
-				# Loop through the new files and download each, overwriting the existing one
-				for file in updateInfo['files']:
-					mainLogger.debug('Update: downloading ' + file)
+				def downloadFile(agentFile, recursed = False):
+					mainLogger.debug('Update: downloading ' + agentFile['name'])					
+					print 'Downloading ' + agentFile['name']
 					
-					print file
+					downloadedFile = urllib.urlretrieve('http://www.serverdensity.com/downloads/sd-agent/' + agentFile['name'])
 					
-					downloadedFile = urllib.urlretrieve('http://www.serverdensity.com/downloads/sd-agent/' + file, file)
+					# Do md5 check to make sure the file downloaded properly
+					checksum = md5.new()
+					f = file(downloadedFile[0], 'rb')
+					
+					# Although the files are small, we can't guarantee the available memory nor that there
+					# won't be large files in the future, so read the file in small parts (1kb at time)
+					while True:
+						part = f.read(1024)
+						
+						if not part: 
+							break # end of file
+					
+						checksum.update(part)
+						
+					f.close()
+					
+					# Do we have a match?
+					if checksum.hexdigest() == agentFile['md5']:
+						return downloadedFile[0]
+						
+					else:
+						# Try once more
+						if recursed == False:
+							downloadFile(agentFile, True)
+						
+						else:
+							print agentFile['name'] + ' did not match its checksum - it is corrupted. This may be caused by network issues so please try again in a moment.'
+							quit()
+				
+				# Loop through the new files and call the download function
+				for agentFile in updateInfo['files']:
+					agentFile['tempFile'] = downloadFile(agentFile)			
+				
+				# If we got to here then everything worked out fine. However, all the files are still in temporary locations so we need to move them
+				# This is to stop an update breaking a working agent if the update fails halfway through
+				import os
+				
+				for agentFile in updateInfo['files']:
+					mainLogger.debug('Update: updating ' + agentFile['name'])
+					print 'Updating ' + agentFile['name']
+					
+					if os.path.exists(agentFile['name']):
+						os.remove(agentFile['name'])
+						
+					os.rename(agentFile['tempFile'], agentFile['name'])
 				
 				mainLogger.debug('Update: done')
 				
-				print 'Update completed. Please restart the agent.'
+				print 'Update completed. Please restart the agent (python agent.py restart).'
 				
 			else:
 				print 'The agent is already up to date'
