@@ -32,12 +32,8 @@ else:
 
 class checks:
 	
-	def __init__(self, SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION, DEBUG_MODE):
-		self.SD_URL = SD_URL
-		self.AGENT_KEY = AGENT_KEY
-		self.CHECK_FREQUENCY = CHECK_FREQUENCY
-		self.VERSION = VERSION
-		self.DEBUG_MODE = DEBUG_MODE
+	def __init__(self, agentConfig):
+		self.agentConfig = agentConfig
 		
 	def getDf(self):
 		# CURRENTLY UNUSED
@@ -156,16 +152,16 @@ class checks:
 		return processes
 		
 	def doPostBack(self, postBackData):
-		self.checksLogger.debug('Doing postback to ' + self.SD_URL)	
+		self.checksLogger.debug('Doing postback to ' + self.agentConfig['sdUrl'])	
 		
 		try: 
 			# Build the request handler
-			request = urllib2.Request(self.SD_URL + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
+			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
 			
-			if self.DEBUG_MODE:
+			if self.agentConfig['debugMode']:
 				print response.read()
 				
 		except urllib2.HTTPError, e:
@@ -197,10 +193,10 @@ class checks:
 		
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
-			payload = json.dumps({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+			payload = json.dumps({'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
 		
 		else:
-			payload = minjson.write({'agentKey' : self.AGENT_KEY, 'agentVersion' : self.VERSION, 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
+			payload = minjson.write({'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']})
 		
 		payloadHash = md5.new(payload).hexdigest()
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
@@ -208,4 +204,4 @@ class checks:
 		self.doPostBack(postBackData)
 		
 		self.checksLogger.debug('Rescheduling checks')
-		sc.enter(self.CHECK_FREQUENCY, 1, self.doChecks, (sc,))	
+		sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc,))	

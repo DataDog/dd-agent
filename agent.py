@@ -9,10 +9,11 @@
 '''
 
 # General config
-DEBUG_MODE = 0
-CHECK_FREQUENCY = 60
+agentConfig = {}
+agentConfig['debugMode'] = 0
+agentConfig['checkFreq'] = 60
 
-VERSION = '1.0.0b4'
+agentConfig['version'] = '1.0.0b4'
 
 # Core modules
 import ConfigParser
@@ -35,8 +36,10 @@ from daemon import Daemon
 try:
 	config = ConfigParser.ConfigParser()
 	config.read('config.cfg')
-	SD_URL = config.get('Main', 'sd_url')
-	AGENT_KEY = config.get('Main', 'agent_key')
+	
+	# Core config
+	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
+	agentConfig['agentKey'] = config.get('Main', 'agent_key')
 	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
@@ -46,8 +49,8 @@ except ConfigParser.ParsingError, e:
 	print 'Config file not found or incorrectly formatted'
 	quit()
 	
-# Check to make sure the default config values have been changed
-if SD_URL == 'http://www.example.com' or AGENT_KEY == 'keyHere':
+# Check to make sure the default config values have been changed (only core config values)
+if agentConfig['sdUrl'] == 'http://www.example.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
 	quit()
 
@@ -59,18 +62,18 @@ class agent(Daemon):
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
-		c = checks(SD_URL, AGENT_KEY, CHECK_FREQUENCY, VERSION, DEBUG_MODE)
+		c = checks(agentConfig)
 		
 		# Schedule the checks
-		agentLogger.debug('Scheduling checks every ' + str(CHECK_FREQUENCY) + ' seconds')
+		agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')
 		s = sched.scheduler(time.time, time.sleep)
-		s.enter(CHECK_FREQUENCY, 1, c.doChecks, (s,))
+		s.enter(agentConfig['checkFreq'], 1, c.doChecks, (s,))
 		s.run()
 
 # Control of daemon		
 if __name__ == '__main__':	
 	# Logging
-	if DEBUG_MODE:
+	if agentConfig['debugMode']:
 		logging.basicConfig(filename='/tmp/sd-agent.log', filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 	
 	mainLogger = logging.getLogger('main')		
@@ -153,7 +156,7 @@ if __name__ == '__main__':
 					quit()
 			
 			# Do the version check	
-			if updateInfo['version'] != VERSION:			
+			if updateInfo['version'] != agentConfig['version']:			
 				import md5
 				import urllib
 				
