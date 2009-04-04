@@ -45,6 +45,11 @@ except ConfigParser.NoSectionError, e:
 except ConfigParser.ParsingError, e:
 	print 'Config file not found or incorrectly formatted'
 	quit()
+	
+# Check to make sure the default config values have been changed
+if SD_URL == 'http://www.example.com' or AGENT_KEY == 'keyHere':
+	print 'You have not modified config.cfg for your server'
+	quit()
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
@@ -139,7 +144,7 @@ if __name__ == '__main__':
 			else:
 				import minjson
 				
-				mainLogger.debug('Update: decoding JSON minjson')
+				mainLogger.debug('Update: decoding JSON (minjson)')
 				
 				try:
 					updateInfo = minjson.safeRead(response)
