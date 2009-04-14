@@ -68,27 +68,26 @@ class checks:
 			lines = response.split('\n')
 			
 			# Loop over each line and get the values
-			apacheStatus = []
+			apacheStatus = {}
 			
 			self.checksLogger.debug('Looping over lines')
 			
 			# Loop through and extract the numerical values
 			for line in lines:
-				value = re.findall(r'([0-9+]*\.?\d+)', line)
+				values = line.split(': ')
 				
 				try:
-					apacheStatus.append(value[0])
-					self.checksLogger.debug('Loop')
+					apacheStatus[str(values[0])] = values[1]
 					
 				except IndexError:
 					break
 			
 			self.checksLogger.debug('Done looping')
 			
-			if apacheStatus[4] != False and apacheStatus[7] != False and apacheStatus[8] != False:
+			if apacheStatus['ReqPerSec'] != False and apacheStatus['BusyWorkers'] != False and apacheStatus['IdleWorkers'] != False:
 				self.checksLogger.debug('Returning statuses')
 				
-				return {'reqPerSec': apacheStatus[4], 'busyWorkers': apacheStatus[7], 'idleWorkers': apacheStatus[8]}
+				return {'reqPerSec': apacheStatus['ReqPerSec'], 'busyWorkers': apacheStatus['BusyWorkers'], 'idleWorkers': ['IdleWorkers']}
 			
 			else:
 				self.checksLogger.debug('One of the statuses was empty')
