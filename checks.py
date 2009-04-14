@@ -78,9 +78,12 @@ class checks:
 				
 				try:
 					apacheStatus.append(value[0])
+					self.checksLogger.debug('Loop')
 					
 				except IndexError:
 					break
+			
+			self.checksLogger.debug('Done looping')
 			
 			if apacheStatus[4] != False and apacheStatus[7] != False and apacheStatus[8] != False:
 				self.checksLogger.debug('Returning statuses')
