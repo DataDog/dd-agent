@@ -96,7 +96,7 @@ class checks:
 					return False
 					
 			except IndexError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
-				break
+				return False
 			
 		else:
 			self.checksLogger.debug('Apache config not set')
