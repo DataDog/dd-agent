@@ -84,15 +84,19 @@ class checks:
 			
 			self.checksLogger.debug('Done looping')
 			
-			if apacheStatus['ReqPerSec'] != False and apacheStatus['BusyWorkers'] != False and apacheStatus['IdleWorkers'] != False:
-				self.checksLogger.debug('Returning statuses')
+			try:
+				if apacheStatus['ReqPerSec'] != False and apacheStatus['BusyWorkers'] != False and apacheStatus['IdleWorkers'] != False:
+					self.checksLogger.debug('Returning statuses')
+					
+					return {'reqPerSec': apacheStatus['ReqPerSec'], 'busyWorkers': apacheStatus['BusyWorkers'], 'idleWorkers': apacheStatus['IdleWorkers']}
 				
-				return {'reqPerSec': apacheStatus['ReqPerSec'], 'busyWorkers': apacheStatus['BusyWorkers'], 'idleWorkers': apacheStatus['IdleWorkers']}
-			
-			else:
-				self.checksLogger.debug('One of the statuses was empty')
-				
-				return False
+				else:
+					self.checksLogger.debug('One of the statuses was empty')
+					
+					return False
+					
+			except IndexError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
+				break
 			
 		else:
 			self.checksLogger.debug('Apache config not set')
