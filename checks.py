@@ -97,6 +97,9 @@ class checks:
 					
 			except IndexError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
 				self.checksLogger.debug('Apache status failed - ReqPerSec, BusyWorkers or IdleWorkers not present')
+				
+			except KeyError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
+				self.checksLogger.debug('Apache status failed - ReqPerSec, BusyWorkers or IdleWorkers not present')
 								
 				return False
 			
