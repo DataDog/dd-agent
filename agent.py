@@ -216,10 +216,15 @@ if __name__ == '__main__':
 					mainLogger.debug('Update: updating ' + agentFile['name'])
 					print 'Updating ' + agentFile['name']
 					
-					if os.path.exists(agentFile['name']):
-						os.remove(agentFile['name'])
-						
-					os.rename(agentFile['tempFile'], agentFile['name'])
+					try:
+						if os.path.exists(agentFile['name']):
+							os.remove(agentFile['name'])
+							
+						os.rename(agentFile['tempFile'], agentFile['name'])
+					
+					except OSError:
+						print 'An OS level error occurred. You will need to manually re-install the agent by downloading the latest version from http://www.serverdensity.com/downloads/sd-agent.tar.gz'
+						sys.exit(2)
 				
 				mainLogger.debug('Update: done')
 				
