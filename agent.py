@@ -99,6 +99,10 @@ if __name__ == '__main__':
 			mainLogger.debug('Restart daemon')
 			daemon.restart()
 			
+		elif 'foreground' == sys.argv[1]:
+			mainLogger.debug('Running in foreground')
+			daemon.run()
+			
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
