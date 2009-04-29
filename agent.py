@@ -120,11 +120,11 @@ if __name__ == '__main__':
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
-				print 'Unable to get latest version info - HTTPError = ' + str(e.reason)
+				print 'Unable to get latest version info - HTTPError = ' + str(e)
 				sys.exit(2)
 				
 			except urllib2.URLError, e:
-				print 'Unable to get latest version info - URLError = ' + str(e.reason)
+				print 'Unable to get latest version info - URLError = ' + str(e)
 				sys.exit(2)
 				
 			except httplib.HTTPException, e:

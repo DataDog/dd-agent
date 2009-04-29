@@ -46,15 +46,15 @@ class checks:
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
-				self.checksLogger.error('Unable to get Apache status - HTTPError = ' + str(e.reason))
+				self.checksLogger.error('Unable to get Apache status - HTTPError = ' + str(e))
 				return False
 				
 			except urllib2.URLError, e:
-				self.checksLogger.error('Unable to get Apache status - URLError = ' + str(e.reason))
+				self.checksLogger.error('Unable to get Apache status - URLError = ' + str(e))
 				return False
 				
 			except httplib.HTTPException, e:
-				self.checksLogger.error('Unable to get Apache status - HTTPException = ' + str(e.reason))
+				self.checksLogger.error('Unable to get Apache status - HTTPException = ' + str(e))
 				return False
 				
 			except Exception, e:
@@ -302,11 +302,11 @@ class checks:
 				print response.read()
 				
 		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e.reason))
+			self.checksLogger.error('Unable to postback - HTTPError = ' + str(e))
 			return False
 			
 		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to postback - URLError = ' + str(e.reason))
+			self.checksLogger.error('Unable to postback - URLError = ' + str(e))
 			return False
 			
 		except httplib.HTTPException, e: # Added for case #26701
