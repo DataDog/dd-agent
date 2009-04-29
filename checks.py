@@ -156,26 +156,85 @@ class checks:
 		# See http://stackoverflow.com/questions/446209/possible-values-from-sys-platform/446210#446210 for possible
 		# sys.platform values
 		if sys.platform == 'linux2':
-			self.checksLogger.debug('memoryUsage - linux2')
+			self.checksLogger.debug('memoryUsage - linux2 - /proc/meminfo')
 			
 			try:
-				free = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+				meminfoProc = open('/proc/meminfo', 'r')
+				lines = meminfoProc.readlines()
 				
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('getMemoryUsage (linux2) - Exception = ' + traceback.format_exc())
+			except IOError, e:
+				self.checksLogger.error('getMemoryUsage (linux2) - Exception = ' + str(e))
 				return False
+				
+			meminfoProc.close()
+				
+			self.checksLogger.debug('Looping over lines')
 			
-			lines = free.split('\n')
-			physParts = re.findall(r'([0-9]+)', lines[1])
-			swapParts = re.findall(r'([0-9]+)', lines[3])
+			regexp = re.compile(r'([0-9]+)') # We run this several times so one-time compile now
 			
-			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[1] + ' / ' + physParts[2] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
+			meminfo = {}
 			
-			return {'physUsed' : physParts[1], 'physFree' : physParts[2], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}		
+			# Loop through and extract the numerical values
+			for line in lines:
+				values = line.split(':')
+				
+				try:
+					# Picks out the key (values[0]) and makes a list with the value as the meminfo value (values[1])
+					# We are only interested in the KB data so regexp that out
+					meminfo[str(values[0])] = re.search(regexp, values[1]).group(0)
+					
+				except IndexError:
+					break
+					
+			self.checksLogger.debug('Done looping')
+			
+			memData = {}
+			
+			# Phys
+			try:
+				self.checksLogger.debug('phys')
+				
+				physTotal = int(meminfo['MemTotal'])
+				physFree = int(meminfo['MemFree'])
+				physUsed = physTotal - physFree
+				
+				# Convert to MB
+				memData['physFree'] = physFree / 1024
+				memData['physUsed'] = physUsed / 1024
+				
+				self.checksLogger.debug('Phys Used: ' + str(memData['physFree']) + ' / Free: ' + str(memData['physUsed']))
+				
+			except IndexError: # Stops the agent crashing if one of the meminfo elements isn't set
+				self.checksLogger.debug('/proc/meminfo failed (IndexError) - MemTotal or MemFree not present')
+				
+			except KeyError: # Stops the agent crashing if one of the meminfo elements isn't set
+				self.checksLogger.debug('/proc/meminfo failed (KeyError) - MemTotal or MemFree not present')
+
+			
+			# Swap
+			try:
+				self.checksLogger.debug('swap')
+				
+				swapTotal = int(meminfo['SwapTotal'])
+				swapFree = int(meminfo['SwapFree'])
+				swapUsed = swapTotal - swapFree
+				
+				# Convert to MB
+				memData['swapFree'] = swapFree / 1024
+				memData['swapUsed'] = swapUsed / 1024
+				
+				self.checksLogger.debug('Swap Used: ' + str(memData['swapFree']) + ' / Free: ' + str(memData['swapUsed']))
+				
+			except IndexError: # Stops the agent crashing if one of the meminfo elements isn't set
+				self.checksLogger.debug('/proc/meminfo failed (IndexError) - SwapTotal or SwapFree not present')
+				
+			except KeyError: # Stops the agent crashing if one of the meminfo elements isn't set
+				self.checksLogger.debug('/proc/meminfo failed (KeyError) - SwapTotal or SwapFree not present')
+			
+			return memData	
 				
 		elif sys.platform == 'darwin':
-			self.checksLogger.debug('memoryUsage - darwin')
+			self.checksLogger.debug('memoryUsage - darwin - top/sysctl')
 			
 			try:
 				top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
