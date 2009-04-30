@@ -8,6 +8,10 @@
 	(C) Boxed Ice 2009 all rights reserved
 '''
 
+# SO references
+# http://stackoverflow.com/questions/446209/possible-values-from-sys-platform/446210#446210
+# http://stackoverflow.com/questions/682446/splitting-out-the-output-of-ps-using-python/682464#682464
+
 # Core modules
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
@@ -94,11 +98,12 @@ class checks:
 					self.checksLogger.debug('One of the statuses was empty')
 					
 					return False
-					
-			except IndexError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
+				
+			# Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)	
+			except IndexError:
 				self.checksLogger.debug('Apache status failed - ReqPerSec, BusyWorkers or IdleWorkers not present')
 				
-			except KeyError: # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)
+			except KeyError:
 				self.checksLogger.debug('Apache status failed - ReqPerSec, BusyWorkers or IdleWorkers not present')
 								
 				return False
@@ -153,8 +158,6 @@ class checks:
 	def getMemoryUsage(self):
 		self.checksLogger.debug('Getting memoryUsage')
 		
-		# See http://stackoverflow.com/questions/446209/possible-values-from-sys-platform/446210#446210 for possible
-		# sys.platform values
 		if sys.platform == 'linux2':
 			self.checksLogger.debug('memoryUsage - linux2 - /proc/meminfo')
 			
@@ -202,12 +205,13 @@ class checks:
 				memData['physFree'] = physFree / 1024
 				memData['physUsed'] = physUsed / 1024
 				
-				self.checksLogger.debug('Phys Used: ' + str(memData['physFree']) + ' / Free: ' + str(memData['physUsed']))
+				self.checksLogger.debug('Phys Used: ' + str(memData['physUsed']) + ' / Free: ' + str(memData['physFree']))
 				
-			except IndexError: # Stops the agent crashing if one of the meminfo elements isn't set
+			# Stops the agent crashing if one of the meminfo elements isn't set
+			except IndexError:
 				self.checksLogger.debug('/proc/meminfo failed (IndexError) - MemTotal or MemFree not present')
 				
-			except KeyError: # Stops the agent crashing if one of the meminfo elements isn't set
+			except KeyError:
 				self.checksLogger.debug('/proc/meminfo failed (KeyError) - MemTotal or MemFree not present')
 
 			
@@ -223,12 +227,13 @@ class checks:
 				memData['swapFree'] = swapFree / 1024
 				memData['swapUsed'] = swapUsed / 1024
 				
-				self.checksLogger.debug('Swap Used: ' + str(memData['swapFree']) + ' / Free: ' + str(memData['swapUsed']))
+				self.checksLogger.debug('Swap Used: ' + str(memData['swapUsed']) + ' / Free: ' + str(memData['swapFree']))
 				
-			except IndexError: # Stops the agent crashing if one of the meminfo elements isn't set
+			# Stops the agent crashing if one of the meminfo elements isn't set
+			except IndexError:
 				self.checksLogger.debug('/proc/meminfo failed (IndexError) - SwapTotal or SwapFree not present')
 				
-			except KeyError: # Stops the agent crashing if one of the meminfo elements isn't set
+			except KeyError:
 				self.checksLogger.debug('/proc/meminfo failed (KeyError) - SwapTotal or SwapFree not present')
 			
 			return memData	
@@ -281,7 +286,6 @@ class checks:
 		
 		processes = []
 		
-		# http://stackoverflow.com/questions/682446/splitting-out-the-output-of-ps-using-python/682464#682464
 		for line in processLines:
 			line = line.split(None, 10)
 			processes.append(line)
