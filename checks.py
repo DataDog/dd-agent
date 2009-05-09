@@ -139,21 +139,40 @@ class checks:
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('Getting loadAvrgs')
 		
-		# Get output from uptime
-		try:
-			uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
+		if sys.platform == 'linux2':
+			self.checksLogger.debug('memoryUsage - linux2 - /proc/meminfo')
 			
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('getLoadAvrgs - Exception = ' + traceback.format_exc())
-			return False
+			try:
+				loadAvrgProc = open('/proc/loadavg', 'r')
+				uptime = loadAvrgProc.readlines()
+				
+			except IOError, e:
+				self.checksLogger.error('getLoadAvrgs (linux2) - Exception = ' + str(e))
+				return False
+				
+			loadAvrgProc.close()
 			
-		# Split out the 3 load average values (we actually only use the 5 min average)
-		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
+			uptime = uptime[0] # readlines() provides a list but we want a string
+			
+		elif sys.platform == 'darwin':
+			self.checksLogger.debug('memoryUsage - darwin - uptime')
+			
+			# Get output from uptime
+			try:
+				uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getLoadAvrgs - Exception = ' + traceback.format_exc())
+				return False
 		
 		self.checksLogger.debug('Got loadAvrgs - ' + uptime)
+				
+		# Split out the 3 load average values
+		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
+		loadAvrgs = {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2]}	
 	
-		return loadAvrgs # We only use loadAvrgs[0] but may use more in the future, so return all
+		return loadAvrgs
 		
 	def getMemoryUsage(self):
 		self.checksLogger.debug('Getting memoryUsage')
@@ -337,7 +356,7 @@ class checks:
 		
 		self.checksLogger.debug('All checks done, now to post back')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs[0], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']}
+		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs['1'], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']}
 		
 		# Apache Status
 		if apacheStatus != False:
