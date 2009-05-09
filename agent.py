@@ -13,7 +13,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.0.0b5'
+agentConfig['version'] = '1.0.0b6'
 
 # Core modules
 import ConfigParser
@@ -61,7 +61,20 @@ if agentConfig['sdUrl'] == 'http://www.example.com' or agentConfig['agentKey'] =
 class agent(Daemon):	
 	
 	def run(self):	
-		agentLogger = logging.getLogger('agent')		
+		agentLogger = logging.getLogger('agent')
+		
+		agentLogger.debug('Collecting basic system stats')
+		
+		# Get some basic system stats to post back for development/testing
+		import platform
+		systemStats = {'machine': platform.machine(), 'platform': sys.platform, 'processor': platform.processor(), 'pythonV': platform.python_version()}
+		
+		if sys.platform == 'linux2':
+			systemStats['nixV'] = platform.dist()
+			
+		elif sys.platform == 'darwin':
+			systemStats['macV'] = platform.mac_ver()
+			
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
@@ -70,7 +83,7 @@ class agent(Daemon):
 		# Schedule the checks
 		agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')
 		s = sched.scheduler(time.time, time.sleep)
-		s.enter(agentConfig['checkFreq'], 1, c.doChecks, (s,))
+		s.enter(agentConfig['checkFreq'], 1, c.doChecks, (s, True, systemStats))
 		s.run()
 
 # Control of daemon		

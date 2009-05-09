@@ -343,7 +343,7 @@ class checks:
 			
 		self.checksLogger.debug('Posted back')
 	
-	def doChecks(self, sc):
+	def doChecks(self, sc, firstRun, systemStats=False):
 		self.checksLogger = logging.getLogger('checks')
 		
 		self.checksLogger.debug('doChecks')
@@ -363,6 +363,10 @@ class checks:
 			checksData['apacheReqPerSec'] = apacheStatus['reqPerSec']
 			checksData['apacheBusyWorkers'] = apacheStatus['busyWorkers']
 			checksData['apacheIdleWorkers'] = apacheStatus['idleWorkers']
+			
+		# Include system stats on first postback
+		if firstRun == True:
+			checksData['systemStats'] = systemStats
 		
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
@@ -377,4 +381,4 @@ class checks:
 		self.doPostBack(postBackData)
 		
 		self.checksLogger.debug('Rescheduling checks')
-		sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc,))	
+		sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))	
