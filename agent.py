@@ -228,6 +228,7 @@ if __name__ == '__main__':
 				# If we got to here then everything worked out fine. However, all the files are still in temporary locations so we need to move them
 				# This is to stop an update breaking a working agent if the update fails halfway through
 				import os
+				import shutil # Prevents [Errno 18] Invalid cross-device link (case 26878) - http://mail.python.org/pipermail/python-list/2005-February/308026.html
 				
 				for agentFile in updateInfo['files']:
 					mainLogger.debug('Update: updating ' + agentFile['name'])
@@ -237,10 +238,10 @@ if __name__ == '__main__':
 						if os.path.exists(agentFile['name']):
 							os.remove(agentFile['name'])
 							
-						os.rename(agentFile['tempFile'], agentFile['name'])
+						shutil.move(agentFile['tempFile'], agentFile['name'])
 					
 					except OSError:
-						print 'An OS level error occurred. You will need to manually re-install the agent by downloading the latest version from http://www.serverdensity.com/downloads/sd-agent.tar.gz'
+						print 'An OS level error occurred. You will need to manually re-install the agent by downloading the latest version from http://www.serverdensity.com/downloads/sd-agent.tar.gz. You can copy your config.cfg to the new install'
 						sys.exit(2)
 				
 				mainLogger.debug('Update: done')
