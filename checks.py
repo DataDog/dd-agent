@@ -223,9 +223,9 @@ class checks:
 				# Convert to MB
 				memData['physFree'] = physFree / 1024
 				memData['physUsed'] = physUsed / 1024
-				memData['cached'] = memData['Cached'] / 1024
+				memData['cached'] = int(meminfo['Cached']) / 1024
 				
-				self.checksLogger.debug('Phys Used: ' + str(memData['physUsed']) + '(' + str(memData['cached']) + ' cached) / Free: ' + str(memData['physFree']))
+				self.checksLogger.debug('Phys Used: ' + str(memData['physUsed']) + ' (' + str(memData['cached']) + ' cached) / Free: ' + str(memData['physFree']))
 				
 			# Stops the agent crashing if one of the meminfo elements isn't set
 			except IndexError:
