@@ -16,7 +16,7 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
-import md5
+import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 import platform
 import re
 import subprocess

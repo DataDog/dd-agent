@@ -181,7 +181,7 @@ if __name__ == '__main__':
 			
 			# Do the version check	
 			if updateInfo['version'] != agentConfig['version']:			
-				import md5
+				import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 				import urllib
 				
 				print 'A new version is available.'
