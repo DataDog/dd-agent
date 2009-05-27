@@ -223,16 +223,16 @@ class checks:
 				# Convert to MB
 				memData['physFree'] = physFree / 1024
 				memData['physUsed'] = physUsed / 1024
+				memData['cached'] = int(meminfo['Cached']) / 1024
 				
-				self.checksLogger.debug('Phys Used: ' + str(memData['physUsed']) + ' / Free: ' + str(memData['physFree']))
+				self.checksLogger.debug('Phys Used: ' + str(memData['physUsed']) + ' (' + str(memData['cached']) + ' cached) / Free: ' + str(memData['physFree']))
 				
 			# Stops the agent crashing if one of the meminfo elements isn't set
 			except IndexError:
-				self.checksLogger.debug('/proc/meminfo failed (IndexError) - MemTotal or MemFree not present')
+				self.checksLogger.debug('/proc/meminfo failed (IndexError) - Cached, MemTotal or MemFree not present')
 				
 			except KeyError:
-				self.checksLogger.debug('/proc/meminfo failed (KeyError) - MemTotal or MemFree not present')
-
+				self.checksLogger.debug('/proc/meminfo failed (KeyError) - Cached, MemTotal or MemFree not present')
 			
 			# Swap
 			try:
@@ -278,7 +278,7 @@ class checks:
 			
 			self.checksLogger.debug('Got memoryUsage - Phys ' + physParts[3] + ' / ' + physParts[4] + ' Swap ' + swapParts[1] + ' / ' + swapParts[2])
 		
-			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}	
+			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2], 'cached' : 'NULL'}	
 					
 		else:
 			return False
@@ -356,7 +356,7 @@ class checks:
 		
 		self.checksLogger.debug('All checks done, now to post back')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs['1'], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree']}
+		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs['1'], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached']}
 		
 		# Apache Status
 		if apacheStatus != False:
