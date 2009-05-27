@@ -18,9 +18,10 @@ agentConfig['version'] = '1.0.0b6'
 # Core modules
 import ConfigParser
 import logging
+import re
 import sched
-import time
 import sys
+import time
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -55,6 +56,11 @@ except ConfigParser.ParsingError, e:
 # Check to make sure the default config values have been changed (only core config values)
 if agentConfig['sdUrl'] == 'http://www.example.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
+	sys.exit(2)
+
+# Check to make sure sd_url is in correct
+if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig['sdUrl']) == None:
+	print 'Your sd_url is incorrect. It needs to be in the form http://example.serverdensity.com (or using https)'
 	sys.exit(2)
 
 # Override the generic daemon class to run our checks
