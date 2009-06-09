@@ -113,12 +113,12 @@ class checks:
 			
 			return False
 		
-	def getDf(self):
-		# CURRENTLY UNUSED
+	def getDiskUsage(self):
+		self.checksLogger.debug('Getting disk usage')
 		
 		# Get output from df
 		try:
-			df = subprocess.Popen(['df'], stdout=subprocess.PIPE).communicate()[0]
+			df = subprocess.Popen(['df', '-ak'], stdout=subprocess.PIPE).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
 			
 		except Exception, e:
 			import traceback
@@ -129,12 +129,24 @@ class checks:
 		volumes = df.split('\n')
 		
 		# Remove first (headings) and last (blank)
-		volumes.pop()
 		volumes.pop(0)
+		volumes.pop()
 		
-		# Loop through each volue and split out parts
+		usageData = []
+		
 		for volume in volumes:
-			parts = re.findall(r'[a-zA-Z0-9_/]+', volume)
+			volume = volume.split(None, 10)
+			
+			try:
+				volume[2] = int(volume[2]) / 1024 / 1024 # Used
+				volume[3] = int(volume[3]) / 1024 / 1024 # Available
+			except IndexError:
+				self.checksLogger.debug('getDf failed (IndexError) - Used or Available not present')
+				
+			except KeyError:
+				self.checksLogger.debug('getDf failed (KeyError) - Used or Available not present')
+			
+			usageData.append(volume)
 	
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('Getting loadAvrgs')
@@ -349,14 +361,15 @@ class checks:
 		self.checksLogger.debug('doChecks')
 				
 		# Do the checks
-		loadAvrgs = self.getLoadAvrgs()
-		processes = self.getProcesses()
-		memory = self.getMemoryUsage()
 		apacheStatus = self.getApacheStatus()
+		diskUsage = self.getDiskUsage()
+		loadAvrgs = self.getLoadAvrgs()
+		memory = self.getMemoryUsage()
+		processes = self.getProcesses()		
 		
 		self.checksLogger.debug('All checks done, now to post back')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'loadAvrg' : loadAvrgs['1'], 'processes' : processes, 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached']}
+		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'processes' : processes}
 		
 		# Apache Status
 		if apacheStatus != False:
