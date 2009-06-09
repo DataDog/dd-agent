@@ -134,19 +134,31 @@ class checks:
 		
 		usageData = []
 		
+		regexp = re.compile(r'([0-9]+)')
+		
 		for volume in volumes:
 			volume = volume.split(None, 10)
 			
-			try:
-				volume[2] = int(volume[2]) / 1024 / 1024 # Used
-				volume[3] = int(volume[3]) / 1024 / 1024 # Available
-			except IndexError:
-				self.checksLogger.debug('getDf failed (IndexError) - Used or Available not present')
+			# Sometimes the first column will have a space, which is usually a system line that isn't relevant
+			# e.g. map -hosts              0         0          0   100%    /net
+			# so we just get rid of it			
+			if re.match(regexp, volume[1]) == None:
 				
-			except KeyError:
-				self.checksLogger.debug('getDf failed (KeyError) - Used or Available not present')
+				pass
+				
+			else:			
+				try:
+					volume[2] = int(volume[2]) / 1024 / 1024 # Used
+					volume[3] = int(volume[3]) / 1024 / 1024 # Available
+				except IndexError:
+					self.checksLogger.debug('getDf failed (IndexError) - Used or Available not present')
+					
+				except KeyError:
+					self.checksLogger.debug('getDf failed (KeyError) - Used or Available not present')
+				
+				usageData.append(volume)
 			
-			usageData.append(volume)
+		return usageData
 	
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('Getting loadAvrgs')
