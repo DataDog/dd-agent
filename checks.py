@@ -140,7 +140,9 @@ class checks:
 
 		for volume in volumes:
 			volume = (previous_volume + volume).split(None, 10)
-
+			
+			# Handle df output wrapping onto multiple lines (case 27078)
+			# Thanks to http://github.com/sneeu
 			if len(volume) == 1:
 				previous_volume = volume[0]
 				continue
