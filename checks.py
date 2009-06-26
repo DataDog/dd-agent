@@ -136,12 +136,20 @@ class checks:
 		
 		regexp = re.compile(r'([0-9]+)')
 		
+		previous_volume = ''
+
 		for volume in volumes:
-			volume = volume.split(None, 10)
+			volume = (previous_volume + volume).split(None, 10)
+
+			if len(volume) == 1:
+				previous_volume = volume[0]
+				continue
+			else:
+				previous_volume = ''
 			
 			# Sometimes the first column will have a space, which is usually a system line that isn't relevant
 			# e.g. map -hosts              0         0          0   100%    /net
-			# so we just get rid of it			
+			# so we just get rid of it
 			if re.match(regexp, volume[1]) == None:
 				
 				pass
