@@ -62,6 +62,11 @@ if agentConfig['sdUrl'] == 'http://www.example.com' or agentConfig['agentKey'] =
 if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig['sdUrl']) == None:
 	print 'Your sd_url is incorrect. It needs to be in the form http://example.serverdensity.com (or using https)'
 	sys.exit(2)
+	
+# Check apache_status_url is not empty (case 27073)
+if agentConfig['apacheStatusUrl'] == None:
+	print 'You must provide a value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
+	sys.exit(2) 
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
