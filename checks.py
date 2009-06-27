@@ -409,8 +409,8 @@ class checks:
 					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
 					
 					# And update the stored value to subtract next time round
-					self.networkTrafficStore[key]['recv_bytes'] = interfaces[key]['recv_bytes']
-					self.networkTrafficStore[key]['trans_bytes'] = interfaces[key]['trans_bytes']
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
 					
 				else:
 					self.networkTrafficStore[key] = {}
