@@ -11,6 +11,7 @@
 # SO references
 # http://stackoverflow.com/questions/446209/possible-values-from-sys-platform/446210#446210
 # http://stackoverflow.com/questions/682446/splitting-out-the-output-of-ps-using-python/682464#682464
+# http://stackoverflow.com/questions/1052589/how-can-i-parse-the-output-of-proc-net-dev-into-keyvalue-pairs-per-interface-us
 
 # Core modules
 import httplib # Used only for handling httplib.HTTPException (case #26701)
@@ -38,6 +39,7 @@ class checks:
 	
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
+		self.networkTrafficStore = {}
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -351,6 +353,78 @@ class checks:
 					
 		else:
 			return False
+			
+	def getNetworkTraffic(self):
+		self.checksLogger.debug('getNetworkTraffic: start')
+		
+		if sys.platform == 'linux2':
+			self.checksLogger.debug('getNetworkTraffic: linux2')
+			
+			try:
+				self.checksLogger.debug('getNetworkTraffic: attempting open')
+				
+				proc = open('/proc/net/dev', 'r')
+				lines = proc.readlines()
+				
+			except IOError, e:
+				self.checksLogger.error('getNetworkTraffic: exception = ' + str(e))
+				return False
+			
+			proc.close()
+			
+			self.checksLogger.debug('getNetworkTraffic: open success, parsing')
+			
+			columnLine = lines[1]
+			_, receiveCols , transmitCols = columnLine.split('|')
+			receiveCols = map(lambda a:'recv_' + a, receiveCols.split())
+			transmitCols = map(lambda a:'trans_' + a, transmitCols.split())
+			
+			cols = receiveCols + transmitCols
+			
+			self.checksLogger.debug('getNetworkTraffic: parsing, looping')
+			
+			faces = {}
+			for line in lines[2:]:
+				if line.find(':') < 0: continue
+				face, data = line.split(':')
+				faceData = dict(zip(cols, data.split()))
+				faces[face] = faceData
+			
+			self.checksLogger.debug('getNetworkTraffic: parsed, looping')
+			
+			interfaces = {}
+			
+			# Now loop through each interface
+			for face in faces:
+				key = face.strip()
+				
+				# We need to work out the traffic since the last check so first time we store the current value
+				# then the next time we can calculate the difference
+				if key in self.networkTrafficStore:
+					interfaces[key] = {}
+					interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
+					
+					interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
+					
+					# And update the stored value to subtract next time round
+					self.networkTrafficStore[key]['recv_bytes'] = interfaces[key]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = interfaces[key]['trans_bytes']
+					
+				else:
+					self.networkTrafficStore[key] = {}
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+		
+			self.checksLogger.debug('getNetworkTraffic: completed, returning')
+					
+			return interfaces
+		
+		else:		
+			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
+		
+			return False
 		
 	def getProcesses(self):
 		self.checksLogger.debug('getProcesses: start')
@@ -430,11 +504,12 @@ class checks:
 		diskUsage = self.getDiskUsage()
 		loadAvrgs = self.getLoadAvrgs()
 		memory = self.getMemoryUsage()
+		networkTraffic = self.getNetworkTraffic()
 		processes = self.getProcesses()		
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'processes' : processes}
+		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
 		
 		self.checksLogger.debug('doChecks: payload built, build optional payloads')
 		
