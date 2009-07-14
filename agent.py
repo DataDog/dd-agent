@@ -54,7 +54,7 @@ except ConfigParser.ParsingError, e:
 	sys.exit(2)
 	
 # Check to make sure the default config values have been changed (only core config values)
-if agentConfig['sdUrl'] == 'https://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
+if agentConfig['sdUrl'] == 'http://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
 	sys.exit(2)
 
