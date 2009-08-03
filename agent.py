@@ -13,7 +13,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.2.1'
+agentConfig['version'] = '1.2.2'
 
 # Core modules
 import ConfigParser
@@ -36,7 +36,8 @@ from daemon import Daemon
 
 # Config handling
 try:
-	path = os.path.dirname(__file__)
+	path = os.path.realpath(__file__)
+	path = os.path.dirname(path)
 	
 	if path != '':
 		path = path + '/'
@@ -112,8 +113,11 @@ if __name__ == '__main__':
 	mainLogger = logging.getLogger('main')		
 	mainLogger.debug('Agent called')
 	
+	path = os.path.realpath(__file__)
+	path = os.path.dirname(path)
+		
 	# Daemon instance from agent class
-	daemon = agent('/tmp/sd-agent.pid')
+	daemon = agent(path + '/sd-agent.pid')
 	
 	# Control options
 	if len(sys.argv) == 2:		
