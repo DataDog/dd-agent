@@ -18,6 +18,7 @@ agentConfig['version'] = '1.2.0'
 # Core modules
 import ConfigParser
 import logging
+import os
 import re
 import sched
 import sys
@@ -36,7 +37,7 @@ from daemon import Daemon
 # Config handling
 try:
 	config = ConfigParser.ConfigParser()
-	config.read('config.cfg')
+	config.read(os.path.dirname(__file__) + '/config.cfg')
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
