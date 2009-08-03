@@ -36,8 +36,13 @@ from daemon import Daemon
 
 # Config handling
 try:
+	path = os.path.dirname(__file__)
+	
+	if path != '':
+		path = path + '/'
+	
 	config = ConfigParser.ConfigParser()
-	config.read(os.path.dirname(__file__) + '/config.cfg')
+	config.read(path + 'config.cfg')
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
