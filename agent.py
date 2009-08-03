@@ -39,11 +39,8 @@ try:
 	path = os.path.realpath(__file__)
 	path = os.path.dirname(path)
 	
-	if path != '':
-		path = path + '/'
-	
 	config = ConfigParser.ConfigParser()
-	config.read(path + 'config.cfg')
+	config.read(path + '/config.cfg')
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
@@ -113,14 +110,20 @@ if __name__ == '__main__':
 	mainLogger = logging.getLogger('main')		
 	mainLogger.debug('Agent called')
 	
-	path = os.path.realpath(__file__)
-	path = os.path.dirname(path)
-		
+	argLen = len(sys.argv)
+	
+	if argLen == 3:		
+		if sys.argv[2] == 'init':
+			pidFile = '/var/run/sd-agent.pid'
+			
+	else:
+		pidFile = '/tmp/sd-agent.pid'
+	
 	# Daemon instance from agent class
-	daemon = agent(path + '/sd-agent.pid')
+	daemon = agent(pidFile)
 	
 	# Control options
-	if len(sys.argv) == 2:		
+	if argLen == 2 or argLen == 3:		
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
 			daemon.start()

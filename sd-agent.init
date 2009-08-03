@@ -30,7 +30,7 @@ fi
 # Action to take
 case "$1" in
   start)
-        python $AGENTPATH start
+        python $AGENTPATH start init
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
@@ -42,7 +42,7 @@ case "$1" in
         echo
 	;;
   stop)
-       	python $AGENTPATH stop
+       	python $AGENTPATH stop init
        	
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
