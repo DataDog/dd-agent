@@ -10,7 +10,7 @@
 #
 ###############################################################################
 #
-# chkconfig: 2345 80 30
+# chkconfig: 2345 85 15
 # description: Server Density Monitoring Agent
 
 AGENTPATH="/usr/bin/sd-agent/agent.py"
