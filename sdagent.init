@@ -10,7 +10,7 @@
 #
 ###############################################################################
 #
-# chkconfig: 2345 85 15
+# chkconfig: 345 85 15
 # description: Server Density Monitoring Agent
 
 AGENTPATH="/usr/bin/sd-agent/agent.py"
@@ -43,6 +43,7 @@ case "$1" in
 	;;
   stop)
        	python $AGENTPATH stop
+       	
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
