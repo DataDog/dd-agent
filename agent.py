@@ -113,7 +113,7 @@ if __name__ == '__main__':
 	mainLogger.debug('Agent called')
 	
 	# Daemon instance from agent class
-	daemon = agent('/var/run/sd-agent.pid')
+	daemon = agent('/tmp/sd-agent.pid')
 	
 	# Control options
 	if len(sys.argv) == 2:		
