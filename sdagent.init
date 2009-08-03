@@ -42,7 +42,7 @@ case "$1" in
         echo
 	;;
   stop)
-       	echo -n "Stopping"
+       	python $AGENTPATH stop
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
