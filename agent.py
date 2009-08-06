@@ -84,10 +84,16 @@ class agent(Daemon):
 		import platform
 		systemStats = {'machine': platform.machine(), 'platform': sys.platform, 'processor': platform.processor(), 'pythonV': platform.python_version()}
 		
+		agentLogger.debug('Python version: ' + platform.python_version())
+		
 		if sys.platform == 'linux2':
+			agentLogger.debug('Platform: linux2 / ' + str(platform.dist()))
+			
 			systemStats['nixV'] = platform.dist()
 			
 		elif sys.platform == 'darwin':
+			agentLogger.debug('Platform: darwin / ' + str(platform.mac_ver()))
+		
 			systemStats['macV'] = platform.mac_ver()
 			
 		agentLogger.debug('Creating checks instance')
