@@ -109,6 +109,7 @@ if __name__ == '__main__':
 	
 	mainLogger = logging.getLogger('main')		
 	mainLogger.debug('Agent called')
+	mainLogger.debug('Agent version: ' + agentConfig['version'])
 	
 	argLen = len(sys.argv)
 	
