@@ -267,7 +267,10 @@ class checks:
 				try:
 					# Picks out the key (values[0]) and makes a list with the value as the meminfo value (values[1])
 					# We are only interested in the KB data so regexp that out
-					meminfo[str(values[0])] = re.search(regexp, values[1]).group(0)
+					match = re.search(regexp, values[1])
+	
+					if match != None:
+						meminfo[str(values[0])] = match.group(0)
 					
 				except IndexError:
 					break
