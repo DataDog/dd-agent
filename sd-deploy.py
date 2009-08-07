@@ -6,6 +6,8 @@
 
 	Licensed under Simplified BSD License (see LICENSE)
 	(C) Boxed Ice 2009 all rights reserved
+	
+	Documentation: http://www.serverdensity.com/docs/agent/autodeploy/
 '''
 	
 #
@@ -14,7 +16,7 @@
 import sys
 
 if len(sys.argv) < 5:
-	print 'Usage: python sd-deploy.py [API URL] [subdomain] [username] [password] [[init]]'
+	print 'Usage: python sd-deploy.py [API URL] [SD URL] [username] [password] [[init]]'
 	sys.exit(2)	
 
 #
