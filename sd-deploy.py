@@ -293,8 +293,6 @@ if len(sys.argv) == 6:
 	path = os.path.realpath(__file__)
 	path = os.path.dirname(path)
 	
-	print 'ln -s ' + path + '/sd-agent/ /usr/bin/sd-agent'
-	
 	df = subprocess.Popen(['ln', '-s', path + '/sd-agent/', '/usr/bin/sd-agent'], stdout=subprocess.PIPE).communicate()[0]
 	
 	print 'Install completed'
