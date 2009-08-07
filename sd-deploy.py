@@ -13,7 +13,7 @@
 #
 import sys
 
-if len(sys.argv) <= 5:
+if len(sys.argv) < 5:
 	print 'Usage: python sd-deploy.py [API URL] [subdomain] [username] [password] [[init]]'
 	sys.exit(2)	
 
@@ -43,7 +43,7 @@ except socket.error, e:
 # Get latest agent version
 #
 
-print '1/: Downloading latest agent version';
+print '1/4: Downloading latest agent version';
 		
 import httplib
 import urllib2
@@ -167,18 +167,11 @@ print 'Agent files downloaded'
 # Call API to add new server
 #
 
-print '2/: Adding new server'
+print '2/4: Adding new server'
 
 # Build API payload
 import time
 timestamp = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime())
-
-#
-#
-# REMOVE THIS LINE
-#
-#
-serverIp = '10.0.0.14'
 
 postData = urllib.urlencode({'name' : serverHostname, 'ip' : serverIp, 'notes' : 'Added by sd-deploy: ' + timestamp })
 
@@ -257,7 +250,7 @@ print 'Server added - ID: ' + str(serverInfo['data']['serverId'])
 # Write config file
 #
 
-print '3/: Writing config file'
+print '3/4: Writing config file'
 
 configCfg = '[Main]\nsd_url: http://' + sys.argv[2] + '\nagent_key: ' + serverInfo['data']['agentKey'] + '\napache_status_url: http://www.example.com/server-status/?auto'
 
@@ -274,3 +267,46 @@ except Exception, e:
 		shutil.rmtree('sd-agent/')
 
 print 'Config file written'
+
+#
+# Install init.d
+#
+
+if len(sys.argv) == 6:
+	
+	print '4/4: Installing init.d script'
+	
+	shutil.copy('sd-agent.init', '/etc/init.d/sd-agent')
+	
+	import subprocess
+	
+	print 'chkconfig'
+	
+	df = subprocess.Popen(['chkconfig', '--add', 'sd-agent'], stdout=subprocess.PIPE).communicate()[0]
+	
+	print 'Setting permissions'
+	
+	df = subprocess.Popen(['chmod', '0755', '/etc/init.d/sd-agent'], stdout=subprocess.PIPE).communicate()[0]
+	
+	print 'Setting paths'
+	
+	path = os.path.realpath(__file__)
+	path = os.path.dirname(path)
+	
+	print 'ln -s ' + path + '/sd-agent/ /usr/bin/sd-agent'
+	
+	df = subprocess.Popen(['ln', '-s', path + '/sd-agent/', '/usr/bin/sd-agent'], stdout=subprocess.PIPE).communicate()[0]
+	
+	print 'Install completed'
+	
+	print 'Launch: /etc/init.d/sd-agent start'
+	
+else:
+	
+	print '4/4: Not installing init.d script'
+	print 'Install completed'
+	
+	path = os.path.realpath(__file__)
+	path = os.path.dirname(path)
+	
+	print 'Launch: python ' + path + '/sd-agent/agent.py start'
