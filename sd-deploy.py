@@ -13,8 +13,8 @@
 #
 import sys
 
-if len(sys.argv) != 5:
-	print 'Usage: python sd-deploy.py [API URL] [subdomain] [username] [password]'
+if len(sys.argv) <= 5:
+	print 'Usage: python sd-deploy.py [API URL] [subdomain] [username] [password] [[init]]'
 	sys.exit(2)	
 
 #
@@ -149,6 +149,10 @@ for agentFile in updateInfo['files']:
 import os
 import shutil # Prevents [Errno 18] Invalid cross-device link (case 26878) - http://mail.python.org/pipermail/python-list/2005-February/308026.html
 
+# Make sure doesn't exist already
+if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
+
 os.mkdir('sd-agent')
 
 for agentFile in updateInfo['files']:
@@ -198,15 +202,27 @@ try:
 except urllib2.HTTPError, e:
 	print 'HTTPError = ' + str(e)
 	
+	if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
+	
 except urllib2.URLError, e:
 	print 'URLError = ' + str(e)
 	
+	if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
+	
 except httplib.HTTPException, e: # Added for case #26701
 	print 'HTTPException' + str(e)
+	
+	if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
 		
 except Exception, e:
 	import traceback
 	print 'Exception = ' + traceback.format_exc()
+	
+	if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
 
 # Decode the JSON
 if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
@@ -216,6 +232,10 @@ if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we on
 		serverInfo = json.loads(readAdd)
 	except Exception, e:
 		print 'Unable to add server.'
+		
+		if os.path.exists('sd-agent/'):
+			shutil.rmtree('sd-agent/')
+		
 		sys.exit(2)
 	
 else:
@@ -225,6 +245,10 @@ else:
 		serverInfo = minjson.safeRead(readAdd)
 	except Exception, e:
 		print 'Unable to add server.'
+		
+		if os.path.exists('sd-agent/'):
+			shutil.rmtree('sd-agent/')
+		
 		sys.exit(2)
 		
 print 'Server added - ID: ' + str(serverInfo['data']['serverId'])
@@ -245,5 +269,8 @@ try:
 except Exception, e:
 	import traceback
 	print 'Exception = ' + traceback.format_exc()
+	
+	if os.path.exists('sd-agent/'):
+		shutil.rmtree('sd-agent/')
 
 print 'Config file written'
