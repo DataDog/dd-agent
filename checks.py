@@ -120,6 +120,11 @@ class checks:
 	def getDiskUsage(self):
 		self.checksLogger.debug('getDiskUsage: start')
 		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getDiskUsage: memory before Popen - ' + str(df))
+		
 		# Get output from df
 		try:
 			self.checksLogger.debug('getDiskUsage: attempting Popen')
@@ -130,6 +135,11 @@ class checks:
 			import traceback
 			self.checksLogger.error('getDiskUsage: exception = ' + traceback.format_exc())
 			return False
+		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getDiskUsage: memory after Popen - ' + str(df))
 		
 		self.checksLogger.debug('getDiskUsage: Popen success, start parsing')
 			
@@ -432,6 +442,11 @@ class checks:
 	def getProcesses(self):
 		self.checksLogger.debug('getProcesses: start')
 		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(df))
+		
 		# Get output from ps
 		try:
 			self.checksLogger.debug('getProcesses: attempting Popen')
@@ -444,6 +459,11 @@ class checks:
 			return False
 		
 		self.checksLogger.debug('getProcesses: Popen success, parsing')
+		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(df))
 		
 		# Split out each process
 		processLines = ps.split('\n')
