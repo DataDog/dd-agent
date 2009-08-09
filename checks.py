@@ -122,8 +122,8 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
-			self.checksLogger.debug('getDiskUsage: memory before Popen - ' + str(df))
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getDiskUsage: memory before Popen - ' + str(mem))
 		
 		# Get output from df
 		try:
@@ -138,8 +138,8 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
-			self.checksLogger.debug('getDiskUsage: memory after Popen - ' + str(df))
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getDiskUsage: memory after Popen - ' + str(mem))
 		
 		self.checksLogger.debug('getDiskUsage: Popen success, start parsing')
 			
@@ -444,8 +444,8 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
-			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(df))
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(mem))
 		
 		# Get output from ps
 		try:
@@ -462,8 +462,8 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			df = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
-			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(df))
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(mem))
 		
 		# Split out each process
 		processLines = ps.split('\n')
