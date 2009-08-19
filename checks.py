@@ -122,14 +122,14 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			self.checksLogger.debug('getDiskUsage: memory before Popen - ' + str(mem))
 		
 		# Get output from df
 		try:
 			self.checksLogger.debug('getDiskUsage: attempting Popen')
 			
-			df = subprocess.Popen(['df', '-ak'], stdout=subprocess.PIPE).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
+			df = subprocess.Popen(['df', '-ak'], stdout=subprocess.PIPE, close_fds=True).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
 			
 		except Exception, e:
 			import traceback
@@ -138,7 +138,7 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			self.checksLogger.debug('getDiskUsage: memory after Popen - ' + str(mem))
 		
 		self.checksLogger.debug('getDiskUsage: Popen success, start parsing')
@@ -225,7 +225,7 @@ class checks:
 			try:
 				self.checksLogger.debug('getLoadAvrgs: attempting Popen')
 				
-				uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE).communicate()[0]
+				uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 				
 			except Exception, e:
 				import traceback
@@ -339,10 +339,10 @@ class checks:
 			
 			try:
 				self.checksLogger.debug('getMemoryUsage: attempting Popen (top)')				
-				top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE).communicate()[0]
+				top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 				
 				self.checksLogger.debug('getMemoryUsage: attempting Popen (sysctl)')
-				sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE).communicate()[0]
+				sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 				
 			except Exception, e:
 				import traceback
@@ -444,14 +444,14 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(mem))
 		
 		# Get output from ps
 		try:
 			self.checksLogger.debug('getProcesses: attempting Popen')
 			
-			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE).communicate()[0]
+			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			
 		except Exception, e:
 			import traceback
@@ -462,7 +462,7 @@ class checks:
 		
 		# Memory logging (case 27152)
 		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE).communicate()[0]
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(mem))
 		
 		# Split out each process
