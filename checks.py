@@ -129,7 +129,7 @@ class checks:
 		try:
 			self.checksLogger.debug('getDiskUsage: attempting Popen')
 			
-			df = subprocess.Popen(['df', '-ak'], stdout=subprocess.PIPE, close_fds=True).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
+			df = subprocess.Popen(['df', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
 			
 		except Exception, e:
 			import traceback
