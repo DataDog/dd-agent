@@ -417,9 +417,15 @@ class checks:
 				
 			else:
 				
-				requestsPerSecond = float(requests / self.nginxRequestsStore) / 60
-				
-			return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
+				requestsPerSecond = float(requests - self.nginxRequestsStore) / 60
+			
+			if connections != None and requestsPerSecond != None:
+			
+				return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
+			
+			else:
+			
+				return False
 			
 		else:
 			self.checksLogger.debug('getNginxStatus: config not set')
