@@ -614,7 +614,7 @@ class checks:
 			
 		# Nginx Status
 		if nginxStatus != False:
-			checksData['nginxConenctions'] = nginxStatus['connections']
+			checksData['nginxConnections'] = nginxStatus['connections']
 			checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
 			
 		# Include system stats on first postback
