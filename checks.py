@@ -418,6 +418,8 @@ class checks:
 			else:
 				
 				requestsPerSecond = float(requests - self.nginxRequestsStore) / 60
+				
+				self.nginxRequestsStore = requestsPerSecond
 			
 			if connections != None and requestsPerSecond != None:
 			
