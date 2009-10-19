@@ -40,6 +40,7 @@ class checks:
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
 		self.networkTrafficStore = {}
+		self.nginxRequestsStore = None
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -366,6 +367,64 @@ class checks:
 					
 		else:
 			return False
+	
+	def getNginxStatus(self):
+		self.checksLogger.debug('getNginxStatus: start')
+		
+		if self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+			self.checksLogger.debug('getNginxStatus: config set')
+			
+			try: 
+				self.checksLogger.debug('getNginxStatus: attempting urlopen')
+				
+				request = urllib2.urlopen(self.agentConfig['nginxStatusUrl'])
+				response = request.read()
+				
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get Nginx status - HTTPError = ' + str(e))
+				return False
+				
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get Nginx status - URLError = ' + str(e))
+				return False
+				
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get Nginx status - HTTPException = ' + str(e))
+				return False
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get Nginx status - Exception = ' + traceback.format_exc())
+				return False
+				
+			self.checksLogger.debug('getNginxStatus: urlopen success, start parsing')
+			
+			# Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
+			
+			# Connections
+			parsed = re.search(r'Active connections:\s+(\d+)', response)
+			connections = int(parsed.group(1))
+			
+			# Requests per second
+			parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
+			requests = int(parsed.group(3))
+			
+			if self.nginxRequestsStore == None:
+				
+				self.nginxRequestsStore = requests
+				
+				requestsPerSecond = 0
+				
+			else:
+				
+				requestsPerSecond = float(requests / self.nginxRequestsStore) / 60
+				
+			return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
+			
+		else:
+			self.checksLogger.debug('getNginxStatus: config not set')
+			
+			return False
 			
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
@@ -528,6 +587,7 @@ class checks:
 		loadAvrgs = self.getLoadAvrgs()
 		memory = self.getMemoryUsage()
 		networkTraffic = self.getNetworkTraffic()
+		nginxStatus = self.getNginxStatus()
 		processes = self.getProcesses()		
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
@@ -543,6 +603,11 @@ class checks:
 			checksData['apacheIdleWorkers'] = apacheStatus['idleWorkers']
 			
 			self.checksLogger.debug('doChecks: built optional payload apacheStatus')
+			
+		# Nginx Status
+		if nginxStatus != False:
+			checksData['nginxConenctions'] = nginxStatus['connections']
+			checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
 			
 		# Include system stats on first postback
 		if firstRun == True:

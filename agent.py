@@ -13,7 +13,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.2.3'
+agentConfig['version'] = '1.3.0'
 
 # Core modules
 import ConfigParser
@@ -48,6 +48,7 @@ try:
 	
 	# Optional config
 	agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
+	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
 	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
@@ -69,8 +70,12 @@ if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig[
 	
 # Check apache_status_url is not empty (case 27073)
 if agentConfig['apacheStatusUrl'] == None:
-	print 'You must provide a value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
+	print 'You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
 	sys.exit(2) 
+	
+if agentConfig['nginxStatusUrl'] == None:
+	print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
+	sys.exit(2)
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
