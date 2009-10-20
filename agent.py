@@ -50,6 +50,9 @@ try:
 	agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
 	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
 	
+	# Stats reporting
+	agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
+	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)
@@ -57,6 +60,9 @@ except ConfigParser.NoSectionError, e:
 except ConfigParser.ParsingError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)
+	
+except ConfigParser.NoOptionError, e:
+	print 'There are some items missing from your config file, but nothing fatal'
 	
 # Check to make sure the default config values have been changed (only core config values)
 if agentConfig['sdUrl'] == 'http://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
@@ -72,8 +78,8 @@ if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig[
 if agentConfig['apacheStatusUrl'] == None:
 	print 'You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
 	sys.exit(2) 
-	
-if agentConfig['nginxStatusUrl'] == None:
+
+if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
 	sys.exit(2)
 
@@ -96,7 +102,11 @@ class agent(Daemon):
 			systemStats['macV'] = platform.mac_ver()
 		
 		agentLogger.debug('System: ' + str(systemStats))
-			
+		
+		# We use the system stats in the log but user might not want them posted back
+		if 'reportAnonStats' in agentConfig and agentConfig['reportAnonStats'] == 'no':	
+			systemStats = None
+				
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
