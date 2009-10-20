@@ -371,7 +371,7 @@ class checks:
 	def getNginxStatus(self):
 		self.checksLogger.debug('getNginxStatus: start')
 		
-		if self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+		if 'nginxStatusUrl' in self.agentConfig and self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
 			self.checksLogger.debug('getNginxStatus: config set')
 			
 			try: 
