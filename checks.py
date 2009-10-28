@@ -434,7 +434,7 @@ class checks:
 				
 				self.checksLogger.debug('getNginxStatus: requestsPerSecond = ' + str(requestsPerSecond))
 				
-				self.nginxRequestsStore = requestsPerSecond
+				self.nginxRequestsStore = requests
 			
 			if connections != None and requestsPerSecond != None:
 			
