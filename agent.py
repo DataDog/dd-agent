@@ -13,7 +13,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.3.0'
+agentConfig['version'] = '1.3.1'
 
 # Core modules
 import ConfigParser
