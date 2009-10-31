@@ -426,6 +426,8 @@ class checks:
 				
 				connections = float(float(result[1]) - float(self.mysqlConnectionsStore)) / 60
 				
+				self.mysqlConnectionsStore = connections
+				
 			self.checksLogger.debug('getMySQLStatus: connections = ' + str(connections))
 			
 			self.checksLogger.debug('getMySQLStatus: getting Connections - done')
