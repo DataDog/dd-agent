@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 	Server Density
 	www.serverdensity.com
