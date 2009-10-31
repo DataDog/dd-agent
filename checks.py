@@ -879,16 +879,16 @@ class checks:
 		# MySQL Status
 		if mysqlStatus != False:
 			
-			checksData['connections'] = mysqlStatus['connections']
-			checksData['createdTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
-			checksData['maxUsedConnections'] = mysqlStatus['maxUsedConnections']
-			checksData['openFiles'] = mysqlStatus['openFiles']
-			checksData['slowQueries'] = mysqlStatus['slowQueries']
-			checksData['tableLocksWaited'] = mysqlStatus['tableLocksWaited']
-			checksData['threadsConnected'] = mysqlStatus['threadsConnected']
+			checksData['mysqlConnections'] = mysqlStatus['connections']
+			checksData['mysqlCreatedTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
+			checksData['mysqlMaxUsedConnections'] = mysqlStatus['maxUsedConnections']
+			checksData['mysqlOpenFiles'] = mysqlStatus['openFiles']
+			checksData['mysqlSlowQueries'] = mysqlStatus['slowQueries']
+			checksData['mysqlTableLocksWaited'] = mysqlStatus['tableLocksWaited']
+			checksData['mysqlThreadsConnected'] = mysqlStatus['threadsConnected']
 			
 			if mysqlStatus['secondsBehindMaster'] != None:
-				checksData['secondsBehindMaster'] = mysqlStatus['secondsBehindMaster']
+				checksData['mysqlSecondsBehindMaster'] = mysqlStatus['secondsBehindMaster']
 		
 		# Nginx Status
 		if nginxStatus != False:
