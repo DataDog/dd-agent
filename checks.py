@@ -39,6 +39,10 @@ class checks:
 	
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
+		self.mysqlConnectionsStore = None
+		self.mysqlCreatedTmpDiskTablesStore = None
+		self.mysqlSlowQueriesStore = None
+		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
 		
@@ -368,6 +372,246 @@ class checks:
 		else:
 			return False
 	
+	def getMySQLStatus(self):
+		self.checksLogger.debug('getMySQLStatus: start')
+		
+		if 'MySQLServer' in self.agentConfig and 'MySQLUser' in self.agentConfig and 'MySQLPass' in self.agentConfig and self.agentConfig['MySQLServer'] != '' and self.agentConfig['MySQLUser'] != '' and self.agentConfig['MySQLPass'] != '':
+		
+			self.checksLogger.debug('getMySQLStatus: config')
+			
+			# Try import MySQLdb - http://sourceforge.net/projects/mysql-python/files/
+			try:
+				import MySQLdb
+			
+			except ImportError, e:
+				self.checksLogger.debug('getMySQLStatus: unable to import MySQLdb')
+				return False
+				
+			# Connect
+			try:
+				db = MySQLdb.connect(self.agentConfig['MySQLServer'], self.agentConfig['MySQLUser'], self.agentConfig['MySQLPass'])
+				
+			except MySQLdb.OperationalError, message:
+				
+				self.checksLogger.debug('getMySQLStatus: MySQL connection error: ' + str(message))
+				return False
+			
+			self.checksLogger.debug('getMySQLStatus: connected')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Connections')
+			
+			# Connections
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Connections"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Connections: ' + str(message))
+		
+			if self.mysqlConnectionsStore == None:
+				
+				self.checksLogger.debug('getMySQLStatus: mysqlConnectionsStore unset storing for first time')
+				
+				self.mysqlConnectionsStore = result[1]
+				
+				connections = 0
+				
+			else:
+		
+				self.checksLogger.debug('getMySQLStatus: mysqlConnectionsStore set so calculating')
+				self.checksLogger.debug('getMySQLStatus: self.mysqlConnectionsStore = ' + str(self.mysqlConnectionsStore))
+				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
+				
+				connections = float(float(result[1]) - float(self.mysqlConnectionsStore)) / 60
+				
+			self.checksLogger.debug('getMySQLStatus: connections = ' + str(connections))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Connections - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Created_tmp_disk_tables')
+				
+			# Created_tmp_disk_tables
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Created_tmp_disk_tables: ' + str(message))
+		
+			if self.mysqlCreatedTmpDiskTablesStore == None:
+				
+				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore unset so storing for first time')
+				
+				self.mysqlCreatedTmpDiskTablesStore = result[1]
+				
+				createdTmpDiskTables = 0
+				
+			else:
+		
+				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore set so calculating')
+				self.checksLogger.debug('getMySQLStatus: self.mysqlCreatedTmpDiskTablesStore = ' + str(self.mysqlCreatedTmpDiskTablesStore))
+				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
+				
+				createdTmpDiskTables = float(float(result[1]) - float(self.mysqlCreatedTmpDiskTablesStore)) / 60
+				
+			self.checksLogger.debug('getMySQLStatus: createdTmpDiskTables = ' + str(createdTmpDiskTables))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Created_tmp_disk_tables - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Max_used_connections')
+				
+			# Max_used_connections
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Max_used_connections"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Max_used_connections: ' + str(message))
+				
+			maxUsedConnections = result[1]
+			
+			self.checksLogger.debug('getMySQLStatus: maxUsedConnections = ' + str(createdTmpDiskTables))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Max_used_connections - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Open_files')
+			
+			# Open_files
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Open_files"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Open_files: ' + str(message))
+				
+			openFiles = result[1]
+			
+			self.checksLogger.debug('getMySQLStatus: openFiles = ' + str(openFiles))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Open_files - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Slow_queries')
+			
+			# Slow_queries
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Slow_queries"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Slow_queries: ' + str(message))
+		
+			if self.mysqlSlowQueriesStore == None:
+				
+				self.checksLogger.debug('getMySQLStatus: mysqlSlowQueriesStore unset so storing for first time')
+				
+				self.mysqlSlowQueriesStore = result[1]
+				
+				slowQueries = 0
+				
+			else:
+		
+				self.checksLogger.debug('getMySQLStatus: mysqlSlowQueriesStore set so calculating')
+				self.checksLogger.debug('getMySQLStatus: self.mysqlSlowQueriesStore = ' + str(self.mysqlSlowQueriesStore))
+				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
+				
+				slowQueries = float(float(result[1]) - float(self.mysqlSlowQueriesStore)) / 60
+				
+			self.checksLogger.debug('getMySQLStatus: slowQueries = ' + str(slowQueries))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Slow_queries - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Table_locks_waited')
+				
+			# Table_locks_waited
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Table_locks_waited"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Table_locks_waited: ' + str(message))
+		
+			if self.mysqlTableLocksWaited == None:
+				
+				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited unset so storing for first time')
+				
+				self.mysqlTableLocksWaited = result[1]
+				
+				tableLocksWaited = 0
+				
+			else:
+		
+				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited set so calculating')
+				self.checksLogger.debug('getMySQLStatus: self.mysqlTableLocksWaited = ' + str(self.mysqlTableLocksWaited))
+				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
+				
+				tableLocksWaited = float(float(result[1]) - float(self.mysqlTableLocksWaited)) / 60
+				
+			self.checksLogger.debug('getMySQLStatus: tableLocksWaited = ' + str(tableLocksWaited))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Table_locks_waited - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Threads_connected')
+				
+			# Threads_connected
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW GLOBAL STATUS LIKE "Threads_connected"')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Threads_connected: ' + str(message))
+				
+			threadsConnected = result[1]
+			
+			self.checksLogger.debug('getMySQLStatus: threadsConnected = ' + str(threadsConnected))
+			
+			self.checksLogger.debug('getMySQLStatus: getting Threads_connected - done')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Seconds_Behind_Master')
+			
+			# Seconds_Behind_Master
+			try:
+				cursor = db.cursor()
+				cursor.execute('SHOW SLAVE STATUS')
+				result = cursor.fetchone()
+				
+			except MySQLdb.OperationalError, message:
+			
+				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting SHOW SLAVE STATUS: ' + str(message))
+			
+			if result != None:
+				secondsBehindMaster = result[28]
+				
+				self.checksLogger.debug('getMySQLStatus: secondsBehindMaster = ' + str(secondsBehindMaster))
+			
+			else:
+				secondsBehindMaster = None
+				
+				self.checksLogger.debug('getMySQLStatus: secondsBehindMaster empty')
+			
+			self.checksLogger.debug('getMySQLStatus: getting Seconds_Behind_Master - done')
+			
+			return {'connections' : connections, 'createdTmpDiskTables' : createdTmpDiskTables, 'maxUsedConnections' : maxUsedConnections, 'openFiles' : openFiles, 'slowQueries' : slowQueries, 'tableLocksWaited' : tableLocksWaited, 'threadsConnected' : threadsConnected, 'secondsBehindMaster' : secondsBehindMaster}
+
+		else:			
+			
+			self.checksLogger.debug('getMySQLStatus: config not set')
+			return False
+		
+	
 	def getNginxStatus(self):
 		self.checksLogger.debug('getNginxStatus: start')
 		
@@ -613,6 +857,7 @@ class checks:
 		diskUsage = self.getDiskUsage()
 		loadAvrgs = self.getLoadAvrgs()
 		memory = self.getMemoryUsage()
+		mysqlStatus = self.getMySQLStatus()
 		networkTraffic = self.getNetworkTraffic()
 		nginxStatus = self.getNginxStatus()
 		processes = self.getProcesses()		
@@ -630,7 +875,23 @@ class checks:
 			checksData['apacheIdleWorkers'] = apacheStatus['idleWorkers']
 			
 			self.checksLogger.debug('doChecks: built optional payload apacheStatus')
+		
+		# MySQL Status
+		if mysqlStatus != False:
 			
+			print mysqlStatus
+			
+			checksData['connections'] = mysqlStatus['connections']
+			checksData['createdTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
+			checksData['maxUsedConnections'] = mysqlStatus['maxUsedConnections']
+			checksData['openFiles'] = mysqlStatus['openFiles']
+			checksData['slowQueries'] = mysqlStatus['slowQueries']
+			checksData['tableLocksWaited'] = mysqlStatus['tableLocksWaited']
+			checksData['threadsConnected'] = mysqlStatus['threadsConnected']
+			
+			if mysqlStatus['secondsBehindMaster'] != None:
+				checksData['secondsBehindMaster'] = mysqlStatus['secondsBehindMaster']
+		
 		# Nginx Status
 		if nginxStatus != False:
 			checksData['nginxConnections'] = nginxStatus['connections']

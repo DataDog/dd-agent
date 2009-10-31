@@ -13,7 +13,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.3.1'
+agentConfig['version'] = '1.4.0b1'
 
 # Core modules
 import ConfigParser
@@ -48,6 +48,9 @@ try:
 	
 	# Optional config
 	agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
+	agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
+	agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
+	agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
 	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
 	
 	# Stats reporting
