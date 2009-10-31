@@ -879,8 +879,6 @@ class checks:
 		# MySQL Status
 		if mysqlStatus != False:
 			
-			print mysqlStatus
-			
 			checksData['connections'] = mysqlStatus['connections']
 			checksData['createdTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
 			checksData['maxUsedConnections'] = mysqlStatus['maxUsedConnections']
