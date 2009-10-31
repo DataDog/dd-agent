@@ -593,9 +593,15 @@ class checks:
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting SHOW SLAVE STATUS: ' + str(message))
 			
 			if result != None:
-				secondsBehindMaster = result[28]
+				try:
+					secondsBehindMaster = result[28]
 				
-				self.checksLogger.debug('getMySQLStatus: secondsBehindMaster = ' + str(secondsBehindMaster))
+					self.checksLogger.debug('getMySQLStatus: secondsBehindMaster = ' + str(secondsBehindMaster))
+					
+				except IndexError, e:					
+					secondsBehindMaster = None
+					
+					self.checksLogger.debug('getMySQLStatus: secondsBehindMaster empty')
 			
 			else:
 				secondsBehindMaster = None
@@ -615,7 +621,7 @@ class checks:
 	def getNginxStatus(self):
 		self.checksLogger.debug('getNginxStatus: start')
 		
-		if 'nginxStatusUrl' in self.agentConfig and self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+		if 'nginxStatusUrl' in self.agentConfig and self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':	# Don't do it if the status URL hasn't been provided
 			self.checksLogger.debug('getNginxStatus: config set')
 			
 			try: 
