@@ -426,7 +426,7 @@ class checks:
 				
 				connections = float(float(result[1]) - float(self.mysqlConnectionsStore)) / 60
 				
-				self.mysqlConnectionsStore = connections
+				self.mysqlConnectionsStore = result[1]
 				
 			self.checksLogger.debug('getMySQLStatus: connections = ' + str(connections))
 			
@@ -459,6 +459,8 @@ class checks:
 				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
 				
 				createdTmpDiskTables = float(float(result[1]) - float(self.mysqlCreatedTmpDiskTablesStore)) / 60
+				
+				self.mysqlCreatedTmpDiskTablesStore = result[1]
 				
 			self.checksLogger.debug('getMySQLStatus: createdTmpDiskTables = ' + str(createdTmpDiskTables))
 			
@@ -528,6 +530,8 @@ class checks:
 				
 				slowQueries = float(float(result[1]) - float(self.mysqlSlowQueriesStore)) / 60
 				
+				self.mysqlSlowQueriesStore = result[1]
+				
 			self.checksLogger.debug('getMySQLStatus: slowQueries = ' + str(slowQueries))
 			
 			self.checksLogger.debug('getMySQLStatus: getting Slow_queries - done')
@@ -559,6 +563,8 @@ class checks:
 				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
 				
 				tableLocksWaited = float(float(result[1]) - float(self.mysqlTableLocksWaited)) / 60
+				
+				self.mysqlTableLocksWaited = result[1]
 				
 			self.checksLogger.debug('getMySQLStatus: tableLocksWaited = ' + str(tableLocksWaited))
 			
