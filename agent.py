@@ -162,6 +162,23 @@ if __name__ == '__main__':
 			mainLogger.debug('Running in foreground')
 			daemon.run()
 			
+		elif 'status' == sys.argv[1]:
+			mainLogger.debug('Checking agent status')
+			
+			try:
+				pf = file(pidFile,'r')
+				pid = int(pf.read().strip())
+				pf.close()
+			except IOError:
+				pid = None
+			except SystemExit:
+				pid = None
+				
+			if pid:
+				print 'sd-agent is running as pid %s.' % pid
+			else:
+				print 'sd-agent is not running.'
+
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
@@ -304,5 +321,5 @@ if __name__ == '__main__':
 		sys.exit(0)
 		
 	else:
-		print 'usage: %s start|stop|restart|update' % sys.argv[0]
+		print 'usage: %s start|stop|restart|status|update' % sys.argv[0]
 		sys.exit(2)
