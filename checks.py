@@ -45,6 +45,7 @@ class checks:
 		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
+		self.topIndex = 0
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -358,7 +359,7 @@ class checks:
 			
 			# Deal with top			
 			lines = top.split('\n')
-			physParts = re.findall(r'([0-9]\d+)', lines[5])
+			physParts = re.findall(r'([0-9]\d+)', lines[self.topIndex])
 			
 			self.checksLogger.debug('getMemoryUsage: parsed top')
 			
@@ -862,6 +863,15 @@ class checks:
 		self.checksLogger.debug('doPostBack: completed')
 	
 	def doChecks(self, sc, firstRun, systemStats=False):
+		# System stats are passed in on the initial run
+		# We cache the line index from which to read from top
+		if not self.topIndex:
+			# Output from top is slightly modified on OS X 10.6 (case #28239)
+			if systemStats and 'macV' in systemStats and systemStats['macV'][0].startswith('10.6.'):
+				self.topIndex = 6
+			else:
+				self.topIndex = 5
+
 		self.checksLogger = logging.getLogger('checks')
 		
 		self.checksLogger.debug('doChecks: start')
