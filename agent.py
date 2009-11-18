@@ -11,7 +11,7 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = 0
+agentConfig['debugMode'] = 1
 agentConfig['checkFreq'] = 60
 
 agentConfig['version'] = '1.4.0'
@@ -53,6 +53,10 @@ try:
 	agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
 	agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
 	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
+	agentConfig['tmpDirectory'] = '/tmp/'
+
+	if config.has_option('Main', 'tmp_directory'):
+		agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
 	
 	# Stats reporting
 	agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
@@ -126,7 +130,8 @@ class agent(Daemon):
 if __name__ == '__main__':	
 	# Logging
 	if agentConfig['debugMode']:
-		logging.basicConfig(filename='/tmp/sd-agent.log', filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		logFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.log')
+		logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 	
 	mainLogger = logging.getLogger('main')		
 	mainLogger.debug('Agent called')
@@ -139,7 +144,7 @@ if __name__ == '__main__':
 			pidFile = '/var/run/sd-agent.pid'
 			
 	else:
-		pidFile = '/tmp/sd-agent.pid'
+		pidFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.pid')
 	
 	# Daemon instance from agent class
 	daemon = agent(pidFile)
