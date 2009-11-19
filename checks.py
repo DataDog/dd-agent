@@ -834,8 +834,14 @@ class checks:
 		try: 
 			self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['sdUrl'])
 			
+			# Build the request header
+			headers = {
+				'User-Agent': 'Server Density Agent',
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Accept': 'text/html, */*',
+			}
 			# Build the request handler
-			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
+			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, headers)
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
