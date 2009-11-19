@@ -146,11 +146,19 @@ if __name__ == '__main__':
 	else:
 		pidFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.pid')
 	
+	if argLen == 4 and sys.argv[3] == '--clean':
+		mainLogger.debug('Agent called with --clean option, removing .pid')
+		try:
+			os.remove(pidFile)
+		except OSError:
+			# Did not find pid file
+			pass
+	
 	# Daemon instance from agent class
 	daemon = agent(pidFile)
 	
 	# Control options
-	if argLen == 2 or argLen == 3:		
+	if argLen == 2 or argLen == 3 or argLen == 4:
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
 			daemon.start()
