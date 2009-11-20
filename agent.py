@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 	Server Density
 	www.serverdensity.com
@@ -52,6 +53,10 @@ try:
 	agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
 	agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
 	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
+	agentConfig['tmpDirectory'] = '/tmp/'
+
+	if config.has_option('Main', 'tmp_directory'):
+		agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
 	
 	# Stats reporting
 	agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
@@ -125,7 +130,8 @@ class agent(Daemon):
 if __name__ == '__main__':	
 	# Logging
 	if agentConfig['debugMode']:
-		logging.basicConfig(filename='/tmp/sd-agent.log', filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		logFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.log')
+		logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 	
 	mainLogger = logging.getLogger('main')		
 	mainLogger.debug('Agent called')
@@ -138,13 +144,21 @@ if __name__ == '__main__':
 			pidFile = '/var/run/sd-agent.pid'
 			
 	else:
-		pidFile = '/tmp/sd-agent.pid'
+		pidFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.pid')
+	
+	if argLen == 4 and sys.argv[3] == '--clean':
+		mainLogger.debug('Agent called with --clean option, removing .pid')
+		try:
+			os.remove(pidFile)
+		except OSError:
+			# Did not find pid file
+			pass
 	
 	# Daemon instance from agent class
 	daemon = agent(pidFile)
 	
 	# Control options
-	if argLen == 2 or argLen == 3:		
+	if argLen == 2 or argLen == 3 or argLen == 4:
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
 			daemon.start()
@@ -161,6 +175,23 @@ if __name__ == '__main__':
 			mainLogger.debug('Running in foreground')
 			daemon.run()
 			
+		elif 'status' == sys.argv[1]:
+			mainLogger.debug('Checking agent status')
+			
+			try:
+				pf = file(pidFile,'r')
+				pid = int(pf.read().strip())
+				pf.close()
+			except IOError:
+				pid = None
+			except SystemExit:
+				pid = None
+				
+			if pid:
+				print 'sd-agent is running as pid %s.' % pid
+			else:
+				print 'sd-agent is not running.'
+
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
@@ -303,5 +334,5 @@ if __name__ == '__main__':
 		sys.exit(0)
 		
 	else:
-		print 'usage: %s start|stop|restart|update' % sys.argv[0]
+		print 'usage: %s start|stop|restart|status|update' % sys.argv[0]
 		sys.exit(2)

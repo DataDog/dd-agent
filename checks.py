@@ -30,6 +30,13 @@ import urllib2
 # on 2.6 or above, we should use the core module which will be faster
 pythonVersion = platform.python_version_tuple()
 
+# Build the request headers
+headers = {
+	'User-Agent': 'Server Density Agent',
+	'Content-Type': 'application/x-www-form-urlencoded',
+	'Accept': 'text/html, */*',
+}
+
 if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
 	import json
 else:
@@ -45,6 +52,7 @@ class checks:
 		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
+		self.topIndex = 0
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -55,7 +63,8 @@ class checks:
 			try: 
 				self.checksLogger.debug('getApacheStatus: attempting urlopen')
 				
-				request = urllib2.urlopen(self.agentConfig['apacheStatusUrl'])
+				req = urllib2.Request(self.agentConfig['apacheStatusUrl'], None, headers)
+				request = urllib2.urlopen(req)
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
@@ -358,7 +367,7 @@ class checks:
 			
 			# Deal with top			
 			lines = top.split('\n')
-			physParts = re.findall(r'([0-9]\d+)', lines[5])
+			physParts = re.findall(r'([0-9]\d+)', lines[self.topIndex])
 			
 			self.checksLogger.debug('getMemoryUsage: parsed top')
 			
@@ -635,7 +644,10 @@ class checks:
 			try: 
 				self.checksLogger.debug('getNginxStatus: attempting urlopen')
 				
-				request = urllib2.urlopen(self.agentConfig['nginxStatusUrl'])
+				req = urllib2.Request(self.agentConfig['nginxStatusUrl'], None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
@@ -834,7 +846,7 @@ class checks:
 			self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['sdUrl'])
 			
 			# Build the request handler
-			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, { 'User-Agent' : 'Server Density Agent' })
+			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, headers)
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
@@ -862,6 +874,15 @@ class checks:
 		self.checksLogger.debug('doPostBack: completed')
 	
 	def doChecks(self, sc, firstRun, systemStats=False):
+		# System stats are passed in on the initial run
+		# We cache the line index from which to read from top
+		if not self.topIndex:
+			# Output from top is slightly modified on OS X 10.6 (case #28239)
+			if systemStats and 'macV' in systemStats and systemStats['macV'][0].startswith('10.6.'):
+				self.topIndex = 6
+			else:
+				self.topIndex = 5
+
 		self.checksLogger = logging.getLogger('checks')
 		
 		self.checksLogger.debug('doChecks: start')
