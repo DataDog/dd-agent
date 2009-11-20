@@ -30,6 +30,13 @@ import urllib2
 # on 2.6 or above, we should use the core module which will be faster
 pythonVersion = platform.python_version_tuple()
 
+# Build the request headers
+headers = {
+	'User-Agent': 'Server Density Agent',
+	'Content-Type': 'application/x-www-form-urlencoded',
+	'Accept': 'text/html, */*',
+}
+
 if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
 	import json
 else:
@@ -56,7 +63,8 @@ class checks:
 			try: 
 				self.checksLogger.debug('getApacheStatus: attempting urlopen')
 				
-				request = urllib2.urlopen(self.agentConfig['apacheStatusUrl'])
+				req = urllib2.Request(self.agentConfig['apacheStatusUrl'], None, headers)
+				request = urllib2.urlopen(req)
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
@@ -636,7 +644,10 @@ class checks:
 			try: 
 				self.checksLogger.debug('getNginxStatus: attempting urlopen')
 				
-				request = urllib2.urlopen(self.agentConfig['nginxStatusUrl'])
+				req = urllib2.Request(self.agentConfig['nginxStatusUrl'], None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
 				response = request.read()
 				
 			except urllib2.HTTPError, e:
@@ -834,12 +845,6 @@ class checks:
 		try: 
 			self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['sdUrl'])
 			
-			# Build the request header
-			headers = {
-				'User-Agent': 'Server Density Agent',
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'Accept': 'text/html, */*',
-			}
 			# Build the request handler
 			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, headers)
 			
