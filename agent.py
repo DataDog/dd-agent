@@ -46,20 +46,29 @@ try:
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
+	agentConfig['tmpDirectory'] = '/tmp/'
+
+	# Stats reporting
+	agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
 	
 	# Optional config
+
+	# While these two are optional, they must still be present in the 
+	# config file, but with default values.
 	agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
-	agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
-	agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
-	agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
 	agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
-	agentConfig['tmpDirectory'] = '/tmp/'
+
+	# These are also optional, but do not need to be present in
+	# the config file (case 28326).
+	if config.has_option('Main', 'mysql_server'):
+		agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
+	if config.has_option('Main', 'mysql_user'):
+		agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
+	if config.has_option('Main', 'mysql_pass'):
+		agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
 
 	if config.has_option('Main', 'tmp_directory'):
 		agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
-	
-	# Stats reporting
-	agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
 	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
