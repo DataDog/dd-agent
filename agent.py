@@ -45,6 +45,8 @@ try:
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
+	if agentConfig['sdUrl'].endswith('/'):
+		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
 	agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
 	
