@@ -150,7 +150,7 @@ if __name__ == '__main__':
 	
 	argLen = len(sys.argv)
 	
-	if argLen == 3:		
+	if argLen == 3 or argLen == 4: # needs to accept case when --clean is passed
 		if sys.argv[2] == 'init':
 			pidFile = '/var/run/sd-agent.pid'
 			
