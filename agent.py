@@ -104,6 +104,13 @@ if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
 	sys.exit(2)
 
+if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig and agentConfig['MySQLPass'] != '':
+    try:
+        import MySQLdb
+    except ImportError:
+        print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
+        sys.exit(2)
+
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
 	
