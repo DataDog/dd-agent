@@ -45,6 +45,8 @@ try:
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
+	if agentConfig['sdUrl'].endswith('/'):
+		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
 	agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
 	
@@ -134,7 +136,7 @@ class agent(Daemon):
 		# Schedule the checks
 		agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')
 		s = sched.scheduler(time.time, time.sleep)
-		s.enter(agentConfig['checkFreq'], 1, c.doChecks, (s, True, systemStats))
+		c.doChecks(s, True, systemStats) # start immediately (case 28315)
 		s.run()
 
 # Control of daemon		
@@ -150,7 +152,7 @@ if __name__ == '__main__':
 	
 	argLen = len(sys.argv)
 	
-	if argLen == 3:		
+	if argLen == 3 or argLen == 4: # needs to accept case when --clean is passed
 		if sys.argv[2] == 'init':
 			pidFile = '/var/run/sd-agent.pid'
 			
