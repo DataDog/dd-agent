@@ -41,7 +41,10 @@ try:
 	path = os.path.dirname(path)
 	
 	config = ConfigParser.ConfigParser()
-	config.read(path + '/config.cfg')
+	if os.path.exists('/etc/sd-agent.cfg'):
+		config.read('/etc/sd-agent.cfg')
+	else:
+		config.read(path + '/config.cfg')
 	
 	# Core config
 	agentConfig['sdUrl'] = config.get('Main', 'sd_url')
