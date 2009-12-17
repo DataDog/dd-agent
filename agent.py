@@ -49,6 +49,7 @@ try:
 		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
 	agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
+	agentConfig['pidfile_location'] = agentConfig['tmpDirectory']
 	
 	# Optional config
 	# Also do not need to be present in the config file (case 28326).	
@@ -73,6 +74,9 @@ try:
 	# Stats reporting, optional (supports older agent versions without this config value)
 	if config.has_option('Main', 'report_anon_stats'):
 		agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
+
+	if config.has_option('Main', 'pidfile_location'):
+		agentConfig['pidfile_location'] = config.get('Main', 'pidfile_location')
 	
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
@@ -164,7 +168,7 @@ if __name__ == '__main__':
 			pidFile = '/var/run/sd-agent.pid'
 			
 	else:
-		pidFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.pid')
+		pidFile = os.path.join(agentConfig['pidfile_location'], 'sd-agent.pid')
 	
 	if argLen == 4 and sys.argv[3] == '--clean':
 		mainLogger.debug('Agent called with --clean option, removing .pid')
