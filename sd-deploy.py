@@ -282,13 +282,13 @@ if len(sys.argv) == 6:
 	
 	import subprocess
 	
-	print 'chkconfig'
-	
-	df = subprocess.Popen(['chkconfig', '--add', 'sd-agent'], stdout=subprocess.PIPE).communicate()[0]
-	
 	print 'Setting permissions'
 	
 	df = subprocess.Popen(['chmod', '0755', '/etc/init.d/sd-agent'], stdout=subprocess.PIPE).communicate()[0]
+	
+	print 'chkconfig'
+	
+	df = subprocess.Popen(['chkconfig', '--add', 'sd-agent'], stdout=subprocess.PIPE).communicate()[0]
 	
 	print 'Setting paths'
 	
