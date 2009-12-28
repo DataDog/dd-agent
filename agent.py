@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import sched
+import subprocess
 import sys
 import time
 
@@ -128,7 +129,7 @@ class agent(Daemon):
 		
 		# Get some basic system stats to post back for development/testing
 		import platform
-		systemStats = {'machine': platform.machine(), 'platform': sys.platform, 'processor': platform.processor(), 'pythonV': platform.python_version()}
+		systemStats = {'machine': platform.machine(), 'platform': sys.platform, 'processor': platform.processor(), 'pythonV': platform.python_version(), 'cpuCores': self.cpuCores()}
 		
 		if sys.platform == 'linux2':			
 			systemStats['nixV'] = platform.dist()
@@ -152,6 +153,17 @@ class agent(Daemon):
 		s = sched.scheduler(time.time, time.sleep)
 		c.doChecks(s, True, systemStats) # start immediately (case 28315)
 		s.run()
+		
+	def cpuCores(self):
+		if sys.platform == 'linux2':
+			grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
+			wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
+			output = wc.communicate()[0]
+			return int(output)
+			
+		if sys.platform == 'darwin':
+			output = subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1]
+			return int(output)
 
 # Control of daemon		
 if __name__ == '__main__':	
