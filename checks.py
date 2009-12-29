@@ -53,6 +53,7 @@ class checks:
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
 		self.topIndex = 0
+		self.os = None
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -881,6 +882,12 @@ class checks:
 				self.topIndex = 6
 			else:
 				self.topIndex = 5
+		
+		if not self.os:
+			if systemStats and 'macV' in systemStats:
+				self.os = 'mac'
+			else:
+				self.os = 'linux'
 
 		self.checksLogger = logging.getLogger('checks')
 		
@@ -898,7 +905,7 @@ class checks:
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
+		checksData = {'os' : self.os, 'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
 		
 		self.checksLogger.debug('doChecks: payload built, build optional payloads')
 		
