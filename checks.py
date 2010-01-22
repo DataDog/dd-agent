@@ -933,6 +933,17 @@ class checks:
 		if firstRun == True:
 			checksData['systemStats'] = systemStats
 			self.checksLogger.debug('doChecks: built optional payload systemStats')
+			
+		# Include server indentifiers
+		import socket	
+		
+		# IP
+		try:
+			checksData['internalHostname'] = socket.gethostname()
+			
+		except socket.error, e:
+			self.checksLogger.debug('Unable to get hostname: ' + str(e))
+			sys.exit(2)
 		
 		self.checksLogger.debug('doChecks: payloads built, convert to json')
 		
