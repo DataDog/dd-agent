@@ -53,6 +53,7 @@ class checks:
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
 		self.topIndex = 0
+		self.os = None
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -873,19 +874,27 @@ class checks:
 		self.checksLogger.debug('doPostBack: completed')
 	
 	def doChecks(self, sc, firstRun, systemStats=False):
-		# System stats are passed in on the initial run
-		# We cache the line index from which to read from top
-		if not self.topIndex:
+		macV = None
+		if sys.platform == 'darwin':
+			macV = platform.mac_ver()
+		
+		if not self.topIndex: # We cache the line index from which to read from top
 			# Output from top is slightly modified on OS X 10.6 (case #28239)
-			if systemStats and 'macV' in systemStats and systemStats['macV'][0].startswith('10.6.'):
+			if macV and macV[0].startswith('10.6.'):
 				self.topIndex = 6
 			else:
 				self.topIndex = 5
-
+		
+		if not self.os:
+			if macV:
+				self.os = 'mac'
+			else:
+				self.os = 'linux'
+		
 		self.checksLogger = logging.getLogger('checks')
 		
 		self.checksLogger.debug('doChecks: start')
-				
+		
 		# Do the checks
 		apacheStatus = self.getApacheStatus()
 		diskUsage = self.getDiskUsage()
@@ -898,7 +907,7 @@ class checks:
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
-		checksData = {'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
+		checksData = {'os' : self.os, 'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
 		
 		self.checksLogger.debug('doChecks: payload built, build optional payloads')
 		

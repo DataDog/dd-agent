@@ -13,6 +13,12 @@
 # chkconfig: 345 85 15
 # description: Server Density Monitoring Agent
 
+### BEGIN INIT INFO
+# Provides: sd-agent
+# Short-Description: Start and start sd-agent
+# Description: sd-agent is the monitoring agent component for Server Density
+### END INIT INFO
+
 AGENTPATH="/usr/bin/sd-agent/agent.py"
 
 [ -f $AGENTPATH ] || echo "/usr/bin/sd-agent not found"
