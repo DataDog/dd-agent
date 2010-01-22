@@ -252,7 +252,7 @@ class checks:
 		self.checksLogger.debug('getLoadAvrgs: parsing')
 				
 		# Split out the 3 load average values
-		loadAvrgs = re.findall(r'([0-9]+\.\d+)', uptime)
+		loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
 		loadAvrgs = {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2]}	
 	
 		self.checksLogger.debug('getLoadAvrgs: completed, returning')
