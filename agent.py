@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.4.2'
+agentConfig['version'] = '1.4.3'
 
 # Core modules
 import ConfigParser
@@ -81,7 +81,16 @@ try:
 
 	if config.has_option('Main', 'pidfile_directory'):
 		agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
-	
+
+	if config.has_option('Main', 'rabbitmq_status_url'):
+		agentConfig['rabbitMQStatusUrl'] = config.get('Main', 'rabbitmq_status_url')
+
+	if config.has_option('Main', 'rabbitmq_user'):
+		agentConfig['rabbitMQUser'] = config.get('Main', 'rabbitmq_user')
+
+	if config.has_option('Main', 'rabbitmq_pass'):
+		agentConfig['rabbitMQPass'] = config.get('Main', 'rabbitmq_pass')
+
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)

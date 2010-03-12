@@ -728,7 +728,70 @@ class checks:
 			self.checksLogger.debug('getNginxStatus: config not set')
 			
 			return False
+
+	def getRabbitMQStatus(self):
+		self.checksLogger.debug('getRabbitMQStatus: start')
+
+		if 'rabbitMQStatusUrl' not in self.agentConfig or \
+		   'rabbitMQUser' not in self.agentConfig or \
+		   'rabbitMQPass' not in self.agentConfig or \
+			self.agentConfig['rabbitMQStatusUrl'] == 'http://www.example.com:55672/json':
+
+			self.checksLogger.debug('getRabbitMQStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: config set')
+
+		try:
+			self.checksLogger.debug('getRabbitMQStatus: attempting authentication setup')
+			manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+			manager.add_password(None, self.agentConfig['rabbitMQStatusUrl'], self.agentConfig['rabbitMQUser'], self.agentConfig['rabbitMQPass'])
+			handler = urllib2.HTTPBasicAuthHandler(manager)
+			opener = urllib2.build_opener(handler)
+			urllib2.install_opener(opener)
+
+			self.checksLogger.debug('getRabbitMQStatus: attempting urlopen')
+			req = urllib2.Request(self.agentConfig['rabbitMQStatusUrl'], None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get RabbitMQ status - Exception = ' + traceback.format_exc())
+			return False
 			
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getRabbitMQStatus: json read')
+				status = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getRabbitMQStatus: minjson read')
+				status = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load RabbitMQ status JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
+		return status
+
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -908,7 +971,8 @@ class checks:
 		mysqlStatus = self.getMySQLStatus()
 		networkTraffic = self.getNetworkTraffic()
 		nginxStatus = self.getNginxStatus()
-		processes = self.getProcesses()		
+		processes = self.getProcesses()
+		rabbitmq = self.getRabbitMQStatus()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -942,6 +1006,9 @@ class checks:
 		if nginxStatus != False:
 			checksData['nginxConnections'] = nginxStatus['connections']
 			checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
+			
+		if rabbitmq:
+			checksData['rabbitMQ'] = rabbitmq
 			
 		# Include system stats on first postback
 		if firstRun == True:
