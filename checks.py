@@ -17,18 +17,13 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
+import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 import platform
 import re
 import subprocess
 import sys
 import urllib
 import urllib2
-
-# Avoids depreciation warning on newer Python versions (case 29048)
-try:
-	from hashlib import md5
-except:
-	import md5
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
