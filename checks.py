@@ -918,7 +918,7 @@ class checks:
 			
 			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
 			
-			sys.path.append('plugins')
+			sys.path.append(self.agentConfig['pluginDirectory'])
 			
 			self.plugins = []
 			plugins = []
@@ -933,11 +933,16 @@ class checks:
 					name = name.split('.')
 					
 					# Only pull in .py files (ignores others, inc .pyc files)
-					if name[1] == 'py':
+					try:
+						if name[1] == 'py':
+							
+							self.checksLogger.debug('getPlugins: ' + name[0] + '.' + name[1] + ' is a plugin')
+							
+							plugins.append(name[0])
+							
+					except IndexError, e:
 						
-						self.checksLogger.debug('getPlugins: ' + name + ' is a plugin')
-						
-						plugins.append(name[0])
+						continue
 			
 			# Loop through all the found plugins and import them		
 			for plugin in plugins:
