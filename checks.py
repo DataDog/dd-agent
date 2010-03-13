@@ -908,8 +908,11 @@ class checks:
 	def getPlugins(self):
 		self.checksLogger.debug('getPlugins: start')
 		
-		if os.path.exists(self.agentConfig['pluginDirectory']) == False:
-			self.checksLogger.debug('getPlugins: ' + self.agentConfig['pluginDirectory'] + ' directory does not exist')
+		if 'pluginDirectory' in self.agentConfig:
+			if os.path.exists(self.agentConfig['pluginDirectory']) == False:
+				self.checksLogger.debug('getPlugins: ' + self.agentConfig['pluginDirectory'] + ' directory does not exist')
+				return False
+		else:
 			return False
 		
 		# Have we already imported the plugins?
