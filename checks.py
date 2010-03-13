@@ -905,18 +905,18 @@ class checks:
 			
 		return processes
 		
-	def getPlugins(self)
+	def getPlugins(self):
 		self.checksLogger.debug('getPlugins: start')
 		
-		if os.path.exists('plugins') == False:
-			self.checksLogger.debug('getPlugins: plugins directory does not exist')
+		if os.path.exists(self.agentConfig['pluginDirectory']) == False:
+			self.checksLogger.debug('getPlugins: ' + self.agentConfig['pluginDirectory'] + ' directory does not exist')
 			return False
 		
 		# Have we already imported the plugins?
 		# Only load the plugins once
 		if self.plugins == None:
 			
-			self.checksLogger.debug('getPlugins: initial load')
+			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
 			
 			sys.path.append('plugins')
 			
@@ -924,7 +924,7 @@ class checks:
 			plugins = []
 			
 			# Loop through all the plugin files
-			for root, dirs, files in os.walk('plugins'):
+			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):
 				
 				for name in files:
 				

@@ -11,7 +11,7 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = 0
+agentConfig['debugMode'] = 1
 agentConfig['checkFreq'] = 60
 
 agentConfig['version'] = '1.5.0'
@@ -81,6 +81,9 @@ try:
 
 	if config.has_option('Main', 'pidfile_directory'):
 		agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
+		
+	if config.has_option('Main', 'plugin_directory'):
+		agentConfig['pluginDirectory'] = config.get('Main', 'plugin_directory')
 
 	if config.has_option('Main', 'rabbitmq_status_url'):
 		agentConfig['rabbitMQStatusUrl'] = config.get('Main', 'rabbitmq_status_url')
