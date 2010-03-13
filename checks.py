@@ -5,7 +5,7 @@
 	A web based server resource monitoring application
 
 	Licensed under Simplified BSD License (see LICENSE)
-	(C) Boxed Ice 2009 all rights reserved
+	(C) Boxed Ice 2010 all rights reserved
 '''
 
 # SO references
