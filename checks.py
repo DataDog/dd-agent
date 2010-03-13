@@ -1076,7 +1076,8 @@ class checks:
 			checksData['nginxConnections'] = nginxStatus['connections']
 			checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
 			
-		if rabbitmq:
+		# RabbitMQ
+		if rabbitmq != False:
 			checksData['rabbitMQ'] = rabbitmq
 			
 		# Plugins
