@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.6.0'
+agentConfig['version'] = '1.7.0'
 
 # Core modules
 import ConfigParser
@@ -94,6 +94,9 @@ try:
 	if config.has_option('Main', 'rabbitmq_pass'):
 		agentConfig['rabbitMQPass'] = config.get('Main', 'rabbitmq_pass')
 
+	if config.has_option('Main', 'mongodb_server'):
+		agentConfig['MongoDBServer'] = config.get('Main', 'mongodb_server')
+
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)
@@ -125,11 +128,18 @@ if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	sys.exit(2)
 
 if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig and agentConfig['MySQLPass'] != '':
-    try:
-        import MySQLdb
-    except ImportError:
-        print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
-        sys.exit(2)
+	try:
+		import MySQLdb
+	except ImportError:
+		print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
+		sys.exit(2)
+
+if 'MongoDBServer' in agentConfig and agentConfig['MongoDBServer'] != '':
+	try:
+		import pymongo
+	except ImportError:
+		print 'You have configured MongoDB for monitoring, but the pymongo module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mongodbstatus/'
+		sys.exit(2)
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	

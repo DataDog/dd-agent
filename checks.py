@@ -789,6 +789,47 @@ class checks:
 		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
 		return status
 
+	def getMongoDBStatus(self):
+		self.checksLogger.debug('getMongoDBStatus: start')
+
+		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
+			self.checksLogger.debug('getMongoDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: config set')
+
+		try:
+			import pymongo
+			from pymongo import Connection
+		except ImportError:
+			self.checksLogger.error('Unable to import pymongo library')
+			return False
+
+		# The dictioary to be returned.
+		mongodb = {}
+
+		try:
+			conn = Connection(self.agentConfig['MongoDBServer'])
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
+			return False
+
+		# Older versions of pymongo did not support the command()
+		# method below.
+		try:
+			for dbName in conn.database_names():
+				db = conn[dbName]
+				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+				mongodb[dbName] = status
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: completed, returning')
+		return mongodb
+
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -1049,6 +1090,7 @@ class checks:
 		nginxStatus = self.getNginxStatus()
 		processes = self.getProcesses()
 		rabbitmq = self.getRabbitMQStatus()
+		mongodb = self.getMongoDBStatus()
 		plugins = self.getPlugins()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
@@ -1087,6 +1129,9 @@ class checks:
 		# RabbitMQ
 		if rabbitmq != False:
 			checksData['rabbitMQ'] = rabbitmq
+		
+		if mongodb != False:
+			checksData['mongoDB'] = mongodb
 			
 		# Plugins
 		if plugins != False:
