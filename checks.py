@@ -805,7 +805,7 @@ class checks:
 			self.checksLogger.error('Unable to import pymongo library')
 			return False
 
-		# The dictioary to be returned.
+		# The dictionary to be returned.
 		mongodb = {}
 
 		try:
@@ -1130,6 +1130,7 @@ class checks:
 		if rabbitmq != False:
 			checksData['rabbitMQ'] = rabbitmq
 		
+		# MongoDB
 		if mongodb != False:
 			checksData['mongoDB'] = mongodb
 			
