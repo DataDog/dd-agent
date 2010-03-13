@@ -18,6 +18,7 @@ import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
 import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
+import os
 import platform
 import re
 import subprocess
@@ -52,6 +53,7 @@ class checks:
 		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
+		self.plugins = None
 		self.topIndex = 0
 		self.os = None
 		
@@ -903,6 +905,77 @@ class checks:
 			
 		return processes
 		
+	def getPlugins(self)
+		self.checksLogger.debug('getPlugins: start')
+		
+		if os.path.exists('plugins') == False:
+			self.checksLogger.debug('getPlugins: plugins directory does not exist')
+			return False
+		
+		# Have we already imported the plugins?
+		# Only load the plugins once
+		if self.plugins == None:
+			
+			self.checksLogger.debug('getPlugins: initial load')
+			
+			sys.path.append('plugins')
+			
+			self.plugins = []
+			plugins = []
+			
+			# Loop through all the plugin files
+			for root, dirs, files in os.walk('plugins'):
+				
+				for name in files:
+				
+					self.checksLogger.debug('getPlugins: considering: ' + name)
+				
+					name = name.split('.')
+					
+					# Only pull in .py files (ignores others, inc .pyc files)
+					if name[1] == 'py':
+						
+						self.checksLogger.debug('getPlugins: ' + name + ' is a plugin')
+						
+						plugins.append(name[0])
+			
+			# Loop through all the found plugins and import them		
+			for plugin in plugins:
+				
+				self.checksLogger.debug('getPlugins: importing ' + plugin)
+				
+				p = __import__(plugin)
+				
+				self.checksLogger.debug('getPlugins: imported ' + plugin)
+				
+				self.plugins.append(p)
+		
+		if self.plugins != None:
+			
+			self.checksLogger.debug('getPlugins: executing plugins')
+			
+			# Execute the plugins
+			output = {}
+					
+			for plugin in self.plugins:
+				
+				self.checksLogger.debug('getPlugins: executing ' + plugin.__name__)
+				
+				output[plugin.__name__] = plugin.run()
+				
+				self.checksLogger.debug('getPlugins: executed ' + plugin.__name__)
+			
+			self.checksLogger.debug('getPlugins: returning')
+			
+			# Each plugin should output a dictionary so we can convert it to JSON later	
+			return output
+			
+		else:
+			
+			self.checksLogger.debug('getPlugins: no plugins, returning false')
+			
+			return False
+		
 	def doPostBack(self, postBackData):
 		self.checksLogger.debug('doPostBack: start')	
 		
@@ -968,6 +1041,7 @@ class checks:
 		nginxStatus = self.getNginxStatus()
 		processes = self.getProcesses()
 		rabbitmq = self.getRabbitMQStatus()
+		plugins = self.getPlugins()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -1004,6 +1078,10 @@ class checks:
 			
 		if rabbitmq:
 			checksData['rabbitMQ'] = rabbitmq
+			
+		# Plugins
+		if plugins != False:
+			checksData['plugins'] = plugins
 			
 		# Include system stats on first postback
 		if firstRun == True:
