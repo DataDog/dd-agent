@@ -1104,8 +1104,7 @@ class checks:
 		
 		# Have we already imported the plugins?
 		# Only load the plugins once
-		if self.plugins == None:
-			
+		if self.plugins == None:			
 			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
 			
 			sys.path.append(self.agentConfig['pluginDirectory'])
@@ -1114,10 +1113,8 @@ class checks:
 			plugins = []
 			
 			# Loop through all the plugin files
-			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):
-				
-				for name in files:
-				
+			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):				
+				for name in files:				
 					self.checksLogger.debug('getPlugins: considering: ' + name)
 				
 					name = name.split('.')
@@ -1134,39 +1131,44 @@ class checks:
 						
 						continue
 			
-			# Loop through all the found plugins and import them		
-			for plugin in plugins:
+			# Loop through all the found plugins, import them then create new objects
+			for pluginName in plugins:				
+				self.checksLogger.debug('getPlugins: importing ' + pluginName)
 				
-				self.checksLogger.debug('getPlugins: importing ' + plugin)
+				# Import the plugin			
+				importedPlugin = __import__(pluginName)
 				
-				p = __import__(plugin)
+				self.checksLogger.debug('getPlugins: imported ' + pluginName)
 				
-				self.checksLogger.debug('getPlugins: imported ' + plugin)
+				# Find out the class name and then instantiate it
+				pluginClass = getattr(importedPlugin, pluginName)
+				pluginObj = pluginClass()
 				
-				self.plugins.append(p)
+				self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
+				
+				# Store in class var so we can execute it again on the next cycle
+				self.plugins.append(pluginObj)
 		
-		if self.plugins != None:
-			
+		# Now execute the objects previously created
+		if self.plugins != None:			
 			self.checksLogger.debug('getPlugins: executing plugins')
 			
 			# Execute the plugins
 			output = {}
 					
-			for plugin in self.plugins:
+			for plugin in self.plugins:				
+				self.checksLogger.debug('getPlugins: executing ' + plugin.__class__.__name__)
 				
-				self.checksLogger.debug('getPlugins: executing ' + plugin.__name__)
+				output[plugin.__class__.__name__] = plugin.run()
 				
-				output[plugin.__name__] = plugin.run()
-				
-				self.checksLogger.debug('getPlugins: executed ' + plugin.__name__)
+				self.checksLogger.debug('getPlugins: executed ' + plugin.__class__.__name__)
 			
 			self.checksLogger.debug('getPlugins: returning')
 			
 			# Each plugin should output a dictionary so we can convert it to JSON later	
 			return output
 			
-		else:
-			
+		else:			
 			self.checksLogger.debug('getPlugins: no plugins, returning false')
 			
 			return False
