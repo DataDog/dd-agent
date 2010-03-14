@@ -830,6 +830,152 @@ class checks:
 		self.checksLogger.debug('getMongoDBStatus: completed, returning')
 		return mongodb
 
+	def getCouchDBStatus(self):
+		self.checksLogger.debug('getCouchDBStatus: start')
+
+		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
+			self.checksLogger.debug('getCouchDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getCouchDBStatus: config set')
+
+		# The dictionary to be returned.
+		couchdb = {'stats': None, 'databases': {}}
+
+		# First, get overall statistics.
+		endpoint = '/_stats/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				stats = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				stats = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		couchdb['stats'] = stats
+
+		# Next, get all database names.
+		endpoint = '/_all_dbs/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				databases = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				databases = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		for dbName in databases:
+			endpoint = '/%s/' % dbName
+
+			try:
+				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+				req = urllib2.Request(url, None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
+				response = request.read()
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
+				return False
+
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
+				return False
+
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
+				return False
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
+				return False
+
+			try:
+
+				if int(pythonVersion[1]) >= 6:
+					self.checksLogger.debug('getCouchDBStatus: json read')
+					couchdb['databases'][dbName] = json.loads(response)
+
+				else:
+					self.checksLogger.debug('getCouchDBStatus: minjson read')
+					couchdb['databases'][dbName] = minjson.safeRead(response)
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+				return False
+
+		self.checksLogger.debug('getCouchDBStatus: completed, returning')
+		return couchdb
+
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -1091,6 +1237,7 @@ class checks:
 		processes = self.getProcesses()
 		rabbitmq = self.getRabbitMQStatus()
 		mongodb = self.getMongoDBStatus()
+		couchdb = self.getCouchDBStatus()
 		plugins = self.getPlugins()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
@@ -1134,6 +1281,10 @@ class checks:
 		if mongodb != False:
 			checksData['mongoDB'] = mongodb
 			
+		# CouchDB
+		if couchdb != False:
+			checksData['couchDB'] = couchdb
+		
 		# Plugins
 		if plugins != False:
 			checksData['plugins'] = plugins

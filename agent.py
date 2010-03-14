@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.7.0'
+agentConfig['version'] = '1.8.0'
 
 # Core modules
 import ConfigParser
@@ -96,6 +96,9 @@ try:
 
 	if config.has_option('Main', 'mongodb_server'):
 		agentConfig['MongoDBServer'] = config.get('Main', 'mongodb_server')
+
+	if config.has_option('Main', 'couchdb_server'):
+		agentConfig['CouchDBServer'] = config.get('Main', 'couchdb_server')
 
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
