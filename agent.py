@@ -11,8 +11,8 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = 0
-agentConfig['checkFreq'] = 60
+agentConfig['debugMode'] = True
+agentConfig['checkFreq'] = 5
 
 agentConfig['version'] = '1.4.2'
 
@@ -92,16 +92,6 @@ except ConfigParser.ParsingError, e:
 	
 except ConfigParser.NoOptionError, e:
 	print 'There are some items missing from your config file, but nothing fatal'
-	
-# Check to make sure the default config values have been changed (only core config values)
-if agentConfig['sdUrl'] == 'http://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
-	print 'You have not modified config.cfg for your server'
-	sys.exit(2)
-
-# Check to make sure sd_url is in correct
-if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig['sdUrl']) == None:
-	print 'Your sd_url is incorrect. It needs to be in the form http://example.serverdensity.com (or using https)'
-	sys.exit(2)
 	
 # Check apache_status_url is not empty (case 27073)
 if agentConfig['apacheStatusUrl'] == None:
@@ -200,7 +190,8 @@ if __name__ == '__main__':
 	if argLen == 2 or argLen == 3 or argLen == 4:
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
-			daemon.start()
+			#daemon.start()
+			daemon.run()
 			
 		elif 'stop' == sys.argv[1]:
 			mainLogger.debug('Stop daemon')

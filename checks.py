@@ -852,7 +852,7 @@ class checks:
 			self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['sdUrl'])
 			
 			# Build the request handler
-			request = urllib2.Request(self.agentConfig['sdUrl'] + '/postback/', postBackData, headers)
+			request = urllib2.Request(self.agentConfig['sdUrl'] + '/intake/', postBackData, headers)
 			
 			# Do the request, log any errors
 			response = urllib2.urlopen(request)
@@ -971,12 +971,14 @@ class checks:
 			payload = minjson.write(checksData)
 			
 		self.checksLogger.debug('doChecks: json converted, hash')
+		self.checksLogger.debug('Payload: %s' % payload)
 		
-		payloadHash = md5.new(payload).hexdigest()
+		payloadHash = md5(payload).hexdigest()
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
 
 		self.checksLogger.debug('doChecks: hashed, doPostBack')
 
+		# For tests, no need to post data back
 		self.doPostBack(postBackData)
 		
 		self.checksLogger.debug('doChecks: posted back, reschedule')
