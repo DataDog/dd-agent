@@ -11,8 +11,8 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = 0
-agentConfig['checkFreq'] = 60
+agentConfig['debugMode'] = 1
+agentConfig['checkFreq'] = 10
 
 agentConfig['version'] = '1.6.0'
 
@@ -115,11 +115,6 @@ except ConfigParser.NoOptionError, e:
 if agentConfig['sdUrl'] == 'http://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
 	sys.exit(2)
-
-# Check to make sure sd_url is in correct
-if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig['sdUrl']) == None:
-	print 'Your sd_url is incorrect. It needs to be in the form http://example.serverdensity.com (or using https)'
-	sys.exit(2)
 	
 # Check apache_status_url is not empty (case 27073)
 if agentConfig['apacheStatusUrl'] == None:
@@ -130,7 +125,7 @@ if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
 	sys.exit(2)
 
-if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig and agentConfig['MySQLPass'] != '':
+if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig:
 	try:
 		import MySQLdb
 	except ImportError:

@@ -387,7 +387,7 @@ class checks:
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
 		
-		if 'MySQLServer' in self.agentConfig and 'MySQLUser' in self.agentConfig and 'MySQLPass' in self.agentConfig and self.agentConfig['MySQLServer'] != '' and self.agentConfig['MySQLUser'] != '' and self.agentConfig['MySQLPass'] != '':
+		if 'MySQLServer' in self.agentConfig and 'MySQLUser' in self.agentConfig and self.agentConfig['MySQLServer'] != '' and self.agentConfig['MySQLUser'] != '':
 		
 			self.checksLogger.debug('getMySQLStatus: config')
 			
