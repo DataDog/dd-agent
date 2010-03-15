@@ -11,8 +11,8 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = 1
-agentConfig['checkFreq'] = 10
+agentConfig['debugMode'] = 0
+agentConfig['checkFreq'] = 60
 
 agentConfig['version'] = '1.6.0'
 
@@ -114,6 +114,11 @@ except ConfigParser.NoOptionError, e:
 # Check to make sure the default config values have been changed (only core config values)
 if agentConfig['sdUrl'] == 'http://example.serverdensity.com' or agentConfig['agentKey'] == 'keyHere':
 	print 'You have not modified config.cfg for your server'
+	sys.exit(2)
+	
+# Check to make sure sd_url is in correct
+if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig['sdUrl']) == None:
+	print 'Your sd_url is incorrect. It needs to be in the form http://example.serverdensity.com (or using https)'
 	sys.exit(2)
 	
 # Check apache_status_url is not empty (case 27073)
