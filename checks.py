@@ -5,7 +5,7 @@
 	A web based server resource monitoring application
 
 	Licensed under Simplified BSD License (see LICENSE)
-	(C) Boxed Ice 2009 all rights reserved
+	(C) Boxed Ice 2010 all rights reserved
 '''
 
 # SO references
@@ -17,18 +17,14 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
+import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
+import os
 import platform
 import re
 import subprocess
 import sys
 import urllib
 import urllib2
-
-# Avoids depreciation warning on newer Python versions (case 29048)
-try:
-	from hashlib import md5
-except:
-	import md5
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -57,6 +53,7 @@ class checks:
 		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
+		self.plugins = None
 		self.topIndex = 0
 		self.os = None
 		
@@ -728,7 +725,257 @@ class checks:
 			self.checksLogger.debug('getNginxStatus: config not set')
 			
 			return False
+
+	def getRabbitMQStatus(self):
+		self.checksLogger.debug('getRabbitMQStatus: start')
+
+		if 'rabbitMQStatusUrl' not in self.agentConfig or \
+		   'rabbitMQUser' not in self.agentConfig or \
+		   'rabbitMQPass' not in self.agentConfig or \
+			self.agentConfig['rabbitMQStatusUrl'] == 'http://www.example.com:55672/json':
+
+			self.checksLogger.debug('getRabbitMQStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: config set')
+
+		try:
+			self.checksLogger.debug('getRabbitMQStatus: attempting authentication setup')
+			manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+			manager.add_password(None, self.agentConfig['rabbitMQStatusUrl'], self.agentConfig['rabbitMQUser'], self.agentConfig['rabbitMQPass'])
+			handler = urllib2.HTTPBasicAuthHandler(manager)
+			opener = urllib2.build_opener(handler)
+			urllib2.install_opener(opener)
+
+			self.checksLogger.debug('getRabbitMQStatus: attempting urlopen')
+			req = urllib2.Request(self.agentConfig['rabbitMQStatusUrl'], None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get RabbitMQ status - Exception = ' + traceback.format_exc())
+			return False
 			
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getRabbitMQStatus: json read')
+				status = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getRabbitMQStatus: minjson read')
+				status = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load RabbitMQ status JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
+		return status
+
+	def getMongoDBStatus(self):
+		self.checksLogger.debug('getMongoDBStatus: start')
+
+		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
+			self.checksLogger.debug('getMongoDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: config set')
+
+		try:
+			import pymongo
+			from pymongo import Connection
+		except ImportError:
+			self.checksLogger.error('Unable to import pymongo library')
+			return False
+
+		# The dictionary to be returned.
+		mongodb = {}
+
+		try:
+			conn = Connection(self.agentConfig['MongoDBServer'])
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
+			return False
+
+		# Older versions of pymongo did not support the command()
+		# method below.
+		try:
+			for dbName in conn.database_names():
+				db = conn[dbName]
+				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+				mongodb[dbName] = status
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: completed, returning')
+		return mongodb
+
+	def getCouchDBStatus(self):
+		self.checksLogger.debug('getCouchDBStatus: start')
+
+		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
+			self.checksLogger.debug('getCouchDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getCouchDBStatus: config set')
+
+		# The dictionary to be returned.
+		couchdb = {'stats': None, 'databases': {}}
+
+		# First, get overall statistics.
+		endpoint = '/_stats/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				stats = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				stats = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		couchdb['stats'] = stats
+
+		# Next, get all database names.
+		endpoint = '/_all_dbs/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				databases = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				databases = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		for dbName in databases:
+			endpoint = '/%s/' % dbName
+
+			try:
+				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+				req = urllib2.Request(url, None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
+				response = request.read()
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
+				return False
+
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
+				return False
+
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
+				return False
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
+				return False
+
+			try:
+
+				if int(pythonVersion[1]) >= 6:
+					self.checksLogger.debug('getCouchDBStatus: json read')
+					couchdb['databases'][dbName] = json.loads(response)
+
+				else:
+					self.checksLogger.debug('getCouchDBStatus: minjson read')
+					couchdb['databases'][dbName] = minjson.safeRead(response)
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+				return False
+
+		self.checksLogger.debug('getCouchDBStatus: completed, returning')
+		return couchdb
+
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -845,6 +1092,87 @@ class checks:
 			
 		return processes
 		
+	def getPlugins(self):
+		self.checksLogger.debug('getPlugins: start')
+		
+		if 'pluginDirectory' in self.agentConfig:
+			if os.path.exists(self.agentConfig['pluginDirectory']) == False:
+				self.checksLogger.debug('getPlugins: ' + self.agentConfig['pluginDirectory'] + ' directory does not exist')
+				return False
+		else:
+			return False
+		
+		# Have we already imported the plugins?
+		# Only load the plugins once
+		if self.plugins == None:			
+			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
+			
+			sys.path.append(self.agentConfig['pluginDirectory'])
+			
+			self.plugins = []
+			plugins = []
+			
+			# Loop through all the plugin files
+			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):				
+				for name in files:				
+					self.checksLogger.debug('getPlugins: considering: ' + name)
+				
+					name = name.split('.')
+					
+					# Only pull in .py files (ignores others, inc .pyc files)
+					try:
+						if name[1] == 'py':
+							
+							self.checksLogger.debug('getPlugins: ' + name[0] + '.' + name[1] + ' is a plugin')
+							
+							plugins.append(name[0])
+							
+					except IndexError, e:
+						
+						continue
+			
+			# Loop through all the found plugins, import them then create new objects
+			for pluginName in plugins:				
+				self.checksLogger.debug('getPlugins: importing ' + pluginName)
+				
+				# Import the plugin			
+				importedPlugin = __import__(pluginName)
+				
+				self.checksLogger.debug('getPlugins: imported ' + pluginName)
+				
+				# Find out the class name and then instantiate it
+				pluginClass = getattr(importedPlugin, pluginName)
+				pluginObj = pluginClass()
+				
+				self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
+				
+				# Store in class var so we can execute it again on the next cycle
+				self.plugins.append(pluginObj)
+		
+		# Now execute the objects previously created
+		if self.plugins != None:			
+			self.checksLogger.debug('getPlugins: executing plugins')
+			
+			# Execute the plugins
+			output = {}
+					
+			for plugin in self.plugins:				
+				self.checksLogger.debug('getPlugins: executing ' + plugin.__class__.__name__)
+				
+				output[plugin.__class__.__name__] = plugin.run()
+				
+				self.checksLogger.debug('getPlugins: executed ' + plugin.__class__.__name__)
+			
+			self.checksLogger.debug('getPlugins: returning')
+			
+			# Each plugin should output a dictionary so we can convert it to JSON later	
+			return output
+			
+		else:			
+			self.checksLogger.debug('getPlugins: no plugins, returning false')
+			
+			return False
+		
 	def doPostBack(self, postBackData):
 		self.checksLogger.debug('doPostBack: start')	
 		
@@ -908,7 +1236,11 @@ class checks:
 		mysqlStatus = self.getMySQLStatus()
 		networkTraffic = self.getNetworkTraffic()
 		nginxStatus = self.getNginxStatus()
-		processes = self.getProcesses()		
+		processes = self.getProcesses()
+		rabbitmq = self.getRabbitMQStatus()
+		mongodb = self.getMongoDBStatus()
+		couchdb = self.getCouchDBStatus()
+		plugins = self.getPlugins()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -942,6 +1274,22 @@ class checks:
 		if nginxStatus != False:
 			checksData['nginxConnections'] = nginxStatus['connections']
 			checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
+			
+		# RabbitMQ
+		if rabbitmq != False:
+			checksData['rabbitMQ'] = rabbitmq
+		
+		# MongoDB
+		if mongodb != False:
+			checksData['mongoDB'] = mongodb
+			
+		# CouchDB
+		if couchdb != False:
+			checksData['couchDB'] = couchdb
+		
+		# Plugins
+		if plugins != False:
+			checksData['plugins'] = plugins
 			
 		# Include system stats on first postback
 		if firstRun == True:

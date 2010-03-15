@@ -6,7 +6,7 @@
 	A web based server resource monitoring application
 
 	Licensed under Simplified BSD License (see LICENSE)
-	(C) Boxed Ice 2009 all rights reserved
+	(C) Boxed Ice 2010 all rights reserved
 '''
 
 # General config
@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = True
 agentConfig['checkFreq'] = 5
 
-agentConfig['version'] = '1.4.2'
+agentConfig['version'] = '1.6.0'
 
 # Core modules
 import ConfigParser
@@ -81,7 +81,25 @@ try:
 
 	if config.has_option('Main', 'pidfile_directory'):
 		agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
-	
+		
+	if config.has_option('Main', 'plugin_directory'):
+		agentConfig['pluginDirectory'] = config.get('Main', 'plugin_directory')
+
+	if config.has_option('Main', 'rabbitmq_status_url'):
+		agentConfig['rabbitMQStatusUrl'] = config.get('Main', 'rabbitmq_status_url')
+
+	if config.has_option('Main', 'rabbitmq_user'):
+		agentConfig['rabbitMQUser'] = config.get('Main', 'rabbitmq_user')
+
+	if config.has_option('Main', 'rabbitmq_pass'):
+		agentConfig['rabbitMQPass'] = config.get('Main', 'rabbitmq_pass')
+
+	if config.has_option('Main', 'mongodb_server'):
+		agentConfig['MongoDBServer'] = config.get('Main', 'mongodb_server')
+
+	if config.has_option('Main', 'couchdb_server'):
+		agentConfig['CouchDBServer'] = config.get('Main', 'couchdb_server')
+
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)
@@ -103,11 +121,18 @@ if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	sys.exit(2)
 
 if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig and agentConfig['MySQLPass'] != '':
-    try:
-        import MySQLdb
-    except ImportError:
-        print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
-        sys.exit(2)
+	try:
+		import MySQLdb
+	except ImportError:
+		print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
+		sys.exit(2)
+
+if 'MongoDBServer' in agentConfig and agentConfig['MongoDBServer'] != '':
+	try:
+		import pymongo
+	except ImportError:
+		print 'You have configured MongoDB for monitoring, but the pymongo module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mongodbstatus/'
+		sys.exit(2)
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
