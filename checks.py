@@ -1135,8 +1135,9 @@ class checks:
 			for pluginName in plugins:				
 				self.checksLogger.debug('getPlugins: importing ' + pluginName)
 				
-				# Import the plugin			
-				importedPlugin = __import__(pluginName)
+				# Import the plugin, but only from the pluginDirectory (ensures no conflicts with other module names elsehwhere in the sys.path
+				import imp
+				importedPlugin = imp.load_source(pluginName, "%s/%s.py"%(self.agentConfig['pluginDirectory'], pluginName)
 				
 				self.checksLogger.debug('getPlugins: imported ' + pluginName)
 				
