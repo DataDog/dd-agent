@@ -17,7 +17,10 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
-import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
+try:
+	from hashlib import md5
+except ImportError:
+	from md5 import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 import os
 import platform
 import re
@@ -1322,6 +1325,7 @@ class checks:
 		self.checksLogger.debug('Payload: %s' % payload)
 		
 		payloadHash = md5(payload).hexdigest()
+
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
 
 		self.checksLogger.debug('doChecks: hashed, doPostBack')
