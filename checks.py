@@ -17,7 +17,6 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
-import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 import os
 import platform
 import re
@@ -25,6 +24,11 @@ import subprocess
 import sys
 import urllib
 import urllib2
+
+try:
+    from hashlib import md5
+except ImportError: # Python < 2.5
+    from md5 import new as md5
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -1321,7 +1325,7 @@ class checks:
 			
 		self.checksLogger.debug('doChecks: json converted, hash')
 		
-		payloadHash = md5.new(payload).hexdigest()
+		payloadHash = md5(payload).hexdigest()
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
 
 		self.checksLogger.debug('doChecks: hashed, doPostBack')
