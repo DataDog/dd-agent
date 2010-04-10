@@ -29,6 +29,9 @@ import sys
 import urllib
 import urllib2
 
+# Needed to identify server uniquely
+import uuid
+
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
 # on 2.6 or above, we should use the core module which will be faster
@@ -1309,6 +1312,17 @@ class checks:
 			self.checksLogger.debug('Unable to get hostname: ' + str(e))
 		
 		self.checksLogger.debug('doChecks: payloads built, convert to json')
+
+		# Generate a unique name that will stay constant between
+		# invocations, such as platform.node() + uuid.getnode()
+		# Use uuid5, which does not depend on the clock and is
+		# recommended over uuid3.
+		# This is important to be able to identify a server even if
+		# its drives have been wiped clean.
+		# Note that this is not foolproof but we can reconcile servers
+		# on the back-end if need be, based on mac addresses.
+		checksData['uuid'] = str(uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())))
+		self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
 		
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
