@@ -825,8 +825,15 @@ class checks:
 			for dbName in conn.database_names():
 				db = conn[dbName]
 				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
-				status['backgroundFlushing'].pop('last_finished')
-				status.pop('localTime')
+				# If these keys exist, remove them for now as they cannot be serialized
+				try:
+    				status['backgroundFlushing'].pop('last_finished')
+    			except KeyError:
+    			    pass
+    			try:
+    				status.pop('localTime')
+    			except KeyError:
+    			    pass
 				mongodb[dbName] = status
 		except Exception, ex:
 			import traceback
