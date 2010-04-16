@@ -825,6 +825,8 @@ class checks:
 			for dbName in conn.database_names():
 				db = conn[dbName]
 				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+				status['backgroundFlushing'].pop('last_finished')
+				status.pop('localTime')
 				mongodb[dbName] = status
 		except Exception, ex:
 			import traceback
