@@ -825,7 +825,7 @@ class checks:
 		try:
 			for dbName in conn.database_names():
 				db = conn[dbName]
-				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+				status = db.command('serverStatus', dbName) # Shorthand for {'serverStatus': 1}
 				# If these keys exist, remove them for now as they cannot be serialized
 				try:
 					status['backgroundFlushing'].pop('last_finished')
