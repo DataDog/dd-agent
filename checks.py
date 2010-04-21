@@ -841,6 +841,7 @@ class checks:
 				status['indexCounters']['btree']['accessesPS'] = 0
 				status['indexCounters']['btree']['hitsPS'] = 0
 				status['indexCounters']['btree']['missesPS'] = 0
+				status['indexCounters']['btree']['missRatioPS'] = 0
 				status['opcounters']['insertPS'] = 0
 				status['opcounters']['queryPS'] = 0
 				status['opcounters']['updatePS'] = 0
@@ -857,6 +858,7 @@ class checks:
 				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
 				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
 				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
 				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
 				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
 				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
