@@ -1155,7 +1155,7 @@ class checks:
 		
 		# Have we already imported the plugins?
 		# Only load the plugins once
-		if self.plugins == None:			
+		if self.plugins == None:
 			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
 			
 			sys.path.append(self.agentConfig['pluginDirectory'])
@@ -1164,8 +1164,8 @@ class checks:
 			plugins = []
 			
 			# Loop through all the plugin files
-			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):				
-				for name in files:				
+			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):
+				for name in files:
 					self.checksLogger.debug('getPlugins: considering: ' + name)
 				
 					name = name.split('.')
@@ -1183,7 +1183,7 @@ class checks:
 						continue
 			
 			# Loop through all the found plugins, import them then create new objects
-			for pluginName in plugins:				
+			for pluginName in plugins:
 				self.checksLogger.debug('getPlugins: importing ' + pluginName)
 				
 				# Import the plugin, but only from the pluginDirectory (ensures no conflicts with other module names elsehwhere in the sys.path
@@ -1192,15 +1192,19 @@ class checks:
 				
 				self.checksLogger.debug('getPlugins: imported ' + pluginName)
 				
-				# Find out the class name and then instantiate it
-				pluginClass = getattr(importedPlugin, pluginName)
-				pluginObj = pluginClass()
+				try:
+					# Find out the class name and then instantiate it
+					pluginClass = getattr(importedPlugin, pluginName)
+					pluginObj = pluginClass()
 				
-				self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
+					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
-				# Store in class var so we can execute it again on the next cycle
-				self.plugins.append(pluginObj)
-		
+					# Store in class var so we can execute it again on the next cycle
+					self.plugins.append(pluginObj)
+				except Exception, ex:
+					import traceback
+					self.checksLogger.error('getPlugins: exception = ' + traceback.format_exc())
+					
 		# Now execute the objects previously created
 		if self.plugins != None:			
 			self.checksLogger.debug('getPlugins: executing plugins')
