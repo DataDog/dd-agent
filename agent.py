@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = True
 agentConfig['checkFreq'] = 5
 
-agentConfig['version'] = '1.6.0'
+agentConfig['version'] = '1.6.1'
 
 # Core modules
 import ConfigParser
@@ -120,7 +120,7 @@ if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
 	print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
 	sys.exit(2)
 
-if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig and agentConfig['MySQLPass'] != '':
+if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig:
 	try:
 		import MySQLdb
 	except ImportError:
