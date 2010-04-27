@@ -1321,7 +1321,7 @@ class checks:
 		# its drives have been wiped clean.
 		# Note that this is not foolproof but we can reconcile servers
 		# on the back-end if need be, based on mac addresses.
-		checksData['uuid'] = str(uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())))
+		checksData['uuid'] = uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 		self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
 		
 		# Post back the data
