@@ -17,10 +17,6 @@
 import httplib # Used only for handling httplib.HTTPException (case #26701)
 import logging
 import logging.handlers
-try:
-	from hashlib import md5
-except ImportError:
-	from md5 import md5 # I know this is depreciated, but we still support Python 2.4 and hashlib is only in 2.5. Case 26918
 import os
 import platform
 import re
@@ -31,6 +27,10 @@ import urllib2
 
 # Needed to identify server uniquely
 import uuid
+try:
+    from hashlib import md5
+except ImportError: # Python < 2.5
+    from md5 import new as md5
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -59,6 +59,7 @@ class checks:
 		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
+		self.mongoDBStore = None
 		self.plugins = None
 		self.topIndex = 0
 		self.os = None
@@ -393,7 +394,7 @@ class checks:
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
 		
-		if 'MySQLServer' in self.agentConfig and 'MySQLUser' in self.agentConfig and 'MySQLPass' in self.agentConfig and self.agentConfig['MySQLServer'] != '' and self.agentConfig['MySQLUser'] != '' and self.agentConfig['MySQLPass'] != '':
+		if 'MySQLServer' in self.agentConfig and 'MySQLUser' in self.agentConfig and self.agentConfig['MySQLServer'] != '' and self.agentConfig['MySQLUser'] != '':
 		
 			self.checksLogger.debug('getMySQLStatus: config')
 			
@@ -824,10 +825,56 @@ class checks:
 		# Older versions of pymongo did not support the command()
 		# method below.
 		try:
-			for dbName in conn.database_names():
-				db = conn[dbName]
-				status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
-				mongodb[dbName] = status
+			dbName = conn.database_names()[0]
+			db = conn[dbName]
+			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+			# If these keys exist, remove them for now as they cannot be serialized
+			try:
+				status['backgroundFlushing'].pop('last_finished')
+			except KeyError:
+				pass
+			try:
+				status.pop('localTime')
+			except KeyError:
+				pass
+
+			if self.mongoDBStore == None:
+				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
+				status['indexCounters']['btree']['accessesPS'] = 0
+				status['indexCounters']['btree']['hitsPS'] = 0
+				status['indexCounters']['btree']['missesPS'] = 0
+				status['indexCounters']['btree']['missRatioPS'] = 0
+				status['opcounters']['insertPS'] = 0
+				status['opcounters']['queryPS'] = 0
+				status['opcounters']['updatePS'] = 0
+				status['opcounters']['deletePS'] = 0
+				status['opcounters']['getmorePS'] = 0
+				status['opcounters']['commandPS'] = 0
+				status['asserts']['regularPS'] = 0
+				status['asserts']['warningPS'] = 0
+				status['asserts']['msgPS'] = 0
+				status['asserts']['userPS'] = 0
+				status['asserts']['rolloversPS'] = 0
+			else:
+				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
+				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
+				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
+				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
+				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
+				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
+				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
+				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
+				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
+				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
+				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
+				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
+				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
+				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
+				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+
+			self.mongoDBStore = status
+			mongodb = status
 		except Exception, ex:
 			import traceback
 			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
@@ -1110,7 +1157,7 @@ class checks:
 		
 		# Have we already imported the plugins?
 		# Only load the plugins once
-		if self.plugins == None:			
+		if self.plugins == None:
 			self.checksLogger.debug('getPlugins: initial load from ' + self.agentConfig['pluginDirectory'])
 			
 			sys.path.append(self.agentConfig['pluginDirectory'])
@@ -1119,8 +1166,8 @@ class checks:
 			plugins = []
 			
 			# Loop through all the plugin files
-			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):				
-				for name in files:				
+			for root, dirs, files in os.walk(self.agentConfig['pluginDirectory']):
+				for name in files:
 					self.checksLogger.debug('getPlugins: considering: ' + name)
 				
 					name = name.split('.')
@@ -1138,23 +1185,28 @@ class checks:
 						continue
 			
 			# Loop through all the found plugins, import them then create new objects
-			for pluginName in plugins:				
+			for pluginName in plugins:
 				self.checksLogger.debug('getPlugins: importing ' + pluginName)
 				
-				# Import the plugin			
-				importedPlugin = __import__(pluginName)
+				# Import the plugin, but only from the pluginDirectory (ensures no conflicts with other module names elsehwhere in the sys.path
+				import imp
+				importedPlugin = imp.load_source(pluginName, os.path.join(self.agentConfig['pluginDirectory'], '%s.py' % pluginName))
 				
 				self.checksLogger.debug('getPlugins: imported ' + pluginName)
 				
-				# Find out the class name and then instantiate it
-				pluginClass = getattr(importedPlugin, pluginName)
-				pluginObj = pluginClass()
+				try:
+					# Find out the class name and then instantiate it
+					pluginClass = getattr(importedPlugin, pluginName)
+					pluginObj = pluginClass()
 				
-				self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
+					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
-				# Store in class var so we can execute it again on the next cycle
-				self.plugins.append(pluginObj)
-		
+					# Store in class var so we can execute it again on the next cycle
+					self.plugins.append(pluginObj)
+				except Exception, ex:
+					import traceback
+					self.checksLogger.error('getPlugins: exception = ' + traceback.format_exc())
+					
 		# Now execute the objects previously created
 		if self.plugins != None:			
 			self.checksLogger.debug('getPlugins: executing plugins')
@@ -1342,7 +1394,6 @@ class checks:
 		self.checksLogger.debug('Payload: %s' % payload)
 		
 		payloadHash = md5(payload).hexdigest()
-
 		postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
 
 		self.checksLogger.debug('doChecks: hashed, doPostBack')
