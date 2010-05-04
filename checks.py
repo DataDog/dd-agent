@@ -814,7 +814,11 @@ class checks:
 		mongodb = {}
 
 		try:
-			conn = Connection(self.agentConfig['MongoDBServer'])
+			mongoInfo = self.agentConfig['MongoDBServer'].split(':')
+			if len(mongoInfo) == 2:
+				conn = Connection(mongoInfo[0], mongoInfo[1])
+			else:
+				conn = Connection(mongoInfo[0])
 		except Exception, ex:
 			import traceback
 			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
