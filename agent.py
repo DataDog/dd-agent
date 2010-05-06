@@ -52,7 +52,7 @@ try:
 	if agentConfig['sdUrl'].endswith('/'):
 		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
-	if os.path.exists('/var/log/sd-agent'):
+	if os.path.exists('/var/log/sd-agent/'):
 		agentConfig['tmpDirectory'] = '/var/log/sd-agent/'
 	else:
 		agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
