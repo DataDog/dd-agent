@@ -52,13 +52,16 @@ try:
 	if agentConfig['sdUrl'].endswith('/'):
 		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
-	agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
+	if os.path.exists('/var/log/sd-agent'):
+		agentConfig['tmpDirectory'] = '/var/log/sd-agent/'
+	else:
+		agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
 	agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
 	
 	# Optional config
-	# Also do not need to be present in the config file (case 28326).	
+	# Also do not need to be present in the config file (case 28326).
 	if config.has_option('Main', 'apache_status_url'):
-		agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')		
+		agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
 		
 	if config.has_option('Main', 'mysql_server'):
 		agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
