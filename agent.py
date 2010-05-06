@@ -205,7 +205,12 @@ if __name__ == '__main__':
 	
 	if argLen == 3 or argLen == 4: # needs to accept case when --clean is passed
 		if sys.argv[2] == 'init':
-			pidFile = '/var/run/sd-agent.pid'
+			# This path added for newer Linux packages which run under
+			# a separate sd-agent user account.
+			if os.path.exists('/var/run/sd-agent/'):
+				pidFile = '/var/run/sd-agent/sd-agent.pid'
+			else:
+				pidFile = '/var/run/sd-agent.pid'
 			
 	else:
 		pidFile = os.path.join(agentConfig['pidfileDirectory'], 'sd-agent.pid')
