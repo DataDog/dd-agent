@@ -77,10 +77,6 @@ try:
 
 	if config.has_option('Main', 'tmp_directory'):
 		agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
-		
-	# Stats reporting, optional (supports older agent versions without this config value)
-	if config.has_option('Main', 'report_anon_stats'):
-		agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
 
 	if config.has_option('Main', 'pidfile_directory'):
 		agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
@@ -166,11 +162,7 @@ class agent(Daemon):
 			systemStats['macV'] = platform.mac_ver()
 		
 		agentLogger.debug('System: ' + str(systemStats))
-		
-		# We use the system stats in the log but user might not want them posted back
-		if 'reportAnonStats' in agentConfig and agentConfig['reportAnonStats'] == 'no':	
-			systemStats = None
-				
+						
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
