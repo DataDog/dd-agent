@@ -694,7 +694,7 @@ class checks:
 			
 			self.checksLogger.debug('getNginxStatus: parsed reqs')
 			
-			if self.nginxRequestsStore == None:
+			if self.nginxRequestsStore == None or self.nginxRequestsStore < 0:
 				
 				self.checksLogger.debug('getNginxStatus: no reqs so storing for first time')
 				
