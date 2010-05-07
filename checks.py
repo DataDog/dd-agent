@@ -61,6 +61,10 @@ class checks:
 		self.plugins = None
 		self.topIndex = 0
 		self.os = None
+	
+	#
+	# Checks
+	#
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -139,6 +143,152 @@ class checks:
 			
 			return False
 		
+	def getCouchDBStatus(self):
+		self.checksLogger.debug('getCouchDBStatus: start')
+
+		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
+			self.checksLogger.debug('getCouchDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getCouchDBStatus: config set')
+
+		# The dictionary to be returned.
+		couchdb = {'stats': None, 'databases': {}}
+
+		# First, get overall statistics.
+		endpoint = '/_stats/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				stats = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				stats = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		couchdb['stats'] = stats
+
+		# Next, get all database names.
+		endpoint = '/_all_dbs/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				databases = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				databases = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		for dbName in databases:
+			endpoint = '/%s/' % dbName
+
+			try:
+				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+				req = urllib2.Request(url, None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
+				response = request.read()
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
+				return False
+
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
+				return False
+
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
+				return False
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
+				return False
+
+			try:
+
+				if int(pythonVersion[1]) >= 6:
+					self.checksLogger.debug('getCouchDBStatus: json read')
+					couchdb['databases'][dbName] = json.loads(response)
+
+				else:
+					self.checksLogger.debug('getCouchDBStatus: minjson read')
+					couchdb['databases'][dbName] = minjson.safeRead(response)
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+				return False
+
+		self.checksLogger.debug('getCouchDBStatus: completed, returning')
+		return couchdb
+	
 	def getDiskUsage(self):
 		self.checksLogger.debug('getDiskUsage: start')
 		
@@ -388,6 +538,97 @@ class checks:
 					
 		else:
 			return False
+			
+	def getMongoDBStatus(self):
+		self.checksLogger.debug('getMongoDBStatus: start')
+
+		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
+			self.checksLogger.debug('getMongoDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: config set')
+
+		try:
+			import pymongo
+			from pymongo import Connection
+		except ImportError:
+			self.checksLogger.error('Unable to import pymongo library')
+			return False
+
+		# The dictionary to be returned.
+		mongodb = {}
+
+		try:
+			mongoInfo = self.agentConfig['MongoDBServer'].split(':')
+			if len(mongoInfo) == 2:
+				conn = Connection(mongoInfo[0], mongoInfo[1])
+			else:
+				conn = Connection(mongoInfo[0])
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
+			return False
+
+		# Older versions of pymongo did not support the command()
+		# method below.
+		try:
+			dbName = conn.database_names()[0]
+			db = conn[dbName]
+			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+			# If these keys exist, remove them for now as they cannot be serialized
+			try:
+				status['backgroundFlushing'].pop('last_finished')
+			except KeyError:
+				pass
+			try:
+				status.pop('localTime')
+			except KeyError:
+				pass
+
+			if self.mongoDBStore == None:
+				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
+				status['indexCounters']['btree']['accessesPS'] = 0
+				status['indexCounters']['btree']['hitsPS'] = 0
+				status['indexCounters']['btree']['missesPS'] = 0
+				status['indexCounters']['btree']['missRatioPS'] = 0
+				status['opcounters']['insertPS'] = 0
+				status['opcounters']['queryPS'] = 0
+				status['opcounters']['updatePS'] = 0
+				status['opcounters']['deletePS'] = 0
+				status['opcounters']['getmorePS'] = 0
+				status['opcounters']['commandPS'] = 0
+				status['asserts']['regularPS'] = 0
+				status['asserts']['warningPS'] = 0
+				status['asserts']['msgPS'] = 0
+				status['asserts']['userPS'] = 0
+				status['asserts']['rolloversPS'] = 0
+			else:
+				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
+				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
+				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
+				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
+				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
+				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
+				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
+				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
+				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
+				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
+				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
+				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
+				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
+				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
+				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+
+			self.mongoDBStore = status
+			mongodb = status
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: completed, returning')
+		return mongodb
 	
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
@@ -640,8 +881,79 @@ class checks:
 		else:			
 			
 			self.checksLogger.debug('getMySQLStatus: config not set')
-			return False
+			return False	
+			
+	def getNetworkTraffic(self):
+		self.checksLogger.debug('getNetworkTraffic: start')
 		
+		if sys.platform == 'linux2':
+			self.checksLogger.debug('getNetworkTraffic: linux2')
+			
+			try:
+				self.checksLogger.debug('getNetworkTraffic: attempting open')
+				
+				proc = open('/proc/net/dev', 'r')
+				lines = proc.readlines()
+				
+			except IOError, e:
+				self.checksLogger.error('getNetworkTraffic: exception = ' + str(e))
+				return False
+			
+			proc.close()
+			
+			self.checksLogger.debug('getNetworkTraffic: open success, parsing')
+			
+			columnLine = lines[1]
+			_, receiveCols , transmitCols = columnLine.split('|')
+			receiveCols = map(lambda a:'recv_' + a, receiveCols.split())
+			transmitCols = map(lambda a:'trans_' + a, transmitCols.split())
+			
+			cols = receiveCols + transmitCols
+			
+			self.checksLogger.debug('getNetworkTraffic: parsing, looping')
+			
+			faces = {}
+			for line in lines[2:]:
+				if line.find(':') < 0: continue
+				face, data = line.split(':')
+				faceData = dict(zip(cols, data.split()))
+				faces[face] = faceData
+			
+			self.checksLogger.debug('getNetworkTraffic: parsed, looping')
+			
+			interfaces = {}
+			
+			# Now loop through each interface
+			for face in faces:
+				key = face.strip()
+				
+				# We need to work out the traffic since the last check so first time we store the current value
+				# then the next time we can calculate the difference
+				if key in self.networkTrafficStore:
+					interfaces[key] = {}
+					interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
+					
+					interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
+					
+					# And update the stored value to subtract next time round
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+					
+				else:
+					self.networkTrafficStore[key] = {}
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+		
+			self.checksLogger.debug('getNetworkTraffic: completed, returning')
+					
+			return interfaces
+		
+		else:		
+			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
+		
+			return False	
 	
 	def getNginxStatus(self):
 		self.checksLogger.debug('getNginxStatus: start')
@@ -731,6 +1043,50 @@ class checks:
 			
 			return False
 
+	def getProcesses(self):
+		self.checksLogger.debug('getProcesses: start')
+		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(mem))
+		
+		# Get output from ps
+		try:
+			self.checksLogger.debug('getProcesses: attempting Popen')
+			
+			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('getProcesses: exception = ' + traceback.format_exc())
+			return False
+		
+		self.checksLogger.debug('getProcesses: Popen success, parsing')
+		
+		# Memory logging (case 27152)
+		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
+			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(mem))
+		
+		# Split out each process
+		processLines = ps.split('\n')
+		
+		del processLines[0] # Removes the headers
+		processLines.pop() # Removes a trailing empty line
+		
+		processes = []
+		
+		self.checksLogger.debug('getProcesses: Popen success, parsing, looping')
+		
+		for line in processLines:
+			line = line.split(None, 10)
+			processes.append(line)
+		
+		self.checksLogger.debug('getProcesses: completed, returning')
+			
+		return processes
+			
 	def getRabbitMQStatus(self):
 		self.checksLogger.debug('getRabbitMQStatus: start')
 
@@ -793,359 +1149,10 @@ class checks:
 
 		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
 		return status
-
-	def getMongoDBStatus(self):
-		self.checksLogger.debug('getMongoDBStatus: start')
-
-		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
-			self.checksLogger.debug('getMongoDBStatus: config not set')
-			return False
-
-		self.checksLogger.debug('getMongoDBStatus: config set')
-
-		try:
-			import pymongo
-			from pymongo import Connection
-		except ImportError:
-			self.checksLogger.error('Unable to import pymongo library')
-			return False
-
-		# The dictionary to be returned.
-		mongodb = {}
-
-		try:
-			mongoInfo = self.agentConfig['MongoDBServer'].split(':')
-			if len(mongoInfo) == 2:
-				conn = Connection(mongoInfo[0], mongoInfo[1])
-			else:
-				conn = Connection(mongoInfo[0])
-		except Exception, ex:
-			import traceback
-			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
-			return False
-
-		# Older versions of pymongo did not support the command()
-		# method below.
-		try:
-			dbName = conn.database_names()[0]
-			db = conn[dbName]
-			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
-			# If these keys exist, remove them for now as they cannot be serialized
-			try:
-				status['backgroundFlushing'].pop('last_finished')
-			except KeyError:
-				pass
-			try:
-				status.pop('localTime')
-			except KeyError:
-				pass
-
-			if self.mongoDBStore == None:
-				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
-				status['indexCounters']['btree']['accessesPS'] = 0
-				status['indexCounters']['btree']['hitsPS'] = 0
-				status['indexCounters']['btree']['missesPS'] = 0
-				status['indexCounters']['btree']['missRatioPS'] = 0
-				status['opcounters']['insertPS'] = 0
-				status['opcounters']['queryPS'] = 0
-				status['opcounters']['updatePS'] = 0
-				status['opcounters']['deletePS'] = 0
-				status['opcounters']['getmorePS'] = 0
-				status['opcounters']['commandPS'] = 0
-				status['asserts']['regularPS'] = 0
-				status['asserts']['warningPS'] = 0
-				status['asserts']['msgPS'] = 0
-				status['asserts']['userPS'] = 0
-				status['asserts']['rolloversPS'] = 0
-			else:
-				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
-				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
-				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
-				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
-				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
-				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
-				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
-				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
-				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
-				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
-				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
-				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
-				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
-				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
-				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
-				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
-
-			self.mongoDBStore = status
-			mongodb = status
-		except Exception, ex:
-			import traceback
-			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
-			return False
-
-		self.checksLogger.debug('getMongoDBStatus: completed, returning')
-		return mongodb
-
-	def getCouchDBStatus(self):
-		self.checksLogger.debug('getCouchDBStatus: start')
-
-		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
-			self.checksLogger.debug('getCouchDBStatus: config not set')
-			return False
-
-		self.checksLogger.debug('getCouchDBStatus: config set')
-
-		# The dictionary to be returned.
-		couchdb = {'stats': None, 'databases': {}}
-
-		# First, get overall statistics.
-		endpoint = '/_stats/'
-
-		try:
-			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-			req = urllib2.Request(url, None, headers)
-
-			# Do the request, log any errors
-			request = urllib2.urlopen(req)
-			response = request.read()
-		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
-			return False
-
-		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
-			return False
-
-		except httplib.HTTPException, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
-			return False
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
-			return False
-
-		try:
-
-			if int(pythonVersion[1]) >= 6:
-				self.checksLogger.debug('getCouchDBStatus: json read')
-				stats = json.loads(response)
-
-			else:
-				self.checksLogger.debug('getCouchDBStatus: minjson read')
-				stats = minjson.safeRead(response)
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-			return False
-
-		couchdb['stats'] = stats
-
-		# Next, get all database names.
-		endpoint = '/_all_dbs/'
-
-		try:
-			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-			req = urllib2.Request(url, None, headers)
-
-			# Do the request, log any errors
-			request = urllib2.urlopen(req)
-			response = request.read()
-		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
-			return False
-
-		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
-			return False
-
-		except httplib.HTTPException, e:
-			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
-			return False
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
-			return False
-
-		try:
-
-			if int(pythonVersion[1]) >= 6:
-				self.checksLogger.debug('getCouchDBStatus: json read')
-				databases = json.loads(response)
-
-			else:
-				self.checksLogger.debug('getCouchDBStatus: minjson read')
-				databases = minjson.safeRead(response)
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-			return False
-
-		for dbName in databases:
-			endpoint = '/%s/' % dbName
-
-			try:
-				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-				req = urllib2.Request(url, None, headers)
-
-				# Do the request, log any errors
-				request = urllib2.urlopen(req)
-				response = request.read()
-			except urllib2.HTTPError, e:
-				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
-				return False
-
-			except urllib2.URLError, e:
-				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
-				return False
-
-			except httplib.HTTPException, e:
-				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
-				return False
-
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
-				return False
-
-			try:
-
-				if int(pythonVersion[1]) >= 6:
-					self.checksLogger.debug('getCouchDBStatus: json read')
-					couchdb['databases'][dbName] = json.loads(response)
-
-				else:
-					self.checksLogger.debug('getCouchDBStatus: minjson read')
-					couchdb['databases'][dbName] = minjson.safeRead(response)
-
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-				return False
-
-		self.checksLogger.debug('getCouchDBStatus: completed, returning')
-		return couchdb
-
-	def getNetworkTraffic(self):
-		self.checksLogger.debug('getNetworkTraffic: start')
-		
-		if sys.platform == 'linux2':
-			self.checksLogger.debug('getNetworkTraffic: linux2')
-			
-			try:
-				self.checksLogger.debug('getNetworkTraffic: attempting open')
-				
-				proc = open('/proc/net/dev', 'r')
-				lines = proc.readlines()
-				
-			except IOError, e:
-				self.checksLogger.error('getNetworkTraffic: exception = ' + str(e))
-				return False
-			
-			proc.close()
-			
-			self.checksLogger.debug('getNetworkTraffic: open success, parsing')
-			
-			columnLine = lines[1]
-			_, receiveCols , transmitCols = columnLine.split('|')
-			receiveCols = map(lambda a:'recv_' + a, receiveCols.split())
-			transmitCols = map(lambda a:'trans_' + a, transmitCols.split())
-			
-			cols = receiveCols + transmitCols
-			
-			self.checksLogger.debug('getNetworkTraffic: parsing, looping')
-			
-			faces = {}
-			for line in lines[2:]:
-				if line.find(':') < 0: continue
-				face, data = line.split(':')
-				faceData = dict(zip(cols, data.split()))
-				faces[face] = faceData
-			
-			self.checksLogger.debug('getNetworkTraffic: parsed, looping')
-			
-			interfaces = {}
-			
-			# Now loop through each interface
-			for face in faces:
-				key = face.strip()
-				
-				# We need to work out the traffic since the last check so first time we store the current value
-				# then the next time we can calculate the difference
-				if key in self.networkTrafficStore:
-					interfaces[key] = {}
-					interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
-					interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
-					
-					interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
-					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
-					
-					# And update the stored value to subtract next time round
-					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
-					
-				else:
-					self.networkTrafficStore[key] = {}
-					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
-		
-			self.checksLogger.debug('getNetworkTraffic: completed, returning')
-					
-			return interfaces
-		
-		else:		
-			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
-		
-			return False
-		
-	def getProcesses(self):
-		self.checksLogger.debug('getProcesses: start')
-		
-		# Memory logging (case 27152)
-		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-			self.checksLogger.debug('getProcesses: memory before Popen - ' + str(mem))
-		
-		# Get output from ps
-		try:
-			self.checksLogger.debug('getProcesses: attempting Popen')
-			
-			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-			
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('getProcesses: exception = ' + traceback.format_exc())
-			return False
-		
-		self.checksLogger.debug('getProcesses: Popen success, parsing')
-		
-		# Memory logging (case 27152)
-		if self.agentConfig['debugMode'] and sys.platform == 'linux2':
-			mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-			self.checksLogger.debug('getProcesses: memory after Popen - ' + str(mem))
-		
-		# Split out each process
-		processLines = ps.split('\n')
-		
-		del processLines[0] # Removes the headers
-		processLines.pop() # Removes a trailing empty line
-		
-		processes = []
-		
-		self.checksLogger.debug('getProcesses: Popen success, parsing, looping')
-		
-		for line in processLines:
-			line = line.split(None, 10)
-			processes.append(line)
-		
-		self.checksLogger.debug('getProcesses: completed, returning')
-			
-		return processes
+	
+	#
+	# Plugins
+	#
 		
 	def getPlugins(self):
 		self.checksLogger.debug('getPlugins: start')
@@ -1232,7 +1239,11 @@ class checks:
 			self.checksLogger.debug('getPlugins: no plugins, returning false')
 			
 			return False
-		
+	
+	#
+	# Postback
+	#
+	
 	def doPostBack(self, postBackData):
 		self.checksLogger.debug('doPostBack: start')	
 		
