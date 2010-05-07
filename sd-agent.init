@@ -36,6 +36,7 @@ fi
 # Action to take
 case "$1" in
   start)
+        python $AGENTPATH stop init
         python $AGENTPATH start init --clean
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
