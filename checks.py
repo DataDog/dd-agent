@@ -850,7 +850,7 @@ class checks:
 			
 			# Seconds_Behind_Master
 			try:
-				cursor = db.cursor()
+				cursor = db.cursor(MySQLdb.cursors.DictCursor)
 				cursor.execute('SHOW SLAVE STATUS')
 				result = cursor.fetchone()
 				
@@ -860,7 +860,7 @@ class checks:
 			
 			if result != None:
 				try:
-					secondsBehindMaster = result[28]
+					secondsBehindMaster = result['Seconds_Behind_Master']
 				
 					self.checksLogger.debug('getMySQLStatus: secondsBehindMaster = ' + str(secondsBehindMaster))
 					
