@@ -1206,7 +1206,11 @@ class checks:
 				try:
 					# Find out the class name and then instantiate it
 					pluginClass = getattr(importedPlugin, pluginName)
-					pluginObj = pluginClass()
+					try:
+						pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+					except TypeError:
+						# Support older plugins.
+						pluginObj = pluginClass()
 				
 					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
