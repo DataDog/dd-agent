@@ -857,6 +857,7 @@ class checks:
 			except MySQLdb.OperationalError, message:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting SHOW SLAVE STATUS: ' + str(message))
+				result = None
 			
 			if result != None:
 				try:
