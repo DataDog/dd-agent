@@ -25,6 +25,7 @@
 
 AGENTPATH="/usr/bin/sd-agent/agent.py"
 AGENTUSER="sd-agent"
+PIDPATH="/var/run/sd-agent/"
 
 [ -f $AGENTPATH ] || echo "/usr/bin/sd-agent not found"
 
@@ -41,20 +42,24 @@ fi
 # Action to take
 case "$1" in
   start)
+        if [ ! -f $PIDPATH ]; then
+            mkdir -p $PIDPATH
+            chown sd-agent:sd-agent $PIDPATH
+        fi
         su $AGENTUSER -c "python $AGENTPATH start init --clean"
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
                 echo " Started"
         else
-            	success
+                success
                 echo
         fi
         echo
-	;;
+    ;;
   stop)
-       	su $AGENTUSER -c "python $AGENTPATH stop init"
-       	
+        su $AGENTUSER -c "python $AGENTPATH stop init"
+
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
@@ -64,13 +69,13 @@ case "$1" in
                 echo
         fi
         echo
-	;;
+    ;;
   restart)
         $0 stop
         $0 start
-        ;;
+    ;;
   *)
-    	echo "Usage: /etc/init.d/sd-agent start|stop|restart"
+        echo "Usage: /etc/init.d/sd-agent start|stop|restart"
         exit 1
 esac
 
