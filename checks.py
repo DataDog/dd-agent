@@ -1058,7 +1058,7 @@ class checks:
 		try:
 			self.checksLogger.debug('getProcesses: attempting Popen')
 			
-			ps = subprocess.Popen(['ps', 'aux'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			
 		except Exception, e:
 			import traceback
