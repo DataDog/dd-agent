@@ -14,7 +14,7 @@ agentConfig = {}
 agentConfig['debugMode'] = True
 agentConfig['checkFreq'] = 5
 
-agentConfig['version'] = '1.6.1'
+agentConfig['version'] = '1.7.0'
 
 # Core modules
 import ConfigParser
@@ -52,13 +52,16 @@ try:
 	if agentConfig['sdUrl'].endswith('/'):
 		agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
 	agentConfig['agentKey'] = config.get('Main', 'agent_key')
-	agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
+	if os.path.exists('/var/log/sd-agent/'):
+		agentConfig['tmpDirectory'] = '/var/log/sd-agent/'
+	else:
+		agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
 	agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
 	
 	# Optional config
-	# Also do not need to be present in the config file (case 28326).	
+	# Also do not need to be present in the config file (case 28326).
 	if config.has_option('Main', 'apache_status_url'):
-		agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')		
+		agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
 		
 	if config.has_option('Main', 'mysql_server'):
 		agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
@@ -74,10 +77,6 @@ try:
 
 	if config.has_option('Main', 'tmp_directory'):
 		agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
-		
-	# Stats reporting, optional (supports older agent versions without this config value)
-	if config.has_option('Main', 'report_anon_stats'):
-		agentConfig['reportAnonStats'] = config.get('Main', 'report_anon_stats')
 
 	if config.has_option('Main', 'pidfile_directory'):
 		agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
@@ -153,11 +152,7 @@ class agent(Daemon):
 			systemStats['macV'] = platform.mac_ver()
 		
 		agentLogger.debug('System: ' + str(systemStats))
-		
-		# We use the system stats in the log but user might not want them posted back
-		if 'reportAnonStats' in agentConfig and agentConfig['reportAnonStats'] == 'no':	
-			systemStats = None
-				
+						
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
@@ -195,7 +190,12 @@ if __name__ == '__main__':
 	
 	if argLen == 3 or argLen == 4: # needs to accept case when --clean is passed
 		if sys.argv[2] == 'init':
-			pidFile = '/var/run/sd-agent.pid'
+			# This path added for newer Linux packages which run under
+			# a separate sd-agent user account.
+			if os.path.exists('/var/run/sd-agent/'):
+				pidFile = '/var/run/sd-agent/sd-agent.pid'
+			else:
+				pidFile = '/var/run/sd-agent.pid'
 			
 	else:
 		pidFile = os.path.join(agentConfig['pidfileDirectory'], 'sd-agent.pid')

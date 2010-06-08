@@ -63,6 +63,10 @@ class checks:
 		self.plugins = None
 		self.topIndex = 0
 		self.os = None
+	
+	#
+	# Checks
+	#
 		
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
@@ -141,6 +145,152 @@ class checks:
 			
 			return False
 		
+	def getCouchDBStatus(self):
+		self.checksLogger.debug('getCouchDBStatus: start')
+
+		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
+			self.checksLogger.debug('getCouchDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getCouchDBStatus: config set')
+
+		# The dictionary to be returned.
+		couchdb = {'stats': None, 'databases': {}}
+
+		# First, get overall statistics.
+		endpoint = '/_stats/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				stats = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				stats = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		couchdb['stats'] = stats
+
+		# Next, get all database names.
+		endpoint = '/_all_dbs/'
+
+		try:
+			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+			req = urllib2.Request(url, None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getCouchDBStatus: json read')
+				databases = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getCouchDBStatus: minjson read')
+				databases = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		for dbName in databases:
+			endpoint = '/%s/' % dbName
+
+			try:
+				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
+				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
+				req = urllib2.Request(url, None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
+				response = request.read()
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
+				return False
+
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
+				return False
+
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
+				return False
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
+				return False
+
+			try:
+
+				if int(pythonVersion[1]) >= 6:
+					self.checksLogger.debug('getCouchDBStatus: json read')
+					couchdb['databases'][dbName] = json.loads(response)
+
+				else:
+					self.checksLogger.debug('getCouchDBStatus: minjson read')
+					couchdb['databases'][dbName] = minjson.safeRead(response)
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
+				return False
+
+		self.checksLogger.debug('getCouchDBStatus: completed, returning')
+		return couchdb
+	
 	def getDiskUsage(self):
 		self.checksLogger.debug('getDiskUsage: start')
 		
@@ -390,6 +540,97 @@ class checks:
 					
 		else:
 			return False
+			
+	def getMongoDBStatus(self):
+		self.checksLogger.debug('getMongoDBStatus: start')
+
+		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
+			self.checksLogger.debug('getMongoDBStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: config set')
+
+		try:
+			import pymongo
+			from pymongo import Connection
+		except ImportError:
+			self.checksLogger.error('Unable to import pymongo library')
+			return False
+
+		# The dictionary to be returned.
+		mongodb = {}
+
+		try:
+			mongoInfo = self.agentConfig['MongoDBServer'].split(':')
+			if len(mongoInfo) == 2:
+				conn = Connection(mongoInfo[0], mongoInfo[1])
+			else:
+				conn = Connection(mongoInfo[0])
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
+			return False
+
+		# Older versions of pymongo did not support the command()
+		# method below.
+		try:
+			dbName = conn.database_names()[0]
+			db = conn[dbName]
+			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+			# If these keys exist, remove them for now as they cannot be serialized
+			try:
+				status['backgroundFlushing'].pop('last_finished')
+			except KeyError:
+				pass
+			try:
+				status.pop('localTime')
+			except KeyError:
+				pass
+
+			if self.mongoDBStore == None:
+				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
+				status['indexCounters']['btree']['accessesPS'] = 0
+				status['indexCounters']['btree']['hitsPS'] = 0
+				status['indexCounters']['btree']['missesPS'] = 0
+				status['indexCounters']['btree']['missRatioPS'] = 0
+				status['opcounters']['insertPS'] = 0
+				status['opcounters']['queryPS'] = 0
+				status['opcounters']['updatePS'] = 0
+				status['opcounters']['deletePS'] = 0
+				status['opcounters']['getmorePS'] = 0
+				status['opcounters']['commandPS'] = 0
+				status['asserts']['regularPS'] = 0
+				status['asserts']['warningPS'] = 0
+				status['asserts']['msgPS'] = 0
+				status['asserts']['userPS'] = 0
+				status['asserts']['rolloversPS'] = 0
+			else:
+				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
+				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
+				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
+				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
+				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
+				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
+				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
+				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
+				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
+				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
+				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
+				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
+				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
+				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
+				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+
+			self.mongoDBStore = status
+			mongodb = status
+		except Exception, ex:
+			import traceback
+			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getMongoDBStatus: completed, returning')
+		return mongodb
 	
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
@@ -611,17 +852,18 @@ class checks:
 			
 			# Seconds_Behind_Master
 			try:
-				cursor = db.cursor()
+				cursor = db.cursor(MySQLdb.cursors.DictCursor)
 				cursor.execute('SHOW SLAVE STATUS')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting SHOW SLAVE STATUS: ' + str(message))
+				result = None
 			
 			if result != None:
 				try:
-					secondsBehindMaster = result[28]
+					secondsBehindMaster = result['Seconds_Behind_Master']
 				
 					self.checksLogger.debug('getMySQLStatus: secondsBehindMaster = ' + str(secondsBehindMaster))
 					
@@ -642,393 +884,8 @@ class checks:
 		else:			
 			
 			self.checksLogger.debug('getMySQLStatus: config not set')
-			return False
-		
-	
-	def getNginxStatus(self):
-		self.checksLogger.debug('getNginxStatus: start')
-		
-		if 'nginxStatusUrl' in self.agentConfig and self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':	# Don't do it if the status URL hasn't been provided
-			self.checksLogger.debug('getNginxStatus: config set')
+			return False	
 			
-			try: 
-				self.checksLogger.debug('getNginxStatus: attempting urlopen')
-				
-				req = urllib2.Request(self.agentConfig['nginxStatusUrl'], None, headers)
-
-				# Do the request, log any errors
-				request = urllib2.urlopen(req)
-				response = request.read()
-				
-			except urllib2.HTTPError, e:
-				self.checksLogger.error('Unable to get Nginx status - HTTPError = ' + str(e))
-				return False
-				
-			except urllib2.URLError, e:
-				self.checksLogger.error('Unable to get Nginx status - URLError = ' + str(e))
-				return False
-				
-			except httplib.HTTPException, e:
-				self.checksLogger.error('Unable to get Nginx status - HTTPException = ' + str(e))
-				return False
-				
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('Unable to get Nginx status - Exception = ' + traceback.format_exc())
-				return False
-				
-			self.checksLogger.debug('getNginxStatus: urlopen success, start parsing')
-			
-			# Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
-			
-			self.checksLogger.debug('getNginxStatus: parsing connections')
-			
-			# Connections
-			parsed = re.search(r'Active connections:\s+(\d+)', response)
-			connections = int(parsed.group(1))
-			
-			self.checksLogger.debug('getNginxStatus: parsed connections')
-			self.checksLogger.debug('getNginxStatus: parsing reqs')
-			
-			# Requests per second
-			parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
-			requests = int(parsed.group(3))
-			
-			self.checksLogger.debug('getNginxStatus: parsed reqs')
-			
-			if self.nginxRequestsStore == None:
-				
-				self.checksLogger.debug('getNginxStatus: no reqs so storing for first time')
-				
-				self.nginxRequestsStore = requests
-				
-				requestsPerSecond = 0
-				
-			else:
-				
-				self.checksLogger.debug('getNginxStatus: reqs stored so calculating')
-				self.checksLogger.debug('getNginxStatus: self.nginxRequestsStore = ' + str(self.nginxRequestsStore))
-				self.checksLogger.debug('getNginxStatus: requests = ' + str(requests))
-				
-				requestsPerSecond = float(requests - self.nginxRequestsStore) / 60
-				
-				self.checksLogger.debug('getNginxStatus: requestsPerSecond = ' + str(requestsPerSecond))
-				
-				self.nginxRequestsStore = requests
-			
-			if connections != None and requestsPerSecond != None:
-			
-				self.checksLogger.debug('getNginxStatus: returning with data')
-				
-				return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
-			
-			else:
-			
-				self.checksLogger.debug('getNginxStatus: returning without data')
-				
-				return False
-			
-		else:
-			self.checksLogger.debug('getNginxStatus: config not set')
-			
-			return False
-
-	def getRabbitMQStatus(self):
-		self.checksLogger.debug('getRabbitMQStatus: start')
-
-		if 'rabbitMQStatusUrl' not in self.agentConfig or \
-		   'rabbitMQUser' not in self.agentConfig or \
-		   'rabbitMQPass' not in self.agentConfig or \
-			self.agentConfig['rabbitMQStatusUrl'] == 'http://www.example.com:55672/json':
-
-			self.checksLogger.debug('getRabbitMQStatus: config not set')
-			return False
-
-		self.checksLogger.debug('getRabbitMQStatus: config set')
-
-		try:
-			self.checksLogger.debug('getRabbitMQStatus: attempting authentication setup')
-			manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-			manager.add_password(None, self.agentConfig['rabbitMQStatusUrl'], self.agentConfig['rabbitMQUser'], self.agentConfig['rabbitMQPass'])
-			handler = urllib2.HTTPBasicAuthHandler(manager)
-			opener = urllib2.build_opener(handler)
-			urllib2.install_opener(opener)
-
-			self.checksLogger.debug('getRabbitMQStatus: attempting urlopen')
-			req = urllib2.Request(self.agentConfig['rabbitMQStatusUrl'], None, headers)
-
-			# Do the request, log any errors
-			request = urllib2.urlopen(req)
-			response = request.read()
-
-		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to get RabbitMQ status - HTTPError = ' + str(e))
-			return False
-
-		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to get RabbitMQ status - URLError = ' + str(e))
-			return False
-
-		except httplib.HTTPException, e:
-			self.checksLogger.error('Unable to get RabbitMQ status - HTTPException = ' + str(e))
-			return False
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to get RabbitMQ status - Exception = ' + traceback.format_exc())
-			return False
-			
-		try:
-
-			if int(pythonVersion[1]) >= 6:
-				self.checksLogger.debug('getRabbitMQStatus: json read')
-				status = json.loads(response)
-
-			else:
-				self.checksLogger.debug('getRabbitMQStatus: minjson read')
-				status = minjson.safeRead(response)
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to load RabbitMQ status JSON - Exception = ' + traceback.format_exc())
-			return False
-
-		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
-		return status
-
-	def getMongoDBStatus(self):
-		self.checksLogger.debug('getMongoDBStatus: start')
-
-		if 'MongoDBServer' not in self.agentConfig or self.agentConfig['MongoDBServer'] == '':
-			self.checksLogger.debug('getMongoDBStatus: config not set')
-			return False
-
-		self.checksLogger.debug('getMongoDBStatus: config set')
-
-		try:
-			import pymongo
-			from pymongo import Connection
-		except ImportError:
-			self.checksLogger.error('Unable to import pymongo library')
-			return False
-
-		# The dictionary to be returned.
-		mongodb = {}
-
-		try:
-			conn = Connection(self.agentConfig['MongoDBServer'])
-		except Exception, ex:
-			import traceback
-			self.checksLogger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
-			return False
-
-		# Older versions of pymongo did not support the command()
-		# method below.
-		try:
-			dbName = conn.database_names()[0]
-			db = conn[dbName]
-			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
-			# If these keys exist, remove them for now as they cannot be serialized
-			try:
-				status['backgroundFlushing'].pop('last_finished')
-			except KeyError:
-				pass
-			try:
-				status.pop('localTime')
-			except KeyError:
-				pass
-
-			if self.mongoDBStore == None:
-				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
-				status['indexCounters']['btree']['accessesPS'] = 0
-				status['indexCounters']['btree']['hitsPS'] = 0
-				status['indexCounters']['btree']['missesPS'] = 0
-				status['indexCounters']['btree']['missRatioPS'] = 0
-				status['opcounters']['insertPS'] = 0
-				status['opcounters']['queryPS'] = 0
-				status['opcounters']['updatePS'] = 0
-				status['opcounters']['deletePS'] = 0
-				status['opcounters']['getmorePS'] = 0
-				status['opcounters']['commandPS'] = 0
-				status['asserts']['regularPS'] = 0
-				status['asserts']['warningPS'] = 0
-				status['asserts']['msgPS'] = 0
-				status['asserts']['userPS'] = 0
-				status['asserts']['rolloversPS'] = 0
-			else:
-				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
-				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
-				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
-				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
-				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
-				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
-				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
-				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
-				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
-				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
-				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
-				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
-				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
-				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
-				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
-				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
-
-			self.mongoDBStore = status
-			mongodb = status
-		except Exception, ex:
-			import traceback
-			self.checksLogger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
-			return False
-
-		self.checksLogger.debug('getMongoDBStatus: completed, returning')
-		return mongodb
-
-	def getCouchDBStatus(self):
-		self.checksLogger.debug('getCouchDBStatus: start')
-
-		if ('CouchDBServer' not in self.agentConfig or self.agentConfig['CouchDBServer'] == ''):
-			self.checksLogger.debug('getCouchDBStatus: config not set')
-			return False
-
-		self.checksLogger.debug('getCouchDBStatus: config set')
-
-		# The dictionary to be returned.
-		couchdb = {'stats': None, 'databases': {}}
-
-		# First, get overall statistics.
-		endpoint = '/_stats/'
-
-		try:
-			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-			req = urllib2.Request(url, None, headers)
-
-			# Do the request, log any errors
-			request = urllib2.urlopen(req)
-			response = request.read()
-		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
-			return False
-
-		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
-			return False
-
-		except httplib.HTTPException, e:
-			self.checksLogger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
-			return False
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
-			return False
-
-		try:
-
-			if int(pythonVersion[1]) >= 6:
-				self.checksLogger.debug('getCouchDBStatus: json read')
-				stats = json.loads(response)
-
-			else:
-				self.checksLogger.debug('getCouchDBStatus: minjson read')
-				stats = minjson.safeRead(response)
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-			return False
-
-		couchdb['stats'] = stats
-
-		# Next, get all database names.
-		endpoint = '/_all_dbs/'
-
-		try:
-			url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-			self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-			req = urllib2.Request(url, None, headers)
-
-			# Do the request, log any errors
-			request = urllib2.urlopen(req)
-			response = request.read()
-		except urllib2.HTTPError, e:
-			self.checksLogger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
-			return False
-
-		except urllib2.URLError, e:
-			self.checksLogger.error('Unable to get CouchDB status - URLError = ' + str(e))
-			return False
-
-		except httplib.HTTPException, e:
-			self.checksLogger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
-			return False
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
-			return False
-
-		try:
-
-			if int(pythonVersion[1]) >= 6:
-				self.checksLogger.debug('getCouchDBStatus: json read')
-				databases = json.loads(response)
-
-			else:
-				self.checksLogger.debug('getCouchDBStatus: minjson read')
-				databases = minjson.safeRead(response)
-
-		except Exception, e:
-			import traceback
-			self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-			return False
-
-		for dbName in databases:
-			endpoint = '/%s/' % dbName
-
-			try:
-				url = '%s%s' % (self.agentConfig['CouchDBServer'], endpoint)
-				self.checksLogger.debug('getCouchDBStatus: attempting urlopen')
-				req = urllib2.Request(url, None, headers)
-
-				# Do the request, log any errors
-				request = urllib2.urlopen(req)
-				response = request.read()
-			except urllib2.HTTPError, e:
-				self.checksLogger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
-				return False
-
-			except urllib2.URLError, e:
-				self.checksLogger.error('Unable to get CouchDB database status - URLError = ' + str(e))
-				return False
-
-			except httplib.HTTPException, e:
-				self.checksLogger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
-				return False
-
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
-				return False
-
-			try:
-
-				if int(pythonVersion[1]) >= 6:
-					self.checksLogger.debug('getCouchDBStatus: json read')
-					couchdb['databases'][dbName] = json.loads(response)
-
-				else:
-					self.checksLogger.debug('getCouchDBStatus: minjson read')
-					couchdb['databases'][dbName] = minjson.safeRead(response)
-
-			except Exception, e:
-				import traceback
-				self.checksLogger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-				return False
-
-		self.checksLogger.debug('getCouchDBStatus: completed, returning')
-		return couchdb
-
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -1099,8 +956,96 @@ class checks:
 		else:		
 			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
 		
-			return False
+			return False	
+	
+	def getNginxStatus(self):
+		self.checksLogger.debug('getNginxStatus: start')
 		
+		if 'nginxStatusUrl' in self.agentConfig and self.agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':	# Don't do it if the status URL hasn't been provided
+			self.checksLogger.debug('getNginxStatus: config set')
+			
+			try: 
+				self.checksLogger.debug('getNginxStatus: attempting urlopen')
+				
+				req = urllib2.Request(self.agentConfig['nginxStatusUrl'], None, headers)
+
+				# Do the request, log any errors
+				request = urllib2.urlopen(req)
+				response = request.read()
+				
+			except urllib2.HTTPError, e:
+				self.checksLogger.error('Unable to get Nginx status - HTTPError = ' + str(e))
+				return False
+				
+			except urllib2.URLError, e:
+				self.checksLogger.error('Unable to get Nginx status - URLError = ' + str(e))
+				return False
+				
+			except httplib.HTTPException, e:
+				self.checksLogger.error('Unable to get Nginx status - HTTPException = ' + str(e))
+				return False
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('Unable to get Nginx status - Exception = ' + traceback.format_exc())
+				return False
+				
+			self.checksLogger.debug('getNginxStatus: urlopen success, start parsing')
+			
+			# Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
+			
+			self.checksLogger.debug('getNginxStatus: parsing connections')
+			
+			# Connections
+			parsed = re.search(r'Active connections:\s+(\d+)', response)
+			connections = int(parsed.group(1))
+			
+			self.checksLogger.debug('getNginxStatus: parsed connections')
+			self.checksLogger.debug('getNginxStatus: parsing reqs')
+			
+			# Requests per second
+			parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
+			requests = int(parsed.group(3))
+			
+			self.checksLogger.debug('getNginxStatus: parsed reqs')
+			
+			if self.nginxRequestsStore == None or self.nginxRequestsStore < 0:
+				
+				self.checksLogger.debug('getNginxStatus: no reqs so storing for first time')
+				
+				self.nginxRequestsStore = requests
+				
+				requestsPerSecond = 0
+				
+			else:
+				
+				self.checksLogger.debug('getNginxStatus: reqs stored so calculating')
+				self.checksLogger.debug('getNginxStatus: self.nginxRequestsStore = ' + str(self.nginxRequestsStore))
+				self.checksLogger.debug('getNginxStatus: requests = ' + str(requests))
+				
+				requestsPerSecond = float(requests - self.nginxRequestsStore) / 60
+				
+				self.checksLogger.debug('getNginxStatus: requestsPerSecond = ' + str(requestsPerSecond))
+				
+				self.nginxRequestsStore = requests
+			
+			if connections != None and requestsPerSecond != None:
+			
+				self.checksLogger.debug('getNginxStatus: returning with data')
+				
+				return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
+			
+			else:
+			
+				self.checksLogger.debug('getNginxStatus: returning without data')
+				
+				return False
+			
+		else:
+			self.checksLogger.debug('getNginxStatus: config not set')
+			
+			return False
+
 	def getProcesses(self):
 		self.checksLogger.debug('getProcesses: start')
 		
@@ -1144,6 +1089,73 @@ class checks:
 		self.checksLogger.debug('getProcesses: completed, returning')
 			
 		return processes
+			
+	def getRabbitMQStatus(self):
+		self.checksLogger.debug('getRabbitMQStatus: start')
+
+		if 'rabbitMQStatusUrl' not in self.agentConfig or \
+		   'rabbitMQUser' not in self.agentConfig or \
+		   'rabbitMQPass' not in self.agentConfig or \
+			self.agentConfig['rabbitMQStatusUrl'] == 'http://www.example.com:55672/json':
+
+			self.checksLogger.debug('getRabbitMQStatus: config not set')
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: config set')
+
+		try:
+			self.checksLogger.debug('getRabbitMQStatus: attempting authentication setup')
+			manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+			manager.add_password(None, self.agentConfig['rabbitMQStatusUrl'], self.agentConfig['rabbitMQUser'], self.agentConfig['rabbitMQPass'])
+			handler = urllib2.HTTPBasicAuthHandler(manager)
+			opener = urllib2.build_opener(handler)
+			urllib2.install_opener(opener)
+
+			self.checksLogger.debug('getRabbitMQStatus: attempting urlopen')
+			req = urllib2.Request(self.agentConfig['rabbitMQStatusUrl'], None, headers)
+
+			# Do the request, log any errors
+			request = urllib2.urlopen(req)
+			response = request.read()
+
+		except urllib2.HTTPError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPError = ' + str(e))
+			return False
+
+		except urllib2.URLError, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - URLError = ' + str(e))
+			return False
+
+		except httplib.HTTPException, e:
+			self.checksLogger.error('Unable to get RabbitMQ status - HTTPException = ' + str(e))
+			return False
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to get RabbitMQ status - Exception = ' + traceback.format_exc())
+			return False
+			
+		try:
+
+			if int(pythonVersion[1]) >= 6:
+				self.checksLogger.debug('getRabbitMQStatus: json read')
+				status = json.loads(response)
+
+			else:
+				self.checksLogger.debug('getRabbitMQStatus: minjson read')
+				status = minjson.safeRead(response)
+
+		except Exception, e:
+			import traceback
+			self.checksLogger.error('Unable to load RabbitMQ status JSON - Exception = ' + traceback.format_exc())
+			return False
+
+		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
+		return status
+	
+	#
+	# Plugins
+	#
 		
 	def getPlugins(self):
 		self.checksLogger.debug('getPlugins: start')
@@ -1197,7 +1209,11 @@ class checks:
 				try:
 					# Find out the class name and then instantiate it
 					pluginClass = getattr(importedPlugin, pluginName)
-					pluginObj = pluginClass()
+					try:
+						pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+					except TypeError:
+						# Support older plugins.
+						pluginObj = pluginClass()
 				
 					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
@@ -1230,7 +1246,11 @@ class checks:
 			self.checksLogger.debug('getPlugins: no plugins, returning false')
 			
 			return False
-		
+	
+	#
+	# Postback
+	#
+	
 	def doPostBack(self, postBackData):
 		self.checksLogger.debug('doPostBack: start')	
 		
