@@ -1393,11 +1393,9 @@ class checks:
 		# its drives have been wiped clean.
 		# Note that this is not foolproof but we can reconcile servers
 		# on the back-end if need be, based on mac addresses.
-		server_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())))
-		checksData['uuid'] = server_id
+		checksData['uuid'] = uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 		self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
-                # uuid will be of the form ....-...-...-..; the intake will drop the hyphens
-                print "Server ID: ", "".join(server_id.split("-"))
+                print "Server ID", checksData['uuid']
 		
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
