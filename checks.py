@@ -540,6 +540,11 @@ class checks:
 					
 		else:
 			return False
+
+        def getVMStat(self):
+		"""Provide the same data that vmstat on linux provides"""
+		# on mac, try top -S -n0 -l1
+		pass
 			
 	def getMongoDBStatus(self):
 		self.checksLogger.debug('getMongoDBStatus: start')
