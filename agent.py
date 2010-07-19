@@ -250,6 +250,11 @@ if __name__ == '__main__':
 		elif 'update' == sys.argv[1]:
 			mainLogger.debug('Updating agent')
 			
+			if os.path.abspath(__file__) == '/usr/bin/sd-agent/agent.py':
+				print 'Please use the Linux package manager that was used to install the agent to update it.'
+				print 'e.g. yum install sd-agent or apt-get install sd-agent'
+				sys.exit(2)
+			
 			import httplib
 			import platform
 			import urllib2
