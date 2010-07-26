@@ -572,7 +572,7 @@ class checks:
 		# Older versions of pymongo did not support the command()
 		# method below.
 		try:
-			dbName = conn.database_names()[0]
+			dbName = 'local'
 			db = conn[dbName]
 			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
 			# If these keys exist, remove them for now as they cannot be serialized
