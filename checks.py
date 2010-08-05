@@ -379,9 +379,9 @@ class checks:
 			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+[\s+]?)')
 			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
 			valueRegexp = re.compile(r'\d+\.\d+')
-			stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			
 			try:
+				stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 				# We ignore the first table of output since it is the IO stats
 				# since boot.
 				recentStats = stats.split('Device:')[2].split('\n')
