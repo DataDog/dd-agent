@@ -368,6 +368,51 @@ class checks:
 			
 		return usageData
 	
+	def getIOStats(self):
+		self.checksLogger.debug('getIOStats: start')
+		
+		ioStats = {}
+	
+		if sys.platform == 'linux2':
+			self.checksLogger.debug('getIOStats: linux2')
+			
+			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+[\s+]?)')
+			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
+			valueRegexp = re.compile(r'\d+\.\d+')
+			stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			
+			try:
+				# We ignore the first table of output since it is the IO stats
+				# since boot.
+				recentStats = stats.split('Device:')[2].split('\n')
+				header = recentStats[0]
+				headerNames = re.findall(headerRegexp, header)
+				
+				for i in range(1, len(recentStats)):
+					row = recentStats[i]
+					
+					if not row:
+						# Ignore blank lines.
+						continue
+					
+					device = re.match(itemRegexp, row).groups()[0]
+					values = re.findall(valueRegexp, row)
+					ioStats[device] = {}
+					
+					for headerIndex in range(0, len(headerNames)):
+						headerName = headerNames[headerIndex]
+						ioStats[device][headerName] = values[headerIndex]
+					
+			except Exception, ex:
+				import traceback
+				self.checksLogger.error('getIOStats: exception = ' + traceback.format_exc())
+				return False
+		else:
+			self.checksLogger.debug('getIOStats: unsupported platform')
+			
+		self.checksLogger.debug('getIOStats: completed, returning')
+		return ioStats
+			
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('getLoadAvrgs: start')
 		
