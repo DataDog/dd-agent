@@ -409,6 +409,7 @@ class checks:
 				return False
 		else:
 			self.checksLogger.debug('getIOStats: unsupported platform')
+			return False
 			
 		self.checksLogger.debug('getIOStats: completed, returning')
 		return ioStats
@@ -1362,6 +1363,7 @@ class checks:
 		mongodb = self.getMongoDBStatus()
 		couchdb = self.getCouchDBStatus()
 		plugins = self.getPlugins()
+		ioStats = self.getIOStats();
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -1411,6 +1413,9 @@ class checks:
 		# Plugins
 		if plugins != False:
 			checksData['plugins'] = plugins
+		
+		if ioStats != False:
+			checksData['ioStats'] = ioStats
 			
 		# Include system stats on first postback
 		if firstRun == True:
