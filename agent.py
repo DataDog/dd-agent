@@ -22,15 +22,18 @@ import logging
 import os
 import re
 import sched
-import subprocess
 import sys
 import time
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
 if int(sys.version_info[1]) <= 3:
-	print 'You are using an outdated version of Python. Please update to v2.4 or above (v3 is not supported).'
+	print 'You are using an outdated version of Python. Please update to v2.4 or above (v3 is not supported). For newer OSs, you can update Python without affecting your system install. See http://blog.boxedice.com/2010/01/19/updating-python-on-rhelcentos/ If you are running RHEl 4 / CentOS 4 then you will need to compile Python manually.'
 	sys.exit(2)
+	
+# After the version check as this isn't available on older Python versions
+# and will error before the message is shown
+import subprocess
 	
 # Custom modules
 from checks import checks
