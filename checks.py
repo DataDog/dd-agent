@@ -330,20 +330,29 @@ class checks:
 		
 		regexp = re.compile(r'([0-9]+)')
 		
-		previous_volume = ''
+		# Set some defaults
+		previousVolume = None
+		volumeCount = 0
 		
 		self.checksLogger.debug('getDiskUsage: parsing, start loop')
-
-		for volume in volumes:
-			volume = (previous_volume + volume).split(None, 10)
+		
+		for volume in volumes:			
+			self.checksLogger.debug('getDiskUsage: parsing volume: ' + str(volume[0]))
 			
-			# Handle df output wrapping onto multiple lines (case 27078)
+			# Split out the string
+			volume = volume.split(None, 10)
+					
+			# Handle df output wrapping onto multiple lines (case 27078 and case 30997)
 			# Thanks to http://github.com/sneeu
-			if len(volume) == 1:
-				previous_volume = volume[0]
+			if len(volume) == 1: # If the length is 1 then this just has the mount name
+				previousVolume = volume[0] # We store it, then continue the for
 				continue
-			else:
-				previous_volume = ''
+			
+			if previousVolume != None: # If the previousVolume was set (above) during the last loop
+				volume.insert(0, previousVolume) # then we need to insert it into the volume
+				previousVolume = None # then reset so we don't use it again
+				
+			volumeCount = volumeCount + 1
 			
 			# Sometimes the first column will have a space, which is usually a system line that isn't relevant
 			# e.g. map -hosts              0         0          0   100%    /net
