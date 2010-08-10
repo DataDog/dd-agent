@@ -124,7 +124,7 @@ if re.match('http(s)?(\:\/\/)[a-zA-Z0-9_\-]+\.(serverdensity.com)', agentConfig[
 	sys.exit(2)
 	
 # Check apache_status_url is not empty (case 27073)
-if agentConfig['apacheStatusUrl'] == None:
+if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] == None:
 	print 'You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
 	sys.exit(2) 
 
