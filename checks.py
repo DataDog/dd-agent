@@ -385,7 +385,7 @@ class checks:
 		if sys.platform == 'linux2':
 			self.checksLogger.debug('getIOStats: linux2')
 			
-			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+[\s+]?)')
+			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
 			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
 			valueRegexp = re.compile(r'\d+\.\d+')
 			
