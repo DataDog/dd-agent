@@ -60,6 +60,10 @@ class checks:
 		self.plugins = None
 		self.topIndex = 0
 		self.os = None
+		
+		# Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
+		import socket
+		socket.setdefaulttimeout(15)
 	
 	#
 	# Checks
