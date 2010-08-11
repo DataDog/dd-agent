@@ -52,9 +52,7 @@ class checks:
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
 		self.mysqlConnectionsStore = None
-		self.mysqlCreatedTmpDiskTablesStore = None
 		self.mysqlSlowQueriesStore = None
-		self.mysqlTableLocksWaited = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
 		self.mongoDBStore = None
@@ -757,23 +755,7 @@ class checks:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Created_tmp_disk_tables: ' + str(message))
 		
-			if self.mysqlCreatedTmpDiskTablesStore == None:
-				
-				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore unset so storing for first time')
-				
-				self.mysqlCreatedTmpDiskTablesStore = result[1]
-				
-				createdTmpDiskTables = 0
-				
-			else:
-		
-				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore set so calculating')
-				self.checksLogger.debug('getMySQLStatus: self.mysqlCreatedTmpDiskTablesStore = ' + str(self.mysqlCreatedTmpDiskTablesStore))
-				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
-				
-				createdTmpDiskTables = float(float(result[1]) - float(self.mysqlCreatedTmpDiskTablesStore)) / 60
-				
-				self.mysqlCreatedTmpDiskTablesStore = result[1]
+			createdTmpDiskTables = float(result[1])
 				
 			self.checksLogger.debug('getMySQLStatus: createdTmpDiskTables = ' + str(createdTmpDiskTables))
 			
@@ -861,23 +843,7 @@ class checks:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Table_locks_waited: ' + str(message))
 		
-			if self.mysqlTableLocksWaited == None:
-				
-				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited unset so storing for first time')
-				
-				self.mysqlTableLocksWaited = result[1]
-				
-				tableLocksWaited = 0
-				
-			else:
-		
-				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited set so calculating')
-				self.checksLogger.debug('getMySQLStatus: self.mysqlTableLocksWaited = ' + str(self.mysqlTableLocksWaited))
-				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
-				
-				tableLocksWaited = float(float(result[1]) - float(self.mysqlTableLocksWaited)) / 60
-				
-				self.mysqlTableLocksWaited = result[1]
+			tableLocksWaited = float(result[1])
 				
 			self.checksLogger.debug('getMySQLStatus: tableLocksWaited = ' + str(tableLocksWaited))
 			
