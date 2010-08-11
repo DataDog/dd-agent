@@ -709,12 +709,28 @@ class checks:
 			
 			self.checksLogger.debug('getMySQLStatus: connected')
 			
+			# Get MySQL version
+			if self.mysqlVersion == None:
+			
+				self.checksLogger.debug('getMySQLStatus: mysqlVersion unset storing for first time')
+				
+				try:
+					cursor = db.cursor()
+					cursor.execute('SELECT VERSION()')
+					result = cursor.fetchone()
+					
+				except MySQLdb.OperationalError, message:
+				
+					self.checksLogger.debug('getMySQLStatus: MySQL query error when getting version: ' + str(message))
+			
+				self.mysqlVersion = result[0].split('.')
+			
 			self.checksLogger.debug('getMySQLStatus: getting Connections')
 			
 			# Connections
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Connections"')
+				cursor.execute('SHOW STATUS LIKE "Connections"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -746,9 +762,17 @@ class checks:
 			self.checksLogger.debug('getMySQLStatus: getting Created_tmp_disk_tables')
 				
 			# Created_tmp_disk_tables
+			
+			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
+			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+				query = 'SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"'
+				
+			else:
+				query = 'SHOW STATUS LIKE "Created_tmp_disk_tables"'
+			
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"')
+				cursor.execute(query)
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -766,7 +790,7 @@ class checks:
 			# Max_used_connections
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Max_used_connections"')
+				cursor.execute('SHOW STATUS LIKE "Max_used_connections"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -784,7 +808,7 @@ class checks:
 			# Open_files
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Open_files"')
+				cursor.execute('SHOW STATUS LIKE "Open_files"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -800,9 +824,17 @@ class checks:
 			self.checksLogger.debug('getMySQLStatus: getting Slow_queries')
 			
 			# Slow_queries
+			
+			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
+			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+				query = 'SHOW GLOBAL STATUS LIKE "Slow_queries"'
+				
+			else:
+				query = 'SHOW STATUS LIKE "Slow_queries"'
+				
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Slow_queries"')
+				cursor.execute(query)
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -836,7 +868,7 @@ class checks:
 			# Table_locks_waited
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Table_locks_waited"')
+				cursor.execute('SHOW STATUS LIKE "Table_locks_waited"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -854,7 +886,7 @@ class checks:
 			# Threads_connected
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Threads_connected"')
+				cursor.execute('SHOW STATUS LIKE "Threads_connected"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
