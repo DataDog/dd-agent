@@ -58,6 +58,7 @@ class checks:
 		self.nginxRequestsStore = None
 		self.mongoDBStore = None
 		self.plugins = None
+		self.ioStatsStore = None
 		self.topIndex = 0
 		self.os = None
 		
@@ -393,15 +394,13 @@ class checks:
 			valueRegexp = re.compile(r'\d+\.\d+')
 			
 			try:
-				stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-				# We ignore the first table of output since it is the IO stats
-				# since boot.
-				recentStats = stats.split('Device:')[2].split('\n')
+				stats = subprocess.Popen(['iostat', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+				recentStats = stats.split('Device:')[1].split('\n')
 				header = recentStats[0]
 				headerNames = re.findall(headerRegexp, header)
 				
-				for i in range(1, len(recentStats)):
-					row = recentStats[i]
+				for statsIndex in range(1, len(recentStats)):
+					row = recentStats[statsIndex]
 					
 					if not row:
 						# Ignore blank lines.
@@ -415,6 +414,23 @@ class checks:
 						headerName = headerNames[headerIndex]
 						ioStats[device][headerName] = values[headerIndex]
 					
+				if self.ioStatsStore == None:
+					self.checksLogger.debug('getIOStats: no cached data, so storing for first time')
+					
+					for device in ioStats.keys():
+						
+						for header in headerNames:
+							ioStats[device][headerName] = 0
+
+				else:
+					self.checksLogger.debug('getIOStats: cached data exists, so calculating metrics')
+					
+					for device in ioStats.keys():
+						
+						for header in headerNames:
+							ioStats[device][headerName] = float(ioStats[device][headerName]) - float(self.ioStatsStore[device][headerName])
+				
+				self.ioStatsStore = ioStats
 			except Exception, ex:
 				import traceback
 				self.checksLogger.error('getIOStats: exception = ' + traceback.format_exc())
