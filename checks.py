@@ -54,15 +54,18 @@ class checks:
 	def __init__(self, agentConfig):
 		self.agentConfig = agentConfig
 		self.mysqlConnectionsStore = None
-		self.mysqlCreatedTmpDiskTablesStore = None
 		self.mysqlSlowQueriesStore = None
-		self.mysqlTableLocksWaited = None
+		self.mysqlVersion = None
 		self.networkTrafficStore = {}
 		self.nginxRequestsStore = None
 		self.mongoDBStore = None
 		self.plugins = None
 		self.topIndex = 0
 		self.os = None
+		
+		# Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
+		import socket
+		socket.setdefaulttimeout(15)
 	
 	#
 	# Checks
@@ -332,20 +335,29 @@ class checks:
 		
 		regexp = re.compile(r'([0-9]+)')
 		
-		previous_volume = ''
+		# Set some defaults
+		previousVolume = None
+		volumeCount = 0
 		
 		self.checksLogger.debug('getDiskUsage: parsing, start loop')
-
-		for volume in volumes:
-			volume = (previous_volume + volume).split(None, 10)
+		
+		for volume in volumes:			
+			self.checksLogger.debug('getDiskUsage: parsing volume: ' + str(volume[0]))
 			
-			# Handle df output wrapping onto multiple lines (case 27078)
+			# Split out the string
+			volume = volume.split(None, 10)
+					
+			# Handle df output wrapping onto multiple lines (case 27078 and case 30997)
 			# Thanks to http://github.com/sneeu
-			if len(volume) == 1:
-				previous_volume = volume[0]
+			if len(volume) == 1: # If the length is 1 then this just has the mount name
+				previousVolume = volume[0] # We store it, then continue the for
 				continue
-			else:
-				previous_volume = ''
+			
+			if previousVolume != None: # If the previousVolume was set (above) during the last loop
+				volume.insert(0, previousVolume) # then we need to insert it into the volume
+				previousVolume = None # then reset so we don't use it again
+				
+			volumeCount = volumeCount + 1
 			
 			# Sometimes the first column will have a space, which is usually a system line that isn't relevant
 			# e.g. map -hosts              0         0          0   100%    /net
@@ -370,6 +382,50 @@ class checks:
 			
 		return usageData
 	
+	def getIOStats(self):
+		self.checksLogger.debug('getIOStats: start')
+		
+		ioStats = {}
+	
+		if sys.platform == 'linux2':
+			self.checksLogger.debug('getIOStats: linux2')
+			
+			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
+			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
+			valueRegexp = re.compile(r'\d+\.\d+')
+			
+			try:
+				stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+				recentStats = stats.split('Device:')[2].split('\n')
+				header = recentStats[0]
+				headerNames = re.findall(headerRegexp, header)
+				
+				for statsIndex in range(1, len(recentStats)):
+					row = recentStats[statsIndex]
+					
+					if not row:
+						# Ignore blank lines.
+						continue
+					
+					device = re.match(itemRegexp, row).groups()[0]
+					values = re.findall(valueRegexp, row)
+					ioStats[device] = {}
+					
+					for headerIndex in range(0, len(headerNames)):
+						headerName = headerNames[headerIndex]
+						ioStats[device][headerName] = values[headerIndex]
+					
+			except Exception, ex:
+				import traceback
+				self.checksLogger.error('getIOStats: exception = ' + traceback.format_exc())
+				return False
+		else:
+			self.checksLogger.debug('getIOStats: unsupported platform')
+			return False
+			
+		self.checksLogger.debug('getIOStats: completed, returning')
+		return ioStats
+			
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('getLoadAvrgs: start')
 		
@@ -579,7 +635,7 @@ class checks:
 		# Older versions of pymongo did not support the command()
 		# method below.
 		try:
-			dbName = conn.database_names()[0]
+			dbName = 'local'
 			db = conn[dbName]
 			status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
 			# If these keys exist, remove them for now as they cannot be serialized
@@ -663,12 +719,28 @@ class checks:
 			
 			self.checksLogger.debug('getMySQLStatus: connected')
 			
+			# Get MySQL version
+			if self.mysqlVersion == None:
+			
+				self.checksLogger.debug('getMySQLStatus: mysqlVersion unset storing for first time')
+				
+				try:
+					cursor = db.cursor()
+					cursor.execute('SELECT VERSION()')
+					result = cursor.fetchone()
+					
+				except MySQLdb.OperationalError, message:
+				
+					self.checksLogger.debug('getMySQLStatus: MySQL query error when getting version: ' + str(message))
+			
+				self.mysqlVersion = result[0].split('.')
+			
 			self.checksLogger.debug('getMySQLStatus: getting Connections')
 			
 			# Connections
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Connections"')
+				cursor.execute('SHOW STATUS LIKE "Connections"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -700,32 +772,24 @@ class checks:
 			self.checksLogger.debug('getMySQLStatus: getting Created_tmp_disk_tables')
 				
 			# Created_tmp_disk_tables
+			
+			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
+			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+				query = 'SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"'
+				
+			else:
+				query = 'SHOW STATUS LIKE "Created_tmp_disk_tables"'
+			
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"')
+				cursor.execute(query)
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Created_tmp_disk_tables: ' + str(message))
 		
-			if self.mysqlCreatedTmpDiskTablesStore == None:
-				
-				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore unset so storing for first time')
-				
-				self.mysqlCreatedTmpDiskTablesStore = result[1]
-				
-				createdTmpDiskTables = 0
-				
-			else:
-		
-				self.checksLogger.debug('getMySQLStatus: mysqlCreatedTmpDiskTablesStore set so calculating')
-				self.checksLogger.debug('getMySQLStatus: self.mysqlCreatedTmpDiskTablesStore = ' + str(self.mysqlCreatedTmpDiskTablesStore))
-				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
-				
-				createdTmpDiskTables = float(float(result[1]) - float(self.mysqlCreatedTmpDiskTablesStore)) / 60
-				
-				self.mysqlCreatedTmpDiskTablesStore = result[1]
+			createdTmpDiskTables = float(result[1])
 				
 			self.checksLogger.debug('getMySQLStatus: createdTmpDiskTables = ' + str(createdTmpDiskTables))
 			
@@ -736,7 +800,7 @@ class checks:
 			# Max_used_connections
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Max_used_connections"')
+				cursor.execute('SHOW STATUS LIKE "Max_used_connections"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -754,7 +818,7 @@ class checks:
 			# Open_files
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Open_files"')
+				cursor.execute('SHOW STATUS LIKE "Open_files"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -770,9 +834,17 @@ class checks:
 			self.checksLogger.debug('getMySQLStatus: getting Slow_queries')
 			
 			# Slow_queries
+			
+			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
+			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+				query = 'SHOW GLOBAL STATUS LIKE "Slow_queries"'
+				
+			else:
+				query = 'SHOW STATUS LIKE "Slow_queries"'
+				
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Slow_queries"')
+				cursor.execute(query)
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -806,30 +878,14 @@ class checks:
 			# Table_locks_waited
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Table_locks_waited"')
+				cursor.execute('SHOW STATUS LIKE "Table_locks_waited"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
 			
 				self.checksLogger.debug('getMySQLStatus: MySQL query error when getting Table_locks_waited: ' + str(message))
 		
-			if self.mysqlTableLocksWaited == None:
-				
-				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited unset so storing for first time')
-				
-				self.mysqlTableLocksWaited = result[1]
-				
-				tableLocksWaited = 0
-				
-			else:
-		
-				self.checksLogger.debug('getMySQLStatus: mysqlTableLocksWaited set so calculating')
-				self.checksLogger.debug('getMySQLStatus: self.mysqlTableLocksWaited = ' + str(self.mysqlTableLocksWaited))
-				self.checksLogger.debug('getMySQLStatus: result = ' + str(result[1]))
-				
-				tableLocksWaited = float(float(result[1]) - float(self.mysqlTableLocksWaited)) / 60
-				
-				self.mysqlTableLocksWaited = result[1]
+			tableLocksWaited = float(result[1])
 				
 			self.checksLogger.debug('getMySQLStatus: tableLocksWaited = ' + str(tableLocksWaited))
 			
@@ -840,7 +896,7 @@ class checks:
 			# Threads_connected
 			try:
 				cursor = db.cursor()
-				cursor.execute('SHOW GLOBAL STATUS LIKE "Threads_connected"')
+				cursor.execute('SHOW STATUS LIKE "Threads_connected"')
 				result = cursor.fetchone()
 				
 			except MySQLdb.OperationalError, message:
@@ -1324,6 +1380,7 @@ class checks:
 		mongodb = self.getMongoDBStatus()
 		couchdb = self.getCouchDBStatus()
 		plugins = self.getPlugins()
+		ioStats = self.getIOStats();
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -1373,6 +1430,9 @@ class checks:
 		# Plugins
 		if plugins != False:
 			checksData['plugins'] = plugins
+		
+		if ioStats != False:
+			checksData['ioStats'] = ioStats
 			
 		# Include system stats on first postback
 		if firstRun == True:

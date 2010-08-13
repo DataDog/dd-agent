@@ -15,6 +15,8 @@
 				- Tidied up formatting 
 				11th Mar 2009 (David Mytton <david@boxedice.com>)
 				- Fixed problem with daemon exiting on Python 2.4 (before SystemExit was part of the Exception base)
+				13th Aug 2010 (David Mytton <david@boxedice.com>
+				- Fixed unhandled exception if PID file is empty
 '''
 
 # Core modules
@@ -128,10 +130,17 @@ class Daemon:
 			pf.close()
 		except IOError:
 			pid = None
+		except ValueError:
+			pid = None
 	
 		if not pid:
 			message = "pidfile %s does not exist. Not running?\n"
 			sys.stderr.write(message % self.pidfile)
+			
+			# Just to be sure. A ValueError might occur if the PID file is empty but does actually exist
+			if os.path.exists(self.pidfile):
+				os.remove(self.pidfile)
+			
 			return # Not an error in a restart
 
 		# Try killing the daemon process	
