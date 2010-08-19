@@ -409,15 +409,15 @@ class checks:
 					deviceMatch = re.match(itemRegexp, row)
 					
 					if deviceMatch is not None:
-					    # Sometimes device names span two lines.
-					    device = deviceMatch.groups()[0]
+						# Sometimes device names span two lines.
+						device = deviceMatch.groups()[0]
 					
 					values = re.findall(valueRegexp, row)
 					
-					if values not values:
-					    # Sometimes values are on the next line so we encounter
-					    # instances of [].
-					    continue
+					if not values:
+						# Sometimes values are on the next line so we encounter
+						# instances of [].
+						continue
 					
 					ioStats[device] = {}
 					
