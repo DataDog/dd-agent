@@ -389,7 +389,7 @@ class checks:
 			self.checksLogger.debug('getIOStats: linux2')
 			
 			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
+			itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
 			valueRegexp = re.compile(r'\d+\.\d+')
 			
 			try:
@@ -397,6 +397,7 @@ class checks:
 				recentStats = stats.split('Device:')[2].split('\n')
 				header = recentStats[0]
 				headerNames = re.findall(headerRegexp, header)
+				device = None
 				
 				for statsIndex in range(1, len(recentStats)):
 					row = recentStats[statsIndex]
@@ -405,8 +406,19 @@ class checks:
 						# Ignore blank lines.
 						continue
 					
-					device = re.match(itemRegexp, row).groups()[0]
+					deviceMatch = re.match(itemRegexp, row)
+					
+					if deviceMatch is not None:
+					    # Sometimes device names span two lines.
+					    device = deviceMatch.groups()[0]
+					
 					values = re.findall(valueRegexp, row)
+					
+					if values not values:
+					    # Sometimes values are on the next line so we encounter
+					    # instances of [].
+					    continue
+					
 					ioStats[device] = {}
 					
 					for headerIndex in range(0, len(headerNames)):
