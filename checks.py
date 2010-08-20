@@ -49,8 +49,9 @@ else:
 
 class checks:
 	
-	def __init__(self, agentConfig):
+	def __init__(self, agentConfig, rawConfig):
 		self.agentConfig = agentConfig
+		self.rawConfig = rawConfig
 		self.mysqlConnectionsStore = None
 		self.mysqlSlowQueriesStore = None
 		self.mysqlVersion = None
@@ -1284,11 +1285,16 @@ class checks:
 				try:
 					# Find out the class name and then instantiate it
 					pluginClass = getattr(importedPlugin, pluginName)
+					
 					try:
-						pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						pluginObj = pluginClass(self.agentConfig, self.checksLogger, self.rawConfig)
 					except TypeError:
-						# Support older plugins.
-						pluginObj = pluginClass()
+						
+						try:
+							pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						except TypeError:
+							# Support older plugins.
+							pluginObj = pluginClass()
 				
 					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
