@@ -1106,10 +1106,10 @@ class checks:
 			
 			try:
 				self.checksLogger.debug('getNetworkTraffic: attempting Popen (netstat)')
-				netstat = subprocess.Popen(['netstat', '-nbid', ' grep Link'], stdout = subprocess.PIPE, close_fds = True)
+				netstat = subprocess.Popen(['netstat', '-nbid', ' grep Link'], stdout=subprocess.PIPE, close_fds=True)
 				
 				self.checksLogger.debug('getNetworkTraffic: attempting Popen (grep)')
-				grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout = subprocess.PIPE, close_fds = True).communicate()[0]
+				grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 				
 			except Exception, e:
 				import traceback
