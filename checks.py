@@ -1570,7 +1570,7 @@ class checks:
 		sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))	
 		
 	def getMountedLinuxProcFsLocation(self):
-		self.checksLogger.debug('getLoadAvrgs: attempting to fetch mounted partitions')
+		self.checksLogger.debug('getMountedLinuxProcFsLocation: attempting to fetch mounted partitions')
 		
 		# Lets check if the Linux like style procfs is mounted
 		mountedPartitions = subprocess.Popen(['mount'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
