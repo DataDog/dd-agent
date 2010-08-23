@@ -1100,6 +1100,74 @@ class checks:
 			self.checksLogger.debug('getNetworkTraffic: completed, returning')
 					
 			return interfaces
+			
+		elif sys.platform.find('freebsd') != -1:
+			self.checksLogger.debug('getNetworkTraffic: freebsd')
+			
+			try:
+				self.checksLogger.debug('getNetworkTraffic: attempting Popen (netstat)')
+				netstat = subprocess.Popen(['netstat', '-nbid', ' grep Link'], stdout = subprocess.PIPE, close_fds = True)
+				
+				self.checksLogger.debug('getNetworkTraffic: attempting Popen (grep)')
+				grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout = subprocess.PIPE, close_fds = True).communicate()[0]
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getNetworkTraffic: exception = ' + traceback.format_exc())
+				
+				return False
+			
+			self.checksLogger.debug('getNetworkTraffic: open success, parsing')
+			
+			lines = grep.split('\n')
+			
+			# Loop over available data for each inteface
+			faces = {}
+			for line in lines:
+				line = re.split(r'\s+', line)
+				length = len(line)
+				
+				if length == 13:
+					faceData = {'recv_bytes': line[6], 'trans_bytes': line[9], 'drops': line[10], 'errors': long(line[5]) + long(line[8])}
+				elif length == 12:
+					faceData = {'recv_bytes': line[5], 'trans_bytes': line[8], 'drops': line[9], 'errors': long(line[4]) + long(line[7])}
+				else:
+					# Malformed or not enough data for this interface, so we skip it
+					continue
+				
+				face = line[0]
+				faces[face] = faceData
+				
+			self.checksLogger.debug('getNetworkTraffic: parsed, looping')
+				
+			interfaces = {}
+			
+			# Now loop through each interface
+			for face in faces:
+				key = face.strip()
+				
+				# We need to work out the traffic since the last check so first time we store the current value
+				# then the next time we can calculate the difference
+				if key in self.networkTrafficStore:
+					interfaces[key] = {}
+					interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
+					
+					interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
+					
+					# And update the stored value to subtract next time round
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+					
+				else:
+					self.networkTrafficStore[key] = {}
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+		
+			self.checksLogger.debug('getNetworkTraffic: completed, returning')
+	
+			return interfaces
 		
 		else:		
 			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
