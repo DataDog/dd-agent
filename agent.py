@@ -14,7 +14,9 @@ agentConfig = {}
 agentConfig['debugMode'] = 0
 agentConfig['checkFreq'] = 60
 
-agentConfig['version'] = '1.7.0'
+agentConfig['version'] = '1.8.0'
+
+rawConfig = {}
 
 # Core modules
 import ConfigParser
@@ -146,6 +148,12 @@ if 'MongoDBServer' in agentConfig and agentConfig['MongoDBServer'] != '':
 		print 'You have configured MongoDB for monitoring, but the pymongo module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mongodbstatus/'
 		sys.exit(2)
 
+for section in config.sections():
+	rawConfig[section] = {}
+	
+	for option in config.options(section):
+		rawConfig[section][option] = config.get(section, option)
+
 # Override the generic daemon class to run our checks
 class agent(Daemon):	
 	
@@ -169,7 +177,7 @@ class agent(Daemon):
 		agentLogger.debug('Creating checks instance')
 		
 		# Checks instance
-		c = checks(agentConfig)
+		c = checks(agentConfig, rawConfig)
 		
 		# Schedule the checks
 		agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')

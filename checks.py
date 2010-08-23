@@ -49,8 +49,9 @@ else:
 
 class checks:
 	
-	def __init__(self, agentConfig):
+	def __init__(self, agentConfig, rawConfig):
 		self.agentConfig = agentConfig
+		self.rawConfig = rawConfig
 		self.mysqlConnectionsStore = None
 		self.mysqlSlowQueriesStore = None
 		self.mysqlVersion = None
@@ -58,7 +59,6 @@ class checks:
 		self.nginxRequestsStore = None
 		self.mongoDBStore = None
 		self.plugins = None
-		self.ioStatsStore = None
 		self.topIndex = 0
 		self.os = None
 		
@@ -390,14 +390,15 @@ class checks:
 			self.checksLogger.debug('getIOStats: linux2')
 			
 			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
+			itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
 			valueRegexp = re.compile(r'\d+\.\d+')
 			
 			try:
-				stats = subprocess.Popen(['iostat', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-				recentStats = stats.split('Device:')[1].split('\n')
+				stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+				recentStats = stats.split('Device:')[2].split('\n')
 				header = recentStats[0]
 				headerNames = re.findall(headerRegexp, header)
+				device = None
 				
 				for statsIndex in range(1, len(recentStats)):
 					row = recentStats[statsIndex]
@@ -406,31 +407,25 @@ class checks:
 						# Ignore blank lines.
 						continue
 					
-					device = re.match(itemRegexp, row).groups()[0]
+					deviceMatch = re.match(itemRegexp, row)
+					
+					if deviceMatch is not None:
+						# Sometimes device names span two lines.
+						device = deviceMatch.groups()[0]
+					
 					values = re.findall(valueRegexp, row)
+					
+					if not values:
+						# Sometimes values are on the next line so we encounter
+						# instances of [].
+						continue
+					
 					ioStats[device] = {}
 					
 					for headerIndex in range(0, len(headerNames)):
 						headerName = headerNames[headerIndex]
 						ioStats[device][headerName] = values[headerIndex]
 					
-				if self.ioStatsStore == None:
-					self.checksLogger.debug('getIOStats: no cached data, so storing for first time')
-					
-					for device in ioStats.keys():
-						
-						for header in headerNames:
-							ioStats[device][headerName] = 0
-
-				else:
-					self.checksLogger.debug('getIOStats: cached data exists, so calculating metrics')
-					
-					for device in ioStats.keys():
-						
-						for header in headerNames:
-							ioStats[device][headerName] = float(ioStats[device][headerName]) - float(self.ioStatsStore[device][headerName])
-				
-				self.ioStatsStore = ioStats
 			except Exception, ex:
 				import traceback
 				self.checksLogger.error('getIOStats: exception = ' + traceback.format_exc())
@@ -661,38 +656,30 @@ class checks:
 
 			if self.mongoDBStore == None:
 				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
-				status['indexCounters']['btree']['accessesPS'] = 0
-				status['indexCounters']['btree']['hitsPS'] = 0
-				status['indexCounters']['btree']['missesPS'] = 0
-				status['indexCounters']['btree']['missRatioPS'] = 0
-				status['opcounters']['insertPS'] = 0
-				status['opcounters']['queryPS'] = 0
-				status['opcounters']['updatePS'] = 0
-				status['opcounters']['deletePS'] = 0
-				status['opcounters']['getmorePS'] = 0
-				status['opcounters']['commandPS'] = 0
-				status['asserts']['regularPS'] = 0
-				status['asserts']['warningPS'] = 0
-				status['asserts']['msgPS'] = 0
-				status['asserts']['userPS'] = 0
-				status['asserts']['rolloversPS'] = 0
+				self.clearMongoDBStatus(status)
 			else:
 				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
-				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
-				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
-				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
-				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
-				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
-				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
-				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
-				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
-				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
-				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
-				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
-				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
-				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
-				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
-				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+				accessesPS = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
+				
+				if accessesPS >= 0:
+					status['indexCounters']['btree']['accessesPS'] = accessesPS
+					status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
+					status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+					status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
+					status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
+					status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
+					status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
+					status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
+					status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
+					status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
+					status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
+					status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
+					status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
+					status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
+					status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+				else:
+					self.checksLogger.debug('getMongoDBStatus: negative value calculated, mongod likely restarted, so clearing cache')
+					self.clearMongoDBStatus(status)
 
 			self.mongoDBStore = status
 			mongodb = status
@@ -703,7 +690,24 @@ class checks:
 
 		self.checksLogger.debug('getMongoDBStatus: completed, returning')
 		return mongodb
-	
+
+	def clearMongoDBStatus(self, status):
+		status['indexCounters']['btree']['accessesPS'] = 0
+		status['indexCounters']['btree']['hitsPS'] = 0
+		status['indexCounters']['btree']['missesPS'] = 0
+		status['indexCounters']['btree']['missRatioPS'] = 0
+		status['opcounters']['insertPS'] = 0
+		status['opcounters']['queryPS'] = 0
+		status['opcounters']['updatePS'] = 0
+		status['opcounters']['deletePS'] = 0
+		status['opcounters']['getmorePS'] = 0
+		status['opcounters']['commandPS'] = 0
+		status['asserts']['regularPS'] = 0
+		status['asserts']['warningPS'] = 0
+		status['asserts']['msgPS'] = 0
+		status['asserts']['userPS'] = 0
+		status['asserts']['rolloversPS'] = 0
+
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
 		
@@ -1281,11 +1285,16 @@ class checks:
 				try:
 					# Find out the class name and then instantiate it
 					pluginClass = getattr(importedPlugin, pluginName)
+					
 					try:
-						pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						pluginObj = pluginClass(self.agentConfig, self.checksLogger, self.rawConfig)
 					except TypeError:
-						# Support older plugins.
-						pluginObj = pluginClass()
+						
+						try:
+							pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						except TypeError:
+							# Support older plugins.
+							pluginObj = pluginClass()
 				
 					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
