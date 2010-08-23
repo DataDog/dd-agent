@@ -73,7 +73,7 @@ class checks:
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
 		
-		if 'apacheStatusUrl' in self.agentConfig self.agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+		if 'apacheStatusUrl' in self.agentConfig and self.agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
 			self.checksLogger.debug('getApacheStatus: config set')
 			
 			try: 
