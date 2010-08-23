@@ -166,11 +166,15 @@ class agent(Daemon):
 		import platform
 		systemStats = {'machine': platform.machine(), 'platform': sys.platform, 'processor': platform.processor(), 'pythonV': platform.python_version(), 'cpuCores': self.cpuCores()}
 		
-		if sys.platform == 'linux2':			
+		if sys.platform == 'linux2':
 			systemStats['nixV'] = platform.dist()
 			
 		elif sys.platform == 'darwin':
 			systemStats['macV'] = platform.mac_ver()
+			
+		elif sys.platform.find('freebsd') != -1:
+			version = platform.uname()[2]
+			systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 		
 		agentLogger.debug('System: ' + str(systemStats))
 						
