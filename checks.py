@@ -1254,7 +1254,7 @@ class checks:
 				for name in files:
 					self.checksLogger.debug('getPlugins: considering: ' + name)
 				
-					name = name.split('.')
+					name = name.split('.', 1)
 					
 					# Only pull in .py files (ignores others, inc .pyc files)
 					try:
