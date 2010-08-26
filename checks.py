@@ -442,7 +442,11 @@ class checks:
 		
 		# If Linux like procfs system is present and mounted we use loadavg, else we use uptime
 		if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
-			self.checksLogger.debug('getLoadAvrgs: %s' % ('linux2' if sys.platform == 'linux2' else 'freebsd (loadavg)'))
+			
+			if sys.platform == 'linux2':
+				self.checksLogger.debug('getLoadAvrgs: linux2')
+			else:
+				self.checksLogger.debug('getLoadAvrgs: freebsd (loadavg)')
 			
 			try:
 				self.checksLogger.debug('getLoadAvrgs: attempting open')
@@ -508,9 +512,13 @@ class checks:
 	def getMemoryUsage(self):
 		self.checksLogger.debug('getMemoryUsage: start')
 		
-		# If Linux like procfs system is present and mounted we use meminfo, else we use "native" mode (vmstat and swapinfo)		
+		# If Linux like procfs system is present and mounted we use meminfo, else we use "native" mode (vmstat and swapinfo)
 		if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
-			self.checksLogger.debug('getMemoryUsage: %s' % ('linux2' if sys.platform == 'linux2' else 'freebsd (meminfo)'))
+			
+			if sys.platform == 'linux2':
+				self.checksLogger.debug('getMemoryUsage: linux2')
+			else:
+				self.checksLogger.debug('getMemoryUsage: freebsd (meminfo)')
 			
 			try:
 				self.checksLogger.debug('getMemoryUsage: attempting open')
