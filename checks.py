@@ -51,8 +51,9 @@ else:
 
 class checks:
 	
-	def __init__(self, agentConfig):
+	def __init__(self, agentConfig, rawConfig):
 		self.agentConfig = agentConfig
+		self.rawConfig = rawConfig
 		self.mysqlConnectionsStore = None
 		self.mysqlSlowQueriesStore = None
 		self.mysqlVersion = None
@@ -74,7 +75,7 @@ class checks:
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
 		
-		if self.agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
+		if 'apacheStatusUrl' in self.agentConfig and self.agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
 			self.checksLogger.debug('getApacheStatus: config set')
 			
 			try: 
@@ -391,7 +392,7 @@ class checks:
 			self.checksLogger.debug('getIOStats: linux2')
 			
 			headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-			itemRegexp = re.compile(r'^([a-zA-Z0-9]+)')
+			itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
 			valueRegexp = re.compile(r'\d+\.\d+')
 			
 			try:
@@ -399,6 +400,7 @@ class checks:
 				recentStats = stats.split('Device:')[2].split('\n')
 				header = recentStats[0]
 				headerNames = re.findall(headerRegexp, header)
+				device = None
 				
 				for statsIndex in range(1, len(recentStats)):
 					row = recentStats[statsIndex]
@@ -407,8 +409,19 @@ class checks:
 						# Ignore blank lines.
 						continue
 					
-					device = re.match(itemRegexp, row).groups()[0]
+					deviceMatch = re.match(itemRegexp, row)
+					
+					if deviceMatch is not None:
+						# Sometimes device names span two lines.
+						device = deviceMatch.groups()[0]
+					
 					values = re.findall(valueRegexp, row)
+					
+					if not values:
+						# Sometimes values are on the next line so we encounter
+						# instances of [].
+						continue
+					
 					ioStats[device] = {}
 					
 					for headerIndex in range(0, len(headerNames)):
@@ -429,13 +442,22 @@ class checks:
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('getLoadAvrgs: start')
 		
-		if sys.platform == 'linux2':
-			self.checksLogger.debug('getLoadAvrgs: linux2')
+		# If Linux like procfs system is present and mounted we use loadavg, else we use uptime
+		if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
+			
+			if sys.platform == 'linux2':
+				self.checksLogger.debug('getLoadAvrgs: linux2')
+			else:
+				self.checksLogger.debug('getLoadAvrgs: freebsd (loadavg)')
 			
 			try:
 				self.checksLogger.debug('getLoadAvrgs: attempting open')
 				
-				loadAvrgProc = open('/proc/loadavg', 'r')
+				if sys.platform == 'linux2':
+					loadAvrgProc = open('/proc/loadavg', 'r')
+				else:
+					loadAvrgProc = open(self.linuxProcFsLocation + '/loadavg', 'r')
+					
 				uptime = loadAvrgProc.readlines()
 				
 			except IOError, e:
@@ -447,6 +469,21 @@ class checks:
 			loadAvrgProc.close()
 			
 			uptime = uptime[0] # readlines() provides a list but we want a string
+		
+		elif sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation == False:
+			self.checksLogger.debug('getLoadAvrgs: freebsd (uptime)')
+			
+			try:
+				self.checksLogger.debug('getLoadAvrgs: attempting Popen')
+				
+				uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getLoadAvrgs: exception = ' + traceback.format_exc())
+				return False
+				
+			self.checksLogger.debug('getLoadAvrgs: Popen success')
 			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('getLoadAvrgs: darwin')
@@ -477,19 +514,30 @@ class checks:
 	def getMemoryUsage(self):
 		self.checksLogger.debug('getMemoryUsage: start')
 		
-		if sys.platform == 'linux2':
-			self.checksLogger.debug('getMemoryUsage: linux2')
+		# If Linux like procfs system is present and mounted we use meminfo, else we use "native" mode (vmstat and swapinfo)
+		if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
+			
+			if sys.platform == 'linux2':
+				self.checksLogger.debug('getMemoryUsage: linux2')
+			else:
+				self.checksLogger.debug('getMemoryUsage: freebsd (meminfo)')
 			
 			try:
 				self.checksLogger.debug('getMemoryUsage: attempting open')
 				
-				meminfoProc = open('/proc/meminfo', 'r')
+				if sys.platform == 'linux2':
+					meminfoProc = open('/proc/meminfo', 'r')
+				else:
+					meminfoProc = open(self.linuxProcFsLocation + '/meminfo', 'r')
+				
 				lines = meminfoProc.readlines()
 				
 			except IOError, e:
 				self.checksLogger.error('getMemoryUsage: exception = ' + str(e))
 				return False
 				
+			self.checksLogger.debug('getMemoryUsage: Popen success, parsing')
+			
 			meminfoProc.close()
 			
 			self.checksLogger.debug('getMemoryUsage: open success, parsing')
@@ -563,7 +611,52 @@ class checks:
 			self.checksLogger.debug('getMemoryUsage: formatted (swap), completed, returning')
 			
 			return memData	
+			
+		elif sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation == False:
+			self.checksLogger.debug('getMemoryUsage: freebsd (native)')
+			
+			try:
+				self.checksLogger.debug('getMemoryUsage: attempting Popen (sysctl)')
+				physTotal = subprocess.Popen(['sysctl', '-n', 'hw.physmem'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
 				
+				self.checksLogger.debug('getMemoryUsage: attempting Popen (vmstat)')
+				vmstat = subprocess.Popen(['vmstat', '-H'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
+				
+				self.checksLogger.debug('getMemoryUsage: attempting Popen (swapinfo)')
+				swapinfo = subprocess.Popen(['swapinfo', '-k'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
+
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getMemoryUsage: exception = ' + traceback.format_exc())
+				
+				return False
+				
+			self.checksLogger.debug('getMemoryUsage: Popen success, parsing')
+
+			# First we parse the information about the real memory
+			lines = vmstat.split('\n')
+			physParts = re.findall(r'([0-9]\d+)', lines[2])
+	
+			physTotal = int(physTotal.strip()) / 1024 # physFree is returned in B, but we need KB so we convert it
+			physFree = int(physParts[1])
+			physUsed = int(physTotal - physFree)
+	
+			self.checksLogger.debug('getMemoryUsage: parsed vmstat')
+	
+			# And then swap
+			lines = swapinfo.split('\n')
+			swapParts = re.findall(r'(\d+)', lines[1])
+			
+			# Convert evrything to MB
+			physUsed = int(physUsed) / 1024
+			physFree = int(physFree) / 1024
+			swapUsed = int(swapParts[3]) / 1024
+			swapFree = int(swapParts[4]) / 1024
+	
+			self.checksLogger.debug('getMemoryUsage: parsed swapinfo, completed, returning')
+	
+			return {'physUsed' : physUsed, 'physFree' : physFree, 'swapUsed' : swapUsed, 'swapFree' : swapFree, 'cached' : 'NULL'}
+			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('getMemoryUsage: darwin')
 			
@@ -581,7 +674,7 @@ class checks:
 			
 			self.checksLogger.debug('getMemoryUsage: Popen success, parsing')
 			
-			# Deal with top			
+			# Deal with top
 			lines = top.split('\n')
 			physParts = re.findall(r'([0-9]\d+)', lines[self.topIndex])
 			
@@ -593,7 +686,7 @@ class checks:
 			self.checksLogger.debug('getMemoryUsage: parsed sysctl, completed, returning')
 			
 			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2], 'cached' : 'NULL'}	
-					
+			
 		else:
 			return False
 
@@ -624,7 +717,7 @@ class checks:
 		try:
 			mongoInfo = self.agentConfig['MongoDBServer'].split(':')
 			if len(mongoInfo) == 2:
-				conn = Connection(mongoInfo[0], mongoInfo[1])
+				conn = Connection(mongoInfo[0], int(mongoInfo[1]))
 			else:
 				conn = Connection(mongoInfo[0])
 		except Exception, ex:
@@ -650,38 +743,30 @@ class checks:
 
 			if self.mongoDBStore == None:
 				self.checksLogger.debug('getMongoDBStatus: no cached data, so storing for first time')
-				status['indexCounters']['btree']['accessesPS'] = 0
-				status['indexCounters']['btree']['hitsPS'] = 0
-				status['indexCounters']['btree']['missesPS'] = 0
-				status['indexCounters']['btree']['missRatioPS'] = 0
-				status['opcounters']['insertPS'] = 0
-				status['opcounters']['queryPS'] = 0
-				status['opcounters']['updatePS'] = 0
-				status['opcounters']['deletePS'] = 0
-				status['opcounters']['getmorePS'] = 0
-				status['opcounters']['commandPS'] = 0
-				status['asserts']['regularPS'] = 0
-				status['asserts']['warningPS'] = 0
-				status['asserts']['msgPS'] = 0
-				status['asserts']['userPS'] = 0
-				status['asserts']['rolloversPS'] = 0
+				self.clearMongoDBStatus(status)
 			else:
 				self.checksLogger.debug('getMongoDBStatus: cached data exists, so calculating per sec metrics')
-				status['indexCounters']['btree']['accessesPS'] = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
-				status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
-				status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
-				status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
-				status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
-				status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
-				status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
-				status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
-				status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
-				status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
-				status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
-				status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
-				status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
-				status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
-				status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+				accessesPS = float(status['indexCounters']['btree']['accesses'] - self.mongoDBStore['indexCounters']['btree']['accesses']) / 60
+				
+				if accessesPS >= 0:
+					status['indexCounters']['btree']['accessesPS'] = accessesPS
+					status['indexCounters']['btree']['hitsPS'] = float(status['indexCounters']['btree']['hits'] - self.mongoDBStore['indexCounters']['btree']['hits']) / 60
+					status['indexCounters']['btree']['missesPS'] = float(status['indexCounters']['btree']['misses'] - self.mongoDBStore['indexCounters']['btree']['misses']) / 60
+					status['indexCounters']['btree']['missRatioPS'] = float(status['indexCounters']['btree']['missRatio'] - self.mongoDBStore['indexCounters']['btree']['missRatio']) / 60
+					status['opcounters']['insertPS'] = float(status['opcounters']['insert'] - self.mongoDBStore['opcounters']['insert']) / 60
+					status['opcounters']['queryPS'] = float(status['opcounters']['query'] - self.mongoDBStore['opcounters']['query']) / 60
+					status['opcounters']['updatePS'] = float(status['opcounters']['update'] - self.mongoDBStore['opcounters']['update']) / 60
+					status['opcounters']['deletePS'] = float(status['opcounters']['delete'] - self.mongoDBStore['opcounters']['delete']) / 60
+					status['opcounters']['getmorePS'] = float(status['opcounters']['getmore'] - self.mongoDBStore['opcounters']['getmore']) / 60
+					status['opcounters']['commandPS'] = float(status['opcounters']['command'] - self.mongoDBStore['opcounters']['command']) / 60
+					status['asserts']['regularPS'] = float(status['asserts']['regular'] - self.mongoDBStore['asserts']['regular']) / 60
+					status['asserts']['warningPS'] = float(status['asserts']['warning'] - self.mongoDBStore['asserts']['warning']) / 60
+					status['asserts']['msgPS'] = float(status['asserts']['msg'] - self.mongoDBStore['asserts']['msg']) / 60
+					status['asserts']['userPS'] = float(status['asserts']['user'] - self.mongoDBStore['asserts']['user']) / 60
+					status['asserts']['rolloversPS'] = float(status['asserts']['rollovers'] - self.mongoDBStore['asserts']['rollovers']) / 60
+				else:
+					self.checksLogger.debug('getMongoDBStatus: negative value calculated, mongod likely restarted, so clearing cache')
+					self.clearMongoDBStatus(status)
 
 			self.mongoDBStore = status
 			mongodb = status
@@ -692,7 +777,24 @@ class checks:
 
 		self.checksLogger.debug('getMongoDBStatus: completed, returning')
 		return mongodb
-	
+
+	def clearMongoDBStatus(self, status):
+		status['indexCounters']['btree']['accessesPS'] = 0
+		status['indexCounters']['btree']['hitsPS'] = 0
+		status['indexCounters']['btree']['missesPS'] = 0
+		status['indexCounters']['btree']['missRatioPS'] = 0
+		status['opcounters']['insertPS'] = 0
+		status['opcounters']['queryPS'] = 0
+		status['opcounters']['updatePS'] = 0
+		status['opcounters']['deletePS'] = 0
+		status['opcounters']['getmorePS'] = 0
+		status['opcounters']['commandPS'] = 0
+		status['asserts']['regularPS'] = 0
+		status['asserts']['warningPS'] = 0
+		status['asserts']['msgPS'] = 0
+		status['asserts']['userPS'] = 0
+		status['asserts']['rolloversPS'] = 0
+
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
 		
@@ -1013,6 +1115,74 @@ class checks:
 			self.checksLogger.debug('getNetworkTraffic: completed, returning')
 					
 			return interfaces
+			
+		elif sys.platform.find('freebsd') != -1:
+			self.checksLogger.debug('getNetworkTraffic: freebsd')
+			
+			try:
+				self.checksLogger.debug('getNetworkTraffic: attempting Popen (netstat)')
+				netstat = subprocess.Popen(['netstat', '-nbid', ' grep Link'], stdout=subprocess.PIPE, close_fds=True)
+				
+				self.checksLogger.debug('getNetworkTraffic: attempting Popen (grep)')
+				grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+				
+			except Exception, e:
+				import traceback
+				self.checksLogger.error('getNetworkTraffic: exception = ' + traceback.format_exc())
+				
+				return False
+			
+			self.checksLogger.debug('getNetworkTraffic: open success, parsing')
+			
+			lines = grep.split('\n')
+			
+			# Loop over available data for each inteface
+			faces = {}
+			for line in lines:
+				line = re.split(r'\s+', line)
+				length = len(line)
+				
+				if length == 13:
+					faceData = {'recv_bytes': line[6], 'trans_bytes': line[9], 'drops': line[10], 'errors': long(line[5]) + long(line[8])}
+				elif length == 12:
+					faceData = {'recv_bytes': line[5], 'trans_bytes': line[8], 'drops': line[9], 'errors': long(line[4]) + long(line[7])}
+				else:
+					# Malformed or not enough data for this interface, so we skip it
+					continue
+				
+				face = line[0]
+				faces[face] = faceData
+				
+			self.checksLogger.debug('getNetworkTraffic: parsed, looping')
+				
+			interfaces = {}
+			
+			# Now loop through each interface
+			for face in faces:
+				key = face.strip()
+				
+				# We need to work out the traffic since the last check so first time we store the current value
+				# then the next time we can calculate the difference
+				if key in self.networkTrafficStore:
+					interfaces[key] = {}
+					interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
+					
+					interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
+					interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
+					
+					# And update the stored value to subtract next time round
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+					
+				else:
+					self.networkTrafficStore[key] = {}
+					self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
+					self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
+		
+			self.checksLogger.debug('getNetworkTraffic: completed, returning')
+	
+			return interfaces
 		
 		else:		
 			self.checksLogger.debug('getNetworkTraffic: other platform, returning')
@@ -1243,7 +1413,7 @@ class checks:
 				for name in files:
 					self.checksLogger.debug('getPlugins: considering: ' + name)
 				
-					name = name.split('.')
+					name = name.split('.', 1)
 					
 					# Only pull in .py files (ignores others, inc .pyc files)
 					try:
@@ -1270,11 +1440,16 @@ class checks:
 				try:
 					# Find out the class name and then instantiate it
 					pluginClass = getattr(importedPlugin, pluginName)
+					
 					try:
-						pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						pluginObj = pluginClass(self.agentConfig, self.checksLogger, self.rawConfig)
 					except TypeError:
-						# Support older plugins.
-						pluginObj = pluginClass()
+						
+						try:
+							pluginObj = pluginClass(self.agentConfig, self.checksLogger)
+						except TypeError:
+							# Support older plugins.
+							pluginObj = pluginClass()
 				
 					self.checksLogger.debug('getPlugins: instantiated ' + pluginName)
 				
@@ -1360,10 +1535,13 @@ class checks:
 		if not self.os:
 			if macV:
 				self.os = 'mac'
+			elif sys.platform.find('freebsd') != -1:
+				self.os = 'freebsd'
 			else:
 				self.os = 'linux'
 		
 		self.checksLogger = logging.getLogger('checks')
+		self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
 		
 		self.checksLogger.debug('doChecks: start')
 		
@@ -1487,3 +1665,17 @@ class checks:
 		self.checksLogger.debug('doChecks: posted back, reschedule')
 		
 		sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))	
+		
+	def getMountedLinuxProcFsLocation(self):
+		self.checksLogger.debug('getMountedLinuxProcFsLocation: attempting to fetch mounted partitions')
+		
+		# Lets check if the Linux like style procfs is mounted
+		mountedPartitions = subprocess.Popen(['mount'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
+		location = re.search(r'linprocfs on (.*?) \(.*?\)', mountedPartitions)
+		
+		# Linux like procfs file system is not mounted so we return False, else we return mount point location
+		if location == None:
+			return False
+
+		location = location.group(1)
+		return location
