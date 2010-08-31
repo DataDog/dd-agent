@@ -1383,6 +1383,58 @@ class checks:
 
 		self.checksLogger.debug('getRabbitMQStatus: completed, returning')
 		return status
+
+        #
+        # CPU Stats
+        #
+	def getCPUStats(self):
+		"""Return an aggregate of CPU stats across all CPUs
+		(cpu_user, cpu_system, cpu_wait, cpu_idle, cpu_stolen)
+		When figures are not available, None is sent back.
+		"""
+		self.checksLogger.debug('getCPUStats: start')
+		if sys.platform == 'linux2':
+			vmstat = subprocess.Popen(['vmstat', '3', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			lines = vmstat.split("\n")
+			if len(lines) > 4:
+				legend = lines[1].split()
+				# last line is ''
+				data = lines[-2].split()
+				def get_value(_legend, _data, name):
+				    "Using the legend and a metric name, get the value or None from the data line"
+				    if name in legend:
+					return data.get(legend.index(name), None)
+				    else:
+					return None
+				cpu_user = get_value("us")
+				cpu_sys = get_value("sy")
+				cpu_wait = get_value("wa")
+				cpu_idle = get_value("id")
+				cpu_st = get_value("st")
+				self.checksLogger.debug("CPU Stats: %s" % (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st))
+				return (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+		    
+		elif sys.platform == 'darwin':
+			# generate 3 seconds of data
+			# ['          disk0           disk1       cpu     load average', '    KB/t tps  MB/s     KB/t tps  MB/s  us sy id   1m   5m   15m', '   21.23  13  0.27    17.85   7  0.13  14  7 79  1.04 1.27 1.31', '    4.00   3  0.01     5.00   8  0.04  12 10 78  1.04 1.27 1.31', '']	
+			iostats = subprocess.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+			lines = iostats.split("\n")
+			if len(lines) > 4:
+				# take a look at the penultimate line
+				# last line is ''	
+				figures = lines[-2].split()
+				cpu_user = int(figures[6])
+				cpu_sys  = int(figures[7])
+				cpu_wait = None
+				cpu_idle = int(figures[8])
+				cpu_st   = None
+				self.checksLogger.debug("CPU Stats: %s" % (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st))
+				return (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+			else:
+				self.checksLogger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+				return False
+		else:
+			return False
 	
 	#
 	# Plugins
@@ -1558,7 +1610,8 @@ class checks:
 		mongodb = self.getMongoDBStatus()
 		couchdb = self.getCouchDBStatus()
 		plugins = self.getPlugins()
-		ioStats = self.getIOStats();
+		ioStats = self.getIOStats()
+                cpuStats = self.getCPUStats()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
