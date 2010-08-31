@@ -655,7 +655,7 @@ class checks:
 	
 			self.checksLogger.debug('getMemoryUsage: parsed swapinfo, completed, returning')
 	
-			return {'physUsed' : physUsed, 'physFree' : physFree, 'swapUsed' : swapUsed, 'swapFree' : swapFree, 'cached' : 'NULL'}
+			return {'physUsed' : physUsed, 'physFree' : physFree, 'swapUsed' : swapUsed, 'swapFree' : swapFree, 'cached' : None}
 			
 		elif sys.platform == 'darwin':
 			self.checksLogger.debug('getMemoryUsage: darwin')
@@ -685,7 +685,7 @@ class checks:
 			
 			self.checksLogger.debug('getMemoryUsage: parsed sysctl, completed, returning')
 			
-			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2], 'cached' : 'NULL'}	
+			return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2], 'cached' : None}	
 			
 		else:
 			return False
@@ -1389,10 +1389,15 @@ class checks:
         #
 	def getCPUStats(self):
 		"""Return an aggregate of CPU stats across all CPUs
-		(cpu_user, cpu_system, cpu_wait, cpu_idle, cpu_stolen)
+		{'cpu_user': cpu_user, 'cpu_system': cpu_system, 'cpu_wait': cpu_wait, 'cpu_idle': cpu_idle, 'cpu_stolen': cpu_stolen)
 		When figures are not available, None is sent back.
 		"""
 		self.checksLogger.debug('getCPUStats: start')
+                def format_results(us, sy, wa, idle, st):
+			res = { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
+			self.checksLogger.debug("CPU Stats: %s" % res)
+			return res
+                    
 		if sys.platform == 'linux2':
 			vmstat = subprocess.Popen(['vmstat', '3', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			lines = vmstat.split("\n")
@@ -1411,8 +1416,7 @@ class checks:
 				cpu_wait = get_value("wa")
 				cpu_idle = get_value("id")
 				cpu_st = get_value("st")
-				self.checksLogger.debug("CPU Stats: %s" % (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st))
-				return (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+				return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
 		    
 		elif sys.platform == 'darwin':
 			# generate 3 seconds of data
@@ -1428,8 +1432,7 @@ class checks:
 				cpu_wait = None
 				cpu_idle = int(figures[8])
 				cpu_st   = None
-				self.checksLogger.debug("CPU Stats: %s" % (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st))
-				return (cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+				return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
 			else:
 				self.checksLogger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
 				return False
@@ -1616,6 +1619,8 @@ class checks:
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
 		checksData = {'os' : self.os, 'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
+                if cpuStats is not False and cpuStats is not None:
+			checksData.update(cpuStats)
 		
 		self.checksLogger.debug('doChecks: payload built, build optional payloads')
 		
