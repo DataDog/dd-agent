@@ -1398,24 +1398,25 @@ class checks:
 			self.checksLogger.debug("CPU Stats: %s" % res)
 			return res
                     
+		def get_value(_legend, _data, name):
+		    "Using the legend and a metric name, get the value or None from the data line"
+		    if name in legend:
+			return data[legend.index(name)]
+		    else:
+		        return None
+
 		if sys.platform == 'linux2':
 			vmstat = subprocess.Popen(['vmstat', '3', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
 			lines = vmstat.split("\n")
 			if len(lines) > 4:
-				legend = lines[1].split()
 				# last line is ''
+				legend = lines[1].split()
 				data = lines[-2].split()
-				def get_value(_legend, _data, name):
-				    "Using the legend and a metric name, get the value or None from the data line"
-				    if name in legend:
-					return data.get(legend.index(name), None)
-				    else:
-					return None
-				cpu_user = get_value("us")
-				cpu_sys = get_value("sy")
-				cpu_wait = get_value("wa")
-				cpu_idle = get_value("id")
-				cpu_st = get_value("st")
+				cpu_user = get_value(legend, data, "us")
+				cpu_sys = get_value(legend, data, "sy")
+				cpu_wait = get_value(legend, data, "wa")
+				cpu_idle = get_value(legend, data, "id")
+				cpu_st = get_value(legend, data, "st")
 				return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
 		    
 		elif sys.platform == 'darwin':
@@ -1426,11 +1427,12 @@ class checks:
 			if len(lines) > 4:
 				# take a look at the penultimate line
 				# last line is ''	
-				figures = lines[-2].split()
-				cpu_user = int(figures[6])
-				cpu_sys  = int(figures[7])
+				legend = lines[1].split()
+				data = lines[-2].split()
+				cpu_user = get_value(legend, data, "us")
+				cpu_sys  = get_value(legend, data, "sy")
 				cpu_wait = None
-				cpu_idle = int(figures[8])
+				cpu_idle = get_value(legend, data, "id")
 				cpu_st   = None
 				return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
 			else:
