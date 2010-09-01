@@ -869,7 +869,7 @@ class checks:
 			# Created_tmp_disk_tables
 			
 			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
-			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+			if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
 				query = 'SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"'
 				
 			else:
@@ -931,7 +931,7 @@ class checks:
 			# Slow_queries
 			
 			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
-			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+			if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
 				query = 'SHOW GLOBAL STATUS LIKE "Slow_queries"'
 				
 			else:
