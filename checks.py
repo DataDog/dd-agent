@@ -828,7 +828,9 @@ class checks:
 				
 					self.checksLogger.debug('getMySQLStatus: MySQL query error when getting version: ' + str(message))
 			
-				self.mysqlVersion = result[0].split('.')
+				version = result[0].split('-') # Case 31237. Might include a description e.g. 4.1.26-log. See http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
+				version = version[0].split('.')
+				self.mysqlVersion = version
 			
 			self.checksLogger.debug('getMySQLStatus: getting Connections')
 			
