@@ -341,7 +341,7 @@ class checks:
 		self.checksLogger.debug('getDiskUsage: parsing, start loop')
 		
 		for volume in volumes:			
-			self.checksLogger.debug('getDiskUsage: parsing volume: ' + str(volume[0]))
+			self.checksLogger.debug('getDiskUsage: parsing volume: ' + volume)
 			
 			# Split out the string
 			volume = volume.split(None, 10)
