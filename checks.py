@@ -343,7 +343,7 @@ class checks:
 		self.checksLogger.debug('getDiskUsage: parsing, start loop')
 		
 		for volume in volumes:			
-			self.checksLogger.debug('getDiskUsage: parsing volume: ' + str(volume[0]))
+			self.checksLogger.debug('getDiskUsage: parsing volume: ' + volume)
 			
 			# Split out the string
 			volume = volume.split(None, 10)
@@ -835,7 +835,9 @@ class checks:
 				
 					self.checksLogger.debug('getMySQLStatus: MySQL query error when getting version: ' + str(message))
 			
-				self.mysqlVersion = result[0].split('.')
+				version = result[0].split('-') # Case 31237. Might include a description e.g. 4.1.26-log. See http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
+				version = version[0].split('.')
+				self.mysqlVersion = version
 			
 			self.checksLogger.debug('getMySQLStatus: getting Connections')
 			
@@ -876,7 +878,7 @@ class checks:
 			# Created_tmp_disk_tables
 			
 			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
-			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+			if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
 				query = 'SHOW GLOBAL STATUS LIKE "Created_tmp_disk_tables"'
 				
 			else:
@@ -938,7 +940,7 @@ class checks:
 			# Slow_queries
 			
 			# Determine query depending on version. For 5.02 and above we need the GLOBAL keyword (case 31015)
-			if self.mysqlVersion[0] >= 5 and self.mysqlVersion[2] >= 2:
+			if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
 				query = 'SHOW GLOBAL STATUS LIKE "Slow_queries"'
 				
 			else:
