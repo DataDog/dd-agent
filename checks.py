@@ -39,7 +39,7 @@ pythonVersion = platform.python_version_tuple()
 
 # Build the request headers
 headers = {
-	'User-Agent': 'Server Density Agent',
+	'User-Agent': 'DataDog Agent',
 	'Content-Type': 'application/x-www-form-urlencoded',
 	'Accept': 'text/html, */*',
 }
@@ -48,6 +48,14 @@ if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we on
 	import json
 else:
 	import minjson
+
+def recordsize(func):
+    def wrapper(*args, **kwargs):
+        logger = logging.getLogger("checks")
+        res = func(*args, **kwargs)
+        logger.debug("SIZE: {0} wrote {1} bytes uncompressed".format(func, len(str(res))))
+        return res
+    return wrapper
 
 class checks:
 	
@@ -71,7 +79,7 @@ class checks:
 	#
 	# Checks
 	#
-		
+	@recordsize	
 	def getApacheStatus(self):
 		self.checksLogger.debug('getApacheStatus: start')
 		
@@ -148,7 +156,8 @@ class checks:
 			self.checksLogger.debug('getApacheStatus: config not set')
 			
 			return False
-		
+
+	@recordsize	
 	def getCouchDBStatus(self):
 		self.checksLogger.debug('getCouchDBStatus: start')
 
@@ -295,6 +304,7 @@ class checks:
 		self.checksLogger.debug('getCouchDBStatus: completed, returning')
 		return couchdb
 	
+        @recordsize
 	def getDiskUsage(self):
 		self.checksLogger.debug('getDiskUsage: start')
 		
@@ -382,7 +392,8 @@ class checks:
 		self.checksLogger.debug('getDiskUsage: completed, returning')
 			
 		return usageData
-	
+
+	@recordsize
 	def getIOStats(self):
 		self.checksLogger.debug('getIOStats: start')
 		
@@ -439,6 +450,7 @@ class checks:
 		self.checksLogger.debug('getIOStats: completed, returning')
 		return ioStats
 			
+        @recordsize
 	def getLoadAvrgs(self):
 		self.checksLogger.debug('getLoadAvrgs: start')
 		
@@ -510,7 +522,8 @@ class checks:
 		self.checksLogger.debug('getLoadAvrgs: completed, returning')
 	
 		return loadAvrgs
-		
+
+	@recordsize	
 	def getMemoryUsage(self):
 		self.checksLogger.debug('getMemoryUsage: start')
 		
@@ -689,12 +702,13 @@ class checks:
 			
 		else:
 			return False
-
+        @recordsize
         def getVMStat(self):
 		"""Provide the same data that vmstat on linux provides"""
 		# on mac, try top -S -n0 -l1
 		pass
-			
+	
+        @recordsize		
 	def getMongoDBStatus(self):
 		self.checksLogger.debug('getMongoDBStatus: start')
 
@@ -795,6 +809,7 @@ class checks:
 		status['asserts']['userPS'] = 0
 		status['asserts']['rolloversPS'] = 0
 
+        @recordsize
 	def getMySQLStatus(self):
 		self.checksLogger.debug('getMySQLStatus: start')
 		
@@ -1049,6 +1064,7 @@ class checks:
 			self.checksLogger.debug('getMySQLStatus: config not set')
 			return False	
 			
+        @recordsize
 	def getNetworkTraffic(self):
 		self.checksLogger.debug('getNetworkTraffic: start')
 		
@@ -1189,6 +1205,7 @@ class checks:
 		
 			return False	
 	
+        @recordsize
 	def getNginxStatus(self):
 		self.checksLogger.debug('getNginxStatus: start')
 		
@@ -1277,6 +1294,7 @@ class checks:
 			
 			return False
 
+        @recordsize
 	def getProcesses(self):
 		self.checksLogger.debug('getProcesses: start')
 		
@@ -1321,6 +1339,7 @@ class checks:
 			
 		return processes
 			
+        @recordsize
 	def getRabbitMQStatus(self):
 		self.checksLogger.debug('getRabbitMQStatus: start')
 
@@ -1387,6 +1406,7 @@ class checks:
         #
         # CPU Stats
         #
+        @recordsize
 	def getCPUStats(self):
 		"""Return an aggregate of CPU stats across all CPUs
 		{'cpu_user': cpu_user, 'cpu_system': cpu_system, 'cpu_wait': cpu_wait, 'cpu_idle': cpu_idle, 'cpu_stolen': cpu_stolen)
