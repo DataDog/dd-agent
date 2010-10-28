@@ -1642,7 +1642,22 @@ class checks:
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
-		checksData = {'os' : self.os, 'agentKey' : self.agentConfig['agentKey'], 'agentVersion' : self.agentConfig['version'], 'diskUsage' : diskUsage, 'loadAvrg' : loadAvrgs['1'], 'memPhysUsed' : memory['physUsed'], 'memPhysFree' : memory['physFree'], 'memSwapUsed' : memory['swapUsed'], 'memSwapFree' : memory['swapFree'], 'memCached' : memory['cached'], 'networkTraffic' : networkTraffic, 'processes' : processes}
+		checksData = {
+    		'os' : self.os, 
+    		'agentKey' : self.agentConfig['agentKey'], 
+    		'agentVersion' : self.agentConfig['version'], 
+    		'diskUsage' : diskUsage, 
+    		'loadAvrg' : loadAvrgs['1'], 
+    		'memPhysUsed' : memory['physUsed'], 
+    		'memPhysFree' : memory['physFree'], 
+    		'memSwapUsed' : memory['swapUsed'], 
+    		'memSwapFree' : memory['swapFree'], 
+    		'memCached' : memory['cached'], 
+    		'networkTraffic' : networkTraffic, 
+    		'processes' : processes,
+    		'apiKey': self.agentConfig['apiKey']
+    	}
+    	
                 if cpuStats is not False and cpuStats is not None:
 			checksData.update(cpuStats)
 		
