@@ -11,11 +11,12 @@ class Continue(Exception):
 	pass
 
 class Hudson(object):
+	key = 'hudson'
 	datetime_format = '%Y-%m-%d_%H-%M-%S'
 	result_pattern = re.compile('\s*<result>(?P<result>[A-Za-z]*)</result>\s*')
 	
 	def __init__(self):
-		self.high_watermarks = defaultdict(lambda: 0)
+		self.high_watermarks = None
 	
 	def _extract_timestamp(self, job_name, dir_name):
 		try:
@@ -45,7 +46,7 @@ class Hudson(object):
 				self.result_pattern.match(line) 
 				for line in open(build_metadata)
 			)
-	
+			
 			matched = [match for match in matches if match]
 
 			if len(matched) != 1:
@@ -81,6 +82,16 @@ class Hudson(object):
 			
 					
 	def check(self, logger, agentConfig):
+		if self.high_watermarks is None:
+			# On the first run of check(), prime the high_watermarks dict
+			# so that we only send events that occured after the agent
+			# started. 
+			# (Setting high_watermarks in the next statement prevents
+			#  any kind of infinite loop (assuming nothing ever sets
+			#  high_watermarks to None again!))
+			self.high_watermarks = defaultdict(lambda: 0)
+			self.check(logger, agentConfig)
+		
 		hudson_home = agentConfig.get('hudson_home', None)
 		
 		if not hudson_home:
@@ -88,9 +99,13 @@ class Hudson(object):
 		
 		job_dirs = glob(os.path.join(hudson_home, 'jobs', '*'))
 		
+		build_events = []
+		
 		for job_dir in job_dirs:
 			for output in self._get_build_results(logger, job_dir):
-				print output
+				build_events.append(output)
+		
+		return build_events
 
 				
 

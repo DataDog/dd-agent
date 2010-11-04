@@ -32,6 +32,7 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+from .build import Hudson
 from .db import CouchDb, MongoDb, MySql
 from .queue import RabbitMq
 from .system import Disk, IO, Load, Memory, Network, Processes, Cpu
@@ -97,6 +98,7 @@ class checks:
 		self._mongodb = MongoDb()
 		self._mysql = MySql()
 		self._rabbitmq = RabbitMq()
+		self._event_checks = [Hudson()]
 		
 		# Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
 		import socket
@@ -332,7 +334,7 @@ class checks:
 		plugins = self.getPlugins()
 		ioStats = self.getIOStats()
 		cpuStats = self.getCPUStats()
-
+		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
 		checksData = {
@@ -348,8 +350,16 @@ class checks:
     		'memCached' : memory['cached'], 
     		'networkTraffic' : networkTraffic, 
     		'processes' : processes,
-    		'apiKey': self.agentConfig['apiKey']
+    		'apiKey': self.agentConfig['apiKey'],
+			'events': {},
     	}
+
+		for event_check in self._event_checks:
+			event_data = event_check.check(self.checksLogger, 
+										   self.agentConfig)
+			if event_data:
+				checksData['events'][event_check.key] = event_data
+
     	
 		if cpuStats is not False and cpuStats is not None:
 			checksData.update(cpuStats)
