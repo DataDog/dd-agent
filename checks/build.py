@@ -1,5 +1,6 @@
 import os
 import re
+import socket	
 import time
 import traceback
 
@@ -106,8 +107,18 @@ class Hudson(object):
 		
 		build_events = []
 		
+		# Copied from main check loop. Probably bad,
+		# but the ETL needs host on each event dict
+		
+		try:
+			host = socket.gethostname()
+		except socket.error, e:
+			pass
+		
 		for job_dir in job_dirs:
 			for output in self._get_build_results(logger, job_dir):
+				output['api_key'] = agentConfig['apiKey']
+				output['host'] = host
 				build_events.append(output)
 		
 		return build_events

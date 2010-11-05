@@ -354,13 +354,6 @@ class checks:
 			'events': {},
     	}
 
-		for event_check in self._event_checks:
-			event_data = event_check.check(self.checksLogger, 
-										   self.agentConfig)
-			if event_data:
-				checksData['events'][event_check.key] = event_data
-
-    	
 		if cpuStats is not False and cpuStats is not None:
 			checksData.update(cpuStats)
 		
@@ -440,6 +433,14 @@ class checks:
 		self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
                 print "Server ID", checksData['uuid']
 		
+		# Process the event checks. 
+		for event_check in self._event_checks:
+			event_data = event_check.check(self.checksLogger, 
+										   self.agentConfig)
+			if event_data:
+				checksData['events'][event_check.key] = event_data
+
+    	
 		# Post back the data
 		if int(pythonVersion[1]) >= 6:
 			self.checksLogger.debug('doChecks: json convert')
