@@ -11,7 +11,7 @@ class Continue(Exception):
 	pass
 
 class Hudson(object):
-	key = 'hudson'
+	key = 'Hudson'
 	datetime_format = '%Y-%m-%d_%H-%M-%S'
 	result_pattern = re.compile('\s*<result>(?P<result>[A-Za-z]*)</result>\s*')
 	
@@ -78,7 +78,12 @@ class Hudson(object):
 				logger.error(traceback.format_exc())
 				
 			else:
-				yield job_name, timestamp, result	
+				yield {
+					'job_name': job_name,
+					'timestamp': timestamp,
+					'result': result,
+					'event_type': 'build result'
+				}
 			
 					
 	def check(self, logger, agentConfig):
