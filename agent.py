@@ -242,7 +242,6 @@ if __name__ == '__main__':
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
 			daemon.start()
-			daemon.run()
 			
 		elif 'stop' == sys.argv[1]:
 			mainLogger.debug('Stop daemon')
