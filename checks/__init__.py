@@ -431,7 +431,6 @@ class checks:
 		# on the back-end if need be, based on mac addresses.
 		checksData['uuid'] = uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 		self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
-                print "Server ID", checksData['uuid']
 		
 		# Process the event checks. 
 		for event_check in self._event_checks:

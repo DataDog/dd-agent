@@ -11,7 +11,7 @@
 
 # General config
 agentConfig = {}
-agentConfig['debugMode'] = True
+agentConfig['debugMode'] = False
 agentConfig['checkFreq'] = 5
 
 agentConfig['version'] = '1.9.0'
@@ -63,6 +63,13 @@ try:
 	else:
 		agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
 	agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
+
+	agentConfig['debugMode'] = config.get('Main', 'debug_mode')
+	# translate yes into True, the rest into False
+	if agentConfig['debugMode'].lower() == 'yes':
+	    agentConfig['debugMode'] = True
+	else:
+	    agentConfig['debugMode'] = False
 	
 	# Optional config
 	# Also do not need to be present in the config file (case 28326).
@@ -117,7 +124,7 @@ except ConfigParser.ParsingError, e:
 	sys.exit(2)
 	
 except ConfigParser.NoOptionError, e:
-	print 'There are some items missing from your config file, but nothing fatal'
+	print 'There are some items missing from your config file, but nothing fatal', e
 	
 # Check apache_status_url is not empty (case 27073)
 if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] == None:
@@ -234,7 +241,7 @@ if __name__ == '__main__':
 	if argLen == 2 or argLen == 3 or argLen == 4:
 		if 'start' == sys.argv[1]:
 			mainLogger.debug('Start daemon')
-			#daemon.start()
+			daemon.start()
 			daemon.run()
 			
 		elif 'stop' == sys.argv[1]:
