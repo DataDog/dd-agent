@@ -37,6 +37,7 @@ from .db import CouchDb, MongoDb, MySql
 from .queue import RabbitMq
 from .system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from .web import Apache, Nginx
+from .ganglia import Ganglia
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -98,6 +99,7 @@ class checks:
 		self._mongodb = MongoDb()
 		self._mysql = MySql()
 		self._rabbitmq = RabbitMq()
+		self._ganglia = Ganglia()
 		self._event_checks = [Hudson()]
 		
 		# Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
@@ -160,6 +162,11 @@ class checks:
 	@recordsize
 	def getRabbitMQStatus(self):
 		return self._rabbitmq.check(self.checksLogger, self.agentConfig)
+
+	@recordsize
+	def getGangliaData(self):
+		return self._ganglia.check(self.checksLogger, self.agentConfig)
+
 
 	#
 	# CPU Stats
@@ -334,6 +341,7 @@ class checks:
 		plugins = self.getPlugins()
 		ioStats = self.getIOStats()
 		cpuStats = self.getCPUStats()
+		gangliaData = self.getGangliaData()
 		
 		self.checksLogger.debug('doChecks: checks success, build payload')
 		
@@ -404,6 +412,9 @@ class checks:
 		
 		if ioStats != False:
 			checksData['ioStats'] = ioStats
+
+		if gangliaData != False:
+			checksData['ganglia'] = gangliaData
 			
 		# Include system stats on first postback
 		if firstRun == True:
