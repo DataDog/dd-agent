@@ -170,11 +170,7 @@ class MongoDb(object):
 		mongodb = {}
 
 		try:
-			mongoInfo = agentConfig['MongoDBServer'].split(':')
-			if len(mongoInfo) == 2:
-				conn = Connection(mongoInfo[0], int(mongoInfo[1]))
-			else:
-				conn = Connection(mongoInfo[0])
+			conn = Connection(agentConfig['MongoDBServer'])
 		except Exception, ex:
 			import traceback
 			logger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
