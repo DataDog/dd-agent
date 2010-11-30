@@ -115,6 +115,12 @@ try:
 	if config.has_option('Main', 'hudson_home'):
 		agentConfig['hudson_home'] = config.get('Main', 'hudson_home')
 
+	if config.has_option('Main', 'ganglia_host'):
+		agentConfig['ganglia_host'] = config.get('Main', 'ganglia_host')
+
+	if config.has_option('Main', 'ganglia_port'):
+		agentConfig['ganglia_port'] = config.get('Main', 'ganglia_port')
+
 except ConfigParser.NoSectionError, e:
 	print 'Config file not found or incorrectly formatted'
 	sys.exit(2)

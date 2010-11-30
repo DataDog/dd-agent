@@ -37,6 +37,7 @@ from .db import CouchDb, MongoDb, MySql
 from .queue import RabbitMq
 from .system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from .web import Apache, Nginx
+from .ganglia import Ganglia
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -91,6 +92,7 @@ class checks:
         self._mongodb = MongoDb()
         self._mysql = MySql()
         self._rabbitmq = RabbitMq()
+        self._ganglia = Ganglia()
         self._event_checks = [Hudson()]
         
         # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
@@ -160,6 +162,10 @@ class checks:
     @recordsize
     def getRabbitMQStatus(self):
         return self._rabbitmq.check(self.checksLogger, self.agentConfig)
+
+    @recordsize
+    def getGangliaData(self):
+        return self._ganglia.check(self.checksLogger, self.agentConfig)
 
     #
     # CPU Stats
@@ -334,6 +340,7 @@ class checks:
         plugins = self.getPlugins()
         ioStats = self.getIOStats()
         cpuStats = self.getCPUStats()
+        gangliaData = self.getGangliaData()
         
         self.checksLogger.debug('doChecks: checks success, build payload')
         
@@ -354,12 +361,15 @@ class checks:
             'events': {},
         }
 
-        if cpuStats is not False and cpuStats is not None:
+        if cpuStats != False and cpuStats is not None:
             checksData.update(cpuStats)
 
-        if ioStats is not False and ioStats is not None:
+        if ioStats != False and ioStats is not None:
             checksData.update(ioStats)
         
+        if gangliaData != False:
+            checksData['ganglia'] = gangliaData
+            
         self.checksLogger.debug('doChecks: payload built, build optional payloads')
         
         # Apache Status
@@ -423,7 +433,7 @@ class checks:
             self.checksLogger.debug('Unable to get hostname: ' + str(e))
         
         self.checksLogger.debug('doChecks: payloads built, convert to json')
-
+                    
         # Generate a unique name that will stay constant between
         # invocations, such as platform.node() + uuid.getnode()
         # Use uuid5, which does not depend on the clock and is
@@ -455,7 +465,7 @@ class checks:
             payload = minjson.write(checksData)
             
         self.checksLogger.debug('doChecks: json converted, hash')
-        self.checksLogger.debug('Payload: %s' % payload)
+        self.checksLogger.debug('Payload: %s...' % payload[:min(len(payload), 132)])
         
         payloadHash = md5(payload).hexdigest()
         postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
