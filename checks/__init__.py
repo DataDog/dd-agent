@@ -361,9 +361,6 @@ class checks:
             'events': {},
         }
 
-        if cpuStats != False and cpuStats is not None:
-            checksData.update(cpuStats)
-
         if ioStats != False and ioStats is not None:
             checksData.update(ioStats)
         
