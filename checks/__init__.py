@@ -309,6 +309,7 @@ class checks:
             return False
             
         self.checksLogger.debug('doPostBack: completed')
+        return True
     
     def doChecks(self, sc, firstRun, systemStats=False):
         macV = None
@@ -444,21 +445,17 @@ class checks:
         
         # Process the event checks. 
         for event_check in self._event_checks:
-            event_data = event_check.check(self.checksLogger, 
-                                           self.agentConfig)
+            event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
                 checksData['events'][event_check.key] = event_data
-
         
         # Post back the data
         if int(pythonVersion[1]) >= 6:
             self.checksLogger.debug('doChecks: json convert')
-            
             payload = json.dumps(checksData)
         
         else:
             self.checksLogger.debug('doChecks: minjson convert')
-            
             payload = minjson.write(checksData)
             
         self.checksLogger.debug('doChecks: json converted, hash')
@@ -470,9 +467,10 @@ class checks:
         self.checksLogger.debug('doChecks: hashed, doPostBack')
 
         # For tests, no need to post data back
-        self.doPostBack(postBackData)
-        
-        self.checksLogger.debug('doChecks: posted back, reschedule')
+        if self.doPostBack(postBackData):
+            self.checksLogger.debug('doChecks: posted back, reschedule')
+        else:
+            self.checksLogger.error('doChecks: could not send data back')
         
         sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
         
