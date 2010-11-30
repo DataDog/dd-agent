@@ -4,7 +4,7 @@ import urllib2
 import re
 
 class Apache(object):
-	def check(self, logger, agentConfig):
+	def check(self, logger, agentConfig, headers):
 		logger.debug('getApacheStatus: start')
 		
 		if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto':	# Don't do it if the status URL hasn't been provided
@@ -84,7 +84,7 @@ class Nginx(object):
 	def __init__(self):
 		self.nginxRequestsStore = None
 	
-	def check(self, logger, agentConfig):
+	def check(self, logger, agentConfig, headers):
 		logger.debug('getNginxStatus: start')
 		
 		if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':	# Don't do it if the status URL hasn't been provided

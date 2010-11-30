@@ -3,7 +3,7 @@ import traceback
 import urllib2
 
 class CouchDb(object):
-	def check(self, logger, agentConfig):
+	def check(self, logger, agentConfig, headers):
 		logger.debug('getCouchDBStatus: start')
 
 		if ('CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == ''):
