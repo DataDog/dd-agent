@@ -366,9 +366,6 @@ class checks:
         if cpuStats != False and cpuStats is not None:
             checksData.update(cpuStats)
 
-        if ioStats != False and ioStats is not None:
-            checksData.update(ioStats)
-        
         if gangliaData != False:
             checksData['ganglia'] = gangliaData
             
