@@ -32,6 +32,7 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+from .nagios import Nagios
 from .build import Hudson
 from .db import CouchDb, MongoDb, MySql
 from .queue import RabbitMq
@@ -93,7 +94,7 @@ class checks:
         self._mysql = MySql()
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
-        self._event_checks = [Hudson()]
+        self._event_checks = [Hudson(), Nagios()]
         
         # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
         import socket

@@ -115,6 +115,9 @@ try:
 	if config.has_option('Main', 'hudson_home'):
 		agentConfig['hudson_home'] = config.get('Main', 'hudson_home')
 
+	if config.has_option('Main', 'nagios_log'):
+		agentConfig['nagios_log'] = config.get('Main', 'nagios_log')
+
 	if config.has_option('Main', 'ganglia_host'):
 		agentConfig['ganglia_host'] = config.get('Main', 'ganglia_host')
 
