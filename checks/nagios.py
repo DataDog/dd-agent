@@ -103,6 +103,7 @@ class Nagios(object):
         self.logger = None
         self.gen = None
         self.events = None
+        self.apikey = ""
 
     def _parse_line(self, line):
 
@@ -128,6 +129,7 @@ class Nagios(object):
         try:
             parts = remainder.split(';')
             event = create_event(tstamp, event_type, fields._make(map(lambda p: p.strip(), parts)))
+            event.update({'api_key': self.apikey})
             self.events.append(event)
             self.logger.debug("Nagios event: {0}".format(event))
         except:
@@ -145,6 +147,7 @@ class Nagios(object):
             self.logger.warn("Not checking nagios because nagios_log is not set in config file")
             return False
 
+        self.apikey = agentConfig['apiKey']
         self.events = []
       
         # Build our tail -f 
@@ -165,6 +168,8 @@ if __name__ == "__main__":
     nagios = Nagios()
 
     while True:
-        nagios.check(logger, {'nagios_log': '/var/log/nagios3/nagios.log'})
+        events = nagios.check(logger, {'apiKey':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'})
+        for e in events:
+            print "Event:", e
         time.sleep(5)
 
