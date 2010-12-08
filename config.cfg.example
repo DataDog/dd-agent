@@ -7,7 +7,7 @@ check_freq: 3
 
 apache_status_url: http://www.example.com/server-status/?auto
 
-#ganglia_host: localhost
+ganglia_host: localhost
 ganglia_port: 8651
 
 mysql_server:
