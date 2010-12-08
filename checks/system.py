@@ -2,6 +2,7 @@ import re
 import subprocess
 import sys
 import traceback
+import socket
 
 class Disk(object):
     def check(self, logger, agentConfig):
@@ -597,8 +598,17 @@ class Processes(object):
             processes.append(map(lambda s: s.strip(), line))
         
         logger.debug('getProcesses: completed, returning')
-            
-        return processes
+        
+        hostname = ""
+    
+        try:
+            hostname = socket.gethostname()
+        except socket.error, e:
+            logger.debug("processes: unable to get hostanme: " + str(e))         
+
+        return { 'processes':   processes,
+                 'apiKey':      agentConfig['apiKey'],
+                 'host':        hostname }
             
 class Cpu(object):
     def check(self, logger, agentConfig):
