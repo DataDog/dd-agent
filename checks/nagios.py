@@ -83,20 +83,25 @@ class TailFile(object):
 
     def tail(self,move_end=True):
 
-        self._open_file(move_end=move_end)
-        
-        done = False
-        while True:
-            if done:
-                break
-
-            where = self._f.tell()
-            line = self._f.readline()
-            if line:
-               done = self._callback(line.rstrip("\n"))
-            else:
-                yield True
-                self._open_file(move_end=False,where=where)
+	try:
+            self._open_file(move_end=move_end)
+            
+            done = False
+            while True:
+                if done:
+                    break
+		 
+                where = self._f.tell()
+                line = self._f.readline()
+                if line:
+                   done = self._callback(line.rstrip("\n"))
+                else:
+                    yield True
+                    self._open_file(move_end=False,where=where)
+	except Exception, e:
+	    # log but survive
+	    self._log.exception(e)
+	    raise StopIteration(e)
         
 class Nagios(object):
 
@@ -165,9 +170,13 @@ class Nagios(object):
             self.gen = TailFile(logger,log_path,self._parse_line).tail(move_end=True)
 
         # read until the end of file
-        self.gen.next() 
+	try:
+	    self.gen.next() 
+	    self.logger.debug("Done nagios check for file {0}".format(log_path))
+	except StopIteration, e:
+	    self.logger.exception(e)
+	    self.logger.warn("Can't tail {0} file".format(log_path))
 
-        self.logger.debug("Done nagios check for file {0}".format(log_path))
         return self.events
 
 if __name__ == "__main__":
