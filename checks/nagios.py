@@ -18,13 +18,17 @@ EVENT_FIELDS = {
     'HOST ALERT':               namedtuple('E_HostAlert', 'host, event_state, event_soft_hard, return_code, payload')
 }
 
-def create_event(timestamp, event_type, fields):
+def create_event(timestamp, event_type, hostname, fields):
     """Factory method called by the parsers
     """
     # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
     # but couldn't think of anything smarter
     d = fields._asdict()
     d.update({ 'timestamp': timestamp, 'event_type': event_type })
+    # if host is localhost, turn that into the internal host name
+    host = d.get('host', None)
+    if host == "localhost":
+        d["host"] = hostname
     return d
 
 
@@ -98,25 +102,31 @@ class Nagios(object):
 
     key = "Nagios"
 
-    def __init__(self):
-        self.re_line = re.compile('^\[(\d+)\] (.*?):(.*)')
+    def __init__(self, hostname):
+        """hostname is the name of the machine where the nagios log lives
+        """
+        self.re_line = re.compile('^\[(\d+)\] ([^:]+): (.*)')
         self.logger = None
         self.gen = None
         self.events = None
         self.apikey = ""
+        self.hostname = hostname
 
     def _parse_line(self, line):
 
         # first isolate the timestamp and the event type
         try:
             m = self.re_line.match(line)
-            (tstamp, event_type, remainder)= m.groups()
-            if event_type in IGNORE_EVENT_TYPES:
-                self.logger.info("Ignoring nagios event of type {0}".format(event_type))
+            if m is None:
                 return None
-            tstamp = int(tstamp)
-        except:
-            self.logger.warn("Error while trying to get a nagios event type from line {0}".format(line))
+            else:
+                (tstamp, event_type, remainder)= m.groups()
+                if event_type in IGNORE_EVENT_TYPES:
+                    self.logger.info("Ignoring nagios event of type {0}".format(event_type))
+                    return None
+                tstamp = int(tstamp)
+        except Exception, e:
+            self.logger.exception("Error while trying to get a nagios event type from line {0}".format(line))
             return None
 
         # then retrieve the event format for each specific event type
@@ -128,12 +138,12 @@ class Nagios(object):
         # and parse the rest of the line
         try:
             parts = remainder.split(';')
-            event = create_event(tstamp, event_type, fields._make(map(lambda p: p.strip(), parts)))
+            event = create_event(tstamp, event_type, self.hostname, fields._make(map(lambda p: p.strip(), parts)))
             event.update({'api_key': self.apikey})
             self.events.append(event)
             self.logger.debug("Nagios event: {0}".format(event))
-        except:
-            self.logger.warn("Unable to create a nagios event from line: [{0}]".format(line))
+        except Exception, e:
+            self.logger.exception("Unable to create a nagios event from line: [{0}]".format(line))
 
         return None
 
@@ -162,10 +172,11 @@ class Nagios(object):
 
 if __name__ == "__main__":
     import logging
+    import socket
     logger = logging.getLogger("nagios")    
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
-    nagios = Nagios()
+    nagios = Nagios(socket.gethostname())
 
     while True:
         events = nagios.check(logger, {'apiKey':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'})

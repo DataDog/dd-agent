@@ -78,6 +78,10 @@ class checks:
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
+        # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
+        import socket
+        socket.setdefaulttimeout(15)
+        
         self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
         
         self._apache = Apache()
@@ -94,11 +98,7 @@ class checks:
         self._mysql = MySql()
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
-        self._event_checks = [Hudson(), Nagios()]
-        
-        # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
-        import socket
-        socket.setdefaulttimeout(15)
+        self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         
         # Build the request headers
         self.headers = {
