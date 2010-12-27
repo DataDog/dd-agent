@@ -47,7 +47,9 @@ try:
 	path = os.path.dirname(path)
 	
 	config = ConfigParser.ConfigParser()
-	if os.path.exists('/etc/sd-agent/config.cfg'):
+	if os.path.exists('/etc/dd-agent/config.cfg'):
+		config.read('/etc/dd-agent/config.cfg')
+	elif os.path.exists('/etc/sd-agent/config.cfg'):
 		config.read('/etc/sd-agent/config.cfg')
 	else:
 		config.read(path + '/config.cfg')
