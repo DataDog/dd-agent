@@ -223,13 +223,22 @@ if __name__ == '__main__':
         logFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.log')
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     else:
-        from logging.handlers import SysLogHandler
-        rootLog = logging.getLogger()
-        rootLog.setLevel(logging.INFO)
-        handler = SysLogHandler(address="/dev/log",facility=SysLogHandler.LOG_DAEMON)
-        formatter = logging.Formatter("dd-agent - %(name)s - %(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        rootLog.addHandler(handler) 
+        try:
+            from logging.handlers import SysLogHandler
+            rootLog = logging.getLogger()
+            rootLog.setLevel(logging.INFO)
+            if sys.platform == 'darwin':
+                sys_log_addr = "/var/run/syslog"
+            else:
+                sys_log_addr = "/dev/log"
+        
+            handler = SysLogHandler(address=sys_log_addr,facility=SysLogHandler.LOG_DAEMON)
+            formatter = logging.Formatter("dd-agent - %(name)s - %(levelname)s - %(message)s")
+            handler.setFormatter(formatter)
+            rootLog.addHandler(handler) 
+        except Exception,e:
+            print "Error while setting up syslog logging (%s), no logging will be done" % str(e)
+            logging.disable(logging.ERROR)
 
     mainLogger = logging.getLogger('main')      
     mainLogger.debug('Agent called')
