@@ -24,6 +24,7 @@ import subprocess
 import sys
 import urllib
 import urllib2
+from pprint import pformat as pp
 
 # Needed to identify server uniquely
 import uuid
@@ -351,7 +352,9 @@ class checks:
             'agentKey' : self.agentConfig['agentKey'], 
             'agentVersion' : self.agentConfig['version'], 
             'diskUsage' : diskUsage, 
-            'loadAvrg' : loadAvrgs['1'], 
+            'loadAvrg1' : loadAvrgs['1'], 
+            'loadAvrg5' : loadAvrgs['5'], 
+            'loadAvrg15' : loadAvrgs['15'], 
             'memPhysUsed' : memory['physUsed'], 
             'memPhysFree' : memory['physFree'], 
             'memSwapUsed' : memory['swapUsed'], 
@@ -460,7 +463,7 @@ class checks:
             payload = minjson.write(checksData)
             
         self.checksLogger.debug('doChecks: json converted, hash')
-        self.checksLogger.debug('Payload: %s...' % payload[:min(len(payload), 132)])
+        self.checksLogger.debug('Payload:\n%s' % pp(checksData))
         
         payloadHash = md5(payload).hexdigest()
         postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
