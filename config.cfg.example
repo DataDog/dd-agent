@@ -2,7 +2,7 @@
 sd_url: http://localhost:8888
 api_key: apikey_2
 agent_key: 
-debug_mode: yes
+debug_mode: no 
 check_freq: 3
 
 apache_status_url: http://www.example.com/server-status/?auto
