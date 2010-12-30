@@ -26,7 +26,7 @@ class RollupLP(object):
         self.state = RollupLP.INIT
         self.context = None
         self.logger = None
-        self.gen = None
+        self.gens = None
         self.metrics = None
 
     @staticmethod
@@ -91,22 +91,26 @@ class RollupLP(object):
     def check(self, logger, agentConfig):
         self.logger = logger
 
-        log_path = agentConfig.get('datadog_etl_rollup_logs', None)
-        if log_path is None:
-            return False
+        # Init if needed
+        if self.gens is None:
+            self.gens = []
+            log_paths = agentConfig.get('datadog_etl_rollup_logs', None)
+            if log_paths is not None:
+                for log_path in log_paths.split(','):
+                    gen = TailFile(logger, log_path, self._parse_line).tail(move_end = True)
+                    self.gens.append((log_path, gen))
 
-        if self.gen is None:
-            self.gen = TailFile(logger, log_path, self._parse_line).tail(move_end = True) #FIXME
         
         self.metrics = {}
 
         # Read until the EOF
-        try:
-            self.gen.next()
-            self.logger.debug("Done checking ETL Rollup log {0}".format(log_path))
-        except StopIteration, e:
-            self.logger.exception(e)
-            self.logger.warn("Can't tail file {0}".format(log_path))
+        for (log_path, gen) in self.gens:
+            try:
+                gen.next()
+                self.logger.debug("Done checking ETL Rollup log {0}".format(log_path))
+            except StopIteration, e:
+                self.logger.exception(e)
+                self.logger.warn("Can't tail file {0}".format(log_path))
 
         self.logger.debug("datadog ETL returns: %s" % str(self.metrics))
         return self.metrics
@@ -123,6 +127,6 @@ if __name__ == "__main__":
 
     while True:
         rlp.check(logger, {
-            'datadog_etl_rollup_logs':'/home/fabrice/dev/datadog/git/dogweb/build/rollup_etl.log'
+            'datadog_etl_rollup_logs':'/home/fabrice/dev/datadog/git/dogweb/build/rollup_etl.log, /tmp/test'
             })
         time.sleep(1)
