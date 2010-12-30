@@ -40,6 +40,7 @@ from .queue import RabbitMq
 from .system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from .web import Apache, Nginx
 from .ganglia import Ganglia
+from .datadog import RollupLP as ddRollupLP
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -99,6 +100,12 @@ class checks:
         self._mysql = MySql()
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
+
+        if agentConfig.get('has_datadog',False):
+            self._datadogs = [ddRollupLP()]
+        else:
+            self._datadogs = None
+
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         
         # Build the request headers
@@ -168,6 +175,15 @@ class checks:
     @recordsize
     def getGangliaData(self):
         return self._ganglia.check(self.checksLogger, self.agentConfig)
+
+    @recordsize
+    def getDatadogData(self):
+        result = {}
+        if self._datadogs is not None:
+            for dd in self._datadogs:
+                result[dd.key] = dd.check(self.checksLogger, self.agentConfig)
+
+        return result
 
     #
     # CPU Stats
@@ -344,7 +360,8 @@ class checks:
         ioStats = self.getIOStats()
         cpuStats = self.getCPUStats()
         gangliaData = self.getGangliaData()
-        
+        datadogData = self.getDatadogData()       
+ 
         self.checksLogger.debug('doChecks: checks success, build payload')
         
         checksData = {
@@ -371,7 +388,10 @@ class checks:
 
         if gangliaData != False:
             checksData['ganglia'] = gangliaData
-            
+           
+        if datadogData is not None:
+            checksData['datadog'] = datadogData
+ 
         self.checksLogger.debug('doChecks: payload built, build optional payloads')
         
         # Apache Status
