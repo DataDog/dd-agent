@@ -43,6 +43,13 @@ class RollupLP(object):
         """Convert a datetime to a timestamp"""
         return int(time.mktime(dt.timetuple()))
 
+    def _add_to_metric(self,key,ts,value):
+        tp = (ts,value)
+        if self.metrics.has_key(key):
+            self.metrics[key].append(tp)
+        else:
+            self.metrics[key] = [tp]
+
     def _process_init(self,line):
         m = self.start_re.match(line)
         if m is not None:
@@ -62,15 +69,15 @@ class RollupLP(object):
             c_start = self.context['start']
 
             if c_res == resolution:
-                d = end - c_start
-                key = '%s.total' % c_res
-                tp = (RollupLP._dt_to_ts(end),RollupLP._td_to_ms(d))
-                if self.metrics.has_key(key):
-                    self.metrics[key].append(tp)
-                else:
-                    self.metrics[key] = [tp]
+                ts = RollupLP._dt_to_ts(end)
+                self._add_to_metric('%s.total' % c_res, \
+                                    ts, \
+                                    RollupLP._td_to_ms(end - c_start))
 
-                self.logger.debug("Processed %s series at res %s in %s ms" % (number, c_res, RollupLP._td_to_ms(d)))
+                self._add_to_metric('%s.count' % c_res, ts, number)
+
+                self.logger.debug("Processed %s series at res %s" % (number, c_res))
+
             self.context = None
             self.state = RollupLP.INIT
 
