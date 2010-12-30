@@ -130,6 +130,11 @@ try:
     if config.has_option('Main', 'ganglia_port'):
         agentConfig['ganglia_port'] = config.get('Main', 'ganglia_port')
 
+    if config.has_option('datadog', 'rollup_etl_logs'):
+        agentConfig['has_datadog'] = True
+        agentConfig['datadog_etl_rollup_logs'] = config.get('datadog', 'rollup_etl_logs')
+
+
 except ConfigParser.NoSectionError, e:
     print 'Config file not found or incorrectly formatted'
     sys.exit(2)
