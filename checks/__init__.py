@@ -33,14 +33,14 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
-from .nagios import Nagios
-from .build import Hudson
-from .db import CouchDb, MongoDb, MySql
-from .queue import RabbitMq
-from .system import Disk, IO, Load, Memory, Network, Processes, Cpu
-from .web import Apache, Nginx
-from .ganglia import Ganglia
-from .datadog import RollupLP as ddRollupLP
+from checks.nagios import Nagios
+from checks.build import Hudson
+from checks.db import CouchDb, MongoDb, MySql
+from checks.queue import RabbitMq
+from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
+from checks.web import Apache, Nginx
+from checks.ganglia import Ganglia
+from checks.datadog import RollupLP as ddRollupLP
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
