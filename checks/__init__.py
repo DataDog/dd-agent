@@ -24,6 +24,8 @@ import subprocess
 import sys
 import urllib
 import urllib2
+import time
+import datetime
 from pprint import pformat as pp
 
 # Needed to identify server uniquely
@@ -472,7 +474,14 @@ class checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
                 checksData['events'][event_check.key] = event_data
-        
+       
+        if firstRun:
+            checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
+                                              'host': checksData['internalHostname'],
+                                              'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
+                                              'event_type':'agent startup',
+                                            }]
+ 
         # Post back the data
         if int(pythonVersion[1]) >= 6:
             self.checksLogger.debug('doChecks: json convert')
