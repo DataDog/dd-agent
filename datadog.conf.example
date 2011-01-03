@@ -1,5 +1,5 @@
 [Main]
-sd_url: http://localhost:8888
+dd_url: http://localhost:8888
 api_key: apikey_2
 agent_key: 
 debug_mode: no 
@@ -24,11 +24,11 @@ mongodb_server:
 
 couchdb_server:
 
-hudson_home: /Users/hudson/.hudson/
+hudson_home: /var/lib/hudson/
 
 nagios_log: /var/log/nagios3/nagios.log
 
 [datadog]
 
-#Multiple files can be tailed, just separate them with a ","
-rollup_etl_logs = /home/fabrice/dev/datadog/git/dogweb/build/rollup_etl.log
+# Multiple files can be tailed, just separate them with a ","
+#rollup_etl_logs = /var/log/dogrollup.log

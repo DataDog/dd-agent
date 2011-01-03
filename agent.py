@@ -1,36 +1,40 @@
 #!/usr/bin/python
 '''
-    Server Density
-    www.serverdensity.com
+    Datadog
+    www.datadoghq.com
     ----
-    A web based server resource monitoring application
+    Make sense of your IT Data
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
+    (C) Datadog, Inc. 2010 all rights reserved
 '''
-
-# General config
-agentConfig = {}
-agentConfig['debugMode'] = False
-agentConfig['checkFreq'] = 5
-
-agentConfig['version'] = '1.9.0'
-
-rawConfig = {}
 
 # Core modules
 import ConfigParser
 import logging
 import os
+import os.path
 import re
 import sched
 import sys
 import time
 
+# CONSTANTS
+DATADOG_CONF = "datadog.conf"
+
+# General config
+agentConfig = {}
+agentConfig['debugMode'] = False
+agentConfig['checkFreq'] = 15
+agentConfig['version'] = '1.9.0'
+
+rawConfig = {}
+
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
 if int(sys.version_info[1]) <= 3:
-    print 'You are using an outdated version of Python. Please update to v2.4 or above (v3 is not supported). For newer OSs, you can update Python without affecting your system install. See http://blog.boxedice.com/2010/01/19/updating-python-on-rhelcentos/ If you are running RHEl 4 / CentOS 4 then you will need to compile Python manually.'
+    sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
     sys.exit(2)
     
 # After the version check as this isn't available on older Python versions
@@ -47,25 +51,22 @@ try:
     path = os.path.dirname(path)
     
     config = ConfigParser.ConfigParser()
-    if os.path.exists('/etc/dd-agent/config.cfg'):
-        config.read('/etc/dd-agent/config.cfg')
-    elif os.path.exists('/etc/sd-agent/config.cfg'):
-        config.read('/etc/sd-agent/config.cfg')
-    elif os.path.exists(path + '/config.cfg'):
-        config.read(path + '/config.cfg')
+    if os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
+        config.read(os.path.join('/etc/dd-agent', DATADOG_CONF))
+    elif os.path.exists(os.path.join(path, DATADOG_CONF)):
+        config.read(os.path.join(path, DATADOG_CONF))
     else:
-        #No config file, exit gracegully
-        print "Config file not found, not starting"
-        sys.exit(0)
+        sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
+        sys.exit(3)
     
     # Core config
-    agentConfig['sdUrl'] = config.get('Main', 'sd_url')
-    if agentConfig['sdUrl'].endswith('/'):
-        agentConfig['sdUrl'] = agentConfig['sdUrl'][:-1]
+    agentConfig['ddUrl'] = config.get('Main', 'dd_url')
+    if agentConfig['ddUrl'].endswith('/'):
+        agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
     agentConfig['agentKey'] = config.get('Main', 'agent_key')
     agentConfig['apiKey'] = config.get('Main', 'api_key')
-    if os.path.exists('/var/log/sd-agent/'):
-        agentConfig['tmpDirectory'] = '/var/log/sd-agent/'
+    if os.path.exists('/var/log/dd-agent/'):
+        agentConfig['tmpDirectory'] = '/var/log/dd-agent/'
     else:
         agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
     agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
@@ -136,37 +137,36 @@ try:
 
 
 except ConfigParser.NoSectionError, e:
-    print 'Config file not found or incorrectly formatted'
+    sys.stderr.write('Config file not found or incorrectly formatted.\n')
     sys.exit(2)
     
 except ConfigParser.ParsingError, e:
-    print 'Config file not found or incorrectly formatted'
+    sys.stderr.write('Config file not found or incorrectly formatted.\n')
     sys.exit(2)
     
 except ConfigParser.NoOptionError, e:
-    print 'There are some items missing from your config file, but nothing fatal', e
+    sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
     
-# Check apache_status_url is not empty (case 27073)
 if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] == None:
-    print 'You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto'
+    sys.stderr.write('You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto.\n')
     sys.exit(2) 
 
 if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
-    print 'You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status'
+    sys.stderr.write('You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status.\n')
     sys.exit(2)
 
 if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig:
     try:
         import MySQLdb
     except ImportError:
-        print 'You have configured MySQL for monitoring, but the MySQLdb module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mysqlstatus/'
+        sys.stderr.write('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
         sys.exit(2)
 
 if 'MongoDBServer' in agentConfig and agentConfig['MongoDBServer'] != '':
     try:
         import pymongo
     except ImportError:
-        print 'You have configured MongoDB for monitoring, but the pymongo module is not installed.  For more info, see: http://www.serverdensity.com/docs/agent/mongodbstatus/'
+        sys.stderr.write('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
         sys.exit(2)
 
 for section in config.sections():
@@ -225,7 +225,7 @@ class agent(Daemon):
 if __name__ == '__main__':  
     # Logging
     if agentConfig['debugMode']:
-        logFile = os.path.join(agentConfig['tmpDirectory'], 'sd-agent.log')
+        logFile = os.path.join(agentConfig['tmpDirectory'], 'dd-agent.log')
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     else:
         try:
@@ -242,7 +242,7 @@ if __name__ == '__main__':
             handler.setFormatter(formatter)
             rootLog.addHandler(handler) 
         except Exception,e:
-            print "Error while setting up syslog logging (%s), no logging will be done" % str(e)
+            sys.stdout.write("Error while setting up syslog logging (%s), no logging will be done" % str(e))
             logging.disable(logging.ERROR)
 
     mainLogger = logging.getLogger('main')      
@@ -251,17 +251,17 @@ if __name__ == '__main__':
     
     argLen = len(sys.argv)
     
-    if argLen == 3 or argLen == 4: # needs to accept case when --clean is passed
+    if argLen in (3, 4): # needs to accept case when --clean is passed
         if sys.argv[2] == 'init':
             # This path added for newer Linux packages which run under
-            # a separate sd-agent user account.
-            if os.path.exists('/var/run/sd-agent/'):
-                pidFile = '/var/run/sd-agent/sd-agent.pid'
+            # a separate dd-agent user account.
+            if os.path.exists('/var/run/dd-agent/'):
+                pidFile = '/var/run/dd-agent/dd-agent.pid'
             else:
-                pidFile = '/var/run/sd-agent.pid'
+                pidFile = '/var/run/dd-agent.pid'
             
     else:
-        pidFile = os.path.join(agentConfig['pidfileDirectory'], 'sd-agent.pid')
+        pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
     
     if argLen == 4 and sys.argv[3] == '--clean':
         mainLogger.debug('Agent called with --clean option, removing .pid')
@@ -305,16 +305,16 @@ if __name__ == '__main__':
                 pid = None
                 
             if pid:
-                print 'sd-agent is running as pid %s.' % pid
+                sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
             else:
-                print 'sd-agent is not running.'
+                sys.stdout.write('dd-agent is not running.\n')
 
         else:
-            print 'Unknown command'
+            sys.stderr.write('Unknown command: %s.\n' % sys.argv[1])
             sys.exit(2)
             
         sys.exit(0)
         
     else:
-        print 'usage: %s start|stop|restart|status' % sys.argv[0]
+        sys.stderr.write('Usage: %s start|stop|restart|status' % sys.argv[0])
         sys.exit(2)

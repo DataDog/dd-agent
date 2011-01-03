@@ -1,11 +1,9 @@
 '''
-    Server Density
-    www.serverdensity.com
-    ----
-    A web based server resource monitoring application
+    Datadog agent
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
+    (C) Datadog, Inc 2010 All Rights Reserved
 '''
 
 # SO references
@@ -299,10 +297,10 @@ class checks:
         self.checksLogger.debug('doPostBack: start')    
         
         try: 
-            self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['sdUrl'])
+            self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['ddUrl'])
             
             # Build the request handler
-            request = urllib2.Request(self.agentConfig['sdUrl'] + '/intake/', postBackData, self.headers)
+            request = urllib2.Request(self.agentConfig['ddUrl'] + '/intake/', postBackData, self.headers)
             
             # Do the request, log any errors
             response = urllib2.urlopen(request)
