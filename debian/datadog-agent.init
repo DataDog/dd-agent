@@ -16,7 +16,7 @@ set -e
 
 AGENTPATH="/usr/bin/dd-agent"
 AGENTUSER="dd-agent"
-PIDPATH="/var/run/sd-agent"
+PIDPATH="/var/run/dd-agent"
 NAME="dd-agent"
 DESC="datadog agent"
 
