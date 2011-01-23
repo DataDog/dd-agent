@@ -1,0 +1,194 @@
+Keyspace: system
+	Read Count: 10
+	Read Latency: 5.4211 ms.
+	Write Count: 3
+	Write Latency: 0.02766666666666667 ms.
+	Pending Tasks: 0
+		Column Family: Schema
+		SSTable count: 2
+		Space used (live): 16326
+		Space used (total): 16326
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 3
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 2
+		Key cache size: 2
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 149
+		Compacted row maximum size: 3311
+		Compacted row mean size: 149
+
+		Column Family: Migrations
+		SSTable count: 1
+		Space used (live): 12407
+		Space used (total): 12407
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 1
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 6866
+		Compacted row maximum size: 8239
+		Compacted row mean size: 6866
+
+		Column Family: IndexInfo
+		SSTable count: 0
+		Space used (live): 0
+		Space used (total): 0
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 1
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 0
+		Compacted row maximum size: 0
+		Compacted row mean size: 0
+
+		Column Family: LocationInfo
+		SSTable count: 3
+		Space used (live): 17890
+		Space used (total): 17890
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 2
+		Read Count: 7
+		Read Latency: NaN ms.
+		Write Count: 3
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 3
+		Key cache size: 3
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 124
+		Compacted row maximum size: 310
+		Compacted row mean size: 132
+
+		Column Family: HintsColumnFamily
+		SSTable count: 0
+		Space used (live): 0
+		Space used (total): 0
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 1
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 0
+		Compacted row maximum size: 0
+		Compacted row mean size: 0
+
+----------------
+Keyspace: Intake
+	Read Count: 0
+	Read Latency: NaN ms.
+	Write Count: 0
+	Write Latency: NaN ms.
+	Pending Tasks: 0
+		Column Family: Events
+		SSTable count: 3
+		Space used (live): 6623
+		Space used (total): 6623
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 200000
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 0
+		Compacted row maximum size: 372
+		Compacted row mean size: 103
+
+		Column Family: Encodings
+		SSTable count: 2
+		Space used (live): 19497
+		Space used (total): 19497
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 200000
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 149
+		Compacted row maximum size: 179
+		Compacted row mean size: 149
+
+		Column Family: Metrics
+		SSTable count: 2
+		Space used (live): 42521
+		Space used (total): 42521
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 200000
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 642
+		Compacted row maximum size: 770
+		Compacted row mean size: 642
+
+		Column Family: Processes
+		SSTable count: 2
+		Space used (live): 352725
+		Space used (total): 352725
+		Memtable Columns Count: 0
+		Memtable Data Size: 0
+		Memtable Switch Count: 0
+		Read Count: 0
+		Read Latency: NaN ms.
+		Write Count: 0
+		Write Latency: NaN ms.
+		Pending Tasks: 0
+		Key cache capacity: 200000
+		Key cache size: 0
+		Key cache hit rate: NaN
+		Row cache: disabled
+		Compacted row minimum size: 5722
+		Compacted row maximum size: 9887
+		Compacted row mean size: 6866
+
+----------------

@@ -1,0 +1,14 @@
+Pool Name                    Active   Pending      Completed
+ReadStage                         0         0              1
+RequestResponseStage              0         0              0
+MutationStage                     0         0              3
+ReadRepair                        0         0              0
+GossipStage                       0         0              0
+AntiEntropyStage                  0         0              0
+MigrationStage                    0         0              0
+MemtablePostFlusher               0         0              2
+StreamStage                       0         0              0
+FlushWriter                       0         0              2
+MiscStage                         0         0              0
+FlushSorter                       0         0              0
+InternalResponseStage             0         0              0

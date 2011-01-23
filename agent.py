@@ -80,6 +80,7 @@ try:
     
     # Optional config
     # Also do not need to be present in the config file (case 28326).
+    # FIXME not the prettiest code ever...
     if config.has_option('Main', 'apache_status_url'):
         agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
         
@@ -135,6 +136,13 @@ try:
         agentConfig['has_datadog'] = True
         agentConfig['datadog_etl_rollup_logs'] = config.get('datadog', 'rollup_etl_logs')
 
+    # Cassandra config
+    if config.has_option('Main', 'cassandra_nodetool'):
+        agentConfig['cassandra_nodetool'] = config.get('Main', 'cassandra_nodetool')
+    if config.has_option('Main', 'cassandra_host'):
+        agentConfig['cassandra_host'] = config.get('Main', 'cassandra_host')
+    if config.has_option('Main', 'cassandra_nodetool'):
+        agentConfig['cassandra_port'] = config.get('Main', 'cassandra_port')
 
 except ConfigParser.NoSectionError, e:
     sys.stderr.write('Config file not found or incorrectly formatted.\n')

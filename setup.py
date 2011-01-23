@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='datadog-agent',
-      version='1.9.0',
+      version='1.9.1',
       description='Datatadog monitoring agent',
       author='Datadog',
       author_email='info@datadoghq.com',

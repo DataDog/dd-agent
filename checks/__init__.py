@@ -33,15 +33,6 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
-from checks.nagios import Nagios
-from checks.build import Hudson
-from checks.db import CouchDb, MongoDb, MySql
-from checks.queue import RabbitMq
-from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
-from checks.web import Apache, Nginx
-from checks.ganglia import Ganglia
-from checks.datadog import RollupLP as ddRollupLP
-
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
 # on 2.6 or above, we should use the core module which will be faster
@@ -51,6 +42,16 @@ if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we on
     import json
 else:
     import minjson
+
+from checks.nagios import Nagios
+from checks.build import Hudson
+from checks.db import CouchDb, MongoDb, MySql
+from checks.queue import RabbitMq
+from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
+from checks.web import Apache, Nginx
+from checks.ganglia import Ganglia
+from checks.datadog import RollupLP as ddRollupLP
+from checks.cassandra import Cassandra
 
 def recordsize(func):
     def wrapper(*args, **kwargs):
@@ -100,6 +101,7 @@ class checks:
         self._mysql = MySql()
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
+        self._cassandra = Cassandra()
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -184,6 +186,10 @@ class checks:
                 result[dd.key] = dd.check(self.checksLogger, self.agentConfig)
 
         return result
+        
+    @recordsize
+    def getCassandraData(self):
+        return self._cassandra.check(self.checksLogger, self.agentConfig)
 
     #
     # CPU Stats
@@ -360,7 +366,8 @@ class checks:
         ioStats = self.getIOStats()
         cpuStats = self.getCPUStats()
         gangliaData = self.getGangliaData()
-        datadogData = self.getDatadogData()       
+        datadogData = self.getDatadogData()
+        cassandraData = self.getCassandraData()
  
         self.checksLogger.debug('doChecks: checks success, build payload')
         
@@ -383,14 +390,17 @@ class checks:
             'events': {},
         }
 
-        if cpuStats != False and cpuStats is not None:
+        if cpuStats is not False and cpuStats is not None:
             checksData.update(cpuStats)
 
-        if gangliaData != False:
+        if gangliaData is not False and gangliaData is not None:
             checksData['ganglia'] = gangliaData
            
-        if datadogData is not None:
+        if datadogData is not False and datadogData is not None:
             checksData['datadog'] = datadogData
+            
+        if cassandraData is not False and cassandraData is not None:
+            checksData['cassandra'] = cassandraData
  
         self.checksLogger.debug('doChecks: payload built, build optional payloads')
         

@@ -1,10 +1,9 @@
 import httplib
 import traceback
 import urllib2
-
-import platform
-pythonVersion = platform.python_version_tuple()
 import json
+
+from checks import pythonVersion
 
 class CouchDb(object):
     def check(self, logger, agentConfig, headers):
