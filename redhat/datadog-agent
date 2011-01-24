@@ -1,33 +1,33 @@
 #!/bin/sh
 #
 ###############################################################################
-# sd-agent
+# datadog-agent
 #
-# Written by Boxed Ice <hello@boxedice.com>
-# A server monitoring daemon for www.serverdensity.com
+# Inspired by Boxed Ice <hello@boxedice.com>
+# Forked by Datadog, Inc. <package@datadoghq.com>
 #
 # Licensed under Simplified BSD License (see LICENSE)
 #
 ###############################################################################
 #
 # chkconfig: 345 85 15
-# description: Server Density Monitoring Agent
+# description: Datadog Monitoring Agent
 
 ### BEGIN INIT INFO
-# Provides: sd-agent
-# Short-Description: Start and start sd-agent
-# Description: sd-agent is the monitoring agent component for Server Density
+# Provides: datadog-agent
+# Short-Description: Start and start datadog-agent
+# Description: datadog-agent is the monitoring agent component for Datadog
 # Required-Start:
 # Required-Stop:
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 ### END INIT INFO
 
-AGENTPATH="/usr/bin/sd-agent/agent.py"
-AGENTUSER="sd-agent"
-PIDPATH="/var/run/sd-agent/"
+AGENTPATH="/usr/share/datadog/agent/agent.py"
+AGENTUSER="dd-agent"
+PIDPATH="/var/run/dd-agent/"
 
-[ -f $AGENTPATH ] || echo "/usr/bin/sd-agent not found"
+[ -f $AGENTPATH ] || echo "$AGENTPATH not found"
 
 # Source function library.
 if [ -f /etc/init.d/functions ]; then
@@ -44,7 +44,7 @@ case "$1" in
   start)
         if [ ! -f $PIDPATH ]; then
             mkdir -p $PIDPATH
-            chown sd-agent:sd-agent $PIDPATH
+            chown $AGENTUSER:$AGENTUSER $PIDPATH
         fi
         su $AGENTUSER -c "python $AGENTPATH start init --clean"
         if [ -f /etc/SuSE-release ]; then
@@ -75,7 +75,7 @@ case "$1" in
         $0 start
     ;;
   *)
-        echo "Usage: /etc/init.d/sd-agent start|stop|restart"
+        echo "Usage: /etc/init.d/datadog-agent start|stop|restart"
         exit 1
 esac
 
