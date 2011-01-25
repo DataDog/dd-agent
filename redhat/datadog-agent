@@ -25,7 +25,7 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
-PYTHON="/usr/bin/python2.6"
+PYTHON="/usr/bin/python"
 
 [ -f $AGENTPATH ] || echo "$AGENTPATH not found"
 
