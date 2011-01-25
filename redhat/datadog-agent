@@ -1,5 +1,4 @@
 #!/bin/sh
-#
 ###############################################################################
 # datadog-agent
 #
@@ -26,6 +25,7 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
+PYTHON="/usr/bin/python2.6"
 
 [ -f $AGENTPATH ] || echo "$AGENTPATH not found"
 
@@ -46,7 +46,7 @@ case "$1" in
             mkdir -p $PIDPATH
             chown $AGENTUSER:$AGENTUSER $PIDPATH
         fi
-        su $AGENTUSER -c "python $AGENTPATH start init --clean"
+        su $AGENTUSER -c "$PYTHON $AGENTPATH start init --clean"
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
         elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
@@ -58,7 +58,7 @@ case "$1" in
         echo
     ;;
   stop)
-        su $AGENTUSER -c "python $AGENTPATH stop init"
+        su $AGENTUSER -c "$PYTHON $AGENTPATH stop init"
 
         if [ -f /etc/SuSE-release ]; then
                 rc_status -v
