@@ -1,0 +1,2 @@
+include datadog.conf.example
+include redhat/datadog-agent
