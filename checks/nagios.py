@@ -86,7 +86,7 @@ class Nagios(object):
         # Check arguments
         log_path = agentConfig.get('nagios_log',None)
         if log_path is None:
-            self.logger.warn("Not checking nagios because nagios_log is not set in config file")
+            self.logger.debug("Not checking nagios because nagios_log is not set in config file")
             return False
 
         self.apikey = agentConfig['apiKey']
