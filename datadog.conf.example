@@ -1,12 +1,12 @@
 [Main]
 
 # The host of the Datadog intake server to send agent data to 
-dd_url: http://localhost:8888
+dd_url: https://app.datadoghq.com
 
 # The Datadog api key to associate your agent's data with your organization. 
 # Can be found here: 
 # https://datadoghq.com/account/settings
-api_key: apikey_2
+api_key: 
 
 # Unused for now.
 agent_key:
@@ -106,11 +106,3 @@ hudson_home: /var/lib/hudson/
 
 # Path to Nagios's event log file
 nagios_log: /var/log/nagios3/nagios.log
-
-
-
-[datadog]
-
-# Multiple files can be tailed, just separate them with a ","
-#rollup_etl_logs = /var/log/dogrollup.log
-
