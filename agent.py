@@ -27,7 +27,7 @@ DATADOG_CONF = "datadog.conf"
 agentConfig = {}
 agentConfig['debugMode'] = False
 agentConfig['checkFreq'] = 15
-agentConfig['version'] = '1.9.0'
+agentConfig['version'] = '1.9.1'
 
 rawConfig = {}
 
