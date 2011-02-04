@@ -1,12 +1,10 @@
 import httplib
 import traceback
 import urllib2
-import json
-
-from checks import pythonVersion
+from common import json, headers
 
 class CouchDb(object):
-    def check(self, logger, agentConfig, headers):
+    def check(self, logger, agentConfig):
         logger.debug('getCouchDBStatus: start')
 
         if ('CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == ''):
@@ -24,7 +22,7 @@ class CouchDb(object):
         try:
             url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
             logger.debug('getCouchDBStatus: attempting urlopen')
-            req = urllib2.Request(url, None, headers)
+            req = urllib2.Request(url, None, headers(agentConfig))
 
             # Do the request, log any errors
             request = urllib2.urlopen(req)
@@ -47,13 +45,8 @@ class CouchDb(object):
 
         try:
 
-            if int(pythonVersion[1]) >= 6:
-                logger.debug('getCouchDBStatus: json read')
-                stats = json.loads(response)
-
-            else:
-                logger.debug('getCouchDBStatus: minjson read')
-                stats = minjson.safeRead(response)
+            logger.debug('getCouchDBStatus: json read')
+            stats = json.loads(response)
 
         except Exception, e:
             import traceback
@@ -68,7 +61,7 @@ class CouchDb(object):
         try:
             url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
             logger.debug('getCouchDBStatus: attempting urlopen')
-            req = urllib2.Request(url, None, headers)
+            req = urllib2.Request(url, None, headers(agentConfig))
 
             # Do the request, log any errors
             request = urllib2.urlopen(req)
@@ -91,13 +84,8 @@ class CouchDb(object):
 
         try:
 
-            if int(pythonVersion[1]) >= 6:
-                logger.debug('getCouchDBStatus: json read')
-                databases = json.loads(response)
-
-            else:
-                logger.debug('getCouchDBStatus: minjson read')
-                databases = minjson.safeRead(response)
+            logger.debug('getCouchDBStatus: json read')
+            databases = json.loads(response)
 
         except Exception, e:
             logger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
@@ -109,7 +97,7 @@ class CouchDb(object):
             try:
                 url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
                 logger.debug('getCouchDBStatus: attempting urlopen')
-                req = urllib2.Request(url, None, headers)
+                req = urllib2.Request(url, None, headers(agentConfig))
 
                 # Do the request, log any errors
                 request = urllib2.urlopen(req)
@@ -133,13 +121,8 @@ class CouchDb(object):
 
             try:
 
-                if int(pythonVersion[1]) >= 6:
-                    logger.debug('getCouchDBStatus: json read')
-                    couchdb['databases'][dbName] = json.loads(response)
-
-                else:
-                    logger.debug('getCouchDBStatus: minjson read')
-                    couchdb['databases'][dbName] = minjson.safeRead(response)
+                logger.debug('getCouchDBStatus: json read')
+                couchdb['databases'][dbName] = json.loads(response)
 
             except Exception, e:
                 import traceback

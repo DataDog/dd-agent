@@ -4,8 +4,6 @@ from subprocess import Popen, PIPE
 import os.path
 import re
 
-from checks import pythonVersion
-
 def _fst(groups):
     if groups is not None and len(groups) > 0:
         return groups[0]

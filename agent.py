@@ -44,6 +44,7 @@ import subprocess
 # Custom modules
 from checks import checks
 from daemon import Daemon
+from emitter import http_emitter
 
 # Config handling
 try:
@@ -209,8 +210,10 @@ class agent(Daemon):
                         
         agentLogger.debug('Creating checks instance')
         
+        emitter = http_emitter
+        
         # Checks instance
-        c = checks(agentConfig, rawConfig)
+        c = checks(agentConfig, rawConfig, emitter)
         
         # Schedule the checks
         agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')

@@ -3,9 +3,10 @@ import traceback
 import urllib2
 import re
 import time
+from common import headers
 
 class Apache(object):
-    def check(self, logger, agentConfig, headers):
+    def check(self, logger, agentConfig):
         logger.debug('getApacheStatus: start')
         
         if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
@@ -14,7 +15,7 @@ class Apache(object):
             try: 
                 logger.debug('getApacheStatus: attempting urlopen')
                 
-                req = urllib2.Request(agentConfig['apacheStatusUrl'], None, headers)
+                req = urllib2.Request(agentConfig['apacheStatusUrl'], None, headers(agentConfig))
                 request = urllib2.urlopen(req)
                 response = request.read()
                 
@@ -87,7 +88,7 @@ class Nginx(object):
         self.nginxRequestsStore = None
         self.nginxRequestsTstamp = None
     
-    def check(self, logger, agentConfig, headers):
+    def check(self, logger, agentConfig):
         logger.debug('getNginxStatus: start')
         
         if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':  # Don't do it if the status URL hasn't been provided
@@ -96,7 +97,7 @@ class Nginx(object):
             try: 
                 logger.debug('getNginxStatus: attempting urlopen')
                 
-                req = urllib2.Request(agentConfig['nginxStatusUrl'], None, headers)
+                req = urllib2.Request(agentConfig['nginxStatusUrl'], None, headers(agentConfig))
 
                 # Do the request, log any errors
                 request = urllib2.urlopen(req)

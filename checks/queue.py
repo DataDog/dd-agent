@@ -1,15 +1,8 @@
-import platform
-pythonVersion = platform.python_version_tuple()
-
-if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
-	import json
-else:
-	import minjson
-
 import httplib
 import urllib2
 import traceback
 
+from common import json, headers
 
 class RabbitMq(object):
 	def check(self, logger, agentConfig):
@@ -34,7 +27,7 @@ class RabbitMq(object):
 			urllib2.install_opener(opener)
 
 			logger.debug('getRabbitMQStatus: attempting urlopen')
-			req = urllib2.Request(agentConfig['rabbitMQStatusUrl'], None, headers)
+			req = urllib2.Request(agentConfig['rabbitMQStatusUrl'], None, headers(agentConfig))
 
 			# Do the request, log any errors
 			request = urllib2.urlopen(req)
@@ -58,13 +51,8 @@ class RabbitMq(object):
 			
 		try:
 
-			if int(pythonVersion[1]) >= 6:
-				logger.debug('getRabbitMQStatus: json read')
-				status = json.loads(response)
-
-			else:
-				logger.debug('getRabbitMQStatus: minjson read')
-				status = minjson.safeRead(response)
+			logger.debug('getRabbitMQStatus: json read')
+			status = json.loads(response)
 
 		except Exception, e:
 			logger.error('Unable to load RabbitMQ status JSON - Exception = ' + traceback.format_exc())

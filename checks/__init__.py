@@ -24,7 +24,6 @@ import urllib
 import urllib2
 import time
 import datetime
-from pprint import pformat as pp
 
 # Needed to identify server uniquely
 import uuid
@@ -32,16 +31,6 @@ try:
     from hashlib import md5
 except ImportError: # Python < 2.5
     from md5 import new as md5
-
-# We need to return the data using JSON. As of Python 2.6+, there is a core JSON
-# module. We have a 2.4/2.5 compatible lib included with the agent but if we're
-# on 2.6 or above, we should use the core module which will be faster
-pythonVersion = platform.python_version_tuple()
-
-if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
-    import json
-else:
-    import minjson
 
 from checks.nagios import Nagios
 from checks.build import Hudson
@@ -63,10 +52,11 @@ def recordsize(func):
 
 class checks:
     
-    def __init__(self, agentConfig, rawConfig):
+    def __init__(self, agentConfig, rawConfig, emitter):
         self.agentConfig = agentConfig
         self.rawConfig = rawConfig
         self.plugins = None
+        self.emitter = emitter
         
         macV = None
         if sys.platform == 'darwin':
@@ -109,24 +99,17 @@ class checks:
             self._datadogs = None
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
-        
-        # Build the request headers
-        self.headers = {
-            'User-Agent': 'Datadog Agent/%s' % self.agentConfig['version'],
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'text/html, */*',
-        }
-    
+            
     #
     # Checks
     #
     @recordsize 
     def getApacheStatus(self):
-        return self._apache.check(self.checksLogger, self.agentConfig, self.headers)
+        return self._apache.check(self.checksLogger, self.agentConfig)
 
     @recordsize 
     def getCouchDBStatus(self):
-        return self._couchdb.check(self.checksLogger, self.agentConfig, self.headers)
+        return self._couchdb.check(self.checksLogger, self.agentConfig)
     
     @recordsize
     def getDiskUsage(self):
@@ -164,7 +147,7 @@ class checks:
     
     @recordsize
     def getNginxStatus(self):
-        return self._nginx.check(self.checksLogger, self.agentConfig, self.headers)
+        return self._nginx.check(self.checksLogger, self.agentConfig)
         
     @recordsize
     def getProcesses(self):
@@ -301,40 +284,6 @@ class checks:
     # Postback
     #
     
-    def doPostBack(self, postBackData):
-        self.checksLogger.debug('doPostBack: start')    
-        
-        try: 
-            self.checksLogger.debug('doPostBack: attempting postback: ' + self.agentConfig['ddUrl'])
-            
-            # Build the request handler
-            request = urllib2.Request(self.agentConfig['ddUrl'] + '/intake/', postBackData, self.headers)
-            
-            # Do the request, log any errors
-            response = urllib2.urlopen(request)
-            
-            self.checksLogger.debug('doPostBack: postback response: ' + str(response.read()))
-                
-        except urllib2.HTTPError, e:
-            self.checksLogger.error('doPostBack: HTTPError = ' + str(e))
-            return False
-            
-        except urllib2.URLError, e:
-            self.checksLogger.error('doPostBack: URLError = ' + str(e))
-            return False
-            
-        except httplib.HTTPException, e: # Added for case #26701
-            self.checksLogger.error('doPostBack: HTTPException')
-            return False
-                
-        except Exception, e:
-            import traceback
-            self.checksLogger.error('doPostBack: Exception = ' + traceback.format_exc())
-            return False
-            
-        self.checksLogger.debug('doPostBack: completed')
-        return True
-    
     def doChecks(self, sc, firstRun, systemStats=False):
         macV = None
         if sys.platform == 'darwin':
@@ -465,8 +414,6 @@ class checks:
         except socket.error, e:
             self.checksLogger.debug('Unable to get hostname: ' + str(e))
         
-        self.checksLogger.debug('doChecks: payloads built, convert to json')
-                    
         # Generate a unique name that will stay constant between
         # invocations, such as platform.node() + uuid.getnode()
         # Use uuid5, which does not depend on the clock and is
@@ -490,29 +437,8 @@ class checks:
                                               'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                               'event_type':'agent startup',
                                             }]
- 
-        # Post back the data
-        if int(pythonVersion[1]) >= 6:
-            self.checksLogger.debug('doChecks: json convert')
-            payload = json.dumps(checksData)
         
-        else:
-            self.checksLogger.debug('doChecks: minjson convert')
-            payload = minjson.write(checksData)
-            
-        self.checksLogger.debug('doChecks: json converted, hash')
-        self.checksLogger.debug('Payload:\n%s' % pp(checksData))
-        
-        payloadHash = md5(payload).hexdigest()
-        postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
-
-        self.checksLogger.debug('doChecks: hashed, doPostBack')
-
-        # For tests, no need to post data back
-        if self.doPostBack(postBackData):
-            self.checksLogger.debug('doChecks: posted back, reschedule')
-        else:
-            self.checksLogger.error('doChecks: could not send data back')
+        self.emitter(checksData, self.checksLogger, self.agentConfig)
         
         sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
         
