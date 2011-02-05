@@ -26,7 +26,9 @@ class agg():
 
 class ResourcePlugin(object):
 
-    def __init__(self):
+    def __init__(self, logger, agentConfig):
+        self.log = logger
+        self.config = agentConfig
         self._metrics = []
         self._snapshots = []
         self._current_snapshot = None
@@ -167,6 +169,9 @@ class ResourcePlugin(object):
 
     def flush_snapshot(self):
         raise Exception("To be implemented (by calling _flush_snapshot) in a plugin")
+
+    def check(self):
+        raise Exception("To be implemented in a plugin")
 
     def pop_snapshot(self):
         ret = self._last_snapshot

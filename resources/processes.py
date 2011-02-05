@@ -2,17 +2,12 @@ from collections import namedtuple
 import subprocess
 import sys
 import traceback
-from resources import ResourcePlugin, agg
+from resources import ResourcePlugin
 
 class Processes(ResourcePlugin):
 
     RESOURCE_KEY = "processes"
     FLUSH_INTERVAL = 60 # in second
-
-    def __init__(self, logger, agentConfig):
-        self.log = logger
-        self.config = agentConfig
-        ResourcePlugin.__init__(self)
 
     def register_metrics(self):
         self.add_metric("pct_cpu")
@@ -102,8 +97,11 @@ if __name__ == "__main__":
     proc = Processes(logger,{})
     proc.check()
     print proc._snapshots
+    print proc._current_ts
     proc.check()
+    print proc._current_ts
     print proc._snapshots
     proc.flush_snapshots()
     print "##########################"
     print proc.pop_snapshot()
+    print proc._current_ts
