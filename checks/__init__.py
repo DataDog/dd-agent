@@ -372,6 +372,7 @@ class checks:
         self.checksLogger.debug('doChecks: checks success, build payload')
         
         checksData = {
+            'collection_timestamp': time.time(),
             'os' : self.os, 
             'agentKey' : self.agentConfig['agentKey'], 
             'agentVersion' : self.agentConfig['version'], 
