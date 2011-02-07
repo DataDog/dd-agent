@@ -1,3 +1,18 @@
+datadog-agent (1.9.2-1) unstable; urgency=low
+
+  * Uses collection timestamp to accurately pinpoint data points
+
+ -- Alexis <alq@datadoghq.com>  Sun, 6 Feb 2010 23:42:25 -0500
+
+datadog-agent (1.9.1-1) unstable; urgency=medium
+
+  * RPM support
+  * Initial cassandra support
+  * Can be packaged as an RPM
+  * Plenty of fixes
+
+ -- Alexis <alq@datadoghq.com>  Mon, 31 Jan 2011 19:02:12 -0500
+
 datadog-agent (1.9.0-1) unstable; urgency=low
 
   * source package automatically created by stdeb 0.6.0

@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+try:
+    from setuptools import setup, find_packages
+except ImportError:
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup, find_packages
+from agent import agentConfig
 
 setup(name='datadog-agent',
-      version='1.9.0',
+      version=agentConfig['version'],
       description='Datatadog monitoring agent',
       author='Datadog',
       author_email='info@datadoghq.com',
