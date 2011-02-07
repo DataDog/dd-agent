@@ -6,7 +6,9 @@ except ImportError:
     from ez_setup import use_setuptools
     use_setuptools()
     from setuptools import setup, find_packages
-from agent import agentConfig
+from agent import get_config
+
+agentConfig, _ = get_config()
 
 setup(name='datadog-agent',
       version=agentConfig['version'],
