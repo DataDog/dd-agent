@@ -15,6 +15,6 @@ setup(name='datadog-agent',
       author_email='info@datadoghq.com',
       url='http://datadoghq.com/',
       packages=['checks'],
-      scripts=['agent.py', 'daemon.py', 'minjson.py', 'common.py', 'emitter.py'],
+      scripts=['agent.py', 'daemon.py', 'minjson.py', 'common.py', 'emitter.py', 'config.py'],
       data_files=[('/etc/dd-agent/', ['datadog.conf.example']), ('/etc/init.d', ['redhat/datadog-agent'])]
      )
