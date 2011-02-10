@@ -4,6 +4,24 @@ import urllib2
 from common import json, headers
 
 class CouchDb(object):
+        
+    def _get_stats(self, logger, agentConfig, url):
+        "Hit a given URL and return the parsed json"
+        try:
+            logger.debug('getCouchDBStatus: attempting urlopen %s' % url)
+            req = urllib2.Request(url, None, headers(agentConfig))
+
+            # Do the request, log any errors
+            request = urllib2.urlopen(req)
+            response = request.read()
+
+            logger.debug('getCouchDBStatus: json read')
+            return json.loads(response)
+
+        except:
+            logger.exception('Unable to get CouchDB statistics')
+            return None
+
     def check(self, logger, agentConfig):
         logger.debug('getCouchDBStatus: start')
 
@@ -11,7 +29,7 @@ class CouchDb(object):
             logger.debug('getCouchDBStatus: config not set')
             return False
 
-        logger.debug('getCouchDBStatus: config set')
+        logger.debug('getCouchDBStatus: config set to %s' % agentConfig['CouchDBServer'])
 
         # The dictionary to be returned.
         couchdb = {'stats': None, 'databases': {}}
@@ -19,117 +37,30 @@ class CouchDb(object):
         # First, get overall statistics.
         endpoint = '/_stats/'
 
-        try:
-            url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-            logger.debug('getCouchDBStatus: attempting urlopen')
-            req = urllib2.Request(url, None, headers(agentConfig))
+        url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
+        overall_stats = self._get_stats(logger, agentConfig, url)
 
-            # Do the request, log any errors
-            request = urllib2.urlopen(req)
-            response = request.read()
-        except urllib2.HTTPError, e:
-            logger.error('Unable to get CouchDB statistics - HTTPError = ' + str(e))
+        # No overall stats? bail out now
+        if overall_stats is None:
             return False
-
-        except urllib2.URLError, e:
-            logger.error('Unable to get CouchDB statistics - URLError = ' + str(e))
-            return False
-
-        except httplib.HTTPException, e:
-            logger.error('Unable to get CouchDB statistics - HTTPException = ' + str(e))
-            return False
-
-        except Exception, e:
-            logger.error('Unable to get CouchDB statistics - Exception = ' + traceback.format_exc())
-            return False
-
-        try:
-
-            logger.debug('getCouchDBStatus: json read')
-            stats = json.loads(response)
-
-        except Exception, e:
-            import traceback
-            logger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-            return False
-
-        couchdb['stats'] = stats
+        else:
+            couchdb['stats'] = overall_stats
 
         # Next, get all database names.
         endpoint = '/_all_dbs/'
 
-        try:
-            url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-            logger.debug('getCouchDBStatus: attempting urlopen')
-            req = urllib2.Request(url, None, headers(agentConfig))
+        url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
+        databases = self._get_stats(logger, agentConfig, url)
 
-            # Do the request, log any errors
-            request = urllib2.urlopen(req)
-            response = request.read()
-        except urllib2.HTTPError, e:
-            logger.error('Unable to get CouchDB status - HTTPError = ' + str(e))
-            return False
+        if databases is not None:
+            for dbName in databases:
+                endpoint = '/%s/' % dbName
 
-        except urllib2.URLError, e:
-            logger.error('Unable to get CouchDB status - URLError = ' + str(e))
-            return False
-
-        except httplib.HTTPException, e:
-            logger.error('Unable to get CouchDB status - HTTPException = ' + str(e))
-            return False
-
-        except Exception, e:
-            logger.error('Unable to get CouchDB status - Exception = ' + traceback.format_exc())
-            return False
-
-        try:
-
-            logger.debug('getCouchDBStatus: json read')
-            databases = json.loads(response)
-
-        except Exception, e:
-            logger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-            return False
-
-        for dbName in databases:
-            endpoint = '/%s/' % dbName
-
-            try:
                 url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-                logger.debug('getCouchDBStatus: attempting urlopen')
-                req = urllib2.Request(url, None, headers(agentConfig))
+                db_stats = self._get_stats(logger, agentConfig, url)
+                if db_stats is not None:
+                    couchdb['databases'][dbName] = db_stats
 
-                # Do the request, log any errors
-                request = urllib2.urlopen(req)
-                response = request.read()
-            except urllib2.HTTPError, e:
-                logger.error('Unable to get CouchDB database status - HTTPError = ' + str(e))
-                return False
-
-            except urllib2.URLError, e:
-                logger.error('Unable to get CouchDB database status - URLError = ' + str(e))
-                return False
-
-            except httplib.HTTPException, e:
-                logger.error('Unable to get CouchDB database status - HTTPException = ' + str(e))
-                return False
-
-            except Exception, e:
-                import traceback
-                logger.error('Unable to get CouchDB database status - Exception = ' + traceback.format_exc())
-                return False
-
-            try:
-
-                logger.debug('getCouchDBStatus: json read')
-                couchdb['databases'][dbName] = json.loads(response)
-
-            except Exception, e:
-                import traceback
-                logger.error('Unable to load CouchDB database JSON - Exception = ' + traceback.format_exc())
-                return False
-
-        logger.debug('getCouchDBStatus: completed, returning')
         return couchdb
 
 class MongoDb(object):
