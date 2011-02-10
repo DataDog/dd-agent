@@ -6,12 +6,10 @@ except ImportError:
     from ez_setup import use_setuptools
     use_setuptools()
     from setuptools import setup, find_packages
-from agent import get_config
-
-agentConfig, _ = get_config()
+from config import get_version
 
 setup(name='datadog-agent',
-      version=agentConfig['version'],
+      version=get_version(),
       description='Datatadog monitoring agent',
       author='Datadog',
       author_email='info@datadoghq.com',

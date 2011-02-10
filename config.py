@@ -7,13 +7,15 @@ import sys
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 
+def get_version():
+    return "1.9.2"
 
 def get_config():
     # General config
     agentConfig = {}
     agentConfig['debugMode'] = False
     agentConfig['checkFreq'] = 15
-    agentConfig['version'] = '1.9.2'
+    agentConfig['version'] = get_version()
 
     rawConfig = {}
 
