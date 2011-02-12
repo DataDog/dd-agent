@@ -2,22 +2,21 @@ from collections import namedtuple
 import subprocess
 import sys
 import traceback
-from resources import ResourcePlugin
+from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField
 
 class Processes(ResourcePlugin):
 
-    RESOURCE_KEY = "processes"
-    FLUSH_INTERVAL = 60 # in second
+    RESOURCE_KEY   = "processes"
+    FLUSH_INTERVAL = 1 # in minutes
 
-    def register_metrics(self):
-        self.add_metric("pct_cpu")
-        self.add_metric("pct_mem")
-        self.add_metric("vsz")
-        self.add_metric("rss")
-        #No need to aggreg family, we are grouping on it, the value of
-        # the first line is thus the right one
-        self.add_metric("family",aggregator=None,temporal_aggregator=None)
-        self.add_metric("ps_count")
+    def describe_snapshot(self):
+        return SnapshotDescriptor(1,
+                SnapshotField("pct_cpu"),
+                SnapshotField("pct_mem"),
+                SnapshotField("vsz"),
+                SnapshotField("rss"),
+                SnapshotField("family",aggregator=None,temporal_aggregator=None),
+                SnapshotField("ps_count"))
 
     def _get_proc_list(self):
         self.log.debug('getProcesses: start')
@@ -79,8 +78,9 @@ class Processes(ResourcePlugin):
                                 int(psl.rss),_compute_family(psl.command),1])
         self.end_snapshot(group_by= self.group_by_family)
 
-    def flush_snapshots(self):
-        self._flush_snapshots(group_by = self.group_by_family,
+    def flush_snapshots(self,snapshot_group):
+        self._flush_snapshots(snapshot_group = snapshot_group,
+                              group_by = self.group_by_family,
                               filter_by= self.filter_by_usage)
 
     def check(self):

@@ -1,23 +1,24 @@
 import random
-from resources import ResourcePlugin, agg
+from resources import ResourcePlugin, agg, SnapshotDescriptor, SnapshotField
 
 
 class RailsMockup(ResourcePlugin):
 
     RESOURCE_KEY = "rails"
-    FLUSH_INTERVAL = 60
+    FLUSH_INTERVAL = 1 # in minutes
 
     TIME_THRESHOLD = 20 # time in ms to skip records (everything below is trashed)
     NUMBER_OF_SAMPLE_PER_SNAP = 2000
 
-    def register_metrics(self):
-        self.add_metric("url", aggregator = agg.append, temporal_aggregator = agg.append)
-        # Grouping is done on action, no need to aggregate
-        self.add_metric("action", aggregator = None, temporal_aggregator = None)
-        self.add_metric("web_time", aggregator = sum, temporal_aggregator = sum)
-        self.add_metric("db_time", aggregator = sum, temporal_aggregator = sum)
-        self.add_metric("total_time", aggregator = sum, temporal_aggregator = sum)
-        self.add_metric("hits", aggregator = sum, temporal_aggregator = sum)
+    def describe_snapshot(self):
+        return SnapshotDescriptor(1,
+                SnapshotField("url", aggregator = agg.append, temporal_aggregator = agg.append),
+                # Grouping is done on action, no need to aggregate
+                SnapshotField("action", aggregator = None, temporal_aggregator = None),
+                SnapshotField("web_time", temporal_aggregator = sum),
+                SnapshotField("db_time", temporal_aggregator = sum),
+                SnapshotField("total_time", temporal_aggregator = sum),
+                SnapshotField("hits", temporal_aggregator = sum))
 
     @staticmethod
     def group_by(o):
@@ -27,8 +28,10 @@ class RailsMockup(ResourcePlugin):
     def filter_by(cls,o):
         return o[2] > cls.TIME_THRESHOLD or o[3] > cls.TIME_THRESHOLD
 
-    def flush_snapshots(self):
-        self._flush_snapshots(group_by = self.group_by, filter_by = self.filter_by)
+    def flush_snapshots(self,snapshot_group):
+        self._flush_snapshots(group_by = self.group_by, 
+                              filter_by = self.filter_by,
+                              snapshot_group = snapshot_group)
 
     def check(self):
 

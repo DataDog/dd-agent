@@ -77,7 +77,7 @@ try:
         agentConfig['debugMode'] = True
     else:
         agentConfig['debugMode'] = False
-    
+  
     # Optional config
     # Also do not need to be present in the config file (case 28326).
     # FIXME not the prettiest code ever...
