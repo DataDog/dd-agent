@@ -12,13 +12,13 @@ class RailsMockup(ResourcePlugin):
 
     def describe_snapshot(self):
         return SnapshotDescriptor(1,
-                SnapshotField("url", aggregator = agg.append, temporal_aggregator = agg.append),
+                SnapshotField("url", 'str',aggregator = agg.append, temporal_aggregator = agg.append),
                 # Grouping is done on action, no need to aggregate
-                SnapshotField("action", aggregator = None, temporal_aggregator = None),
-                SnapshotField("web_time", temporal_aggregator = sum),
-                SnapshotField("db_time", temporal_aggregator = sum),
-                SnapshotField("total_time", temporal_aggregator = sum),
-                SnapshotField("hits", temporal_aggregator = sum))
+                SnapshotField("action", 'str', aggregator = None, temporal_aggregator = None),
+                SnapshotField("web_time", 'int', temporal_aggregator = sum),
+                SnapshotField("db_time", 'int', temporal_aggregator = sum),
+                SnapshotField("total_time", 'int', temporal_aggregator = sum),
+                SnapshotField("hits", 'int', temporal_aggregator = sum))
 
     @staticmethod
     def group_by(o):

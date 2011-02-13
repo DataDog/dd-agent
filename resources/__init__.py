@@ -24,11 +24,11 @@ class agg():
         return ",".join(list(set(l)))
 
 
-MetricDescriptor = namedtuple('MetricDescriptor',['name','aggregator','temporal_aggregator'])
+MetricDescriptor = namedtuple('MetricDescriptor',['name','type','aggregator','temporal_aggregator'])
 SnapshotDesc = namedtuple('SnapshotDesc',['version','fields'])
 
-def SnapshotField(name,aggregator=sum,temporal_aggregator=agg.avg):
-    return MetricDescriptor(name,aggregator,temporal_aggregator)
+def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg):
+    return MetricDescriptor(name,_type,aggregator,temporal_aggregator)
 
 def SnapshotDescriptor(version,*fields):
     return SnapshotDesc(version, fields)
