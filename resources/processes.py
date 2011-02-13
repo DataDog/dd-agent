@@ -2,7 +2,7 @@ from collections import namedtuple
 import subprocess
 import sys
 import traceback
-from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField
+from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField, agg
 
 class Processes(ResourcePlugin):
 
@@ -11,6 +11,7 @@ class Processes(ResourcePlugin):
 
     def describe_snapshot(self):
         return SnapshotDescriptor(1,
+                SnapshotField("user",aggregator=agg.append,temporal_aggregator=agg.append),
                 SnapshotField("pct_cpu"),
                 SnapshotField("pct_mem"),
                 SnapshotField("vsz"),
@@ -74,7 +75,7 @@ class Processes(ResourcePlugin):
         self.start_snapshot()
         for line in processes:
             psl = PSLine(*line)
-            self.add_to_snapshot([float(psl.pct_cpu),float(psl.pct_mem),int(psl.vsz),
+            self.add_to_snapshot([psl.user,float(psl.pct_cpu),float(psl.pct_mem),int(psl.vsz),
                                 int(psl.rss),_compute_family(psl.command),1])
         self.end_snapshot(group_by= self.group_by_family)
 
