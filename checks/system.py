@@ -450,14 +450,15 @@ class Network(object):
                 faceData = dict(zip(cols, data.split()))
                 faces[face] = faceData
             
-            logger.debug('getNetworkTraffic: parsed, looping')
             
             interfaces = {}
             
             interval = self.networkTrafficStore["current_ts"] - self.networkTrafficStore["last_ts"]
+            logger.debug('getNetworkTraffic: interval (s) %s' % interval)
             if interval == 0:
                 logger.warn('0-sample interval')
                 return False
+            self.networkTrafficStore["last_ts"] = self.networkTrafficStore["current_ts"]
 
             # Now loop through each interface
             for face in faces:
