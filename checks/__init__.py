@@ -47,7 +47,7 @@ from checks.nagios import Nagios
 from checks.build import Hudson
 from checks.db import CouchDb, MongoDb, MySql
 from checks.queue import RabbitMq
-from checks.system import Disk, IO, Load, Memory, Network, Cpu
+from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.datadog import RollupLP as ddRollupLP
@@ -97,6 +97,7 @@ class checks:
         self._load = Load(self.linuxProcFsLocation)
         self._memory = Memory(self.linuxProcFsLocation, self.topIndex)
         self._network = Network()
+        self._processes = Processes()
         self._cpu = Cpu()
         self._couchdb = CouchDb()
         self._mongodb = MongoDb()
@@ -112,8 +113,7 @@ class checks:
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
        
-        self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig),
-                                  RailsMockup(self.checksLogger,self.agentConfig)]
+        self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
  
         # Build the request headers
         self.headers = {
@@ -170,7 +170,11 @@ class checks:
     @recordsize
     def getNginxStatus(self):
         return self._nginx.check(self.checksLogger, self.agentConfig, self.headers)
-        
+       
+    @recordsize
+    def getProcesses(self):
+        return self._processes.check(self.checksLogger, self.agentConfig)
+ 
     @recordsize
     def getRabbitMQStatus(self):
         return self._rabbitmq.check(self.checksLogger, self.agentConfig)
@@ -359,6 +363,7 @@ class checks:
         mysqlStatus = self.getMySQLStatus()
         networkTraffic = self.getNetworkTraffic()
         nginxStatus = self.getNginxStatus()
+        processes = self.getProcesses()
         rabbitmq = self.getRabbitMQStatus()
         mongodb = self.getMongoDBStatus()
         couchdb = self.getCouchDBStatus()
@@ -385,6 +390,7 @@ class checks:
             'memSwapFree' : memory['swapFree'], 
             'memCached' : memory['cached'], 
             'networkTraffic' : networkTraffic, 
+            'processes' : processes,
             'apiKey': self.agentConfig['apiKey'],
             'events': {},
             'resources': {},
