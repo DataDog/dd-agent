@@ -167,6 +167,7 @@ class ResourcePlugin(object):
             ret = []
             for field in self._descriptor.fields:
                 ret.append([field.name,
+                            field.type,
                             field.aggregator.__name__ if field.aggregator is not None else None,
                             field.temporal_aggregator.__name__ if field.temporal_aggregator is not None else None])
             return ret

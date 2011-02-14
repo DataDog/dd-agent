@@ -55,7 +55,7 @@ class Processes(ResourcePlugin):
 
     @staticmethod
     def group_by_family(o):
-        return o[4]
+        return o[5]
 
     @staticmethod
     def filter_by_usage(o):
