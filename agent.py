@@ -31,7 +31,6 @@ from config import get_config, get_system_stats
 from daemon import Daemon
 from emitter import http_emitter
 
-
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
     
