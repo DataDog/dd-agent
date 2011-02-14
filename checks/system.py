@@ -411,7 +411,7 @@ class Network(object):
     def __init__(self):
         self.networkTrafficStore = {}
         self.networkTrafficStore["last_ts"] = time.time()
-        self.networkTrafficStore["current_ts"] = time.time()
+        self.networkTrafficStore["current_ts"] = self.networkTrafficStore["last_ts"]
     
     def check(self, logger, agentConfig):
         logger.debug('getNetworkTraffic: start')
@@ -456,7 +456,7 @@ class Network(object):
             interval = self.networkTrafficStore["current_ts"] - self.networkTrafficStore["last_ts"]
             logger.debug('getNetworkTraffic: interval (s) %s' % interval)
             if interval == 0:
-                logger.warn('0-sample interval')
+                logger.warn('0-sample interval, skipping network checks')
                 return False
             self.networkTrafficStore["last_ts"] = self.networkTrafficStore["current_ts"]
 
