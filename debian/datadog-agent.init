@@ -16,11 +16,13 @@ set -e
 
 AGENTPATH="/usr/bin/dd-agent"
 AGENTUSER="dd-agent"
+AGENTCONF="/etc/dd-agent/datadog.conf"
 PIDPATH="/var/run/dd-agent"
 NAME="dd-agent"
 DESC="datadog agent"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"
+[ -f $AGENTCONF ] || ( echo "$AGENTCONF not found. Exiting" && exit 0 )
 
 # Action to take
 case "$1" in
