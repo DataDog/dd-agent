@@ -42,6 +42,9 @@ from checks.ganglia import Ganglia
 from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
 
+from resources.processes import Processes as ResProcesses
+from resources.mockup_rails import RailsMockup
+
 def recordsize(func):
     def wrapper(*args, **kwargs):
         logger = logging.getLogger("checks")
@@ -99,7 +102,8 @@ class checks:
             self._datadogs = None
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
-            
+        self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
+ 
     #
     # Checks
     #
@@ -148,11 +152,11 @@ class checks:
     @recordsize
     def getNginxStatus(self):
         return self._nginx.check(self.checksLogger, self.agentConfig)
-        
+       
     @recordsize
     def getProcesses(self):
         return self._processes.check(self.checksLogger, self.agentConfig)
-        
+ 
     @recordsize
     def getRabbitMQStatus(self):
         return self._rabbitmq.check(self.checksLogger, self.agentConfig)
@@ -338,6 +342,7 @@ class checks:
             'processes' : processes,
             'apiKey': self.agentConfig['apiKey'],
             'events': {},
+            'resources': {},
         }
 
         if cpuStats is not False and cpuStats is not None:
@@ -430,7 +435,29 @@ class checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
                 checksData['events'][event_check.key] = event_data
-       
+
+        # Resources checks
+        has_resource = False
+        for resources_check in self._resources_checks:
+            resources_check.check()
+            snap = resources_check.pop_snapshot()
+            if snap:
+                has_resource = True
+                res_format = resources_check.describe_format_if_needed()
+                res_value = { 'ts': snap[0],
+                              'data': snap[1],
+                              'format_version': resources_check.get_format_version() }                              
+                if res_format is not None:
+                    res_value['format_description'] = res_format
+                checksData['resources'][resources_check.RESOURCE_KEY] = res_value
+ 
+        if has_resource:
+            checksData['resources']['meta'] = {
+                        'api_key': self.agentConfig['apiKey'],
+                        'host': checksData['internalHostname'],
+                    }
+
+        # Post a start event on firstrun 
         if firstRun:
             checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
                                               'host': checksData['internalHostname'],

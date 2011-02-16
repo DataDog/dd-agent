@@ -16,6 +16,9 @@ def get_optparser():
                         dest='clean')
     return parser
 
+def get_version():
+    return "1.9.2"
+
 def get_config():
     options, args = get_optparser().parse_args()
 
@@ -23,8 +26,8 @@ def get_config():
     # General config
     agentConfig = {}
     agentConfig['debugMode'] = False
-    agentConfig['checkFreq'] = 15
-    agentConfig['version'] = '1.9.2'
+    agentConfig['checkFreq'] = 60
+    agentConfig['version'] = get_version()
 
     rawConfig = {}
 

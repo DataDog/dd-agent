@@ -1,8 +1,8 @@
 import re
 import subprocess
 import sys
-import traceback
 import socket
+import time
 
 class Disk(object):
     def check(self, logger, agentConfig):
@@ -19,8 +19,8 @@ class Disk(object):
             
             df = subprocess.Popen(['df', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
             
-        except Exception, e:
-            logger.error('getDiskUsage: exception = ' + traceback.format_exc())
+        except:
+            logger.exception('getDiskUsage')
             return False
         
         # Memory logging (case 27152)
@@ -139,9 +139,8 @@ class IO(object):
                         headerName = headerNames[headerIndex]
                         ioStats[device][headerName] = values[headerIndex]
                     
-            except Exception, ex:
-                import traceback
-                logger.error('getIOStats: exception = ' + traceback.format_exc())
+            except:
+                logger.exception('getIOStats')
                 return False
         else:
             logger.debug('getIOStats: unsupported platform')
@@ -194,9 +193,8 @@ class Load(object):
                 
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 
-            except Exception, e:
-                import traceback
-                logger.error('getLoadAvrgs: exception = ' + traceback.format_exc())
+            except:
+                logger.exception('getLoadAvrgs')
                 return False
                 
             logger.debug('getLoadAvrgs: Popen success')
@@ -211,8 +209,7 @@ class Load(object):
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 
             except Exception, e:
-                import traceback
-                logger.error('getLoadAvrgs: exception = ' + traceback.format_exc())
+                logger.exception('getLoadAvrgs')
                 return False
                 
             logger.debug('getLoadAvrgs: Popen success')
@@ -347,9 +344,8 @@ class Memory(object):
                 logger.debug('getMemoryUsage: attempting Popen (swapinfo)')
                 swapinfo = subprocess.Popen(['swapinfo', '-k'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
 
-            except Exception, e:
-                import traceback
-                logger.error('getMemoryUsage: exception = ' + traceback.format_exc())
+            except:
+                logger.exception('getMemoryUsage')
                 
                 return False
                 
@@ -389,9 +385,8 @@ class Memory(object):
                 logger.debug('getMemoryUsage: attempting Popen (sysctl)')
                 sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 
-            except Exception, e:
-                import traceback
-                logger.error('getMemoryUsage: exception = ' + traceback.format_exc())
+            except:
+                logger.exception('getMemoryUsage')
                 return False
             
             logger.debug('getMemoryUsage: Popen success, parsing')
@@ -415,6 +410,8 @@ class Memory(object):
 class Network(object):
     def __init__(self):
         self.networkTrafficStore = {}
+        self.networkTrafficStore["last_ts"] = time.time()
+        self.networkTrafficStore["current_ts"] = time.time()
     
     def check(self, logger, agentConfig):
         logger.debug('getNetworkTraffic: start')
@@ -427,9 +424,10 @@ class Network(object):
                 
                 proc = open('/proc/net/dev', 'r')
                 lines = proc.readlines()
+                self.networkTrafficStore["current_ts"] = time.time()
                 
             except IOError, e:
-                logger.error('getNetworkTraffic: exception = ' + str(e))
+                logger.exception('getNetworkTraffic')
                 return False
             
             proc.close()
@@ -452,10 +450,16 @@ class Network(object):
                 faceData = dict(zip(cols, data.split()))
                 faces[face] = faceData
             
-            logger.debug('getNetworkTraffic: parsed, looping')
             
             interfaces = {}
             
+            interval = self.networkTrafficStore["current_ts"] - self.networkTrafficStore["last_ts"]
+            logger.debug('getNetworkTraffic: interval (s) %s' % interval)
+            if interval == 0:
+                logger.warn('0-sample interval')
+                return False
+            self.networkTrafficStore["last_ts"] = self.networkTrafficStore["current_ts"]
+
             # Now loop through each interface
             for face in faces:
                 key = face.strip()
@@ -464,8 +468,8 @@ class Network(object):
                 # then the next time we can calculate the difference
                 if key in self.networkTrafficStore:
                     interfaces[key] = {}
-                    interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
-                    interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
+                    interfaces[key]['recv_bytes'] = (long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes']))/interval
+                    interfaces[key]['trans_bytes'] = (long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes']))/interval
                     
                     interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
                     interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
@@ -493,9 +497,8 @@ class Network(object):
                 logger.debug('getNetworkTraffic: attempting Popen (grep)')
                 grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 
-            except Exception, e:
-                import traceback
-                logger.error('getNetworkTraffic: exception = ' + traceback.format_exc())
+            except:
+                logger.exception('getNetworkTraffic')
                 
                 return False
             
@@ -571,9 +574,8 @@ class Processes(object):
             
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
             
-        except Exception, e:
-            import traceback
-            logger.error('getProcesses: exception = ' + traceback.format_exc())
+        except:
+            logger.exception('getProcesses')
             return False
         
         logger.debug('getProcesses: Popen success, parsing')
