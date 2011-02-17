@@ -91,6 +91,12 @@ mongodb_server:
 # CouchDB host
 couchdb_server:
 
+# -------------------------------------------------------------------------- #
+#   Cassandra                                                                #
+# -------------------------------------------------------------------------- #
+#cassandra_host: localhost
+#cassandra_port: 8080
+#cassandra_nodetool: /usr/bin/nodetool
 
 # -------------------------------------------------------------------------- #
 #   Hudson                                                                   #

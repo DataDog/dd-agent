@@ -16,6 +16,7 @@ set -e
 
 AGENTPATH="/usr/bin/dd-agent"
 AGENTUSER="dd-agent"
+AGENTCONF="/etc/dd-agent/datadog.conf"
 PIDPATH="/var/run/dd-agent"
 NAME="dd-agent"
 DESC="datadog agent"
@@ -25,6 +26,10 @@ DESC="datadog agent"
 # Action to take
 case "$1" in
   start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting"
+            exit 0;
+        fi
         echo -n "Starting $DESC: "
         if [ ! -f $PIDPATH ]; then
             mkdir -p $PIDPATH

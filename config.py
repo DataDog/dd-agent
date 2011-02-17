@@ -3,14 +3,29 @@ import os
 import platform
 import subprocess
 import sys
+from optparse import OptionParser, Values
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
+
+def get_parsed_args():
+    parser = OptionParser()
+    parser.add_option('-d', '--dd_url', action='store', default=None, 
+                        dest='dd_url')
+    parser.add_option('-c', '--clean', action='store_true', default=False, 
+                        dest='clean')
+    try:
+        options, args = parser.parse_args()
+    except SystemExit:
+        options, args = Values({'dd_url': None, 'clean': False}), [] # Ignore parse errors
+    return options, args
 
 def get_version():
     return "1.9.2"
 
 def get_config():
+    options, args = get_parsed_args()
+
     # General config
     agentConfig = {}
     agentConfig['debugMode'] = False
@@ -34,7 +49,10 @@ def get_config():
             sys.exit(3)
     
         # Core config
-        agentConfig['ddUrl'] = config.get('Main', 'dd_url')
+        if options.dd_url:
+            agentConfig['ddUrl'] = options.dd_url
+        else:
+            agentConfig['ddUrl'] = config.get('Main', 'dd_url')
         if agentConfig['ddUrl'].endswith('/'):
             agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
         agentConfig['agentKey'] = config.get('Main', 'agent_key')
