@@ -22,11 +22,14 @@ NAME="dd-agent"
 DESC="datadog agent"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"
-[ -f $AGENTCONF ] || ( echo "$AGENTCONF not found. Exiting" && exit 0 )
 
 # Action to take
 case "$1" in
   start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting"
+            exit 0;
+        fi
         echo -n "Starting $DESC: "
         if [ ! -f $PIDPATH ]; then
             mkdir -p $PIDPATH
