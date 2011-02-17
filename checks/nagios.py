@@ -57,7 +57,7 @@ class Nagios(object):
                     self.logger.info("Ignoring nagios event of type {0}".format(event_type))
                     return None
                 tstamp = int(tstamp)
-        except Exception, e:
+        except:
             self.logger.exception("Error while trying to get a nagios event type from line {0}".format(line))
             return None
 
@@ -74,7 +74,7 @@ class Nagios(object):
             event.update({'api_key': self.apikey})
             self.events.append(event)
             self.logger.debug("Nagios event: {0}".format(event))
-        except Exception, e:
+        except:
             self.logger.exception("Unable to create a nagios event from line: [{0}]".format(line))
 
         return None
@@ -119,4 +119,3 @@ if __name__ == "__main__":
         for e in events:
             print "Event:", e
         time.sleep(5)
-
