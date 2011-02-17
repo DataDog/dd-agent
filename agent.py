@@ -27,7 +27,7 @@ if int(sys.version_info[1]) <= 3:
     
 # Custom modules
 from checks import checks
-from config import get_config, get_system_stats, get_optparser
+from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
 
@@ -58,7 +58,7 @@ class agent(Daemon):
         
 # Control of daemon     
 if __name__ == '__main__':  
-    options, args = get_optparser().parse_args()
+    options, args = get_parsed_args()
     agentConfig, rawConfig = get_config()
     
     # Logging
