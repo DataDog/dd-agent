@@ -122,7 +122,6 @@ class Cassandra(object):
             # How do we get to nodetool
             nodetool = agentConfig.get("cassandra_nodetool", None)
             if nodetool is None:
-                logger.info("Cassandra's nodetool not specified. Skipping Cassandra checks")
                 return False
             else:
                 if not os.path.exists(nodetool) or not os.path.isfile(nodetool):

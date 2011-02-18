@@ -1,3 +1,9 @@
+datadog-agent (1.9.2-2) unstable; urgency=low
+
+  * Do not attempt to start the agent upon install if the conf file is missing
+
+ -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2010 09:42:25 -0500
+
 datadog-agent (1.9.2-1) unstable; urgency=low
 
   * Uses collection timestamp to accurately pinpoint data points

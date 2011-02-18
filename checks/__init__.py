@@ -11,7 +11,7 @@ import types
 
 from checks.nagios import Nagios
 from checks.build import Hudson
-from checks.db import CouchDb, MongoDb, MySql
+from checks.db import CouchDb, MongoDb, MySql, Redis
 from checks.queue import RabbitMq
 from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
@@ -104,7 +104,7 @@ class Check(object):
             return self._sample_store[metric_name][-1]
         else:
             return UNKNOWN
-
+        
     def get_samples(self):
         values = []
         for m in self._metric_store:

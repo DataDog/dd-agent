@@ -27,10 +27,9 @@ if int(sys.version_info[1]) <= 3:
     
 # Custom modules
 from checks import checks
-from config import get_config, get_system_stats
+from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
-
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
@@ -59,6 +58,7 @@ class agent(Daemon):
         
 # Control of daemon     
 if __name__ == '__main__':  
+    options, args = get_parsed_args()
     agentConfig, rawConfig = get_config()
     
     # Logging
@@ -92,8 +92,10 @@ if __name__ == '__main__':
 
     argLen = len(sys.argv)
     
-    if argLen in (3, 4): # needs to accept case when --clean is passed
-        if sys.argv[2] == 'init':
+    if len(args) > 0:
+        command = args[0]
+
+        if command == 'init': 
             # This path added for newer Linux packages which run under
             # a separate dd-agent user account.
             if os.path.exists('/var/run/dd-agent/'):
@@ -101,39 +103,37 @@ if __name__ == '__main__':
             else:
                 pidFile = '/var/run/dd-agent.pid'
             
-    else:
-        pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
+        else:
+            pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
+
+        if options.clean:
+            mainLogger.debug('Agent called with --clean option, removing .pid')
+            try:
+                os.remove(pidFile)
+            except OSError:
+                # Did not find pid file
+                pass
     
-    if argLen == 4 and sys.argv[3] == '--clean':
-        mainLogger.debug('Agent called with --clean option, removing .pid')
-        try:
-            os.remove(pidFile)
-        except OSError:
-            # Did not find pid file
-            pass
+        # Daemon instance from agent class
+        daemon = agent(pidFile)
     
-    # Daemon instance from agent class
-    daemon = agent(pidFile)
-    
-    # Control options
-    if argLen == 2 or argLen == 3 or argLen == 4:
-        if 'start' == sys.argv[1]:
+        if 'start' == command:
             mainLogger.debug('Start daemon')
             daemon.start()
             
-        elif 'stop' == sys.argv[1]:
+        elif 'stop' == command:
             mainLogger.debug('Stop daemon')
             daemon.stop()
             
-        elif 'restart' == sys.argv[1]:
+        elif 'restart' == command:
             mainLogger.debug('Restart daemon')
             daemon.restart()
             
-        elif 'foreground' == sys.argv[1]:
+        elif 'foreground' == command:
             mainLogger.debug('Running in foreground')
             daemon.run()
             
-        elif 'status' == sys.argv[1]:
+        elif 'status' == command:
             mainLogger.debug('Checking agent status')
             
             try:
@@ -157,5 +157,5 @@ if __name__ == '__main__':
         sys.exit(0)
         
     else:
-        sys.stderr.write('Usage: %s start|stop|restart|status' % sys.argv[0])
+        sys.stderr.write('Usage: %s start|stop|restart|foreground|status' % sys.argv[0])
         sys.exit(2)

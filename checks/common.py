@@ -16,6 +16,9 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+from resources.processes import Processes as ResProcesses
+from resources.mockup_rails import RailsMockup
+
 def recordsize(func):
     "Record the size of the response"
     def wrapper(*args, **kwargs):
@@ -26,16 +29,28 @@ def recordsize(func):
     return wrapper
 
 class checks:
+    
     def __init__(self, agentConfig, rawConfig, emitter):
-        self.checksLogger = logging.getLogger('checks')
         self.agentConfig = agentConfig
         self.rawConfig = rawConfig
         self.plugins = None
         self.emitter = emitter
-        self.os = getOS()
-        self.topIndex = getTopIndex()
+        
+        macV = None
+        if sys.platform == 'darwin':
+            macV = platform.mac_ver()
+        
+        # Output from top is slightly modified on OS X 10.6 (case #28239)
+        if macV and macV[0].startswith('10.6.'):
+            self.topIndex = 6
+        else:
+            self.topIndex = 5
     
+        self.os = None
+        
+        self.checksLogger = logging.getLogger('checks')
         # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
+        import socket
         socket.setdefaulttimeout(15)
         
         self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
@@ -55,6 +70,7 @@ class checks:
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
+        self._redis = Redis()
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -62,7 +78,8 @@ class checks:
             self._datadogs = None
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
-            
+        self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
+ 
     #
     # Checks
     #
@@ -131,6 +148,10 @@ class checks:
     def getCassandraData(self):
         return self._cassandra.check(self.checksLogger, self.agentConfig)
 
+    @recordsize
+    def getRedisData(self):
+        return self._redis.check(self.checksLogger, self.agentConfig)
+
     #
     # CPU Stats
     #
@@ -160,6 +181,7 @@ class checks:
         gangliaData = self.getGangliaData()
         datadogData = self.getDatadogData()
         cassandraData = self.getCassandraData()
+        redisData = self.getRedisData()
  
         checksData = {
             'collection_timestamp': time.time(),
@@ -230,14 +252,14 @@ class checks:
         if couchdb != False:
             checksData['couchDB'] = couchdb
         
-        # Plugins
-        if plugins != False:
-            checksData['plugins'] = plugins
-        
         if ioStats != False:
             checksData['ioStats'] = ioStats
             
-        # Include system stats on first postback
+        if redisData != False:
+            # Redis data already has the proper metric names
+            checksData.update(redisData)
+        
+       # Include system stats on first postback
         if firstRun == True:
             checksData['systemStats'] = systemStats
             
