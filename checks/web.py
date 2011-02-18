@@ -7,8 +7,6 @@ from common import headers
 
 class Apache(object):
     def check(self, logger, agentConfig):
-        logger.debug('getApacheStatus: start')
-        
         if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
             logger.debug('getApacheStatus: config set')
             
@@ -19,31 +17,15 @@ class Apache(object):
                 request = urllib2.urlopen(req)
                 response = request.read()
                 
-            except urllib2.HTTPError, e:
-                logger.error('Unable to get Apache status - HTTPError = ' + str(e))
+            except:
+                logger.exception('Unable to get Apache status')
                 return False
-                
-            except urllib2.URLError, e:
-                logger.error('Unable to get Apache status - URLError = ' + str(e))
-                return False
-                
-            except httplib.HTTPException, e:
-                logger.error('Unable to get Apache status - HTTPException = ' + str(e))
-                return False
-                
-            except Exception, e:
-                logger.error('Unable to get Apache status - Exception = ' + traceback.format_exc())
-                return False
-                
-            logger.debug('getApacheStatus: urlopen success, start parsing')
             
             # Split out each line
             lines = response.split('\n')
             
             # Loop over each line and get the values
             apacheStatus = {}
-            
-            logger.debug('getApacheStatus: parsing, loop')
             
             # Loop through and extract the numerical values
             for line in lines:
@@ -55,17 +37,13 @@ class Apache(object):
                 except IndexError:
                     break
             
-            logger.debug('getApacheStatus: parsed')
-            
             try:
                 if apacheStatus['ReqPerSec'] != False and apacheStatus['BusyWorkers'] != False and apacheStatus['IdleWorkers'] != False:
-                    logger.debug('getApacheStatus: completed, returning')
                     
                     return {'reqPerSec': apacheStatus['ReqPerSec'], 'busyWorkers': apacheStatus['BusyWorkers'], 'idleWorkers': apacheStatus['IdleWorkers']}
                 
                 else:
                     logger.debug('getApacheStatus: completed, status not available')
-                    
                     return False
                 
             # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)  
@@ -95,49 +73,25 @@ class Nginx(object):
             logger.debug('getNginxStatus: config set')
             
             try: 
-                logger.debug('getNginxStatus: attempting urlopen')
-                
                 req = urllib2.Request(agentConfig['nginxStatusUrl'], None, headers(agentConfig))
 
                 # Do the request, log any errors
                 request = urllib2.urlopen(req)
                 response = request.read()
                 
-            except urllib2.HTTPError, e:
-                logger.error('Unable to get Nginx status - HTTPError = ' + str(e))
+            except:
+                logger.exception('Unable to get Nginx status')
                 return False
-                
-            except urllib2.URLError, e:
-                logger.error('Unable to get Nginx status - URLError = ' + str(e))
-                return False
-                
-            except httplib.HTTPException, e:
-                logger.error('Unable to get Nginx status - HTTPException = ' + str(e))
-                return False
-                
-            except Exception, e:
-                import traceback
-                logger.error('Unable to get Nginx status - Exception = ' + traceback.format_exc())
-                return False
-                
-            logger.debug('getNginxStatus: urlopen success, start parsing')
             
             # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
-            
-            logger.debug('getNginxStatus: parsing connections')
             
             # Connections
             parsed = re.search(r'Active connections:\s+(\d+)', response)
             connections = int(parsed.group(1))
             
-            logger.debug('getNginxStatus: parsed connections')
-            logger.debug('getNginxStatus: parsing reqs')
-            
             # Requests per second
             parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
             requests = int(parsed.group(3))
-            
-            logger.debug('getNginxStatus: parsed reqs')
             
             # First time we see nginx_status data
             if self.nginxRequestsStore == None or self.nginxRequestsStore < 0:

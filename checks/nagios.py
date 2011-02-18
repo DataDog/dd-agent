@@ -119,4 +119,3 @@ if __name__ == "__main__":
         for e in events:
             print "Event:", e
         time.sleep(5)
-

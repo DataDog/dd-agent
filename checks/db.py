@@ -4,7 +4,7 @@ import urllib2
 from common import json, headers
 
 class CouchDb(object):
-        
+    """Extracts stats from CouchDB via its REST API"""
     def _get_stats(self, logger, agentConfig, url):
         "Hit a given URL and return the parsed json"
         try:
@@ -88,9 +88,8 @@ class MongoDb(object):
 
         try:
             conn = Connection(agentConfig['MongoDBServer'])
-        except Exception, ex:
-            import traceback
-            logger.error('Unable to connect to MongoDB server - Exception = ' + traceback.format_exc())
+        except:
+            logger.exception('Unable to connect to MongoDB server')
             return False
 
         # Older versions of pymongo did not support the command()
@@ -138,12 +137,10 @@ class MongoDb(object):
 
             self.mongoDBStore = status
             mongodb = status
-        except Exception, ex:
-            import traceback
-            logger.error('Unable to get MongoDB status - Exception = ' + traceback.format_exc())
+        except:
+            logger.exception('Unable to get MongoDB status')
             return False
 
-        logger.debug('getMongoDBStatus: completed, returning')
         return mongodb
 
 
@@ -239,7 +236,6 @@ class MySql(object):
                 self.mysqlConnectionsStore = result[1]
                 
             logger.debug('getMySQLStatus: connections = ' + str(connections))
-            logger.debug('getMySQLStatus: getting Connections - done')
             logger.debug('getMySQLStatus: getting Created_tmp_disk_tables')
                 
             # Created_tmp_disk_tables
@@ -261,7 +257,6 @@ class MySql(object):
         
             createdTmpDiskTables = float(result[1])
             logger.debug('getMySQLStatus: createdTmpDiskTables = ' + str(createdTmpDiskTables))
-            logger.debug('getMySQLStatus: getting Created_tmp_disk_tables - done')
             logger.debug('getMySQLStatus: getting Max_used_connections')
                 
             # Max_used_connections
@@ -276,7 +271,6 @@ class MySql(object):
             maxUsedConnections = result[1]
             
             logger.debug('getMySQLStatus: maxUsedConnections = ' + str(createdTmpDiskTables))
-            logger.debug('getMySQLStatus: getting Max_used_connections - done')
             logger.debug('getMySQLStatus: getting Open_files')
             
             # Open_files
@@ -291,7 +285,6 @@ class MySql(object):
             openFiles = result[1]
             
             logger.debug('getMySQLStatus: openFiles = ' + str(openFiles))
-            logger.debug('getMySQLStatus: getting Open_files - done')
             logger.debug('getMySQLStatus: getting Slow_queries')
             
             # Slow_queries
@@ -326,7 +319,6 @@ class MySql(object):
                 self.mysqlSlowQueriesStore = result[1]
                 
             logger.debug('getMySQLStatus: slowQueries = ' + str(slowQueries))
-            logger.debug('getMySQLStatus: getting Slow_queries - done')
             logger.debug('getMySQLStatus: getting Table_locks_waited')
                 
             # Table_locks_waited
@@ -341,7 +333,6 @@ class MySql(object):
             tableLocksWaited = float(result[1])
                 
             logger.debug('getMySQLStatus: tableLocksWaited = ' + str(tableLocksWaited))
-            logger.debug('getMySQLStatus: getting Table_locks_waited - done')
             logger.debug('getMySQLStatus: getting Threads_connected')
                 
             # Threads_connected
@@ -356,7 +347,6 @@ class MySql(object):
             threadsConnected = result[1]
             
             logger.debug('getMySQLStatus: threadsConnected = ' + str(threadsConnected))
-            logger.debug('getMySQLStatus: getting Threads_connected - done')
             logger.debug('getMySQLStatus: getting Seconds_Behind_Master')
             
             # Seconds_Behind_Master
@@ -381,12 +371,9 @@ class MySql(object):
             else:
                 secondsBehindMaster = None
                 logger.debug('getMySQLStatus: secondsBehindMaster empty')
-            logger.debug('getMySQLStatus: getting Seconds_Behind_Master - done')
             
             return {'connections' : connections, 'createdTmpDiskTables' : createdTmpDiskTables, 'maxUsedConnections' : maxUsedConnections, 'openFiles' : openFiles, 'slowQueries' : slowQueries, 'tableLocksWaited' : tableLocksWaited, 'threadsConnected' : threadsConnected, 'secondsBehindMaster' : secondsBehindMaster}
 
         else:           
             logger.debug('getMySQLStatus: config not set')
-            return False    
-            
-        
+            return False

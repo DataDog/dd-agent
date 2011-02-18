@@ -86,7 +86,10 @@ if __name__ == '__main__':
     mainLogger = logging.getLogger('main')      
     mainLogger.debug('Agent called')
     mainLogger.debug('Agent version: ' + agentConfig['version'])
-    
+
+    # FIXME
+    # Ever heard of optparse?
+
     argLen = len(sys.argv)
     
     if argLen in (3, 4): # needs to accept case when --clean is passed
