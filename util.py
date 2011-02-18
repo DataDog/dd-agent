@@ -1,4 +1,6 @@
 import platform
+import sys
+import logging
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -26,3 +28,24 @@ def headers(agentConfig):
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'text/html, */*',
     }
+
+def getOS():
+    if sys.platform == 'darwin':
+        return 'mac'
+    elif sys.platform.find('freebsd') != -1:
+        return 'freebsd'
+    elif sys.platform.find('linux') != -1:
+        return 'linux'
+    else:
+        return sys.platform
+
+def getTopIndex():
+    macV = None
+    if sys.platform == 'darwin':
+        macV = platform.mac_ver()
+        
+    # Output from top is slightly modified on OS X 10.6 (case #28239)
+    if macV and macV[0].startswith('10.6.'):
+        return 6
+    else:
+        return 5

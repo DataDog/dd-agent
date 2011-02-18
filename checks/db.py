@@ -1,7 +1,7 @@
 import httplib
 import traceback
 import urllib2
-from common import json, headers
+from util import json, headers
 
 class CouchDb(object):
     """Extracts stats from CouchDB via its REST API"""

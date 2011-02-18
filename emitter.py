@@ -2,7 +2,7 @@ import urllib, urllib2
 import httplib
 from hashlib import md5
 from pprint import pformat as pp
-from common import json, headers
+from util import json, headers
 
 def http_emitter(message, logger, agentConfig):
     try: 

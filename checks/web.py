@@ -3,16 +3,13 @@ import traceback
 import urllib2
 import re
 import time
-from common import headers
+from util import headers
 
 class Apache(object):
     def check(self, logger, agentConfig):
         if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
-            logger.debug('getApacheStatus: config set')
             
             try: 
-                logger.debug('getApacheStatus: attempting urlopen')
-                
                 req = urllib2.Request(agentConfig['apacheStatusUrl'], None, headers(agentConfig))
                 request = urllib2.urlopen(req)
                 response = request.read()
@@ -39,7 +36,6 @@ class Apache(object):
             
             try:
                 if apacheStatus['ReqPerSec'] != False and apacheStatus['BusyWorkers'] != False and apacheStatus['IdleWorkers'] != False:
-                    
                     return {'reqPerSec': apacheStatus['ReqPerSec'], 'busyWorkers': apacheStatus['BusyWorkers'], 'idleWorkers': apacheStatus['IdleWorkers']}
                 
                 else:
@@ -47,13 +43,10 @@ class Apache(object):
                     return False
                 
             # Stops the agent crashing if one of the apacheStatus elements isn't set (e.g. ExtendedStatus Off)  
-            except IndexError:
-                logger.debug('getApacheStatus: IndexError - ReqPerSec, BusyWorkers or IdleWorkers not present')
-                
-            except KeyError:
-                logger.debug('getApacheStatus: IndexError - KeyError, BusyWorkers or IdleWorkers not present')
+            except:
+                logger.debug('getApacheStatus: ReqPerSec, BusyWorkers or IdleWorkers not present')
                                 
-                return False
+            return False
             
         else:
             logger.debug('getApacheStatus: config not set')
@@ -110,7 +103,6 @@ class Nginx(object):
                 self.nginxRequestsStore = requests
             
             if connections != None and requestsPerSecond != None:
-                logger.debug('getNginxStatus: returning with data')
                 return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
             
             else:
@@ -118,6 +110,5 @@ class Nginx(object):
                 return False
             
         else:
-            logger.debug('getNginxStatus: config not set')
             return False
         

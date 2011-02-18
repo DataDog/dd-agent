@@ -16,106 +16,14 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
-# Konstants
-INFINITY = "Inf"
-NaN = "NaN"
-
 def recordsize(func):
+    "Record the size of the response"
     def wrapper(*args, **kwargs):
         logger = logging.getLogger("checks")
         res = func(*args, **kwargs)
         logger.debug("SIZE: {0} wrote {1} bytes uncompressed".format(func, len(str(res))))
         return res
     return wrapper
-
-def getOS():
-    if sys.platform == 'darwin':
-        return 'mac'
-    elif sys.platform.find('freebsd') != -1:
-        return 'freebsd'
-    elif sys.platform.find('linux') != -1:
-        return 'linux'
-    else:
-        return sys.platform
-
-def getTopIndex():
-    macV = None
-    if sys.platform == 'darwin':
-        macV = platform.mac_ver()
-        
-    # Output from top is slightly modified on OS X 10.6 (case #28239)
-    if macV and macV[0].startswith('10.6.'):
-        return 6
-    else:
-        return 5
-
-class Check(object):
-    """
-    (Abstract) class for all checks with the ability to:
-    * compute rates for counters
-    """
-    def __init__(self):
-        # where to store samples, indexed by metric_name
-        # metric_name: [(ts, value), (ts, value)]
-        self._sample_store = {}
-        self._counters = {} # metric_name: bool
-
-    def counter(self, metric_name):
-        """
-        Treats the metric as a counter, i.e. computes its per second derivative
-        """
-        self._counters[metric_name] = True
-
-    def is_counter(self, metric_name):
-        "Is this metric a counter?"
-        return metric_name in self._counters
-
-    def gauge(self, metric_name):
-        """
-        Treats the metric as a guage, i.e. keep the data as is
-        """
-        pass
-
-    def is_gauge(self, metric_name):
-        return not self.is_counter(metric_name)
-
-    def save_sample(self, metric_name, value, timestamp=None):
-        """Save a simple sample"""
-        if timestamp is None:
-            timestamp = time.time()
-        if metric_name not in self._sample_store:
-            self._sample_store[metric_name] = []
-        self._sample_store[metric_name].append((timestamp, value))
-
-    def save_samples(self, pairs_or_triplets):
-        pass
-    
-    @classmethod
-    def _rate(cls, sample1, sample2):
-        "Simple rate"
-        interval = sample2[0] - sample1[0]
-        if interval == 0:
-            return INFINITY
-        delta = sample2[1] - sample1[1]
-        return delta / interval
-
-    def get_sample(self, metric_name):
-        if metric_name not in self._sample_store:
-            return None
-        elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) < 2:
-            return None
-        elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) >= 2:
-            return self._rate(self._sample_store[metric_name][-2], self._sample_store[metric_name][-1])
-        elif self.is_gauge(metric_name) and len(self._sample_store[metric_name]) >= 1:
-            return self._sample_store[metric_name][-1]
-        else:
-            return NaN
-
-    def get_samples(self):
-        values = []
-        for m in self._metric_store:
-            values.append(self.get_sample(m))
-        return values
 
 class checks:
     def __init__(self, agentConfig, rawConfig, emitter):
