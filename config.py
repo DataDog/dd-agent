@@ -71,7 +71,7 @@ def get_config():
             agentConfig['debugMode'] = False
         
         if config.has_option('Main', 'check_freq'):
-            agentConfig['checkFreq'] = config.get('Main', 'check_freq')
+            agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
         
         # Optional config
         # Also do not need to be present in the config file (case 28326).
