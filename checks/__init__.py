@@ -34,7 +34,7 @@ except ImportError: # Python < 2.5
 
 from checks.nagios import Nagios
 from checks.build import Hudson
-from checks.db import CouchDb, MongoDb, MySql
+from checks.db import CouchDb, MongoDb, MySql, Redis
 from checks.queue import RabbitMq
 from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
@@ -95,6 +95,7 @@ class checks:
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
+        self._redis = Redis()
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -177,6 +178,10 @@ class checks:
     @recordsize
     def getCassandraData(self):
         return self._cassandra.check(self.checksLogger, self.agentConfig)
+
+    @recordsize
+    def getRedisData(self):
+        return self._redis.check(self.checksLogger, self.agentConfig)
 
     #
     # CPU Stats
@@ -321,6 +326,7 @@ class checks:
         gangliaData = self.getGangliaData()
         datadogData = self.getDatadogData()
         cassandraData = self.getCassandraData()
+        redisData = self.getRedisData()
  
         self.checksLogger.debug('doChecks: checks success, build payload')
         
@@ -404,7 +410,11 @@ class checks:
         
         if ioStats != False:
             checksData['ioStats'] = ioStats
-            
+        
+        if redisData != False:
+            # Redis data already has the proper metric names
+            checksData.update(redisData)
+        
         # Include system stats on first postback
         if firstRun == True:
             checksData['systemStats'] = systemStats
