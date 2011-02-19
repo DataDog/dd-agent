@@ -21,11 +21,10 @@ from checks.cassandra import Cassandra
 from checks.common import checks
 
 # Konstants
-INFINITY = "Inf"
-NaN = "NaN"
-UNKNOWN = "Unknown"
-
 class CheckException(Exception): pass
+class Infinity(CheckException): pass
+class NaN(CheckException): pass
+class UnknownValue(CheckException): pass
 
 class Check(object):
     """
@@ -68,7 +67,10 @@ class Check(object):
         if self.is_gauge(metric_name):
             self._sample_store[metric_name] = [(timestamp, value)]
         elif self.is_counter(metric_name):
-            self._sample_store[metric_name] = self._sample_store[metric_name][-1] + [(timestamp, value)]
+            if len(self._sample_store[metric_name]) == 0:
+                self._sample_store[metric_name] = [(timestamp, value)]
+            else:
+                self._sample_store[metric_name] = self._sample_store[metric_name][-1:] + [(timestamp, value)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric_name, time.ctime(timestamp)))
 
@@ -86,27 +88,39 @@ class Check(object):
         try:
             interval = sample2[0] - sample1[0]
             if interval == 0:
-                return INFINITY
+                raise Infinity()
             delta = sample2[1] - sample1[1]
-            return delta / interval
-        except:
-            return NaN
+            return (sample2[0], delta / interval)
+        except Infinity:
+            raise
+        except Exception, e:
+            raise NaN(e)
 
-    def get_sample(self, metric_name):
-        "Return (timestamp, value)"
+    def get_sample_with_timestamp(self, metric_name):
+        "Get (timestamp-epoch-style, value)"
         if metric_name not in self._sample_store:
-            return None
+            raise UnknownValue()
         elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) < 2:
-            return UNKNOWN
+            raise UnknownValue()
         elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) >= 2:
             return self._rate(self._sample_store[metric_name][-2], self._sample_store[metric_name][-1])
         elif self.is_gauge(metric_name) and len(self._sample_store[metric_name]) >= 1:
             return self._sample_store[metric_name][-1]
         else:
-            return UNKNOWN
+            raise UnknownValue()
+
+    def get_sample(self, metric_name):
+        "Return the last value for that metric_name"
+        x = self.get_sample_with_timestamp(metric_name)
+        assert type(x) == types.TupleType and len(x) == 2, x
+        return x[1]
         
     def get_samples(self):
+        "Return all values"
         values = []
         for m in self._metric_store:
             values.append(self.get_sample(m))
         return values
+
+    def get_samples_with_timestamps(self):
+        pass
