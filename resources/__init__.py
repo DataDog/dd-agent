@@ -25,11 +25,13 @@ class agg():
 
 
 MetricDescriptor = namedtuple('MetricDescriptor',['version','name','type','aggregator',
-        'temporal_aggregator','server_aggregator','server_temporal_aggregator'])
+        'temporal_aggregator','server_aggregator','server_temporal_aggregator',
+        'group_on','temporal_group_on'])
 SnapshotDesc = namedtuple('SnapshotDesc',['version','fields'])
 
 def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg,
-                    server_aggregator=None,server_temporal_aggregator=None):
+                    server_aggregator=None,server_temporal_aggregator=None,
+                    group_on = False, temporal_group_on = False):
     if server_aggregator is None:
         if _type == 'str':
             server_aggregator = agg.append
@@ -43,7 +45,8 @@ def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg,
             server_temporal_aggregator = agg.avg
 
     return MetricDescriptor(2,name,_type,aggregator,temporal_aggregator,
-                server_aggregator,server_temporal_aggregator)
+                server_aggregator,server_temporal_aggregator,
+                group_on = group_on, temporal_group_on = temporal_group_on)
 
 def SnapshotDescriptor(version,*fields):
     return SnapshotDesc(version, fields)
@@ -188,6 +191,8 @@ class ResourcePlugin(object):
                             field.temporal_aggregator.__name__ if field.temporal_aggregator is not None else None,
                             field.server_aggregator.__name__ if field.server_aggregator is not None else None,
                             field.server_temporal_aggregator.__name__ if field.server_temporal_aggregator is not None else None,
+                            field.group_on,
+                            field.temporal_group_on,
                 ])
             return ret
             

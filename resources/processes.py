@@ -16,7 +16,8 @@ class Processes(ResourcePlugin):
                 SnapshotField("pct_mem",'float'),
                 SnapshotField("vsz",'int'),
                 SnapshotField("rss",'int'),
-                SnapshotField("family",'str',aggregator=None,temporal_aggregator=None),
+                SnapshotField("family",'str',aggregator=None,temporal_aggregator=None,
+                    group_on = True, temporal_group_on = True),
                 SnapshotField("ps_count",'int'))
 
     def _get_proc_list(self):
