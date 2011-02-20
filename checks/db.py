@@ -409,7 +409,12 @@ class Redis(object):
         
     def check(self, logger, agentConfig):
         if self.client:
-            info = self.client.info()
+            try:
+                info = self.client.info()
+            except Exception, e:
+                logger.exception(e)
+                return False
+
             output = {
                 'redis.net.clients':  info['connected_clients'],
                 'redis.net.slaves':   info['connected_slaves'],
