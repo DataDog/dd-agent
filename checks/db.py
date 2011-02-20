@@ -399,7 +399,8 @@ class Redis(object):
         try:
             import redis
         except ImportError, e:
-            logger.debug('Unable to import redis')
+            #Logger is undefined here
+            #logger.debug('Unable to import redis')
             self.client = None
         else:
             self.client = redis.Redis()
