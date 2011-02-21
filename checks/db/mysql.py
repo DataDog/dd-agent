@@ -8,7 +8,7 @@ class MySql(Check):
         self.logger = logger
 
         # Register metrics
-        self.gauge("mysqlConnections")
+        self.counter("mysqlConnections")
         self.gauge("mysqlCreatedTmpDiskTables")
         self.gauge("mysqlMaxUsedConnections")
         self.gauge("mysqlOpenFiles")

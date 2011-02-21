@@ -12,7 +12,6 @@ class TestMySql(unittest.TestCase):
     def testChecks(self):
         # First round for gauges
         results = self.mysql.check({"MySQLServer": "blah", "MySQLUser": "blah", "MySQLPass": "blah"})
-        self.assertEquals(results["mysqlConnections"], 1.0)
         self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)
         self.assertEquals(results["mysqlMaxUsedConnections"], 5.0)
         self.assertEquals(results["mysqlOpenFiles"], 6.0)
@@ -24,11 +23,11 @@ class TestMySql(unittest.TestCase):
 
         # Add 2 counters
         results = self.mysql.check({"MySQLServer": "blah", "MySQLUser": "blah", "MySQLPass": "blah"})
+        self.assertEquals(results["mysqlConnections"], 0.0)
         self.assertEquals(results["mysqlSlowQueries"], 0.0)
         self.assertEquals(results["mysqlQuestions"], 0.0)
 
         # same values
-        self.assertEquals(results["mysqlConnections"], 1.0)
         self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)
         self.assertEquals(results["mysqlMaxUsedConnections"], 5.0)
         self.assertEquals(results["mysqlOpenFiles"], 6.0)
