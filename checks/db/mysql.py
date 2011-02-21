@@ -96,11 +96,13 @@ class MySql(Check):
             if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
                 self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW GLOBAL STATUS LIKE 'Created_tmp_disk_tables'")
                 self._collect_scalar("mysqlSlowQueries",          "SHOW GLOBAL STATUS LIKE 'Slow_queries'")
-                self._collect_scalar("mysqlQueries",              "SHOW GLOBAL STATUS LIKE 'Questions'")
+                self._collect_scalar("mysqlQuestions",            "SHOW GLOBAL STATUS LIKE 'Questions'")
+                self._collect_scalar("mysqlQueries",              "SHOW GLOBAL STATUS LIKE 'Queries'")
             else:
                 self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW STATUS LIKE 'Created_tmp_disk_tables'")
                 self._collect_scalar("mysqlSlowQueries",          "SHOW STATUS LIKE 'Slow_queries'")
-                self._collect_scalar("mysqlQueries",              "SHOW STATUS LIKE 'Questions'")
+                self._collect_scalar("mysqlQuestions",            "SHOW STATUS LIKE 'Questions'")
+                self._collect_scalar("mysqlQueries",              "SHOW STATUS LIKE 'Queries'")
             
             self._collect_scalar("mysqlMaxUsedConnections", "SHOW STATUS LIKE 'Max_used_connections'")
             self._collect_scalar("mysqlOpenFiles",          "SHOW STATUS LIKE 'Open_files'")
