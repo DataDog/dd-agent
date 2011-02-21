@@ -65,8 +65,11 @@ class MongoDb(Check):
                 # each metric is of the form: x.y.z with z optional
                 # and can be found at status[x][y][z]
                 value = status
-                for c in m.split("."):
-                    value = value[c]
+                try:
+                    for c in m.split("."):
+                        value = value[c]
+                except KeyError:
+                    continue
                 # value is now status[x][y][z]
 
                 assert type(value) in (types.IntType, types.LongType, types.FloatType)
