@@ -20,11 +20,12 @@ class Check(object):
     (Abstract) class for all checks with the ability to:
     * compute rates for counters
     """
-    def __init__(self):
+    def __init__(self, logger):
         # where to store samples, indexed by metric_name
         # metric_name: [(ts, value), (ts, value)]
         self._sample_store = {}
         self._counters = {} # metric_name: bool
+        self.logger = logger
 
     def counter(self, metric):
         """
@@ -47,6 +48,10 @@ class Check(object):
         
     def is_gauge(self, metric):
         return not self.is_counter(metric)
+
+    def get_metrics(self):
+        "Get all metric names"
+        return self._sample_store.keys()
 
     def save_sample(self, metric, value, timestamp=None):
         """Save a simple sample, evict old values if needed"""
@@ -121,7 +126,7 @@ class Check(object):
         return values
 
     def get_samples(self):
-        "Return all values (metric, value)"
+        "Return all values {metric: value}"
         values = {}
         for m in self._sample_store:
             try:

@@ -2,7 +2,7 @@ from checks import Check
 
 class MySql(Check):
     def __init__(self, logger):
-        Check.__init__(self)
+        Check.__init__(self, logger)
         self.mysqlVersion = None
         self.db = None
         self.logger = logger

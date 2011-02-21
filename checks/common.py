@@ -81,8 +81,8 @@ class checks:
         self._processes = Processes()
         self._cpu = Cpu()
         self._couchdb = CouchDb()
-        self._mongodb = MongoDb()
-        self._mysql = MySql()
+        self._mongodb = MongoDb(self.checksLogger)
+        self._mysql = MySql(self.checksLogger)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
@@ -97,7 +97,7 @@ class checks:
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
  
     #
-    # Checks
+    # Checks - FIXME migrating to the new Check interface is a WIP
     #
     @recordsize 
     def getApacheStatus(self):
@@ -105,7 +105,7 @@ class checks:
 
     @recordsize 
     def getCouchDBStatus(self):
-        return self._couchdb.check(self.checksLogger, self.agentConfig)
+        return self._couchdb.check(self.agentConfig)
     
     @recordsize
     def getDiskUsage(self):
@@ -125,11 +125,11 @@ class checks:
         
     @recordsize     
     def getMongoDBStatus(self):
-        return self._mongodb.check(self.checksLogger, self.agentConfig)
+        return self._mongodb.check(self.agentConfig)
 
     @recordsize
     def getMySQLStatus(self):
-        return self._mysql.check(self.checksLogger, self.agentConfig)
+        return self._mysql.check(self.agentConfig)
         
     @recordsize
     def getNetworkTraffic(self):
@@ -239,6 +239,7 @@ class checks:
             
         # MySQL Status
         if mysqlStatus != False:
+            
             
             checksData['mysqlConnections'] = mysqlStatus['connections']
             checksData['mysqlCreatedTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
