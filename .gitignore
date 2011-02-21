@@ -2,3 +2,4 @@
 *.*~
 build/*
 datadog.conf
+datadog_agent.egg-info/*

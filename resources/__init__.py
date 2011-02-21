@@ -24,11 +24,29 @@ class agg():
         return ",".join(list(set(l)))
 
 
-MetricDescriptor = namedtuple('MetricDescriptor',['name','type','aggregator','temporal_aggregator'])
+MetricDescriptor = namedtuple('MetricDescriptor',['version','name','type','aggregator',
+        'temporal_aggregator','server_aggregator','server_temporal_aggregator',
+        'group_on','temporal_group_on'])
 SnapshotDesc = namedtuple('SnapshotDesc',['version','fields'])
 
-def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg):
-    return MetricDescriptor(name,_type,aggregator,temporal_aggregator)
+def SnapshotField(name,_type,aggregator=sum,temporal_aggregator=agg.avg,
+                    server_aggregator=None,server_temporal_aggregator=None,
+                    group_on = False, temporal_group_on = False):
+    if server_aggregator is None:
+        if _type == 'str':
+            server_aggregator = agg.append
+        else:
+            server_aggregator = sum
+
+    if server_temporal_aggregator is None:
+        if _type == 'str':
+            server_temporal_aggregator = agg.append
+        else:
+            server_temporal_aggregator = agg.avg
+
+    return MetricDescriptor(2,name,_type,aggregator,temporal_aggregator,
+                server_aggregator,server_temporal_aggregator,
+                group_on = group_on, temporal_group_on = temporal_group_on)
 
 def SnapshotDescriptor(version,*fields):
     return SnapshotDesc(version, fields)
@@ -166,10 +184,16 @@ class ResourcePlugin(object):
             self._format_described = True
             ret = []
             for field in self._descriptor.fields:
-                ret.append([field.name,
+                ret.append([field.version,
+                            field.name,
                             field.type,
                             field.aggregator.__name__ if field.aggregator is not None else None,
-                            field.temporal_aggregator.__name__ if field.temporal_aggregator is not None else None])
+                            field.temporal_aggregator.__name__ if field.temporal_aggregator is not None else None,
+                            field.server_aggregator.__name__ if field.server_aggregator is not None else None,
+                            field.server_temporal_aggregator.__name__ if field.server_temporal_aggregator is not None else None,
+                            field.group_on,
+                            field.temporal_group_on,
+                ])
             return ret
             
     def describe_snapshot(self):
