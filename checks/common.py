@@ -21,7 +21,7 @@ from checks.build import Hudson
 
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
-from checks.db.redis import Redis
+from checks.db.redisDb import Redis
 from checks.db.couch import CouchDb
 
 from checks.queue import RabbitMq
@@ -30,7 +30,6 @@ from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
-from checks.common import checks
 
 from resources.processes import Processes as ResProcesses
 from resources.mockup_rails import RailsMockup
@@ -45,7 +44,6 @@ def recordsize(func):
     return wrapper
 
 class checks:
-    
     def __init__(self, agentConfig, rawConfig, emitter):
         self.agentConfig = agentConfig
         self.rawConfig = rawConfig
@@ -80,13 +78,13 @@ class checks:
         self._network = Network()
         self._processes = Processes()
         self._cpu = Cpu()
-        self._couchdb = CouchDb()
+        self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
-        self._redis = Redis()
+        self._redis = Redis(self.checksLogger)
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -166,7 +164,7 @@ class checks:
 
     @recordsize
     def getRedisData(self):
-        return self._redis.check(self.checksLogger, self.agentConfig)
+        return self._redis.check(self.agentConfig)
 
     #
     # CPU Stats
@@ -191,7 +189,6 @@ class checks:
         rabbitmq = self.getRabbitMQStatus()
         mongodb = self.getMongoDBStatus()
         couchdb = self.getCouchDBStatus()
-        plugins = self.getPlugins()
         ioStats = self.getIOStats()
         cpuStats = self.getCPUStats()
         gangliaData = self.getGangliaData()
@@ -253,26 +250,26 @@ class checks:
                 checksData['mysqlSecondsBehindMaster'] = mysqlStatus['secondsBehindMaster']
         
         # Nginx Status
-        if nginxStatus != False:
+        if nginxStatus:
             checksData['nginxConnections'] = nginxStatus['connections']
             checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
             
         # RabbitMQ
-        if rabbitmq != False:
+        if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
         
         # MongoDB
-        if mongodb != False:
+        if mongodb:
             checksData['mongoDB'] = mongodb
             
         # CouchDB
-        if couchdb != False:
+        if couchdb:
             checksData['couchDB'] = couchdb
         
-        if ioStats != False:
+        if ioStats:
             checksData['ioStats'] = ioStats
             
-        if redisData != False:
+        if redisData:
             # Redis data already has the proper metric names
             checksData.update(redisData)
         

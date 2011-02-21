@@ -1,12 +1,11 @@
-import httplib
-import re
-import traceback
 import urllib2
 from util import json, headers
 
+from checks import *
+
 class CouchDb(Check):
     """Extracts stats from CouchDB via its REST API"""
-    def _get_stats(self, logger, agentConfig, url):
+    def _get_stats(self, agentConfig, url):
         "Hit a given URL and return the parsed json"
         try:
             req = urllib2.Request(url, None, headers(agentConfig))
@@ -18,14 +17,12 @@ class CouchDb(Check):
             return json.loads(response)
 
         except:
-            logger.exception('Unable to get CouchDB statistics')
+            self.logger.exception('Unable to get CouchDB statistics')
             return None
 
-    def check(self, logger, agentConfig):
+    def check(self, agentConfig):
         if ('CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == ''):
             return False
-
-        logger.debug('getCouchDBStatus: config set to %s' % agentConfig['CouchDBServer'])
 
         # The dictionary to be returned.
         couchdb = {'stats': None, 'databases': {}}
@@ -34,7 +31,7 @@ class CouchDb(Check):
         endpoint = '/_stats/'
 
         url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-        overall_stats = self._get_stats(logger, agentConfig, url)
+        overall_stats = self._get_stats(agentConfig, url)
 
         # No overall stats? bail out now
         if overall_stats is None:
@@ -46,14 +43,14 @@ class CouchDb(Check):
         endpoint = '/_all_dbs/'
 
         url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-        databases = self._get_stats(logger, agentConfig, url)
+        databases = self._get_stats(agentConfig, url)
 
         if databases is not None:
             for dbName in databases:
                 endpoint = '/%s/' % dbName
 
                 url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
-                db_stats = self._get_stats(logger, agentConfig, url)
+                db_stats = self._get_stats(agentConfig, url)
                 if db_stats is not None:
                     couchdb['databases'][dbName] = db_stats
 

@@ -26,7 +26,7 @@ if int(sys.version_info[1]) <= 3:
     sys.exit(2)
     
 # Custom modules
-from checks import checks
+from checks.common import checks
 from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
