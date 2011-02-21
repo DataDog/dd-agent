@@ -46,9 +46,10 @@ class MySql(Check):
                 cursor = self.db.cursor()
                 cursor.execute(query)
                 result = cursor.fetchone()
-                for field in field_metric_map.keys():
-                    metric = field_metric_map[field]
-                    self.save_sample(metric, float(result[field]))
+                if result is not None:
+                    for field in field_metric_map.keys():
+                        metric = field_metric_map[field]
+                        self.save_sample(metric, float(result[field]))
                 cursor.close()
                 del cursor
             except:
