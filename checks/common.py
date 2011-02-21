@@ -236,18 +236,7 @@ class checks:
             
         # MySQL Status
         if mysqlStatus != False:
-            
-            
-            checksData['mysqlConnections'] = mysqlStatus['connections']
-            checksData['mysqlCreatedTmpDiskTables'] = mysqlStatus['createdTmpDiskTables']
-            checksData['mysqlMaxUsedConnections'] = mysqlStatus['maxUsedConnections']
-            checksData['mysqlOpenFiles'] = mysqlStatus['openFiles']
-            checksData['mysqlSlowQueries'] = mysqlStatus['slowQueries']
-            checksData['mysqlTableLocksWaited'] = mysqlStatus['tableLocksWaited']
-            checksData['mysqlThreadsConnected'] = mysqlStatus['threadsConnected']
-            
-            if mysqlStatus['secondsBehindMaster'] != None:
-                checksData['mysqlSecondsBehindMaster'] = mysqlStatus['secondsBehindMaster']
+            checksData.update(mysqlStatus)
         
         # Nginx Status
         if nginxStatus:
