@@ -16,6 +16,22 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+from checks.nagios import Nagios
+from checks.build import Hudson
+
+from checks.db.mysql import MySql
+from checks.db.mongo import MongoDb
+from checks.db.redis import Redis
+from checks.db.couch import CouchDb
+
+from checks.queue import RabbitMq
+from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
+from checks.web import Apache, Nginx
+from checks.ganglia import Ganglia
+from checks.datadog import RollupLP as ddRollupLP
+from checks.cassandra import Cassandra
+from checks.common import checks
+
 from resources.processes import Processes as ResProcesses
 from resources.mockup_rails import RailsMockup
 

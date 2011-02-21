@@ -1,24 +1,13 @@
-'''
+"""
     Datadog agent
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc 2011 All Rights Reserved
-'''
+"""
 
 import time
 import types
-
-from checks.nagios import Nagios
-from checks.build import Hudson
-from checks.db import CouchDb, MongoDb, MySql, Redis
-from checks.queue import RabbitMq
-from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
-from checks.web import Apache, Nginx
-from checks.ganglia import Ganglia
-from checks.datadog import RollupLP as ddRollupLP
-from checks.cassandra import Cassandra
-from checks.common import checks
 
 # Konstants
 class CheckException(Exception): pass
@@ -37,51 +26,51 @@ class Check(object):
         self._sample_store = {}
         self._counters = {} # metric_name: bool
 
-    def counter(self, metric_name):
+    def counter(self, metric):
         """
         Treats the metric as a counter, i.e. computes its per second derivative
+        ACHTUNG: Resets previous values associated with this metric.
         """
-        self._counters[metric_name] = True
+        self._counters[metric] = True
+        self._sample_store[metric] = []
 
-    def is_counter(self, metric_name):
+    def is_counter(self, metric):
         "Is this metric a counter?"
-        return metric_name in self._counters
+        return metric in self._counters
 
-    def gauge(self, metric_name):
+    def gauge(self, metric):
         """
         Treats the metric as a guage, i.e. keep the data as is
+        ACHTUNG: Resets previous values associated with this metric.
         """
-        pass
+        self._sample_store[metric] = []
+        
+    def is_gauge(self, metric):
+        return not self.is_counter(metric)
 
-    def is_gauge(self, metric_name):
-        return not self.is_counter(metric_name)
-
-    def save_sample(self, metric_name, value, timestamp=None):
+    def save_sample(self, metric, value, timestamp=None):
         """Save a simple sample, evict old values if needed"""
         if timestamp is None:
             timestamp = time.time()
-        if metric_name not in self._sample_store:
-            self._sample_store[metric_name] = []
+        if metric not in self._sample_store:
+            raise CheckException("Saving a sample for an undefined metric %s" % metric)
 
         # Data eviction rules
-        if self.is_gauge(metric_name):
-            self._sample_store[metric_name] = [(timestamp, value)]
-        elif self.is_counter(metric_name):
-            if len(self._sample_store[metric_name]) == 0:
-                self._sample_store[metric_name] = [(timestamp, value)]
+        if self.is_gauge(metric):
+            self._sample_store[metric] = [(timestamp, value)]
+        elif self.is_counter(metric):
+            if len(self._sample_store[metric]) == 0:
+                self._sample_store[metric] = [(timestamp, value)]
             else:
-                self._sample_store[metric_name] = self._sample_store[metric_name][-1:] + [(timestamp, value)]
+                self._sample_store[metric] = self._sample_store[metric][-1:] + [(timestamp, value)]
         else:
-            raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric_name, time.ctime(timestamp)))
+            raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
-        if self.is_gauge(metric_name):
-            assert len(self._sample_store[metric_name]) in (0, 1), self._sample_store[metric_name]
-        elif self.is_counter(metric_name):
-            assert len(self._sample_store[metric_name]) in (0, 1, 2), self._sample_store[metric_name]
+        if self.is_gauge(metric):
+            assert len(self._sample_store[metric]) in (0, 1), self._sample_store[metric]
+        elif self.is_counter(metric):
+            assert len(self._sample_store[metric]) in (0, 1, 2), self._sample_store[metric]
 
-    def save_samples(self, pairs_or_triplets):
-        pass
-    
     @classmethod
     def _rate(cls, sample1, sample2):
         "Simple rate"
@@ -96,31 +85,48 @@ class Check(object):
         except Exception, e:
             raise NaN(e)
 
-    def get_sample_with_timestamp(self, metric_name):
+    def get_sample_with_timestamp(self, metric):
         "Get (timestamp-epoch-style, value)"
-        if metric_name not in self._sample_store:
+        # Never seen this metric
+        if metric not in self._sample_store:
             raise UnknownValue()
-        elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) < 2:
+
+        # Not enough value to compute rate
+        elif self.is_counter(metric) and len(self._sample_store[metric]) < 2:
             raise UnknownValue()
-        elif self.is_counter(metric_name) and len(self._sample_store[metric_name]) >= 2:
-            return self._rate(self._sample_store[metric_name][-2], self._sample_store[metric_name][-1])
-        elif self.is_gauge(metric_name) and len(self._sample_store[metric_name]) >= 1:
-            return self._sample_store[metric_name][-1]
+        
+        elif self.is_counter(metric) and len(self._sample_store[metric]) >= 2:
+            return self._rate(self._sample_store[metric][-2], self._sample_store[metric][-1])
+
+        elif self.is_gauge(metric) and len(self._sample_store[metric]) >= 1:
+            return self._sample_store[metric][-1]
+
         else:
             raise UnknownValue()
 
-    def get_sample(self, metric_name):
-        "Return the last value for that metric_name"
-        x = self.get_sample_with_timestamp(metric_name)
+    def get_sample(self, metric):
+        "Return the last value for that metric"
+        x = self.get_sample_with_timestamp(metric)
         assert type(x) == types.TupleType and len(x) == 2, x
         return x[1]
         
-    def get_samples(self):
-        "Return all values"
-        values = []
-        for m in self._metric_store:
-            values.append(self.get_sample(m))
+    def get_samples_with_timestamps(self):
+        "Return all values {metric: (ts, value)}"
+        values = {}
+        for m in self._sample_store:
+            try:
+                values[m] = self.get_sample_with_timestamp(m)
+            except:
+                pass
         return values
 
-    def get_samples_with_timestamps(self):
-        pass
+    def get_samples(self):
+        "Return all values (metric, value)"
+        values = {}
+        for m in self._sample_store:
+            try:
+                # Discard the timestamp
+                values[m] = self.get_sample_with_timestamp(m)[1]
+            except:
+                pass
+        return values

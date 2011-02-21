@@ -1,9 +1,10 @@
-"Tests to validate the core check logic"
 import time
 import unittest
 from checks import *
 
 class TestCore(unittest.TestCase):
+    "Tests to validate the core check logic"
+    
     def setUp(self):
         self.c = Check()
         self.c.gauge("test-metric")
@@ -26,17 +27,30 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.get_sample_with_timestamp("test-metric"), (1298066183.607717, 3.0))
 
     def testEdgeCases(self):
-        self.assertRaises(UnknownValue, self.c.get_sample, "unknown-metric")
+        self.assertRaises(CheckException, self.c.get_sample, "unknown-metric")
         # same value
         self.c.save_sample("test-counter", 1.0, 1.0)
         self.c.save_sample("test-counter", 1.0, 1.0)
         self.assertRaises(Infinity, self.c.get_sample, "test-counter")
 
     def test_counter(self):
-        pass
+        self.c.save_sample("test-counter", 1.0, 1.0)
+        self.assertRaises(UnknownValue, self.c.get_sample, "test-counter")
+        self.c.save_sample("test-counter", 2.0, 2.0)
+        self.assertEquals(self.c.get_sample("test-counter"), 1.0)
+        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0))
+        self.c.save_sample("test-counter", -2.0, 3.0)
+        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (3.0, -4.0))
 
     def test_samples(self):
-        pass
+        self.assertEquals(self.c.get_samples(), {})
+        self.c.save_sample("test-metric", 1.0, 0.0)  # value, ts
+        self.c.save_sample("test-counter", 1.0, 1.0) # value, ts
+        self.c.save_sample("test-counter", 0.0, 2.0) # value, ts
+        assert "test-metric"  in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
+        self.assertEquals(self.c.get_samples_with_timestamps()["test-metric"], (0.0, 1.0))
+        assert "test-counter" in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
+        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, -1.0))
 
 if __name__ == '__main__':
     unittest.main()
