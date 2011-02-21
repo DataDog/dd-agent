@@ -8,7 +8,7 @@ class MySql(Check):
         self.logger = logger
 
         # Register metrics
-        self.counter("mysqlConnections")
+        self.gauge("mysqlConnections")
         self.gauge("mysqlCreatedTmpDiskTables")
         self.gauge("mysqlMaxUsedConnections")
         self.gauge("mysqlOpenFiles")
@@ -18,8 +18,7 @@ class MySql(Check):
         self.gauge("mysqlThreadsConnected")
         self.gauge("mysqlSecondsBehindMaster")
 
-    def _collect_scalar(self, query, metric):
-        print "Collected " % metric
+    def _collect_scalar(self, metric, query):
         if self.db is not None:
             try:
                 cursor = self.db.cursor()

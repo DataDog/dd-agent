@@ -10,13 +10,27 @@ class TestMySql(unittest.TestCase):
         self.mysql = MySql(logger)
 
     def testChecks(self):
+        # First round for gauges
         results = self.mysql.check({"MySQLServer": "blah", "MySQLUser": "blah", "MySQLPass": "blah"})
-        self.assertEquals(len(results), 9, results)
         self.assertEquals(results["mysqlConnections"], 1.0)
         self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)
+        self.assertEquals(results["mysqlMaxUsedConnections"], 5.0)
+        self.assertEquals(results["mysqlOpenFiles"], 6.0)
+        self.assertEquals(results["mysqlTableLocksWaited"], 7.0)
+        self.assertEquals(results["mysqlThreadsConnected"], 8.0)
+        self.assertEquals(results["mysqlSecondsBehindMaster"], 9.0)
+        self.assertEquals("mysqlSlowQueries" not in results, True)
+        self.assertEquals("mysqlQueries" not in results, True)
+
+        # Add 2 counters
+        results = self.mysql.check({"MySQLServer": "blah", "MySQLUser": "blah", "MySQLPass": "blah"})
         self.assertEquals(results["mysqlSlowQueries"], 0.0)
         self.assertEquals(results["mysqlQueries"], 0.0)
-        self.assertEquals(results["mysqlMaxUsedConenctions"], 5.0)
+
+        # same values
+        self.assertEquals(results["mysqlConnections"], 1.0)
+        self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)
+        self.assertEquals(results["mysqlMaxUsedConnections"], 5.0)
         self.assertEquals(results["mysqlOpenFiles"], 6.0)
         self.assertEquals(results["mysqlTableLocksWaited"], 7.0)
         self.assertEquals(results["mysqlThreadsConnected"], 8.0)
