@@ -13,6 +13,7 @@ class MySql(Check):
         self.gauge("mysqlMaxUsedConnections")
         self.gauge("mysqlOpenFiles")
         self.counter("mysqlSlowQueries")
+        self.counter("mysqlQuestions")
         self.counter("mysqlQueries")
         self.gauge("mysqlTableLocksWaited")
         self.gauge("mysqlThreadsConnected")
