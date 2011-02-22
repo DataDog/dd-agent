@@ -90,7 +90,6 @@ class Nginx(object):
             if self.nginxRequestsStore == None or self.nginxRequestsStore < 0:
                 logger.debug('getNginxStatus: no reqs so storing for first time')
                 self.nginxRequestsStore = requests
-                self.nginxRequestsTstamp = time.time()
                 requestsPerSecond = 0
                 
             # Compute averages
@@ -101,6 +100,8 @@ class Nginx(object):
                 requestsPerSecond = float(requests - self.nginxRequestsStore) / (time.time() - self.nginxRequestsTstamp)
                 logger.debug('getNginxStatus: requestsPerSecond = ' + str(requestsPerSecond))
                 self.nginxRequestsStore = requests
+
+            self.nginxRequestsTstamp = time.time()
             
             if connections != None and requestsPerSecond != None:
                 return {'connections' : connections, 'reqPerSec' : requestsPerSecond}
