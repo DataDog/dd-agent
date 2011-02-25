@@ -4,7 +4,14 @@ from util import json, headers
 from checks import *
 
 class CouchDb(Check):
-    """Extracts stats from CouchDB via its REST API"""
+    """Extracts stats from CouchDB via its REST API
+    http://wiki.apache.org/couchdb/Runtime_Statistics
+    """
+    
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+        
+
     def _get_stats(self, agentConfig, url):
         "Hit a given URL and return the parsed json"
         try:
@@ -13,15 +20,13 @@ class CouchDb(Check):
             # Do the request, log any errors
             request = urllib2.urlopen(req)
             response = request.read()
-
             return json.loads(response)
-
         except:
             self.logger.exception('Unable to get CouchDB statistics')
             return None
 
     def check(self, agentConfig):
-        if ('CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == ''):
+        if 'CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == '':
             return False
 
         # The dictionary to be returned.

@@ -69,8 +69,8 @@ class checks:
         
         self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
         
-        self._apache = Apache()
-        self._nginx = Nginx()
+        self._apache = Apache(self.checksLogger)
+        self._nginx = Nginx(self.checksLogger)
         self._disk = Disk()
         self._io = IO()
         self._load = Load(self.linuxProcFsLocation)
