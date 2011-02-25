@@ -99,7 +99,7 @@ class checks:
     #
     @recordsize 
     def getApacheStatus(self):
-        return self._apache.check(self.checksLogger, self.agentConfig)
+        return self._apache.check(self.agentConfig)
 
     @recordsize 
     def getCouchDBStatus(self):
@@ -135,7 +135,7 @@ class checks:
     
     @recordsize
     def getNginxStatus(self):
-        return self._nginx.check(self.checksLogger, self.agentConfig)
+        return self._nginx.check(self.agentConfig)
         
     @recordsize
     def getProcesses(self):
@@ -229,19 +229,16 @@ class checks:
             checksData['cassandra'] = cassandraData
  
         # Apache Status
-        if apacheStatus != False:           
-            checksData['apacheReqPerSec'] = apacheStatus['reqPerSec']
-            checksData['apacheBusyWorkers'] = apacheStatus['busyWorkers']
-            checksData['apacheIdleWorkers'] = apacheStatus['idleWorkers']
+        if apacheStatus: 
+            checksData.update(apacheStatus)
             
         # MySQL Status
-        if mysqlStatus != False:
+        if mysqlStatus:
             checksData.update(mysqlStatus)
         
         # Nginx Status
         if nginxStatus:
-            checksData['nginxConnections'] = nginxStatus['connections']
-            checksData['nginxReqPerSec'] = nginxStatus['reqPerSec']
+            checksData.update(nginxStatus)
             
         # RabbitMQ
         if rabbitmq:
