@@ -32,7 +32,6 @@ from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
 
 from resources.processes import Processes as ResProcesses
-from resources.mockup_rails import RailsMockup
 
 def recordsize(func):
     "Record the size of the response"
@@ -214,6 +213,7 @@ class checks:
             'processes' : processes,
             'apiKey': self.agentConfig['apiKey'],
             'events': {},
+            'resources': {},
         }
 
         if cpuStats is not False and cpuStats is not None:
@@ -292,7 +292,31 @@ class checks:
                                               'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                               'event_type':'agent startup',
                                             }]
-        
+       
+
+        # Resources checks
+        has_resource = False
+        for resources_check in self._resources_checks:
+            resources_check.check()
+            snap = resources_check.pop_snapshot()
+            if snap:
+                has_resource = True
+                res_value = { 'ts': snap[0],
+                              'data': snap[1],
+                              'format_version': resources_check.get_format_version() }                              
+                res_format = resources_check.describe_format_if_needed()
+                if res_format is not None:
+                    res_value['format_description'] = res_format
+                checksData['resources'][resources_check.RESOURCE_KEY] = res_value
+ 
+        if has_resource:
+            checksData['resources']['meta'] = {
+                        'api_key': self.agentConfig['apiKey'],
+                        'host': checksData['internalHostname'],
+                    }
+
+
+        # Send back data 
         self.emitter(checksData, self.checksLogger, self.agentConfig)
         
         sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
