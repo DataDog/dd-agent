@@ -11,6 +11,15 @@ def _fst(groups):
         return None
 
 class Cassandra(object):    
+
+    UNITS_FACTOR = {
+         'bytes': 1,
+         'KB': 1024,
+         'MB': 1024*1024,
+         'GB': 1024*1024*1024,
+         'TB': 1024*1024*1204 }
+
+
     @staticmethod
     def _find(lines, regex, postprocess=_fst, all=False):
         """Poor man's awk"""
@@ -32,10 +41,19 @@ class Cassandra(object):
         Generation No    : 1295816448
         Uptime (seconds) : 95
         Heap Memory (MB) : 521.86 / 1019.88
+
+        According to io/util/FileUtils.java units for load are:
+        TB/GB/MB/KB/bytes
         """
+
+        def convert_size(g):
+            size, unit = g
+            return str(int(float(size) * self. UNITS_FACTOR[unit]))
+  
         lines = info.split("\n")
         results["token"]    = Cassandra._find(lines, r"^(\d+)$")
-        results["load"]     = Cassandra._find(lines, r"^Load[^:]+:\s+([0-9.]+).*([KMG]B)$")
+        results["load"]     = Cassandra._find(lines, 
+            r"^Load[^:]+:\s+([0-9.]+).*([KMGT]B|bytes)$",postprocess=convert_size)
         results["uptime"]   = Cassandra._find(lines, r"^Uptime[^:]+: (\d+)$")
         
         heap = Cassandra._find(lines, r"^Heap Memory[^:]+: ([0-9.]+) / ([0-9.]+)$", postprocess=lambda g: g)
@@ -117,7 +135,6 @@ class Cassandra(object):
         """Return a dictionary of metrics
         Or False to indicate that there are no data to report"""
         logger.debug('Cassandra: start')
-        
         try:
             # How do we get to nodetool
             nodetool = agentConfig.get("cassandra_nodetool", None)
@@ -171,3 +188,4 @@ class Cassandra(object):
         except Exception, e:
             logger.exception(e)
             return False
+
