@@ -20,7 +20,7 @@ set -e
 
 case "$1" in
     configure)
-        adduser --system dd-agent --shell /bin/sh --quiet
+        adduser --system dd-agent --shell /bin/sh --no-create-home --quiet
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
