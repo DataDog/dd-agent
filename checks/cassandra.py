@@ -3,6 +3,8 @@
 from subprocess import Popen, PIPE
 import os.path
 import re
+import itertools
+import math
 
 def _fst(groups):
     if groups is not None and len(groups) > 0:
@@ -60,7 +62,32 @@ class Cassandra(object):
         results["heap_used"] = heap[0]
         results["heap_total"] = heap[1]
         return results
-        
+
+    @staticmethod    
+    def _normalize(strings):
+        """Replace capitalization and spacing by _"""
+        res = []
+        lastValid = False
+        for string in strings:
+            for c in string:
+                if c.isalpha():
+                    if c.isupper():
+                        if lastValid:
+                            res.append('_')
+                            res.append(c.lower())
+                            lastValid = False
+                        else:
+                            res.append(c.lower())
+                    else:
+                        lastValid = True
+                        res.append(c)
+                elif c.isspace():
+                    if lastValid:
+                        res.append('_')
+                        lastValid = False
+       
+        return "".join(res)
+
     def _parseTpstats(self, cfstats, results):
         """
         Pool Name                    Active   Pending      Completed
@@ -78,7 +105,20 @@ class Cassandra(object):
         FlushSorter                       0         0              0
         InternalResponseStage             0         0              0
         """
-        pass
+
+        
+        lines = cfstats.split("\n")
+        if len(lines) > 1:
+            active, pending, completed = lines[0].lower().split()[-3:]
+            for line in lines[1:]:
+                stats = line.split()
+                if len(stats) >= 4:
+                    name = self._normalize(stats[:-3]) + '.'
+                    results[name + active] = stats[-3]
+                    results[name + pending] = stats[-2]
+                    results[name + completed] = stats[-1]
+
+        return results
         
     def _parseCfstats(self, tpstats, results):
         """
@@ -129,8 +169,59 @@ class Cassandra(object):
         		Compacted row maximum size: 179
         		Compacted row mean size: 149
         """
-        pass
+
+
+        def indent(astr):
+            return len(list(itertools.takewhile(str.isspace,astr)))
+
+        def get_metric(line):
+            """    metric name: val"""
+            i = line.rfind(':')
+            if i == -1:
+                return None, None
+            else:
+                try:
+                    val = line[i+1:].strip()
+                    if val.endswith(" ms."):
+                        val = val[:-4]
+                    val = float(val)
+                    if math.isnan(val):
+                        return None, None
+
+                    return self._normalize(line[:i]), val
+                except:
+                    return None, None
+
+        keyspace = None
+        cf = None
         
+        lines = tpstats.split("\n")
+        for line in lines:
+            ind = indent(line)
+            if line.find("Keyspace") != -1:
+                keyspace = line.split()[1]
+            elif line.find("Column Family") != -1:
+                cf = line.split()[2]
+            elif ind == 0:
+                if cf is not None:
+                    cf = None
+                elif keyspace is not None:
+                    keyspace = None
+            elif ind == 2 and cf is not None:
+                # Metric for a column family
+                metric_name, val = get_metric(line)                
+                if metric_name is not None and val is not None:
+                    metric_name = metric_name + "." + keyspace + ":" + cf
+                    results[metric_name] = val
+            elif ind == 1 and keyspace is not None:
+                # Metric for a keyspace
+                metric_name, val = get_metric(line)                
+                if metric_name is not None and val is not None:
+                    metric_name = metric_name + "." + keyspace
+                    results[metric_name] = val
+
+        return results
+
     def check(self, logger, agentConfig):
         """Return a dictionary of metrics
         Or False to indicate that there are no data to report"""
@@ -189,3 +280,12 @@ class Cassandra(object):
             logger.exception(e)
             return False
 
+
+if __name__ == "__main__":
+
+    import logging
+    c = Cassandra()
+    c.check(logging,{'cassandra_nodetool': '/usr/local/cassandra/bin/nodetool',
+                     'cassandra_host': 'localhost',
+                     'cassandra_port': 8080,
+                    })
