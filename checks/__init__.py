@@ -47,7 +47,8 @@ class Check(object):
         self._sample_store[metric] = []
         
     def is_gauge(self, metric):
-        return not self.is_counter(metric)
+        return metric in self._sample_store and \
+               not self.is_counter(metric)
 
     def get_metrics(self):
         "Get all metric names"
