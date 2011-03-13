@@ -87,7 +87,16 @@ def get_config():
         
         if config.has_option('Main', 'mysql_pass'):
             agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
-    
+   
+        if config.has_option('Main', 'postgresql_server'):
+            agentConfig['PostgreSqlServer'] = config.get('Main','postgresql_server')
+
+        if config.has_option('Main', 'postgresql_user'):
+            agentConfig['PostgreSqlUser'] = config.get('Main','postgresql_user')
+
+        if config.has_option('Main', 'postgresql_pass'):
+            agentConfig['PostgreSqlPass'] = config.get('Main','postgresql_pass')
+
         if config.has_option('Main', 'nginx_status_url'):   
             agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
 

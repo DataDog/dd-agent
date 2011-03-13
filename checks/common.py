@@ -23,6 +23,7 @@ from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
 from checks.db.redisDb import Redis
 from checks.db.couch import CouchDb
+from checks.db.pg import PostgreSql
 
 from checks.queue import RabbitMq
 from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
@@ -80,6 +81,7 @@ class checks:
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
+        self._pgsql = PostgreSql(self.checksLogger)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
@@ -127,7 +129,11 @@ class checks:
     @recordsize
     def getMySQLStatus(self):
         return self._mysql.check(self.agentConfig)
-        
+   
+    @recordsize
+    def getPgSQLStatus(self):
+        return self._pgsql.check(self.agentConfig)
+ 
     @recordsize
     def getNetworkTraffic(self):
         return self._network.check(self.checksLogger, self.agentConfig)
@@ -182,6 +188,7 @@ class checks:
         loadAvrgs = self.getLoadAvrgs()
         memory = self.getMemoryUsage()
         mysqlStatus = self.getMySQLStatus()
+        pgsqlStatus = self.getPgSQLStatus()
         networkTraffic = self.getNetworkTraffic()
         nginxStatus = self.getNginxStatus()
         processes = self.getProcesses()
@@ -235,7 +242,11 @@ class checks:
         # MySQL Status
         if mysqlStatus:
             checksData.update(mysqlStatus)
-        
+       
+        # PostgreSQL status
+        if pgsqlStatus: 
+            checksData['postgresql'] = pgsqlStatus
+
         # Nginx Status
         if nginxStatus:
             checksData.update(nginxStatus)
