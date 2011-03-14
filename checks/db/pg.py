@@ -20,23 +20,28 @@ class PostgreSql(Check):
 
         return self.pgVersion
 
-    def _init_metric(self,dbname,metric):
+    def _init_metric(self,kind,dbname,metric):
         mname = dbname + '.' + metric
-        if not self.is_gauge(mname):
-            self.logger.debug("Adding metric: %s" % mname)
-            self.gauge(mname)
+        if kind == 'gauge':
+            if not self.is_gauge(mname):
+                self.logger.debug("Adding gauge metric: %s" % mname)
+                self.gauge(mname)
+        else:
+            if not self.is_counter(mname):
+                self.logger.debug("Adding counter metric: %s" % mname)
+                self.counter(mname)
 
     def _init_metrics(self,dbname):
-        self._init_metric(dbname,'backends')
-        self._init_metric(dbname,'commits')
-        self._init_metric(dbname,'rollbacks')
-        self._init_metric(dbname,'disk_read')
-        self._init_metric(dbname,'buffer_hit')
-        self._init_metric(dbname,'rows_returned')
-        self._init_metric(dbname,'rows_fetched')
-        self._init_metric(dbname,'rows_inserted')
-        self._init_metric(dbname,'rows_updated')
-        self._init_metric(dbname,'rows_deleted')
+        self._init_metric('gauge',dbname,'connections')
+        self._init_metric('counter',dbname,'commits')
+        self._init_metric('counter',dbname,'rollbacks')
+        self._init_metric('counter',dbname,'disk_read')
+        self._init_metric('counter',dbname,'buffer_hit')
+        self._init_metric('counter',dbname,'rows_returned')
+        self._init_metric('counter',dbname,'rows_fetched')
+        self._init_metric('counter',dbname,'rows_inserted')
+        self._init_metric('counter',dbname,'rows_updated')
+        self._init_metric('counter',dbname,'rows_deleted')
 
 
     def _store_metric(self, dbname, metric, val):
@@ -63,9 +68,9 @@ class PostgreSql(Check):
                     (datname, backends, commits, rollbacks, read, hit, 
                      ret, fetch, ins, upd, deleted) = result
                     self._init_metrics(datname)
-                    self._store_metric(datname, 'backends', backends)
-                    self._store_metric(datname, 'commits', backends)
-                    self._store_metric(datname, 'rollbacks', backends)
+                    self._store_metric(datname, 'connections', backends)
+                    self._store_metric(datname, 'commits', commits)
+                    self._store_metric(datname, 'rollbacks', rollbacks)
                     self._store_metric(datname, 'disk_read', read )
                     self._store_metric(datname, 'buffer_hit', hit )
                     self._store_metric(datname, 'rows_returned', ret)

@@ -55,6 +55,21 @@ mysql_user:
 # MySQL user's password
 mysql_pass:
 
+# -------------------------------------------------------------------------- #
+#   PostgreSQL                                                               #
+# -------------------------------------------------------------------------- #
+
+# PostgreSQL host
+postgresql_server:
+
+# PostgreSQL user. It needs to connect to the "postgres" database but does not 
+# require any privileges, so you should consider creating a separate, 
+# unprivileged user
+postgresql_user:
+
+# PostgreSQL user's password
+postgresql_pass:
+
 
 # -------------------------------------------------------------------------- #
 #   Nginx                                                                    #
