@@ -6,7 +6,6 @@ class PostgreSql(Check):
         Check.__init__(self, logger)
         self.pgVersion = None
         self.db = None
-        self.logger = logger
 
     def _get_version(self):
         if self.pgVersion is None and self.db is not None:

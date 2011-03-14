@@ -1,12 +1,14 @@
 import time
 import unittest
+import logging
+logger = logging.getLogger()
 from checks import *
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
     
     def setUp(self):
-        self.c = Check()
+        self.c = Check(logger)
         self.c.gauge("test-metric")
         self.c.counter("test-counter")
 
