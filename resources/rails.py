@@ -29,7 +29,7 @@ class RailsLP(ResourcePlugin):
 
     def describe_snapshot(self):
         return SnapshotDescriptor(1,
-            SnapshotField('url','str', aggregator = agg.append, temporal_aggregator = agg.append)
+            SnapshotField('url','str', aggregator = agg.append, temporal_aggregator = agg.append),
             SnapshotField("action", 'str', aggregator = agg.append, 
                 temporal_aggregator = agg.append, group_on = True, temporal_group_on = True),
             SnapshotField("web_time", 'int'),

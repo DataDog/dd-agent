@@ -1,5 +1,5 @@
 Source: datadog-agent
-Maintainer: Fabrice Ollivier <fabrice@datadoghq.com>
+Maintainer: Datadog Packages <package@datadoghq.com>
 Section: python
 Priority: optional
 Build-Depends: debhelper (>= 7), python-support (>= 0.8.4)
