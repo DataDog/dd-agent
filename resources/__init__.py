@@ -57,8 +57,8 @@ class ResourcePlugin(object):
         self.log = logger
         self.config = agentConfig
         self._descriptor = None
-        self._snapshots = [] #stack with non aggregated snapshots
-        self._last_snapshot = None #last aggregated snapshot
+        self._snapshots = [] #stack with non (temporarly) aggregated snapshots
+        self._last_snapshots = None #last aggregated snapshots
         self._current_snapshot = None #snapshot being built
         self._current_ts = None
         self._format_described = False #Do we need to send format description to the intake ?
@@ -116,7 +116,12 @@ class ResourcePlugin(object):
                 arglist = []
                 for line in lines:
                     arglist.append(line[i])
-                result.append(agg_fun(arglist))
+                try:
+                    result.append(agg_fun(arglist))
+                except Exception, e:
+                    self.log.error("Error aggregating metric: %s" % metric.name)
+                    self.log.error("Error while applying %s on %s" % (agg_fun, str(arglist)))
+                    raise e
 
             i = i + 1
 
@@ -151,21 +156,39 @@ class ResourcePlugin(object):
 
         return dlist2
 
-    def _flush_snapshots(self,snapshot_group = None, group_by = None, filter_by = None):
+    def _flush_snapshots(self,snapshot_group = None, group_by = None, filter_by = None, 
+                              temporal = True):
         #Aggregate (temporally) all snaphots into last_snapshots
-        self._last_snapshot = (int(time.mktime(snapshot_group.timetuple())),
+        
+        new_snap = (int(time.mktime(snapshot_group.timetuple())),
                                self._aggregate(self._snapshots,
                                               group_by = group_by,
                                               filter_by = filter_by,
-                                              temporal = True))
+                                              temporal = temporal))
+        if self._last_snapshots is None:
+            self._last_snapshots = [new_snap]
+        else:
+            self._last_snapshots.append(new_snap)
+
         self._snapshots = []
 
 
+    def _check_current_snapshot(self,now):
+        """Check if the current snapshot is complete"""
+        if self._current_ts is not None:
+            g1 = self.get_group_ts(self._current_ts)
+            g2 = self.get_group_ts(now)
+            if g1 != g2:
+                self.log.debug("Snapshot complete at %s" % g1)
+                self.end_snapshot(self._current_ts)
+                self.flush_snapshots(g1)
+        if self._current_snapshot is None:
+            self.start_snapshot()
+        
     def _flush_if_needed(self,now):
         """Check the older snapshot in the stack, and flush
             them all if needed"""
         if self._current_ts is not None:
-
             g1 = self.get_group_ts(self._current_ts)
             g2 = self.get_group_ts(now)
             self.log.debug("Resources: (%s) group now: %s, group ts: %s" % (self.RESOURCE_KEY,g2,g1))
@@ -174,7 +197,7 @@ class ResourcePlugin(object):
                 self.flush_snapshots(g2)
                 self._current_ts = None
 
-    #----------------- public API ------------------------------------------
+    #--------------------------------- public API ------------------------------------------
 
     def get_format_version(self):
         return self._descriptor.version
@@ -205,18 +228,32 @@ class ResourcePlugin(object):
         raise Exception("To be implemented in plugin")
 
     def start_snapshot(self):
-        """Start a new snapshot for the current timestamp"""
+        """Start a new snapshot for any timestamp"""
         self._current_snapshot = []
 
-    def add_to_snapshot(self,metric_line):
-        self._current_snapshot.append(metric_line)
+    def add_to_snapshot(self,metric_line,ts = None):
+        """2 modes:
+            - raw snapshots: do not provide ts
+            - incremental snapshots: provide ts, a new snapshot group
+              will be created if needed"""
+        if ts is None:
+            self._current_snapshot.append(metric_line)
+        else:
+            self._check_current_snapshot(ts)
+            self._current_ts = ts
+            self._current_snapshot.append(metric_line)
 
-    def end_snapshot(self,group_by=None,filter_by=None):
+    def end_snapshot(self,ts=None,group_by=None,filter_by=None):
         """End the current snapshot:
             group and aggregate as configured
+            ts: a datetime object
         """
 
-        now = datetime.now()
+        if ts is None:
+            now = datetime.now()
+        else:
+            now = ts
+
         # We flush before, by checking if the new snapshot
         # is in the same group as the one before and if
         # the flush interval is correct
@@ -224,11 +261,16 @@ class ResourcePlugin(object):
 
         if self._current_ts is None:
             self._current_ts = now
-        self._snapshots.extend(
-            self._aggregate(self._current_snapshot, 
-                            group_by = group_by,
-                            filter_by = filter_by,
-                            temporal = False))
+        if group_by is not None or filter_by is not None:
+            self._snapshots.extend(
+                self._aggregate(self._current_snapshot, 
+                                group_by = group_by,
+                                filter_by = filter_by,
+                                temporal = False))
+        else:
+            self._snapshots.extend(self._current_snapshot)
+
+        self._current_snapshot = None
 
     def flush_snapshots(self,snapshot_group):
         raise Exception("To be implemented (by calling _flush_snapshot) in a plugin")
@@ -236,7 +278,7 @@ class ResourcePlugin(object):
     def check(self):
         raise Exception("To be implemented in a plugin")
 
-    def pop_snapshot(self):
-        ret = self._last_snapshot
-        self._last_snapshot = None
+    def pop_snapshots(self):
+        ret = self._last_snapshots
+        self._last_snapshots = None
         return ret

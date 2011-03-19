@@ -84,10 +84,12 @@ class RollupLP(object):
     def _parse_line(self, line):
 
         if self.state == RollupLP.INIT:
-            return self._process_init(line)
+            self._process_init(line)
         elif self.state == RollupLP.LOOK_END:
-            return self._process_end(line)
+            self._process_end(line)
  
+        return False
+
     def check(self, logger, agentConfig):
         self.logger = logger
 

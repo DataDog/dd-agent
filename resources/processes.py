@@ -91,19 +91,73 @@ class Processes(ResourcePlugin):
 if __name__ == "__main__":
     
     import logging
+    from datetime import datetime
+    import numpy
+    from scipy import stats
 
     logger = logging.getLogger("processes")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 
     proc = Processes(logger,{})
-    proc.check()
-    print proc._snapshots
-    print proc._current_ts
-    proc.check()
-    print proc._current_ts
-    print proc._snapshots
-    proc.flush_snapshots()
-    print "##########################"
-    print proc.pop_snapshot()
-    print proc._current_ts
+   
+    times = { 'avro': [],
+              'json': [],
+              'proto': [],
+              'pickle': [] }
+
+    dectimes = { 'avro': [],
+                 'json': [],
+                 'proto': [],
+                 'pickle': [] }
+
+
+    schema = proc.get_avro_schema()
+
+    for index in xrange(0,1000):
+        proc.check()
+        proc.flush_snapshots(datetime.now())
+        snap = proc.pop_snapshot()[1]
+        base_name = 'data/processes-%d' % index
+
+        dt = datetime.now()
+        proc.write_avro_file(schema,base_name + '.avro',snap)
+        dt2 = datetime.now()
+        times['avro'].append((dt2-dt).microseconds)
+        dt = datetime.now()
+        proc.read_avro_file(base_name + '.avro')
+        dt2 = datetime.now()
+        dectimes['avro'].append((dt2-dt).microseconds)
+        
+        dt = datetime.now()
+        proc.write_json_file(base_name + '.json',snap)
+        dt2 = datetime.now()
+        times['json'].append((dt2-dt).microseconds)
+        dt = datetime.now()
+        proc.read_json_file(base_name + '.json')
+        dt2 = datetime.now()
+        dectimes['json'].append((dt2-dt).microseconds)
+
+        dt = datetime.now()
+        proc.write_proto_file(base_name + '.proto',snap)
+        dt2 = datetime.now()
+        times['proto'].append((dt2-dt).microseconds)
+        dt = datetime.now()
+        proc.read_proto_file(base_name + '.proto')
+        dt2 = datetime.now()
+        dectimes['proto'].append((dt2-dt).microseconds)
+
+        dt = datetime.now()
+        proc.write_pickle_file(base_name + '.pickle',snap)
+        dt2 = datetime.now()
+        times['pickle'].append((dt2-dt).microseconds)
+        dt = datetime.now()
+        proc.read_pickle_file(base_name + '.pickle')
+        dt2 = datetime.now()
+        dectimes['pickle'].append((dt2-dt).microseconds)
+
+
+    #Display stats
+    for enc in times:
+        print "enc:", enc, "mean:", numpy.mean(times[enc]),"median:", numpy.median(times[enc]),"90%:",stats.scoreatpercentile(times[enc], 90) 
+        print "dec:", enc, "mean:", numpy.mean(dectimes[enc]),"median:", numpy.median(dectimes[enc]),"90%:",stats.scoreatpercentile(dectimes[enc], 90) 

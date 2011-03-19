@@ -55,18 +55,18 @@ class TailFile(object):
         try:
             self._open_file(move_end=move_end)
 
-            done = False
             while True:
-                if done:
-                    break
-
                 where = self._f.tell()
                 line = self._f.readline()
                 if line:
-                   done = self._callback(line.rstrip("\n"))
+                    if self._callback(line.rstrip("\n")):
+                        where = self._f.tell()
+                        yield False
+                        self._open_file(move_end=False,where=where)            
                 else:
                     yield True
                     self._open_file(move_end=False,where=where)
+
         except Exception, e:
             # log but survive
             self._log.exception(e)

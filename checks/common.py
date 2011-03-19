@@ -309,11 +309,10 @@ class checks:
         has_resource = False
         for resources_check in self._resources_checks:
             resources_check.check()
-            snap = resources_check.pop_snapshot()
-            if snap:
+            snaps = resources_check.pop_snapshots()
+            if snaps:
                 has_resource = True
-                res_value = { 'ts': snap[0],
-                              'data': snap[1],
+                res_value = { 'snaps': snaps,
                               'format_version': resources_check.get_format_version() }                              
                 res_format = resources_check.describe_format_if_needed()
                 if res_format is not None:
