@@ -127,3 +127,36 @@ hudson_home: /var/lib/hudson/
 
 # Path to Nagios's event log file
 nagios_log: /var/log/nagios3/nagios.log
+
+
+# -------------------------------------------------------------------------- #
+#   Java                                                                     #
+# -------------------------------------------------------------------------- #
+
+# JMX server:port to connect to
+# jvm_jmx_server: localhost:8090
+jvm_jmx_server: 
+
+# JMX user to log in with, if needed
+#jvm_jmx_user: john
+
+# Password for the configured JMX user
+#jvm_jmx_pass: foobar
+
+# Name to report the statistics for this java VM. This will allow to monitor
+# Several JVMs running on the same machine
+jvm_jmx_name: Java
+
+# -------------------------------------------------------------------------- #
+#   Tomcat                                                                   #
+# -------------------------------------------------------------------------- #
+
+# host:port to connect to. Must be configured in tomcat setenv.sh or similar
+tomcat_jmx_server:
+
+# JMX user to log in with, if needed
+#tomcat_jmx_user: john
+
+# Password for the configured JMX user
+#tomcat_jmx_pass: foobar
+

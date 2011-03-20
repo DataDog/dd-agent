@@ -32,6 +32,8 @@ from checks.ganglia import Ganglia
 from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
 
+from checks.jmx import Jvm, Tomcat
+
 from resources.processes import Processes as ResProcesses
 
 def recordsize(func):
@@ -86,6 +88,8 @@ class checks:
         self._ganglia = Ganglia()
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
+        self._jvm = Jvm(self.checksLogger)
+        self._tomcat = Tomcat(self.checksLogger)
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -171,6 +175,14 @@ class checks:
     def getRedisData(self):
         return self._redis.check(self.agentConfig)
 
+    @recordsize
+    def getJvmData(self):
+        return self._jvm.check(self.agentConfig)
+
+    @recordsize
+    def getTomcatData(self):
+        return self._tomcat.check(self.agentConfig)
+
     #
     # CPU Stats
     #
@@ -201,6 +213,8 @@ class checks:
         datadogData = self.getDatadogData()
         cassandraData = self.getCassandraData()
         redisData = self.getRedisData()
+        jvmData = self.getJvmData()
+        tomcatData = self.getTomcatData()
  
         checksData = {
             'collection_timestamp': time.time(),
@@ -269,7 +283,13 @@ class checks:
         if redisData:
             # Redis data already has the proper metric names
             checksData.update(redisData)
-        
+       
+        if jvmData:
+            checksData['jvm'] = jvmData
+
+        if tomcatData:
+            checksData['tomcat'] = tomcatData
+ 
        # Include system stats on first postback
         if firstRun == True:
             checksData['systemStats'] = systemStats

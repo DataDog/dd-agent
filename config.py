@@ -148,6 +148,24 @@ def get_config():
         if config.has_option('Main', 'cassandra_nodetool'):
             agentConfig['cassandra_port'] = config.get('Main', 'cassandra_port')
 
+        # Java config
+        if config.has_option('Main', 'jvm_jmx_server'):
+            agentConfig['JVMServer'] = config.get('Main', 'jvm_jmx_server')
+        if config.has_option('Main', 'jvm_jmx_user'):
+            agentConfig['JVMUser'] = config.get('Main', 'jvm_jmx_user')
+        if config.has_option('Main', 'jvm_jmx_pass'):
+            agentConfig['JVMPassword'] = config.get('Main', 'jvm_jmx_pass')
+        if config.has_option('Main', 'jvm_jmx_name'):
+            agentConfig['JVMName'] = config.get('Main', 'jvm_jmx_name')
+
+        # Tomcat config
+        if config.has_option('Main', 'tomcat_jmx_server'):
+            agentConfig['TomcatServer'] = config.get('Main', 'tomcat_jmx_server')
+        if config.has_option('Main', 'tomcat_jmx_user'):
+            agentConfig['TomcatUser'] = config.get('Main', 'tomcat_jmx_user')
+        if config.has_option('Main', 'tomcat_jmx_pass'):
+            agentConfig['TomcatPassword'] = config.get('Main', 'tomcat_jmx_pass')
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
