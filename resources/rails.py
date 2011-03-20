@@ -38,10 +38,9 @@ class RailsLP(ResourcePlugin):
 
     def describe_snapshot(self):
         return SnapshotDescriptor(1,
-            SnapshotField('url','str', aggregator = agg.append, temporal_aggregator = agg.append,
-                group_on = True, temporal_group_on = True),
+            SnapshotField('url','str', aggregator = agg.append, temporal_aggregator = agg.append),
             SnapshotField("action", 'str', aggregator = agg.append, 
-                temporal_aggregator = agg.append),
+                temporal_aggregator = agg.append, group_on = True, temporal_group_on = True),
             SnapshotField("web_time", 'int'),
             SnapshotField("db_time", 'int'),
             SnapshotField("total_time", 'int'),
@@ -50,8 +49,8 @@ class RailsLP(ResourcePlugin):
                 server_temporal_aggregator = agg.avg))
 
     @staticmethod
-    def _group_by_url(o):
-        return o[0]
+    def _group_by_action(o):
+        return o[1]
 
     @staticmethod
     def _filter_by_usage(o):
@@ -122,7 +121,7 @@ class RailsLP(ResourcePlugin):
 
     def flush_snapshots(self,snapshot_group):
         self._flush_snapshots(snapshot_group = snapshot_group,
-                group_by = self._group_by_url,
+                group_by = self._group_by_action,
                 filter_by = self._filter_by_usage, temporal = False)
 
     def check(self):
