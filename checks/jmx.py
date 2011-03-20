@@ -103,10 +103,14 @@ class Jvm(Check):
         Check.__init__(self, logger)
         self.jmx = JmxConnector()
 
-    def _store_metric(self,mname,jvm_name,val):
+    def _store_metric(self,kind,mname,jvm_name,val):
         name = jvm_name + "." + mname
-        if not self.is_gauge(name):
-            self.gauge(name)
+        if kind == "gauge":
+            if not self.is_gauge(name):
+                self.gauge(name)
+        else:
+            if not self.is_counter(name):
+                self.counter(name)
         self.save_sample(name,float(val))
 
     def _check_jvm(self, jvm_name, agentConfig, key_server, key_user, key_passwd):
@@ -122,7 +126,7 @@ class Jvm(Check):
                 return False
 
             for key in values:
-                self._store_metric(key,jvm_name,values[key])  
+                self._store_metric("gauge",key,jvm_name,values[key])  
 
     def check(self, agentConfig):
         self._check_jvm(agentConfig.get('JVMName'),agentConfig,'JVMServer','JVMUser','JVMPassword')
@@ -133,13 +137,28 @@ class Tomcat(Jvm):
     thread_pool_re = re.compile(r".*name=(.*),.*")
 
     def _get_service_stat(self,name):
-        maxThread   = self.jmx.get_attribute(name,"ThreadPool","maxThreads")
-        threadCount = self.jmx.get_attribute(name,"ThreadPool","currentThreadCount")
-        threadBusy  = self.jmx.get_attribute(name,"ThreadPool","currentThreadsBusy")
 
-        self._store_metric("tomcat.threads.max",name,maxThread)
-        self._store_metric("tomcat.threads.count",name,threadCount)
-        self._store_metric("tomcat.threads.busy",name,threadBusy)
+        #Thread pool
+        self._store_metric("gauge","tomcat.threads.max",name,
+            self.jmx.get_attribute(name,"ThreadPool","maxThreads"))
+        self._store_metric("gauge","tomcat.threads.count",name,
+            self.jmx.get_attribute(name,"ThreadPool","currentThreadCount"))
+        self._store_metric("gauge","tomcat.threads.busy",name,
+            self.jmx.get_attribute(name,"ThreadPool","currentThreadsBusy"))
+
+        # Global request processor
+        self._store_metric("counter","tomcat.bytes_sent",name,
+            self.jmx.get_attribute(name,"GlobalRequestProcessor","bytesSent"))
+        self._store_metric("counter","tomcat.bytes_rcvd",name,
+            self.jmx.get_attribute(name,"GlobalRequestProcessor","bytesReceived"))        
+        self._store_metric("counter","tomcat.processing_time",name,
+            self.jmx.get_attribute(name,"GlobalRequestProcessor","processingTime"))
+        self._store_metric("counter","tomcat.error_count",name,
+             self.jmx.get_attribute(name,"GlobalRequestProcessor","errorCount"))
+        self._store_metric("counter","tomcat.request_count",name,
+            self.jmx.get_attribute(name,"GlobalRequestProcessor","requestCount"))        
+        self._store_metric("gauge","tomcat.request_count",name,
+            self.jmx.get_attribute(name,"GlobalRequestProcessor","maxTime"))
 
     def get_stats(self):
         self.jmx.set_domain("Catalina")
@@ -168,4 +187,5 @@ if __name__ == "__main__":
     #print jvm.check({'JVMServer': "localhost:8090", 'JVMName': "tomcat"})
 
     tomcat = Tomcat(logging)
+    print tomcat.check({'TomcatServer': 'localhost:8090'})
     print tomcat.check({'TomcatServer': 'localhost:8090'})
