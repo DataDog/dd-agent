@@ -79,7 +79,7 @@ class Nagios(object):
 
         return None
 
-    def check(self, logger, agentConfig):
+    def check(self, logger, agentConfig, move_end=True):
 
         self.logger = logger
 
@@ -94,7 +94,7 @@ class Nagios(object):
       
         # Build our tail -f 
         if self.gen is None:
-            self.gen = TailFile(logger,log_path,self._parse_line).tail(move_end=True)
+            self.gen = TailFile(logger,log_path,self._parse_line).tail(move_end)
 
         # read until the end of file
 	try:
@@ -105,6 +105,20 @@ class Nagios(object):
 	    self.logger.warn("Can't tail {0} file".format(log_path))
 
         return self.events
+
+def parse_log(api_key, log_file):
+    import logging
+    import socket
+    import sys
+    
+    logger = logging.getLogger("nagios")    
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
+    nagios = Nagios(socket.gethostname())
+
+    events = nagios.check(logger, {'apiKey': api_key, 'nagios_log': log_file}, move_end=False)
+    for e in events:
+        yield e
 
 if __name__ == "__main__":
     import logging
