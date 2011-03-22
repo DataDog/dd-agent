@@ -1,7 +1,5 @@
 import time
 import re
-import pexpect
-
 from checks import Check
 
 class JmxConnector:
@@ -15,6 +13,8 @@ class JmxConnector:
         self._jmx.expect_exact("$>") # got prompt, we can continue
 
     def connect(self,connection,user=None,passwd=None,timeout = 4):
+        import pexpect
+
         self._jmx = pexpect.spawn("java -jar libs/jmxterm-1.0-alpha-4-uber.jar", timeout = timeout)
         self._wait_prompt()
         cnt = "open %s" % connection
