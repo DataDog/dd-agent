@@ -195,32 +195,48 @@ class Tomcat(Jvm):
 
 class ActiveMQ(Jvm):
 
-    broker_re = re.compile(r"org.apache.activemq:BrokerName=(.*),Destination=(.*),Type=Queue")
+    queue_re = re.compile(r"org.apache.activemq:BrokerName=(.*),Destination=(.*),Type=Queue")
+    broker_re = re.compile(r"org.apache.activemq:BrokerName=(.*),Type=Broker")
 
     def _get_queue_stat(self, bean, broker, queue):
         self.jmx.set_bean(bean)
         name = "%s:%s" % (broker, queue)
         #gauge
-        self.store_attribute("gauge","activemq.avg_enqueue_time",name,"AverageEnqueueTime")
-        self.store_attribute("gauge","activemq.consumer_count",name,"ConsumerCount")
-        self.store_attribute("gauge","activemq.producer_count",name,"ProducerCount")
-        self.store_attribute("gauge","activemq.max_enqueue_time",name,"MaxEnqueueTime")
-        self.store_attribute("gauge","activemq.min_enqueue_time",name,"MinEnqueueTime")
-        self.store_attribute("gauge","activemq.memory_percent_usage",name,"MemoryPercentUsage")
-        self.store_attribute("gauge","activemq.queue_size",name,"QueueSize")
+        self.store_attribute("gauge","activemq.queue.avg_enqueue_time",name,"AverageEnqueueTime")
+        self.store_attribute("gauge","activemq.queue.consumer_count",name,"ConsumerCount")
+        self.store_attribute("gauge","activemq.queue.producer_count",name,"ProducerCount")
+        self.store_attribute("gauge","activemq.queue.max_enqueue_time",name,"MaxEnqueueTime")
+        self.store_attribute("gauge","activemq.queue.min_enqueue_time",name,"MinEnqueueTime")
+        self.store_attribute("gauge","activemq.queue.memory_pct",name,"MemoryPercentUsage")
+        self.store_attribute("gauge","activemq.queue.size",name,"QueueSize")
 
         #counter
-        self.store_attribute("counter","activemq.dequeue_count",name,"DequeueCount")
-        self.store_attribute("counter","activemq.dispatch_count",name,"DispatchCount")
-        self.store_attribute("counter","activemq.enqueue_count",name,"EnqueueCount")
-        self.store_attribute("counter","activemq.expired_count",name,"ExpiredCount")
-        self.store_attribute("counter","activemq.in_flight_count",name,"InFlightCount")
+        self.store_attribute("counter","activemq.queue.dequeue_count",name,"DequeueCount")
+        self.store_attribute("counter","activemq.queue.dispatch_count",name,"DispatchCount")
+        self.store_attribute("counter","activemq.queue.enqueue_count",name,"EnqueueCount")
+        self.store_attribute("counter","activemq.queue.expired_count",name,"ExpiredCount")
+        self.store_attribute("counter","activemq.queue.in_flight_count",name,"InFlightCount")
+
+    def _get_broker_stats(self ,bean, broker):
+        
+        self.jmx.set_bean(bean)
+
+        self.store_attribute("gauge","activemq.broker.store_pct",broker,"StorePercentUsage")
+        self.store_attribute("gauge","activemq.broker.memory_pct",broker,"MemoryPercentUsage")
+        self.store_attribute("gauge","activemq.broker.temp_pct",broker,"TempPercentUsage")
 
     def get_stats(self):
         self.jmx.set_domain("org.apache.activemq")
-        beans = self.jmx.match_beans("Type=Queue")
+
+        beans = self.jmx.match_beans("Type=Broker")
         for bean in beans:
             m = self.broker_re.match(bean)
+            if m is not None:
+                self._get_broker_stats(bean, m.group(1))
+
+        beans = self.jmx.match_beans("Type=Queue")
+        for bean in beans:
+            m = self.queue_re.match(bean)
             if m is not None:
                 broker, queue = m.groups()
                 self._get_queue_stat(bean, broker, queue)
@@ -239,11 +255,11 @@ class ActiveMQ(Jvm):
 
 class Solr(Jvm):
 
-    lru_cache_name_re = re.compile(r".*,type=(.*)")
+    _name_re = re.compile(r".*,type=(.*)")
 
     def _lru_cache_stat(self,bean):
 
-        m = self.lru_cache_name_re.match(bean)
+        m = self._name_re.match(bean)
         if m is not None:
             name = m.group(1)
             self.jmx.set_bean(bean)
@@ -258,6 +274,21 @@ class Solr(Jvm):
         self.store_attribute("gauge","solr.searcher.numdocs",None,"numDocs")
         self.store_attribute("gauge","solr.searcher.warmup",None,"warmupTime")
 
+    def _get_search_handler_stats(self, bean):
+        m = self._name_re.match(bean)
+        if m is not None:
+            name = m.group(1)
+            self.jmx.set_bean(bean)
+            self.store_attribute("gauge","solr.search_handler.avg_requests_per_sec",
+                    name,"avgRequestsPerSecond")
+            self.store_attribute("gauge","solr.search_handler.avg_time_per_req",
+                    name,"avgTimePerRequest")
+
+            self.store_attribute("counter","solr.search_handler.errors",name,"errors")
+            self.store_attribute("counter","solr.search_handler.requests",name,"requests")
+            self.store_attribute("counter","solr.search_handler.timeouts",name,"timeouts")
+            self.store_attribute("counter","solr.search_handler.time",name,"totalTime")
+
     def get_stats(self):
         self.jmx.set_domain("solr")
         beans = self.jmx.match_beans("type=searcher")
@@ -271,6 +302,11 @@ class Solr(Jvm):
         beans = self.jmx.match_beans("id=org.apache.solr.search.LRUCache")
         for bean in beans:
             self._lru_cache_stat(bean)
+
+        beans = self.jmx.match_beans("id=org.apache.solr.handler.component.SearchHandler")
+        print beans
+        for bean in beans:
+            self._get_search_handler_stats(bean)
 
     def check(self, agentConfig):
 
@@ -291,14 +327,14 @@ if __name__ == "__main__":
     #jvm = Jvm(logging)
     #print jvm.check({'JVMServer': "localhost:8090", 'JVMName': "tomcat"})
 
-    #tomcat = Tomcat(logging)
-    #print tomcat.check({'TomcatServer': 'localhost:8090'})
-    #print tomcat.check({'TomcatServer': 'localhost:8090'})
+    tomcat = Tomcat(logging)
+    print tomcat.check({'TomcatServer': 'localhost:8090'})
+    print tomcat.check({'TomcatServer': 'localhost:8090'})
 
     #a = ActiveMQ(logging)
-    #print a.check({'ActiveMQServer': '5684'})
-    #print a.check({'ActiveMQServer': '5684'})
+    #print a.check({'ActiveMQServer': '4934'})
+    #print a.check({'ActiveMQServer': '4934'})
 
-    s = Solr(logging)
-    print s.check({'SolrServer': '4918'})
-    print s.check({'SolrServer': '4918'})
+    #s = Solr(logging)
+    #print s.check({'SolrServer': '6975'})
+    #print s.check({'SolrServer': '6975'})
