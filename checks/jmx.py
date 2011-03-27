@@ -156,6 +156,9 @@ class Jvm(Check):
 class Tomcat(Jvm):
 
     thread_pool_re = re.compile(r".*name=(.*),.*")
+    cache_re = re.compile(r".*host=(.*),path=(.*),type=Cache")
+    jsp_re = re.compile(r".*J2EEApplication=(.*),J2EEServer=(.*),WebModule=(.*),name=jsp,type=JspMonitor")
+    servlet_re = re.compile(r".*J2EEApplication=(.*),J2EEServer=(.*),WebModule=(.*),j2eeType=Servlet,name=(.*)")
 
     def _get_service_stat(self,name):
 
@@ -172,15 +175,57 @@ class Tomcat(Jvm):
         self.store_attribute("counter","tomcat.processing_time",name,"processingTime")
         self.store_attribute("counter","tomcat.error_count",name,"errorCount")
         self.store_attribute("counter","tomcat.request_count",name,"requestCount")
-        self.store_attribute("gauge","tomcat.request_count",name,"maxTime")
+        self.store_attribute("gauge","tomcat.max_time",name,"maxTime")
+
+    def _get_cache_data(self):
+
+        beans = self.jmx.match_beans("type=Cache")
+        for bean in beans:
+            m = self.cache_re.match(bean)
+            if m is not None:
+                self.jmx.set_bean(bean)
+                host, path = m.groups()
+                name = host + ":" + path
+                self.store_attribute("counter","tomcat.cache.access_count",name,"accessCount")
+                self.store_attribute("counter","tomcat.cache.hits_count",name,"hitsCount")
+
+    def _get_jsp_data(self):
+
+        beans = self.jmx.match_beans("name=jsp,type=JspMonitor")
+        for bean in beans:
+            m = self.jsp_re.match(bean)
+            if m is not None:
+                self.jmx.set_bean(bean)
+                module, app, server = m.groups()
+                name = app + ":" + server + ":" + module
+                self.store_attribute("counter","tomcat.jsp.count",name,"jspCount")
+                self.store_attribute("counter","tomcat.jsp.reload_count",name,"jspReloadCount")
+
+    def _get_servlet_data(self):
+
+        beans = self.jmx.match_beans("j2eeType=Servlet")
+        for bean in beans:
+            m = self.servlet_re.match(bean)
+            if m is not None:
+                self.jmx.set_bean(bean)
+                app, server, module, app_name = m.groups()
+                name = app + ":" + server + ":" + module + ":" + app_name
+                self.store_attribute("counter","tomcat.servlet.error_count",name,"errorCount")
+                self.store_attribute("counter","tomcat.servlet.processing_time",name,"processingTime")
+                self.store_attribute("counter","tomcat.servlet.request_count",name,"requestCount")
 
     def get_stats(self):
         self.jmx.set_domain("Catalina")
+
         beans = self.jmx.match_beans("type=ThreadPool")
         for bean in beans:
             m = self.thread_pool_re.match(bean)
             if m is not None:
                 self._get_service_stat(m.group(1))
+
+        self._get_cache_data()
+        self._get_jsp_data()
+        self._get_servlet_data()
 
     def check(self, agentConfig):
 
