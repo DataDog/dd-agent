@@ -15,7 +15,7 @@ class JmxConnector:
     def connect(self,connection,user=None,passwd=None,timeout = 4):
         import pexpect
 
-        self._jmx = pexpect.spawn("java -jar libs/jmxterm-1.0-alpha-4-uber.jar", timeout = timeout)
+        self._jmx = pexpect.spawn("java -jar checks/libs/jmxterm-1.0-alpha-4-uber.jar", timeout = timeout)
         self._wait_prompt()
         cnt = "open %s" % connection
         if user is not None:
