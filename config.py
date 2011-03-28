@@ -166,6 +166,23 @@ def get_config():
         if config.has_option('Main', 'tomcat_jmx_pass'):
             agentConfig['TomcatPassword'] = config.get('Main', 'tomcat_jmx_pass')
 
+        # ActiveMQ config
+        if config.has_option('Main', 'activemq_jmx_server'):
+            agentConfig['ActiveMQServer'] = config.get('Main', 'activemq_jmx_server')
+        if config.has_option('Main', 'activemq_jmx_user'):
+            agentConfig['ActiveMQUser'] = config.get('Main', 'activemq_jmx_user')
+        if config.has_option('Main', 'activemq_jmx_pass'):
+            agentConfig['ActiveMQPassword'] = config.get('Main', 'activemq_jmx_pass')
+
+        # Solr config
+        if config.has_option('Main', 'solr_jmx_server'):
+            agentConfig['SolrServer'] = config.get('Main', 'solr_jmx_server')
+        if config.has_option('Main', 'solr_jmx_user'):
+            agentConfig['SolrUser'] = config.get('Main', 'solr_jmx_user')
+        if config.has_option('Main', 'solr_jmx_pass'):
+            agentConfig['SolrPassword'] = config.get('Main', 'solr_jmx_pass')
+
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

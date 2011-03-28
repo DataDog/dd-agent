@@ -12,6 +12,9 @@ class JmxConnector:
     def _wait_prompt(self):
         self._jmx.expect_exact("$>") # got prompt, we can continue
 
+    def connected(self):
+        return self._jmx is not None
+
     def connect(self,connection,user=None,passwd=None,timeout = 4):
         import pexpect
 
@@ -214,7 +217,7 @@ class Tomcat(Jvm):
                 self.store_attribute("counter","tomcat.servlet.processing_time",name,"processingTime")
                 self.store_attribute("counter","tomcat.servlet.request_count",name,"requestCount")
 
-    def get_stats(self):
+    def get_stats(self):        
         self.jmx.set_domain("Catalina")
 
         beans = self.jmx.match_beans("type=ThreadPool")
@@ -231,7 +234,8 @@ class Tomcat(Jvm):
 
         try:
             self._check_jvm('tomcat',agentConfig,'TomcatServer','TomcatUser','TomcatPassword')
-            self.get_stats()
+            if self.jmx.connected():
+                self.get_stats()
         except Exception, e:
             self.logger.exception('Error while fetching Tomcat metrics: %s' % e)
 
@@ -291,7 +295,8 @@ class ActiveMQ(Jvm):
         try:
             self._check_jvm('activemq',agentConfig,'ActiveMQServer',
                 'ActiveMQUser','ActiveMQPassword')
-            self.get_stats()
+            if self.jmx.connected():
+                self.get_stats()
         except Exception, e:
             self.logger.exception('Error while fetching ActiveMQ metrics: %s' % e)
 
@@ -358,7 +363,8 @@ class Solr(Jvm):
         try:
             self._check_jvm('solr',agentConfig,'SolrServer',
                 'SolrUser','SolrPassword')
-            self.get_stats()
+            if self.jmx.connected():
+                self.get_stats()
         except Exception, e:
             self.logger.exception('Error while fetching Solr metrics: %s' % e)
 

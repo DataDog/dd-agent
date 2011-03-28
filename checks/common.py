@@ -32,7 +32,7 @@ from checks.ganglia import Ganglia
 from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
 
-from checks.jmx import Jvm, Tomcat
+from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 
 from resources.processes import Processes as ResProcesses
 
@@ -90,6 +90,8 @@ class checks:
         self._redis = Redis(self.checksLogger)
         self._jvm = Jvm(self.checksLogger)
         self._tomcat = Tomcat(self.checksLogger)
+        self._activemq = ActiveMQ(self.checksLogger)
+        self._solr = Solr(self.checksLogger)
 
         if agentConfig.get('has_datadog',False):
             self._datadogs = [ddRollupLP()]
@@ -183,6 +185,15 @@ class checks:
     def getTomcatData(self):
         return self._tomcat.check(self.agentConfig)
 
+    @recordsize
+    def getActiveMQData(self):
+        return self._activemq.check(self.agentConfig)
+
+    @recordsize
+    def getSolrData(self):
+        return self._solr.check(self.agentConfig)
+
+
     #
     # CPU Stats
     #
@@ -215,7 +226,9 @@ class checks:
         redisData = self.getRedisData()
         jvmData = self.getJvmData()
         tomcatData = self.getTomcatData()
- 
+        activeMQData = self.getActiveMQData()
+        solrData = self.getSolrData() 
+
         checksData = {
             'collection_timestamp': time.time(),
             'os' : self.os, 
@@ -289,6 +302,12 @@ class checks:
 
         if tomcatData:
             checksData['tomcat'] = tomcatData
+
+        if activeMQData:
+            checksData['activemq'] = activeMQData
+
+        if solrData:
+            checksData['solr'] = solrData
  
        # Include system stats on first postback
         if firstRun == True:

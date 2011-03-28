@@ -151,7 +151,7 @@ jvm_jmx_name: Java
 #   Tomcat                                                                   #
 # -------------------------------------------------------------------------- #
 
-# host:port to connect to. Must be configured in tomcat setenv.sh or similar
+# JMX host:port to connect to. Must be configured in tomcat setenv.sh or similar
 tomcat_jmx_server:
 
 # JMX user to log in with, if needed
@@ -159,4 +159,31 @@ tomcat_jmx_server:
 
 # Password for the configured JMX user
 #tomcat_jmx_pass: foobar
+
+# -------------------------------------------------------------------------- #
+#   Activemq                                                                 #
+# -------------------------------------------------------------------------- #
+
+# JMX host:port to connect to.
+activemq_jmx_server:
+
+# JMX user to log in with, if needed
+#activemq_jmx_user: john
+
+# Password for the configured JMX user, if needed
+#activemq_jmx_pass: foobar
+
+# -------------------------------------------------------------------------- #
+#  Solr                                                                      #
+# -------------------------------------------------------------------------- #
+
+# JMX host:port to connect to.
+solr_jmx_server:
+
+# JMX user to log in with, if needed
+#solr_jmx_user: john
+
+# Password for the configured JMX user, if needed
+#solr_jmx_pass: foobar
+
 
