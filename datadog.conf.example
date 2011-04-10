@@ -186,4 +186,8 @@ solr_jmx_server:
 # Password for the configured JMX user, if needed
 #solr_jmx_pass: foobar
 
+# -------------------------------------------------------------------------- #
+#  Rails                                                                     
+# -------------------------------------------------------------------------- #
 
+#rails_logs: /var/log/myrailsapp.lof
