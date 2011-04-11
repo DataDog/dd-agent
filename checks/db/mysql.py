@@ -19,6 +19,10 @@ class MySql(Check):
         self.gauge("mysqlThreadsConnected")
         self.gauge("mysqlSecondsBehindMaster")
 
+        self.counter("mysqlInnodbDataReads")
+        self.counter("mysqlInnodbDataWrites")
+        self.counter("mysqlInnodbOsLogFsyncs")
+
     def _collect_scalar(self, metric, query):
         if self.db is not None:
             try:
@@ -70,6 +74,24 @@ class MySql(Check):
                 self.logger.exception('MySQL query error when getting version')
         return self.mysqlVersion
     
+    def _collect_procfs(self):
+
+        pid_file = None
+        try:
+            if self.db is not None:
+                cursor = self.db.cursor()
+                cursor.execute("SHOW VARIABLES LIKE 'pid_file'")
+                pid_file = cursor.fetchone()[1]
+                cursor.close()
+                del cursor
+        
+            if pid_file is not None:
+                self.logger.info("pid file: %s" % str(pid_file))
+                
+        except:
+            if self.logger is not None:
+                self.logger.exception("While fetching procfs mysql data")
+
     def check(self, agentConfig):
         "Actual logic here"
         if  'MySQLServer' in agentConfig \
@@ -111,7 +133,14 @@ class MySql(Check):
             self._collect_scalar("mysqlTableLocksWaited",   "SHOW STATUS LIKE 'Table_locks_waited'")
             self._collect_scalar("mysqlThreadsConnected",   "SHOW STATUS LIKE 'Threads_connected'")
 
+            self._collect_scalar("mysqlInnodbDataReads",   "SHOW STATUS LIKE 'Innodb_data_reads'")
+            self._collect_scalar("mysqlInnodbDataWrites",  "SHOW STATUS LIKE 'Innodb_data_writes'")
+            self._collect_scalar("mysqlInnodbOsLogFsyncs", "SHOW STATUS LIKE 'Innodb_os_log_fsyncs'")
+
+            #self._collect_procfs()
+
             self._collect_dict({"Seconds_behind_master": "mysqlSecondsBehindMaster"}, "SHOW SLAVE STATUS")
+
             return self.get_samples()
         else:
             return False
