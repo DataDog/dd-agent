@@ -1,21 +1,27 @@
+datadog-agent (1.9.4-1) unstable; urgency=medium
+
+  * Support for Tomcat, ActiveMQ and Solr via JMX
+
+ -- Alexis <alq@datadoghq.com>  Wed, 13 Apr 2011 15:07:00 -0400
+
 datadog-agent (1.9.3-1) unstable; urgency=high
 
   * Numerous fixes in data collection
 
- -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2010 09:42:25 -0500
+ -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2011 09:42:25 -0500
 
 
 datadog-agent (1.9.2-2) unstable; urgency=low
 
   * Do not attempt to start the agent upon install if the conf file is missing
 
- -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2010 09:42:25 -0500
+ -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2011 09:42:25 -0500
 
 datadog-agent (1.9.2-1) unstable; urgency=low
 
   * Uses collection timestamp to accurately pinpoint data points
 
- -- Alexis <alq@datadoghq.com>  Sun, 6 Feb 2010 23:42:25 -0500
+ -- Alexis <alq@datadoghq.com>  Sun, 6 Feb 2011 23:42:25 -0500
 
 datadog-agent (1.9.1-1) unstable; urgency=medium
 
