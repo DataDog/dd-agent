@@ -19,6 +19,11 @@ class JmxConnector:
     def connect(self,connection,user=None,passwd=None,timeout = 4):
         import pexpect
 
+        if self._jmx is not None:
+            if self._jmx.isalive():
+                return
+
+        #print "connecting"
         # Figure out which path to the jar, __file__ is jmx.pyc
         pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-alpha-4-uber.jar"))
         self._jmx = pexpect.spawn("java -jar %s" % pth, timeout = timeout)
@@ -31,21 +36,26 @@ class JmxConnector:
         self._jmx.sendline(cnt)
         self._jmx.expect_exact("#Connection to "+connection+" is opened")
         self._wait_prompt()
+        #print "done"
 
     def set_domain(self,domain):
+        #print "set domain"
         self._jmx.sendline("domain " + domain)
         self._wait_prompt() 
 
     def set_bean(self,bean):
+        #print "set bean"
         self._jmx.sendline("bean " + bean)
         self._wait_prompt()
 
     def list_beans(self):
+        #print "list beans"
         self._jmx.sendline("beans")
         self._wait_prompt()
         return self._jmx.before.replace('\r','').split('\n')
 
     def get_attribute(self,attribute,**keywords):
+        #print "get attr"
         cmd = None
         domain = keywords.get("domain",None)
         for key in keywords:
@@ -88,6 +98,7 @@ class JmxConnector:
         return None
 
     def match_beans(self,string):
+        #print "match bean"
         beans = self.list_beans()
         matching_beans = []
         for bean in beans:
@@ -357,7 +368,7 @@ class Solr(Jvm):
             self._lru_cache_stat(bean)
 
         beans = self.jmx.match_beans("id=org.apache.solr.handler.component.SearchHandler")
-        print beans
+        #print beans
         for bean in beans:
             self._get_search_handler_stats(bean)
 
