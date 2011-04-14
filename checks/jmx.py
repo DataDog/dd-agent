@@ -1,5 +1,6 @@
 import time
 import re
+import os
 from checks import Check
 
 class JmxConnector:
@@ -18,7 +19,9 @@ class JmxConnector:
     def connect(self,connection,user=None,passwd=None,timeout = 4):
         import pexpect
 
-        self._jmx = pexpect.spawn("java -jar checks/libs/jmxterm-1.0-alpha-4-uber.jar", timeout = timeout)
+        # Figure out which path to the jar, __file__ is jmx.pyc
+        pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-alpha-4-uber.jar"))
+        self._jmx = pexpect.spawn("java -jar %s" % pth, timeout = timeout)
         self._wait_prompt()
         cnt = "open %s" % connection
         if user is not None:
