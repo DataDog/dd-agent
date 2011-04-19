@@ -6,8 +6,14 @@
     (C) Datadog, Inc 2011 All Rights Reserved
 """
 
+import logging
 import time
 import types
+
+try:
+    from hashlib import md5
+except ImportError:
+    import md5
 
 # Konstants
 class CheckException(Exception): pass
@@ -15,10 +21,38 @@ class Infinity(CheckException): pass
 class NaN(CheckException): pass
 class UnknownValue(CheckException): pass
 
+class LaconicFilter(logging.Filter):
+    """
+    Filters messages, only print them once while keeping memory under control
+    """
+    LACONIC_MEM_LIMIT = 1024
+
+    def __init__(self, name=""):
+        logging.Filter.__init__(self, name)
+        self.hashed_messages = {}
+
+    def hash(self, msg):
+        return md5(msg).hexdigest()
+
+    def filter(self, record):
+        try:
+            h = self.hash(record.getMessage())
+            if h in self.hashed_messages:
+                return 0
+            else:
+                # Don't blow up our memory
+                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
+                    self.hashed_messages.clear()
+                self.hashed_messages[h] = True
+                return 1
+        except:
+            return 1
+
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
     * compute rates for counters
+    * only log error messages once (instead of each time they occur)
     """
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
@@ -26,6 +60,10 @@ class Check(object):
         self._sample_store = {}
         self._counters = {} # metric_name: bool
         self.logger = logger
+        try:
+            self.logger.addFilter(LaconicFilter())
+        except:
+            self.logger.exception("Trying to install laconic log filter and failed")
 
     def counter(self, metric):
         """
