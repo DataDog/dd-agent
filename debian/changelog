@@ -1,3 +1,9 @@
+datadog-agent (1.9.5-1) unstable; urgency=low
+
+  * Rendered the syslog logger a lot more laconic. It won't complain endlessly now.
+
+ -- Alexis <alq@datadoghq.com>  Wed, 19 Apr 2011 16:25:00 -0400
+
 datadog-agent (1.9.4-2) unstable; urgency=high
 
   * Fixed path issues with JMX
