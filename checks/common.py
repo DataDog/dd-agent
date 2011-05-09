@@ -294,8 +294,7 @@ class checks:
             checksData['ioStats'] = ioStats
             
         if redisData:
-            # Redis data already has the proper metric names
-            checksData.update(redisData)
+            checksData['redis'] = redisData
        
         if jvmData:
             checksData['jvm'] = jvmData

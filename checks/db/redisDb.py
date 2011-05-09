@@ -39,7 +39,7 @@ class Redis(Check):
                 for key in info.keys():
                     if self.db_key_pattern.match(key):
                         for subkey in self.subkeys:
-                            output['.'.join(['redis', key, subkey])] = info[key].get(subkey, 0)
+                            output['.'.join([key, subkey])] = info[key].get(subkey, -1)
                 return output
             except:
                 self.logger.exception("Cannot get Redis stats")
