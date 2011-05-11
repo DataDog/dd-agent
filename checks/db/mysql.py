@@ -149,8 +149,11 @@ class MySql(Check):
                 kcpu = fields[14]
                 clk_tck = os.sysconf(os.sysconf_names["SC_CLK_TCK"])
 
-                self.save_sample("mysqlUserTime", float(ucpu)/float(clk_tck))
-                self.save_sample("mysqlKernelTime", float(kcpu)/float(clk_tck))
+                # Convert time to s (number of second of CPU used by mysql)
+                # It's a counter, it will be divided by the period, multiply by 100
+                # to get the percentage of CPU used by mysql over the period
+                self.save_sample("mysqlUserTime", int((float(ucpu)/float(clk_tck)) * 100))
+                self.save_sample("mysqlKernelTime", int((float(kcpu)/float(clk_tck)) * 100))
 
             except:
                 if self.logger is not None:
