@@ -205,6 +205,10 @@ class checks:
     # Postback
     #
     def doChecks(self, sc, firstRun, systemStats=False):
+        self._doChecks(firstRun, systemStats)
+        sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
+
+    def _doChecks(self, firstRun, systemStats=False):
         # Do the checks
         apacheStatus = self.getApacheStatus()
         diskUsage = self.getDiskUsage()
@@ -367,7 +371,6 @@ class checks:
         # Send back data 
         self.emitter(checksData, self.checksLogger, self.agentConfig)
         
-        sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
         
     def getMountedLinuxProcFsLocation(self):
         self.checksLogger.debug('getMountedLinuxProcFsLocation: attempting to fetch mounted partitions')
