@@ -4,9 +4,7 @@ from collections import namedtuple
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser
-IGNORE_EVENT_TYPES = [
-    'SERVICE NOTIFICATION'
-]
+IGNORE_EVENT_TYPES = []
 
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {
@@ -14,7 +12,8 @@ EVENT_FIELDS = {
     'CURRENT SERVICE STATE':    namedtuple('E_CurrentServiceState', 'host, check_name, event_state, event_soft_hard, return_code, payload'),
     'SERVICE ALERT':            namedtuple('E_ServiceAlert', 'host, check_name, event_state, event_soft_hard, return_code, payload'),
     'PASSIVE SERVICE CHECK':    namedtuple('E_PassiveServiceCheck', 'host, check_name, return_code, payload'),
-    'HOST ALERT':               namedtuple('E_HostAlert', 'host, event_state, event_soft_hard, return_code, payload')
+    'HOST ALERT':               namedtuple('E_HostAlert', 'host, event_state, event_soft_hard, return_code, payload'),
+    'SERVICE NOTIFICATION':     namedtuple('E_ServiceNotification', 'contact, host, check_name, event_state, notification_type, payload')
 }
 
 def create_event(timestamp, event_type, hostname, fields):
