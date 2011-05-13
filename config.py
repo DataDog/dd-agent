@@ -21,7 +21,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "1.9.5"
+    return "1.9.6"
 
 def get_config():
     options, args = get_parsed_args()
@@ -90,6 +90,9 @@ def get_config():
    
         if config.has_option('Main', 'postgresql_server'):
             agentConfig['PostgreSqlServer'] = config.get('Main','postgresql_server')
+
+        if config.has_option('Main', 'postgresql_port'):
+            agentConfig['PostgreSqlPort'] = config.get('Main','postgresql_port')
 
         if config.has_option('Main', 'postgresql_user'):
             agentConfig['PostgreSqlUser'] = config.get('Main','postgresql_user')

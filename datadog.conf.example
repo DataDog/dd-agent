@@ -5,7 +5,7 @@ dd_url: https://app.datadoghq.com
 
 # The Datadog api key to associate your agent's data with your organization. 
 # Can be found here: 
-# https://datadoghq.com/account/settings
+# https://app.datadoghq.com/account/settings
 api_key: 
 
 # Unused for now.
@@ -61,6 +61,9 @@ mysql_pass:
 
 # PostgreSQL host
 postgresql_server:
+
+# PostgreSQL port
+postgresql_port:
 
 # PostgreSQL user. It needs to connect to the "postgres" database but does not 
 # require any privileges, so you should consider creating a separate, 

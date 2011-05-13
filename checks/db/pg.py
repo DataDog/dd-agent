@@ -87,6 +87,7 @@ class PostgreSql(Check):
     def check(self, agentConfig):
 
         server = agentConfig.get('PostgreSqlServer','')
+        port = agentConfig.get('PostgreSqlPort','')
         user = agentConfig.get('PostgreSqlUser','')
         passwd = agentConfig.get('PostgreSqlPass','')
  
@@ -94,8 +95,12 @@ class PostgreSql(Check):
 
             try:
                 import psycopg2 as pg
-                self.db = pg.connect(host=server, user=user, password=passwd, 
-                    database='postgres')
+                if port != '':
+                    self.db = pg.connect(host=server, port=port, user=user,
+                        password=passwd, database='postgres')
+                else:
+                    self.db = pg.connect(host=server, user=user, password=passwd, 
+                        database='postgres')
                 self._get_version()
             except ImportError, e:
                 self.logger.exception("Cannot import psypg2")
