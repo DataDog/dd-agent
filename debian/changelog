@@ -1,3 +1,9 @@
+datadog-agent (1.9.7-1) unstable; urgency=low
+
+  * Support more nagios events (notifications, downtime, acks)
+
+ -- Alexis <alq@datadoghq.com>  Fri, 20 May 2011 17:44:00 -0400
+
 datadog-agent (1.9.6-1) unstable; urgency=low
 
   * Added 'postgresql_port' option to the agent config.
