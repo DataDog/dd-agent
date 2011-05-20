@@ -4,9 +4,7 @@ from collections import namedtuple
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser
-IGNORE_EVENT_TYPES = [
-    'SERVICE NOTIFICATION'
-]
+IGNORE_EVENT_TYPES = []
 
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {
@@ -14,7 +12,31 @@ EVENT_FIELDS = {
     'CURRENT SERVICE STATE':    namedtuple('E_CurrentServiceState', 'host, check_name, event_state, event_soft_hard, return_code, payload'),
     'SERVICE ALERT':            namedtuple('E_ServiceAlert', 'host, check_name, event_state, event_soft_hard, return_code, payload'),
     'PASSIVE SERVICE CHECK':    namedtuple('E_PassiveServiceCheck', 'host, check_name, return_code, payload'),
-    'HOST ALERT':               namedtuple('E_HostAlert', 'host, event_state, event_soft_hard, return_code, payload')
+    'HOST ALERT':               namedtuple('E_HostAlert', 'host, event_state, event_soft_hard, return_code, payload'),
+
+    # [1305744274] SERVICE NOTIFICATION: ops;ip-10-114-237-165;Metric ETL;ACKNOWLEDGEMENT (CRITICAL);notify-service-by-email;HTTP CRITICAL: HTTP/1.1 503 Service Unavailable - 394 bytes in 0.010 second response time;datadog;alq
+    'SERVICE NOTIFICATION':     namedtuple('E_ServiceNotification', 'contact, host, check_name, event_state, notification_type, payload'),
+
+    # [1296509331] SERVICE FLAPPING ALERT: ip-10-114-97-27;cassandra JVM Heap;STARTED; Service appears to have started flapping (23.4% change >= 20.0% threshold)
+    # [1296662511] SERVICE FLAPPING ALERT: ip-10-114-97-27;cassandra JVM Heap;STOPPED; Service appears to have stopped flapping (3.8% change < 5.0% threshold)
+    'SERVICE FLAPPING ALERT':   namedtuple('E_FlappingAlert', 'host, check_name, flap_start_stop, payload'),
+
+    # Reference for external commands: http://old.nagios.org/developerinfo/externalcommands/commandlist.php
+    # Command Format:
+    # ACKNOWLEDGE_SVC_PROBLEM;<host_name>;<service_description>;<sticky>;<notify>;<persistent>;<author>;<comment>
+    # [1305832665] EXTERNAL COMMAND: ACKNOWLEDGE_SVC_PROBLEM;ip-10-202-161-236;Resources ETL;2;1;0;datadog;alq checking
+    'ACKNOWLEDGE_SVC_PROBLEM': namedtuple('E_ServiceAck', 'host, check_name, sticky_ack, notify_ack, persistent_ack, ack_author, payload'),
+
+    # Command Format:
+    # ACKNOWLEDGE_HOST_PROBLEM;<host_name>;<sticky>;<notify>;<persistent>;<author>;<comment>
+    'ACKNOWLEDGE_HOST_PROBLEM': namedtuple('E_HostAck', 'host, sticky_ack, notify_ack, persistent_ack, ack_author, payload'),
+
+    # Host Downtime
+    # [1297894825] HOST DOWNTIME ALERT: ip-10-114-89-59;STARTED; Host has entered a period of scheduled downtime
+    # [1297894825] SERVICE DOWNTIME ALERT: ip-10-114-237-165;intake;STARTED; Service has entered a period of scheduled downtime
+
+    'HOST DOWNTIME ALERT': namedtuple('E_HostDowntime', 'host, downtime_start_stop, payload'),
+    'SERVICE DOWNTIME ALERT': namedtuple('E_ServiceDowntime', 'host, check_name, downtime_start_stop, payload'),
 }
 
 def create_event(timestamp, event_type, hostname, fields):
@@ -37,7 +59,11 @@ class Nagios(object):
     def __init__(self, hostname):
         """hostname is the name of the machine where the nagios log lives
         """
-        self.re_line = re.compile('^\[(\d+)\] ([^:]+): (.*)')
+        # Regex alternation ends up being tricker than expected, and much less readable
+        #self.re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
+        self.re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
+        self.re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
+
         self.logger = None
         self.gen = None
         self.events = None
@@ -45,39 +71,46 @@ class Nagios(object):
         self.hostname = hostname
 
     def _parse_line(self, line):
-
+        """Actual nagios parsing
+        Return True if we found an event, False otherwise
+        """
         # first isolate the timestamp and the event type
         try:
-            m = self.re_line.match(line)
+            m  = self.re_line_reg.match(line)
             if m is None:
-                return None
+                m = self.re_line_ext.match(line)
+            if m is None:
+                return False
             else:
                 (tstamp, event_type, remainder)= m.groups()
                 if event_type in IGNORE_EVENT_TYPES:
                     self.logger.info("Ignoring nagios event of type {0}".format(event_type))
-                    return None
+                    return False
                 tstamp = int(tstamp)
         except:
             self.logger.exception("Error while trying to get a nagios event type from line {0}".format(line))
-            return None
+            return False
 
         # then retrieve the event format for each specific event type
         fields = EVENT_FIELDS.get(event_type, None)
         if fields is None:
-            self.logger.warn("Ignoring unkown nagios event for line: [{0}]".format(line))
-            return None
+            self.logger.warn("Ignoring unkown nagios event for line: {0}".format(line[:-1]))
+            return False
 
         # and parse the rest of the line
         try:
-            parts = remainder.split(';')
-            event = create_event(tstamp, event_type, self.hostname, fields._make(map(lambda p: p.strip(), parts)))
+            parts = map(lambda p: p.strip(), remainder.split(';'))
+            # Chop parts we don't recognize
+            parts = parts[:len(fields._fields)]
+            event = create_event(tstamp, event_type, self.hostname, fields._make(parts))
             event.update({'api_key': self.apikey})
             self.events.append(event)
             self.logger.debug("Nagios event: {0}".format(event))
+            return True
         except:
             self.logger.exception("Unable to create a nagios event from line: [{0}]".format(line))
 
-        return None
+        return False
 
     def check(self, logger, agentConfig, move_end=True):
 
@@ -91,14 +124,14 @@ class Nagios(object):
 
         self.apikey = agentConfig['apiKey']
         self.events = []
-      
-        # Build our tail -f 
+
+        # Build our tail -f
         if self.gen is None:
             self.gen = TailFile(logger,log_path,self._parse_line).tail(move_end)
 
         # read until the end of file
 	try:
-	    self.gen.next() 
+	    self.gen.next()
 	    self.logger.debug("Done nagios check for file {0}".format(log_path))
 	except StopIteration, e:
 	    self.logger.exception(e)
@@ -110,8 +143,8 @@ def parse_log(api_key, log_file):
     import logging
     import socket
     import sys
-    
-    logger = logging.getLogger("nagios")    
+
+    logger = logging.getLogger("nagios")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
     nagios = Nagios(socket.gethostname())
@@ -123,7 +156,7 @@ def parse_log(api_key, log_file):
 if __name__ == "__main__":
     import logging
     import socket
-    logger = logging.getLogger("nagios")    
+    logger = logging.getLogger("nagios")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
     nagios = Nagios(socket.gethostname())
