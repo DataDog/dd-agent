@@ -1,5 +1,7 @@
 # Standard imports
 import logging
+import os
+import sys
 
 #Tornado
 import tornado.httpserver
@@ -14,6 +16,7 @@ from checks.common import checks
 
 
 CHECK_INTERVAL =  60 * 1000 # Every 60s
+PROCESS_CHECK_INTERVAL = 1000 # Every second
 
 class Application(tornado.web.Application):
 
@@ -26,6 +29,8 @@ class Application(tornado.web.Application):
             xsrf_cookies=False,
             debug=True,
         )
+
+        self._check_pid = -1
 
         #Create checks instance
         agentLogger = logging.getLogger('agent')
@@ -46,7 +51,42 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
 
     def run_checks(self, firstRun = False, systemStats = False):
-        self._checks._doChecks(firstRun, systemStats)
+
+        if self._check_pid > 0:
+            logging.warning("Not running checks because a previous instance is still running")
+            return False
+
+        child_pid = os.fork()
+        try:
+            if child_pid == 0: # child
+                try:
+                    self._checks._doChecks(firstRun, systemStats)
+                except:
+                    sys.exit(1)
+
+                sys.exit(0)
+            else: # parent                
+                self._check_pid = child_pid
+
+        except OSError,e:
+            logging.exception(e)
+            return False
+
+        return True
+
+    def process_check(self):
+
+        if self._check_pid > 0:
+            logging.debug("Checking on child process")
+            # Try to join the process running checks
+            (pid, status) = os.waitpid(self._check_pid,os.WNOHANG)
+            if (pid, status) != (0, 0):
+                logging.debug("child (pid: %s) exited with status: %s" % (pid, status))
+                if status != 0:
+                    logging.error("Error while running checks")
+                self._check_pid = -1
+            else:
+                logging.debug("child (pid: %s) still running" % self._check_pid)
 
 def main():
     define("port", type=int, default=17123, help="Port to listen on")
@@ -71,15 +111,20 @@ def main():
     http_server.listen(options.port)
 
     # Register check callback
-    interval_ms = 10 * 60 * 1000 
     mloop = tornado.ioloop.IOLoop.instance() 
 
     def run_checks():
         logging.info("Running checks...")
         app.run_checks()
+    
+    def process_check():
+        app.process_check()
 
     check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
     check_scheduler.start()
+
+    p_checks_scheduler = tornado.ioloop.PeriodicCallback(process_check,PROCESS_CHECK_INTERVAL, io_loop = mloop) 
+    p_checks_scheduler.start()
 
     # Start me up!
     mloop.start()
