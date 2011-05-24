@@ -29,7 +29,6 @@ from checks.queue import RabbitMq
 from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
-from checks.datadog import RollupLP as ddRollupLP
 from checks.cassandra import Cassandra
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
@@ -92,11 +91,6 @@ class checks:
         self._tomcat = Tomcat(self.checksLogger)
         self._activemq = ActiveMQ(self.checksLogger)
         self._solr = Solr(self.checksLogger)
-
-        if agentConfig.get('has_datadog',False):
-            self._datadogs = [ddRollupLP()]
-        else:
-            self._datadogs = None
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
@@ -161,15 +155,6 @@ class checks:
         return self._ganglia.check(self.checksLogger, self.agentConfig)
 
     @recordsize
-    def getDatadogData(self):
-        result = {}
-        if self._datadogs is not None:
-            for dd in self._datadogs:
-                result[dd.key] = dd.check(self.checksLogger, self.agentConfig)
-
-        return result
-        
-    @recordsize
     def getCassandraData(self):
         return self._cassandra.check(self.checksLogger, self.agentConfig)
 
@@ -225,7 +210,6 @@ class checks:
         ioStats = self.getIOStats()
         cpuStats = self.getCPUStats()
         gangliaData = self.getGangliaData()
-        datadogData = self.getDatadogData()
         cassandraData = self.getCassandraData()
         redisData = self.getRedisData()
         jvmData = self.getJvmData()
@@ -260,9 +244,6 @@ class checks:
         if gangliaData is not False and gangliaData is not None:
             checksData['ganglia'] = gangliaData
            
-        if datadogData is not False and datadogData is not None:
-            checksData['datadog'] = datadogData
-            
         if cassandraData is not False and cassandraData is not None:
             checksData['cassandra'] = cassandraData
  
@@ -343,7 +324,8 @@ class checks:
             checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
                                               'host': checksData['internalHostname'],
                                               'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
-                                              'event_type':'agent startup',
+                                              'event_type':'Agent startup',
+                                              # FIXME add version here
                                             }]
        
 
