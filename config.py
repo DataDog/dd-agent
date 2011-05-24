@@ -29,7 +29,7 @@ def get_config():
     # General config
     agentConfig = {}
     agentConfig['debugMode'] = False
-    agentConfig['checkFreq'] = 60
+    agentConfig['checkFreq'] = 15
     agentConfig['version'] = get_version()
 
     rawConfig = {}

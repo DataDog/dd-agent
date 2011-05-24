@@ -26,7 +26,7 @@ debug_mode: no
 
 # Url to Apache's status page. Must have mod_status installed.
 # See http://httpd.apache.org/docs/2.0/mod/mod_status.html for details.
-apache_status_url: http://www.example.com/server-status/?auto
+#apache_status_url: http://www.example.com/server-status/?auto
 
 
 # -------------------------------------------------------------------------- #
@@ -34,10 +34,10 @@ apache_status_url: http://www.example.com/server-status/?auto
 # -------------------------------------------------------------------------- #
 
 # Ganglia host where gmetad is running
-ganglia_host: localhost
+#ganglia_host: localhost
 
 # Ganglia port where gmetad is running
-ganglia_port: 8651
+#ganglia_port: 8651
 
 
 # -------------------------------------------------------------------------- #
@@ -45,33 +45,33 @@ ganglia_port: 8651
 # -------------------------------------------------------------------------- #
 
 # MySQL host
-mysql_server:
+#mysql_server:
 
 # MySQL user. It only runs "SHOW STATUS" queries, which doesn't require
 # any privileges, so you should consider creating a separate, unprivileged 
 # user
-mysql_user:
+#mysql_user:
 
 # MySQL user's password
-mysql_pass:
+#mysql_pass:
 
 # -------------------------------------------------------------------------- #
 #   PostgreSQL                                                               #
 # -------------------------------------------------------------------------- #
 
 # PostgreSQL host
-postgresql_server:
+#postgresql_server:
 
 # PostgreSQL port
-postgresql_port:
+#postgresql_port:
 
 # PostgreSQL user. It needs to connect to the "postgres" database but does not 
 # require any privileges, so you should consider creating a separate, 
 # unprivileged user
-postgresql_user:
+#postgresql_user:
 
 # PostgreSQL user's password
-postgresql_pass:
+#postgresql_pass:
 
 
 # -------------------------------------------------------------------------- #
@@ -80,7 +80,7 @@ postgresql_pass:
 
 # Url to nginx's status page. Must have http_stub_status_module installed.
 # See http://wiki.nginx.org/HttpStubStatusModule for details.
-nginx_status_url: http://www.example.com/nginx_status
+#nginx_status_url: http://www.example.com/nginx_status
 
 
 # -------------------------------------------------------------------------- #
@@ -90,9 +90,9 @@ nginx_status_url: http://www.example.com/nginx_status
 # Url to RabbitMQ's status page. Must have rabbitmq-status plugin installed.
 # See http://www.lshift.net/blog/2009/11/30/introducing-rabbitmq-status-plugin 
 # for details. 
-rabbitmq_status_url: http://www.example.com:55672/json
-rabbitmq_user: guest
-rabbitmq_pass: guest
+#rabbitmq_status_url: http://www.example.com:55672/json
+#rabbitmq_user: guest
+#rabbitmq_pass: guest
 
 
 # -------------------------------------------------------------------------- #
@@ -100,14 +100,14 @@ rabbitmq_pass: guest
 # -------------------------------------------------------------------------- #
 
 # MongoDB uri. For example: mongodb://my_user:my_pass@localhost/my_db
-mongodb_server:
+#mongodb_server:
 
 # -------------------------------------------------------------------------- #
 #   CouchDB                                                                  #
 # -------------------------------------------------------------------------- #
 
 # CouchDB host
-couchdb_server:
+#couchdb_server:
 
 # -------------------------------------------------------------------------- #
 #   Cassandra                                                                #
@@ -121,7 +121,7 @@ couchdb_server:
 # -------------------------------------------------------------------------- #
 
 # Path to Hudson's home directory
-hudson_home: /var/lib/hudson/
+#hudson_home: /var/lib/hudson/
 
 
 # -------------------------------------------------------------------------- #
@@ -129,7 +129,7 @@ hudson_home: /var/lib/hudson/
 # -------------------------------------------------------------------------- #
 
 # Path to Nagios's event log file
-nagios_log: /var/log/nagios3/nagios.log
+#nagios_log: /var/log/nagios3/nagios.log
 
 
 # -------------------------------------------------------------------------- #
@@ -138,7 +138,7 @@ nagios_log: /var/log/nagios3/nagios.log
 
 # JMX server:port to connect to
 # jvm_jmx_server: localhost:8090
-jvm_jmx_server: 
+#jvm_jmx_server: 
 
 # JMX user to log in with, if needed
 #jvm_jmx_user: john
@@ -148,14 +148,14 @@ jvm_jmx_server:
 
 # Name to report the statistics for this java VM. This will allow to monitor
 # Several JVMs running on the same machine
-jvm_jmx_name: Java
+#jvm_jmx_name: Java
 
 # -------------------------------------------------------------------------- #
 #   Tomcat                                                                   #
 # -------------------------------------------------------------------------- #
 
 # JMX host:port to connect to. Must be configured in tomcat setenv.sh or similar
-tomcat_jmx_server:
+#tomcat_jmx_server:
 
 # JMX user to log in with, if needed
 #tomcat_jmx_user: john
@@ -168,7 +168,7 @@ tomcat_jmx_server:
 # -------------------------------------------------------------------------- #
 
 # JMX host:port to connect to.
-activemq_jmx_server:
+#activemq_jmx_server:
 
 # JMX user to log in with, if needed
 #activemq_jmx_user: john
@@ -181,7 +181,7 @@ activemq_jmx_server:
 # -------------------------------------------------------------------------- #
 
 # JMX host:port to connect to.
-solr_jmx_server:
+#solr_jmx_server:
 
 # JMX user to log in with, if needed
 #solr_jmx_user: john
