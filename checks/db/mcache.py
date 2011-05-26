@@ -66,17 +66,17 @@ class Memcache(Check):
         self.gauge("threads")
         self.gauge("pointer_size")
 
-        self.counter("rusage_user")
-        self.counter("rusage_system")
-        self.counter("cmd_get")
-        self.counter("cmd_set")
-        self.counter("cmd_flush")
-        self.counter("get_hits")
-        self.counter("get_misses")
-        self.counter("evictions")
-        self.counter("bytes_read")
-        self.counter("bytes_written")
-        self.counter("total_connections")
+        self.counter("rusage_user_rate")
+        self.counter("rusage_system_rate")
+        self.counter("cmd_get_rate")
+        self.counter("cmd_set_rate")
+        self.counter("cmd_flush_rate")
+        self.counter("get_hits_rate")
+        self.counter("get_misses_rate")
+        self.counter("evictions_rate")
+        self.counter("bytes_read_rate")
+        self.counter("bytes_written_rate")
+        self.counter("total_connections_rate")
     
     def check(self, agentConfig):
         try:
