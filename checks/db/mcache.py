@@ -93,8 +93,10 @@ class Memcache(Check):
             stats = raw_stats[0][1]
             for metric in stats:
                 logger.debug("Processing %s: %s" % (metric, stats[metric]))
-                if self.is_metric(metric):
+                if self.is_gauge(metric):
                     self.save_sample(metric, float(stats[metric]))
+                elif self.is_counter(metric):
+                    self.save_sample(metric + "_rate", float(stats[metric]))
 
             samples = self.get_samples()
             logger.debug("Memcache samples: %s" % samples)
