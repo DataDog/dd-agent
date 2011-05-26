@@ -24,6 +24,7 @@ from checks.db.mongo import MongoDb
 from checks.db.redisDb import Redis
 from checks.db.couch import CouchDb
 from checks.db.pg import PostgreSql
+from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
 from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
@@ -91,6 +92,7 @@ class checks:
         self._tomcat = Tomcat(self.checksLogger)
         self._activemq = ActiveMQ(self.checksLogger)
         self._solr = Solr(self.checksLogger)
+        self._memcache = Memcache(self.checksLogger)
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
@@ -178,6 +180,9 @@ class checks:
     def getSolrData(self):
         return self._solr.check(self.agentConfig)
 
+    @recordsize
+    def getMemcacheData(self):
+        return self._memcache.check(self.agentConfig)
 
     #
     # CPU Stats
@@ -215,7 +220,8 @@ class checks:
         jvmData = self.getJvmData()
         tomcatData = self.getTomcatData()
         activeMQData = self.getActiveMQData()
-        solrData = self.getSolrData() 
+        solrData = self.getSolrData()
+        memcacheData = self.getMemcacheData()
 
         checksData = {
             'collection_timestamp': time.time(),
@@ -292,6 +298,9 @@ class checks:
 
         if solrData:
             checksData['solr'] = solrData
+
+        if memcacheData:
+            checksData['memcache'] = memcacheData
  
        # Include system stats on first postback
         if firstRun == True:
@@ -328,7 +337,6 @@ class checks:
                                               # FIXME add version here
                                             }]
        
-
         # Resources checks
         has_resource = False
         for resources_check in self._resources_checks:

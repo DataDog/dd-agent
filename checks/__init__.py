@@ -101,6 +101,10 @@ class Check(object):
             timestamp = time.time()
         if metric not in self._sample_store:
             raise CheckException("Saving a sample for an undefined metric %s" % metric)
+        try:
+            value = float(value)
+        except ValueError, ve:
+            raise NaN(ve)
 
         # Data eviction rules
         if self.is_gauge(metric):

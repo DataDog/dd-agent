@@ -21,7 +21,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "1.9.7"
+    return "1.9.8"
 
 def get_config():
     options, args = get_parsed_args()
@@ -185,6 +185,11 @@ def get_config():
         if config.has_option('Main', 'solr_jmx_pass'):
             agentConfig['SolrPassword'] = config.get('Main', 'solr_jmx_pass')
 
+        # Memcache config
+        if config.has_option("Main", "memcache_server"):
+            agentConfig["memcache_server"] = config.get("Main", "memcache_server")
+        if config.has_option("Main", "memcache_port"):
+            agentConfig["memcache_port"] = config.get("Main", "memcache_port")
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -227,7 +232,6 @@ def get_config():
 
     return agentConfig, rawConfig
 
-
 def get_system_stats():
     systemStats = {
         'machine': platform.machine(),
@@ -255,5 +259,3 @@ def get_system_stats():
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
     return systemStats
-
-

@@ -1,6 +1,12 @@
+datadog-agent (1.9.8-1) unstable; urgency=high
+
+  * Supports memcache stats
+
+ -- Alexis <alq@datadoghq.com>  Thu, 26 May 2011 16:43:00 -0400
+	
 datadog-agent (1.9.7-1) unstable; urgency=low
 
-  * Support more nagios events (notifications, downtime, acks)
+  * Supports more nagios events (notifications, downtime, acks)
 
  -- Alexis <alq@datadoghq.com>  Fri, 20 May 2011 17:44:00 -0400
 
