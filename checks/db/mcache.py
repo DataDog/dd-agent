@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__file__)
-
 from checks import *
 
 # Reference: http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
@@ -84,7 +81,7 @@ class Memcache(Check):
 
             server = agentConfig["memcache_server"]
             port = int(agentConfig.get("memcache_port", 11211))
-            logger.debug("Connecting to %s:%s" % (server, port))
+            self.logger.debug("Connecting to %s:%s" % (server, port))
             
             mc = memcache.Client(["%s:%d" % (server, port)])
             raw_stats = mc.get_stats()
@@ -92,7 +89,7 @@ class Memcache(Check):
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
-                logger.debug("Processing %s: %s" % (metric, stats[metric]))
+                self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
 
                 our_metric = metric
                 # Tweak the name if it's a counter so that we don't use the exact
@@ -102,18 +99,18 @@ class Memcache(Check):
 
                 if self.is_metric(our_metric):
                     self.save_sample(our_metric, float(stats[metric]))
-                    logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+                    self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
 
             samples = self.get_samples()
-            logger.debug("Memcache samples: %s" % samples)
+            self.logger.debug("Memcache samples: %s" % samples)
             return samples
         except ImportError:
-            logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
+            self.logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
         except ValueError:
-            logger.exception("Cannot convert port value; check your configuration")
+            self.logger.exception("Cannot convert port value; check your configuration")
         except CheckException:
-            logger.exception("Cannot save sampled data")
+            self.logger.exception("Cannot save sampled data")
         except:
-            logger.exception("Cannot get data from memcache")
+            self.logger.exception("Cannot get data from memcache")
         
         return None

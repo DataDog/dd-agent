@@ -1,9 +1,15 @@
+datadog-agent (1.9.8-2) unstable; urgency=high
+
+  * Fixes verbose logging in memcache module.
+
+ -- Alexis <alq@datadoghq.com>  Sat, 28 May 2011 23:43:00 -0400
+
 datadog-agent (1.9.8-1) unstable; urgency=high
 
   * Supports memcache stats
 
  -- Alexis <alq@datadoghq.com>  Thu, 26 May 2011 16:43:00 -0400
-	
+
 datadog-agent (1.9.7-1) unstable; urgency=low
 
   * Supports more nagios events (notifications, downtime, acks)

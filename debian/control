@@ -11,7 +11,7 @@ Architecture: all
 Depends: adduser, ${misc:Depends}, ${python:Depends}
 XB-Python-Version: ${python:Versions}
 Provides: ${python:Provides}
-Description: Datatadog monitoring agent
+Description: Datadog monitoring agent
  The datadog monitoring agent is a lightweight component sending system, 
  processes and services information back to your datadog account.
  .
