@@ -5,6 +5,7 @@ import sys
 
 #Tornado
 import tornado.httpserver
+import tornado.httpclient
 import tornado.ioloop
 import tornado.web
 from tornado.options import define, parse_command_line, options
@@ -18,11 +19,33 @@ from checks.common import checks
 CHECK_INTERVAL =  60 * 1000 # Every 60s
 PROCESS_CHECK_INTERVAL = 1000 # Every second
 
+
+class AgentInputHandler(tornado.web.RequestHandler):
+
+    @tornado.web.asynchronous
+    def post(self):
+        """Read the message and forward it to the intake"""
+
+        req = tornado.httpclient.HTTPRequest(self.application.agentConfig['ddUrl'], 
+            method = "POST", body = self.request.body )
+        http = tornado.httpclient.AsyncHTTPClient()
+        logging.info("Forwarding agent message to datadog")
+        http.fetch(req, callback=self.on_response)
+
+    def on_response(self, response):
+        if response.error: 
+            logging.info("done with error: " + str(response.error))
+            raise tornado.web.HTTPError(500)
+        logging.info("done")
+        self.finish()
+
 class Application(tornado.web.Application):
 
-    def __init__(self):
+    def __init__(self,options):
 
-        handlers = []
+        handlers = [
+            (r"/intake/?", AgentInputHandler),
+        ]
 
         settings = dict(
             cookie_secret="12oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
@@ -42,13 +65,19 @@ class Application(tornado.web.Application):
 
         agentLogger.debug('Creating checks instance')
 
-        agentConfig, rawConfig = get_config()
+        self.agentConfig, self.rawConfig = get_config()
         emitter = http_emitter
-
-        self._checks = checks(agentConfig, rawConfig, emitter)
-        self.run_checks(True,systemStats) # start immediately 
+       
+        mConfig = dict(self.agentConfig)
+        mConfig['ddUrl'] = "http://localhost:" + str(options.port)
+        self._checks = checks(mConfig, self.rawConfig, emitter)
 
         tornado.web.Application.__init__(self, handlers, **settings)
+
+        http_server = tornado.httpserver.HTTPServer(self)
+        http_server.listen(options.port)
+
+        self.run_checks(True,systemStats)
 
     def run_checks(self, firstRun = False, systemStats = False):
 
@@ -105,10 +134,7 @@ def main():
 
 
     # Set up tornado
-    app = Application()
-
-    http_server = tornado.httpserver.HTTPServer(app)
-    http_server.listen(options.port)
+    app = Application(options)
 
     # Register check callback
     mloop = tornado.ioloop.IOLoop.instance() 
