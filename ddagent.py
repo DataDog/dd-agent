@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+from subprocess import Popen
 
 #Tornado
 import tornado.httpserver
@@ -41,7 +42,7 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self,options):
+    def __init__(self, options, agentConfig):
 
         handlers = [
             (r"/intake/?", AgentInputHandler),
@@ -54,53 +55,36 @@ class Application(tornado.web.Application):
         )
 
         self._check_pid = -1
-
-        #Create checks instance
-        agentLogger = logging.getLogger('agent')
-
-        agentLogger.debug('Collecting basic system stats')
-
-        systemStats = get_system_stats()
-        agentLogger.debug('System: ' + str(systemStats))
-
-        agentLogger.debug('Creating checks instance')
-
-        self.agentConfig, self.rawConfig = get_config()
-        emitter = http_emitter
-       
-        mConfig = dict(self.agentConfig)
-        mConfig['ddUrl'] = "http://localhost:" + str(options.port)
-        self._checks = checks(mConfig, self.rawConfig, emitter)
+        self.agentConfig = agentConfig
 
         tornado.web.Application.__init__(self, handlers, **settings)
 
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(options.port)
 
-        self.run_checks(True,systemStats)
+        self.run_checks(sys.argv, True)
 
-    def run_checks(self, firstRun = False, systemStats = False):
+    def run_checks(self, cmd, firstRun = False):
 
-        if self._check_pid > 0:
+        if self._check_pid > 0 :
             logging.warning("Not running checks because a previous instance is still running")
             return False
 
-        child_pid = os.fork()
+        args = [sys.executable]
+        args.extend(cmd)
+        args.append("--action=runchecks")
+
+        if firstRun:
+            args.append("--firstRun=yes")
+
+        print args
         try:
-            if child_pid == 0: # child
-                try:
-                    self._checks._doChecks(firstRun, systemStats)
-                except:
-                    sys.exit(1)
-
-                sys.exit(0)
-            else: # parent                
-                self._check_pid = child_pid
-
-        except OSError,e:
+            p = Popen(args)
+            self._check_pid = p.pid
+        except Exception, e:
             logging.exception(e)
             return False
-
+  
         return True
 
     def process_check(self):
@@ -120,6 +104,8 @@ class Application(tornado.web.Application):
 def main():
     define("port", type=int, default=17123, help="Port to listen on")
     define("log", type=str, default="ddagent.log", help="Log file to use")
+    define("action",type=str, default="start", help="Action to run")
+    define("firstRun",type=bool, default=False, help="First check run ?")
 
     parse_command_line()
 
@@ -130,31 +116,51 @@ def main():
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.DEBUG)
 
-    logging.info("Starting ddagent tornado")
+    agentConfig, rawConfig = get_config()
 
+    if options.action == "start":
+        logging.info("Starting ddagent tornado")
+        # Set up tornado
+        app = Application(options,agentConfig)
 
-    # Set up tornado
-    app = Application(options)
+        # Register check callback
+        mloop = tornado.ioloop.IOLoop.instance() 
 
-    # Register check callback
-    mloop = tornado.ioloop.IOLoop.instance() 
-
-    def run_checks():
-        logging.info("Running checks...")
-        app.run_checks()
+        def run_checks():
+            logging.info("Running checks...")
+            app.run_checks(sys.argv)
     
-    def process_check():
-        app.process_check()
+        def process_check():
+            app.process_check()
 
-    check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
-    check_scheduler.start()
+        check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
+        check_scheduler.start()
 
-    p_checks_scheduler = tornado.ioloop.PeriodicCallback(process_check,PROCESS_CHECK_INTERVAL, io_loop = mloop) 
-    p_checks_scheduler.start()
+        p_checks_scheduler = tornado.ioloop.PeriodicCallback(process_check,PROCESS_CHECK_INTERVAL, io_loop = mloop) 
+        p_checks_scheduler.start()
 
-    # Start me up!
-    mloop.start()
+        # Start me up!
+        mloop.start()
 
+    elif options.action == "runchecks":
+
+        #Create checks instance
+        agentLogger = logging.getLogger('agent')
+
+        systemStats = False
+        if options.firstRun:
+            agentLogger.debug('Collecting basic system stats')
+            systemStats = get_system_stats()
+            agentLogger.debug('System: ' + str(systemStats))
+            
+        agentLogger.debug('Creating checks instance')
+
+        emitter = http_emitter
+       
+        mConfig = dict(agentConfig)
+        mConfig['ddUrl'] = "http://localhost:" + str(options.port)
+        _checks = checks(mConfig, rawConfig, emitter)
+        _checks._doChecks(options.firstRun,systemStats)
 
 if __name__ == "__main__":
     main()
