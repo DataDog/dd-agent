@@ -4,20 +4,28 @@ from hashlib import md5
 from pprint import pformat as pp
 from util import json, headers
 
+
+def format_body(message, logger):
+
+    logger.debug('http_emitter: json convert')
+    payload = json.dumps(message)
+
+    logger.debug('http_emitter: json converted, hash')
+    logger.debug('http_emitter:\n%s' % pp(message))
+
+    payloadHash = md5(payload).hexdigest()
+    postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
+
+    logger.debug('http_emitter: hashed')
+    return postBackData
+
 def http_emitter(message, logger, agentConfig):
     try: 
         logger.debug('http_emitter: start')    
+
         # Post back the data
-        logger.debug('http_emitter: json convert')
-        payload = json.dumps(message)
+        postBackData = format_body(message, logger)
 
-        logger.debug('http_emitter: json converted, hash')
-        logger.debug('http_emitter:\n%s' % pp(message))
-
-        payloadHash = md5(payload).hexdigest()
-        postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})
-
-        logger.debug('http_emitter: hashed')
         logger.debug('http_emitter: attempting postback: ' + agentConfig['ddUrl'])
         
         # Build the request handler

@@ -3,41 +3,116 @@ import logging
 import os
 import sys
 from subprocess import Popen
+from hashlib import md5
 
 #Tornado
 import tornado.httpserver
 import tornado.httpclient
 import tornado.ioloop
 import tornado.web
+from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
 from config import get_config, get_system_stats, get_parsed_args
-from emitter import http_emitter
+from emitter import http_emitter, format_body
 from checks.common import checks
 
 
 CHECK_INTERVAL =  60 * 1000 # Every 60s
 PROCESS_CHECK_INTERVAL = 1000 # Every second
 
+class Transaction(object):
+
+    _transactions = []
+    _flush_tr = None
+    _counter = 0
+
+    def __init__(self, data):
+
+        Transaction._counter = Transaction._counter + 1
+        self._id = Transaction._counter
+        
+        self._data = data
+        self._transactions.append(self)
+        logging.info("Created transaction %d" % self._id)
+
+    @staticmethod
+    def flush(url, callback, topRun = True):
+
+
+        if topRun:
+            Transaction._flush_tr = list(Transaction._transactions)
+        
+        if Transaction._flush_tr is not None and len(Transaction._flush_tr) > 0:
+            tr = Transaction._flush_tr.pop()
+            if tr is not None:
+                # Send all remaining transaction to the intake
+                req = tornado.httpclient.HTTPRequest(url, 
+                      method = "POST", body = tr.get_data() )
+                http = tornado.httpclient.AsyncHTTPClient()
+                logging.info("Sending transaction %d to datadog" % tr._id)
+                http.fetch(req, callback=lambda(x): Transaction.on_response(tr,url,callback,x))
+        else:
+            callback()
+
+    @staticmethod
+    def on_response(tr, url, callback, response):
+        if response.error: 
+            tr.error()
+        else:
+            tr.finish()
+
+        Transaction.flush(url, callback, topRun = False)
+
+    def get_data(self):
+        try:
+            return format_body(self._data, logging)
+        except Exception, e:
+            import traceback
+            logger.error('http_emitter: Exception = ' + traceback.format_exc())
+
+    def error(self):
+        logging.info("Transaction %d in error, will be replayed later" % self._id)
+        if not self in self._transactions:
+            self._transactions.append(self)
+
+    def finish(self):
+        self._transactions.remove(self)
+        logging.info("Transaction %d completed" % self._id)
 
 class AgentInputHandler(tornado.web.RequestHandler):
+
+    HASH = "hash"
+    PAYLOAD = "payload"
+
+    @staticmethod
+    def parse_message(message, msg_hash):
+
+        c_hash = md5(message).hexdigest()
+        if c_hash != msg_hash:
+            logging.error("Malformed message: %s != %s" % (c_hash, msg_hash))
+            return None
+
+        return json_decode(message)
+
 
     @tornado.web.asynchronous
     def post(self):
         """Read the message and forward it to the intake"""
 
-        req = tornado.httpclient.HTTPRequest(self.application.agentConfig['ddUrl'], 
-            method = "POST", body = self.request.body )
-        http = tornado.httpclient.AsyncHTTPClient()
-        logging.info("Forwarding agent message to datadog")
-        http.fetch(req, callback=self.on_response)
+        # read message
+        msg = AgentInputHandler.parse_message(self.get_argument(self.PAYLOAD),
+            self.get_argument(self.HASH))
 
-    def on_response(self, response):
-        if response.error: 
-            logging.info("done with error: " + str(response.error))
+        if msg is not None:
+            # Setup a transaction for this message
+            Transaction(msg)
+            Transaction.flush(self.application.agentConfig['ddUrl'] + '/intake/',self.on_finish)
+        else:
             raise tornado.web.HTTPError(500)
-        logging.info("done")
+   
+    def on_finish(self):
         self.finish()
 
 class Application(tornado.web.Application):
@@ -114,7 +189,8 @@ def main():
     handler = logging.FileHandler(filename=options.log)
     handler.setFormatter(formatter)
     logging.getLogger().addHandler(handler)
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     agentConfig, rawConfig = get_config()
 
