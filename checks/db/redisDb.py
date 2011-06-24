@@ -18,7 +18,7 @@ class Redis(Check):
         self.prev_total_commands = None
         
     def check(self, agentConfig):
-        if self.client:
+        if self.client is not None:
             try:
                 info = self.client.info()
                 output = {

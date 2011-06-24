@@ -90,6 +90,7 @@ class Memcache(Check):
             
             mc = memcache.Client(["%s:%d" % (server, port)])
             raw_stats = mc.get_stats()
+
             assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
             # Access the dict
             stats = raw_stats[0][1]
@@ -122,5 +123,6 @@ class Memcache(Check):
                 mc.disconnect_all()
                 self.logger.debug("Disconnected from memcached")
             del mc
+            pass
         
-        return None
+        return False
