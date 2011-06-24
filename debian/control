@@ -8,7 +8,7 @@ XS-Python-Version: >= 2.4
 
 Package: datadog-agent
 Architecture: all
-Depends: adduser, ${misc:Depends}, ${python:Depends}
+Depends: adduser, sysstat, ${misc:Depends}, ${python:Depends}
 XB-Python-Version: ${python:Versions}
 Provides: ${python:Provides}
 Description: Datadog monitoring agent

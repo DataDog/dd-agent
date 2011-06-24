@@ -1,4 +1,8 @@
-datadog-agent (1.9.9-1) unstable; urgency=high
+datadog-agent (1.9.9-2) unstable; urgency=low
+
+  * Encode dependency with sysstat
+
+ -- Alexis <alq@datadoghq.com>  Fri, 24 Jun 2011 15:06:00 -0400
 
   * Fixes connection leak in memcache module
 
