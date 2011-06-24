@@ -50,6 +50,10 @@ from checks import *
 # 'connection_structures': '5', 'bytes_written': '25', 'time':
 # '1306364220', 'pointer_size': '64', 'get_hits': '0'})]
 
+# For Membase it gets worse
+# http://www.couchbase.org/wiki/display/membase/Membase+Statistics
+# https://github.com/membase/ep-engine/blob/master/docs/stats.org
+
 class Memcache(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
@@ -74,8 +78,9 @@ class Memcache(Check):
         self.counter("bytes_read_rate")
         self.counter("bytes_written_rate")
         self.counter("total_connections_rate")
-    
+
     def check(self, agentConfig):
+        mc = None # client
         try:
             import memcache
 
@@ -112,5 +117,10 @@ class Memcache(Check):
             self.logger.exception("Cannot save sampled data")
         except:
             self.logger.exception("Cannot get data from memcache")
+        finally:
+            if mc is not None:
+                mc.disconnect_all()
+                self.logger.debug("Disconnected from memcached")
+            del mc
         
         return None
