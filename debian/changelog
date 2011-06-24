@@ -1,3 +1,9 @@
+datadog-agent (1.9.9-1) unstable; urgency=high
+
+  * Fixes connection leak in memcache module
+
+  -- Alexis <alq@datadoghq.com>  Thu, 23 Jun 2011 23:06:00 -0400
+
 datadog-agent (1.9.8-2) unstable; urgency=high
 
   * Fixes verbose logging in memcache module.

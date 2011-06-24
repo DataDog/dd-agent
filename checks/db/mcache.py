@@ -123,6 +123,5 @@ class Memcache(Check):
                 mc.disconnect_all()
                 self.logger.debug("Disconnected from memcached")
             del mc
-            pass
         
         return False
