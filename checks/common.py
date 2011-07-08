@@ -16,6 +16,8 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+from config import get_version
+
 from checks.nagios import Nagios
 from checks.build import Hudson
 
@@ -331,10 +333,10 @@ class checks:
        
         if firstRun:
             checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
-                                              'host': checksData['internalHostname'],
-                                              'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
-                                              'event_type':'Agent startup',
-                                              # FIXME add version here
+                                               'host': checksData['internalHostname'],
+                                               'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
+                                               'event_type':'Agent Startup',
+                                               'msg_text': 'Version %s' % get_version()
                                             }]
        
         # Resources checks

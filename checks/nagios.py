@@ -81,36 +81,35 @@ class Nagios(object):
                 m = self.re_line_ext.match(line)
             if m is None:
                 return False
-            else:
-                (tstamp, event_type, remainder)= m.groups()
-                if event_type in IGNORE_EVENT_TYPES:
-                    self.logger.info("Ignoring nagios event of type {0}".format(event_type))
-                    return False
-                tstamp = int(tstamp)
-        except:
-            self.logger.exception("Error while trying to get a nagios event type from line {0}".format(line))
-            return False
 
-        # then retrieve the event format for each specific event type
-        fields = EVENT_FIELDS.get(event_type, None)
-        if fields is None:
-            self.logger.warn("Ignoring unkown nagios event for line: {0}".format(line[:-1]))
-            return False
+            (tstamp, event_type, remainder) = m.groups()
+            tstamp = int(tstamp)
 
-        # and parse the rest of the line
-        try:
+            if event_type in IGNORE_EVENT_TYPES:
+                self.logger.info("Ignoring nagios event of type {0}".format(event_type))
+                return False
+            
+            # then retrieve the event format for each specific event type
+            fields = EVENT_FIELDS.get(event_type, None)
+            if fields is None:
+                self.logger.warn("Ignoring unkown nagios event for line: {0}".format(line[:-1]))
+                return False
+
+            # and parse the rest of the line
             parts = map(lambda p: p.strip(), remainder.split(';'))
             # Chop parts we don't recognize
             parts = parts[:len(fields._fields)]
+
             event = create_event(tstamp, event_type, self.hostname, fields._make(parts))
             event.update({'api_key': self.apikey})
+
             self.events.append(event)
             self.logger.debug("Nagios event: {0}".format(event))
+
             return True
         except:
             self.logger.exception("Unable to create a nagios event from line: [{0}]".format(line))
-
-        return False
+            return False
 
     def check(self, logger, agentConfig, move_end=True):
 
@@ -127,7 +126,7 @@ class Nagios(object):
 
         # Build our tail -f
         if self.gen is None:
-            self.gen = TailFile(logger,log_path,self._parse_line).tail(move_end)
+            self.gen = TailFile(logger,log_path,self._parse_line).tail(line_by_line=False, move_end=move_end)
 
         # read until the end of file
 	try:

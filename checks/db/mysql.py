@@ -83,14 +83,23 @@ class MySql(Check):
         pid = None
 
         try:
-            ps = subprocess.Popen(['ps','-C','mysqld','-o','pid'], stdout=subprocess.PIPE, 
-                close_fds=True).communicate()[0]
+            if sys.platform.startswith("linux"):
+                ps = subprocess.Popen(['ps','-C','mysqld','-o','pid'], stdout=subprocess.PIPE, 
+                                      close_fds=True).communicate()[0]
+                pslines = ps.split('\n')
+                # First line is header, second line is mysql pid
+                if len(pslines) > 1 and pslines[1] != '':
+                    return int(pslines[1])
 
-            pslines = ps.split('\n')
-            #First line is header, second line is mysql pid
-            if len(pslines) > 1 and pslines[1] != '':
-                return int(pslines[1])
-
+            elif sys.platform.startswith("darwin"):
+                # Get all processes, filter in python then
+                procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE, 
+                                         close_fds=True).communicate()[0]
+                ps = [p for p in procs.split("\n") if p.index("mysqld") > 0]
+                if len(ps) > 0:
+                    return int(ps.split())[0]
+            else:
+                self.logger.warning("Unsupported platform mysql pluging")
         except:
             if self.logger is not None:
                 self.logger.exception("while fetching mysql pid from ps")

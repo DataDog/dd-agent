@@ -11,7 +11,7 @@ class TailFile(object):
         self._log = logger
         self._callback = callback
 
-    def _open_file(self,move_end=False,where=False):
+    def _open_file(self, move_end=False, where=False):
 
         already_open = False
         #close and reopen to handle logrotate
@@ -50,8 +50,10 @@ class TailFile(object):
 
         return True
 
-    def tail(self,move_end=True):
-
+    def tail(self, line_by_line=True, move_end=True):
+        """Read line-by-line and run callback on each line.
+        line_by_line: yield each time a callback has returned True
+        move_end: start from the last line of the log"""
         try:
             self._open_file(move_end=move_end)
 
@@ -60,12 +62,17 @@ class TailFile(object):
                 line = self._f.readline()
                 if line:
                     if self._callback(line.rstrip("\n")):
-                        where = self._f.tell()
-                        yield False
-                        self._open_file(move_end=False,where=where)            
+                        if line_by_line:
+                            where = self._f.tell()
+                            yield
+                            self._open_file(move_end=False,where=where)
+                        else:
+                            continue
+                    else:
+                        continue
                 else:
-                    yield True
-                    self._open_file(move_end=False,where=where)
+                    yield
+                    self._open_file(move_end=False, where=where)
 
         except Exception, e:
             # log but survive

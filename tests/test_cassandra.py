@@ -6,9 +6,9 @@ from checks.cassandra import Cassandra
 
 class TestCassandra(unittest.TestCase):
     def setUp(self):
-        self.info = open(os.path.join("cassandra", "info"), "r").read()
-        self.tpstats = open(os.path.join("cassandra", "tpstats"), "r").read()
-        self.cfstats = open(os.path.join("cassandra", "cfstats"), "r").read()
+        self.info = open(os.path.join(os.path.dirname(__file__), "cassandra", "info"), "r").read()
+        self.tpstats = open(os.path.join(os.path.dirname(__file__), "cassandra", "tpstats"), "r").read()
+        self.cfstats = open(os.path.join(os.path.dirname(__file__), "cassandra", "cfstats"), "r").read()
         self.c = Cassandra()
         
     def tearDown(self):
