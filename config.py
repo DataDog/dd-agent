@@ -73,6 +73,11 @@ def get_config():
         if config.has_option('Main', 'check_freq'):
             agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
 
+        if config.has_option('Main','hostname'):
+            agentConfig['hostname'] = config.get('Main','hostname')
+        else:
+            agentConfig['hostname'] = None
+
         # Optional config
         # Also do not need to be present in the config file (case 28326).
         # FIXME not the prettiest code ever...

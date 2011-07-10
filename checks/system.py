@@ -602,11 +602,13 @@ class Processes(object):
         logger.debug('getProcesses: completed, returning')
         
         hostname = ""
-    
-        try:
-            hostname = socket.gethostname()
-        except socket.error, e:
-            logger.debug("processes: unable to get hostanme: " + str(e))         
+        if agentConfig['hostname']:
+            hostname = agentConfig['hostname']
+        else:    
+            try:
+                hostname = socket.gethostname()
+            except socket.error, e:
+                logger.debug("processes: unable to get hostanme: " + str(e))         
 
         return { 'processes':   processes,
                  'apiKey':      agentConfig['apiKey'],

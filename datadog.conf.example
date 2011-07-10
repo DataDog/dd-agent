@@ -16,6 +16,9 @@ agent_key:
 debug_mode: no 
 
 
+# Force the hostname to whatever you want.
+#hostname: mymachine.mydomain
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
