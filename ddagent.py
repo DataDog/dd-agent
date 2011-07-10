@@ -5,6 +5,7 @@ import sys
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
+from operator import attrgetter
 
 #Tornado
 import tornado.httpserver
@@ -20,10 +21,15 @@ from emitter import http_emitter, format_body
 from checks.common import checks
 
 
-CHECK_INTERVAL =  60 * 1000 # Every 60s
-PROCESS_CHECK_INTERVAL = 1000 # Every second
+CHECK_INTERVAL =  60 * 1000       # Every 60s
+PROCESS_CHECK_INTERVAL = 1000     # Every second
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 
+# Maximum delay before replaying a transaction
+MAX_WAIT_FOR_REPLAY = timedelta(seconds=90) 
+
+# Maximum queue size in bytes (when this is reached, old messages are dropped)
+MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 def plural(count):
     if count > 1:
@@ -44,18 +50,41 @@ class Transaction(object):
     def set_application(app):
         Transaction.application = app
 
+    @staticmethod
+    def append(tr):
+
+        total_size = tr._size
+        if Transaction._transactions is not None:
+            for tr2 in Transaction._transactions:
+                total_size = total_size + tr2._size
+
+        logging.info("Adding transaction, total size of queue is: %s KB" % (total_size/1024))
+ 
+        if total_size > MAX_QUEUE_SIZE:
+            logging.warn("Queue is too big, removing old messages...")
+            new_trs = sorted(Transaction._transactions,key=attrgetter('_next_flush'), reverse = True)
+            for tr2 in new_trs:
+                if total_size > MAX_QUEUE_SIZE:
+                    logging.warn("Removing transaction %s from queue" % tr2._id)
+                    Transaction._transactions.remove(tr2)
+                    total_size = total_size - tr2._size
+            
+        Transaction._transactions.append(tr)
+
     def __init__(self, data):
 
         Transaction._counter = Transaction._counter + 1
         self._id = Transaction._counter
         
         self._data = data
+        self._size = sys.getsizeof(data)
+
         self._error_count = 0
         self._next_flush = datetime.now()
 
         #Append the transaction to the end of the list, we pop it later:
         # The most recent message is thus sent first.
-        self._transactions.append(self)
+        Transaction.append(self)
         logging.info("Created transaction %d" % self._id)
 
     @staticmethod
@@ -117,8 +146,8 @@ class Transaction(object):
         # Transactions are replayed, try to send them faster for newer transactions
         # Send them every minutes at most
         td = timedelta(seconds=self._error_count * 20)
-        if td > timedelta(seconds=60):
-            td = timedelta(seconds = 60)
+        if td > MAX_WAIT_FOR_REPLAY:
+            td = MAX_WAIT_FOR_REPLAY
 
         newdate = datetime.now() + td
         self._next_flush = newdate.replace(microsecond=0)
@@ -200,7 +229,6 @@ class Application(tornado.web.Application):
             args.append("--firstRun=yes")
 
         logging.info("Running local checks")
-        logging.info("  args = %s" % str(args))
 
         try:
             p = Popen(args)
