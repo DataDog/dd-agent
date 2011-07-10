@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+import time
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
@@ -31,6 +32,8 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
+THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
+
 def plural(count):
     if count > 1:
         return "s"
@@ -45,6 +48,7 @@ class Transaction(object):
 
 
     _trs_to_flush = None # Current transactions being flushed
+    _last_flush = datetime.now() # Last flush (for throttling)
 
     @staticmethod
     def set_application(app):
@@ -111,14 +115,24 @@ class Transaction(object):
     @staticmethod
     def _flush_next(url):
 
+
         if len(Transaction._trs_to_flush) > 0:
-            tr = Transaction._trs_to_flush.pop()
-            # Send Transaction to the intake
-            req = tornado.httpclient.HTTPRequest(url, 
-                         method = "POST", body = tr.get_data() )
-            http = tornado.httpclient.AsyncHTTPClient()
-            logging.info("Sending transaction %d to datadog" % tr._id)
-            http.fetch(req, callback=lambda(x): Transaction.on_response(tr, url, x))
+
+            td = Transaction._last_flush + THROTTLING_DELAY - datetime.now()
+            delay = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6
+            if delay <= 0:
+                tr = Transaction._trs_to_flush.pop()
+                # Send Transaction to the intake
+                req = tornado.httpclient.HTTPRequest(url, 
+                             method = "POST", body = tr.get_data() )
+                http = tornado.httpclient.AsyncHTTPClient()
+                logging.info("Sending transaction %d to datadog" % tr._id)
+                Transaction._last_flush = datetime.now()
+                http.fetch(req, callback=lambda(x): Transaction.on_response(tr, url, x))
+            else:
+                # Wait a little bit more
+                tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                    lambda: Transaction._flush_next(url))
         else:
             Transaction._trs_to_flush = None
 
@@ -144,7 +158,7 @@ class Transaction(object):
     def compute_next_flush(self):
 
         # Transactions are replayed, try to send them faster for newer transactions
-        # Send them every minutes at most
+        # Send them every MAX_WAIT_FOR_REPLAY at most
         td = timedelta(seconds=self._error_count * 20)
         if td > MAX_WAIT_FOR_REPLAY:
             td = MAX_WAIT_FOR_REPLAY
