@@ -1,3 +1,9 @@
+datadog-agent (1.9.11-1) unstable; urgency=low
+
+  * Added support for overriding a hostname from the config file
+
+ -- Alexis <alq@datadoghq.com>  Mon, 11 Jul 2011 15:06:00 -0400
+
 datadog-agent (1.9.10-1) unstable; urgency=high
 
   * Fixed regression of nagios plugin that would read the log line-by-line
