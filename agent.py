@@ -31,6 +31,8 @@ from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
 
+
+
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
     
@@ -56,12 +58,8 @@ class agent(Daemon):
         c.doChecks(s, True, systemStats) # start immediately (case 28315)
         s.run()
         
-# Control of daemon     
-if __name__ == '__main__':  
-    options, args = get_parsed_args()
-    agentConfig, rawConfig = get_config()
-    
-    # Logging
+def setupLogging(agentConfig):
+    """Used by ddagent.py as well"""
     if agentConfig['debugMode']:
         logFile = os.path.join(agentConfig['tmpDirectory'], 'dd-agent.log')
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -87,6 +85,41 @@ if __name__ == '__main__':
     mainLogger.debug('Agent called')
     mainLogger.debug('Agent version: ' + agentConfig['version'])
 
+
+def getPidFile(command, agentConfig, clean):
+    """Used by ddagent.py as well"""
+
+    if command == 'init': 
+        # This path added for newer Linux packages which run under
+        # a separate dd-agent user account.
+        if os.path.exists('/var/run/dd-agent/'):
+            pidFile = '/var/run/dd-agent/dd-agent.pid'
+        else:
+            pidFile = '/var/run/dd-agent.pid'
+            
+    else:
+        pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
+
+    if clean:
+        mainLogger.debug('Agent called with --clean option, removing .pid')
+        try:
+            os.remove(pidFile)
+        except OSError:
+            # Did not find pid file
+            pass
+
+    return pidFile
+ 
+# Control of daemon     
+if __name__ == '__main__':  
+ 
+    options, args = get_parsed_args()
+    agentConfig, rawConfig = get_config()
+    
+    # Logging
+    setupLogging(agentConfig)
+    mainLogger = logging.getLogger('main')      
+
     # FIXME
     # Ever heard of optparse?
 
@@ -95,26 +128,8 @@ if __name__ == '__main__':
     if len(args) > 0:
         command = args[0]
 
-        if command == 'init': 
-            # This path added for newer Linux packages which run under
-            # a separate dd-agent user account.
-            if os.path.exists('/var/run/dd-agent/'):
-                pidFile = '/var/run/dd-agent/dd-agent.pid'
-            else:
-                pidFile = '/var/run/dd-agent.pid'
-            
-        else:
-            pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
-
-        if options.clean:
-            mainLogger.debug('Agent called with --clean option, removing .pid')
-            try:
-                os.remove(pidFile)
-            except OSError:
-                # Did not find pid file
-                pass
-    
         # Daemon instance from agent class
+        pidFile = getPidFile(command, agentConfig, options.clean)
         daemon = agent(pidFile)
     
         if 'start' == command:
