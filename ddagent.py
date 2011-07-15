@@ -301,7 +301,7 @@ class Application(tornado.web.Application, Daemon):
 
 def main():
 
-    define("action", type=str, default="start", help="Action to run")
+    define("action", type=str, default= "", help="Action to run")
     define("firstRun", type=bool, default=False, help="First check run ?")
     define("port", type=int, default=17123, help="Port to listen on")
     define("log", type=str, default="ddagent.log", help="Log file to use")
@@ -358,27 +358,31 @@ def main():
         _checks._doChecks(options.firstRun,systemStats)
 
     else:
+        if options.action == "" and len(sys.argv) > 0:
+            command = args[0]
+        else:
+            command = options.action
 
         pidFile = getPidFile(options.action, agentConfig, False)
 
         app = Application(pidFile, options, agentConfig)
-        if options.action == "start":
+        if command == "start":
             logging.debug("Starting ddagent tornado daemon")
             app.start()
 
-        elif options.action == "stop":
+        elif command == "stop":
             logging.debug("Stop daemon")
             app.stop()
 
-        elif options.action == 'restart':
+        elif command == 'restart':
             logging.debug('Restart daemon')
             app.restart()
 
-        elif options.action == 'foreground':
+        elif command == 'foreground':
             logging.debug('Running in foreground')
             app.run()
 
-        elif options.action == 'status':
+        elif command == 'status':
             logging.debug('Checking agent status')
 
             try:
