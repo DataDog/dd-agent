@@ -2,11 +2,9 @@
 import logging
 import os
 import sys
-import time
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
-from operator import attrgetter
 
 #Tornado
 import tornado.httpserver
@@ -23,6 +21,8 @@ from checks.common import checks
 from daemon import Daemon
 from agent import setupLogging, getPidFile
 
+from transaction import Transaction, TransactionManager
+
 CHECK_INTERVAL =  60 * 1000       # Every 60s
 PROCESS_CHECK_INTERVAL = 1000     # Every second
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
@@ -35,119 +35,33 @@ MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
 
-def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+class MetricTransaction(Transaction):
 
-class Transaction(object):
+    _application = None
+    _trManager = None
 
-    application = None
+    @classmethod
+    def set_application(cls, app):
+        cls._application = app
 
-    _transactions = [] #List of all non commited transactions
-    _counter = 0 # Global counter to assign a number to each transaction
-
-
-    _trs_to_flush = None # Current transactions being flushed
-    _last_flush = datetime.now() # Last flush (for throttling)
-
-    @staticmethod
-    def set_application(app):
-        Transaction.application = app
-
-    @staticmethod
-    def append(tr):
-
-        total_size = tr._size
-        if Transaction._transactions is not None:
-            for tr2 in Transaction._transactions:
-                total_size = total_size + tr2._size
-
-        logging.info("Adding transaction, total size of queue is: %s KB" % (total_size/1024))
- 
-        if total_size > MAX_QUEUE_SIZE:
-            logging.warn("Queue is too big, removing old messages...")
-            new_trs = sorted(Transaction._transactions,key=attrgetter('_next_flush'), reverse = True)
-            for tr2 in new_trs:
-                if total_size > MAX_QUEUE_SIZE:
-                    logging.warn("Removing transaction %s from queue" % tr2._id)
-                    Transaction._transactions.remove(tr2)
-                    total_size = total_size - tr2._size
-            
-        Transaction._transactions.append(tr)
+    @classmethod
+    def set_tr_manager(cls, manager):
+        cls._trManager = manager
 
     def __init__(self, data):
 
-        Transaction._counter = Transaction._counter + 1
-        self._id = Transaction._counter
-        
         self._data = data
-        self._size = sys.getsizeof(data)
 
-        self._error_count = 0
-        self._next_flush = datetime.now()
+        # Call after data has been set (size is computed in Transaction's init)
+        Transaction.__init__(self)
 
-        #Append the transaction to the end of the list, we pop it later:
-        # The most recent message is thus sent first.
-        Transaction.append(self)
-        logging.info("Created transaction %d" % self._id)
+        # Insert the transaction in the Manager
+        self._trManager.append(self)
+        logging.info("Created transaction %d" % self.get_id())
+        self._trManager.flush()
 
-    @staticmethod
-    def flush():
-
-        if Transaction._trs_to_flush is not None:
-            logging.info("A flush is already in progress, not doing anything")
-            return
-
-        to_flush = []
-        # Do we have something to do ?
-        now = datetime.now()
-        for tr in Transaction._transactions:
-            if tr.time_to_flush(now):
-                to_flush.append(tr)
-           
-        count = len(to_flush)
-        if count > 0:
-            logging.info("Flushing %s transaction%s" % (count,plural(count)))
-            url = Transaction.application.agentConfig['ddUrl'] + '/intake/'
-            Transaction._trs_to_flush = to_flush
-            Transaction._flush_next(url)
-
-    @staticmethod
-    def _flush_next(url):
-
-
-        if len(Transaction._trs_to_flush) > 0:
-
-            td = Transaction._last_flush + THROTTLING_DELAY - datetime.now()
-            delay = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6
-            if delay <= 0:
-                tr = Transaction._trs_to_flush.pop()
-                # Send Transaction to the intake
-                req = tornado.httpclient.HTTPRequest(url, 
-                             method = "POST", body = tr.get_data() )
-                http = tornado.httpclient.AsyncHTTPClient()
-                logging.info("Sending transaction %d to datadog" % tr._id)
-                Transaction._last_flush = datetime.now()
-                http.fetch(req, callback=lambda(x): Transaction.on_response(tr, url, x))
-            else:
-                # Wait a little bit more
-                tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
-                    lambda: Transaction._flush_next(url))
-        else:
-            Transaction._trs_to_flush = None
-
-    @staticmethod
-    def on_response(tr, url, response):
-        if response.error: 
-            tr.error()
-        else:
-            tr.finish()
-
-        Transaction._flush_next(url)
-
-    def time_to_flush(self,now = datetime.now()):
-        return self._next_flush < now
+    def __sizeof__(self):
+        return sys.getsizeof(self._data)
 
     def get_data(self):
         try:
@@ -156,26 +70,23 @@ class Transaction(object):
             import traceback
             logger.error('http_emitter: Exception = ' + traceback.format_exc())
 
-    def compute_next_flush(self):
+    def flush(self):
 
-        # Transactions are replayed, try to send them faster for newer transactions
-        # Send them every MAX_WAIT_FOR_REPLAY at most
-        td = timedelta(seconds=self._error_count * 20)
-        if td > MAX_WAIT_FOR_REPLAY:
-            td = MAX_WAIT_FOR_REPLAY
+        url = self._application.agentConfig['ddUrl'] + '/intake/'
+        # Send Transaction to the intake
+        req = tornado.httpclient.HTTPRequest(url, 
+                             method = "POST", body = self.get_data() )
+        http = tornado.httpclient.AsyncHTTPClient()
+        logging.info("Sending transaction %d to datadog" % self.get_id())
+        http.fetch(req, callback=lambda(x): self.on_response(x))
 
-        newdate = datetime.now() + td
-        self._next_flush = newdate.replace(microsecond=0)
+    def on_response(self, response):
+        if response.error: 
+            self._trManager.tr_error(self)
+        else:
+            self._trManager.tr_success(self)
 
-    def error(self):
-        self._error_count = self._error_count + 1
-        self.compute_next_flush()
-        logging.info("Transaction %d in error (%s error%s), it will be replayed after %s" % 
-          (self._id, self._error_count, plural(self._error_count), self._next_flush))
-
-    def finish(self):
-        logging.info("Transaction %d completed" % self._id)
-        Transaction._transactions.remove(self)
+        self._trManager.flush_next()
 
 class AgentInputHandler(tornado.web.RequestHandler):
 
@@ -202,8 +113,7 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
         if msg is not None:
             # Setup a transaction for this message
-            Transaction(msg)
-            Transaction.flush()
+            tr = MetricTransaction(msg)
         else:
             raise tornado.web.HTTPError(500)
    
@@ -227,7 +137,10 @@ class Application(tornado.web.Application, Daemon):
 
         tornado.web.Application.__init__(self, handlers, **settings)
 
-        Transaction.set_application(self)
+        MetricTransaction.set_application(self)
+        self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
+            MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        MetricTransaction.set_tr_manager(self._tr_manager)
     
         Daemon.__init__(self,pidFile)
 
@@ -247,7 +160,7 @@ class Application(tornado.web.Application, Daemon):
             self.process_check()
 
         def flush_trs():
-            Transaction.flush()
+            self._tr_manager.flush()
 
         check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
 
