@@ -69,6 +69,8 @@ class TransactionManager(object):
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
 
+        self._flush_without_ioloop = False # usefull for tests
+
         self._transactions = [] #List of all non commited transactions
     
         # Global counter to assign a number to each transaction: we may have an issue
@@ -140,8 +142,13 @@ class TransactionManager(object):
                 tr.flush()
             else:
                 # Wait a little bit more
-                tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
-                    lambda: self.flush_next())
+                if  tornado.ioloop.IOLoop.instance().running():
+                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                        lambda: self.flush_next())
+                elif self._flush_without_ioloop:
+                    # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
+                    time.sleep(delay)
+                    self.flush_next()
         else:
             self._trs_to_flush = None
 
