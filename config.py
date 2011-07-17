@@ -78,6 +78,12 @@ def get_config():
         else:
             agentConfig['hostname'] = None
 
+        # port we listen on (overriden via command line)
+        if config.has_option('Main','port'):
+            agentConfig['listen_port'] = int(config.get('Main','port'))
+        else:
+            agentConfig['listen_port'] = None
+
         # Optional config
         # Also do not need to be present in the config file (case 28326).
         # FIXME not the prettiest code ever...

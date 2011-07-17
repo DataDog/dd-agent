@@ -119,7 +119,7 @@ class AgentInputHandler(tornado.web.RequestHandler):
    
 class Application(tornado.web.Application, Daemon):
 
-    def __init__(self, pidFile, options, agentConfig):
+    def __init__(self, pidFile, port, agentConfig):
 
         handlers = [
             (r"/intake/?", AgentInputHandler),
@@ -132,7 +132,7 @@ class Application(tornado.web.Application, Daemon):
         )
 
         self._check_pid = -1
-        self._port = options.port
+        self._port = port
         self.agentConfig = agentConfig
 
         tornado.web.Application.__init__(self, handlers, **settings)
@@ -148,6 +148,7 @@ class Application(tornado.web.Application, Daemon):
 
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
+        logging.info("Listening on port %s" % self._port)
 
         # Register callbacks
         mloop = tornado.ioloop.IOLoop.instance() 
@@ -278,21 +279,26 @@ def main():
 
         pidFile = getPidFile(options.action, agentConfig, False)
 
-        app = Application(pidFile, options, agentConfig)
+        port = agentConfig['listen_port']
+        if port is None:
+            port = options.port
+
+        app = Application(pidFile, port, agentConfig)
+
         if command == "start":
-            logging.debug("Starting ddagent tornado daemon")
+            logging.info("Starting ddagent tornado daemon")
             app.start()
 
         elif command == "stop":
-            logging.debug("Stop daemon")
+            logging.info("Stop daemon")
             app.stop()
 
         elif command == 'restart':
-            logging.debug('Restart daemon')
+            logging.info('Restart daemon')
             app.restart()
 
         elif command == 'foreground':
-            logging.debug('Running in foreground')
+            logging.info('Running in foreground')
             app.run()
 
         elif command == 'status':

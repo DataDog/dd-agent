@@ -19,6 +19,9 @@ debug_mode: no
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
 
+# Change port the agent is listening to
+# port: 17123
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
