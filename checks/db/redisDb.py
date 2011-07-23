@@ -17,6 +17,21 @@ class Redis(Check):
         
         self.prev_total_commands = None
         
+    def _parse_dict_string(self, string, key, default):
+        """Take from a more recent redis.py, parse_info"""
+        try:
+            for item in string.split(','):
+                k, v = item.rsplit('=', 1)
+                if k == key:
+                    try:
+                        return int(v)
+                    except ValueError:
+                        return v
+            return default
+        except Exception, e:
+            self.logger.exception("Cannot parse dictionnary string: %s" % string)
+            return default
+
     def check(self, agentConfig):
         if self.client is not None:
             try:
@@ -39,7 +54,16 @@ class Redis(Check):
                 for key in info.keys():
                     if self.db_key_pattern.match(key):
                         for subkey in self.subkeys:
-                            output['.'.join([key, subkey])] = info[key].get(subkey, -1)
+                            # Old redis module on ubuntu 10.04 (python-redis 0.6.1) does not
+                            # returns a dict for those key but a string: keys=3,expires=0
+                            # Try to parse it (see lighthouse #46)            
+                            val = - 1
+                            try:
+                                val = info[key].get(subkey, -1)
+                            except AttributeError:
+                                val = self._parse_dict_string(info[key], subkey, -1)
+
+                            output['.'.join([key, subkey])] = val
                 return output
             except:
                 self.logger.exception("Cannot get Redis stats")
