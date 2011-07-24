@@ -28,6 +28,9 @@ class Transaction(object):
         assert self._id is None
         self._id = new_id
 
+    def get_error_count(self):
+        return self._error_count
+
     def inc_error_count(self):
         self._error_count = self._error_count + 1
 
@@ -79,6 +82,9 @@ class TransactionManager(object):
 
         self._trs_to_flush = None # Current transactions being flushed
         self._last_flush = datetime.now() # Last flush (for throttling)
+
+    def get_transactions(self):
+        return self._transactions
 
     def get_tr_id(self):
         self._counter =  self._counter + 1

@@ -48,6 +48,10 @@ class MetricTransaction(Transaction):
     def set_tr_manager(cls, manager):
         cls._trManager = manager
 
+    @classmethod
+    def get_tr_manager(cls):
+        return cls._trManager
+
     def __init__(self, data):
 
         self._data = data
@@ -88,6 +92,18 @@ class MetricTransaction(Transaction):
 
         self._trManager.flush_next()
 
+class StatusHandler(tornado.web.RequestHandler):
+
+    def get(self):
+
+        m = MetricTransaction.get_tr_manager()
+       
+        self.write("<table><tr><td>Id</td><td>Size</td><td>Error count</td><td>Next flush</td></tr>")
+        for tr in m.get_transactions():
+            self.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % 
+                (tr.get_id(), tr.get_size(), tr.get_error_count(), tr.get_next_flush()))
+        self.write("</table>")
+  
 class AgentInputHandler(tornado.web.RequestHandler):
 
     HASH = "hash"
@@ -116,13 +132,16 @@ class AgentInputHandler(tornado.web.RequestHandler):
             tr = MetricTransaction(msg)
         else:
             raise tornado.web.HTTPError(500)
-   
+
+        self.write("Transaction: %s" % tr.get_id())
+
 class Application(tornado.web.Application, Daemon):
 
     def __init__(self, pidFile, port, agentConfig):
 
         handlers = [
             (r"/intake/?", AgentInputHandler),
+            (r"/status/?", StatusHandler),
         ]
 
         settings = dict(
