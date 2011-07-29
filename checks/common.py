@@ -57,9 +57,10 @@ class checks:
         macV = None
         if sys.platform == 'darwin':
             macV = platform.mac_ver()
+            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
         
-        # Output from top is slightly modified on OS X 10.6 (case #28239)
-        if macV and macV[0].startswith('10.6.'):
+        # Output from top is slightly modified on OS X 10.6 (case #28239) and greater
+        if macV and (macV_minor_version >= 6):
             self.topIndex = 6
         else:
             self.topIndex = 5
