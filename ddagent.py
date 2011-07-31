@@ -270,14 +270,6 @@ def main():
 
     sys.argv = newargs
 
-    # set up logging
-    formatter = logging.Formatter(fmt="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
-    handler = logging.FileHandler(filename=options.log)
-    handler.setFormatter(formatter)
-    logging.getLogger().addHandler(handler)
-    #logging.getLogger().setLevel(logging.DEBUG)
-    logging.getLogger().setLevel(logging.INFO)
-    
     agentConfig, rawConfig = get_config()
 
     setupLogging(agentConfig)
@@ -317,19 +309,19 @@ def main():
         app = Application(pidFile, port, agentConfig)
 
         if command == "start":
-            logging.info("Starting ddagent tornado daemon")
+            logging.debug("Starting ddagent tornado daemon")
             app.start()
 
         elif command == "stop":
-            logging.info("Stop daemon")
+            logging.debug("Stop daemon")
             app.stop()
 
         elif command == 'restart':
-            logging.info('Restart daemon')
+            logging.debug('Restart daemon')
             app.restart()
 
         elif command == 'foreground':
-            logging.info('Running in foreground')
+            logging.debug('Running in foreground')
             app.run()
 
         elif command == 'status':
