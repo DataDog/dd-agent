@@ -1,3 +1,15 @@
+#!/usr/bin/python
+'''
+    Datadog
+    www.datadoghq.com
+    ----
+    Make sense of your IT Data
+
+    Licensed under Simplified BSD License (see LICENSE)
+    (C) Boxed Ice 2010 all rights reserved
+    (C) Datadog, Inc. 2010 all rights reserved
+'''
+
 # Standard imports
 import logging
 import os
@@ -340,6 +352,8 @@ def main():
         else:
             sys.stderr.write('Unknown command: %s.\n' % options.action)
             sys.exit(2)
+
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
