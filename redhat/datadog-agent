@@ -27,56 +27,81 @@ AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 PYTHON="/usr/bin/python2.6"
 
-[ -f $AGENTPATH ] || echo "$AGENTPATH not found"
-
 # Source function library.
-if [ -f /etc/init.d/functions ]; then
-        . /etc/init.d/functions
-fi
+. /etc/rc.d/init.d/functions
 
-if [ -f /etc/SuSE-release ]; then
-        . /etc/rc.status
-        rc_reset
-fi
+PROG="datadog-agent"
+PIDFILE=$PIDPATH/$PROG.pid
+LOCKFILE=/var/lock/subsys/$PROG
 
-# Action to take
+check_status() {
+    # run checks to determine if the service is running or use generic status
+    if [ -f "$LOCKFILE" ]
+        then
+            echo 'Datadog agent is running'
+    else
+            echo 'Datadog agent is not running'
+    fi
+}
+
+grab_status() {
+    GRABSTATUS=`check_status`
+    if [ "$GRABSTATUS" == "Datadog agent is running" ]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+start() {
+    grab_status
+    if [ "$?" -eq "1" ]; then
+        echo -n 'Datadog agent is already running' && warning && echo
+    else
+    	install -d -o $AGENTUSER $PIDPATH
+        echo -n 'Starting Datadog agent: '
+        daemon --user $AGENTUSER "$PYTHON $AGENTPATH start init --clean >/dev/null"
+        RETURNVALUE=$?
+        echo
+        [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
+        return $RETURNVALUE
+    fi
+}
+
+stop() {
+    grab_status
+    if [ "$?" -eq "1" ]; then
+        echo -n 'Stopping Datadog agent: '
+        daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
+        RETURNVALUE=$?
+    	[ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
+    else
+        echo -n 'agent is not running' && warning && echo
+	RETURNVALUE=2
+    fi
+    return $RETURNVALUE
+}
+
+restart() {
+    stop
+    start
+}
+
 case "$1" in
-  start)
-        if [ ! -f $PIDPATH ]; then
-            mkdir -p $PIDPATH
-            chown $AGENTUSER:$AGENTUSER $PIDPATH
-        fi
-        su $AGENTUSER -c "$PYTHON $AGENTPATH start init --clean"
-        if [ -f /etc/SuSE-release ]; then
-                rc_status -v
-        elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
-                echo " Started"
-        else
-                success
-                echo
-        fi
-        echo
-    ;;
-  stop)
-        su $AGENTUSER -c "$PYTHON $AGENTPATH stop init"
-
-        if [ -f /etc/SuSE-release ]; then
-                rc_status -v
-        elif [ -f /etc/debian_version ] || [ -f /etc/lsb-release ] || [ -f /etc/gentoo-release ]; then
-                echo " Stopped"
-        else
-                success
-                echo
-        fi
-        echo
-    ;;
-  restart)
-        $0 stop
-        $0 start
-    ;;
-  *)
-        echo "Usage: /etc/init.d/datadog-agent start|stop|restart"
-        exit 1
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    status)
+        check_status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 2
 esac
-
-exit 0
+exit $?
