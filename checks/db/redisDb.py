@@ -39,16 +39,20 @@ class Redis(Check):
                 output = {
                     'redis.net.clients':  info['connected_clients'],
                     'redis.net.slaves':   info['connected_slaves'],
-                    'redis.net.blocked':  info['blocked_clients'],
                     'redis.mem.used':     info['used_memory'],
                 }
-            
-                # Subtract 1 to correct for the agent's INFO command to 
+                try:
+                    output['redis.net.blocked'] =  info['blocked_clients']
+                except KeyError:
+                    # Redis 1.2 does not export this
+                    pass
+                
+                # Subtract 1 to correct for the agent's INFO command
                 totall_commands = info['total_commands_processed'] - 1 
-            
+                
                 if self.prev_total_commands is not None:
                     output['redis.net.commands'] = info['total_commands_processed'] - self.prev_total_commands
-            
+                
                 self.prev_total_commands = info['total_commands_processed']
             
                 for key in info.keys():
