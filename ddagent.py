@@ -176,7 +176,6 @@ class Application(tornado.web.Application, Daemon):
             debug=True,
         )
 
-
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
@@ -250,6 +249,9 @@ def main():
     define("firstRun", type=bool, default=False, help="First check run ?")
     define("port", type=int, default=17123, help="Port to listen on")
     define("log", type=str, default="ddagent.log", help="Log file to use")
+
+    # Prevent tornado from setting up logging, it's done by our agent later on
+    tornado.options.options.logging = "none"
 
     args = parse_command_line()
 
