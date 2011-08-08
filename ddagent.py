@@ -151,6 +151,19 @@ class Application(tornado.web.Application, Daemon):
 
     def __init__(self, pidFile, port, agentConfig):
 
+        self._check_pid = -1
+        self._port = port
+        self.agentConfig = agentConfig
+
+        MetricTransaction.set_application(self)
+        self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
+            MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        MetricTransaction.set_tr_manager(self._tr_manager)
+    
+        Daemon.__init__(self,pidFile)
+
+    def run(self):
+
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/status/?", StatusHandler),
@@ -162,21 +175,8 @@ class Application(tornado.web.Application, Daemon):
             debug=True,
         )
 
-        self._check_pid = -1
-        self._port = port
-        self.agentConfig = agentConfig
 
         tornado.web.Application.__init__(self, handlers, **settings)
-
-        MetricTransaction.set_application(self)
-        self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
-            MAX_QUEUE_SIZE, THROTTLING_DELAY)
-        MetricTransaction.set_tr_manager(self._tr_manager)
-    
-        Daemon.__init__(self,pidFile)
-
-    def run(self):
-
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
         logging.info("Listening on port %s" % self._port)
