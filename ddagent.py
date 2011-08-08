@@ -154,6 +154,7 @@ class Application(tornado.web.Application, Daemon):
         self._check_pid = -1
         self._port = port
         self.agentConfig = agentConfig
+        self._working_dir = os.getcwd()
 
         MetricTransaction.set_application(self)
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
@@ -195,7 +196,6 @@ class Application(tornado.web.Application, Daemon):
             self._tr_manager.flush()
 
         check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
-
         p_checks_scheduler = tornado.ioloop.PeriodicCallback(process_check,PROCESS_CHECK_INTERVAL, io_loop = mloop) 
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
 
@@ -222,7 +222,7 @@ class Application(tornado.web.Application, Daemon):
         logging.info("Running local checks")
 
         try:
-            p = Popen(args)
+            p = Popen(args,cwd=self._working_dir)
             self._check_pid = p.pid
         except Exception, e:
             logging.exception(e)
