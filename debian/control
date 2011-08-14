@@ -6,13 +6,27 @@ Build-Depends: debhelper (>= 7), python-support (>= 0.8.4)
 Standards-Version: 3.8.4
 XS-Python-Version: >= 2.4
 
-Package: datadog-agent
+Package: datadog-agent-base
 Architecture: all
-Depends: adduser, sysstat, ${misc:Depends}, ${python:Depends}
-XB-Python-Version: ${python:Versions}
+Depends: adduser, sysstat, ${misc:Depends}, ${python:Depends}, python (>= 2.4)
 Provides: ${python:Provides}
 Description: Datadog monitoring agent
  The datadog monitoring agent is a lightweight component sending system, 
  processes and services information back to your datadog account.
+ This package includes the necessary support files as well as a working
+ agent compatible with python 2.4
+ .
+ See http://www.datadoghq.com/ for more information
+
+Package: datadog-agent
+Architecture: all
+Depends: adduser, sysstat, ${misc:Depends}, ${python:Depends}, python-tornado, datadog-agent-base, python (>= 2.6)
+Provides: ${python:Provides}
+Replaces: datadog-agent-base
+Description: Datadog monitoring agent
+ The datadog monitoring agent is a lightweight component sending system, 
+ processes and services information back to your datadog account.
+ This package includes a more advanced agent, allowing forwarging/queuing of 
+ requests
  .
  See http://www.datadoghq.com/ for more information

@@ -20,6 +20,7 @@ set -e
 
 case "$1" in
     configure)
+        update-rc.d datadog-agent defaults
         adduser --system dd-agent --shell /bin/sh --no-create-home --quiet
     ;;
 

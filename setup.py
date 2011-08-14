@@ -18,8 +18,7 @@ setup(name='datadog-agent',
       url='http://datadoghq.com/',
       packages=['checks', 'checks/db', 'resources'],
       package_data={'checks': ['libs/*']},
-      scripts=['agent.py', 'daemon.py', 'minjson.py', 'util.py', 'emitter.py', 'config.py', 
-        'ddagent.py', 'transaction.py'],
+      scripts=['agent.py', 'daemon.py', 'minjson.py', 'util.py', 'emitter.py', 'config.py'],
       data_files=[('/etc/dd-agent/', ['datadog.conf.example']), 
                   ('/etc/init.d', ['redhat/datadog-agent'])]
      )

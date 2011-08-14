@@ -15,11 +15,49 @@ unexport LDFLAGS
 #exports specified using stdeb Setup-Env-Vars:
 #export DH_OPTIONS=--buildsystem=python_distutils
 
+.PHONY: datadog-agent datadog-agent-base override_dh_auto_install override_dh_auto_build
 
 %:
 	dh $@
 
-override_dh_auto_install:
-	python setup.py install --root=debian/datadog-agent --install-layout=deb --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent
+
+datadog-agent-base: 
+	dh_testdir
+	dh_testroot
+	dh_installdirs  -p$@
+	dh_install --fail-missing --package=$@
+	python setup.py install --root=debian/datadog-agent-base --install-layout=deb --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent --no-compile
+	cp debian/debian-ddagent-init debian/datadog-agent-base/etc/init.d/datadog-agent
+	dh_installman  -p$@
+	dh_link  -p$@
+	dh_strip  -p$@
+	dh_compress  -p$@
+	dh_fixperms  -p$@
+	dh_installdeb -p$@
+	dh_shlibdeps  -p$@
+	dh_gencontrol  -p$@
+	dh_md5sums  -p$@
+	dh_builddeb  -p$@
+
+datadog-agent: 
+	dh_testdir
+	dh_testroot
+	dh_installdirs  -p$@
+	dh_install --fail-missing --package=$@
+	dh_installman  -p$@
+	dh_link  -p$@
+	dh_strip  -p$@
+	dh_compress  -p$@
+	dh_fixperms  -p$@
+	dh_installdeb -p$@
+	dh_shlibdeps  -p$@
+	dh_gencontrol  -p$@
+	dh_md5sums  -p$@
+	dh_builddeb  -p$@
+
+override_dh_auto_install: datadog-agent-base datadog-agent
 
 override_dh_auto_build:
+
+override_dh_installdeb:
+

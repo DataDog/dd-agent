@@ -1,3 +1,10 @@
+datadog-agent (2.0.0-1) unstable; urgency=medium
+
+  * New forwarding agent is now the default
+  * Split into two packages
+
+ -- Fabrice <fabrice@datadoghq.com>  Sun, 14 Aug 2011 23:56:00 +0200
+
 datadog-agent (1.9.12-2) unstable; urgency=medium
 
   * Adds support for redis-server 1.2
@@ -25,9 +32,6 @@ datadog-agent (1.9.10-1) unstable; urgency=high
 datadog-agent (1.9.9-2) unstable; urgency=low
 
   * Encode dependency with sysstat
-
- -- Alexis <alq@datadoghq.com>  Fri, 24 Jun 2011 15:06:00 -0400
-
   * Fixes connection leak in memcache module
 
  -- Alexis <alq@datadoghq.com>  Thu, 23 Jun 2011 23:06:00 -0400
