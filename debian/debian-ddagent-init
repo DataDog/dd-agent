@@ -39,6 +39,11 @@ case "$1" in
         echo "$NAME."
     ;;
   stop)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting"
+            exit 0;
+        fi
+
         echo -n "Stopping $DESC: "
         $AGENTPATH stop init
         echo "$NAME."
