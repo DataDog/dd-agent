@@ -28,6 +28,11 @@ datadog-agent-base:
 	dh_install --fail-missing --package=$@
 	python setup.py install --root=debian/datadog-agent-base --install-layout=deb --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent --no-compile
 	cp debian/debian-ddagent-init debian/datadog-agent-base/etc/init.d/datadog-agent
+	chmod 644 debian/datadog-agent-base/usr/share/datadog/agent/config.py
+	chmod 644 debian/datadog-agent-base/usr/share/datadog/agent/util.py
+	chmod 644 debian/datadog-agent-base/usr/share/datadog/agent/daemon.py
+	chmod 644 debian/datadog-agent-base/usr/share/datadog/agent/minjson.py
+	chmod 644 debian/datadog-agent-base/usr/share/datadog/agent/emitter.py
 	dh_installman  -p$@
 	dh_link  -p$@
 	dh_strip  -p$@
