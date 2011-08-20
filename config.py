@@ -14,17 +14,23 @@ def get_parsed_args():
                         dest='dd_url')
     parser.add_option('-c', '--clean', action='store_true', default=False,
                         dest='clean')
+    parser.add_option('-u', '--use-local-forwarder', action='store_true', 
+                        default=False,dest='use_forwarder')
     try:
         options, args = parser.parse_args()
     except SystemExit:
-        options, args = Values({'dd_url': None, 'clean': False}), [] # Ignore parse errors
+        options, args = Values({'dd_url': None, 'clean': False, 'use_forwarder':False}), [] # Ignore parse errors
     return options, args
 
 def get_version():
     return "1.9.12"
 
-def get_config():
-    options, args = get_parsed_args()
+def get_config(parse_args = True):
+    if parse_args:
+        options, args = get_parsed_args()
+    else:
+        options = None
+        args = None
 
     # General config
     agentConfig = {}
@@ -49,7 +55,12 @@ def get_config():
             sys.exit(3)
 
         # Core config
-        if options.dd_url:
+        if options is not None and options.use_forwarder:
+            listen_port = 17123
+            if config.has_option('Main','listen_port'):
+                listen_port = config.get('Main','listen_port')
+            agentConfig['ddUrl'] = "http://localhost:" + str(listen_port)
+        elif options is not None and options.dd_url:
             agentConfig['ddUrl'] = options.dd_url
         else:
             agentConfig['ddUrl'] = config.get('Main', 'dd_url')

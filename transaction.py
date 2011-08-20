@@ -145,7 +145,10 @@ class TransactionManager(object):
                 tr = self._trs_to_flush.pop()
                 self._last_flush = datetime.now()
                 logging.debug("Flushing transaction %d" % tr.get_id())
-                tr.flush()
+                try:
+                    tr.flush()
+                except Exception,e :
+                    logging.error(e)
             else:
                 # Wait a little bit more
                 if  tornado.ioloop.IOLoop.instance().running():

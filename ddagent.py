@@ -27,16 +27,11 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from config import get_config, get_system_stats, get_parsed_args
 from emitter import http_emitter, format_body
-from checks.common import checks
-from daemon import Daemon
-from agent import setupLogging, getPidFile
+from config import get_config
 
 from transaction import Transaction, TransactionManager
 
-CHECK_INTERVAL =  60 * 1000       # Every 60s
-PROCESS_CHECK_INTERVAL = 1000     # Every second
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 
 # Maximum delay before replaying a transaction
@@ -88,7 +83,7 @@ class MetricTransaction(Transaction):
 
     def flush(self):
 
-        url = self._application.agentConfig['ddUrl'] + '/intake/'
+        url = self._application._agentConfig['ddUrl'] + '/intake/'
         # Send Transaction to the intake
         req = tornado.httpclient.HTTPRequest(url, 
                              method = "POST", body = self.get_data() )
@@ -147,22 +142,18 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
         self.write("Transaction: %s" % tr.get_id())
 
-class Application(tornado.web.Application, Daemon):
+class Application(tornado.web.Application):
 
-    def __init__(self, pidFile, port, agentConfig):
+    def __init__(self, port, agentConfig):
 
-        self._check_pid = -1
         self._port = port
-        self.agentConfig = agentConfig
-        self._working_dir = os.getcwd()
+        self._agentConfig = agentConfig
 
         MetricTransaction.set_application(self)
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
     
-        Daemon.__init__(self,pidFile)
-
     def run(self):
 
         handlers = [
@@ -184,170 +175,30 @@ class Application(tornado.web.Application, Daemon):
         # Register callbacks
         mloop = tornado.ioloop.IOLoop.instance() 
 
-        def run_checks():
-            logging.info("Running checks...")
-            self.run_checks()
-    
-        def process_check():
-            self.process_check()
-
         def flush_trs():
             self._tr_manager.flush()
 
-        check_scheduler = tornado.ioloop.PeriodicCallback(run_checks,CHECK_INTERVAL, io_loop = mloop) 
-        p_checks_scheduler = tornado.ioloop.PeriodicCallback(process_check,PROCESS_CHECK_INTERVAL, io_loop = mloop) 
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
 
         # Start everything
         tr_sched.start()
-        p_checks_scheduler.start()
-        check_scheduler.start()
-        self.run_checks(True)
         mloop.start()
     
-    def run_checks(self, firstRun = False):
-
-        if self._check_pid > 0 :
-            logging.warning("Not running checks because a previous instance is still running")
-            return False
-
-        args = [sys.executable]
-        args.append(__file__)
-        args.append("--action=runchecks")
-
-        if firstRun:
-            args.append("--firstRun=yes")
-
-        logging.info("Running local checks")
-
-        try:
-            p = Popen(args,cwd=self._working_dir)
-            self._check_pid = p.pid
-        except Exception, e:
-            logging.exception(e)
-            return False
-  
-        return True
-
-    def process_check(self):
-
-        if self._check_pid > 0:
-            logging.debug("Checking on child process")
-            # Try to join the process running checks
-            (pid, status) = os.waitpid(self._check_pid,os.WNOHANG)
-            if (pid, status) != (0, 0):
-                logging.debug("child (pid: %s) exited with status: %s" % (pid, status))
-                if status != 0:
-                    logging.error("Error while running checks")
-                self._check_pid = -1
-            else:
-                logging.debug("child (pid: %s) still running" % self._check_pid)
-
 def main():
 
-    define("action", type=str, default= "", help="Action to run")
-    define("firstRun", type=bool, default=False, help="First check run ?")
-    define("port", type=int, default=17123, help="Port to listen on")
-    define("log", type=str, default="ddagent.log", help="Log file to use")
-
     # Prevent tornado from setting up logging, it's done by our agent later on
-    tornado.options.options.logging = "none"
+    #tornado.options.options.logging = "none"
+    # Settup logging
+    parse_command_line()
 
-    args = parse_command_line()
+    agentConfig, rawConfig = get_config(parse_args = False)
 
-    # Remove known options so it won't get parsed (and fails because
-    # get_config don't know about our option and python OptParser breaks on
-    # unkown options)
-    newargs = []
-    knownoptions = [ "--" + o for o in options.keys()]
-    for arg in sys.argv:
-        known = False
-        for opt in knownoptions:
-            if arg.startswith(opt):
-                known = True
-                break
+    port = agentConfig['listen_port']
+    if port is None:
+        port = 17123
 
-        if not known:
-            newargs.append(arg)
-
-    sys.argv = newargs
-
-    agentConfig, rawConfig = get_config()
-
-    setupLogging(agentConfig)
- 
-    if options.action == "runchecks":
-
-        #Create checks instance
-        agentLogger = logging.getLogger('agent')
-
-        systemStats = False
-        if options.firstRun:
-            agentLogger.debug('Collecting basic system stats')
-            systemStats = get_system_stats()
-            agentLogger.debug('System: ' + str(systemStats))
-            
-        agentLogger.debug('Creating checks instance')
-
-        emitter = http_emitter
-       
-        mConfig = dict(agentConfig)
-        mConfig['ddUrl'] = "http://localhost:" + str(options.port)
-        _checks = checks(mConfig, rawConfig, emitter)
-        _checks._doChecks(options.firstRun,systemStats)
-
-    else:
-        if options.action == "" and len(sys.argv) > 0:
-            command = args[0]
-        else:
-            command = options.action
-
-        pidFile = getPidFile(options.action, agentConfig, False)
-
-        port = agentConfig['listen_port']
-        if port is None:
-            port = options.port
-
-        app = Application(pidFile, port, agentConfig)
-
-        if command == "start":
-            logging.debug("Starting ddagent tornado daemon")
-            app.start()
-
-        elif command == "stop":
-            logging.debug("Stop daemon")
-            app.stop()
-
-        elif command == 'restart':
-            logging.debug('Restart daemon')
-            app.restart()
-
-        elif command == 'foreground':
-            logging.debug('Running in foreground')
-            app.run()
-
-        elif command == 'status':
-            logging.debug('Checking agent status')
-
-            try:
-                pf = file(pidFile,'r')
-                pid = int(pf.read().strip())
-                pf.close()
-            except IOError:
-                pid = None
-            except SystemExit:
-                pid = None
-
-            if pid:
-                sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
-            else:
-                sys.stdout.write('dd-agent is not running.\n')
-
-        else:
-            sys.stderr.write('Unknown command: %s.\n' % options.action)
-            sys.exit(2)
-
-        sys.exit(0)
+    app = Application(port,agentConfig)
+    app.run()
 
 if __name__ == "__main__":
     main()
