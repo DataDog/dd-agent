@@ -10,6 +10,7 @@ Package: datadog-agent-base
 Architecture: all
 Depends: adduser, sysstat, ${misc:Depends}, ${python:Depends}, python (>= 2.4)
 Provides: ${python:Provides}
+Replaces: datadog-agent (<< 2.0)
 Description: Datadog monitoring agent
  The datadog monitoring agent is a lightweight component sending system, 
  processes and services information back to your datadog account.
