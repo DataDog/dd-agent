@@ -17,6 +17,7 @@ set -e
 AGENTPATH="/usr/bin/dd-agent"
 AGENTUSER="dd-agent"
 AGENTCONF="/etc/dd-agent/datadog.conf"
+USE_SUPERVISOR="/usr/bin/dd-forwarder"
 PIDPATH="/var/run/dd-agent"
 NAME="dd-agent"
 DESC="datadog agent"
@@ -31,11 +32,18 @@ case "$1" in
             exit 0;
         fi
         echo -n "Starting $DESC: "
-        if [ ! -f $PIDPATH ]; then
-            mkdir -p $PIDPATH
+
+
+        if [ -f $USE_SUPERVISOR ]; then
+            echo -n "(using supervisorctl) "
+            supervisorctl start datadog-agent:*
+        else
+            if [ ! -f $PIDPATH ]; then
+                mkdir -p $PIDPATH
+            fi
+            chown $AGENTUSER $PIDPATH
+            su $AGENTUSER -c "$AGENTPATH start init --clean"
         fi
-        chown $AGENTUSER $PIDPATH
-        su $AGENTUSER -c "$AGENTPATH start init --clean"
         echo "$NAME."
     ;;
   stop)
@@ -45,7 +53,13 @@ case "$1" in
         fi
 
         echo -n "Stopping $DESC: "
-        $AGENTPATH stop init
+        if [ -f $USE_SUPERVISOR ]; then
+            echo -n "(using supervisorctl) "
+            supervisorctl stop datadog-agent:*
+        else
+            $AGENTPATH stop init
+        fi
+
         echo "$NAME."
     ;;
   restart|force-reload)

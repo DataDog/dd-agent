@@ -4,13 +4,14 @@ set -e
 
 case "$1" in
     configure)
+        supervisorctl reread
+        supervisorctl update
 
         if which invoke-rc.d >/dev/null 2>&1; then
             invoke-rc.d datadog-agent restart
         else
             /etc/init.d/datadog-agent restart
         fi
-
     ;;
     *)
     ;;

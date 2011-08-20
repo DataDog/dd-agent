@@ -1,2 +1,3 @@
-ddagent.py          /usr/share/datadog/agent/
-transaction.py      /usr/share/datadog/agent/
+ddagent.py                     /usr/share/datadog/agent/
+transaction.py                 /usr/share/datadog/agent/
+debian/supervisor_ddagent.conf /etc/dd-agent/

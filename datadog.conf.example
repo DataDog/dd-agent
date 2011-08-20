@@ -20,7 +20,7 @@ debug_mode: no
 #hostname: mymachine.mydomain
 
 # Change port the agent is listening to
-# port: 17123
+# listen_port: 17123
 
 # ========================================================================== #
 # Service-specific configuration                                             #
