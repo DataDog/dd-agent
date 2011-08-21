@@ -130,10 +130,10 @@ class RailsLP(ResourcePlugin):
         for (log_path, gen) in self.gens:
             try:
                 gen.next()
-                self.log.debug("Done checking Rails log {0}".format(log_path))
+                self.log.debug("Done checking Rails log %s" % (log_path))
             except StopIteration, e:
                 self.log.exception(e)
-                self.log.warn("Can't tail file {0}".format(log_path))
+                self.log.warn("Can't tail file %s" % (log_path))
 
 if __name__ == "__main__":
 

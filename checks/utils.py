@@ -45,7 +45,7 @@ class TailFile(object):
         if move_end:
             self._f.seek(1,os.SEEK_END)
         elif where:
-            self._log.debug("Reopening file at {0}".format(where))
+            self._log.debug("Reopening file at %s" % (where))
             self._f.seek(where)
 
         return True

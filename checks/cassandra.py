@@ -241,7 +241,7 @@ class Cassandra(object):
             if cassandra_host is None:
                 if nodetool is not None:
                     cassandra_host = "localhost"
-                    logger.info("Nodetool is going to assume {0}".format(cassandra_host))
+                    logger.info("Nodetool is going to assume %s" % (cassandra_host))
                 else:
                     return False
                     
@@ -250,7 +250,7 @@ class Cassandra(object):
             if cassandra_port is None:
                 if nodetool is not None:
                     cassandra_port = 8080
-                    logger.info("Nodetool is going to assume {0}".format(cassandra_port))
+                    logger.info("Nodetool is going to assume %s" % (cassandra_port))
                 else:
                     return False
             

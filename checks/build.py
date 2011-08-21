@@ -34,11 +34,11 @@ class Hudson(object):
             time_tuple = time.strptime(date_str, self.datetime_format)
             timestamp = time.mktime(time_tuple)
         except ValueError:
-            raise Continue("Skipping non-timestamp dir: {0}".format(dir_name))
+            raise Continue("Skipping non-timestamp dir: %s" % (dir_name))
         else:
             # Check if it's a build we've seen already
             if timestamp <= self.high_watermarks[job_name]:
-                raise Continue("Skipping old build: {0} at {1}".format(job_name, timestamp))
+                raise Continue("Skipping old build: %s at %s" % (job_name, timestamp))
             else:
                 return timestamp
     
@@ -47,7 +47,7 @@ class Hudson(object):
         build_metadata = os.path.join(dir_name, 'build.xml')
         
         if not os.access(build_metadata, os.R_OK):
-            raise Continue("Can't read build file at {0}".format(build_metadata))
+            raise Continue("Can't read build file at %s" % (build_metadata))
         else:
             tree = ElementTree()
             tree.parse(build_metadata)
