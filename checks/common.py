@@ -43,7 +43,7 @@ def recordsize(func):
     def wrapper(*args, **kwargs):
         logger = logging.getLogger("checks")
         res = func(*args, **kwargs)
-        logger.debug("SIZE: {0} wrote {1} bytes uncompressed".format(func, len(str(res))))
+        logger.debug("SIZE: %s wrote %d bytes uncompressed" % (func, len(str(res))))
         return res
     return wrapper
 

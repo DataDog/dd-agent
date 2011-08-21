@@ -1,6 +1,10 @@
 import time
 import re
-from collections import namedtuple
+try:
+    from collections import namedtuple
+except ImportError:
+    from compat.namedtuple import namedtuple
+
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser
@@ -86,13 +90,13 @@ class Nagios(object):
             tstamp = int(tstamp)
 
             if event_type in IGNORE_EVENT_TYPES:
-                self.logger.info("Ignoring nagios event of type {0}".format(event_type))
+                self.logger.info("Ignoring nagios event of type %s" % (event_type))
                 return False
             
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
-                self.logger.warn("Ignoring unkown nagios event for line: {0}".format(line[:-1]))
+                self.logger.warn("Ignoring unkown nagios event for line: %s" % (line[:-1]))
                 return False
 
             # and parse the rest of the line
@@ -104,11 +108,11 @@ class Nagios(object):
             event.update({'api_key': self.apikey})
 
             self.events.append(event)
-            self.logger.debug("Nagios event: {0}".format(event))
+            self.logger.debug("Nagios event: %s" % (event))
 
             return True
         except:
-            self.logger.exception("Unable to create a nagios event from line: [{0}]".format(line))
+            self.logger.exception("Unable to create a nagios event from line: [%s]" % (line))
             return False
 
     def check(self, logger, agentConfig, move_end=True):
@@ -131,10 +135,10 @@ class Nagios(object):
         # read until the end of file
 	try:
 	    self.gen.next()
-	    self.logger.debug("Done nagios check for file {0}".format(log_path))
+	    self.logger.debug("Done nagios check for file %s" % (log_path))
 	except StopIteration, e:
 	    self.logger.exception(e)
-	    self.logger.warn("Can't tail {0} file".format(log_path))
+	    self.logger.warn("Can't tail %s file" % (log_path))
 
         return self.events
 

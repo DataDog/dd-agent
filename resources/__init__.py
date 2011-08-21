@@ -1,9 +1,12 @@
-from collections import namedtuple
+try:
+    from collections import namedtuple
+except ImportError:
+    from compat.namedtuple import namedtuple
+
 from datetime import datetime, timedelta
 import time
 
-
-class agg():
+class agg(object):
 
     @staticmethod
     def avg(args):
@@ -109,7 +112,10 @@ class ResourcePlugin(object):
         i = 0
 
         for metric in self._descriptor.fields:
-            agg_fun = metric.temporal_aggregator if temporal else metric.aggregator
+            if temporal:
+                agg_fun = metric.temporal_aggregator
+            else:
+                agg_fun = metric.aggregator
             if agg_fun is None:
                 result.append(lines[0][i])
             else:
@@ -207,13 +213,28 @@ class ResourcePlugin(object):
             self._format_described = True
             ret = []
             for field in self._descriptor.fields:
+                f_agg_name = f_tagg_name = None
+                f_serv_agg_name = f_serv_tagg_name = None
+
+                if field.aggregator is not None:
+                    f_agg_name = field.aggregator.__name__
+
+                if field.temporal_aggregator is not None:
+                    f_tagg_name = field.temporal_aggregator.__name__
+           
+                if field.server_aggregator is not None:
+                    f_serv_agg_name = field.server_aggregator.__name__
+
+                if field.server_temporal_aggregator is not None:
+                    f_serv_tagg_name = field.server_temporal_aggregator.__name__
+
                 ret.append([field.version,
                             field.name,
                             field.type,
-                            field.aggregator.__name__ if field.aggregator is not None else None,
-                            field.temporal_aggregator.__name__ if field.temporal_aggregator is not None else None,
-                            field.server_aggregator.__name__ if field.server_aggregator is not None else None,
-                            field.server_temporal_aggregator.__name__ if field.server_temporal_aggregator is not None else None,
+                            f_agg_name,
+                            f_tagg_name,
+                            f_serv_agg_name,
+                            f_serv_tagg_name,
                             field.group_on,
                             field.temporal_group_on,
                 ])

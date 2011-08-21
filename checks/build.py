@@ -4,10 +4,18 @@ import socket
 import time
 import traceback
 
-from collections import defaultdict
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
+
 from datetime import datetime
 from glob import glob
-from xml.etree.ElementTree import ElementTree
+
+try:
+    from xml.etree.ElementTree import ElementTree
+except ImportError
+    from elementtree import ElementTree
 
 class Continue(Exception):
     pass

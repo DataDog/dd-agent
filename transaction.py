@@ -101,7 +101,8 @@ class TransactionManager(object):
             for tr2 in self._transactions:
                 total_size = total_size + tr2.get_size()
 
-        logging.info("Adding transaction, total size of queue is: %s KB" % (total_size/1024))
+        logging.info("New transaction to add, total size of queue would be: %s KB" % 
+            (total_size/1024))
 
         if total_size > self._MAX_QUEUE_SIZE:
             logging.warn("Queue is too big, removing old messages...")
@@ -114,6 +115,8 @@ class TransactionManager(object):
 
         # Done
         self._transactions.append(tr)
+        logging.info("Transaction %s added, %s transaction%s in the queue" %
+            (tr.get_id(), len(self._transactions), plural(len(self._transactions))))
 
     def flush(self):
 

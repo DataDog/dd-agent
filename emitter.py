@@ -1,6 +1,10 @@
 import urllib, urllib2
 import httplib
-from hashlib import md5
+try:
+    from hashlib import md5
+except ImportError:
+    import md5
+
 from pprint import pformat as pp
 from util import json, headers
 

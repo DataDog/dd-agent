@@ -1,4 +1,8 @@
-from collections import namedtuple
+try:
+    from collections import namedtuple
+except ImportError:
+    from compat.namedtuple import namedtuple
+
 import subprocess
 import sys
 import traceback

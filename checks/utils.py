@@ -64,14 +64,14 @@ class TailFile(object):
                     if self._callback(line.rstrip("\n")):
                         if line_by_line:
                             where = self._f.tell()
-                            yield
+                            yield True
                             self._open_file(move_end=False,where=where)
                         else:
                             continue
                     else:
                         continue
                 else:
-                    yield
+                    yield True
                     self._open_file(move_end=False, where=where)
 
         except Exception, e:

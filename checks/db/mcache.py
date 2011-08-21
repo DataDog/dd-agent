@@ -82,42 +82,43 @@ class Memcache(Check):
     def check(self, agentConfig):
         mc = None # client
         try:
-            import memcache
+            try:
+                import memcache
 
-            server = agentConfig["memcache_server"]
-            port = int(agentConfig.get("memcache_port", 11211))
-            self.logger.debug("Connecting to %s:%s" % (server, port))
-            
-            mc = memcache.Client(["%s:%d" % (server, port)])
-            raw_stats = mc.get_stats()
+                server = agentConfig["memcache_server"]
+                port = int(agentConfig.get("memcache_port", 11211))
+                self.logger.debug("Connecting to %s:%s" % (server, port))
+                
+                mc = memcache.Client(["%s:%d" % (server, port)])
+                raw_stats = mc.get_stats()
 
-            assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
-            # Access the dict
-            stats = raw_stats[0][1]
-            for metric in stats:
-                self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
+                assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
+                # Access the dict
+                stats = raw_stats[0][1]
+                for metric in stats:
+                    self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
 
-                our_metric = metric
-                # Tweak the name if it's a counter so that we don't use the exact
-                # same metric name as the memcache documentation
-                if self.is_counter(metric + "_rate"):
-                    our_metric = metric + "_rate"
+                    our_metric = metric
+                    # Tweak the name if it's a counter so that we don't use the exact
+                    # same metric name as the memcache documentation
+                    if self.is_counter(metric + "_rate"):
+                        our_metric = metric + "_rate"
 
-                if self.is_metric(our_metric):
-                    self.save_sample(our_metric, float(stats[metric]))
-                    self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+                    if self.is_metric(our_metric):
+                        self.save_sample(our_metric, float(stats[metric]))
+                        self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
 
-            samples = self.get_samples()
-            self.logger.debug("Memcache samples: %s" % samples)
-            return samples
-        except ImportError:
-            self.logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
-        except ValueError:
-            self.logger.exception("Cannot convert port value; check your configuration")
-        except CheckException:
-            self.logger.exception("Cannot save sampled data")
-        except:
-            self.logger.exception("Cannot get data from memcache")
+                samples = self.get_samples()
+                self.logger.debug("Memcache samples: %s" % samples)
+                return samples
+            except ImportError:
+                self.logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
+            except ValueError:
+                self.logger.exception("Cannot convert port value; check your configuration")
+            except CheckException:
+                self.logger.exception("Cannot save sampled data")
+            except:
+                self.logger.exception("Cannot get data from memcache")
         finally:
             if mc is not None:
                 mc.disconnect_all()
