@@ -3,7 +3,7 @@ import httplib
 try:
     from hashlib import md5
 except ImportError:
-    import md5
+    from md5 import md5
 
 from pprint import pformat as pp
 from util import json, headers

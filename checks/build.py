@@ -14,7 +14,7 @@ from glob import glob
 
 try:
     from xml.etree.ElementTree import ElementTree
-except ImportError
+except ImportError:
     from elementtree import ElementTree
 
 class Continue(Exception):
