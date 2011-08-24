@@ -1,3 +1,9 @@
+datadog-agent (1.9.13-1) unstable; urgency=medium
+
+  * Adds support for dogstream log parsing
+
+ -- Carlo <carlo@datadoghq.com>  Thu, 25 Aug 2011 11:14:00 -0400
+
 datadog-agent (1.9.12-2) unstable; urgency=medium
 
   * Adds support for redis-server 1.2

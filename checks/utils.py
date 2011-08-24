@@ -1,6 +1,18 @@
 import os
 from stat import *
 
+def median(vals):
+    vals = sorted(vals)
+    if not vals:
+        raise ValueError(vals)
+    elif len(vals) % 2 == 0:
+        i1 = int(len(vals) / 2)
+        i2 = i1 - 1
+        return float(vals[i1] + vals[i2]) / 2.
+    else:
+        return vals[int(len(vals) / 2)]
+
+
 class TailFile(object):
 
     def __init__(self,logger,path,callback):
