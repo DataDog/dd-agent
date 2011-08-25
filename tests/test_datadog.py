@@ -13,7 +13,8 @@ class TestDogstream(unittest.TestCase):
             'dogstream_log': self.log_file.name
         }
         
-        self.dogstream = Dogstream(logging.getLogger('test.dogstream'))
+        self.dogstream = Dogstream(logging.getLogger('test.dogstream'), 
+            self.config)
         
     def _write_log(self, log_data):
         for data in log_data:
@@ -49,9 +50,9 @@ class TestDogstream(unittest.TestCase):
         ]
         
         expected_output = {
-            'test.metric.a': (1000000002.5, 5),
-            'test.metric.b': (1000000002.2, 2),
-            'test.metric.c': (1000000002.2, 47),
+            'test.metric.a': 5,
+            'test.metric.b': 2,
+            'test.metric.c': 47,
         }
         
         self._write_log((' '.join(data) for data in log_data))
@@ -67,7 +68,7 @@ class TestDogstream(unittest.TestCase):
             ('test_metric.e 1000000002 10 metric_type=gauge'),
         ]
         expected_output = {
-            'test_metric.e': (1000000002, 10)
+            'test_metric.e': 10
         }
         
         self._write_log(log_data)
@@ -75,5 +76,7 @@ class TestDogstream(unittest.TestCase):
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
         
+if __name__ == '__main__':
+    unittest.main()
 
 
