@@ -212,7 +212,13 @@ def get_config(parse_args = True):
             agentConfig["memcache_server"] = config.get("Main", "memcache_server")
         if config.has_option("Main", "memcache_port"):
             agentConfig["memcache_port"] = config.get("Main", "memcache_port")
-
+        
+        # Dogstream config
+        if config.has_option("Main", "dogstream_log"):
+            agentConfig["dogstream_log"] = config.get("Main", "dogstream_log")
+        if config.has_option("Main", "dogstream_line_parser"):
+            agentConfig["dogstream_line_parser"] = config.get("Main", "dogstream_line_parser")
+        
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

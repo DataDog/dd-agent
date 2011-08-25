@@ -1,3 +1,9 @@
+datadog-agent (2.1.0-1) unstable; urgency=medium
+
+  * Adds support for dogstream log parsing (merged from 1.9.13)
+
+ -- Carlo <carlo@datadoghq.com>  Thu, 25 Aug 2011 11:14:00 -0400
+
 datadog-agent (2.0.0-1) unstable; urgency=medium
 
   * New forwarding agent is now the default
