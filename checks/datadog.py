@@ -11,7 +11,7 @@ else:
     def partition(s, sep):
         pos = s.find(sep)
         if pos == -1:
-            return ('', sep, '')
+            return (s, sep, '')
         else:
             return s[0:pos], sep, s[pos + len(sep):]
 
@@ -51,7 +51,7 @@ class Dogstream(object):
             # read until the end of file
             try:
                 self.gen.next()
-                self.logger.debug("Done dogstream check for file {0}, found {1} metric points".format(self.log_path, len(self.values)))
+                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self.values)))
             except StopIteration, e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail {0} file".format(self.log_path))
