@@ -95,7 +95,10 @@ class PostgreSql(Check):
 
             try:
                 import psycopg2 as pg
-                if port != '':
+                if server == 'localhost' and passwd == '':
+                    # Use ident method
+                    self.db = pg.connect("user=%s dbname=postgres" % user)
+                elif port != '':
                     self.db = pg.connect(host=server, port=port, user=user,
                         password=passwd, database='postgres')
                 else:
