@@ -1,5 +1,6 @@
 from checks import Check
 import subprocess, os
+import sys
 
 class MySql(Check):
     def __init__(self, logger):
