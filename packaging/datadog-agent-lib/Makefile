@@ -31,7 +31,7 @@ install: dirs links
 	rm -rf $(BUILD)/usr/share/datadog/agent/*.egg-info
 
 deb: clean install
-	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0), datadog-agent-base (= 2.0)' >>" \
+	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0), datadog-agent-base (<= 2.1.0)' >>" \
 		$(FPM_BUILD) -t deb \
 		-d "python (>= 2.4)" \
         .
