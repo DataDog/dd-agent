@@ -1,5 +1,5 @@
 
-.PHONY: clean deb rpm all
+.PHONY: clean deb rpm archivedeb archiverpm archive all
 
 clean:
 	rm -rf *.deb
@@ -24,5 +24,13 @@ rpm:
 #	make -C datadog-agent rpm
 #	cp datadog-agent/*.rpm .
 
-all: clean deb rpm
+archivedeb:
+	cp packaging/*.deb artifacts
+
+archiverpm:
+	cp packaging/*.rpm artifacts
+
+archive: archivedeb archiverpm
+
+all: clean deb rpm archive
 
