@@ -26,7 +26,7 @@ def printVersion():
 
 if __name__ == "__main__":
 
-    setup(name='datadog-agent-base',
+    setup(name='datadog-agent-lib',
           version=getVersion(),
           description='Datatadog monitoring agent check library',
           author='Datadog',
