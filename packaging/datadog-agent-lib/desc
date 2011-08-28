@@ -1,0 +1,8 @@
+Datadog monitoring agent
+ The datadog monitoring agent is a lightweight component sending system,
+ processes and services information back to your datadog account.
+ This package includes the check library used to gather statistics about
+ the running system
+ .
+ See http://www.datadoghq.com/ for more information
+

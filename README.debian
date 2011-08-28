@@ -1,2 +1,0 @@
-Build the debian package with:
-debuild -i -us -uc -b

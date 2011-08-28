@@ -23,7 +23,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "1.9.12"
+    return "2.0.0"
 
 def get_config(parse_args = True):
     if parse_args:

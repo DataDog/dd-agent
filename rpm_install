@@ -1,1 +1,0 @@
-/usr/bin/python2.6 setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent

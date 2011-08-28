@@ -1,2 +1,0 @@
-/usr/share/datadog/agent/ddagent.py /usr/bin/dd-forwarder
-/etc/dd-agent/supervisor_ddagent.conf /etc/supervisor/conf.d/ddagent.conf
