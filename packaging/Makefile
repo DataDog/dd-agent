@@ -25,6 +25,7 @@ rpm:
 #	cp datadog-agent/*.rpm .
 
 archivedeb:
+	mkdir -p ../artifacts
 	cp *.deb ../artifacts
 
 installdeb:
@@ -33,7 +34,8 @@ installdeb:
 	dpkg -i `ls -t datadog-agent_*.deb | head -1`
 
 archiverpm:
-	cp *.rpm ../artifacts
+	mkdir -p ../dist
+	cp *.rpm ../dist
 
 archive: archivedeb archiverpm
 
