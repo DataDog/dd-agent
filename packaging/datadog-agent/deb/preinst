@@ -2,10 +2,12 @@
 
 set -e 
 
-if which invoke-rc.d >/dev/null 2>&1; then
-    invoke-rc.d datadog-agent stop
-else
-    /etc/init.d/datadog-agent stop
+if [ -f /etc/init.d/datadog-agent ]; then
+    if which invoke-rc.d >/dev/null 2>&1; then
+        invoke-rc.d datadog-agent stop
+    else
+        /etc/init.d/datadog-agent stop
+    fi
 fi
 
 #DEBHELPER#
