@@ -25,7 +25,12 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
-PYTHON="/usr/bin/python2.6"
+
+if [ -x "/usr/bin/python2.6"]; then
+    PYTHON="/usr/bin/python2.6"
+else
+    PYTHON="/usr/bin/python"
+fi
 
 # Source function library.
 . /etc/rc.d/init.d/functions
