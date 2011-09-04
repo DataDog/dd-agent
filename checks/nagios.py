@@ -70,9 +70,12 @@ class Nagios(object):
 
         self.logger = None
         self.gen = None
+        self.tail = None
         self.events = None
         self.apikey = ""
         self.hostname = hostname
+
+        self._line_parsed = 0
 
     def _parse_line(self, line):
         """Actual nagios parsing
@@ -80,6 +83,8 @@ class Nagios(object):
         """
         # first isolate the timestamp and the event type
         try:
+            self._line_parsed = self._line_parsed + 1
+
             m  = self.re_line_reg.match(line)
             if m is None:
                 m = self.re_line_ext.match(line)
@@ -127,18 +132,23 @@ class Nagios(object):
 
         self.apikey = agentConfig['apiKey']
         self.events = []
+        self._line_parsed = 0
 
         # Build our tail -f
         if self.gen is None:
-            self.gen = TailFile(logger,log_path,self._parse_line).tail(line_by_line=False, move_end=move_end)
+            self.tail = TailFile(logger,log_path,self._parse_line)
+            self.gen = self.tail.tail(line_by_line=False, move_end=move_end)
 
         # read until the end of file
-	try:
-	    self.gen.next()
-	    self.logger.debug("Done nagios check for file %s" % (log_path))
-	except StopIteration, e:
-	    self.logger.exception(e)
-	    self.logger.warn("Can't tail %s file" % (log_path))
+        try:
+            self.logger.debug("Start nagios check for file %s" % (log_path))
+            self.tail._log = self.logger
+            self.gen.next()
+            self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" % 
+                (log_path,self._line_parsed,len(self.events)))
+        except StopIteration, e:
+            self.logger.exception(e)
+            self.logger.warn("Can't tail %s file" % (log_path))
 
         return self.events
 
@@ -164,8 +174,10 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     nagios = Nagios(socket.gethostname())
 
+    config = {'apiKey':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}
+    events = nagios.check(logger, config,move_end = False)
     while True:
-        events = nagios.check(logger, {'apiKey':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'})
-        for e in events:
-            print "Event:", e
+        #for e in events:
+        #    print "Event:", e
         time.sleep(5)
+        events = nagios.check(logger, config)

@@ -22,7 +22,7 @@ class TailFile(object):
         self._size = 0
         self._log = logger
         self._callback = callback
-
+   
     def _open_file(self, move_end=False, where=False):
 
         already_open = False
@@ -55,9 +55,10 @@ class TailFile(object):
 
         self._f = open(self._path,'r')
         if move_end:
+            self._log.debug("Opening file %s" % (self._path))
             self._f.seek(1,os.SEEK_END)
         elif where:
-            self._log.debug("Reopening file at %s" % (where))
+            self._log.debug("Reopening file %s at %s" % (self._path, where))
             self._f.seek(where)
 
         return True
