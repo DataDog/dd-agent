@@ -31,9 +31,9 @@ class Dogstream(object):
                     None)
             except:
                 self.logger.exception(traceback.format_exc())
-                self.logger.error('Could not load Dogstream line parser "%s"' % (
+                self.logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
                     config['dogstream_line_parser'], 
-                    os.pathsep.join(sys.path))
+                    os.environ.get('PYTHONPATH', ''))
                 )
                 
         if self.parse_func is None:
@@ -63,28 +63,38 @@ class Dogstream(object):
     
     def _line_parser(self, line):
         try:
-            metric, ts, value, attrs = self.parse_func(self.logger, line)
+            parsed = self.parse_func(self.logger, line)
+            if parsed is None:
+                return
             
-            # Validation
-            invalid_reasons = []
-            try:
-                ts = float(ts)
-                date = datetime.fromtimestamp(ts)
-                assert date.year > 1990
-            except Exception:
-                invalid_reasons.append('invalid timestamp')
-
-            try:
-                value = float(value)
-            except Exception:
-                invalid_reasons.append('invalid metric value')
-
-            if invalid_reasons:
-                self.logger.warn('Invalid line (%s): "%s"', 
-                    ', '.join(invalid_reasons), line)
-            else:
-                self.values.append((metric, ts, value, attrs))
+            if isinstance(parsed, tuple):
+                parsed = [parsed]
             
+            for metric_tuple in parsed:
+                try:
+                    metric, ts, value, attrs = metric_tuple
+                except:
+                    continue
+                
+                # Validation
+                invalid_reasons = []
+                try:
+                    ts = float(ts)
+                    date = datetime.fromtimestamp(ts)
+                    assert date.year > 1990
+                except Exception:
+                    invalid_reasons.append('invalid timestamp')
+
+                try:
+                    value = float(value)
+                except Exception:
+                    invalid_reasons.append('invalid metric value')
+
+                if invalid_reasons:
+                    self.logger.warn('Invalid parsed values %s (%s): "%s"', 
+                        repr(metric_tuple), ', '.join(invalid_reasons), line)
+                else:
+                    self.values.append((metric, ts, value, attrs))
         except Exception:
             self.logger.exception(traceback.format_exc())
     
