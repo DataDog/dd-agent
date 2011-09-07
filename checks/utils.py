@@ -44,7 +44,7 @@ class TailFile(object):
                 pos = False
 
             # Check if file has been truncated
-            elif self._size > 0 and size != self._size:
+            elif self._size > 0 and size < self._size:
                 self._log.debug("File truncated, reopening")
                 move_end = False
                 pos = False
