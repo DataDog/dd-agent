@@ -63,4 +63,6 @@ class TestTail(unittest.TestCase):
         self.assertEquals(self.last_line, new_string[:-1], self.last_line)
         
 if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().addHandler(logging.StreamHandler())
     unittest.main()
