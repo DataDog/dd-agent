@@ -23,7 +23,7 @@ class TailFile(object):
         self._log = logger
         self._callback = callback
    
-    def _open_file(self, move_end=False, where=False):
+    def _open_file(self, move_end=False, pos=False):
 
         already_open = False
         #close and reopen to handle logrotate
@@ -37,18 +37,17 @@ class TailFile(object):
         size = stat[ST_SIZE]
 
         if already_open:
-            if self._inode is not None:
-                #Check if file has been removed
-                if inode != self._inode:
-                    self._log.debug("File removed, reopening")
-                    move_end = False
-                    where = False
-            elif self._size > 0:
-                #Check if file has been truncated
-                if size < self._size:
-                    self._log.debug("File truncated, reopening")
-                    move_end = False
-                    where = False
+            # Check if file has been removed
+            if self._inode is not None and inode != self._inode:
+                self._log.debug("File removed, reopening")
+                move_end = False
+                pos = False
+
+            # Check if file has been truncated
+            elif self._size > 0 and size != self._size:
+                self._log.debug("File truncated, reopening")
+                move_end = False
+                pos = False
 
         self._inode = inode
         self._size = size
@@ -57,9 +56,9 @@ class TailFile(object):
         if move_end:
             self._log.debug("Opening file %s" % (self._path))
             self._f.seek(1,os.SEEK_END)
-        elif where:
-            self._log.debug("Reopening file %s at %s" % (self._path, where))
-            self._f.seek(where)
+        elif pos:
+            self._log.debug("Reopening file %s at %s" % (self._path, pos))
+            self._f.seek(pos)
 
         return True
 
@@ -71,21 +70,22 @@ class TailFile(object):
             self._open_file(move_end=move_end)
 
             while True:
-                where = self._f.tell()
+                pos = self._f.tell()
                 line = self._f.readline()
                 if line:
                     if self._callback(line.rstrip("\n")):
                         if line_by_line:
-                            where = self._f.tell()
                             yield True
-                            self._open_file(move_end=False,where=where)
+                            pos = self._f.tell()
+                            self._open_file(move_end=False,pos=pos)
                         else:
                             continue
                     else:
                         continue
                 else:
                     yield True
-                    self._open_file(move_end=False, where=where)
+                    pos = self._f.tell()
+                    self._open_file(move_end=False, pos=pos)
 
         except Exception, e:
             # log but survive

@@ -17,6 +17,7 @@ class TestTail(unittest.TestCase):
         }""" % self.log_file.name)
         self.logrotate_config.flush()
         self.logrotate_state_file = tempfile.NamedTemporaryFile()
+        self.last_line = None
     
     def _trigger_logrotate(self):
         subprocess.check_call([
@@ -31,7 +32,8 @@ class TestTail(unittest.TestCase):
     def test_logrotate_copytruncate(self):
         from checks.utils import TailFile
         
-        line_parser = lambda line: line
+        def line_parser(l):
+            self.last_line = l
         
         tail = TailFile(logging.getLogger(), self.log_file.name, line_parser)
         self.assertEquals(tail._size, 0)
@@ -56,8 +58,10 @@ class TestTail(unittest.TestCase):
         self.log_file.write(new_string)
         self.log_file.flush()
         
-        # Verify that the tail recognized the logrotation 
-        self.assertEquals(tail._size, len(new_string))
+        # Verify that the tail recognized the logrotation
+        gen.next()
+        self.assertEquals(self.last_line, new_string, self.last_line)
         
-        
+if __name__ == '__main__':
+    unittest.main()
         
