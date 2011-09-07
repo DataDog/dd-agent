@@ -1,5 +1,6 @@
 import os
 from stat import *
+import binascii
 
 def median(vals):
     vals = sorted(vals)
@@ -15,11 +16,14 @@ def median(vals):
 
 class TailFile(object):
 
+    CRC_SIZE = 16
+
     def __init__(self,logger,path,callback):
         self._path = path
         self._f = None
         self._inode = None
         self._size = 0
+        self._crc = None
         self._log = logger
         self._callback = callback
    
@@ -36,6 +40,13 @@ class TailFile(object):
         inode = stat[ST_INO]
         size = stat[ST_SIZE]
 
+        # Compute CRC of the beginning of the file
+        crc = None
+        if size >= self.CRC_SIZE:
+            tmp_file = open(self._path,'r')
+            data = tmp_file.read(self.CRC_SIZE)
+            crc = binascii.crc32(data)
+
         if already_open:
             # Check if file has been removed
             if self._inode is not None and inode != self._inode:
@@ -49,8 +60,16 @@ class TailFile(object):
                 move_end = False
                 pos = False
 
+            # Check if file has been truncated and too much data has
+            # alrady been written (copytruncate and opened files...)
+            if size >= self.CRC_SIZE and self._crc is not None and crc != self._crc:
+                self._log.debug("Begining of file modified, reopening")
+                move_end = False
+                pos = False
+
         self._inode = inode
         self._size = size
+        self._crc = crc
 
         self._f = open(self._path,'r')
         if move_end:
@@ -73,6 +92,7 @@ class TailFile(object):
                 pos = self._f.tell()
                 line = self._f.readline()
                 if line:
+                    line = line.strip(chr(0)) # a truncate may have create holes in the file
                     if self._callback(line.rstrip("\n")):
                         if line_by_line:
                             yield True
