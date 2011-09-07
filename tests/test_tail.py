@@ -60,8 +60,7 @@ class TestTail(unittest.TestCase):
         
         # Verify that the tail recognized the logrotation
         gen.next()
-        self.assertEquals(len(self.last_line), len(new_string), "From stat: %s" % (os.stat(self.log_file.name)))
-        self.assertEquals(self.last_line, new_string, self.last_line)
+        self.assertEquals(self.last_line, new_string[:-1], self.last_line)
         
 if __name__ == '__main__':
     unittest.main()

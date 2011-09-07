@@ -84,11 +84,10 @@ class TailFile(object):
                         continue
                 else:
                     yield True
-                    pos = self._f.tell()
+                    assert pos == self._f.tell()
                     self._open_file(move_end=False, pos=pos)
 
         except Exception, e:
             # log but survive
             self._log.exception(e)
             raise StopIteration(e)
-
