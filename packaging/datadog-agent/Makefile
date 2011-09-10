@@ -4,6 +4,7 @@
 BUILD=build/package
 
 FPM_BUILD=fpm -s dir -C $(BUILD) \
+	 -e \
      -n "datadog-agent" \
      -a all \
      -m "Datadog Packages <package@datadoghq.com>" \
@@ -33,6 +34,7 @@ install_deb: install
 	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
 
 deb: clean install_deb
+	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.0)' >>" \
 	$(FPM_BUILD) -t deb \
         -d "python (>= 2.6)" \
         -d "datadog-agent-base" \
