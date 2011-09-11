@@ -75,7 +75,9 @@ class TransactionManager(object):
         self._flush_without_ioloop = False # usefull for tests
 
         self._transactions = [] #List of all non commited transactions
-    
+        self._total_count = 0 # Maintain size/count not to recompute it everytime
+        self._total_size = 0 
+
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
         self._counter = 0
@@ -85,6 +87,10 @@ class TransactionManager(object):
 
     def get_transactions(self):
         return self._transactions
+
+    def print_queue_stats(self):
+        logging.info("Queue size: at %s, %s transaction(s), %s KB" % 
+            (time.time(), self._total_count, (self._total_size/1024)))
 
     def get_tr_id(self):
         self._counter =  self._counter + 1
@@ -96,27 +102,28 @@ class TransactionManager(object):
         tr.set_id(self.get_tr_id())
 
         # Check the size
-        total_size = tr.get_size()
-        if self._transactions is not None:
-            for tr2 in self._transactions:
-                total_size = total_size + tr2.get_size()
+        tr_size = tr.get_size()
 
         logging.info("New transaction to add, total size of queue would be: %s KB" % 
-            (total_size/1024))
+            ((self._total_size + tr_size)/ 1024))
 
-        if total_size > self._MAX_QUEUE_SIZE:
+        if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
             logging.warn("Queue is too big, removing old messages...")
             new_trs = sorted(self._transactions,key=attrgetter('_next_flush'), reverse = True)
             for tr2 in new_trs:
-                if total_size > self._MAX_QUEUE_SIZE:
+                if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
                     logging.warn("Removing transaction %s from queue" % tr2.get_id())
                     self._transactions.remove(tr2)
-                    total_size = total_size - tr2.get_size()
+                    self._total_count = self._total_count - 1
+                    self._total_size = self._total_size - tr2.get_size()
 
         # Done
         self._transactions.append(tr)
-        logging.info("Transaction %s added, %s transaction%s in the queue" %
-            (tr.get_id(), len(self._transactions), plural(len(self._transactions))))
+        self._total_count = self._total_count + 1
+        self._total_size = self._total_size + tr_size
+
+        logging.info("Transaction %s added" % (tr.get_id()))
+        self.print_queue_stats()
 
     def flush(self):
 
@@ -143,7 +150,11 @@ class TransactionManager(object):
 
             td = self._last_flush + self._THROTTLING_DELAY - datetime.now()
             # Python 2.7 has this built in, python < 2.7 don't...
-            delay = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6
+            if hasattr(td,'total_seconds'):
+                delay = td.total_seconds()
+            else:
+                delay = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10.0**6
+
             if delay <= 0:
                 tr = self._trs_to_flush.pop()
                 self._last_flush = datetime.now()
@@ -174,5 +185,8 @@ class TransactionManager(object):
     def tr_success(self,tr):
         logging.info("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
+        self._total_count = self._total_count - 1
+        self._total_size = self._total_size - tr.get_size()
+        self.print_queue_stats()
 
 

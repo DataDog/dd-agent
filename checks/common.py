@@ -33,7 +33,7 @@ from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
-from checks.datadog import Dogstream
+from checks.datadog import Dogstream, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 
@@ -98,6 +98,7 @@ class checks:
         self._solr = Solr(self.checksLogger)
         self._memcache = Memcache(self.checksLogger)
         self._dogstream = Dogstream(self.checksLogger, self.agentConfig)
+        self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
@@ -193,6 +194,10 @@ class checks:
     def getDogstreamData(self):
         return self._dogstream.check(self.agentConfig)
 
+    @recordsize
+    def getDdforwarderData(self):
+        return self._ddforwarder.check(self.agentConfig)
+
     #
     # CPU Stats
     #
@@ -232,6 +237,7 @@ class checks:
         solrData = self.getSolrData()
         memcacheData = self.getMemcacheData()
         dogstreamData = self.getDogstreamData()
+        ddforwarderData = self.getDdforwarderData()
 
         checksData = {
             'collection_timestamp': time.time(),
@@ -314,6 +320,9 @@ class checks:
         
         if dogstreamData:
             checksData.update(dogstreamData)
+
+        if ddforwarderData:
+            checksData['datadog'] = ddforwarderData
  
        # Include system stats on first postback
         if firstRun == True:

@@ -161,9 +161,9 @@ def get_config(parse_args = True):
         if config.has_option('Main', 'ganglia_port'):
             agentConfig['ganglia_port'] = config.get('Main', 'ganglia_port')
 
-        if config.has_option('datadog', 'rollup_etl_logs'):
+        if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
-            agentConfig['datadog_etl_rollup_logs'] = config.get('datadog', 'rollup_etl_logs')
+            agentConfig['ddforwarder_log'] = config.get('datadog', 'ddforwarder_log')
 
         # Cassandra config
         if config.has_option('Main', 'cassandra_nodetool'):
