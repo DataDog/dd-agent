@@ -162,7 +162,9 @@ class TransactionManager(object):
                 try:
                     tr.flush()
                 except Exception,e :
-                    logging.error(e)
+                    logging.exception(e)
+                    self.tr_error(tr)
+                    self.flush_next()
             else:
                 # Wait a little bit more
                 if  tornado.ioloop.IOLoop.instance().running():
