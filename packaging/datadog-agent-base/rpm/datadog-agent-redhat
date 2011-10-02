@@ -26,7 +26,7 @@ AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 
-if [ -x "/usr/bin/python2.6"]; then
+if [ -x "/usr/bin/python2.6" ]; then
     PYTHON="/usr/bin/python2.6"
 else
     PYTHON="/usr/bin/python"

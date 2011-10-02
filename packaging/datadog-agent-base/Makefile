@@ -70,7 +70,7 @@ deb: clean install_deb
 
 rpm: clean install_rpm
 	FPM_EDITOR="$(CWD)/rpm/inject.sh" \
-    	$(FPM_BUILD) -t rpm \
+	$(FPM_BUILD) -t rpm \
 		-d "python" \
 		-d "sysstat" \
 		--pre-install rpm/pre_install \

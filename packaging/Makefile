@@ -21,8 +21,8 @@ rpm:
 	cp datadog-agent-lib/*.rpm .
 	make -C datadog-agent-base rpm
 	cp datadog-agent-base/*.rpm .
-#	make -C datadog-agent rpm
-#	cp datadog-agent/*.rpm .
+	make -C datadog-agent rpm
+	cp datadog-agent/*.rpm .
 
 archivedeb:
 	mkdir -p ../artifacts

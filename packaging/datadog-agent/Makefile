@@ -33,6 +33,9 @@ install_deb: install
 	ln -sf ../../dd-agent/supervisor_ddagent.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
 	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
 
+install_rpm: install
+	
+
 deb: clean install_deb
 	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.0)' >>" \
 	$(FPM_BUILD) -t deb \
@@ -45,3 +48,13 @@ deb: clean install_deb
         --pre-uninstall deb/prerm \
 	    --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 		.
+
+rpm: clean install_rpm
+	FPM_EDITOR="echo '' >>" \
+	$(FPM_BUILD) -t rpm \
+	  -d "python26" \
+	  -d "python26-tornado" \
+	  -d "datadog-agent-base" \
+	  -d "supervisor" \
+      --post-install rpm/postinst \
+      .
