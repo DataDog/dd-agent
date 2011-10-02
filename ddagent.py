@@ -93,6 +93,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error: 
+            logging.error("Got error %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
