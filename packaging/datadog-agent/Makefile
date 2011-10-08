@@ -41,6 +41,7 @@ deb: clean install_deb
 	$(FPM_BUILD) -t deb \
         -d "python (>= 2.6)" \
         -d "datadog-agent-base" \
+        -d "python-tornado" \
         -d "supervisor (>= 3.0)" \
         --post-install deb/postinst \
         --post-uninstall deb/postrm \
