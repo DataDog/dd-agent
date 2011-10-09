@@ -25,6 +25,7 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
+USE_SUPERVISOR="/usr/bin/dd-forwarder"
 
 if [ -x "/usr/bin/python2.6" ]; then
     PYTHON="/usr/bin/python2.6"
@@ -59,30 +60,45 @@ grab_status() {
 }
 
 start() {
-    grab_status
-    if [ "$?" -eq "1" ]; then
-        echo -n 'Datadog agent is already running' && warning && echo
-    else
-    	install -d -o $AGENTUSER $PIDPATH
-        echo -n 'Starting Datadog agent: '
-        daemon --user $AGENTUSER "$PYTHON $AGENTPATH start init --clean >/dev/null"
-        RETURNVALUE=$?
+    if [ -f $USE_SUPERVISOR ]; then
+        echo -n "Starting Datadog agent (using supervisorctl):"
+        supervisorctl start collector
+        supervisorctl start forwarder
         echo
-        [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
-        return $RETURNVALUE
+        return 0
+    else
+        grab_status
+        if [ "$?" -eq "1" ]; then
+            echo -n 'Datadog agent is already running' && warning && echo
+        else
+            echo -n 'Starting Datadog agent: '
+           	install -d -o $AGENTUSER $PIDPATH
+            daemon --user $AGENTUSER "$PYTHON $AGENTPATH start init --clean >/dev/null"
+            RETURNVALUE=$?
+            echo
+            [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
+            return $RETURNVALUE
+        fi
     fi
 }
 
 stop() {
-    grab_status
-    if [ "$?" -eq "1" ]; then
-        echo -n 'Stopping Datadog agent: '
-        daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
-        RETURNVALUE=$?
-    	[ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
+    if [ -f $USE_SUPERVISOR ]; then
+        echo -n 'Stopping Datadog agent (using supervisorctl): '
+        supervisorctl stop collector
+        supervisorctl stop forwarder
+        RETURNVALUE=0
     else
-        echo -n 'agent is not running' && warning && echo
-	RETURNVALUE=2
+        grab_status
+        if [ "$?" -eq "1" ]; then                
+            echo -n 'Stopping Datadog agent: '
+            daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
+            RETURNVALUE=$?
+        	[ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
+        else
+            echo -n 'agent is not running' && warning && echo
+        	RETURNVALUE=2
+        fi
     fi
     return $RETURNVALUE
 }
