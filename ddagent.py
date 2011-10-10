@@ -20,7 +20,6 @@ from datetime import datetime, timedelta
 
 #Tornado
 import tornado.httpserver
-import tornado.httpclient
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
@@ -93,6 +92,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error: 
+            logging.error("Got error %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -189,7 +189,13 @@ def main():
     # Prevent tornado from setting up logging, it's done by our agent later on
     #tornado.options.options.logging = "none"
     # Settup logging
+    define("pycurl", default=1, help="Use pycurl")
     parse_command_line()
+
+    if options.pycurl == 0 or options.pycurl == "0":
+        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
+
+    import tornado.httpclient
 
     agentConfig, rawConfig = get_config(parse_args = False)
 

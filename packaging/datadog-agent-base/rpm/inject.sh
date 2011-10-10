@@ -1,4 +1,5 @@
 #! /bin/sh
 
-cat $1 | sed -e "/Requires:/ a\
-Obsoletes: datadog-agent < 2.0" >! $1
+cat $1
+sed -i "/Requires:/ a\
+Conflicts: datadog-agent < 2.0\n" $1

@@ -4,7 +4,7 @@
 BUILD=build/package
 CWD=$(shell pwd)
 
-FPM_BUILD=fpm -s dir -C $(BUILD) -e -n "datadog-agent-lib" \
+FPM_BUILD=fpm -s dir -e -C $(BUILD) -n "datadog-agent-lib" \
 	 -a all -m "Datadog Packages <package@datadoghq.com>" \
      --url "http://www.datadoghq.com/" \
 	 --description "`cat desc`"\
@@ -38,7 +38,7 @@ deb: clean install
 
 rpm: clean install
 	FPM_EDITOR="$(CWD)/rpm/inject.sh" \
-    	$(FPM_BUILD) -t rpm \
+	$(FPM_BUILD) -t rpm \
 		-d "python" \
         .
 

@@ -1,5 +1,5 @@
 
-.PHONY: clean deb rpm archivedeb archiverpm archive all installdeb installrpm
+.PHONY: clean deb rpm archivedeb archiverpm archive all installdeb installrpm deb_repo
 
 clean:
 	rm -rf *.deb
@@ -21,8 +21,8 @@ rpm:
 	cp datadog-agent-lib/*.rpm .
 	make -C datadog-agent-base rpm
 	cp datadog-agent-base/*.rpm .
-#	make -C datadog-agent rpm
-#	cp datadog-agent/*.rpm .
+	make -C datadog-agent rpm
+	cp datadog-agent/*.rpm .
 
 archivedeb:
 	mkdir -p ../artifacts
@@ -38,6 +38,10 @@ archiverpm:
 	cp *.rpm ../dist
 
 archive: archivedeb archiverpm
+
+deb_repo:
+	rm Packages.gz
+	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
 all: clean deb rpm archive
 
