@@ -28,7 +28,7 @@ install: dirs
 install_deb: install
 	mkdir -p $(BUILD)/etc/supervisor/conf.d
 	mkdir -p $(BUILD)/usr/bin
-	cp deb/supervisor.conf $(BUILD)/etc/dd-agent/	
+	cp deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
 	ln -sf ../../dd-agent/supervisor_ddagent.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
 	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
 
@@ -41,5 +41,5 @@ deb: clean install_deb
         --post-uninstall deb/postrm \
         --pre-install deb/preinst \
         --pre-uninstall deb/prerm \
-	    --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
-		.
+        --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
+	.
