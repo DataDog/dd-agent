@@ -47,9 +47,9 @@ install: dirs links
 	chmod 644 $(BUILD)/usr/share/datadog/agent/daemon.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/minjson.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/emitter.py
+	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
 
 install_deb: install
-	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
 	cp deb/datadog-agent.init $(BUILD)/etc/init.d/datadog-agent
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
 
@@ -75,5 +75,6 @@ rpm: clean install_rpm
 		-d "sysstat" \
 		--pre-install rpm/pre_install \
         --pre-uninstall rpm/pre_uninstall \
-        .
-
+        etc/init.d/datadog-agent \
+		usr/share/datadog \
+		usr/bin
