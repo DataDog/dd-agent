@@ -4,14 +4,14 @@
 BUILD=build/package
 
 FPM_BUILD=fpm -s dir -C $(BUILD) \
-	 -e \
-     -n "datadog-agent" \
-     -a all \
-     -m "Datadog Packages <package@datadoghq.com>" \
-     --url "http://www.datadoghq.com/" \
-     --description "`cat desc`"\
-	 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
-     -v "`PYTHONPATH=../.. python -c 'from config import get_version; print get_version()'`" \
+-e \
+-n "datadog-agent" \
+-a all \
+-m "Datadog Packages <package@datadoghq.com>" \
+--url "http://www.datadoghq.com/" \
+--description "`cat desc`"\
+--config-files "/etc/dd-agent/supervisor_ddagent.conf" \
+-v "`PYTHONPATH=../.. python -c 'from config import get_version; print get_version()'`-$(BUILDNUMBER)"
 
 clean:
 	rm -rf build*

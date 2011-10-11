@@ -5,10 +5,10 @@ BUILD=build/package
 CWD=$(shell pwd)
 
 FPM_BUILD=fpm -s dir -e -C $(BUILD) -n "datadog-agent-lib" \
-	 -a all -m "Datadog Packages <package@datadoghq.com>" \
-     --url "http://www.datadoghq.com/" \
-	 --description "`cat desc`"\
-     -v `python -c "from setup import printVersion; printVersion()"` \
+-a all -m "Datadog Packages <package@datadoghq.com>" \
+--url "http://www.datadoghq.com/" \
+--description "`cat desc`"\
+-v `python -c "from setup import printVersion; printVersion()"`-$(BUILDNUMBER) \
 
 clean:
 	rm -f checks

@@ -1,5 +1,5 @@
 
-.PHONY: clean deb rpm archivedeb archiverpm archive all installdeb installrpm deb_repo
+.PHONY: clean deb rpm archivedeb archiverpm archive all installdeb installrpm deb_repo incbuild resetbuild
 
 clean:
 	rm -rf *.deb
@@ -9,11 +9,11 @@ clean:
 	make -C datadog-agent clean
 
 deb:
-	make -C datadog-agent-lib deb
+	BUILDNUMBER=`cat build.number` make -C datadog-agent-lib deb
 	cp datadog-agent-lib/*.deb .
-	make -C datadog-agent-base deb
+	BUILDNUMBER=`cat build.number` make -C datadog-agent-base deb
 	cp datadog-agent-base/*.deb .
-	make -C datadog-agent deb
+	BUILDNUMBER=`cat build.number` make -C datadog-agent deb
 	cp datadog-agent/*.deb .
 
 rpm:
@@ -27,6 +27,16 @@ rpm:
 archivedeb:
 	mkdir -p ../artifacts
 	cp *.deb ../artifacts
+
+resetbuild:
+	rm -f build.number
+	echo 1 > build.number
+
+incbuild:
+	# version number
+	if [ ! -f build.number ]; then echo 0 > build.number; fi
+	awk '{ print $$0 + 1}' build.number > build.number.tmp
+	mv build.number.tmp build.number
 
 installdeb:
 	dpkg -i `ls -t datadog-agent-lib_*.deb | head -1`
