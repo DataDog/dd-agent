@@ -17,11 +17,11 @@ deb:
 	cp datadog-agent/*.deb .
 
 rpm:
-	make -C datadog-agent-lib rpm
+	BUILDNUMBER=`cat build.number` make -C datadog-agent-lib rpm
 	cp datadog-agent-lib/*.rpm .
-	make -C datadog-agent-base rpm
+	BUILDNUMBER=`cat build.number` make -C datadog-agent-base rpm
 	cp datadog-agent-base/*.rpm .
-	make -C datadog-agent rpm
+	BUILDNUMBER=`cat build.number` make -C datadog-agent rpm
 	cp datadog-agent/*.rpm .
 
 archivedeb:
