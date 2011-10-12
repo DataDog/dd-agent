@@ -33,7 +33,6 @@ install_deb: install
 	mkdir -p $(BUILD)/etc/supervisor/conf.d
 	mkdir -p $(BUILD)/usr/bin
 	cp deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
-	cp deb/supervisor.conf $(BUILD)/etc/dd-agent/	
 	ln -sf ../../dd-agent/supervisor_ddagent.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
 
 install_rpm: install
