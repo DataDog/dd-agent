@@ -36,7 +36,7 @@ from emitter import http_emitter
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
     
-    def run(self):  
+    def run(self, agentConfig=None, run_forever=True):  
         agentLogger = logging.getLogger('agent')
         
         agentLogger.debug('Collecting basic system stats')
@@ -46,7 +46,10 @@ class agent(Daemon):
                         
         agentLogger.debug('Creating checks instance')
         
-        agentConfig, rawConfig = get_config()
+        if agentConfig is None:
+            agentConfig, rawConfig = get_config()
+        else:
+            rawConfig = {}
         emitter = http_emitter
         
         # Checks instance
@@ -56,7 +59,8 @@ class agent(Daemon):
         agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')
         s = sched.scheduler(time.time, time.sleep)
         c.doChecks(s, True, systemStats) # start immediately (case 28315)
-        s.run()
+        if run_forever:
+            s.run()
         
 def setupLogging(agentConfig):
     """Used by ddagent.py as well"""

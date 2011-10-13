@@ -39,6 +39,17 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 
 from resources.processes import Processes as ResProcesses
 
+def getUuid():
+    # Generate a unique name that will stay constant between
+    # invocations, such as platform.node() + uuid.getnode()
+    # Use uuid5, which does not depend on the clock and is
+    # recommended over uuid3.
+    # This is important to be able to identify a server even if
+    # its drives have been wiped clean.
+    # Note that this is not foolproof but we can reconcile servers
+    # on the back-end if need be, based on mac addresses.
+    return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
+
 def recordsize(func):
     "Record the size of the response"
     def wrapper(*args, **kwargs):
@@ -102,7 +113,7 @@ class checks:
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
- 
+    
     #
     # Checks - FIXME migrating to the new Check interface is a WIP
     #
@@ -334,15 +345,7 @@ class checks:
         except socket.error:
             self.checksLogger.exception('Unable to get hostname')
         
-        # Generate a unique name that will stay constant between
-        # invocations, such as platform.node() + uuid.getnode()
-        # Use uuid5, which does not depend on the clock and is
-        # recommended over uuid3.
-        # This is important to be able to identify a server even if
-        # its drives have been wiped clean.
-        # Note that this is not foolproof but we can reconcile servers
-        # on the back-end if need be, based on mac addresses.
-        checksData['uuid'] = uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
+        checksData['uuid'] = getUuid()
         self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
         
         # Process the event checks. 
