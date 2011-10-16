@@ -37,7 +37,7 @@ install_deb: install
 
 install_rpm: install
 	cp rpm/supervisor.conf $(BUILD)/etc/dd-agent/
-	cp ../../setup-supervisor.py $(BUILD)/usr/share/datadog/agent
+	cp rpm/setup-supervisor.py $(BUILD)/usr/share/datadog/agent
 
 deb: clean install_deb
 	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.0)' >>" \
@@ -62,5 +62,5 @@ rpm: clean install_rpm
 	  -d "supervisor" \
       --pre-install rpm/preinst \
       --post-install rpm/postinst \
-      --pre-uninstall deb/prerm \
+      --pre-uninstall rpm/prerm \
       .
