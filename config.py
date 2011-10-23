@@ -89,6 +89,12 @@ def get_config(parse_args = True):
         else:
             agentConfig['hostname'] = None
 
+        if config.has_option('Main','tags'):
+            agentConfig['tags'] = config.get('Main','tags')
+        else:
+            agentConfig['tags'] = None
+
+
         # port we listen on (overriden via command line)
         if config.has_option('Main','port'):
             agentConfig['listen_port'] = int(config.get('Main','port'))

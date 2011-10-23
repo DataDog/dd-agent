@@ -340,7 +340,9 @@ class checks:
        # Include system stats on first postback
         if firstRun == True:
             checksData['systemStats'] = systemStats
-            
+            if self.agentConfig['tags'] is not None:
+                checksData['tags'] = self.agentConfig['tags']
+           
         # Include server indentifiers
         checksData['internalHostname'] = gethostname(self.agentConfig)
         checksData['uuid'] = getUuid()
