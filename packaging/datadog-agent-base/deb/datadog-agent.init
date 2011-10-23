@@ -57,7 +57,7 @@ case "$1" in
             echo -n "(using supervisorctl) "
             supervisorctl stop datadog-agent:*
         else
-            $AGENTPATH stop init
+            su $AGENTUSER -c "$AGENTPATH stop init"
         fi
 
         echo "$NAME."
