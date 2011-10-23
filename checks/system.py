@@ -3,6 +3,7 @@ import subprocess
 import sys
 import socket
 import time
+from checks import gethostname
 
 class Disk(object):
     def check(self, logger, agentConfig):
@@ -601,18 +602,9 @@ class Processes(object):
         
         logger.debug('getProcesses: completed, returning')
         
-        hostname = ""
-        if agentConfig['hostname']:
-            hostname = agentConfig['hostname']
-        else:    
-            try:
-                hostname = socket.gethostname()
-            except socket.error, e:
-                logger.debug("processes: unable to get hostanme: " + str(e))         
-
         return { 'processes':   processes,
                  'apiKey':      agentConfig['apiKey'],
-                 'host':        hostname }
+                 'host':        gethostname(agentConfig) }
             
 class Cpu(object):
     def check(self, logger, agentConfig):

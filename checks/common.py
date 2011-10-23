@@ -18,6 +18,8 @@ except ImportError: # Python < 2.5
 
 from config import get_version
 
+from checks import gethostname
+
 from checks.nagios import Nagios
 from checks.build import Hudson
 
@@ -340,11 +342,7 @@ class checks:
             checksData['systemStats'] = systemStats
             
         # Include server indentifiers
-        try:
-            checksData['internalHostname'] = socket.gethostname()
-        except socket.error:
-            self.checksLogger.exception('Unable to get hostname')
-        
+        checksData['internalHostname'] = gethostname(self.agentConfig)
         checksData['uuid'] = getUuid()
         self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
         

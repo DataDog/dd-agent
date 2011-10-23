@@ -9,6 +9,7 @@
 import logging
 import time
 import types
+import socket
 
 try:
     from hashlib import md5
@@ -181,3 +182,12 @@ class Check(object):
             except:
                 pass
         return values
+
+def gethostname(agentConfig):
+    if agentConfig.has_key("hostname") and agentConfig['hostname'] is not None:
+        return agentConfig['hostname']
+    else:
+        try:
+            return socket.gethostname()
+        except socket.error, e:
+            logger.debug("processes: unable to get hostanme: " + str(e))
