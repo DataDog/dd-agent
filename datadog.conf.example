@@ -127,6 +127,7 @@ debug_mode: no
 # -------------------------------------------------------------------------- #
 
 # Path to Hudson's home directory
+# Make sure the dd-agent user can read this directory
 #hudson_home: /var/lib/hudson/
 
 
@@ -135,6 +136,7 @@ debug_mode: no
 # -------------------------------------------------------------------------- #
 
 # Path to Nagios's event log file
+# Make sure the dd-agent user can read this file
 #nagios_log: /var/log/nagios3/nagios.log
 
 
