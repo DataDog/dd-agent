@@ -32,13 +32,29 @@ from daemon import Daemon
 from emitter import http_emitter
 
 
-
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
+
+    EC2_URL = "http://169.254.169.254/latest/meta-data/instance-id"
+
+    @staticmethod
+    def get_ec2_instance_id():
+        """Fetch EC2 instance ID if possible. If not on EC2 returns None"""
+        try:
+            url = urllib.urlopen(agent.EC2_URL)
+            if url.getcode() == 200:
+                instanceId = url.read()
+                return instanceId
+
+        except Exception, e:
+            pass
+
+        return None
+
     
     def run(self, agentConfig=None, run_forever=True):  
         agentLogger = logging.getLogger('agent')
-        
+           
         agentLogger.debug('Collecting basic system stats')
         
         systemStats = get_system_stats()
@@ -50,6 +66,17 @@ class agent(Daemon):
             agentConfig, rawConfig = get_config()
         else:
             rawConfig = {}
+
+        # Try to fetch instance Id from EC2 if not hostname has been set
+        # in the config file
+        if agentConfig.get('hostname') is None:
+            instanceId = self.get_ec2_instance_id()
+            if instanceId is not None:
+                agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
+                agentConfig['hostname'] = instanceId
+            else:
+                agentLogger.info('Not running on EC2')
+ 
         emitter = http_emitter
         
         # Checks instance
@@ -121,9 +148,10 @@ if __name__ == '__main__':
     agentConfig, rawConfig = get_config()
     
     # Logging
-    setupLogging(agentConfig)
-    mainLogger = logging.getLogger('main')      
+    setupLogging(agentConfig)   
 
+    mainLogger = logging.getLogger('main')      
+    
     # FIXME
     # Ever heard of optparse?
 
