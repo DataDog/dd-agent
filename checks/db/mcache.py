@@ -112,7 +112,8 @@ class Memcache(Check):
                 self.logger.debug("Memcache samples: %s" % samples)
                 return samples
             except ImportError:
-                self.logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
+                if agentConfig.get("memcache_server", None) is not None:
+                    self.logger.exception("Cannot import python-memcache. Try easy_install python-memcached")
             except ValueError:
                 self.logger.exception("Cannot convert port value; check your configuration")
             except CheckException:
