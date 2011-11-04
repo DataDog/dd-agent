@@ -221,9 +221,15 @@ def get_config(parse_args = True):
         
         # Dogstream config
         if config.has_option("Main", "dogstream_log"):
-            agentConfig["dogstream_log"] = config.get("Main", "dogstream_log")
-        if config.has_option("Main", "dogstream_line_parser"):
-            agentConfig["dogstream_line_parser"] = config.get("Main", "dogstream_line_parser")
+            # Older version, single log support
+            log_path = config.get("Main", "dogstream_log")
+            if config.has_option("Main", "dogstream_line_parser"):
+                agentConfig["dogstreams"] = ':'.join([log_path, config.get("Main", "dogstream_line_parser")])
+            else:
+                agentConfig["dogstreams"] = log_path
+                
+        elif config.has_option("Main", "dogstreams"):
+            agentConfig["dogstreams"] = config.get("Main", "dogstreams")
         
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')

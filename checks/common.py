@@ -35,7 +35,7 @@ from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
-from checks.datadog import Dogstream, DdForwarder
+from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 
@@ -110,7 +110,7 @@ class checks:
         self._activemq = ActiveMQ(self.checksLogger)
         self._solr = Solr(self.checksLogger)
         self._memcache = Memcache(self.checksLogger)
-        self._dogstream = Dogstream(self.checksLogger, self.agentConfig)
+        self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]

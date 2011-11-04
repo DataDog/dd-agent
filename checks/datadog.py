@@ -17,48 +17,103 @@ else:
         else:
             return s[0:pos], sep, s[pos + len(sep):]
 
-class Dogstream(object):
-    def __init__(self, logger, config):
-        self.log_path = config.get('dogstream_log', None)
-        self.gen = None
-        self.values = None
-        self.logger = logger
-        self.parse_func = None
+class Dogstreams(object):
+    @classmethod
+    def init(cls, logger, config):
+        dogstreams_config = config.get('dogstreams', None)
+        dogstreams = []
+        if dogstreams_config:
+            # Expecting dogstreams config value to look like:
+            #   <dogstream value>, <dog stream value>, ...
+            # Where <dogstream value> looks like:
+            #   <log path> 
+            # or 
+            #   <log path>:<module>:<parser function>
+
+            # Create a Dogstream object for each <dogstream value>
+            for config_item in dogstreams_config.split(','):
+                try:
+                    config_item = config_item.strip()
+                    parts = config_item.split(':')
+                    if len(parts) == 1:
+                        dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
+                    elif len(parts) == 2:
+                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
+                    elif len(parts) == 3:
+                        dogstreams.append(Dogstream.init(logger, log_path=parts[0], parser_spec=':'.join(parts[1:])))
+                    elif len(parts) > 3:
+                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
+                except Exception:
+                    logger.error(traceback.format.exc())
         
-        # Allow for user-supplied line parsers
-        if 'dogstream_line_parser' in config:
+        return cls(logger, dogstreams)
+    
+    def __init__(self, logger, dogstreams):
+        self.logger = logger
+        self.dogstreams = dogstreams
+    
+    def check(self, agentConfig, move_end=True):
+        if not self.dogstreams:
+            return {}
+        
+        output = {}
+        for dogstream in self.dogstreams:
             try:
-                module_name, func_name = config['dogstream_line_parser'].split(':')
-                self.parse_func = getattr(__import__(module_name), func_name, 
+                result = dogstream.check(agentConfig, move_end)
+                output.update(result)
+            except Exception:
+                self.logger.exception(traceback.format_exc())
+                self.logger.error("Error in parsing %s" % (dogstream.log_path))
+        return output
+
+class Dogstream(object):
+    @classmethod
+    def init(cls, logger, log_path, parser_spec=None):
+        parse_func = None
+        
+        if parser_spec:
+            try:
+                module_name, func_name = parser_spec.split(':')
+                parse_func = getattr(__import__(module_name), func_name, 
                     None)
             except:
-                self.logger.exception(traceback.format_exc())
-                self.logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
-                    config['dogstream_line_parser'], 
+                logger.exception(traceback.format_exc())
+                logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
+                    parser_spec, 
                     os.environ.get('PYTHONPATH', ''))
                 )
-                
-        if self.parse_func is None:
-            self.parse_func = self._default_line_parser
+            logger.info("dogstream: parsing %s with %s" % (log_path, parse_func))
+        else:
+            logger.info("dogstream: parsing %s with default parser" % log_path)
+        
+        return cls(logger, log_path, parse_func)
+    
+    def __init__(self, logger, log_path, parse_func=None):
+        self.logger = logger
+        self.log_path = log_path
+        self.parse_func = parse_func or self._default_line_parser
+        
+        self._gen = None
+        self._values = None
     
     def check(self, agentConfig, move_end=True):
         if self.log_path:
             
-            self.values = []
+            self._values = []
         
             # Build our tail -f
-            if self.gen is None:
-                self.gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
+            if self._gen is None:
+                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
 
             # read until the end of file
             try:
-                self.gen.next()
-                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self.values)))
+                self._gen.next()
+                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
             except StopIteration, e:
                 self.logger.exception(e)
                 self.logger.warn("Can't tail {0} file".format(self.log_path))
             
-            return self._aggregate(self.values)
+            return self._aggregate(self._values)
         else:
             return {}
 
@@ -96,7 +151,7 @@ class Dogstream(object):
                     self.logger.warn('Invalid parsed values %s (%s): "%s"', 
                         repr(metric_tuple), ', '.join(invalid_reasons), line)
                 else:
-                    self.values.append((metric, ts, value, attrs))
+                    self._values.append((metric, ts, value, attrs))
         except Exception:
             self.logger.exception(traceback.format_exc())
     
@@ -169,7 +224,7 @@ class DdForwarder(object):
     def __init__(self, logger, config):
         self.log_path = config.get('ddforwarder_log', '/var/log/ddforwarder.log')
         self.logger = logger
-        self.gen = None
+        self._gen = None
 
     def _init_metrics(self):
         self.metrics = {}
@@ -200,13 +255,13 @@ class DdForwarder(object):
             self._init_metrics()
 
             # Build our tail -f
-            if self.gen is None:
-                self.gen = TailFile(self.logger, self.log_path, self._parse_line).tail(line_by_line=False, 
+            if self._gen is None:
+                self._gen = TailFile(self.logger, self.log_path, self._parse_line).tail(line_by_line=False, 
                     move_end=move_end)
 
             # read until the end of file
             try:
-                self.gen.next()
+                self._gen.next()
                 self.logger.debug("Done ddforwarder check for file %s" % (self.log_path))
             except StopIteration, e:
                 self.logger.exception(e)

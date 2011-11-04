@@ -214,23 +214,27 @@ debug_mode: no
 #  Dogstream (log file parser)                                                                     
 # -------------------------------------------------------------------------- #
 
-# Path to metric log
-#dogstream_log: /var/log/my_metrics.log
-
-# Optional Python line parser. Should take a 2 parameters, a logger object and 
+# Comma-separated list of logs to parse and optionally custom parsers to use.
+# The form should look like this:
+#
+#   dogstreams: /path/to/log1:parsers:custom_parser, /path/to/log2, /path/to/log3, ...
+#
+# Each entry is a path to a log file and optionally a Python module/function pair
+# separated by colons. 
+#
+# Custom parsers should take a 2 parameters, a logger object and 
 # a string parameter of the current line to parse. It should return a tuple of 
 # the form:
 #   (metric (str), timestamp (unix timestamp), value (float), attributes (dict))
 # where attributes should at least contain the key 'metric_type', specifying
 # whether the given metric is a 'counter' or 'gauge'.
 #
-# In order for the agent to find the custom line parser function, the module
+# In order for the agent to find the custom line parser functions, the modules
 # must exist in the agent's PYTHONPATH. You can set this as an environment
 # variable when starting the agent.
 #
 # If this value isn't specified, the default parser assumes this log format:
 #     metric timestamp value key0=val0 key1=val1 ...
 #
-#dogstream_line_parser: my_module:my_func
 
 
