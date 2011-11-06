@@ -81,6 +81,13 @@ def get_config(parse_args = True):
         else:
             agentConfig['debugMode'] = False
 
+        if config.has_option('Main', 'use_ec2_instance_id'):    
+            use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
+            # translate yes into True, the rest into False
+            agentConfig['useEC2InstanceId'] = (use_ec2_instance_id.lower() == 'yes')
+        else:
+            agentConfig['useEC2InstanceId'] = False
+
         if config.has_option('Main', 'check_freq'):
             agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
 

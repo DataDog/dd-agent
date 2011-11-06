@@ -69,7 +69,7 @@ class agent(Daemon):
 
         # Try to fetch instance Id from EC2 if not hostname has been set
         # in the config file
-        if agentConfig.get('hostname') is None:
+        if agentConfig.get('hostname') is None and agentConfig.get('useEC2InstanceId'):
             instanceId = self.get_ec2_instance_id()
             if instanceId is not None:
                 agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
