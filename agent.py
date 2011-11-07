@@ -18,6 +18,7 @@ import re
 import sched
 import sys
 import time
+import urllib
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -42,12 +43,12 @@ class agent(Daemon):
         """Fetch EC2 instance ID if possible. If not on EC2 returns None"""
         try:
             url = urllib.urlopen(agent.EC2_URL)
-            if url.getcode() == 200:
-                instanceId = url.read()
-                return instanceId
+            instanceId = url.read()
+            assert instanceId.startswith("i-"), "Malformed instance-id: %s" % instanceId
+            return instanceId
 
         except Exception, e:
-            pass
+            logging.getLogger('agent').exception('Cannot determine instance-id. Is this machine on EC2?')
 
         return None
 
