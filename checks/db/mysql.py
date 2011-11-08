@@ -136,7 +136,7 @@ class MySql(Check):
                 f.close()
             except:
                 if self.logger is not None:
-                    self.logger.exception("While reading pid file %s" % pid_file)
+                    self.logger.warn("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
 
         self.logger.debug("pid: %s" % pid)
         # If pid has not been found (permission issue), read it from ps
