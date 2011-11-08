@@ -57,9 +57,11 @@ use_ec2_instance_id: no
 # MySQL host
 #mysql_server:
 
-# MySQL user. It only runs "SHOW STATUS" queries, which doesn't require
-# any privileges, so you should consider creating a separate, unprivileged 
-# user
+# MySQL user. It runs "SHOW STATUS" and "SHOW REPLICATION STATUS" queries.
+# You should consider creating a separate user, e.g. datadog.
+# The latter requires the "REPLICATION CLIENT" privileges using a command like:
+# GRANT REPLICATION CLIENT ON *.* TO datadog;
+# http://dev.mysql.com/doc/refman/5.1/en/privileges-provided.html#priv_replication-client
 #mysql_user:
 
 # MySQL user's password
