@@ -1,3 +1,2 @@
 /etc/init.d/datadog-agent stop
-/usr/share/datadog/agent/setup-supervisor.py /etc/dd-agent/supervisor.conf /etc/supervisord.conf remove
 exit 0

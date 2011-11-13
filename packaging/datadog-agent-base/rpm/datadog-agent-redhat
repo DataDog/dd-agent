@@ -62,8 +62,7 @@ grab_status() {
 start() {
     if [ -f $USE_SUPERVISOR ]; then
         echo -n "Starting Datadog agent (using supervisorctl):"
-        supervisorctl start collector
-        supervisorctl start forwarder
+        daemon --pidfile=/var/run/datadog-supervisord.pid supervisord -c /etc/dd-agent/supervisor.conf
         echo
         return 0
     else
@@ -85,8 +84,8 @@ start() {
 stop() {
     if [ -f $USE_SUPERVISOR ]; then
         echo -n 'Stopping Datadog agent (using supervisorctl): '
-        supervisorctl stop collector
-        supervisorctl stop forwarder
+        killproc -p /var/run/datadog-supervisord.pid
+        echo
         RETURNVALUE=0
     else
         grab_status

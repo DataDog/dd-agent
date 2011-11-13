@@ -1,3 +1,3 @@
-/usr/share/datadog/agent/setup-supervisor.py /etc/dd-agent/supervisor.conf /etc/supervisord.conf
-/etc/init.d/supervisord restart
+# start
+/etc/init.d/datadog-agent start
 exit 0
