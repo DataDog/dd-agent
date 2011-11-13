@@ -60,7 +60,8 @@ install_rpm: install
 deb: clean install_deb
 	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0)' >>" \
 		$(FPM_BUILD) -t deb \
-		-d "python (>= 2.4)" \
+		-d "python(abi) >= 2.4" \
+		-d "python-uuid" \
 		-d "adduser" \
 		-d "sysstat" \
 		--post-install deb/postinst \
