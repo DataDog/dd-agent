@@ -56,8 +56,8 @@ deb: clean install_deb
 rpm: clean install_rpm
 	FPM_EDITOR="echo '' >>" \
 	$(FPM_BUILD) -t rpm \
-	  -d "python26" \
-	  -d "python26-tornado" \
+	  -d "python(abi) >= 2.6" \
+	  -d "python-tornado" \
 	  -d "datadog-agent-base" \
 	  -d "supervisor" \
       --pre-install rpm/preinst \
