@@ -148,12 +148,12 @@ class Dogstream(object):
                     invalid_reasons.append('invalid metric value')
 
                 if invalid_reasons:
-                    self.logger.warn('Invalid parsed values %s (%s): "%s"', 
+                    self.logger.debug('Invalid parsed values %s (%s): "%s"', 
                         repr(metric_tuple), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
         except Exception:
-            self.logger.exception(traceback.format_exc())
+            self.logger.debug(traceback.format_exc())
     
     def _default_line_parser(self, logger, line):
         original_line = line
@@ -169,7 +169,7 @@ class Dogstream(object):
                 key, val = keyval.split('=')
                 attributes[key] = val
         except Exception, e:
-            logger.warn(traceback.format_exc())
+            logger.debug(traceback.format_exc())
         
         return metric, timestamp, value, attributes
         
