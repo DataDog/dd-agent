@@ -132,7 +132,7 @@ class MySql(Check):
  
             try:
                 f = open(pid_file)
-                pid = int(read_line(f))
+                pid = int(f.readline())
                 f.close()
             except:
                 if self.logger is not None:
