@@ -15,7 +15,7 @@ def format_body(message, logger):
     payload = json.dumps(message)
 
     logger.debug('http_emitter: json converted, hash')
-    logger.debug('http_emitter:\n%s' % pp(message))
+    #logger.debug('http_emitter:\n%s' % pp(message))
 
     payloadHash = md5(payload).hexdigest()
     postBackData = urllib.urlencode({'payload' : payload, 'hash' : payloadHash})

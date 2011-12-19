@@ -5,6 +5,7 @@ import traceback
 import re
 import time
 from datetime import datetime
+from itertools import groupby # >= python 2.4
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -136,7 +137,8 @@ class Dogstream(object):
                 # Validation
                 invalid_reasons = []
                 try:
-                    ts = float(ts)
+                    # Bucket points into 15 second buckets
+                    ts = (int(float(ts)) / 15) * 15 
                     date = datetime.fromtimestamp(ts)
                     assert date.year > 1990
                 except Exception:
@@ -172,41 +174,38 @@ class Dogstream(object):
             logger.debug(traceback.format_exc())
         
         return metric, timestamp, value, attributes
-        
-
     
     def _aggregate(self, values):
-        gauges = {}
-        counters = {}
-        timestamps = {}
+        """ Aggregate values down to the second and store as:
+            {
+                "dogstream": [(metric, timestamp, value, {key: val})]
+            }
+            If there are many values per second for a metric, take the median
+        """
+        output = []
+        sorter = lambda p: (p[1], p[0])
+        values.sort(key=sorter)
         
-        # Aggregate the metrics by their metric_type (defined in attributes)
-        for metric, timestamp, value, attributes in values:
-            # FIXME: Ignoring timestamp at this point because
-            # the metric etl ignores it, but we should take the 
-            # average of the timestamps to be the timestamp of the metric
-            # point.
+        for (timestamp, metric), val_attrs in groupby(values, key=sorter):
+            attributes = {}
+            vals = []
+            for _metric, _timestamp, v, a in val_attrs:
+                attributes.update(a)
+                vals.append(v)
             
-            # Store metric value based on what type it is
-            if metric in counters:
-                counters[metric] += value
-            elif metric in gauges:
-                gauges[metric].append(value)
-            else:
-                metric_type = attributes.get('metric_type', 'gauge')
-                if metric_type == 'counter':
-                    counters[metric] = value
-                else:
-                    gauges[metric] = [value]
+            if len(vals) == 1:
+                val = vals[0]
+            elif len(vals) > 1:
+                val = median(vals)
+            else: # len(vals) == 0
+                continue
+            
+            output.append((metric, timestamp, val, attributes))
         
-        check_output = {}
-        
-        # Combine the counter and gauge values into a single dict
-        check_output.update(counters)
-        for metric, metric_vals in gauges.items():
-            check_output[metric] = median(metric_vals)
-        
-        return check_output
+        if output:
+            return {"dogstream": output}
+        else:
+            return {}
 
 
 
