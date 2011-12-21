@@ -1,4 +1,8 @@
 import os
+
+# os.SEEK_END is defined in python 2.5
+SEEK_END = 2
+
 from stat import *
 import binascii
 
@@ -74,7 +78,7 @@ class TailFile(object):
         self._f = open(self._path,'r')
         if move_end:
             self._log.debug("Opening file %s" % (self._path))
-            self._f.seek(1,os.SEEK_END)
+            self._f.seek(1, SEEK_END)
         elif pos:
             self._log.debug("Reopening file %s at %s" % (self._path, pos))
             self._f.seek(pos)
