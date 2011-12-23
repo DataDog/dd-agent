@@ -183,6 +183,8 @@ class Dogstream(object):
             If there are many values per second for a metric, take the median
         """
         output = []
+        
+        # Sort and group by timestamp, then metric name
         sorter = lambda p: (p[1], p[0])
         values.sort(key=sorter)
         
@@ -190,13 +192,21 @@ class Dogstream(object):
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:
-                attributes.update(a)
-                vals.append(v)
+                try:
+                    v = float(v)
+                    vals.append(v)
+                    attributes.update(a)
+                except:
+                    logger.debug("Could not convert %s into a float", v)
             
             if len(vals) == 1:
                 val = vals[0]
             elif len(vals) > 1:
-                val = median(vals)
+                metric_type = str(attributes.get('metric_type', '')).lower()
+                if metric_type == 'counter':
+                    val = sum(vals)
+                else:
+                    val = median(vals)
             else: # len(vals) == 0
                 continue
             
