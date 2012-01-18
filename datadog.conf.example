@@ -26,6 +26,9 @@ use_ec2_instance_id: no
 # Change port the agent is listening to
 # listen_port: 17123
 
+# Start a graphite listener on this port
+# graphite_listen_port: 17124
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
