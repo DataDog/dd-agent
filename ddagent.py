@@ -185,7 +185,7 @@ class Application(tornado.web.Application):
         if gport is not None:
             logging.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
-            gs = GraphiteServer()
+            gs = GraphiteServer(io_loop=mloop)
             gs.listen(gport)
 
         # Start everything
