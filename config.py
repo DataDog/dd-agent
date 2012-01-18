@@ -108,6 +108,13 @@ def get_config(parse_args = True):
         else:
             agentConfig['listen_port'] = None
 
+        # Optional graphite listener
+        if config.has_option('Main','graphite_listen_port'):
+            agentConfig['graphite_listen_port'] = int(config.get('Main','graphite_listen_port'))
+        else:
+            agentConfig['graphite_listen_port'] = None
+
+
         # Optional config
         # Also do not need to be present in the config file (case 28326).
         # FIXME not the prettiest code ever...

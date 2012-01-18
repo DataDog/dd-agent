@@ -49,7 +49,7 @@ class GraphiteConnection(object):
         logging.info('client quit %s', self.address)
         self.stream_set.remove(self.stream)
 
-    def _processMetric(metric, datapoint):
+    def _processMetric(self, metric, datapoint):
         logging.info("New metric: %s, values: %s" % (metric, datapoint))
 
     def _decode(self,data):
