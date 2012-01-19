@@ -609,35 +609,57 @@ class Processes(object):
 class Cpu(object):
     def check(self, logger, agentConfig):
         """Return an aggregate of CPU stats across all CPUs
-        {'cpu_user': cpu_user, 'cpu_system': cpu_system, 'cpu_wait': cpu_wait, 'cpu_idle': cpu_idle, 'cpu_stolen': cpu_stolen)
-        When figures are not available, None is sent back.
+        When figures are not available, False is sent back.
         """
         logger.debug('getCPUStats: start')
         def format_results(us, sy, wa, idle, st):
-            res = { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
-            logger.debug("CPU Stats: %s" % res)
-            return res
+            return { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
                     
-        def get_value(_legend, _data, name):
+        def get_value(legend, data, name):
             "Using the legend and a metric name, get the value or None from the data line"
             if name in legend:
-                return data[legend.index(name)]
+                return float(data[legend.index(name)])
             else:
-                return False
+                # FIXME return a float or False, would trigger type error if not python
+                logger.warn("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
+                return 0
 
         if sys.platform == 'linux2':
-            vmstat = subprocess.Popen(['vmstat', '3', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            lines = vmstat.split("\n")
-            if len(lines) > 4:
-                # last line is ''
-                legend = lines[1].split()
-                data = lines[-2].split()
-                cpu_user = get_value(legend, data, "us")
-                cpu_sys = get_value(legend, data, "sy")
-                cpu_wait = get_value(legend, data, "wa")
-                cpu_idle = get_value(legend, data, "id")
-                cpu_st = get_value(legend, data, "st")
-                return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+            mpstat = subprocess.Popen(['mpstat', '1', '3'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            # topdog@ip:~$ mpstat 1 3
+            # Linux 2.6.32-341-ec2 (ip) 	01/19/2012 	_x86_64_	(2 CPU)
+            #
+            # 04:22:41 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
+            # 04:22:42 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+            # 04:22:43 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+            # 04:22:44 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+            # Average:     all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+            lines = mpstat.split("\n")
+            legend = [l for l in lines if "%usr" in l]
+            avg =    [l for l in lines if "Average" in l]
+            if len(legend) == 1 and len(avg) == 1:
+                headers = legend[0].split()
+                data    =    avg[0].split()
+
+                # Userland
+                cpu_user = get_value(headers, data, "%usr")
+                cpu_nice = get_value(headers, data, "%nice")
+                # I/O
+                cpu_wait = get_value(headers, data, "%iowait")
+                # Idling
+                cpu_idle = get_value(headers, data, "%idle")
+                # Kernel + Interrupts, soft and hard
+                cpu_sys = get_value(headers, data, "%sys")
+                cpu_hirq = get_value(headers, data, "%irq")
+                cpu_sirq = get_value(headers, data, "%soft")
+                # VM-related
+                cpu_st = get_value(headers, data, "%steal")
+                cpu_guest = get_value(headers, data, "%guest")
+
+                return format_results(cpu_user + cpu_nice,
+                                      cpu_sys + cpu_hirq + cpu_sirq,
+                                      cpu_wait, cpu_idle,
+                                      cpu_st)
             else:
                 return False
             
@@ -645,17 +667,16 @@ class Cpu(object):
             # generate 3 seconds of data
             # ['          disk0           disk1       cpu     load average', '    KB/t tps  MB/s     KB/t tps  MB/s  us sy id   1m   5m   15m', '   21.23  13  0.27    17.85   7  0.13  14  7 79  1.04 1.27 1.31', '    4.00   3  0.01     5.00   8  0.04  12 10 78  1.04 1.27 1.31', '']   
             iostats = subprocess.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            lines = iostats.split("\n")
-            if len(lines) > 4:
-                # take a look at the penultimate line
-                # last line is ''   
-                legend = lines[1].split()
-                data = lines[-2].split()
-                cpu_user = get_value(legend, data, "us")
-                cpu_sys  = get_value(legend, data, "sy")
-                cpu_wait = None
-                cpu_idle = get_value(legend, data, "id")
-                cpu_st   = None
+            lines = [l for l in iostats.split("\n") if len(l) > 0]
+            legend = [l for l in lines if "us" in l]
+            if len(legend) == 1:
+                headers = legend[0].split()
+                data = lines[-1].split()
+                cpu_user = get_value(headers, data, "us")
+                cpu_sys  = get_value(headers, data, "sy")
+                cpu_wait = 0
+                cpu_idle = get_value(headers, data, "id")
+                cpu_st   = 0
                 return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
             else:
                 logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
