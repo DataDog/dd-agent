@@ -638,8 +638,8 @@ class Cpu(object):
             legend = [l for l in lines if "%usr" in l]
             avg =    [l for l in lines if "Average" in l]
             if len(legend) == 1 and len(avg) == 1:
-                headers = legend[0].split()
-                data    =    avg[0].split()
+                headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
+                data    = avg[0].split()
 
                 # Userland
                 cpu_user = get_value(headers, data, "%usr")

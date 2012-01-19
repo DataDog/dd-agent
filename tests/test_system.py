@@ -12,7 +12,7 @@ class TestSystem(unittest.TestCase):
         cpu = Cpu()
         res = cpu.check(logger, {})
         # Make sure we sum up to 100%
-        assert reduce(lambda a,b:a+b, res.values(), 0) == 100, res
+        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) < 0.001, res
 
 if __name__ == "__main__":
     unittest.main()
