@@ -11,8 +11,8 @@ class TestSystem(unittest.TestCase):
         global logger
         cpu = Cpu()
         res = cpu.check(logger, {})
-        # Make sure we sum up to 100%
-        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) < 0.001, res
+        # Make sure we sum up to 100% (or 99% in the case of macs)
+        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 1, res
 
 if __name__ == "__main__":
     unittest.main()
