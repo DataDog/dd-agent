@@ -59,7 +59,6 @@ class MetricTransaction(Transaction):
         return cls._trManager
 
     def __init__(self, data):
-
         self._data = data
 
         # Call after data has been set (size is computed in Transaction's init)
@@ -67,7 +66,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        logging.info("Created transaction %d" % self.get_id())
+        logging.debug("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -76,9 +75,8 @@ class MetricTransaction(Transaction):
     def get_data(self):
         try:
             return format_body(self._data, logging)
-        except Exception, e:
-            import traceback
-            logger.error('http_emitter: Exception = ' + traceback.format_exc())
+        except:
+            logger.exception('http_emitter failed')
 
     def flush(self):
 
@@ -87,12 +85,12 @@ class MetricTransaction(Transaction):
         req = tornado.httpclient.HTTPRequest(url, 
                              method = "POST", body = self.get_data() )
         http = tornado.httpclient.AsyncHTTPClient()
-        logging.info("Sending transaction %d to datadog" % self.get_id())
+        logging.debug("Sending transaction %d to datadog" % self.get_id())
         http.fetch(req, callback=lambda(x): self.on_response(x))
 
     def on_response(self, response):
         if response.error: 
-            logging.error("Got error %s" % response.error)
+            logging.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -185,10 +183,6 @@ class Application(tornado.web.Application):
         mloop.start()
     
 def main():
-
-    # Prevent tornado from setting up logging, it's done by our agent later on
-    #tornado.options.options.logging = "none"
-    # Settup logging
     define("pycurl", default=1, help="Use pycurl")
     parse_command_line()
 
