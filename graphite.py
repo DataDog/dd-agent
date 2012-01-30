@@ -14,18 +14,20 @@ except Exception, e:
 
 class GraphiteServer(TCPServer):
 
-    def __init__(self, io_loop=None, ssl_options=None, **kwargs):
+    def __init__(self, app, io_loop=None, ssl_options=None, **kwargs):
         logging.info('Graphite listener is started')
+        self.app = app
         TCPServer.__init__(self, io_loop=io_loop, ssl_options=ssl_options, **kwargs)
 
     def handle_stream(self, stream, address):
-        GraphiteConnection(stream, address)
+        GraphiteConnection(stream, address, self.app)
 
 
 class GraphiteConnection(object):
 
-    def __init__(self, stream, address):
+    def __init__(self, stream, address, app):
         logging.debug('received a new connection from %s', address)
+        self.app = app
         self.stream = stream
         self.address = address
         self.stream.set_close_callback(self._on_close)
@@ -63,6 +65,11 @@ class GraphiteConnection(object):
             logging.error("Unparsable metric: %s" % e)
             return None, None, None
 
+    def _postMetric(self, name, host, device, datapoint):
+
+        ts = datapoint[0]
+        value = datapoint[1]
+        self.app.appendMetric("graphite", name, host, device, ts, value)        
 
     def _processMetric(self, metric, datapoint):
         """Parse the metric name to fetch (host, metric, device) and
@@ -70,8 +77,9 @@ class GraphiteConnection(object):
 
         logging.info("New metric: %s, values: %s" % (metric, datapoint))
         (metric,host,device) = self._parseMetric(metric)
-        if metric is not None:
+        if metric is not None:    
             logging.info("Parsed metric: %s, host: %s, device: %s" % (metric, host, device))
+            self._postMetric(metric,host,device, datapoint)
 
     def _decode(self,data):
 
