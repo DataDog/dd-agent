@@ -66,20 +66,16 @@ def get_config(parse_args = True):
             agentConfig['ddUrl'] = config.get('Main', 'dd_url')
         if agentConfig['ddUrl'].endswith('/'):
             agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
-        agentConfig['agentKey'] = config.get('Main', 'agent_key')
+
         agentConfig['apiKey'] = config.get('Main', 'api_key')
+
         if os.path.exists('/var/log/dd-agent/'):
             agentConfig['tmpDirectory'] = '/var/log/dd-agent/'
         else:
             agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
         agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
 
-        agentConfig['debugMode'] = config.get('Main', 'debug_mode')
-        # translate yes into True, the rest into False
-        if agentConfig['debugMode'].lower() == 'yes':
-            agentConfig['debugMode'] = True
-        else:
-            agentConfig['debugMode'] = False
+        agentConfig['debugMode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
         if config.has_option('Main', 'use_ec2_instance_id'):    
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
@@ -109,8 +105,10 @@ def get_config(parse_args = True):
             agentConfig['listen_port'] = None
 
         # Optional config
-        # Also do not need to be present in the config file (case 28326).
         # FIXME not the prettiest code ever...
+        if config.has_option('Main', 'use_mount'):
+            agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
+            
         if config.has_option('Main', 'apache_status_url'):
             agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
 

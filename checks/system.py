@@ -8,7 +8,7 @@ from checks import gethostname
 
 class Disk(object):
 
-    def _parse_df(self, lines, inodes = False, use_volume=True):
+    def _parse_df(self, lines, inodes = False, use_mount=False):
         """Multi-platform df output parser
         
         If use_volume is true the volume rather than the mount point is used
@@ -61,7 +61,7 @@ class Disk(object):
                         parts.insert(0, previous)
                         previous = None
                 # 3.
-                if not use_volume:
+                if use_mount:
                     parts[0] = parts[-1]
             
                 # 4.
@@ -105,12 +105,13 @@ class Disk(object):
                                   stdout=subprocess.PIPE,
                                   close_fds=True)
 
-            disks =  self._parse_df(df.stdout.readlines())
+            use_mount = "use_mount" in agentConfig
+            disks =  self._parse_df(df.stdout.read(), use_mount=use_mount)
 
             df = subprocess.Popen(['df', '-i'],
                                   stdout=subprocess.PIPE,
                                   close_fds=True)
-            inodes = self._parse_df(df.stdout.readlines())
+            inodes = self._parse_df(df.stdout.read(), inodes=True)
             return (disks, inodes)
         except:
             logger.exception('getDiskUsage')

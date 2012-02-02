@@ -255,9 +255,7 @@ class checks:
         checksData = {
             'collection_timestamp': time.time(),
             'os' : self.os, 
-            'agentKey' : self.agentConfig['agentKey'], 
-            'agentVersion' : self.agentConfig['version'], 
-            'diskUsage' : diskUsage, 
+             'agentVersion' : self.agentConfig['version'], 
             'loadAvrg1' : loadAvrgs['1'], 
             'loadAvrg5' : loadAvrgs['5'], 
             'loadAvrg15' : loadAvrgs['15'], 
@@ -273,6 +271,10 @@ class checks:
             'resources': {},
         }
 
+        if diskUsage is not False and len(diskUsage) == 2:
+            checksData["diskUsage"] = diskUsage[0]
+            checksData["inodes"] = diskUsage[1]
+            
         if cpuStats is not False and cpuStats is not None:
             checksData.update(cpuStats)
 
@@ -383,7 +385,8 @@ class checks:
                     }
 
 
-        # Send back data 
+        # Send back data
+        self.checksLogger.debug("checksData: %s" % checksData)
         self.emitter(checksData, self.checksLogger, self.agentConfig)
         
         

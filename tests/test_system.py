@@ -46,8 +46,8 @@ none                   3943856         0   3943856   0% /lib/init/rw
 /dev/sdb             433455904    305360 411132240   1% /mnt
 /dev/sdf              52403200  40909112  11494088  79% /data
 nfs:/abc/def/ghi/jkl/mno/pqr
-                      52403200  40909112  11494088  79% /data
-/dev/sdg              52403200  40909112  11494088  79% /data
+                      52403200  40909112  11494088  79% /data2
+/dev/sdg              52403200  40909112  11494088  79% /data3
 """
 
     linux_df_i = """Filesystem            Inodes   IUsed   IFree IUse% Mounted on
@@ -85,6 +85,13 @@ none                  985964       1  985963    1% /lib/init/rw
         assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
         assert res[1][:4] == ["/dev/sdb", 27525120, 147, 27524973], res[1]
         assert res[2][:4] == ["/dev/sdf", 46474080, 478386, 45995694], res[2]
+
+        res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
+        assert res[0][:4] == ["/", 8256952 / 1024 / 1024, 5600592 / 1024 / 1024,  2236932 / 1024 / 1024], res[0]
+        assert res[-3][:4] == ["/data", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+        assert res[-2][:4] == ["/data2", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-1]
+        assert res[-1][:4] == ["/data3", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+        
 
 if __name__ == "__main__":
     unittest.main()
