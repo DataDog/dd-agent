@@ -83,13 +83,12 @@ class Disk(object):
                         # Available
                         parts[3] = int(parts[3])
                 else:
-                    in_mb = lambda s: int(s) / 1024 / 1024
                     # Total
-                    parts[1] = in_mb(parts[1])
+                    parts[1] = int(parts[1])
                     # Used
-                    parts[2] = in_mb(parts[2])
+                    parts[2] = int(parts[2])
                     # Available
-                    parts[3] = in_mb(parts[3])
+                    parts[3] = int(parts[3])
             except IndexError:
                 logger.exception("Cannot parse %s" % (parts,))
 
@@ -111,7 +110,7 @@ class Disk(object):
             df = subprocess.Popen(['df', '-i'],
                                   stdout=subprocess.PIPE,
                                   close_fds=True)
-            inodes = self._parse_df(df.stdout.read(), inodes=True)
+            inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
             return (disks, inodes)
         except:
             logger.exception('getDiskUsage')
