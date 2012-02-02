@@ -1,97 +1,120 @@
 import re
+import socket
+import string
 import subprocess
 import sys
-import socket
 import time
 from checks import gethostname
 
 class Disk(object):
+
+    def _parse_df(self, lines, inodes = False, use_mount=False):
+        """Multi-platform df output parser
+        
+        If use_volume is true the volume rather than the mount point is used
+        to anchor the metric. If false the mount point is used.
+
+        e.g. /dev/sda1 .... /my_mount
+        _parse_df picks /dev/sda1 if use_volume, /my_mount if not
+
+        If inodes is True, count inodes instead
+        """
+
+        # Simple list-oriented processing
+        # No exec-time optimal but simpler code
+        # 1. filter out the header line (once)
+        # 2. ditch fake volumes (dev fs, etc.) starting with a none volume
+        #    when the volume is too long it sits on a line by itself so collate back
+        # 3. if we want to use the mount point, replace the volume name on each line
+        # 4. extract interesting metrics
+
+        usageData = []
+
+        # 1.
+        lines = map(string.strip, lines.split("\n"))[1:]
+
+        numbers = re.compile(r'([0-9]+)')
+        previous = None
+        
+        for line in lines:
+            parts = line.split()
+
+            # skip empty lines
+            if len(parts) == 0: continue
+
+            try:
+
+                # 2.
+                if len(parts) == 1:
+                    # volume on a line by itself
+                    previous = parts[0]
+                    continue
+                elif parts[0] == "none":
+                    # this is a "fake" volume
+                    continue
+                elif not numbers.match(parts[1]):
+                    # this is a volume like "map auto_home"
+                    continue
+                else:
+                    if previous and numbers.match(parts[0]):
+                        # collate with previous line
+                        parts.insert(0, previous)
+                        previous = None
+                # 3.
+                if use_mount:
+                    parts[0] = parts[-1]
+            
+                # 4.
+                if inodes:
+                    if sys.platform == "darwin":
+                        # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
+                        # Inodes are in position 5, 6 and we need to compute the total
+                        # Total
+                        parts[1] = int(parts[5]) + int(parts[6])
+                        # Used
+                        parts[2] = int(parts[5])
+                        # Available
+                        parts[3] = int(parts[6])
+                    else:
+                        # Total
+                        parts[1] = int(parts[1])
+                        # Used
+                        parts[2] = int(parts[2])
+                        # Available
+                        parts[3] = int(parts[3])
+                else:
+                    # Total
+                    parts[1] = int(parts[1])
+                    # Used
+                    parts[2] = int(parts[2])
+                    # Available
+                    parts[3] = int(parts[3])
+            except IndexError:
+                logger.exception("Cannot parse %s" % (parts,))
+
+            usageData.append(parts)
+        return usageData
+    
     def check(self, logger, agentConfig):
-        logger.debug('getDiskUsage: start')
-        
-        # Memory logging (case 27152)
-        if agentConfig['debugMode'] and sys.platform == 'linux2':
-            mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            logger.debug('getDiskUsage: memory before Popen - ' + str(mem))
-        
-        # Get output from df
+        """Get disk space/inode stats"""
+
+        # Check test_system for some examples of output
         try:
-            logger.debug('getDiskUsage: attempting Popen')
-            
-            df = subprocess.Popen(['df', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0] # -k option uses 1024 byte blocks so we can calculate into MB
-            
+            df = subprocess.Popen(['df', '-k'],
+                                  stdout=subprocess.PIPE,
+                                  close_fds=True)
+
+            use_mount = "use_mount" in agentConfig
+            disks =  self._parse_df(df.stdout.read(), use_mount=use_mount)
+
+            df = subprocess.Popen(['df', '-i'],
+                                  stdout=subprocess.PIPE,
+                                  close_fds=True)
+            inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
+            return (disks, inodes)
         except:
             logger.exception('getDiskUsage')
             return False
-        
-        # Memory logging (case 27152)
-        if agentConfig['debugMode'] and sys.platform == 'linux2':
-            mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            logger.debug('getDiskUsage: memory after Popen - ' + str(mem))
-        
-        logger.debug('getDiskUsage: Popen success, start parsing')
-            
-        # Split out each volume
-        volumes = df.split('\n')
-        
-        logger.debug('getDiskUsage: parsing, split')
-        
-        # Remove first (headings) and last (blank)
-        volumes.pop(0)
-        volumes.pop()
-        
-        logger.debug('getDiskUsage: parsing, pop')
-        
-        usageData = []
-        
-        regexp = re.compile(r'([0-9]+)')
-        
-        # Set some defaults
-        previousVolume = None
-        volumeCount = 0
-        
-        logger.debug('getDiskUsage: parsing, start loop')
-        
-        for volume in volumes:          
-            logger.debug('getDiskUsage: parsing volume: ' + volume)
-            
-            # Split out the string
-            volume = volume.split(None, 10)
-                    
-            # Handle df output wrapping onto multiple lines (case 27078 and case 30997)
-            # Thanks to http://github.com/sneeu
-            if len(volume) == 1: # If the length is 1 then this just has the mount name
-                previousVolume = volume[0] # We store it, then continue the for
-                continue
-            
-            if previousVolume != None: # If the previousVolume was set (above) during the last loop
-                volume.insert(0, previousVolume) # then we need to insert it into the volume
-                previousVolume = None # then reset so we don't use it again
-                
-            volumeCount = volumeCount + 1
-            
-            # Sometimes the first column will have a space, which is usually a system line that isn't relevant
-            # e.g. map -hosts              0         0          0   100%    /net
-            # so we just get rid of it
-            if re.match(regexp, volume[1]) == None:
-                
-                pass
-                
-            else:           
-                try:
-                    volume[2] = int(volume[2]) / 1024 / 1024 # Used
-                    volume[3] = int(volume[3]) / 1024 / 1024 # Available
-                except IndexError:
-                    logger.debug('getDiskUsage: parsing, loop IndexError - Used or Available not present')
-                    
-                except KeyError:
-                    logger.debug('getDiskUsage: parsing, loop KeyError - Used or Available not present')
-                
-                usageData.append(volume)
-        
-        logger.debug('getDiskUsage: completed, returning')
-            
-        return usageData
 
 
 class IO(object):
@@ -160,11 +183,6 @@ class Load(object):
         
         # If Linux like procfs system is present and mounted we use loadavg, else we use uptime
         if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
-            
-            if sys.platform == 'linux2':
-                logger.debug('getLoadAvrgs: linux2')
-            else:
-                logger.debug('getLoadAvrgs: freebsd (loadavg)')
             
             try:
                 logger.debug('getLoadAvrgs: attempting open')
