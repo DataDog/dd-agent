@@ -8,13 +8,9 @@ dd_url: https://app.datadoghq.com
 # https://app.datadoghq.com/account/settings
 api_key: 
 
-# Unused for now.
-agent_key:
-
 # Boolean to enable debug_mode, which outputs massive amounts of log messages 
 # to the /tmp/ directory.  
 debug_mode: no 
-
 
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
@@ -22,6 +18,9 @@ debug_mode: no
 # Use the amazon EC2 instance-id instead of hostname (unless hostname is
 # explicitly set)
 use_ec2_instance_id: no
+
+# Use mount points instead of volumes to track disk and fs metrics
+use_mount: no
 
 # Change port the agent is listening to
 # listen_port: 17123

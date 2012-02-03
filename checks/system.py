@@ -104,7 +104,7 @@ class Disk(object):
                                   stdout=subprocess.PIPE,
                                   close_fds=True)
 
-            use_mount = "use_mount" in agentConfig
+            use_mount = agentConfig.get("use_mount", False)
             disks =  self._parse_df(df.stdout.read(), use_mount=use_mount)
 
             df = subprocess.Popen(['df', '-i'],
