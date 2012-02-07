@@ -96,10 +96,11 @@ class Dogstream(object):
         
         self._gen = None
         self._values = None
+        self._freq = 15 # Will get updated on each check()
     
     def check(self, agentConfig, move_end=True):
         if self.log_path:
-            
+            self._freq = int(agentConfig.get('checkFreq', 15))
             self._values = []
         
             # Build our tail -f
@@ -138,7 +139,7 @@ class Dogstream(object):
                 invalid_reasons = []
                 try:
                     # Bucket points into 15 second buckets
-                    ts = (int(float(ts)) / 15) * 15 
+                    ts = (int(float(ts)) / self._freq) * self._freq
                     date = datetime.fromtimestamp(ts)
                     assert date.year > 1990
                 except Exception:
