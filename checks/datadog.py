@@ -203,13 +203,15 @@ class Dogstream(object):
             if len(vals) == 1:
                 val = vals[0]
             elif len(vals) > 1:
-                metric_type = str(attributes.get('metric_type', '')).lower()
-                if metric_type == 'counter':
-                    val = sum(vals)
-                else:
-                    val = median(vals)
+                val = vals[-1]
             else: # len(vals) == 0
                 continue
+            
+            metric_type = str(attributes.get('metric_type', '')).lower()
+            if metric_type == 'gauge':
+                val = float(val)
+            elif metric_type == 'counter':
+                val = int(val)            
             
             output.append((metric, timestamp, val, attributes))
         
