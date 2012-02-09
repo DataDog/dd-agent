@@ -18,6 +18,10 @@ else:
         else:
             return s[0:pos], sep, s[pos + len(sep):]
 
+def point_sorter(p):
+    # Sort and group by timestamp, metric name, host_name, device_name
+    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
+
 class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
@@ -68,12 +72,13 @@ class Dogstreams(object):
             try:
                 result = dogstream.check(agentConfig, move_end)
                 output.update(result)
-            except Exception:
+            except Exception, e:
                 self.logger.exception(traceback.format_exc())
                 self.logger.error("Error in parsing %s" % (dogstream.log_path))
         return output
 
 class Dogstream(object):
+
     @classmethod
     def init(cls, logger, log_path, parser_spec=None):
         parse_func = None
@@ -191,11 +196,9 @@ class Dogstream(object):
         """
         output = []
         
-        # Sort and group by timestamp, then metric name
-        sorter = lambda p: (p[1], p[0])
-        values.sort(key=sorter)
+        values.sort(key=point_sorter)
 
-        for (timestamp, metric), val_attrs in groupby(values, key=sorter):
+        for (timestamp, metric, host_name, device_name), val_attrs in groupby(values, key=point_sorter):
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:
@@ -324,13 +327,26 @@ class NagiosPerfData(object):
                 pair_match = self.pair_pattern.match(pair)
                 if not pair_match:
                     continue
-                pair_data = pair_match.groupdict()
-                metric = '.'.join(metric_prefix + [pair_data['label']])
+                else:
+                    pair_data = pair_match.groupdict()
+                
+                label = pair_data['label']
                 timestamp = data.get('TIMET', '')
                 value = pair_data['value']
-                
-                # populate attributes
                 attributes = {'metric_type': 'gauge'}
+
+                if '/' in label:
+                    # Special case: if the label begins
+                    # with a /, treat the label as the device
+                    # and use the metric prefix as the metric name
+                    metric = '.'.join(metric_prefix)
+                    attributes['device_name'] = label
+
+                else:
+                    # Otherwise, append the label to the metric prefix
+                    # and use that as the metric name
+                    metric = '.'.join(metric_prefix + [label])
+
                 host_name = data.get('HOSTNAME', None)
                 if host_name:
                     attributes['host_name'] = host_name

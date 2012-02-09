@@ -3,7 +3,7 @@ import sys
 import unittest
 from tempfile import NamedTemporaryFile
 
-from checks.datadog import Dogstreams
+from checks.datadog import Dogstreams, point_sorter
 
 log = logging.getLogger('datadog.test')
 
@@ -197,16 +197,139 @@ class TestNagiosPerfData(TailTestCase):
                 'max':  '100',
             }),
         ]
-        expected_output.sort()
+        expected_output.sort(key=point_sorter)
 
         self._write_log(('\t'.join(data) for data in log_data))        
 
         actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
-        actual_output.sort()
+        actual_output.sort(key=point_sorter)
 
         self.assertEquals(expected_output, actual_output)
+    
+    def test_service_perfdata_special_cases(self):
+        from checks.datadog import NagiosServicePerfData
 
+        self._write_nagios_config([
+            "service_perfdata_file=%s" % self.log_file.name,
+            "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
+        ])
 
+        dogstream = Dogstreams.init(self.logger, self.agent_config)
+        self.assertEquals([NagiosServicePerfData], [d.__class__ for d in dogstream.dogstreams])
+
+        log_data = [
+            (   "DATATYPE::SERVICEPERFDATA",
+                "TIMET::1000000000",
+                "HOSTNAME::myhost2",
+                "SERVICEDESC::Disk Space",
+                "SERVICEPERFDATA::" + " ".join([
+                    "/=5477MB;6450;7256;0;8063",
+                    "/dev=0MB;2970;3341;0;3713",
+                    "/dev/shm=0MB;3080;3465;0;3851",
+                    "/var/run=0MB;3080;3465;0;3851",
+                    "/var/lock=0MB;3080;3465;0;3851",
+                    "/lib/init/rw=0MB;3080;3465;0;3851",
+                    "/mnt=290MB;338636;380966;0;423296",
+                    "/data=39812MB;40940;46057;0;51175",
+                ]),
+                "SERVICECHECKCOMMAND::check_all_disks!20%!10%",
+                "HOSTSTATE::UP",
+                "HOSTSTATETYPE::HARD",
+                "SERVICESTATE::OK",
+                "SERVICESTATETYPE::HARD",
+            )
+        ]
+        
+        expected_output = [
+            ('nagios.disk_space', 1000000000, 5477., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/',
+                'unit': 'MB',
+                'warn': '6450',
+                'crit': '7256',
+                'min': '0',
+                'max': '8063',
+            }),
+            ('nagios.disk_space', 1000000000, 0., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/dev',
+                'unit': 'MB',
+                'warn': '2970',
+                'crit': '3341',
+                'min': '0',
+                'max': '3713',
+            }),
+            ('nagios.disk_space', 1000000000, 0., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/dev/shm',
+                'unit': 'MB',
+                'warn': '3080',
+                'crit': '3465',
+                'min': '0',
+                'max': '3851',
+            }),
+            ('nagios.disk_space', 1000000000, 0., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/var/run',
+                'unit': 'MB',
+                'warn': '3080',
+                'crit': '3465',
+                'min': '0',
+                'max': '3851',
+            }),
+            ('nagios.disk_space', 1000000000, 0., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/var/lock',
+                'unit': 'MB',
+                'warn': '3080',
+                'crit': '3465',
+                'min': '0',
+                'max': '3851',
+            }),
+            ('nagios.disk_space', 1000000000, 0., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/lib/init/rw',
+                'unit': 'MB',
+                'warn': '3080',
+                'crit': '3465',
+                'min': '0',
+                'max': '3851',
+            }),
+            ('nagios.disk_space', 1000000000, 290., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/mnt',
+                'unit': 'MB',
+                'warn': '338636',
+                'crit': '380966',
+                'min': '0',
+                'max': '423296',
+            }),
+            ('nagios.disk_space', 1000000000, 39812., {
+                'metric_type': 'gauge',
+                'host_name': 'myhost2',
+                'device_name': '/data',
+                'unit': 'MB',
+                'warn': '40940',
+                'crit': '46057',
+                'min': '0',
+                'max': '51175',
+            }),
+        ]
+        expected_output.sort(key=point_sorter)
+
+        self._write_log(('\t'.join(data) for data in log_data))        
+
+        actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
+        actual_output.sort(key=point_sorter)
+
+        self.assertEquals(expected_output, actual_output)
     def test_host_perfdata(self):
         from checks.datadog import NagiosHostPerfData
 
@@ -250,12 +373,12 @@ class TestNagiosPerfData(TailTestCase):
                 'min': '0'
             }),
         ]
-        expected_output.sort()
+        expected_output.sort(key=point_sorter)
 
         self._write_log(('\t'.join(data) for data in log_data))        
 
         actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
-        actual_output.sort()
+        actual_output.sort(key=point_sorter)
 
         self.assertEquals(expected_output, actual_output)
 
