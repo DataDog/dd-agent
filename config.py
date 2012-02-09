@@ -236,6 +236,9 @@ def get_config(parse_args = True):
         elif config.has_option("Main", "dogstreams"):
             agentConfig["dogstreams"] = config.get("Main", "dogstreams")
         
+        if config.has_option("Main", "nagios_perf_cfg"):
+            agentConfig["nagiosPerfCfg"] = config.get("Main", "nagios_perf_cfg")
+        
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
