@@ -39,7 +39,7 @@ You can also specify multiple log files like this:
 
 ## Parsing custom log formats
 
-If you don't have control over you logging and can't issue your logs in the canonical format, you may also tell the Datadog agent to use a custom Python function to extract the proper fields from the log by adding the following line to your agent configuration file:
+If you don't have control over logging or can't issue your logs in the canonical format, you may also tell the Datadog agent to use a custom Python function to extract the proper fields from the log by adding the following line to your agent configuration file:
 
     dogstreams: /var/log/web.log:parsers:parse_web
 
