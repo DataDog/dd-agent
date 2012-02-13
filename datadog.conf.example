@@ -141,9 +141,24 @@ use_mount: no
 #   Nagios                                                                   #
 # -------------------------------------------------------------------------- #
 
-# Path to Nagios's event log file
+# dd-agent imports alerts and perfdata from nagios.
+
+# Path to Nagios' event log file
 # Make sure the dd-agent user can read this file
 #nagios_log: /var/log/nagios3/nagios.log
+
+# If you use perfdata, dd-agent can import automatically and in real-time
+# performance data collected by nagios.
+# For more information on perfdata configuration, please refer to
+# http://nagios.sourceforge.net/docs/3_0/perfdata.html
+#
+# Path to Nagios' ***configuration*** file where the properties
+# host|service_perfdata_file and host|service_perfdata_file_template
+# are defined.
+# (ubuntu 10.04)
+#nagios_perf_cfg: /etc/nagios3/nagios.cfg
+# (centos 5)
+#nagios_perf_cfg: /etc/nagios/nagios.cfg
 
 
 # -------------------------------------------------------------------------- #
