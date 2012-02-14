@@ -29,6 +29,9 @@ from tornado.options import define, parse_command_line, options
 from emitter import http_emitter, format_body
 from config import get_config
 
+from checks.common import getUuid
+from checks import gethostname
+
 from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
@@ -147,11 +150,35 @@ class Application(tornado.web.Application):
         self._port = port
         self._agentConfig = agentConfig
 
+        self._metrics = {}
+
         MetricTransaction.set_application(self)
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
-    
+   
+    def appendMetric(self, prefix, name, host, device, ts, value):
+
+        if self._metrics.has_key(prefix):
+            metrics = self._metrics[prefix]
+        else:
+            metrics = {}
+            self._metrics[prefix] = metrics
+        
+        if metrics.has_key(name):
+            metrics[name].append([host, device, ts, value])
+        else:
+            metrics[name] = [[host, device, ts, value]]
+ 
+    def _postMetrics(self):
+
+        if len(self._metrics) > 0:
+            self._metrics['uuid'] = getUuid()
+            self._metrics['internalHostname'] = gethostname(self._agentConfig)
+            self._metrics['apiKey'] = self._agentConfig['apiKey']
+            MetricTransaction(self._metrics)
+            self._metrics = {}            
+
     def run(self):
 
         handlers = [
@@ -174,9 +201,18 @@ class Application(tornado.web.Application):
         mloop = tornado.ioloop.IOLoop.instance() 
 
         def flush_trs():
+            self._postMetrics()
             self._tr_manager.flush()
 
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
+
+        # Register optional Graphite listener
+        gport = self._agentConfig["graphite_listen_port"]
+        if gport is not None:
+            logging.info("Starting graphite listener on port %s" % gport)
+            from graphite import GraphiteServer
+            gs = GraphiteServer(self, io_loop=mloop)
+            gs.listen(gport)
 
         # Start everything
         tr_sched.start()
