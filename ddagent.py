@@ -229,7 +229,7 @@ def main():
 
     agentConfig, rawConfig = get_config(parse_args = False)
 
-    port = agentConfig['listen_port']
+    port = agentConfig.get('listen_port', None)
     if port is None:
         port = 17123
 
