@@ -14,22 +14,24 @@ except Exception, e:
 
 class GraphiteServer(TCPServer):
 
-    def __init__(self, app, io_loop=None, ssl_options=None, **kwargs):
+    def __init__(self, app, hostname, io_loop=None, ssl_options=None, **kwargs):
         logging.info('Graphite listener is started')
         self.app = app
+        self.hostname = hostname
         TCPServer.__init__(self, io_loop=io_loop, ssl_options=ssl_options, **kwargs)
 
     def handle_stream(self, stream, address):
-        GraphiteConnection(stream, address, self.app)
+        GraphiteConnection(stream, address, self.app, self.hostname)
 
 
 class GraphiteConnection(object):
 
-    def __init__(self, stream, address, app):
+    def __init__(self, stream, address, app, hostname):
         logging.debug('received a new connection from %s', address)
         self.app = app
         self.stream = stream
         self.address = address
+        self.hostname = hostname
         self.stream.set_close_callback(self._on_close)
         self.stream.read_bytes(4, self._on_read_header)
 
@@ -49,20 +51,24 @@ class GraphiteConnection(object):
         logging.debug('client quit %s', self.address)
 
     def _parseMetric(self, metric):
-        """Extract host, device and metric_name from a graphite metric
-            according to the following schema: host.metric_name1.metric_name2.[device]"""
+        """Graphite does not impose a particular metric structure.
+        So this is where you can insert logic to extract various bits
+        out of the graphite metric name.
+
+        For instance, if the hostname is in 4th position,
+        you could use: host = components[3]
+        """
         
         try:
             components = metric.split('.')
-            host = components[0]
-            metric = components[1] + '.' + components[2]
+
+            host = self.hostname
+            metric = metric
             device = "N/A"
-            if len(components) == 4:
-                device = components[3]
         
             return metric, host, device
         except Exception, e:
-            logging.error("Unparsable metric: %s" % e)
+            logging.exception("Unparsable metric: {0}".format(metric))
             return None, None, None
 
     def _postMetric(self, name, host, device, datapoint):
@@ -75,11 +81,11 @@ class GraphiteConnection(object):
         """Parse the metric name to fetch (host, metric, device) and
             send the datapoint to datadog"""
 
-        logging.info("New metric: %s, values: %s" % (metric, datapoint))
+        logging.debug("New metric: %s, values: %s" % (metric, datapoint))
         (metric,host,device) = self._parseMetric(metric)
         if metric is not None:    
-            logging.info("Parsed metric: %s, host: %s, device: %s" % (metric, host, device))
             self._postMetric(metric,host,device, datapoint)
+            logging.info("Posted metric: %s, host: %s, device: %s" % (metric, host, device))
 
     def _decode(self,data):
 
