@@ -207,7 +207,7 @@ class Application(tornado.web.Application):
         tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
 
         # Register optional Graphite listener
-        gport = self._agentConfig["graphite_listen_port"]
+        gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
             logging.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
