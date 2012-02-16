@@ -40,7 +40,7 @@ install_rpm: install
 	cp rpm/setup-supervisor.py $(BUILD)/usr/share/datadog/agent
 
 deb: clean install_deb
-	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.0)' >>" \
+	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.2)' >>" \
 	$(FPM_BUILD) -t deb \
         -d "python (>= 2.6)" \
         -d "datadog-agent-base" \
@@ -58,7 +58,7 @@ rpm: clean install_rpm
 	$(FPM_BUILD) -t rpm \
 	  -d "python(abi) >= 2.6" \
 	  -d "python-tornado" \
-	  -d "datadog-agent-base" \
+	  -d "datadog-agent-base >= 2.2" \
 	  -d "supervisor" \
       --pre-install rpm/preinst \
       --post-install rpm/postinst \

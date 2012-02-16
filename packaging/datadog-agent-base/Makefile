@@ -5,13 +5,13 @@ BUILD=build/package
 CWD=$(shell pwd)
 
 FPM_BUILD=fpm -s dir -C $(BUILD) -e -n "datadog-agent-base" \
-	 -a all -m "Datadog Packages <package@datadoghq.com>" \
-     --url "http://www.datadoghq.com/" \
-     --config-files "/etc/init.d/datadog-agent" \
-     --config-files "/etc/dd-agent/datadog.conf.example" \
-	 --description "`cat desc`"\
-     -d "datadog-agent-lib" \
-     -v `python -c "from setup import printVersion; printVersion()"`-$(BUILDNUMBER) \
+-a all -m "Datadog Packages <package@datadoghq.com>" \
+--url "http://www.datadoghq.com/" \
+--config-files "/etc/init.d/datadog-agent" \
+--config-files "/etc/dd-agent/datadog.conf.example" \
+--description "`cat desc`"\
+-d "datadog-agent-lib >= 2.2" \
+-v `python -c "from setup import printVersion; printVersion()"`-$(BUILDNUMBER) \
 
 clean:
 	rm -f resources compat
@@ -59,24 +59,24 @@ install_rpm: install
 
 deb: clean install_deb
 	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0)' >>" \
-		$(FPM_BUILD) -t deb \
-		-d "python >= 2.4" \
-		-d "adduser" \
-		-d "sysstat" \
-		--post-install deb/postinst \
-		--post-uninstall deb/postrm \
-		--pre-uninstall deb/prerm \
-        .
+$(FPM_BUILD) -t deb \
+-d "python >= 2.4" \
+-d "adduser" \
+-d "sysstat" \
+--post-install deb/postinst \
+--post-uninstall deb/postrm \
+--pre-uninstall deb/prerm \
+.
 
 rpm: clean install_rpm
 	FPM_EDITOR="$(CWD)/rpm/inject.sh" \
-	$(FPM_BUILD) -t rpm \
-		-d "python(abi) >= 2.4" \
-		-d "python-uuid" \
-		-d "sysstat" \
-		--pre-install rpm/pre_install \
-        --pre-uninstall rpm/pre_uninstall \
-        etc/init.d/datadog-agent \
-        etc/dd-agent/datadog.conf.example \
-		usr/share/datadog \
-		usr/bin
+$(FPM_BUILD) -t rpm \
+-d "python(abi) >= 2.4" \
+-d "python-uuid" \
+-d "sysstat" \
+--pre-install rpm/pre_install \
+--pre-uninstall rpm/pre_uninstall \
+etc/init.d/datadog-agent \
+etc/dd-agent/datadog.conf.example \
+usr/share/datadog \
+usr/bin
