@@ -11,7 +11,7 @@ FPM_BUILD=fpm -s dir -C $(BUILD) \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
--v "`PYTHONPATH=../.. python -c 'from config import get_version; print get_version()'`-$(BUILDNUMBER)"
+-v "$(VERSION)-$(BUILDNUMBER)"
 
 clean:
 	rm -rf build*
@@ -40,27 +40,27 @@ install_rpm: install
 	cp rpm/setup-supervisor.py $(BUILD)/usr/share/datadog/agent
 
 deb: clean install_deb
-	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= 2.2)' >>" \
-	$(FPM_BUILD) -t deb \
-        -d "python (>= 2.6)" \
-        -d "datadog-agent-base" \
-        -d "python-tornado" \
-        -d "supervisor (>= 3.0)" \
-        --post-install deb/postinst \
-        --post-uninstall deb/postrm \
-        --pre-install deb/preinst \
-        --pre-uninstall deb/prerm \
-        --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
-	.
+	FPM_EDITOR="echo 'Pre-Depends: datadog-agent-base (>= $(VERSION))' >>" \
+$(FPM_BUILD) -t deb \
+-d "python (>= 2.6)" \
+-d "datadog-agent-base" \
+-d "python-tornado" \
+-d "supervisor (>= 3.0)" \
+--post-install deb/postinst \
+--post-uninstall deb/postrm \
+--pre-install deb/preinst \
+--pre-uninstall deb/prerm \
+--config-files "/etc/dd-agent/supervisor_ddagent.conf" \
+.
 
 rpm: clean install_rpm
 	FPM_EDITOR="echo '' >>" \
-	$(FPM_BUILD) -t rpm \
-	  -d "python(abi) >= 2.6" \
-	  -d "python-tornado" \
-	  -d "datadog-agent-base >= 2.2" \
-	  -d "supervisor" \
-      --pre-install rpm/preinst \
-      --post-install rpm/postinst \
-      --pre-uninstall rpm/prerm \
-      .
+$(FPM_BUILD) -t rpm \
+-d "python(abi) >= 2.6" \
+-d "python-tornado" \
+-d "datadog-agent-base >= $(VERSION)" \
+-d "supervisor" \
+--pre-install rpm/preinst \
+--post-install rpm/postinst \
+--pre-uninstall rpm/prerm \
+.

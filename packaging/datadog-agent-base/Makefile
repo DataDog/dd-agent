@@ -10,8 +10,8 @@ FPM_BUILD=fpm -s dir -C $(BUILD) -e -n "datadog-agent-base" \
 --config-files "/etc/init.d/datadog-agent" \
 --config-files "/etc/dd-agent/datadog.conf.example" \
 --description "`cat desc`"\
--d "datadog-agent-lib >= 2.2" \
--v `python -c "from setup import printVersion; printVersion()"`-$(BUILDNUMBER) \
+-d "datadog-agent-lib >= $(VERSION)" \
+-v $(VERSION)-$(BUILDNUMBER) \
 
 clean:
 	rm -f resources compat
