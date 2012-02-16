@@ -8,7 +8,7 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) -n "datadog-agent-lib" \
 -a all -m "Datadog Packages <package@datadoghq.com>" \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
--v `python -c "from setup import printVersion; printVersion()"`-$(BUILDNUMBER) \
+-v $(VERSION)-$(BUILDNUMBER) \
 
 clean:
 	rm -f checks
@@ -31,14 +31,14 @@ install: dirs links
 	rm -rf $(BUILD)/usr/share/datadog/agent/*.egg-info
 
 deb: clean install
-	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0), datadog-agent-base (<< 2.1.1)' >>" \
-		$(FPM_BUILD) -t deb \
-		-d "python (>= 2.4)" \
-        .
+	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0), datadog-agent-base (<< $(VERSION))' >>" \
+$(FPM_BUILD) -t deb \
+-d "python (>= 2.4)" \
+.
 
 rpm: clean install
 	FPM_EDITOR="$(CWD)/rpm/inject.sh" \
-	$(FPM_BUILD) -t rpm \
-		-d "python" \
-        .
+$(FPM_BUILD) -t rpm \
+-d "python" \
+.
 
