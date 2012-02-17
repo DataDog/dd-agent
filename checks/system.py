@@ -639,7 +639,7 @@ class Cpu(object):
                 return float(data[legend.index(name)])
             else:
                 # FIXME return a float or False, would trigger type error if not python
-                logger.warn("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
+                logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
                 return 0
 
         if sys.platform == 'linux2':
@@ -652,15 +652,28 @@ class Cpu(object):
             # 04:22:43 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
             # 04:22:44 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
             # Average:     all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+            #
+            # OR
+            #
+            # Thanks to Mart Visser to spotting this one.
+            # blah:/etc/dd-agent# mpstat
+            # Linux 2.6.26-2-xen-amd64 (atira)  02/17/2012  _x86_64_
+            #
+            # 05:27:03 PM  CPU    %user   %nice   %sys %iowait    %irq   %soft  %steal  %idle   intr/s
+            # 05:27:03 PM  all    3.59    0.00    0.68    0.69    0.00   0.00    0.01   95.03    43.65
+            #
             lines = mpstat.split("\n")
-            legend = [l for l in lines if "%usr" in l]
+            legend = [l for l in lines if "%usr" in l or "%user" in l]
             avg =    [l for l in lines if "Average" in l]
             if len(legend) == 1 and len(avg) == 1:
                 headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
                 data    = avg[0].split()
 
                 # Userland
-                cpu_user = get_value(headers, data, "%usr")
+                # Debian lenny says %user so we look for both 
+                # One of them will be 0
+                cpu_usr = get_value(headers, data, "%usr")
+                cpu_usr2 = get_value(headers, data, "%user")
                 cpu_nice = get_value(headers, data, "%nice")
                 # I/O
                 cpu_wait = get_value(headers, data, "%iowait")
@@ -674,7 +687,8 @@ class Cpu(object):
                 cpu_st = get_value(headers, data, "%steal")
                 cpu_guest = get_value(headers, data, "%guest")
 
-                return format_results(cpu_user + cpu_nice,
+                # (cpu_user & cpu_usr) == 0
+                return format_results(cpu_usr + cpu_usr2 + cpu_nice,
                                       cpu_sys + cpu_hirq + cpu_sirq,
                                       cpu_wait, cpu_idle,
                                       cpu_st)
