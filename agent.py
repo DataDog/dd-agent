@@ -32,7 +32,6 @@ from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
 
-
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
 
@@ -55,9 +54,8 @@ class agent(Daemon):
     
     def run(self, agentConfig=None, run_forever=True):  
         agentLogger = logging.getLogger('agent')
-           
+
         agentLogger.debug('Collecting basic system stats')
-        
         systemStats = get_system_stats()
         agentLogger.debug('System: ' + str(systemStats))
                         
@@ -84,7 +82,6 @@ class agent(Daemon):
         c = checks(agentConfig, rawConfig, emitter)
         
         # Schedule the checks
-        agentLogger.debug('Scheduling checks every ' + str(agentConfig['checkFreq']) + ' seconds')
         s = sched.scheduler(time.time, time.sleep)
         c.doChecks(s, True, systemStats) # start immediately (case 28315)
         if run_forever:
@@ -110,12 +107,10 @@ def setupLogging(agentConfig):
             handler.setFormatter(formatter)
             rootLog.addHandler(handler) 
         except Exception,e:
-            sys.stdout.write("Error while setting up syslog logging (%s), no logging will be done" % str(e))
+            sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
             logging.disable(logging.ERROR)
 
-    mainLogger = logging.getLogger('main')      
-    mainLogger.debug('Agent called')
-    mainLogger.debug('Agent version: ' + agentConfig['version'])
+    logging.getLogger('main').debug('Agent version: ' + agentConfig['version'])
 
 
 def getPidFile(command, agentConfig, clean):

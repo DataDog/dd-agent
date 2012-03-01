@@ -9,6 +9,10 @@ import time
 import datetime
 import socket
 
+# Watchdog implementation
+from threading import Timer
+WATCHDOG_MULTIPLIER = 0.5 # will fire if no checks have been collected in N * checkFreq
+
 # Needed to identify server uniquely
 import uuid
 try:
@@ -67,6 +71,7 @@ class checks:
         self.rawConfig = rawConfig
         self.plugins = None
         self.emitter = emitter
+        self.last_post_ts = None
         
         macV = None
         if sys.platform == 'darwin':
@@ -83,7 +88,6 @@ class checks:
         
         self.checksLogger = logging.getLogger('checks')
         # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
-        import socket
         socket.setdefaulttimeout(15)
         
         self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
@@ -116,6 +120,29 @@ class checks:
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
     
+
+    def late(self, threshold):
+        """Determine whether the agent run is late.
+        Do not handle any exceptions here because there is nothing we can do
+        at this level.
+        """
+        late_p = self.last_post_ts is None or (time.time() - self.last_post_ts > threshold)
+        if late_p:
+            logging.warn("Checks are late by at least %s" % threshold)
+        return late_p
+
+    def updateLastPostTs(self):
+        """Simple accessor to make it obvious that it is meant to work with late()
+        """
+        self.last_post_ts = time.time()
+
+    def watch(self, threshold):
+        """Start a timer that will log if checks are late.
+        Runs in a separate thread since scheduler is single-threaded
+        """
+        self.checksLogger.info("Starting watchdog, waiting %s" % threshold)
+        Timer(threshold, self.late, (threshold, )).start()
+
     #
     # Checks - FIXME migrating to the new Check interface is a WIP
     #
@@ -211,22 +238,24 @@ class checks:
     def getDdforwarderData(self):
         return self._ddforwarder.check(self.agentConfig)
 
-    #
-    # CPU Stats
-    #
     @recordsize
     def getCPUStats(self):
         return self._cpu.check(self.checksLogger, self.agentConfig)
 
-    #
-    # Postback
-    #
     def doChecks(self, sc, firstRun, systemStats=False):
+        """Run checks & post back
+        """
         self._doChecks(firstRun, systemStats)
-        sc.enter(self.agentConfig['checkFreq'], 1, self.doChecks, (sc, False))  
+        self.updateLastPostTs()
+        # Schedule next run
+        checkFreq = int(self.agentConfig['checkFreq'])
+        # Start the watchdog
+        self.watch(checkFreq * WATCHDOG_MULTIPLIER)
+        sc.enter(checkFreq, 1, self.doChecks, (sc, False))  
 
     def _doChecks(self, firstRun, systemStats=False):
-        # Do the checks
+        """Actual work
+        """
         apacheStatus = self.getApacheStatus()
         diskUsage = self.getDiskUsage()
         loadAvrgs = self.getLoadAvrgs()
@@ -254,8 +283,9 @@ class checks:
 
         checksData = {
             'collection_timestamp': time.time(),
-            'os' : self.os, 
-             'agentVersion' : self.agentConfig['version'], 
+            'os' : self.os,
+            'python': sys.version,
+            'agentVersion' : self.agentConfig['version'], 
             'loadAvrg1' : loadAvrgs['1'], 
             'loadAvrg5' : loadAvrgs['5'], 
             'loadAvrg15' : loadAvrgs['15'], 
@@ -339,12 +369,6 @@ class checks:
         if ddforwarderData:
             checksData['datadog'] = ddforwarderData
  
-       # Include system stats on first postback
-        if firstRun == True:
-            checksData['systemStats'] = systemStats
-            if self.agentConfig['tags'] is not None:
-                checksData['tags'] = self.agentConfig['tags']
-           
         # Include server indentifiers
         checksData['internalHostname'] = gethostname(self.agentConfig)
         checksData['uuid'] = getUuid()
@@ -356,7 +380,12 @@ class checks:
             if event_data:
                 checksData['events'][event_check.key] = event_data
        
+       # Include system stats on first postback
         if firstRun:
+            checksData['systemStats'] = systemStats
+            if self.agentConfig['tags'] is not None:
+                checksData['tags'] = self.agentConfig['tags']
+            # Also post an event in the newsfeed
             checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
@@ -389,10 +418,7 @@ class checks:
         self.checksLogger.debug("checksData: %s" % checksData)
         self.emitter(checksData, self.checksLogger, self.agentConfig)
         
-        
     def getMountedLinuxProcFsLocation(self):
-        self.checksLogger.debug('getMountedLinuxProcFsLocation: attempting to fetch mounted partitions')
-        
         # Lets check if the Linux like style procfs is mounted
         mountedPartitions = subprocess.Popen(['mount'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
         location = re.search(r'linprocfs on (.*?) \(.*?\)', mountedPartitions)
