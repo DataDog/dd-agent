@@ -21,7 +21,7 @@ import urllib
 
 # Watchdog implementation
 from threading import Timer
-WATCHDOG_MULTIPLIER = 2 # will fire if no checks have been collected in N * checkFreq
+WATCHDOG_MULTIPLIER = 5 # will fire if no checks have been collected in N * checkFreq, 75s by default
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
