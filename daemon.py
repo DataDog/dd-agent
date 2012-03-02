@@ -26,7 +26,7 @@ import sys
 import time
 import logging
 
-from signal import SIGTERM 
+from signal import SIGTERM, SIGKILL 
 
 class Daemon:
     """
@@ -175,6 +175,16 @@ class Daemon:
 
         
         logging.info("Stopped")
+
+    def selfdestruct(self):
+        """Sometimes we must terminate ourselves"""
+        try:
+            import traceback
+            logging.error("Self-destructing...")
+            logging.error(traceback.format_exc())
+        finally:
+            os.kill(os.getpid(), SIGKILL)
+                 
 
     def restart(self):
         """

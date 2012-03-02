@@ -21,7 +21,7 @@ import urllib
 
 # Watchdog implementation
 from threading import Timer
-WATCHDOG_MULTIPLIER = 5 # will fire if no checks have been collected in N * checkFreq, 75s by default
+WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * checkFreq, 150s by default
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -62,7 +62,7 @@ class agent(Daemon):
             logging.error("Checks are late by at least %s seconds. Killing the agent..." % threshold)
             # Calling sys.exit here only raises an exception that will be caught along the way.
             if crash:
-                self.stop()
+                self.selfdestruct()
         return late_p
     
     def run(self, agentConfig=None, run_forever=True):  
