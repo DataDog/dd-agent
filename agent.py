@@ -98,7 +98,7 @@ class agent(Daemon):
         c = checks(agentConfig, rawConfig, emitter)
         
         # Run once
-        c.doChecks(firstRun=True, systemStats=systemStats)
+        c.doChecks(True, systemStats)
 
         while run_forever:
             # Sleep, checkFreq is misleading. It's not really.
