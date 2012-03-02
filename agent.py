@@ -15,10 +15,13 @@ import logging
 import os
 import os.path
 import re
-import sched
 import sys
 import time
 import urllib
+
+# Watchdog implementation
+from threading import Timer
+WATCHDOG_MULTIPLIER = 2 # will fire if no checks have been collected in N * checkFreq
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -51,6 +54,16 @@ class agent(Daemon):
 
         return None
 
+    def late(self, cks, threshold, crash=True):
+        """Determine whether the agent run is late and optionally kill it if so.
+        """
+        late_p = cks.lastPostTs() is None or (time.time() - cks.lastPostTs() > threshold)
+        if late_p:
+            logging.error("Checks are late by at least %s seconds. Killing the agent..." % threshold)
+            # Calling sys.exit here only raises an exception that will be caught along the way.
+            if crash:
+                self.stop()
+        return late_p
     
     def run(self, agentConfig=None, run_forever=True):  
         agentLogger = logging.getLogger('agent')
@@ -77,41 +90,57 @@ class agent(Daemon):
                 agentLogger.info('Not running on EC2')
  
         emitter = http_emitter
+
+        checkFreq = int(agentConfig['checkFreq'])
+        lateThresh = checkFreq * WATCHDOG_MULTIPLIER
         
         # Checks instance
         c = checks(agentConfig, rawConfig, emitter)
         
-        # Schedule the checks
-        s = sched.scheduler(time.time, time.sleep)
-        c.doChecks(s, True, systemStats) # start immediately (case 28315)
-        if run_forever:
-            s.run()
+        # Run once
+        c.doChecks(firstRun=True, systemStats=systemStats)
+
+        while run_forever:
+            # Sleep, checkFreq is misleading. It's not really.
+            time.sleep(checkFreq)
+
+            # Start the watchdog in a separate thread
+            agentLogger.debug("Starting watchdog, waiting %s seconds." % lateThresh)
+            t = Timer(lateThresh, self.late, (c, lateThresh, True))
+            t.start()
+            # Run checks
+            c.doChecks()
+
+            # Kill watchdog if it has not fired
+            t.cancel()
+            agentLogger.debug("Getting ready to sleep for %s seconds." % lateThresh)
         
 def setupLogging(agentConfig):
     """Used by ddagent.py as well"""
     if agentConfig['debugMode']:
         logFile = os.path.join(agentConfig['tmpDirectory'], 'dd-agent.log')
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        logging.info("Logging to %s" % logFile)
     else:
         try:
             from logging.handlers import SysLogHandler
             rootLog = logging.getLogger()
             rootLog.setLevel(logging.INFO)
+
+            sys_log_addr = "/dev/log"
+
+            # Special-case macs
             if sys.platform == 'darwin':
                 sys_log_addr = "/var/run/syslog"
-            else:
-                sys_log_addr = "/dev/log"
-        
-            handler = SysLogHandler(address=sys_log_addr,facility=SysLogHandler.LOG_DAEMON)
+            
+            handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
             formatter = logging.Formatter("dd-agent - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             rootLog.addHandler(handler) 
+            logging.info('Logging to syslog is set up')
         except Exception,e:
             sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
             logging.disable(logging.ERROR)
-
-    logging.getLogger('main').debug('Agent version: ' + agentConfig['version'])
-
 
 def getPidFile(command, agentConfig, clean):
     """Used by ddagent.py as well"""
@@ -128,7 +157,7 @@ def getPidFile(command, agentConfig, clean):
         pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
 
     if clean:
-        mainLogger.debug('Agent called with --clean option, removing .pid')
+        logging.debug('Agent called with --clean option, removing .pid')
         try:
             os.remove(pidFile)
         except OSError:
@@ -144,10 +173,8 @@ if __name__ == '__main__':
     agentConfig, rawConfig = get_config()
     
     # Logging
-    setupLogging(agentConfig)   
+    setupLogging(agentConfig)
 
-    mainLogger = logging.getLogger('main')      
-    
     # FIXME
     # Ever heard of optparse?
 
@@ -161,24 +188,22 @@ if __name__ == '__main__':
         daemon = agent(pidFile)
     
         if 'start' == command:
-            mainLogger.debug('Start daemon')
+            logging.info('Start daemon')
             daemon.start()
             
         elif 'stop' == command:
-            mainLogger.debug('Stop daemon')
+            logging.info('Stop daemon')
             daemon.stop()
             
         elif 'restart' == command:
-            mainLogger.debug('Restart daemon')
+            logging.info('Restart daemon')
             daemon.restart()
             
         elif 'foreground' == command:
-            mainLogger.debug('Running in foreground')
+            logging.info('Running in foreground')
             daemon.run()
             
         elif 'status' == command:
-            mainLogger.debug('Checking agent status')
-            
             try:
                 pf = file(pidFile,'r')
                 pid = int(pf.read().strip())
@@ -190,8 +215,10 @@ if __name__ == '__main__':
                 
             if pid:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
+                logging.info("dd-agent is running as pid %s." % pid)
             else:
                 sys.stdout.write('dd-agent is not running.\n')
+                logging.info("dd-agent is not running.")
 
         else:
             sys.stderr.write('Unknown command: %s.\n' % sys.argv[1])

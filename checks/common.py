@@ -9,10 +9,6 @@ import time
 import datetime
 import socket
 
-# Watchdog implementation
-from threading import Timer
-WATCHDOG_MULTIPLIER = 0.5 # will fire if no checks have been collected in N * checkFreq
-
 # Needed to identify server uniquely
 import uuid
 try:
@@ -121,27 +117,12 @@ class checks:
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
     
 
-    def late(self, threshold):
-        """Determine whether the agent run is late.
-        Do not handle any exceptions here because there is nothing we can do
-        at this level.
-        """
-        late_p = self.last_post_ts is None or (time.time() - self.last_post_ts > threshold)
-        if late_p:
-            logging.warn("Checks are late by at least %s" % threshold)
-        return late_p
-
     def updateLastPostTs(self):
         """Simple accessor to make it obvious that it is meant to work with late()
         """
         self.last_post_ts = time.time()
 
-    def watch(self, threshold):
-        """Start a timer that will log if checks are late.
-        Runs in a separate thread since scheduler is single-threaded
-        """
-        self.checksLogger.info("Starting watchdog, waiting %s" % threshold)
-        Timer(threshold, self.late, (threshold, )).start()
+    def lastPostTs(self): return self.last_post_ts
 
     #
     # Checks - FIXME migrating to the new Check interface is a WIP
@@ -242,20 +223,11 @@ class checks:
     def getCPUStats(self):
         return self._cpu.check(self.checksLogger, self.agentConfig)
 
-    def doChecks(self, sc, firstRun, systemStats=False):
-        """Run checks & post back
-        """
-        self._doChecks(firstRun, systemStats)
-        self.updateLastPostTs()
-        # Schedule next run
-        checkFreq = int(self.agentConfig['checkFreq'])
-        # Start the watchdog
-        self.watch(checkFreq * WATCHDOG_MULTIPLIER)
-        sc.enter(checkFreq, 1, self.doChecks, (sc, False))  
-
-    def _doChecks(self, firstRun, systemStats=False):
+    def doChecks(self, firstRun=False, systemStats=False):
         """Actual work
         """
+        self.checksLogger.info("Starting checks")
+
         apacheStatus = self.getApacheStatus()
         diskUsage = self.getDiskUsage()
         loadAvrgs = self.getLoadAvrgs()
@@ -417,6 +389,8 @@ class checks:
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
         self.emitter(checksData, self.checksLogger, self.agentConfig)
+        self.updateLastPostTs()
+        self.checksLogger.info("Checks done")
         
     def getMountedLinuxProcFsLocation(self):
         # Lets check if the Linux like style procfs is mounted
