@@ -23,7 +23,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.2"
+    return "2.2.3"
 
 def get_config(parse_args = True):
     if parse_args:
@@ -35,6 +35,7 @@ def get_config(parse_args = True):
     # General config
     agentConfig = {}
     agentConfig['debugMode'] = False
+    # not really a frequency, but the time to sleep between checks
     agentConfig['checkFreq'] = 15
     agentConfig['version'] = get_version()
 
@@ -97,6 +98,11 @@ def get_config(parse_args = True):
         else:
             agentConfig['tags'] = None
 
+        # Disable Watchdog (optionally)
+        agentConfig['watchdog'] = True
+        if config.has_option('Main', 'watchdog'):
+            if config.get('Main', 'watchdog').lower() in ('no', 'false'):
+                agentConfig['watchdog'] = False
 
         # port we listen on (overriden via command line)
         if config.has_option('Main','port'):

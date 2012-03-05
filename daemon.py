@@ -26,7 +26,7 @@ import sys
 import time
 import logging
 
-from signal import SIGTERM 
+from signal import SIGTERM, SIGKILL 
 
 class Daemon:
     """
@@ -96,8 +96,8 @@ class Daemon:
         try:
             file(self.pidfile,'w+').write("%s\n" % pid)
         except Exception, e:
-            msg = "Unable to write pidfile: %s" % e
-            logging.error(msg)
+            msg = "Unable to write pidfile: %s" % self.pidfile
+            logging.exception(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1)
         
@@ -110,7 +110,6 @@ class Daemon:
         """
         
         logging.info("Starting...")
- 
         # Check for a pidfile to see if the daemon already runs
         try:
             pf = file(self.pidfile,'r')
@@ -137,7 +136,7 @@ class Daemon:
         """
         Stop the daemon
         """
-        
+
         logging.info("Stopping...") 
         # Get the pid from the pidfile
         try:
@@ -148,11 +147,25 @@ class Daemon:
             pid = None
         except ValueError:
             pid = None
-    
-        if not pid:
-            message = "pidfile %s does not exist. Not running?\n"
-            logging.info(message % self.pidfile)
-            sys.stderr.write(message % self.pidfile)
+
+        # Clear the pid file
+        if os.path.exists(self.pidfile):
+            os.remove(self.pidfile)
+
+        if pid > 1:
+            # Try killing the daemon process    
+            try:
+                while 1:
+                    os.kill(pid, SIGTERM)
+                    time.sleep(0.1)
+            except OSError, err:
+                if str(err).find("No such process") <= 0:
+                    logging.exception("Cannot kill agent daemon at pid %s" % pid)
+                    sys.stderr.write(str(err) + "\n")
+        else:
+            message = "Pidfile %s does not exist. Not running?\n" % self.pidfile
+            logging.info(message)
+            sys.stderr.write(message)
             
             # Just to be sure. A ValueError might occur if the PID file is empty but does actually exist
             if os.path.exists(self.pidfile):
@@ -160,22 +173,18 @@ class Daemon:
             
             return # Not an error in a restart
 
-        # Try killing the daemon process    
-        try:
-            while 1:
-                os.kill(pid, SIGTERM)
-                time.sleep(0.1)
-        except OSError, err:
-            err = str(err)
-            if err.find("No such process") > 0:
-                if os.path.exists(self.pidfile):
-                    os.remove(self.pidfile)
-            else:
-                logging.error(str(err))
-                print str(err)
-                sys.exit(1)
         
         logging.info("Stopped")
+
+    def selfdestruct(self):
+        """Sometimes we must terminate ourselves"""
+        try:
+            import traceback
+            logging.error("Self-destructing...")
+            logging.error(traceback.format_exc())
+        finally:
+            os.kill(os.getpid(), SIGKILL)
+                 
 
     def restart(self):
         """
