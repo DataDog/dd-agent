@@ -98,6 +98,11 @@ def get_config(parse_args = True):
         else:
             agentConfig['tags'] = None
 
+        # Disable Watchdog (optionally)
+        agentConfig['watchdog'] = True
+        if config.has_option('Main', 'watchdog'):
+            if config.get('Main', 'watchdog').lower() in ('no', 'false'):
+                agentConfig['watchdog'] = False
 
         # port we listen on (overriden via command line)
         if config.has_option('Main','port'):

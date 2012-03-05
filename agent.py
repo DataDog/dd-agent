@@ -104,15 +104,19 @@ class agent(Daemon):
             # Sleep, checkFreq is misleading. It's not really.
             time.sleep(checkFreq)
 
-            # Start the watchdog in a separate thread
-            agentLogger.debug("Starting watchdog, waiting %s seconds." % lateThresh)
-            t = Timer(lateThresh, self.late, (c, lateThresh, True))
-            t.start()
+            if agentConfig.get("watchdog", True):
+                # Start the watchdog in a separate thread
+                agentLogger.debug("Starting watchdog, waiting %s seconds." % lateThresh)
+                t = Timer(lateThresh, self.late, (c, lateThresh, True))
+                t.start()
+
             # Run checks
             c.doChecks()
 
-            # Kill watchdog if it has not fired
-            t.cancel()
+            if agentConfig.get("watchdog", True):
+                # Kill watchdog if it has not fired
+                t.cancel()
+
             agentLogger.debug("Getting ready to sleep for %s seconds." % lateThresh)
         
 def setupLogging(agentConfig):
