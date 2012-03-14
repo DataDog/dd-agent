@@ -82,10 +82,15 @@ class Memcache(Check):
     def check(self, agentConfig):
         mc = None # client
         try:
+            server = agentConfig.get("memcache_server", None)
+
+            # Not configured, bail out now
+            if server is None:
+                return False
+
             try:
                 import memcache
 
-                server = agentConfig["memcache_server"]
                 port = int(agentConfig.get("memcache_port", 11211))
                 self.logger.debug("Connecting to %s:%s" % (server, port))
                 
