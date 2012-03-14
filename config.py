@@ -1,9 +1,11 @@
 import ConfigParser
 import os
 import platform
+import string
 import subprocess
 import sys
 from optparse import OptionParser, Values
+from cStringIO import StringIO
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -23,9 +25,13 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.3"
+    return "2.2.4"
 
-def get_config(parse_args = True):
+def skip_leading_wsp(f):
+    "Works on a file, returns a file-like object"
+    return StringIO("\n".join(map(string.strip, f.readlines())))
+
+def get_config(parse_args = True, cfg_path=None):
     if parse_args:
         options, args = get_parsed_args()
     else:
@@ -43,17 +49,23 @@ def get_config(parse_args = True):
 
     # Config handling
     try:
+        # Find the right config file
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config = ConfigParser.ConfigParser()
-        if os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
-            config.read(os.path.join('/etc/dd-agent', DATADOG_CONF))
+        config_path = None
+        if cfg_path is not None and os.path.exists(cfg_path):
+            config_path = cfg_path
+        elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
+            config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
         elif os.path.exists(os.path.join(path, DATADOG_CONF)):
-            config.read(os.path.join(path, DATADOG_CONF))
+            config_path = os.path.join(path, DATADOG_CONF)
         else:
             sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
             sys.exit(3)
+
+        config = ConfigParser.ConfigParser()
+        config.readfp(skip_leading_wsp(open(config_path)))
 
         # Core config
         if options is not None and options.use_forwarder:
