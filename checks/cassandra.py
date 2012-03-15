@@ -38,11 +38,24 @@ class Cassandra(object):
         
     def _parseInfo(self, info, results):
         """
+        v 0.7
+
         36299342986353445520010708318471778930
         Load             : 457.02 KB
         Generation No    : 1295816448
         Uptime (seconds) : 95
         Heap Memory (MB) : 521.86 / 1019.88
+
+        v 0.8
+        Token            : 51022655878160265769426795515063697984
+        Gossip active    : True
+        Load             : 283.87 GB
+        Generation No    : 1331653944
+        Uptime (seconds) : 188319
+        Heap Memory (MB) : 2527.04 / 3830.00
+        Data Center      : 283
+        Rack             : 76
+        Exceptions       : 0
 
         According to io/util/FileUtils.java units for load are:
         TB/GB/MB/KB/bytes
@@ -53,14 +66,33 @@ class Cassandra(object):
             return str(int(float(size) * self. UNITS_FACTOR[unit]))
   
         lines = info.split("\n")
-        results["token"]    = Cassandra._find(lines, r"^(\d+)$")
-        results["load"]     = Cassandra._find(lines, 
-            r"^Load[^:]+:\s+([0-9.]+).*([KMGT]B|bytes)$",postprocess=convert_size)
-        results["uptime"]   = Cassandra._find(lines, r"^Uptime[^:]+: (\d+)$")
+        # Convert token to a float since it does not fit in a 2**64 value.
+        # The loss of precision does not really matter since a well-balanced cluster
+        # will have markedly different tokens across all nodes.
+        t = Cassandra._find(lines, r"^(\d+)$")
+        if t: # v0.7
+            results["token"] = float(t)
+        else: # v0.8
+            results["token"] = float(Cassandra._find(lines, r"^Token[^:]+: ([0-9]+)$"))
+
+        results["load"]     = float(Cassandra._find(lines, 
+            r"^Load[^:]+:\s+([0-9.]+).*([KMGT]B|bytes)$", postprocess=convert_size))
+        results["uptime"]   = int(Cassandra._find(lines, r"^Uptime[^:]+: (\d+)$"))
         
         heap = Cassandra._find(lines, r"^Heap Memory[^:]+: ([0-9.]+) / ([0-9.]+)$", postprocess=lambda g: g)
-        results["heap_used"] = heap[0]
-        results["heap_total"] = heap[1]
+        results["heap_used"] = float(heap[0])
+        results["heap_total"] = float(heap[1])
+
+        e = Cassandra._find(lines, r"^Exceptions[^:]+: ([0-9]+)$")
+        if e:
+            results["exceptions"] = int(e)
+        dc = Cassandra._find(lines, r"^Data Center[^:]+: ([0-9]+)$")
+        if dc:
+            results["datacenter"] = int(dc)
+        r = Cassandra._find(lines, r"Rack[^:]+: ([0-9]+)$")
+        if r:
+            results["rack"] = int(r)
+
         return results
 
     @staticmethod    
