@@ -1,6 +1,7 @@
 from checks import Check
 import subprocess, os
 import sys
+import re
 
 class MySql(Check):
     def __init__(self, logger):
@@ -30,6 +31,7 @@ class MySql(Check):
 
     def _collect_scalar(self, metric, query):
         if self.db is not None:
+            self.logger.debug("Collecting %s with %s" % (metric, query))
             try:
                 cursor = self.db.cursor()
                 cursor.execute(query)
@@ -37,6 +39,7 @@ class MySql(Check):
                 self.save_sample(metric, float(result[1]))
                 cursor.close()
                 del cursor
+                self.logger.debug("Collecting %s: done" % metric)
             except:
                 if self.logger is not None:
                     self.logger.exception("While running %s" % query)
@@ -170,54 +173,76 @@ class MySql(Check):
                     self.logger.exception("While reading mysql (pid: %s) procfs data" % pid)
 
     def check(self, agentConfig):
-        "Actual logic here"
-        if  'MySQLServer' in agentConfig \
-            and 'MySQLUser'   in agentConfig\
-            and agentConfig['MySQLServer'] != ''\
-            and agentConfig['MySQLUser'] != '':
-
-            # Connect
-            try:
-                import MySQLdb
-                self.db = MySQLdb.connect(agentConfig['MySQLServer'], agentConfig['MySQLUser'], agentConfig['MySQLPass'])
-                self.getVersion()
-
-            except ImportError, e:
-                self.logger.exception("Cannot import MySQLdb")
-                return False
-
-            except MySQLdb.OperationalError:
-                self.logger.exception('MySQL connection error')
-                return False
-            
-
-            # Metric collection
-            self._collect_scalar("mysqlConnections", "SHOW STATUS LIKE 'Connections'")
-
-            if int(self.mysqlVersion[0]) >= 5 and int(self.mysqlVersion[2]) >= 2:
-                self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW GLOBAL STATUS LIKE 'Created_tmp_disk_tables'")
-                self._collect_scalar("mysqlSlowQueries",          "SHOW GLOBAL STATUS LIKE 'Slow_queries'")
-                self._collect_scalar("mysqlQuestions",            "SHOW GLOBAL STATUS LIKE 'Questions'")
-                self._collect_scalar("mysqlQueries",              "SHOW GLOBAL STATUS LIKE 'Queries'")
+        try:
+            self.logger.debug("Mysql check start")
+            if  'MySQLServer' in agentConfig \
+                and 'MySQLUser'   in agentConfig\
+                and agentConfig['MySQLServer'] != ''\
+                and agentConfig['MySQLUser'] != '':
+    
+                # Connect
+                try:
+                    import MySQLdb
+                    self.db = MySQLdb.connect(agentConfig['MySQLServer'], agentConfig['MySQLUser'], agentConfig['MySQLPass'])
+                    self.getVersion()
+    
+                except ImportError, e:
+                    self.logger.exception("Cannot import MySQLdb")
+                    return False
+    
+                except MySQLdb.OperationalError:
+                    self.logger.exception('MySQL connection error')
+                    return False
+                
+                self.logger.debug("Connected to MySQL")
+    
+                # Metric collection
+                self._collect_scalar("mysqlConnections", "SHOW STATUS LIKE 'Connections'")
+    
+                self.logger.debug("MySQL version %s" % self.mysqlVersion)
+                # show global status was introduced in 5.0.2
+                # some patch version numbers contain letters (e.g. 5.0.51a)
+                # so let's be careful when we compute the version number
+                greater_502 = False
+                try:
+                    major = int(self.mysqlVersion[0])
+                    patchlevel = int(re.match(r"([0-9]+)", self.mysqlVersion[2]).group(1))
+                    
+                    if major > 5 or  major == 5 and patchlevel >= 2: 
+                        greater_502 = True
+                    
+                except:
+                    self.logger.exception("Cannot compute mysql version from %s, assuming older than 5.0.2" % self.mysqlVersion)
+    
+                if greater_502:
+                    self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW GLOBAL STATUS LIKE 'Created_tmp_disk_tables'")
+                    self._collect_scalar("mysqlSlowQueries",          "SHOW GLOBAL STATUS LIKE 'Slow_queries'")
+                    self._collect_scalar("mysqlQuestions",            "SHOW GLOBAL STATUS LIKE 'Questions'")
+                    self._collect_scalar("mysqlQueries",              "SHOW GLOBAL STATUS LIKE 'Queries'")
+                else:
+                    self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW STATUS LIKE 'Created_tmp_disk_tables'")
+                    self._collect_scalar("mysqlSlowQueries",          "SHOW STATUS LIKE 'Slow_queries'")
+                    self._collect_scalar("mysqlQuestions",            "SHOW STATUS LIKE 'Questions'")
+                    self._collect_scalar("mysqlQueries",              "SHOW STATUS LIKE 'Queries'")
+                
+                self._collect_scalar("mysqlMaxUsedConnections", "SHOW STATUS LIKE 'Max_used_connections'")
+                self._collect_scalar("mysqlOpenFiles",          "SHOW STATUS LIKE 'Open_files'")
+                self._collect_scalar("mysqlTableLocksWaited",   "SHOW STATUS LIKE 'Table_locks_waited'")
+                self._collect_scalar("mysqlThreadsConnected",   "SHOW STATUS LIKE 'Threads_connected'")
+    
+                self._collect_scalar("mysqlInnodbDataReads",   "SHOW STATUS LIKE 'Innodb_data_reads'")
+                self._collect_scalar("mysqlInnodbDataWrites",  "SHOW STATUS LIKE 'Innodb_data_writes'")
+                self._collect_scalar("mysqlInnodbOsLogFsyncs", "SHOW STATUS LIKE 'Innodb_os_log_fsyncs'")
+    
+                self.logger.debug("Collect cpu stats")
+                self._collect_procfs()
+    
+                self._collect_dict({"Seconds_behind_master": "mysqlSecondsBehindMaster"}, "SHOW SLAVE STATUS")
+    
+                self.logger.debug("Done with MySQL")
+                return self.get_samples()
             else:
-                self._collect_scalar("mysqlCreatedTmpDiskTables", "SHOW STATUS LIKE 'Created_tmp_disk_tables'")
-                self._collect_scalar("mysqlSlowQueries",          "SHOW STATUS LIKE 'Slow_queries'")
-                self._collect_scalar("mysqlQuestions",            "SHOW STATUS LIKE 'Questions'")
-                self._collect_scalar("mysqlQueries",              "SHOW STATUS LIKE 'Queries'")
-            
-            self._collect_scalar("mysqlMaxUsedConnections", "SHOW STATUS LIKE 'Max_used_connections'")
-            self._collect_scalar("mysqlOpenFiles",          "SHOW STATUS LIKE 'Open_files'")
-            self._collect_scalar("mysqlTableLocksWaited",   "SHOW STATUS LIKE 'Table_locks_waited'")
-            self._collect_scalar("mysqlThreadsConnected",   "SHOW STATUS LIKE 'Threads_connected'")
-
-            self._collect_scalar("mysqlInnodbDataReads",   "SHOW STATUS LIKE 'Innodb_data_reads'")
-            self._collect_scalar("mysqlInnodbDataWrites",  "SHOW STATUS LIKE 'Innodb_data_writes'")
-            self._collect_scalar("mysqlInnodbOsLogFsyncs", "SHOW STATUS LIKE 'Innodb_os_log_fsyncs'")
-
-            self._collect_procfs()
-
-            self._collect_dict({"Seconds_behind_master": "mysqlSecondsBehindMaster"}, "SHOW SLAVE STATUS")
-
-            return self.get_samples()
-        else:
+                return False
+        except:
+            self.logger.exception("Cannot check mysql")
             return False
