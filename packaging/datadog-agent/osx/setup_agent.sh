@@ -7,7 +7,7 @@ fi
 
 apikey=$1
 
-## create home base for the agent
+# create home base for the agent
 dd_base=$HOME/.datadog-agent
 mkdir -p $dd_base
 
@@ -34,3 +34,25 @@ cp $dd_base/agent/packaging/datadog-agent/osx/supervisord.conf $dd_base/supervis
 rm $dd_base/virtualenv.py
 rm $dd_base/virtualenv.pyc
 rm $dd_base/agent.tar.gz
+
+# print instructions
+echo "
+
+We're about to start up the agent for the first time. Once it's running,
+you can stop it with 'ctrl-c'. You should start seeing metrics within
+a few seconds at:
+
+    https://app.datadoghq.com/dash/host_name/`hostname`
+
+To start the agent up again after killing this script, run:
+
+    cd $dd_base
+    sh bin/agent
+
+Here we go!
+
+"
+
+# run agent
+cd $dd_base
+supervisord -c $dd_base/supervisord/supervisord.conf
