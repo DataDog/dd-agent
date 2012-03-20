@@ -1,0 +1,4 @@
+#!/bin/sh
+
+source venv/bin/activate
+supervisord -c supervisord/supervisord.conf
