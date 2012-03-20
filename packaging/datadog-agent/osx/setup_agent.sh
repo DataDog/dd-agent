@@ -32,4 +32,5 @@ cp $dd_base/agent/packaging/datadog-agent/osx/supervisord.conf $dd_base/supervis
 
 # clean up
 rm $dd_base/virtualenv.py
+rm $dd_base/virtualenv.pyc
 rm $dd_base/agent.tar.gz
