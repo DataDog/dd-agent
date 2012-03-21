@@ -9,7 +9,7 @@ class MongoDb(Check):
         self.counter("indexCounters.btree.accesses")
         self.counter("indexCounters.btree.hits")
         self.counter("indexCounters.btree.misses")
-        self.counter("indexCounters.btree.missRatio")
+        self.gauge("indexCounters.btree.missRatio")
         self.counter("opcounters.insert")
         self.counter("opcounters.query")
         self.counter("opcounters.update")
@@ -21,6 +21,7 @@ class MongoDb(Check):
         self.counter("asserts.msg")
         self.counter("asserts.user")
         self.counter("asserts.rollovers")
+        self.gauge("globalLock.ratio")
         self.gauge("connections.current")
         self.gauge("connections.available")
         self.gauge("mem.resident")
@@ -29,6 +30,12 @@ class MongoDb(Check):
         self.gauge("cursors.totalOpen")
         self.gauge("cursors.timedOut")
         self.gauge("uptime")
+
+        self.gauge("stats.indexes")
+        self.gauge("stats.indexSize")
+        self.gauge("stats.objects")
+        self.gauge("stats.dataSize")
+        self.gauge("stats.storageSize")
 
     def check(self, agentConfig):
         """
@@ -45,6 +52,7 @@ class MongoDb(Check):
             db = conn[dbName]
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+            status['stats'] = db.command('dbstats')
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:
@@ -68,10 +76,10 @@ class MongoDb(Check):
                 try:
                     for c in m.split("."):
                         value = value[c]
-                except KeyError:
+                except KeyError:            
                     continue
-                # value is now status[x][y][z]
 
+                # value is now status[x][y][z]
                 assert type(value) in (types.IntType, types.LongType, types.FloatType)
 
                 self.save_sample(m, value)
@@ -92,7 +100,7 @@ class MongoDb(Check):
 
                 except UnknownValue:
                     pass
-            
+          
             return results
 
         except ImportError:
@@ -102,3 +110,10 @@ class MongoDb(Check):
         except:
             self.logger.exception('Unable to get MongoDB status')
             return False
+
+if __name__ == "__main__":
+    import logging
+    agentConfig = { 'MongoDBServer': 'localhost:27017' }
+    db = MongoDb(logging)
+    print db.check(agentConfig)
+   
