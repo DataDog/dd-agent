@@ -60,8 +60,16 @@ class MySql(Check):
                 result = cursor.fetchone()
                 if result is not None:
                     for field in field_metric_map.keys():
+                        # Get the agent metric name from the column name
                         metric = field_metric_map[field]
-                        self.save_sample(metric, float(result[field]))
+                        # Find the column name in the cursor description to identify the column index
+                        # http://www.python.org/dev/peps/pep-0249/
+                        # cursor.description is a tuple of (column_name, ..., ...)
+                        try:
+                            col_idx = [d[0].lower() for d in cursor.description].index(field.lower())
+                            self.save_sample(metric, float(result[col_idx]))
+                        except ValueError:
+                            self.logger.exception("Cannot find %s in the columns %s" % (field, cursor.description))
                 cursor.close()
                 del cursor
             except:
