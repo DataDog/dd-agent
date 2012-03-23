@@ -61,6 +61,7 @@ class Dogstreams(object):
     
     def __init__(self, logger, dogstreams):
         self.logger = logger
+
         self.dogstreams = dogstreams
     
     def check(self, agentConfig, move_end=True):
@@ -108,6 +109,7 @@ class Dogstream(object):
         self._gen = None
         self._values = None
         self._freq = 15 # Will get updated on each check()
+        self.parser_state = {}
     
     def check(self, agentConfig, move_end=True):
         if self.log_path:
@@ -133,7 +135,18 @@ class Dogstream(object):
     
     def _line_parser(self, line):
         try:
-            parsed = self.parse_func(self.logger, line)
+            # alq - Allow parser state to be kept between invocations
+            # This means a new argument can be passed the custom parsing function
+            # to store context that can be shared between parsing of lines.
+            # One example is a running counter, which is incremented each time
+            # a line is processed.
+            parsed = None
+            try:
+                parsed = self.parse_func(self.logger, line, self.parser_state)
+            except TypeError, e:
+                # Arity of parse_func is 3 (old-style), not 4
+                parsed = self.parse_func(self.logger, line)
+                
             if parsed is None:
                 return
             
@@ -166,8 +179,8 @@ class Dogstream(object):
                         repr(metric_tuple), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
-        except Exception:
-            self.logger.debug(traceback.format_exc())
+        except:
+            self.logger.exception("Error while parsing line %s" % line)
     
     def _default_line_parser(self, logger, line):
         original_line = line
