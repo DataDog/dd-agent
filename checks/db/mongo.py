@@ -37,6 +37,10 @@ class MongoDb(Check):
         self.gauge("stats.dataSize")
         self.gauge("stats.storageSize")
 
+        self.gauge("replSet.health")
+        self.gauge("replSet.state")
+        self.gauge("replSet.replicationLag")
+
     def check(self, agentConfig):
         """
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
@@ -53,6 +57,41 @@ class MongoDb(Check):
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
+  
+            # Handle replica data, if any 
+            # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
+            try: 
+                data = {}
+
+                replSet = conn['admin'].command('replSetGetStatus')
+                if replSet:
+                    primary = None
+                    current = None
+
+                    # find nodes: master and current node (ourself)
+                    for member in replSet['members']:
+                        if member['self']:
+                            current = member
+                        if member['state'] == 1:
+                            primary = member
+
+                    # If we have both we can compute a lag time
+                    if current is not None and primary is not None:
+                        lag = current['optimeDate'] - primary['optimeDate']
+                        # Python 2.7 has this built in, python < 2.7 don't...
+                        if hasattr(lag,'total_seconds'):
+                            data['replicationLag'] = lag.total_seconds()
+                        else:
+                            data['replicationLag'] = (lag.microseconds + \
+                (lag.seconds + lag.days * 24 * 3600) * 10**6) / 10.0**6
+
+                    if current is not None:
+                        data['health'] = current['health']
+
+                    data['state'] = replSet['myState']
+                    status['replSet'] = data
+            except Exception:
+                pass
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:
