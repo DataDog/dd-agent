@@ -1,15 +1,19 @@
-The Datadog agent faithfully collects events and metrics and brings them to [Datadog](https://app.datadoghq.com)
-on your behalf so that you can do something with your monitoring and performance data.
+The Datadog agent faithfully collects events and metrics and brings
+them to [Datadog](https://app.datadoghq.com) on your behalf so that
+you can do something with your monitoring and performance data.
 
-You're looking at the source code right now. We provide a number of pre-packaged binaries for your convenience.
-Check out our [faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you want to use our packages.
+You're looking at the source code right now. We provide a number of
+pre-packaged binaries for your convenience.  Check out our
+[faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you
+want to use our packages.
 
 Feel free to fork this repository and submit pull requests.
 
 # How to configure it
 
-If you are using packages on linux, the configuration file lives in `/etc/dd-agent/datadog.conf`. We provide
-and example in the same directory that you can use as a template.
+If you are using packages on linux, the configuration file lives in
+`/etc/dd-agent/datadog.conf`. We provide and example in the same
+directory that you can use as a template.
 
 # How to parse log files
 
@@ -29,7 +33,9 @@ For example, imagining the content of  `/var/log/web.log` to be:
     me.web.requests 1320786966 157 metric_type=counter unit=request 
     me.web.latency 1320786966 250 metric_type=gauge unit=ms
 
-Then all you need for Datadog to read metrics is to add this line to your agent configuration file  (usually at `/etc/dd-agent/datadog.conf`):
+Then all you need for Datadog to read metrics is to add this line to
+your agent configuration file (usually at
+`/etc/dd-agent/datadog.conf`):
 
     dogstreams: /var/log/web.log
 
@@ -39,18 +45,30 @@ You can also specify multiple log files like this:
 
 ## Parsing custom log formats
 
-If you don't have control over logging or can't issue your logs in the canonical format, you may also tell the Datadog agent to use a custom Python function to extract the proper fields from the log by adding the following line to your agent configuration file:
+If you don't have control over logging or can't issue your logs in the
+canonical format, you may also tell the Datadog agent to use a custom
+Python function to extract the proper fields from the log by adding
+the following line to your agent configuration file:
 
     dogstreams: /var/log/web.log:parsers:parse_web
 
-The `parsers:parse_web` portion indicates that the custom Python function lives in a package called `parsers` in the agent's `PYTHONPATH`, and the parsers package has a function named `parse_web`. The agent's `PYTHONPATH` is set in the agent startup script, `/etc/init.d/datadog-agent` for agent versions < 2.0, and  in the supervisor config for agent version >= 2.0.
+The `parsers:parse_web` portion indicates that the custom Python
+function lives in a package called `parsers` in the agent's
+`PYTHONPATH`, and the parsers package has a function named
+`parse_web`. The agent's `PYTHONPATH` is set in the agent startup
+script, `/etc/init.d/datadog- agent` for agent versions < 2.0, and in
+the supervisor config for agent version >= 2.0.
 
 `parsers.py` might look like this:
 
     import calendar
     from datetime import datetime
 
-    def parse_web(logger, line):
+    def parse_web(logger, line, parser_state):
+    	# parser_state is a dictionary into which you can stuff
+        # stateful data that can be shared between invocation
+        # of parse_web
+
         # Split the line into fields
         date, metric_name, metric_value, attrs = line.split('|')
         
@@ -71,20 +89,62 @@ The `parsers:parse_web` portion indicates that the custom Python function lives 
             attr_name = attr_name.strip()
             attr_val = attr_val.strip()
             attr_dict[attr_name] = attr_val
+
+	# Count the number of lines and turn it into a metric
         
         # Return the output as a tuple
         return (metric_name, date, metric_value, attr_dict)
 
-Custom parsing functions 
+### Custom parsing functions
 
 * take two parameters: a Python `logger` object and a string parameter of the current line to parse. 
 * return a tuple or list of tuples of the form:
 
     (metric (str), timestamp (unix timestamp), value (float), attributes (dict))
 
-Where attributes should at least contain the key `metric_type`, specifying  whether the given metric is a `counter` or `gauge`.
+Where attributes should at least contain the key `metric_type`,
+specifying whether the given metric is a `counter` or `gauge`.
 
-You'll want to be able to test your parser outside of the agent, so for the above example, you might add a test function like this:
+### Stateful parsing functions
+
+In some cases you will want to remember some data between each parsing function invocation.
+The canonical example is counting the number of lines in a log.
+
+    import calendar
+    from datetime import datetime
+
+    def count_lines(logger, line, parser_state):
+    	# parser_state is a dictionary into which you can stuff
+	# stateful data that can be shared between invocation
+	# of parse_web
+
+        # Split the line into fields
+        date, metric_name, metric_value, attrs = line.split('|')
+        
+        # Convert the iso8601 date into a unix timestamp
+        date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S")
+        date = calendar.timegm(date.timetuple())
+        
+        # Remove surrounding whitespace from the metric name
+        metric_name = metric_name.strip()
+        
+	# Count the number of lines and turn it into a metric
+        acc = 0
+        try:
+            acc = parser_state["lines"] + 1
+        except KeyError:
+            parser_state["lines"] = 0
+
+        parser_state["lines"] = acc
+        
+        # Return the output as a tuple
+        return (metric_name, date, acc, {'metric_type': 'counter'})
+
+
+### Testing customer parsing functions
+
+You'll want to be able to test your parser outside of the agent, so
+for the above example, you might add a test function like this:
 
     def test():
         # Set up the test logger
