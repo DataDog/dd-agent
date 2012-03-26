@@ -89,8 +89,6 @@ the supervisor config for agent version >= 2.0.
             attr_name = attr_name.strip()
             attr_val = attr_val.strip()
             attr_dict[attr_name] = attr_val
-
-	# Count the number of lines and turn it into a metric
         
         # Return the output as a tuple
         return (metric_name, date, metric_value, attr_dict)
