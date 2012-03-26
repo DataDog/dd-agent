@@ -98,7 +98,7 @@ the supervisor config for agent version >= 2.0.
 * take two parameters: a Python `logger` object and a string parameter of the current line to parse. 
 * return a tuple or list of tuples of the form:
 
-    (metric (str), timestamp (unix timestamp), value (float), attributes (dict))
+`(metric (str), timestamp (unix timestamp), value (float), attributes (dict))`
 
 Where attributes should at least contain the key `metric_type`,
 specifying whether the given metric is a `counter` or `gauge`.
