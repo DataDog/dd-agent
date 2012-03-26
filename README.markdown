@@ -1,15 +1,19 @@
-The Datadog agent faithfully collects events and metrics and brings them to [Datadog](https://app.datadoghq.com)
-on your behalf so that you can do something with your monitoring and performance data.
+The Datadog agent faithfully collects events and metrics and brings
+them to [Datadog](https://app.datadoghq.com) on your behalf so that
+you can do something with your monitoring and performance data.
 
-You're looking at the source code right now. We provide a number of pre-packaged binaries for your convenience.
-Check out our [faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you want to use our packages.
+You're looking at the source code right now. We provide a number of
+pre-packaged binaries for your convenience.  Check out our
+[faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you
+want to use our packages.
 
 Feel free to fork this repository and submit pull requests.
 
 # How to configure it
 
-If you are using packages on linux, the configuration file lives in `/etc/dd-agent/datadog.conf`. We provide
-and example in the same directory that you can use as a template.
+If you are using packages on linux, the configuration file lives in
+`/etc/dd-agent/datadog.conf`. We provide and example in the same
+directory that you can use as a template.
 
 # How to parse log files
 
@@ -29,7 +33,9 @@ For example, imagining the content of  `/var/log/web.log` to be:
     me.web.requests 1320786966 157 metric_type=counter unit=request 
     me.web.latency 1320786966 250 metric_type=gauge unit=ms
 
-Then all you need for Datadog to read metrics is to add this line to your agent configuration file  (usually at `/etc/dd-agent/datadog.conf`):
+Then all you need for Datadog to read metrics is to add this line to
+your agent configuration file (usually at
+`/etc/dd-agent/datadog.conf`):
 
     dogstreams: /var/log/web.log
 
@@ -41,7 +47,7 @@ You can also specify multiple log files like this:
 
 If you don't have control over logging or can't issue your logs in the
 canonical format, you may also tell the Datadog agent to use a custom
-Python function to extract the prope r fields from the log by adding
+Python function to extract the proper fields from the log by adding
 the following line to your agent configuration file:
 
     dogstreams: /var/log/web.log:parsers:parse_web
@@ -60,8 +66,8 @@ the supervisor config for agent version >= 2.0.
 
     def parse_web(logger, line, parser_state):
     	# parser_state is a dictionary into which you can stuff
-	# stateful data that can be shared between invocation
-	# of parse_web
+        # stateful data that can be shared between invocation
+        # of parse_web
 
         # Split the line into fields
         date, metric_name, metric_value, attrs = line.split('|')
@@ -96,7 +102,8 @@ the supervisor config for agent version >= 2.0.
 
     (metric (str), timestamp (unix timestamp), value (float), attributes (dict))
 
-Where attributes should at least contain the key `metric_type`, specifying  whether the given metric is a `counter` or `gauge`.
+Where attributes should at least contain the key `metric_type`,
+specifying whether the given metric is a `counter` or `gauge`.
 
 ### Stateful parsing functions
 
@@ -136,7 +143,8 @@ The canonical example is counting the number of lines in a log.
 
 ### Testing customer parsing functions
 
-You'll want to be able to test your parser outside of the agent, so for the above example, you might add a test function like this:
+You'll want to be able to test your parser outside of the agent, so
+for the above example, you might add a test function like this:
 
     def test():
         # Set up the test logger

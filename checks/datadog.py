@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from itertools import groupby # >= python 2.4
 
+from checks import LaconicFilter
+
 if hasattr('some string', 'partition'):
     def partition(s, sep):
         return s.partition(sep)
@@ -103,6 +105,10 @@ class Dogstream(object):
     
     def __init__(self, logger, log_path, parse_func=None):
         self.logger = logger
+
+        # Apply LaconicFilter to avoid log flooding
+        self.logger.addFilter(LaconicFilter("dogstream"))
+        
         self.log_path = log_path
         self.parse_func = parse_func or self._default_line_parser
         
