@@ -15,7 +15,7 @@ class TestLaconic(unittest.TestCase):
         ch.setLevel(logging.DEBUG)
 
         # create formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 
         # add formatter to ch
         ch.setFormatter(formatter)
@@ -33,15 +33,18 @@ class TestLaconic(unittest.TestCase):
     def testRepeatingErrors(self):
         for i in range(10):
             self.l.error("Cannot find nagios.log")
-        self.assertEquals(self.sio.getvalue().count(" nagios.log"), 1)
+        self.assertEquals(self.sio.getvalue().count("Cannot find nagios.log"), 1, self.sio.getvalue())
+
         for i in range(10):
-            self.l.debug("Cannot find ganglia.log")
-        self.assertEquals(self.sio.getvalue().count(" ganglia.log"), 1)
+            self.l.warn("Cannot find ganglia.log")
+        self.assertEquals(self.sio.getvalue().count("Cannot find ganglia.log"), 1, self.sio.getvalue())
+
         for i in range(10):
             try:
                 raise Exception("Ka-boom")
             except:
                 self.l.exception("Caught!")
+
         self.assertEquals(self.sio.getvalue().count("Ka-boom"), 2) # once for the traceback, once for the message
 
     def testNonRepeat(self):
@@ -54,9 +57,21 @@ class TestLaconic(unittest.TestCase):
     def testBlowUp(self):
         """Try to use a lot of memory"""
         for i in range(2 * self.laconic.LACONIC_MEM_LIMIT + 7):
-            self.l.info("""%d Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer adipiscing urna sed urna sagittis rutrum. Etiam elementum justo quis quam pellentesque vel porta eros vestibulum. Nulla nec felis lacus. Maecenas sit amet aliquet nunc. Curabitur non tellus eget sapien faucibus feugiat. Vivamus tortor nisl, posuere eget ullamcorper at, interdum id odio. Sed convallis, nisl quis luctus posuere, nulla sapien consequat magna, vitae euismod mauris felis et augue. Maecenas eget tortor elit. Cras eu nulla sit amet est hendrerit malesuada sit amet eu nibh. Aliquam erat volutpat. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Proin et erat diam, non venenatis dui. Etiam feugiat mattis nunc, tincidunt mollis quam condimentum eu. Donec volutpat sodales magna eu fermentum. Integer ultricies odio non metus aliquet tristique. Proin ultrices accumsan augue, quis tempor diam rutrum at.""" % i)
-        self.assertEquals(len(self.laconic.hashed_messages), 7)
-
+            self.l.warn("""%d Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
+ adipiscing urna sed urna sagittis rutrum. Etiam elementum justo quis
+ quam pellentesque vel porta eros vestibulum. Nulla nec felis
+ lacus. Maecenas sit amet aliquet nunc. Curabitur non tellus eget
+ sapien faucibus feugiat. Vivamus tortor nisl, posuere eget
+ ullamcorper at, interdum id odio. Sed convallis, nisl quis luctus
+ posuere, nulla sapien consequat magna, vitae euismod mauris felis et
+ augue. Maecenas eget tortor elit. Cras eu nulla sit amet est
+ hendrerit malesuada sit amet eu nibh. Aliquam erat volutpat. Cum
+ sociis natoque penatibus et magnis dis parturient montes, nascetur
+ ridiculus mus. Proin et erat diam, non venenatis dui. Etiam feugiat
+ mattis nunc, tincidunt mollis quam condimentum eu. Donec volutpat
+ sodales magna eu fermentum. Integer ultricies odio non metus aliquet
+ tristique. Proin ultrices accumsan augue, quis tempor diam rutrum at.""" % i)
+        self.assertEquals(len(self.laconic.hashed_messages), 7, self.sio.getvalue())
 
 if __name__ == "__main__":
     unittest.main()

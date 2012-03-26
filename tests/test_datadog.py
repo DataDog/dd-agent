@@ -7,6 +7,18 @@ from checks.datadog import Dogstreams, point_sorter
 
 log = logging.getLogger('datadog.test')
 
+def parse_stateful(logger, line, state):
+    """Simple stateful parser"""
+    try:
+        acc = state["test_acc"] + 1
+    except KeyError:
+        acc = 1
+    state["test_acc"] = acc
+    res = line.split()
+    res[2] = acc
+    res[3] = {'metric_type': 'counter'}
+    return tuple(res)
+
 class TailTestCase(unittest.TestCase):
     def setUp(self):
         self.log_file = NamedTemporaryFile()
@@ -106,6 +118,22 @@ class TestDogstream(TailTestCase):
         self._write_log(log_data)
         
         actual_output = self.dogstream.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
+    def test_dogstream_stateful(self):
+        log_data = [
+            'test.metric.accumulator 1000000000 1 metric_type=counter',
+            'test.metric.accumulator 1100000000 1 metric_type=counter'
+        ]
+        expected_output = {
+            "dogstream": [
+                ('test.metric.accumulator', 1000000000, 1, self.counter),
+                ('test.metric.accumulator', 1100000000, 2, self.counter)]
+        }
+        self._write_log(log_data)
+
+        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:parse_stateful' % self.log_file.name})
+        actual_output = statedog.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
 class TestNagiosPerfData(TailTestCase):
@@ -385,7 +413,5 @@ class TestNagiosPerfData(TailTestCase):
 
         
 if __name__ == '__main__':
-    logging.basicConfig("%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
     unittest.main()
-
-
