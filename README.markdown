@@ -115,8 +115,8 @@ The canonical example is counting the number of lines in a log.
 
     def count_lines(logger, line, parser_state):
     	# parser_state is a dictionary into which you can stuff
-	# stateful data that can be shared between invocation
-	# of parse_web
+        # stateful data that can be shared between invocation
+        # of parse_web
 
         # Split the line into fields
         date, metric_name, metric_value, attrs = line.split('|')
@@ -128,7 +128,7 @@ The canonical example is counting the number of lines in a log.
         # Remove surrounding whitespace from the metric name
         metric_name = metric_name.strip()
         
-	# Count the number of lines and turn it into a metric
+        # Count the number of lines and turn it into a metric
         acc = 0
         try:
             acc = parser_state["lines"] + 1
