@@ -74,10 +74,16 @@ class Dogstreams(object):
         for dogstream in self.dogstreams:
             try:
                 result = dogstream.check(agentConfig, move_end)
-                output.update(result)
-            except Exception, e:
-                self.logger.exception(traceback.format_exc())
-                self.logger.error("Error in parsing %s" % (dogstream.log_path))
+                # result may contain {"dogstream": [new]}
+                # If output contains {"dostream": [old]} that old value will get clobbered.
+                assert type(result) == type(output), "dogstream.check must return a dictionary"
+                for k in result:
+                    if k in output:
+                        output[k].extend(result[k])
+                    else:
+                        output[k] = result[k]
+            except:
+                self.logger.exception("Error in parsing %s" % (dogstream.log_path))
         return output
 
 class Dogstream(object):
