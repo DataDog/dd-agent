@@ -74,8 +74,8 @@ class Dogstreams(object):
         for dogstream in self.dogstreams:
             try:
                 result = dogstream.check(agentConfig, move_end)
-                # result may contain {"dogstream": [new]}
-                # If output contains {"dostream": [old]} that old value will get clobbered.
+                # result may contain {"dogstream": [new]}. 
+                # If output contains {"dogstream": [old]}, that old value will get concatenated with the new value
                 assert type(result) == type(output), "dogstream.check must return a dictionary"
                 for k in result:
                     if k in output:
