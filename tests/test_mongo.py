@@ -1,25 +1,36 @@
 import unittest
 import logging
 logging.basicConfig()
-logger = logging.getLogger()
+import subprocess
+from tempfile import mkdtemp
 
 from checks.db.mongo import MongoDb
 
+PORT1 = 27017
+PORT2 = 37017
+
 class TestMongo(unittest.TestCase):
     def setUp(self):
-        self.c = MongoDb(logger)
+        self.c = MongoDb(logging.getLogger())
+        # Start 1 instances of Mongo
+        dir1 = mkdtemp()
+        self.p1 = subprocess.Popen(["mongod", "--dbpath", dir1, "--port", str(PORT1)],
+                                   executable="mongod",
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+
+    def tearDown(self):
+        if self.p1 is not None:
+            self.p1.terminate()
 
     def testCheck(self):
-        r = self.c.check({"MongoDBServer": "blah"})
-        self.assertEquals(r["connections"]["current"], 1)
-        self.assertEquals("opcounters" in r, False)
-
-        r = self.c.check({"MongoDBServer": "blah"})
-        self.assertEquals(r["connections"]["current"], 1)
-        self.assertEquals(r["asserts"]["regularPS"], 0)
-        self.assertEquals(r["asserts"]["userPS"], 0)
-        self.assertEquals(r["opcounters"]["commandPS"], (244 - 18) / (10191 - 2893))
-        
+        if self.p1 is not None:
+            r = self.c.check({"MongoDBServer": "localhost", "mongodb_port": PORT1})
+            self.assertEquals(r and r["connections"]["current"] == 1, True)
+            assert r["connections"]["available"] >= 1
+            assert r["uptime"] >= 0, r
+            assert r["mem"]["resident"] > 0
+            assert r["mem"]["virtual"] > 0
 
 if __name__ == '__main__':
     unittest.main()
