@@ -69,10 +69,10 @@ class MongoDb(Check):
                     current = None
 
                     # find nodes: master and current node (ourself)
-                    for member in replSet['members']:
-                        if member['self']:
+                    for member in replSet.get('members'):
+                        if member.get('self'):
                             current = member
-                        if member['state'] == 1:
+                        if int(member.get('state')) == 1:
                             primary = member
 
                     # If we have both we can compute a lag time
@@ -90,8 +90,8 @@ class MongoDb(Check):
 
                     data['state'] = replSet['myState']
                     status['replSet'] = data
-            except Exception:
-                pass
+            except:
+                self.logger.exception("Cannot determine replication set status")
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:
