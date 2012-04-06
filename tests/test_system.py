@@ -93,5 +93,16 @@ none                  985964       1  985963    1% /lib/init/rw
         assert res[-1][:4] == ["/data3", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
         
 
+    def testMemory(self):
+        global logger
+        import sys
+        res = Memory(logger).check({})
+        if sys.platform == 'linux2':
+            for k in ("swapTotal", "swapFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable"):
+                assert k in res, res
+        elif sys.platform == 'darwin':
+            for k in ("swapFree", "swapUsed", "physFree", "physUsed"):
+                assert k in res, res
+
 if __name__ == "__main__":
     unittest.main()

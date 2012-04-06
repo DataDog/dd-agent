@@ -1,10 +1,11 @@
+import platform
 import re
 import socket
 import string
 import subprocess
 import sys
 import time
-from checks import gethostname
+from checks import Check, gethostname
 
 class Disk(object):
 
@@ -174,255 +175,155 @@ class IO(object):
         return ioStats
 
 
-class Load(object):
-    def __init__(self, linuxProcFsLocation):
-        self.linuxProcFsLocation = linuxProcFsLocation
+class Load(Check):
+    def __init__(self):
+        Check.__init__(self, logger)
     
-    def check(self, logger, agentConfig):
-        logger.debug('getLoadAvrgs: start')
-        
-        # If Linux like procfs system is present and mounted we use loadavg, else we use uptime
-        if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
-            
+    def check(self, agentConfig):
+        if sys.platform == 'linux2':
             try:
-                logger.debug('getLoadAvrgs: attempting open')
-                
-                if sys.platform == 'linux2':
-                    loadAvrgProc = open('/proc/loadavg', 'r')
-                else:
-                    loadAvrgProc = open(self.linuxProcFsLocation + '/loadavg', 'r')
-                    
+                loadAvrgProc = open('/proc/loadavg', 'r')
                 uptime = loadAvrgProc.readlines()
-                
-            except IOError, e:
-                logger.error('getLoadAvrgs: exception = ' + str(e))
+                loadAvrgProc.close()
+            except:
+                logger.exception('getLoadAvrgs')
                 return False
-            
-            logger.debug('getLoadAvrgs: open success')
-                
-            loadAvrgProc.close()
             
             uptime = uptime[0] # readlines() provides a list but we want a string
         
-        elif sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation == False:
-            logger.debug('getLoadAvrgs: freebsd (uptime)')
-            
+        elif sys.platform == 'darwin':
+            # Get output from uptime
             try:
-                logger.debug('getLoadAvrgs: attempting Popen')
-                
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                
             except:
                 logger.exception('getLoadAvrgs')
                 return False
-                
-            logger.debug('getLoadAvrgs: Popen success')
-            
-        elif sys.platform == 'darwin':
-            logger.debug('getLoadAvrgs: darwin')
-            
-            # Get output from uptime
-            try:
-                logger.debug('getLoadAvrgs: attempting Popen')
-                
-                uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                
-            except Exception, e:
-                logger.exception('getLoadAvrgs')
-                return False
-                
-            logger.debug('getLoadAvrgs: Popen success')
-        
-        logger.debug('getLoadAvrgs: parsing')
                 
         # Split out the 3 load average values
         loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
-        loadAvrgs = {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2]}  
-    
-        logger.debug('getLoadAvrgs: completed, returning')
-    
-        return loadAvrgs
+        return {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2]}  
 
-
-class Memory(object):
-    def __init__(self, linuxProcFsLocation, topIndex):
-        self.linuxProcFsLocation = linuxProcFsLocation
-        self.topIndex = topIndex
-    
-    def check(self, logger, agentConfig):
-        logger.debug('getMemoryUsage: start')
+class Memory(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+        macV = None
+        if sys.platform == 'darwin':
+            macV = platform.mac_ver()
+            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
         
-        # If Linux like procfs system is present and mounted we use meminfo, else we use "native" mode (vmstat and swapinfo)
-        if sys.platform == 'linux2' or (sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation != False):
-            
-            if sys.platform == 'linux2':
-                logger.debug('getMemoryUsage: linux2')
-            else:
-                logger.debug('getMemoryUsage: freebsd (meminfo)')
-            
-            try:
-                logger.debug('getMemoryUsage: attempting open')
-                
-                if sys.platform == 'linux2':
-                    meminfoProc = open('/proc/meminfo', 'r')
-                else:
-                    meminfoProc = open(self.linuxProcFsLocation + '/meminfo', 'r')
-                
-                lines = meminfoProc.readlines()
-                
-            except IOError, e:
-                logger.error('getMemoryUsage: exception = ' + str(e))
-                return False
-                
-            logger.debug('getMemoryUsage: Popen success, parsing')
-            
-            meminfoProc.close()
-            
-            logger.debug('getMemoryUsage: open success, parsing')
-            
-            regexp = re.compile(r'([0-9]+)') # We run this several times so one-time compile now
-            
-            meminfo = {}
-            
-            logger.debug('getMemoryUsage: parsing, looping')
-            
-            # Loop through and extract the numerical values
-            for line in lines:
-                values = line.split(':')
-                
-                try:
-                    # Picks out the key (values[0]) and makes a list with the value as the meminfo value (values[1])
-                    # We are only interested in the KB data so regexp that out
-                    match = re.search(regexp, values[1])
+        # Output from top is slightly modified on OS X 10.6 (case #28239) and greater
+        if macV and (macV_minor_version >= 6):
+            self.topIndex = 6
+        else:
+            self.topIndex = 5
     
-                    if match != None:
-                        meminfo[str(values[0])] = match.group(0)
-                    
-                except IndexError:
-                    break
-                    
-            logger.debug('getMemoryUsage: parsing, looped')
+    def check(self, agentConfig):
+        if sys.platform == 'linux2':
+            try:
+                meminfoProc = open('/proc/meminfo', 'r')
+                lines = meminfoProc.readlines()
+                meminfoProc.close()
+            except:
+                self.logger.exception('Cannot get memory metrics from /proc/meminfo')
+                return False
             
+            # $ cat /proc/meminfo
+            # MemTotal:        7995360 kB
+            # MemFree:         1045120 kB
+            # Buffers:          226284 kB
+            # Cached:           775516 kB
+            # SwapCached:       248868 kB
+            # Active:          1004816 kB
+            # Inactive:        1011948 kB
+            # Active(anon):     455152 kB
+            # Inactive(anon):   584664 kB
+            # Active(file):     549664 kB
+            # Inactive(file):   427284 kB
+            # Unevictable:     4392476 kB
+            # Mlocked:         4392476 kB
+            # SwapTotal:      11120632 kB
+            # SwapFree:       10555044 kB
+            # Dirty:              2948 kB
+            # Writeback:             0 kB
+            # AnonPages:       5203560 kB
+            # Mapped:            50520 kB
+            # Shmem:             10108 kB
+            # Slab:             161300 kB
+            # SReclaimable:     136108 kB
+            # SUnreclaim:        25192 kB
+            # KernelStack:        3160 kB
+            # PageTables:        26776 kB
+            # NFS_Unstable:          0 kB
+            # Bounce:                0 kB
+            # WritebackTmp:          0 kB
+            # CommitLimit:    15118312 kB
+            # Committed_AS:    6703508 kB
+            # VmallocTotal:   34359738367 kB
+            # VmallocUsed:      400668 kB
+            # VmallocChunk:   34359329524 kB
+            # HardwareCorrupted:     0 kB
+            # HugePages_Total:       0
+            # HugePages_Free:        0
+            # HugePages_Rsvd:        0
+            # HugePages_Surp:        0
+            # Hugepagesize:       2048 kB
+            # DirectMap4k:       10112 kB
+            # DirectMap2M:     8243200 kB
+            
+            regexp = re.compile(r'^(\w+):\s+([0-9]+)') # We run this several times so one-time compile now
+            meminfo = {}
+
+            for line in lines:
+                try:
+                    match = re.search(regexp, line)
+                    if match is not None:
+                        assert len(match.groups()) == 3
+                        meminfo[match.group(1)] = match.group(2)
+                except:
+                    self.logger.exception("Cannot parse /proc/meminfo")
+                    
             memData = {}
             
-            # Phys
+            # Physical memory
+            # FIXME units are in MB, we should use bytes instead
             try:
-                logger.debug('getMemoryUsage: formatting (phys)')
-                
-                physTotal = int(meminfo['MemTotal'])
-                physFree = int(meminfo['MemFree'])
-                physUsed = physTotal - physFree
-                
-                # Convert to MB
-                memData['physFree'] = physFree / 1024
-                memData['physUsed'] = physUsed / 1024
-                memData['cached'] = int(meminfo['Cached']) / 1024
-                                
-            # Stops the agent crashing if one of the meminfo elements isn't set
-            except IndexError:
-                logger.debug('getMemoryUsage: formatting (phys) IndexError - Cached, MemTotal or MemFree not present')
-                
-            except KeyError:
-                logger.debug('getMemoryUsage: formatting (phys) KeyError - Cached, MemTotal or MemFree not present')
-            
-            logger.debug('getMemoryUsage: formatted (phys)')
+                memData['physTotal'] = int(meminfo['MemTotal']) / 1024
+                memData['physFree'] = int(meminfo['MemFree']) / 1024
+                memData['physBuffers'] = int(meminfo['Buffers']) / 1024
+                memData['physCached'] = int(meminfo['Cached']) / 1024
+                memData['physUsed'] = memData['physTotal'] - memData['physFree'] - memData['physBuffers'] - memData['physCached']
+                # Usable is relative since cached and buffers are actually used to speed things up.
+                memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
+            except:
+                logger.exception('Cannot compute stats from /proc/meminfo')
             
             # Swap
+            # FIXME units are in MB, we should use bytes instead
             try:
-                logger.debug('getMemoryUsage: formatting (swap)')
-                
-                swapTotal = int(meminfo['SwapTotal'])
-                swapFree = int(meminfo['SwapFree'])
-                swapUsed = swapTotal - swapFree
-                
-                # Convert to MB
-                memData['swapFree'] = swapFree / 1024
-                memData['swapUsed'] = swapUsed / 1024
-                                
-            # Stops the agent crashing if one of the meminfo elements isn't set
-            except IndexError:
-                logger.debug('getMemoryUsage: formatting (swap) IndexErro) - SwapTotal or SwapFree not present')
-                
-            except KeyError:
-                logger.debug('getMemoryUsage: formatting (swap) KeyError - SwapTotal or SwapFree not present')
-            
-            logger.debug('getMemoryUsage: formatted (swap), completed, returning')
+                memData['swapTotal'] = int(meminfo['SwapTotal']) / 1024
+                memData['swapFree']  = int(meminfo['SwapFree']) / 1024
+                memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
+            except:
+                logger.exception('Cannot compute swap stats')
             
             return memData  
             
-        elif sys.platform.find('freebsd') != -1 and self.linuxProcFsLocation == False:
-            logger.debug('getMemoryUsage: freebsd (native)')
-            
-            try:
-                logger.debug('getMemoryUsage: attempting Popen (sysctl)')
-                physTotal = subprocess.Popen(['sysctl', '-n', 'hw.physmem'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
-                
-                logger.debug('getMemoryUsage: attempting Popen (vmstat)')
-                vmstat = subprocess.Popen(['vmstat', '-H'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
-                
-                logger.debug('getMemoryUsage: attempting Popen (swapinfo)')
-                swapinfo = subprocess.Popen(['swapinfo', '-k'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
-
-            except:
-                logger.exception('getMemoryUsage')
-                
-                return False
-                
-            logger.debug('getMemoryUsage: Popen success, parsing')
-
-            # First we parse the information about the real memory
-            lines = vmstat.split('\n')
-            physParts = re.findall(r'([0-9]\d+)', lines[2])
-    
-            physTotal = int(physTotal.strip()) / 1024 # physFree is returned in B, but we need KB so we convert it
-            physFree = int(physParts[1])
-            physUsed = int(physTotal - physFree)
-    
-            logger.debug('getMemoryUsage: parsed vmstat')
-    
-            # And then swap
-            lines = swapinfo.split('\n')
-            swapParts = re.findall(r'(\d+)', lines[1])
-            
-            # Convert evrything to MB
-            physUsed = int(physUsed) / 1024
-            physFree = int(physFree) / 1024
-            swapUsed = int(swapParts[3]) / 1024
-            swapFree = int(swapParts[4]) / 1024
-    
-            logger.debug('getMemoryUsage: parsed swapinfo, completed, returning')
-    
-            return {'physUsed' : physUsed, 'physFree' : physFree, 'swapUsed' : swapUsed, 'swapFree' : swapFree, 'cached' : None}
-            
         elif sys.platform == 'darwin':
-            logger.debug('getMemoryUsage: darwin')
-            
             try:
-                logger.debug('getMemoryUsage: attempting Popen (top)')              
                 top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                
-                logger.debug('getMemoryUsage: attempting Popen (sysctl)')
                 sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                
             except:
                 logger.exception('getMemoryUsage')
                 return False
-            
-            logger.debug('getMemoryUsage: Popen success, parsing')
             
             # Deal with top
             lines = top.split('\n')
             physParts = re.findall(r'([0-9]\d+)', lines[self.topIndex])
             
-            logger.debug('getMemoryUsage: parsed top')
-            
             # Deal with sysctl
             swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
             
-            logger.debug('getMemoryUsage: parsed sysctl, completed, returning')
-            
-            return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2], 'cached' : None}    
-            
+            return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
         else:
             return False
     
@@ -433,25 +334,17 @@ class Network(object):
         self.networkTrafficStore["current_ts"] = self.networkTrafficStore["last_ts"]
     
     def check(self, logger, agentConfig):
-        logger.debug('getNetworkTraffic: start')
-        
         if sys.platform == 'linux2':
-            logger.debug('getNetworkTraffic: linux2')
-            
             try:
-                logger.debug('getNetworkTraffic: attempting open')
-                
                 proc = open('/proc/net/dev', 'r')
                 lines = proc.readlines()
                 self.networkTrafficStore["current_ts"] = time.time()
                 
-            except IOError, e:
+            except:
                 logger.exception('getNetworkTraffic')
                 return False
             
             proc.close()
-            
-            logger.debug('getNetworkTraffic: open success, parsing')
             
             columnLine = lines[1]
             _, receiveCols , transmitCols = columnLine.split('|')
@@ -459,8 +352,6 @@ class Network(object):
             transmitCols = map(lambda a:'trans_' + a, transmitCols.split())
             
             cols = receiveCols + transmitCols
-            
-            logger.debug('getNetworkTraffic: parsing, looping')
             
             faces = {}
             for line in lines[2:]:
@@ -502,77 +393,8 @@ class Network(object):
                     self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
                     self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
         
-            logger.debug('getNetworkTraffic: completed, returning')
-                    
             return interfaces
             
-        elif sys.platform.find('freebsd') != -1:
-            logger.debug('getNetworkTraffic: freebsd')
-            
-            try:
-                logger.debug('getNetworkTraffic: attempting Popen (netstat)')
-                netstat = subprocess.Popen(['netstat', '-nbid', ' grep Link'], stdout=subprocess.PIPE, close_fds=True)
-                
-                logger.debug('getNetworkTraffic: attempting Popen (grep)')
-                grep = subprocess.Popen(['grep', 'Link'], stdin = netstat.stdout, stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                
-            except:
-                logger.exception('getNetworkTraffic')
-                
-                return False
-            
-            logger.debug('getNetworkTraffic: open success, parsing')
-            
-            lines = grep.split('\n')
-            
-            # Loop over available data for each inteface
-            faces = {}
-            for line in lines:
-                line = re.split(r'\s+', line)
-                length = len(line)
-                
-                if length == 13:
-                    faceData = {'recv_bytes': line[6], 'trans_bytes': line[9], 'drops': line[10], 'errors': long(line[5]) + long(line[8])}
-                elif length == 12:
-                    faceData = {'recv_bytes': line[5], 'trans_bytes': line[8], 'drops': line[9], 'errors': long(line[4]) + long(line[7])}
-                else:
-                    # Malformed or not enough data for this interface, so we skip it
-                    continue
-                
-                face = line[0]
-                faces[face] = faceData
-                
-            logger.debug('getNetworkTraffic: parsed, looping')
-                
-            interfaces = {}
-            
-            # Now loop through each interface
-            for face in faces:
-                key = face.strip()
-                
-                # We need to work out the traffic since the last check so first time we store the current value
-                # then the next time we can calculate the difference
-                if key in self.networkTrafficStore:
-                    interfaces[key] = {}
-                    interfaces[key]['recv_bytes'] = long(faces[face]['recv_bytes']) - long(self.networkTrafficStore[key]['recv_bytes'])
-                    interfaces[key]['trans_bytes'] = long(faces[face]['trans_bytes']) - long(self.networkTrafficStore[key]['trans_bytes'])
-                    
-                    interfaces[key]['recv_bytes'] = str(interfaces[key]['recv_bytes'])
-                    interfaces[key]['trans_bytes'] = str(interfaces[key]['trans_bytes'])
-                    
-                    # And update the stored value to subtract next time round
-                    self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-                    self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
-                    
-                else:
-                    self.networkTrafficStore[key] = {}
-                    self.networkTrafficStore[key]['recv_bytes'] = faces[face]['recv_bytes']
-                    self.networkTrafficStore[key]['trans_bytes'] = faces[face]['trans_bytes']
-        
-            logger.debug('getNetworkTraffic: completed, returning')
-    
-            return interfaces
-        
         else:       
             logger.debug('getNetworkTraffic: other platform, returning')
         
