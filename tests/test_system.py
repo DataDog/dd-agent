@@ -1,5 +1,6 @@
 import unittest
 import logging
+import sys
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -65,37 +66,35 @@ none                  985964       1  985963    1% /lib/init/rw
         global logger
         disk = Disk()
 
-        import sys
-        sys.platform = 'darwin'
-        res = disk._parse_df(TestSystem.lion_df_k)
-        assert res[0][:4] == ["/dev/disk1", 243966468 / 1024 / 1024, 110040020 / 1024 / 1024, 133670448 / 1024 / 1024], res[0]
-        assert res[3][:4] == ["/dev/disk2s1", 31154688 / 1024 / 1024, 2506560 / 1024 / 1024, 28648128 / 1024 / 1024], res[3]
+        if sys.platform == 'darwin':
+            res = disk._parse_df(TestSystem.lion_df_k)
+            assert res[0][:4] == ["/dev/disk1", 243966468 / 1024 / 1024, 110040020 / 1024 / 1024, 133670448 / 1024 / 1024], res[0]
+            assert res[3][:4] == ["/dev/disk2s1", 31154688 / 1024 / 1024, 2506560 / 1024 / 1024, 28648128 / 1024 / 1024], res[3]
 
-        res = disk._parse_df(TestSystem.lion_df_i, inodes = True)
-        assert res[0][:4] == ["/dev/disk1", 60991615, 27574003, 33417612], res[0]
+            res = disk._parse_df(TestSystem.lion_df_i, inodes = True)
+            assert res[0][:4] == ["/dev/disk1", 60991615, 27574003, 33417612], res[0]
 
-        sys.platform = 'linux2'
-        res = disk._parse_df(TestSystem.linux_df_k)
-        assert res[0][:4] == ["/dev/sda1", 8256952 / 1024 / 1024, 5600592 / 1024 / 1024,  2236932 / 1024 / 1024], res[0]
-        assert res[-3][:4] == ["/dev/sdf", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
-        assert res[-2][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-1]
-        assert res[-1][:4] == ["/dev/sdg", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
-
-        res = disk._parse_df(TestSystem.linux_df_i, inodes = True)
-        assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
-        assert res[1][:4] == ["/dev/sdb", 27525120, 147, 27524973], res[1]
-        assert res[2][:4] == ["/dev/sdf", 46474080, 478386, 45995694], res[2]
-
-        res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
-        assert res[0][:4] == ["/", 8256952 / 1024 / 1024, 5600592 / 1024 / 1024,  2236932 / 1024 / 1024], res[0]
-        assert res[-3][:4] == ["/data", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
-        assert res[-2][:4] == ["/data2", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-1]
-        assert res[-1][:4] == ["/data3", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+        if sys.platform == 'linux2':
+            res = disk._parse_df(TestSystem.linux_df_k)
+            assert res[0][:4] == ["/dev/sda1", 8256952 / 1024 / 1024, 5600592 / 1024 / 1024,  2236932 / 1024 / 1024], res[0]
+            assert res[-3][:4] == ["/dev/sdf", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+            assert res[-2][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-1]
+            assert res[-1][:4] == ["/dev/sdg", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+    
+            res = disk._parse_df(TestSystem.linux_df_i, inodes = True)
+            assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
+            assert res[1][:4] == ["/dev/sdb", 27525120, 147, 27524973], res[1]
+            assert res[2][:4] == ["/dev/sdf", 46474080, 478386, 45995694], res[2]
+    
+            res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
+            assert res[0][:4] == ["/", 8256952 / 1024 / 1024, 5600592 / 1024 / 1024,  2236932 / 1024 / 1024], res[0]
+            assert res[-3][:4] == ["/data", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
+            assert res[-2][:4] == ["/data2", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-1]
+            assert res[-1][:4] == ["/data3", 52403200 / 1024 / 1024, 40909112 / 1024 / 1024, 11494088 / 1024 / 1024], res[-2]
         
 
     def testMemory(self):
         global logger
-        import sys
         res = Memory(logger).check({})
         if sys.platform == 'linux2':
             for k in ("swapTotal", "swapFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable"):

@@ -277,7 +277,6 @@ class Memory(Check):
                 try:
                     match = re.search(regexp, line)
                     if match is not None:
-                        assert len(match.groups()) == 3
                         meminfo[match.group(1)] = match.group(2)
                 except:
                     self.logger.exception("Cannot parse /proc/meminfo")
@@ -295,7 +294,7 @@ class Memory(Check):
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
             except:
-                logger.exception('Cannot compute stats from /proc/meminfo')
+                self.logger.exception('Cannot compute stats from /proc/meminfo')
             
             # Swap
             # FIXME units are in MB, we should use bytes instead
@@ -304,7 +303,7 @@ class Memory(Check):
                 memData['swapFree']  = int(meminfo['SwapFree']) / 1024
                 memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
             except:
-                logger.exception('Cannot compute swap stats')
+                self.logger.exception('Cannot compute swap stats')
             
             return memData  
             
@@ -313,7 +312,7 @@ class Memory(Check):
                 top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
             except:
-                logger.exception('getMemoryUsage')
+                self.logger.exception('getMemoryUsage')
                 return False
             
             # Deal with top
