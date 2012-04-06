@@ -176,7 +176,7 @@ class IO(object):
 
 
 class Load(Check):
-    def __init__(self):
+    def __init__(self, logger):
         Check.__init__(self, logger)
     
     def check(self, agentConfig):
