@@ -20,8 +20,10 @@ class TestCacti(unittest.TestCase):
         results1 = self.cacti.check(self.config)
 
         # Check again and make sure no new metrics are picked up
+        # But we will still have the payload stats
         results2 = self.cacti.check(self.config)
-        self.assertEquals(results2, [])
+        self.assertEquals(results2[2][0], 'cacti.metrics.count')
+        self.assertEquals(results2[2][2], 0)
 
         load1 = [m[2] for m in results1 if m[0] == 'system.load.1' and m[2]]
         self.assertEquals(len(load1), 201)

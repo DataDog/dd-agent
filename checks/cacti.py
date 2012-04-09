@@ -3,6 +3,7 @@ from checks import Check, gethostname
 from fnmatch import fnmatch
 import os
 import rrdtool
+import time
 
 class Cacti(Check):
     CFUNC_TO_AGGR = {
@@ -31,6 +32,12 @@ class Cacti(Check):
         self.rrd_path = None
         self.logger = logger
         self.last_ts = {}
+
+    def _add_stat(self, name, value, agentConfig):
+        ''' For collecting stats on Cacti checks '''
+        self.stats.append(
+            (name, time.time(), value, {'host_name': gethostname(agentConfig)})
+        )
 
     def _fetch_rrd_meta(self, agentConfig, whitelist):
         ''' Return a list of list of dicts with host_name, host_desc, device_name, and rrd_path '''
@@ -63,6 +70,12 @@ class Cacti(Check):
                     'device_name': device_name or None,
                     'rrd_path': rrd_path.replace('<path_rra>', self.rrd_path)
                 })
+
+        # Collect stats
+        self._add_stat('cacti.rrd.count', len(res), agentConfig)
+        num_hosts = len(set([r['host_name'] for r in res]))
+        self._add_stat('cacti.hosts.count', num_hosts, agentConfig)
+
         return res
 
     def _format_metric_name(self, m_name, cfunc):
@@ -146,6 +159,9 @@ class Cacti(Check):
                     self.logger.exception("Cannot import rrdtool")
                     return False
 
+                # Clear stats for this check
+                self.stats = []
+
                 # Get whitelist patterns, if available
                 patterns = []
                 whitelist = agentConfig.get('cacti_rrd_whitelist', None)
@@ -168,6 +184,12 @@ class Cacti(Check):
                     metrics.extend(
                         self._read_rrd(rrd['rrd_path'], rrd['host_name'], rrd['device_name'])
                     )
+
+                self._add_stat('cacti.metrics.count', len(metrics), agentConfig)
+
+                # Add the Cacti stats to the payload
+                metrics.extend(self.stats)
+
                 return metrics
             else:
                 return False
