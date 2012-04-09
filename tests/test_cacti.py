@@ -11,7 +11,8 @@ class TestCacti(unittest.TestCase):
             'cacti_mysql_server': 'localhost',
             'cacti_mysql_user': 'root',
             'cacti_mysql_pass': '',
-            'cacti_rrd_path': os.path.join(os.path.dirname(__file__), "cacti")
+            'cacti_rrd_path': os.path.join(os.path.dirname(__file__), "cacti"),
+            'cacti_rrd_whitelist': os.path.join(os.path.dirname(__file__), "cacti", "whitelist.txt")
         }
 
     def testChecks(self):
@@ -26,13 +27,13 @@ class TestCacti(unittest.TestCase):
         self.assertEquals(len(load1), 201)
         self.assertEquals(load1[5], 1.1195333333333335)
 
-        disk_free = [m[2] for m in results1 if m[0] == 'system.disk.free' and m[2]]
-        self.assertEquals(len(disk_free), 406)
-        self.assertEquals(min(disk_free), 86863.0)
+        # Should not have any - not included in the whitelist
+        current_users = [m[2] for m in results1 if m[0] == 'system.users.current' and m[2]]
+        self.assertEquals(len(current_users), 0)
 
         disk_used = [m for m in results1 if m[0] == 'system.disk.used' and m[2]]
         self.assertEquals(max([m[2] for m in disk_used]), 157843297.06666666)
-        self.assertEquals(disk_used[5][4], '/dev/mapper/dogdev0-root')
+        self.assertEquals(disk_used[5][3]['device_name'], '/dev/mapper/dogdev0-root')
 
 if __name__ == '__main__':
     unittest.main()

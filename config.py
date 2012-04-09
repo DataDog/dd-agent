@@ -272,6 +272,8 @@ def get_config(parse_args = True, cfg_path=None):
             agentConfig['cacti_mysql_pass'] = config.get('Main', 'cacti_mysql_pass')
         if config.has_option('Main', 'cacti_rrd_path'):
             agentConfig['cacti_rrd_path'] = config.get('Main', 'cacti_rrd_path')
+        if config.has_option('Main', 'cacti_rrd_whitelist'):
+            agentConfig['cacti_rrd_whitelist'] = config.get('Main', 'cacti_rrd_whitelist')
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')

@@ -1,8 +1,7 @@
 from collections import defaultdict
 from checks import Check, gethostname
-import subprocess, os
-import sys
-import re
+from fnmatch import fnmatch
+import os
 import rrdtool
 
 class Cacti(Check):
@@ -33,8 +32,15 @@ class Cacti(Check):
         self.logger = logger
         self.last_ts = {}
 
-    def _fetch_rrd_meta(self, agentConfig):
+    def _fetch_rrd_meta(self, agentConfig, whitelist):
         ''' Return a list of list of dicts with host_name, host_desc, device_name, and rrd_path '''
+        def _in_whitelist(rrd):
+            path = rrd.replace('<path_rra>/','')
+            for p in whitelist:
+                if fnmatch(path, p):
+                    return True
+            return False
+
         c = self.db.cursor()
         c.execute("""
                 SELECT
@@ -49,9 +55,10 @@ class Cacti(Check):
             """)
         res = []
         for host_name, device_name, rrd_path in c.fetchall():
-            if host_name in ('localhost', '127.0.0.1'):
-                host_name = gethostname(agentConfig)
-            res.append({
+            if not whitelist or _in_whitelist(rrd_path):
+                if host_name in ('localhost', '127.0.0.1'):
+                    host_name = gethostname(agentConfig)
+                res.append({
                     'host_name': host_name,
                     'device_name': device_name or None,
                     'rrd_path': rrd_path.replace('<path_rra>', self.rrd_path)
@@ -139,9 +146,22 @@ class Cacti(Check):
                     self.logger.exception("Cannot import rrdtool")
                     return False
 
+                # Get whitelist patterns, if available
+                patterns = []
+                whitelist = agentConfig.get('cacti_rrd_whitelist', None)
+                if whitelist:
+                    if not os.path.isfile(whitelist) or not os.access(whitelist, os.R_OK):
+                        # Don't run the check if the whitelist is unavailable
+                        self.logger.exception("Unable to read whitelist file at %s" % (whitelist))
+                        return False
+
+                    with open(whitelist) as wl:
+                        for line in wl:
+                            patterns.append(line.strip())
+
                 # Fetch RRD metadata
                 self.rrd_path = agentConfig['cacti_rrd_path']
-                rrd_meta = self._fetch_rrd_meta(agentConfig)
+                rrd_meta = self._fetch_rrd_meta(agentConfig, patterns)
 
                 metrics = []
                 for rrd in rrd_meta:
