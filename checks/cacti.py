@@ -104,7 +104,7 @@ class Cacti(Check):
                     ts = start_ts + (i * interval)
 
                     # Add the metric to our list
-                    metrics.append((m_name, ts, p[k], host_name, device_name))
+                    metrics.append((m_name, ts, p[k], {'host_name': host_name, 'device_name': device_name}))
 
             # Update the last timestamp
             self.last_ts[rrd_path] = end_ts
@@ -115,7 +115,6 @@ class Cacti(Check):
             self.logger.debug("Cacti check start")
             if  'cacti_mysql_server' in agentConfig \
                 and 'cacti_mysql_user' in agentConfig \
-                and 'cacti_mysql_pass' in agentConfig \
                 and 'cacti_rrd_path' in agentConfig \
                 and agentConfig['cacti_mysql_server'] != '' \
                 and agentConfig['cacti_mysql_user'] != '' \
@@ -125,7 +124,7 @@ class Cacti(Check):
                 try:
                     import MySQLdb
                     self.db = MySQLdb.connect(agentConfig['cacti_mysql_server'], agentConfig['cacti_mysql_user'], 
-                            agentConfig['cacti_mysql_pass'], db="cacti")
+                            agentConfig.get('cacti_mysql_pass', ''), db="cacti")
                 except ImportError, e:
                     self.logger.exception("Cannot import MySQLdb")
                     return False

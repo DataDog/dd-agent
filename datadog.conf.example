@@ -261,4 +261,10 @@ use_mount: no
 #     metric timestamp value key0=val0 key1=val1 ...
 #
 
-
+# -------------------------------------------------------------------------- #
+#  Cacti
+# -------------------------------------------------------------------------- #
+#cacti_mysql_server: localhost
+#cacti_mysql_user: dd-agent
+#cacti_mysql_pass: agent
+#cacti_rrd_path: /var/lib/cacti/rra
