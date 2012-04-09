@@ -38,6 +38,7 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
+from checks.cacti import Cacti
 
 from resources.processes import Processes as ResProcesses
 

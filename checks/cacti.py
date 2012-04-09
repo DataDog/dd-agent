@@ -130,7 +130,6 @@ class Cacti(Check):
                     self.logger.exception("Cannot import MySQLdb")
                     return False
                 except MySQLdb.OperationalError:
-                    raise
                     self.logger.exception('MySQL connection error')
                     return False
                 self.logger.debug("Connected to MySQL to fetch Cacti metadata")
@@ -155,6 +154,5 @@ class Cacti(Check):
                 return False
 
         except:
-            raise
             self.logger.exception("Cannot check Cacti")
             return False
