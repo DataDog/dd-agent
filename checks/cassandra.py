@@ -17,9 +17,9 @@ class Cassandra(object):
     UNITS_FACTOR = {
          'bytes': 1,
          'KB': 1024,
-         'MB': 1024*1024,
-         'GB': 1024*1024*1024,
-         'TB': 1024*1024*1204 }
+         'MB': 1024**2,
+         'GB': 1024**3,
+         'TB': 1024**4 }
 
 
     @staticmethod
