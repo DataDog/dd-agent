@@ -38,6 +38,7 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
+from checks.cacti import Cacti
 
 from resources.processes import Processes as ResProcesses
 
@@ -101,6 +102,7 @@ class checks:
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
+        self._metrics_checks = [Cacti(self.checksLogger)]
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
     
@@ -377,6 +379,12 @@ class checks:
                         'host': checksData['internalHostname'],
                     }
 
+        metrics = []
+        for metrics_check in self._metrics_checks:
+            res = metrics_check.check(self.agentConfig)
+            if res:
+                metrics.extend(res)
+        checksData['metrics'] = metrics
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
