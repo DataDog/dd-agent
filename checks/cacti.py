@@ -2,7 +2,6 @@ from collections import defaultdict
 from checks import Check, gethostname
 from fnmatch import fnmatch
 import os
-import rrdtool
 import time
 
 class Cacti(Check):
@@ -93,8 +92,10 @@ class Cacti(Check):
         except KeyError:
             return "cacti.%s.%s" % (m_name.lower(), aggr)
 
-    def _consolidation_funcs(self, rrd_path):
+    def _consolidation_funcs(self, rrd_path, rrdtool):
         ''' Determine the available consolidation functions for this rrd '''
+        import rrdtool
+
         info = rrdtool.info(rrd_path)
         funcs = []
         for k,v in info.items():
@@ -103,8 +104,10 @@ class Cacti(Check):
         return funcs
 
     def _read_rrd(self, rrd_path, host_name, device_name):
+        import rrdtool
+
         metrics = []
-        c_funcs = self._consolidation_funcs(rrd_path)
+        c_funcs = self._consolidation_funcs(rrd_path, rrdtool)
         start = self.last_ts.get(rrd_path, 0)
 
         for c in c_funcs:
@@ -155,7 +158,7 @@ class Cacti(Check):
 
                 try:
                     import rrdtool
-                except:
+                except ImportError:
                     self.logger.exception("Cannot import rrdtool")
                     return False
 
