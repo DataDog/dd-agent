@@ -25,7 +25,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.8"
+    return "2.2.9"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -263,7 +263,18 @@ def get_config(parse_args = True, cfg_path=None):
         
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagiosPerfCfg"] = config.get("Main", "nagios_perf_cfg")
-        
+
+        if config.has_option('Main', 'cacti_mysql_server'):
+            agentConfig['cacti_mysql_server'] = config.get('Main', 'cacti_mysql_server')
+        if config.has_option('Main', 'cacti_mysql_user'):
+            agentConfig['cacti_mysql_user'] = config.get('Main', 'cacti_mysql_user')
+        if config.has_option('Main', 'cacti_mysql_pass'):
+            agentConfig['cacti_mysql_pass'] = config.get('Main', 'cacti_mysql_pass')
+        if config.has_option('Main', 'cacti_rrd_path'):
+            agentConfig['cacti_rrd_path'] = config.get('Main', 'cacti_rrd_path')
+        if config.has_option('Main', 'cacti_rrd_whitelist'):
+            agentConfig['cacti_rrd_whitelist'] = config.get('Main', 'cacti_rrd_whitelist')
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

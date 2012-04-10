@@ -38,6 +38,7 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
+from checks.cacti import Cacti
 
 from resources.processes import Processes as ResProcesses
 
@@ -68,18 +69,6 @@ class checks:
         self.plugins = None
         self.emitter = emitter
         self.last_post_ts = None
-        
-        macV = None
-        if sys.platform == 'darwin':
-            macV = platform.mac_ver()
-            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
-        
-        # Output from top is slightly modified on OS X 10.6 (case #28239) and greater
-        if macV and (macV_minor_version >= 6):
-            self.topIndex = 6
-        else:
-            self.topIndex = 5
-    
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
@@ -92,8 +81,8 @@ class checks:
         self._nginx = Nginx(self.checksLogger)
         self._disk = Disk()
         self._io = IO()
-        self._load = Load(self.linuxProcFsLocation)
-        self._memory = Memory(self.linuxProcFsLocation, self.topIndex)
+        self._load = Load(self.checksLogger)
+        self._memory = Memory(self.checksLogger)
         self._network = Network()
         self._processes = Processes()
         self._cpu = Cpu()
@@ -113,6 +102,7 @@ class checks:
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
+        self._metrics_checks = [Cacti(self.checksLogger)]
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
     
@@ -145,11 +135,11 @@ class checks:
             
     @recordsize
     def getLoadAvrgs(self):
-        return self._load.check(self.checksLogger, self.agentConfig)
+        return self._load.check(self.agentConfig)
 
     @recordsize 
     def getMemoryUsage(self):
-        return self._memory.check(self.checksLogger, self.agentConfig)
+        return self._memory.check(self.agentConfig)
         
     @recordsize     
     def getMongoDBStatus(self):
@@ -261,11 +251,15 @@ class checks:
             'loadAvrg1' : loadAvrgs['1'], 
             'loadAvrg5' : loadAvrgs['5'], 
             'loadAvrg15' : loadAvrgs['15'], 
-            'memPhysUsed' : memory['physUsed'], 
-            'memPhysFree' : memory['physFree'], 
-            'memSwapUsed' : memory['swapUsed'], 
-            'memSwapFree' : memory['swapFree'], 
-            'memCached' : memory['cached'], 
+            'memPhysUsed' : memory.get('physUsed'), 
+            'memPhysFree' : memory.get('physFree'), 
+            'memPhysTotal' : memory.get('physTotal'), 
+            'memPhysUsable' : memory.get('physUsable'), 
+            'memSwapUsed' : memory.get('swapUsed'), 
+            'memSwapFree' : memory.get('swapFree'), 
+            'memSwapTotal' : memory.get('swapTotal'), 
+            'memCached' : memory.get('physCached'), 
+            'memBuffers': memory.get('physBuffers'),
             'networkTraffic' : networkTraffic, 
             'processes' : processes,
             'apiKey': self.agentConfig['apiKey'],
@@ -385,6 +379,12 @@ class checks:
                         'host': checksData['internalHostname'],
                     }
 
+        metrics = []
+        for metrics_check in self._metrics_checks:
+            res = metrics_check.check(self.agentConfig)
+            if res:
+                metrics.extend(res)
+        checksData['metrics'] = metrics
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
