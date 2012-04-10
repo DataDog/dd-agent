@@ -4,7 +4,6 @@ logging.basicConfig()
 logger = logging.getLogger()
 
 from checks.web import *
-import urllib2
 
 class TestWeb(unittest.TestCase):
 
