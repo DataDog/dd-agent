@@ -25,7 +25,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.8"
+    return "2.2.9"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
