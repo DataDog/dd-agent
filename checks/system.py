@@ -186,7 +186,7 @@ class Load(Check):
                 uptime = loadAvrgProc.readlines()
                 loadAvrgProc.close()
             except:
-                logger.exception('getLoadAvrgs')
+                self.logger.exception('getLoadAvrgs')
                 return False
             
             uptime = uptime[0] # readlines() provides a list but we want a string
@@ -196,7 +196,7 @@ class Load(Check):
             try:
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
             except:
-                logger.exception('getLoadAvrgs')
+                self.logger.exception('getLoadAvrgs')
                 return False
                 
         # Split out the 3 load average values
