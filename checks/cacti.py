@@ -1,4 +1,3 @@
-from collections import defaultdict
 from checks import Check, gethostname
 from fnmatch import fnmatch
 import os
@@ -133,7 +132,7 @@ class Cacti(Check):
             self.last_ts[rrd_path] = end_ts
             return metrics
 
-    def check(self, agentConfig):
+
         try:
             self.logger.debug("Cacti check start")
             if  'cacti_mysql_server' in agentConfig \
@@ -174,9 +173,16 @@ class Cacti(Check):
                         self.logger.exception("Unable to read whitelist file at %s" % (whitelist))
                         return False
 
-                    with open(whitelist) as wl:
+                    wl = None
+                    try:
+                        wl = open(whitelist)
                         for line in wl:
                             patterns.append(line.strip())
+                        wl.close()
+                    except:
+                        self.logger.exception("Cannot open whitelist file")
+                        return False
+                        
 
                 # Fetch RRD metadata
                 self.rrd_path = agentConfig['cacti_rrd_path']
