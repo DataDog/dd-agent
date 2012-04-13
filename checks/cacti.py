@@ -133,6 +133,8 @@ class Cacti(Check):
             return metrics
 
 
+    def check(self, agentConfig):
+        "Check entry point"
         try:
             self.logger.debug("Cacti check start")
             if  'cacti_mysql_server' in agentConfig \
