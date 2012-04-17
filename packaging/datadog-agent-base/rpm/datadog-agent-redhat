@@ -26,6 +26,7 @@ AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
+SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 
 if [ -x "/usr/bin/python2.6" ]; then
     PYTHON="/usr/bin/python2.6"
@@ -42,8 +43,14 @@ LOCKFILE=/var/lock/subsys/$PROG
 
 check_status() {
     # run checks to determine if the service is running or use generic status
-    if [ -f "$LOCKFILE" ]
-        then
+    if [ -f $USE_SUPERVISOR ]; then
+	p=`supervisorctl -c $SUPERVISOR_CONF status | grep RUNNING | wc -l`
+	if [ $p -eq 2 ]; then
+            echo 'Datadog agent is running'
+    	else
+            echo 'Datadog agent is not running'
+	fi  
+    elif [ -f $LOCKFILE ]; then
             echo 'Datadog agent is running'
     else
             echo 'Datadog agent is not running'
@@ -62,7 +69,7 @@ grab_status() {
 start() {
     if [ -f $USE_SUPERVISOR ]; then
         echo -n "Starting Datadog agent (using supervisorctl):"
-        daemon --pidfile=/var/run/datadog-supervisord.pid supervisord -c /etc/dd-agent/supervisor.conf
+        daemon --pidfile=/var/run/datadog-supervisord.pid supervisord -c $SUPERVISOR_CONF
         echo
         return 0
     else
