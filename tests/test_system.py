@@ -97,8 +97,10 @@ none                  985964       1  985963    1% /lib/init/rw
         global logger
         res = Memory(logger).check({})
         if sys.platform == 'linux2':
-            for k in ("swapTotal", "swapFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable"):
+            for k in ("swapTotal", "swapFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable", "physShared"):
                 assert k in res, res
+            assert res["swapTotal"] == res["swapFree"] + res["swapUsed"]
+            assert res["physTotal"] == res["physFree"] + res["physBuffers"] + res["physCached"] + res["physShared"] + res["physUsed"]
         elif sys.platform == 'darwin':
             for k in ("swapFree", "swapUsed", "physFree", "physUsed"):
                 assert k in res, res

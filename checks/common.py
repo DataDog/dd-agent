@@ -260,6 +260,7 @@ class checks:
             'memSwapTotal' : memory.get('swapTotal'), 
             'memCached' : memory.get('physCached'), 
             'memBuffers': memory.get('physBuffers'),
+            'memShared': memory.get('physShared'),
             'networkTraffic' : networkTraffic, 
             'processes' : processes,
             'apiKey': self.agentConfig['apiKey'],
