@@ -130,9 +130,15 @@ class Check(object):
             interval = sample2[0] - sample1[0]
             if interval == 0:
                 raise Infinity()
+ 
             delta = sample2[1] - sample1[1]
+            if delta < 0:
+                raise UnknownValue()
+
             return (sample2[0], delta / interval)
         except Infinity:
+            raise
+        except UnknownValue:
             raise
         except Exception, e:
             raise NaN(e)

@@ -42,17 +42,17 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.get_sample("test-counter"), 1.0)
         self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0))
         self.c.save_sample("test-counter", -2.0, 3.0)
-        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (3.0, -4.0))
+        self.assertRaises(UnknownValue, self.c.get_sample_with_timestamp, "test-counter")
 
     def test_samples(self):
         self.assertEquals(self.c.get_samples(), {})
         self.c.save_sample("test-metric", 1.0, 0.0)  # value, ts
         self.c.save_sample("test-counter", 1.0, 1.0) # value, ts
-        self.c.save_sample("test-counter", 0.0, 2.0) # value, ts
+        self.c.save_sample("test-counter", 4.0, 2.0) # value, ts
         assert "test-metric"  in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
         self.assertEquals(self.c.get_samples_with_timestamps()["test-metric"], (0.0, 1.0))
         assert "test-counter" in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
-        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, -1.0))
+        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, 3.0))
 
 if __name__ == '__main__':
     unittest.main()
