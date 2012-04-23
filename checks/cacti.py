@@ -3,6 +3,8 @@ from fnmatch import fnmatch
 import os
 import time
 
+class RRDReadException(Exception): pass
+
 class Cacti(Check):
     CFUNC_TO_AGGR = {
         'AVERAGE': 'avg',
@@ -95,7 +97,12 @@ class Cacti(Check):
         ''' Determine the available consolidation functions for this rrd '''
         import rrdtool
 
-        info = rrdtool.info(rrd_path)
+        try:
+            info = rrdtool.info(rrd_path)
+        except:
+            self.logger.warn("Unable to read RRD file at %s" % (rrd_path))
+            raise RRDReadException(rrdpath)
+
         funcs = []
         for k,v in info.items():
             if k.endswith('.cf'):
@@ -106,7 +113,12 @@ class Cacti(Check):
         import rrdtool
 
         metrics = []
-        c_funcs = self._consolidation_funcs(rrd_path, rrdtool)
+        try:
+            c_funcs = self._consolidation_funcs(rrd_path, rrdtool)
+        except RRDReadException:
+            # Unable to read RRD file, ignore it by returning an empty list
+            return []
+
         start = self.last_ts.get(rrd_path, 0)
 
         for c in c_funcs:
