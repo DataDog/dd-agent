@@ -101,7 +101,7 @@ class Cacti(Check):
             info = rrdtool.info(rrd_path)
         except:
             self.logger.warn("Unable to read RRD file at %s" % (rrd_path))
-            raise RRDReadException()
+            raise RRDReadException(rrdpath)
 
         funcs = []
         for k,v in info.items():
