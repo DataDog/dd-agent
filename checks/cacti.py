@@ -119,9 +119,10 @@ class Cacti(Check):
             # Unable to read RRD file, ignore it by returning an empty list
             return []
 
-        start = self.last_ts.get(rrd_path, 0)
-
         for c in c_funcs:
+            start = self.last_ts.get('%s.%s' % (rrd_path, c), 0)
+            last_ts = start
+
             try:
                 fetched = rrdtool.fetch(rrd_path, c, '--start', str(start))
             except rrdtool.error:
@@ -137,12 +138,15 @@ class Cacti(Check):
                 for i, p in enumerate(points):
                     ts = start_ts + (i * interval)
 
-                    # Add the metric to our list
-                    metrics.append((m_name, ts, p[k], {'host_name': host_name, 'device_name': device_name}))
+                    if p[k] is not None:
+                        # Add the metric to our list if it's not None
+                        metrics.append((m_name, ts, p[k], {'host_name': host_name, 'device_name': device_name}))
+                        last_ts = (ts + interval)
 
-            # Update the last timestamp
-            self.last_ts[rrd_path] = end_ts
-            return metrics
+            # Update the last timestamp based on the last valid metric
+            self.last_ts['%s.%s' % (rrd_path, c)] = last_ts
+
+        return metrics
 
 
     def check(self, agentConfig):
@@ -196,7 +200,6 @@ class Cacti(Check):
                     except:
                         self.logger.exception("Cannot open whitelist file")
                         return False
-                        
 
                 # Fetch RRD metadata
                 self.rrd_path = agentConfig['cacti_rrd_path']
