@@ -19,7 +19,7 @@ class Cacti(Check):
         'load_1min': 'system.load.1',
         'load_5min': 'system.load.5',
         'load_15min': 'system.load.15',
-        'mem_buffers': 'system.mem.buffers',
+        'mem_buffers': 'system.mem.buffered',
         'proc': 'system.proc.running',
         'users': 'system.users.current',
         'mem_swap': 'system.swap.free',
