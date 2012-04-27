@@ -33,12 +33,15 @@ def http_emitter(message, logger, agentConfig):
         logger.debug('http_emitter: attempting postback: ' + agentConfig['ddUrl'])
         
         # Build the request handler
-        request = urllib2.Request(agentConfig['ddUrl'] + '/intake/', postBackData, headers(agentConfig))
-        
-        # Do the request, log any errors
-        response = urllib2.urlopen(request)
-        
-        logger.debug('http_emitter: postback response: ' + str(response.read()))
+        apiKey = message.get('apiKey', None)
+        if apiKey:
+            request = urllib2.Request("%s/intake?api_key=%s" % (agentConfig['ddUrl'], apiKey), postBackData, headers(agentConfig))
+            # Do the request, log any errors
+            response = urllib2.urlopen(request)
+            
+            logger.debug('http_emitter: postback response: ' + str(response.read()))
+        else:
+            logger.error("No api key, not sending payload")
             
     except urllib2.HTTPError, e:
         logger.error('http_emitter: HTTPError = ' + str(e))
