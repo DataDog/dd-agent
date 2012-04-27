@@ -109,6 +109,13 @@ class Cacti(Check):
                 funcs.append(v)
         return funcs
 
+    def _transform_metric(self, m_name, val):
+        # Report memory in MB
+        if m_name[0:11] in ('system.mem.', 'system.disk'):
+            return val / 1024
+
+        return val
+
     def _read_rrd(self, rrd_path, host_name, device_name):
         import rrdtool
 
@@ -140,7 +147,8 @@ class Cacti(Check):
 
                     if p[k] is not None:
                         # Add the metric to our list if it's not None
-                        metrics.append((m_name, ts, p[k], {'host_name': host_name, 'device_name': device_name}))
+                        val = self._transform_metric(m_name, p[k])
+                        metrics.append((m_name, ts, val, {'host_name': host_name, 'device_name': device_name}))
                         last_ts = (ts + interval)
 
             # Update the last timestamp based on the last valid metric
