@@ -286,11 +286,12 @@ class Memory(Check):
             # Physical memory
             # FIXME units are in MB, we should use bytes instead
             try:
-                memData['physTotal'] = int(meminfo['MemTotal']) / 1024
-                memData['physFree'] = int(meminfo['MemFree']) / 1024
-                memData['physBuffers'] = int(meminfo['Buffers']) / 1024
-                memData['physCached'] = int(meminfo['Cached']) / 1024
-                memData['physShared'] = int(meminfo['Shmem']) / 1024
+                memData['physTotal'] = int(meminfo.get('MemTotal', 0)) / 1024
+                memData['physFree'] = int(meminfo.get('MemFree', 0)) / 1024
+                memData['physBuffers'] = int(meminfo.get('Buffers', 0)) / 1024
+                memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
+                memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
+
                 memData['physUsed'] = memData['physTotal'] - memData['physFree'] - memData['physBuffers'] - memData['physCached'] - memData['physShared']
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
@@ -300,8 +301,9 @@ class Memory(Check):
             # Swap
             # FIXME units are in MB, we should use bytes instead
             try:
-                memData['swapTotal'] = int(meminfo['SwapTotal']) / 1024
-                memData['swapFree']  = int(meminfo['SwapFree']) / 1024
+                memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
+                memData['swapFree']  = int(meminfo.get('SwapFree', 0)) / 1024
+
                 memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
             except:
                 self.logger.exception('Cannot compute swap stats')
