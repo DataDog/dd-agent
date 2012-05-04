@@ -56,15 +56,15 @@ class TestCacti(unittest.TestCase):
         self.assertEquals(results2[2][0], 'cacti.metrics.count')
         self.assertEquals(results2[2][2], 0)
         load1 = [m[2] for m in results1 if m[0] == 'system.load.1' and m[2]]
-        self.assertEquals(len(load1), 235)
-        self.assertEquals(load1[5], 6.6666666666999994e-05)
+        self.assertEquals(len(load1), 253)
+        self.assertEquals(load1[5], 0.17943333333)
 
         # Should not have any - not included in the whitelist
         current_users = [m[2] for m in results1 if m[0] == 'system.users.current' and m[2]]
         self.assertEquals(len(current_users), 0)
 
         disk_used = [m for m in results1 if m[0] == 'system.disk.used' and m[2]]
-        self.assertEquals(max([m[2] for m in disk_used]), 147359554.63999999)
+        self.assertEquals(max([m[2] for m in disk_used]), 144814.03333007812)
         self.assertEquals(disk_used[5][3]['device_name'], '/dev/mapper/dogdev0-root')
 
         # Make sure no None values are picked up
