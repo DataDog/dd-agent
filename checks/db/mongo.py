@@ -1,4 +1,9 @@
+import re
 import types
+
+# Not the full spec for mongo URIs
+# http://www.mongodb.org/display/DOCS/Connections
+mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
 
 from checks import *
 
@@ -51,7 +56,9 @@ class MongoDb(Check):
         try:
             from pymongo import Connection
 
-            dbName = 'local'
+            # Configuration a URL, mongodb://user:pass@server/db
+            dbName = mongo_uri_re.match(agentConfig['MongoDBServer']).group(1)
+
             conn = Connection(agentConfig['MongoDBServer'])
             db = conn[dbName]
 
