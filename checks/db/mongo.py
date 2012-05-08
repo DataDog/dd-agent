@@ -1,3 +1,4 @@
+import re
 import types
 
 from checks import *
@@ -49,9 +50,11 @@ class MongoDb(Check):
             return False
 
         try:
-            from pymongo import Connection
+            from pymongo import Connection, uri_parser
 
-            dbName = 'local'
+            # Configuration a URL, mongodb://user:pass@server/db
+            dbName = uri_parser.parse_uri(agentConfig['MongoDBServer']).get('database', 'test')
+
             conn = Connection(agentConfig['MongoDBServer'])
             db = conn[dbName]
 
