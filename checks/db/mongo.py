@@ -1,10 +1,6 @@
 import re
 import types
 
-# Not the full spec for mongo URIs
-# http://www.mongodb.org/display/DOCS/Connections
-mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
-
 from checks import *
 
 class MongoDb(Check):
@@ -54,10 +50,10 @@ class MongoDb(Check):
             return False
 
         try:
-            from pymongo import Connection
+            from pymongo import Connection, uri_parser
 
             # Configuration a URL, mongodb://user:pass@server/db
-            dbName = mongo_uri_re.match(agentConfig['MongoDBServer']).group(1)
+            dbName = uri_parser.parse_uri(agentConfig['MongoDBServer']).get('database', 'test')
 
             conn = Connection(agentConfig['MongoDBServer'])
             db = conn[dbName]
