@@ -40,6 +40,8 @@ from checks.datadog import Dogstreams, DdForwarder
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.cacti import Cacti
 
+from checks.ec2 import EC2
+
 from resources.processes import Processes as ResProcesses
 
 def getUuid():
@@ -75,8 +77,6 @@ class checks:
         # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
         socket.setdefaulttimeout(15)
         
-        self.linuxProcFsLocation = self.getMountedLinuxProcFsLocation()
-        
         self._apache = Apache(self.checksLogger)
         self._nginx = Nginx(self.checksLogger)
         self._disk = Disk()
@@ -105,8 +105,9 @@ class checks:
         self._metrics_checks = [Cacti(self.checksLogger)]
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
-    
 
+        self._ec2 = EC2(self.checksLogger)
+    
     def updateLastPostTs(self):
         """Simple accessor to make it obvious that it is meant to work with late()
         """
@@ -350,6 +351,7 @@ class checks:
        # Include system stats on first postback
         if firstRun:
             checksData['systemStats'] = systemStats
+            # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
@@ -359,6 +361,9 @@ class checks:
                                                'event_type':'Agent Startup',
                                                'msg_text': 'Version %s' % get_version()
                                             }]
+
+            # Collect metadata
+            checksData['meta'] = self._ec2.get_metadata()
        
         # Resources checks
         has_resource = False
@@ -392,15 +397,3 @@ class checks:
         self.emitter(checksData, self.checksLogger, self.agentConfig)
         self.updateLastPostTs()
         self.checksLogger.info("Checks done")
-        
-    def getMountedLinuxProcFsLocation(self):
-        # Lets check if the Linux like style procfs is mounted
-        mountedPartitions = subprocess.Popen(['mount'], stdout = subprocess.PIPE, close_fds = True).communicate()[0]
-        location = re.search(r'linprocfs on (.*?) \(.*?\)', mountedPartitions)
-        
-        # Linux like procfs file system is not mounted so we return False, else we return mount point location
-        if location == None:
-            return False
-
-        location = location.group(1)
-        return location
