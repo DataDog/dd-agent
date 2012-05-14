@@ -189,6 +189,12 @@ class Check(object):
                 pass
         return values
 
+    def get_metadata(self):
+        """Return a dictionary of key-value pairs with metadata
+        How these metadata are interpreted and processed is not defined here
+        """
+        return {}
+
 def gethostname(agentConfig):
     if agentConfig.has_key("hostname") and agentConfig['hostname'] is not None:
         return agentConfig['hostname']
