@@ -1,4 +1,5 @@
 """EC2 metadata and metrics"""
+import socket
 import types
 import urllib2
 
@@ -26,11 +27,28 @@ class EC2(Check):
         metadata = {}
 
         # Every call may add TIMEOUT seconds in latency so don't abuse this call
+        # python 2.4 does not support an explicit timeout argument so force it here
+        # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(self.TIMEOUT)
+        except:
+            pass
+
         for k in ('instance-id', 'hostname', 'ami-id', 'local-ipv4', 'public-keys', 'reservation-id', 'security-groups'):
             try:
-                v = urllib2.urlopen(self.URL + "/" + unicode(k), timeout=self.TIMEOUT).read().strip()
+                v = urllib2.urlopen(self.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 metadata[k] = v
             except:
                 self.logger.exception("(Ignore if !ec2) Cannot extract EC2 metadata %s" % k)
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except:
+            pass
+
         return metadata
