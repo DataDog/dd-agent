@@ -99,7 +99,8 @@ class Dogstream(object):
         if parser_spec:
             try:
                 module_name, func_name = parser_spec.split(':')
-                parse_func = getattr(__import__(module_name), func_name, 
+                __import__(module_name)
+                parse_func = getattr(sys.modules[module_name], func_name, 
                     None)
             except:
                 logger.exception(traceback.format_exc())
