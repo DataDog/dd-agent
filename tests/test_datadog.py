@@ -1,9 +1,11 @@
 import logging
 import sys
+import time
 import unittest
 from tempfile import NamedTemporaryFile
+import re
 
-from checks.datadog import Dogstreams, point_sorter
+from checks.datadog import Dogstreams, EventDefaults, point_sorter
 
 log = logging.getLogger('datadog.test')
 
@@ -18,6 +20,39 @@ def parse_stateful(logger, line, state):
     res[2] = acc
     res[3] = {'metric_type': 'counter'}
     return tuple(res)
+
+
+from datetime import datetime
+import calendar
+
+log_event_pattern = re.compile("".join([
+    r"(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ", # iso timestamp
+    r"\[(?P<alert_type>(ERROR)|(RECOVERY))\] - ", # alert type
+    r"(?P<msg_title>(?P<host>[^ ]*).*)"
+]))
+alert_types = {
+    "ERROR": "error",
+    "RECOVERY": "success"
+}
+def parse_events(logger, line):
+    """ Expecting lines like this: 
+        2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)
+    """
+    match = log_event_pattern.match(line)
+    if match:
+        groups = match.groupdict()
+        groups.update({
+            'alert_type': alert_types.get(groups['alert_type'], ''),
+            'timestamp':  calendar.timegm(datetime.strptime(groups['timestamp'], '%Y-%m-%d %H:%M:%S').timetuple()),
+            'msg_text': line
+            })
+
+        return groups
+    else:
+        return None
+
+def repr_event_parser(logger, line):
+    return eval(line)
 
 class TailTestCase(unittest.TestCase):
     def setUp(self):
@@ -135,6 +170,97 @@ class TestDogstream(TailTestCase):
         statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:parse_stateful' % self.log_file.name})
         actual_output = statedog.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
+
+    def test_dogstream_events(self):
+        log_data = [
+            '2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)',
+            '2012-05-14 12:48:07 [ERROR] - host1 is down (got a bloody nose)',
+            '2012-05-14 12:52:03 [RECOVERY] - host0 is up (collarbone healed)',
+            '2012-05-14 12:59:09 [RECOVERY] - host1 is up (nose stopped bleeding)',
+        ]
+        expected_output = {
+            "dogstreamEvents": [
+                {
+                    "timestamp": 1336999561,
+                    "alert_type": "error",
+                    "host": "host0",
+                    "msg_title": "host0 is down (broke its collarbone)",
+                    "msg_text": "2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+                {
+                    "timestamp": 1336999687,
+                    "alert_type": "error",
+                    "host": "host1",
+                    "msg_title": "host1 is down (got a bloody nose)",
+                    "msg_text": "2012-05-14 12:48:07 [ERROR] - host1 is down (got a bloody nose)",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+                {
+                    "timestamp": 1336999923,
+                    "alert_type": "success",
+                    "host": "host0",
+                    "msg_title": "host0 is up (collarbone healed)",
+                    "msg_text": "2012-05-14 12:52:03 [RECOVERY] - host0 is up (collarbone healed)",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+                {
+                    "timestamp": 1337000349,
+                    "alert_type": "success",
+                    "host": "host1",
+                    "msg_title": "host1 is up (nose stopped bleeding)",
+                    "msg_text": "2012-05-14 12:59:09 [RECOVERY] - host1 is up (nose stopped bleeding)",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+            ]
+        }
+
+        self._write_log(log_data)
+
+        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:parse_events' % self.log_file.name})
+        actual_output = dogstream.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
+    def test_dogstream_events_validation(self):
+        log_data = [
+            {"msg_title": "title", "timestamp": 1336999561},
+            {"msg_text": "body", "timestamp": 1336999561},
+            {"none of the above": "should get filtered out", "timestamp": 1336999561},
+        ]
+
+        expected_output = {
+            "dogstreamEvents": [
+                {
+                    "timestamp": 1336999561,
+                    "msg_title": "title",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+                {
+                    "timestamp": 1336999561,
+                    "msg_text": "body",
+                    "event_type": EventDefaults.EVENT_TYPE,
+                    "event_object": EventDefaults.EVENT_OBJECT,
+                },
+
+            ]
+        }
+
+        self._write_log([repr(d) for d in log_data])
+
+        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:repr_event_parser' % self.log_file.name})
+        actual_output = dogstream.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
 
 class TestNagiosPerfData(TailTestCase):
     def setUp(self):
