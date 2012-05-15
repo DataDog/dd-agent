@@ -332,6 +332,14 @@ class checks:
             checksData['memcache'] = memcacheData
         
         if dogstreamData:
+            dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
+            if dogstreamEvents:
+                if 'dogstream' in checksData['events']:
+                    checksData['events']['dogstream'].extend(dogstreamEvents)
+                else:
+                    checksData['events']['dogstream'] = dogstreamEvents
+                del dogstreamData['dogstreamEvents']
+
             checksData.update(dogstreamData)
 
         if ddforwarderData:
