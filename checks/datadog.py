@@ -24,6 +24,10 @@ def point_sorter(p):
     # Sort and group by timestamp, metric name, host_name, device_name
     return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
 
+class EventDefaults(object):
+    EVENT_TYPE   = 'dogstream_event'
+    EVENT_OBJECT = 'dogstream_event:default'
+
 class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
@@ -95,7 +99,8 @@ class Dogstream(object):
         if parser_spec:
             try:
                 module_name, func_name = parser_spec.split(':')
-                parse_func = getattr(__import__(module_name), func_name, 
+                __import__(module_name)
+                parse_func = getattr(sys.modules[module_name], func_name, 
                     None)
             except:
                 logger.exception(traceback.format_exc())
@@ -127,6 +132,7 @@ class Dogstream(object):
         if self.log_path:
             self._freq = int(agentConfig.get('checkFreq', 15))
             self._values = []
+            self._events = []
         
             # Build our tail -f
             if self._gen is None:
@@ -140,7 +146,10 @@ class Dogstream(object):
                 self.logger.exception(e)
                 self.logger.warn("Can't tail {0} file".format(self.log_path))
             
-            return self._aggregate(self._values)
+            check_output = self._aggregate(self._values)
+            if self._events:
+                check_output.update({"dogstreamEvents": self._events})
+            return check_output
         else:
             return {}
 
@@ -162,12 +171,29 @@ class Dogstream(object):
             if parsed is None:
                 return
             
-            if isinstance(parsed, tuple):
+            if isinstance(parsed, (tuple, dict)):
                 parsed = [parsed]
-            
-            for metric_tuple in parsed:
+
+            for datum in parsed:
+                # Check if it's an event
+                if isinstance(datum, dict):
+                    # An event requires at least a title or a body
+                    if 'msg_title' not in datum and 'msg_text' not in datum:
+                        continue
+
+                    # Populate the default fields
+                    if 'event_type' not in datum:
+                        datum['event_type'] = EventDefaults.EVENT_TYPE
+                    if 'timestamp' not in datum:
+                        datum['timestamp'] = time.time()
+                    if 'event_object' not in datum:
+                        datum['event_object'] = EventDefaults.EVENT_OBJECT
+                    self._events.append(datum)
+                    continue
+
+                # Otherwise, assume it's a metric
                 try:
-                    metric, ts, value, attrs = metric_tuple
+                    metric, ts, value, attrs = datum
                 except:
                     continue
                 
@@ -188,7 +214,7 @@ class Dogstream(object):
 
                 if invalid_reasons:
                     self.logger.debug('Invalid parsed values %s (%s): "%s"', 
-                        repr(metric_tuple), ', '.join(invalid_reasons), line)
+                        repr(datum), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
         except:
