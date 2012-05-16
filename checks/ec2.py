@@ -8,13 +8,14 @@ from checks import Check
 class EC2(Check):
     """Retrieve EC2 metadata
     """
-    URL = "http://169.254.169.254/1.0/meta-data/"
+    URL = "http://169.254.169.254/latest/meta-data/"
     TIMEOUT = 0.1 # second
 
     def __init__(self, logger):
         Check.__init__(self, logger)
     
-    def get_metadata(self):
+    @staticmethod
+    def get_metadata():
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
         """
         # >>> import urllib2
@@ -42,7 +43,7 @@ class EC2(Check):
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 metadata[k] = v
             except:
-                self.logger.exception("(Ignore if !ec2) Cannot extract EC2 metadata %s" % k)
+                pass
 
         try:
             if socket_to is None:
@@ -52,3 +53,10 @@ class EC2(Check):
             pass
 
         return metadata
+
+    @staticmethod
+    def get_instance_id():
+        try:
+            return EC2.get_metadata().get("instance-id", None)
+        except:
+            return None

@@ -35,28 +35,13 @@ if int(sys.version_info[1]) <= 3:
     
 # Custom modules
 from checks.common import checks
+from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
-
-    EC2_URL = "http://169.254.169.254/latest/meta-data/instance-id"
-
-    @staticmethod
-    def get_ec2_instance_id():
-        """Fetch EC2 instance ID if possible. If not on EC2 returns None"""
-        try:
-            url = urllib.urlopen(agent.EC2_URL)
-            instanceId = url.read()
-            assert instanceId.startswith("i-"), "Malformed instance-id: %s" % instanceId
-            return instanceId
-
-        except Exception, e:
-            logging.getLogger('agent').exception('Cannot determine instance-id. Is this machine on EC2?')
-
-        return None
 
     def late(self, cks, threshold, crash=True):
         """Determine whether the agent run is late and optionally kill it if so.
@@ -84,12 +69,12 @@ class agent(Daemon):
         # Try to fetch instance Id from EC2 if not hostname has been set
         # in the config file
         if agentConfig.get('hostname') is None and agentConfig.get('useEC2InstanceId'):
-            instanceId = self.get_ec2_instance_id()
+            instanceId = EC2.get_instance_id()
             if instanceId is not None:
                 agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
                 agentConfig['hostname'] = instanceId
             else:
-                agentLogger.info('Not running on EC2')
+                agentLogger.info('Not running on EC2, using hostname to identify this server')
  
         emitter = http_emitter
 
@@ -125,7 +110,7 @@ def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.
     Also controls debugMode."""
     if agentConfig['debugMode']:
-        logFile = os.path.join(agentConfig['tmpDirectory'], 'dd-agent.log')
+        logFile = "/tmp/dd-agent.log"
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logging.info("Logging to %s" % logFile)
     else:
@@ -210,7 +195,7 @@ if __name__ == '__main__':
         if options.clean:
             cleanPidFile()
 
-        pidFile = getPidFile(command, agentConfig, options.clean)
+        pidFile = getPidFile()
         daemon = agent(pidFile)
     
         if 'start' == command:
