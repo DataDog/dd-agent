@@ -53,6 +53,10 @@ def parse_cassandra(log, line):
 
         # Process the log priority
         event['alert_type'] = ALERT_TYPES.get(event['priority'], "info")
+        if event['alert_type'] in ('error', 'warning'):
+            event['auto_priority'] = 1
+        else:
+            event['auto_priority'] = 0
         del event['priority']
 
         # Process the aggregation metadata
