@@ -39,7 +39,7 @@ class EC2(Check):
 
         for k in ('instance-id', 'hostname', 'ami-id', 'local-ipv4', 'public-keys', 'reservation-id', 'security-groups'):
             try:
-                v = urllib2.urlopen(self.URL + "/" + unicode(k)).read().strip()
+                v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 metadata[k] = v
             except:
