@@ -23,7 +23,7 @@ class TestWatchdog(unittest.TestCase):
         """
         start = time.time()
         try:
-            result = subprocess.check_output(["python", "test_watchdog.py", "busy"], stderr=subprocess.STDOUT)
+            result = subprocess.check_output(["python", "tests/test_watchdog.py", "busy"], stderr=subprocess.STDOUT)
             raise Exception("Should have died with an error")
         except subprocess.CalledProcessError:
             duration = int(time.time() - start)
@@ -32,8 +32,9 @@ class TestWatchdog(unittest.TestCase):
 
         # Start pseudo web server
         print "nc pid", subprocess.Popen(["nc", "-l", "31834"]).pid
+        start = time.time()
         try:
-            subprocess.check_call(["python", "test_watchdog.py", "net"])
+            subprocess.check_call(["python", "tests/test_watchdog.py", "net"])
             raise Exception("Should have died with an error")
         except subprocess.CalledProcessError:
             duration = int(time.time() - start)

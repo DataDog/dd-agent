@@ -65,9 +65,8 @@ def recordsize(func):
     return wrapper
 
 class checks:
-    def __init__(self, agentConfig, rawConfig, emitter):
+    def __init__(self, agentConfig, emitter):
         self.agentConfig = agentConfig
-        self.rawConfig = rawConfig
         self.plugins = None
         self.emitter = emitter
         self.last_post_ts = None

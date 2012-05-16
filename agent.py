@@ -19,6 +19,10 @@ import sys
 import time
 import urllib
 
+# Constants
+PID_DIR="/var/run/dd-agent"
+PID_FILE="dd-agent.pid"
+
 # Watchdog implementation
 from threading import Timer
 WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * checkFreq, 150s by default
@@ -31,28 +35,13 @@ if int(sys.version_info[1]) <= 3:
     
 # Custom modules
 from checks.common import checks
+from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
-
-    EC2_URL = "http://169.254.169.254/latest/meta-data/instance-id"
-
-    @staticmethod
-    def get_ec2_instance_id():
-        """Fetch EC2 instance ID if possible. If not on EC2 returns None"""
-        try:
-            url = urllib.urlopen(agent.EC2_URL)
-            instanceId = url.read()
-            assert instanceId.startswith("i-"), "Malformed instance-id: %s" % instanceId
-            return instanceId
-
-        except Exception, e:
-            logging.getLogger('agent').exception('Cannot determine instance-id. Is this machine on EC2?')
-
-        return None
 
     def late(self, cks, threshold, crash=True):
         """Determine whether the agent run is late and optionally kill it if so.
@@ -75,19 +64,17 @@ class agent(Daemon):
         agentLogger.debug('Creating checks instance')
         
         if agentConfig is None:
-            agentConfig, rawConfig = get_config()
-        else:
-            rawConfig = {}
+            agentConfig = get_config()
 
         # Try to fetch instance Id from EC2 if not hostname has been set
         # in the config file
         if agentConfig.get('hostname') is None and agentConfig.get('useEC2InstanceId'):
-            instanceId = self.get_ec2_instance_id()
+            instanceId = EC2.get_instance_id()
             if instanceId is not None:
                 agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
                 agentConfig['hostname'] = instanceId
             else:
-                agentLogger.info('Not running on EC2')
+                agentLogger.info('Not running on EC2, using hostname to identify this server')
  
         emitter = http_emitter
 
@@ -95,7 +82,7 @@ class agent(Daemon):
         lateThresh = checkFreq * WATCHDOG_MULTIPLIER
         
         # Checks instance
-        c = checks(agentConfig, rawConfig, emitter)
+        c = checks(agentConfig, emitter)
         
         # Run once
         c.doChecks(True, systemStats)
@@ -120,9 +107,10 @@ class agent(Daemon):
             agentLogger.debug("Getting ready to sleep for %s seconds." % lateThresh)
         
 def setupLogging(agentConfig):
-    """Used by ddagent.py as well"""
+    """Configure logging to use syslog whenever possible.
+    Also controls debugMode."""
     if agentConfig['debugMode']:
-        logFile = os.path.join(agentConfig['tmpDirectory'], 'dd-agent.log')
+        logFile = "/tmp/dd-agent.log"
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logging.info("Logging to %s" % logFile)
     else:
@@ -146,49 +134,68 @@ def setupLogging(agentConfig):
             sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
             logging.disable(logging.ERROR)
 
-def getPidFile(command, agentConfig, clean):
-    """Used by ddagent.py as well"""
-
-    if command == 'init': 
-        # This path added for newer Linux packages which run under
-        # a separate dd-agent user account.
-        if os.path.exists('/var/run/dd-agent/'):
-            pidFile = '/var/run/dd-agent/dd-agent.pid'
-        else:
-            pidFile = '/var/run/dd-agent.pid'
-            
+def getPidFile(pid_dir=PID_DIR):
+    """Find a good spot for the pid file.
+    By default PID_DIR/PID_FILE
+    """
+    try:
+        # Can we write to the directory
+        if os.access(pid_dir, os.W_OK):
+            pidfile = os.path.join(pid_dir, PID_FILE)
+            logging.info("Pid file is: %s" % pidfile)
+            return pidfile
+    except:
+        logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+        # continue
+    
+    # if all else fails
+    if os.access("/tmp", os.W_OK):
+        logging.warn("Pid file: /tmp/%s" % PID_FILE)
+        return os.path.join("/tmp", PID_FILE)
     else:
-        pidFile = os.path.join(agentConfig['pidfileDirectory'], 'dd-agent.pid')
+        # Can't save pid file, bail out
+        logging.error("Cannot save pid file anywhere")
+        sys.exit(-2)
 
-    if clean:
-        logging.debug('Agent called with --clean option, removing .pid')
-        try:
-            os.remove(pidFile)
-        except OSError:
-            # Did not find pid file
-            pass
+def cleanPidFile(pid_dir=PID_DIR):
+    try:
+        logging.debug("Cleaning up pid file %s" % getPidFile(pid_dir))
+        os.remove(getPidFile(pid_dir))
+        return True
+    except:
+        logging.exception("Could not clean up pid file")
+        return False
 
-    return pidFile
+def getPid(pid_dir=PID_DIR):
+    "Retrieve the actual pid"
+    try:
+        pf = open(getPidFile(pid_dir))
+        pid_s = pf.read()
+        pf.close()
+
+        return int(pid_s.strip())
+    except:
+        logging.exception("Cannot read pid")
+        return None
  
 # Control of daemon     
 if __name__ == '__main__':  
  
     options, args = get_parsed_args()
-    agentConfig, rawConfig = get_config()
+    agentConfig = get_config()
     
     # Logging
     setupLogging(agentConfig)
-
-    # FIXME
-    # Ever heard of optparse?
 
     argLen = len(sys.argv)
     
     if len(args) > 0:
         command = args[0]
+        
+        if options.clean:
+            cleanPidFile()
 
-        # Daemon instance from agent class
-        pidFile = getPidFile(command, agentConfig, options.clean)
+        pidFile = getPidFile()
         daemon = agent(pidFile)
     
         if 'start' == command:
@@ -208,16 +215,8 @@ if __name__ == '__main__':
             daemon.run()
             
         elif 'status' == command:
-            try:
-                pf = file(pidFile,'r')
-                pid = int(pf.read().strip())
-                pf.close()
-            except IOError:
-                pid = None
-            except SystemExit:
-                pid = None
-                
-            if pid:
+            pid = getPid()
+            if pid is not None:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
                 logging.info("dd-agent is running as pid %s." % pid)
             else:

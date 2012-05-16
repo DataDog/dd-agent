@@ -18,7 +18,7 @@ class TestTail(unittest.TestCase):
         self.logrotate_config.flush()
         self.logrotate_state_file = tempfile.NamedTemporaryFile()
         self.last_line = None
-    
+
     def _trigger_logrotate(self):
         subprocess.check_call([
             'logrotate', 
@@ -50,17 +50,20 @@ class TestTail(unittest.TestCase):
         # Verify that the tail consumed the data I wrote
         self.assertEquals(tail._size, len(init_string))
         
-        # Trigger a copytruncate logrotation on the log file
-        self._trigger_logrotate()
-        
-        # Write a new line to the log file
-        new_string = "I am shorter\n"
-        self.log_file.write(new_string)
-        self.log_file.flush()
-        
-        # Verify that the tail recognized the logrotation
-        gen.next()
-        self.assertEquals(self.last_line, new_string[:-1], self.last_line)
+        try:
+            # Trigger a copytruncate logrotation on the log file
+            self._trigger_logrotate()
+            
+            # Write a new line to the log file
+            new_string = "I am shorter\n"
+            self.log_file.write(new_string)
+            self.log_file.flush()
+
+            # Verify that the tail recognized the logrotation
+            gen.next()
+            self.assertEquals(self.last_line, new_string[:-1], self.last_line)
+        except OSError:
+            "logrotate is not present"
         
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
