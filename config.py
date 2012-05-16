@@ -9,6 +9,7 @@ from cStringIO import StringIO
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
+DEFAULT_CHECK_FREQUENCY = 15 # seconds
 
 def get_parsed_args():
     parser = OptionParser()
@@ -25,7 +26,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.16"
+    return "2.2.17"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -42,10 +43,8 @@ def get_config(parse_args = True, cfg_path=None):
     agentConfig = {}
     agentConfig['debugMode'] = False
     # not really a frequency, but the time to sleep between checks
-    agentConfig['checkFreq'] = 15
+    agentConfig['checkFreq'] = DEFAULT_CHECK_FREQUENCY
     agentConfig['version'] = get_version()
-
-    rawConfig = {}
 
     # Config handling
     try:
@@ -67,7 +66,11 @@ def get_config(parse_args = True, cfg_path=None):
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
+        #
         # Core config
+        #
+
+        # Where to send the data
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main','listen_port'):
@@ -80,14 +83,10 @@ def get_config(parse_args = True, cfg_path=None):
         if agentConfig['ddUrl'].endswith('/'):
             agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
 
+        # Which API key to use
         agentConfig['apiKey'] = config.get('Main', 'api_key')
-
-        if os.path.exists('/var/log/dd-agent/'):
-            agentConfig['tmpDirectory'] = '/var/log/dd-agent/'
-        else:
-            agentConfig['tmpDirectory'] = '/tmp/' # default which may be overriden in the config later
-        agentConfig['pidfileDirectory'] = agentConfig['tmpDirectory']
-
+        
+        # Debug mode
         agentConfig['debugMode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
         if config.has_option('Main', 'use_ec2_instance_id'):    
@@ -98,7 +97,10 @@ def get_config(parse_args = True, cfg_path=None):
             agentConfig['useEC2InstanceId'] = False
 
         if config.has_option('Main', 'check_freq'):
-            agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
+            try:
+                agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
+            except:
+                agentConfig['checkFreq'] = DEFAULT_CHECK_FREQUENCY
 
         if config.has_option('Main','hostname'):
             agentConfig['hostname'] = config.get('Main','hostname')
@@ -160,12 +162,6 @@ def get_config(parse_args = True, cfg_path=None):
 
         if config.has_option('Main', 'nginx_status_url'):
             agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
-
-        if config.has_option('Main', 'tmp_directory'):
-            agentConfig['tmpDirectory'] = config.get('Main', 'tmp_directory')
-
-        if config.has_option('Main', 'pidfile_directory'):
-            agentConfig['pidfileDirectory'] = config.get('Main', 'pidfile_directory')
 
         if config.has_option('Main', 'plugin_directory'):
             agentConfig['pluginDirectory'] = config.get('Main', 'plugin_directory')
@@ -308,13 +304,7 @@ def get_config(parse_args = True, cfg_path=None):
             sys.stderr.write('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
             sys.exit(2)
 
-    for section in config.sections():
-        rawConfig[section] = {}
-
-        for option in config.options(section):
-            rawConfig[section][option] = config.get(section, option)
-
-    return agentConfig, rawConfig
+    return agentConfig
 
 def get_system_stats():
     systemStats = {

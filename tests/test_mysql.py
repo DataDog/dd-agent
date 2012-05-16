@@ -1,15 +1,23 @@
 import unittest
 import logging; logger = logging.getLogger()
 
-import MySQLdb
 from checks.db.mysql import MySql
 
 class TestMySql(unittest.TestCase):
     def setUp(self):
-        self.mock = MySQLdb.MockSql()
-        self.mysql = MySql(logger)
+        # This should run on pre-2.7 python so no skiptest
+        self.skip = False
+        try:
+            import MySQLdb
+            self.mock = MySQLdb.MockSql()
+            self.mysql = MySql(logger)
+        except ImportError:
+            self.skip = True
 
     def testChecks(self):
+        if self.skip:
+            return
+
         # First round for gauges
         results = self.mysql.check({"MySQLServer": "localhost", "MySQLUser": "dog", "MySQLPass": "dog"})
         self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)

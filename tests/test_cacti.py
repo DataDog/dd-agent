@@ -26,17 +26,22 @@ class TestCacti(unittest.TestCase):
             pass
 
     def _restore_rrds(self, xml_dir):
-        for filename in os.listdir(xml_dir):
-            if filename.endswith('.xml'):
-                xml_path = '/'.join([xml_dir, filename])
-                rrd_name = filename.replace('.xml', '.rrd')
-                subprocess.call(
-                    ["/usr/bin/rrdtool","restore", xml_path, '/'.join([self.tmp_dir, rrd_name])]
-                )
+        if os.access("/usr/bin/rrdtool", os.R_OK | os.X_OK):
+            for filename in os.listdir(xml_dir):
+                if filename.endswith('.xml'):
+                    xml_path = '/'.join([xml_dir, filename])
+                    rrd_name = filename.replace('.xml', '.rrd')
+                    subprocess.call(
+                        ["/usr/bin/rrdtool","restore", xml_path, '/'.join([self.tmp_dir, rrd_name])]
+                    )
+            return True
+        else:
+            return False
 
     def testChecks(self):
         # Restore the RRDs from the XML dumps
-        self._restore_rrds(self.rrd_dir)
+        if not self._restore_rrds(self.rrd_dir):
+            return
 
         # Do a first check
         results1 = self.cacti.check(self.config)

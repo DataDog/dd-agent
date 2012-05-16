@@ -17,7 +17,7 @@ debug_mode: no
 
 # Use the amazon EC2 instance-id instead of hostname (unless hostname is
 # explicitly set)
-use_ec2_instance_id: no
+use_ec2_instance_id: yes
 
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
