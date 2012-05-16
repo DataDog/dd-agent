@@ -227,7 +227,7 @@ def main():
 
     import tornado.httpclient
 
-    agentConfig, rawConfig = get_config(parse_args = False)
+    agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', None)
     if port is None:
