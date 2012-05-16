@@ -12,3 +12,4 @@ before_script:
   - sudo apt-get install python-mysqldb
   - sudo apt-get install nginx
   - sudo apt-get install apache2
+  - sudo apt-get install sysstat
