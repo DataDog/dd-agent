@@ -271,6 +271,10 @@ def get_config(parse_args = True, cfg_path=None):
         if config.has_option('Main', 'cacti_rrd_whitelist'):
             agentConfig['cacti_rrd_whitelist'] = config.get('Main', 'cacti_rrd_whitelist')
 
+        # Varnish
+        if config.has_option('Main', 'varnishstat'):
+            agentConfig['varnishstat'] = config.get('Main', 'varnishstat')
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

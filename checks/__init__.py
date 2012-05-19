@@ -66,6 +66,16 @@ class Check(object):
         except:
             self.logger.exception("Trying to install laconic log filter and failed")
 
+    def normalize(self, metric, prefix=None):
+        """Turn a metric into a well-formed metric name
+        prefix.b.c
+        """
+        # FIXME alq
+        if prefix is not None:
+            return prefix + "." + metric
+        else:
+            return metric
+
     def counter(self, metric):
         """
         Treats the metric as a counter, i.e. computes its per second derivative
