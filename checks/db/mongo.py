@@ -47,9 +47,9 @@ class MongoDb(Check):
         self.gauge("replSet.replicationLag")
 
     def checkLastState(self, state, agentConfig):
-        #if self._last_state != state:
-        #    self._last_state = state
-        return self.create_event(state, agentConfig)
+        if self._last_state != state:
+            self._last_state = state
+            return self.create_event(state, agentConfig)
 
     def create_event(self, state, agentConfig):
         """Create an event with a message describing the replication
@@ -125,7 +125,7 @@ class MongoDb(Check):
 
                     data['state'] = replSet['myState']
                     event = self.checkLastState(data['state'], agentConfig)
-                    if event:
+                    if event is not None:
                         results['events'] = {'Mongo': [event]}                        
                     status['replSet'] = data
             except:
