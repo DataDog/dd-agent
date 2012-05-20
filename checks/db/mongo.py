@@ -46,12 +46,12 @@ class MongoDb(Check):
         self.gauge("replSet.state")
         self.gauge("replSet.replicationLag")
 
-    def checkLastState(self, state, agentConfig):
+    def checkLastState(self, state, agentConfig, serverVersion):
         if self._last_state != state:
             self._last_state = state
-            return self.create_event(state, agentConfig)
+            return self.create_event(state, agentConfig, serverVersion)
 
-    def create_event(self, state, agentConfig):
+    def create_event(self, state, agentConfig, serverVersion):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -71,6 +71,7 @@ class MongoDb(Check):
                  'event_type': 'Mongo',
                  'host': gethostname(agentConfig),
                  'api_key': agentConfig['apiKey'],
+                 'version': serverVersion,
                  'state': get_state_description(state) }
 
     def check(self, agentConfig):
@@ -99,6 +100,7 @@ class MongoDb(Check):
                 data = {}
 
                 replSet = conn['admin'].command('replSetGetStatus')
+                serverVersion = conn.server_info()['version']
                 if replSet:
                     primary = None
                     current = None
@@ -124,7 +126,7 @@ class MongoDb(Check):
                         data['health'] = current['health']
 
                     data['state'] = replSet['myState']
-                    event = self.checkLastState(data['state'], agentConfig)
+                    event = self.checkLastState(data['state'], agentConfig, serverVersion)
                     if event is not None:
                         results['events'] = {'Mongo': [event]}                        
                     status['replSet'] = data
@@ -189,7 +191,7 @@ class MongoDb(Check):
 
 if __name__ == "__main__":
     import logging
-    agentConfig = { 'MongoDBServer': 'localhost:27017' }
+    agentConfig = { 'MongoDBServer': 'localhost:27017', 'apiKey': 'toto' }
     db = MongoDb(logging)
     print db.check(agentConfig)
    
