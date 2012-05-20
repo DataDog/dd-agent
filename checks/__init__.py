@@ -7,9 +7,10 @@
 """
 
 import logging
+import re
+import socket
 import time
 import types
-import socket
 
 try:
     from hashlib import md5
@@ -70,11 +71,20 @@ class Check(object):
         """Turn a metric into a well-formed metric name
         prefix.b.c
         """
-        # FIXME alq
+        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        # Eliminate multiple _
+        name = re.sub(r"__+", "_", name)
+        # Don't start/end with _
+        name = re.sub(r"^_", "", name)
+        name = re.sub(r"_$", "", name)
+        # Drop ._ and _.
+        name = re.sub(r"\._", ".", name)
+        name = re.sub(r"_\.", ".", name)
+
         if prefix is not None:
-            return prefix + "." + metric
+            return prefix + "." + name
         else:
-            return metric
+            return name
 
     def counter(self, metric):
         """
