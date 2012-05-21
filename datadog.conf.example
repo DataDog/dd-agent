@@ -273,3 +273,8 @@ use_mount: no
 # to a cacti rrd whitelist file, and reference it here.
 #     e.g.: *localhost_load*.rrd
 #cacti_rrd_whitelist: /etc/dd-agent/cacti-whitelist.txt
+
+# -------------------------------------------------------------------------- #
+#  Varnish
+# -------------------------------------------------------------------------- #
+#varnishstat: /usr/bin/varnishstat

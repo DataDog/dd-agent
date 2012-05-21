@@ -7,9 +7,10 @@
 """
 
 import logging
+import re
+import socket
 import time
 import types
-import socket
 
 try:
     from hashlib import md5
@@ -66,6 +67,25 @@ class Check(object):
         except:
             self.logger.exception("Trying to install laconic log filter and failed")
 
+    def normalize(self, metric, prefix=None):
+        """Turn a metric into a well-formed metric name
+        prefix.b.c
+        """
+        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        # Eliminate multiple _
+        name = re.sub(r"__+", "_", name)
+        # Don't start/end with _
+        name = re.sub(r"^_", "", name)
+        name = re.sub(r"_$", "", name)
+        # Drop ._ and _.
+        name = re.sub(r"\._", ".", name)
+        name = re.sub(r"_\.", ".", name)
+
+        if prefix is not None:
+            return prefix + "." + name
+        else:
+            return name
+
     def counter(self, metric):
         """
         Treats the metric as a counter, i.e. computes its per second derivative
@@ -80,7 +100,7 @@ class Check(object):
 
     def gauge(self, metric):
         """
-        Treats the metric as a guage, i.e. keep the data as is
+        Treats the metric as a gauge, i.e. keep the data as is
         ACHTUNG: Resets previous values associated with this metric.
         """
         self._sample_store[metric] = []
@@ -194,6 +214,19 @@ class Check(object):
         How these metadata are interpreted and processed is not defined here
         """
         return {}
+        
+    def get_metrics(self):
+        """This is the new format to send metrics backs
+        """
+        metrics = []
+        for m in self._sample_store:
+            try:
+                ts, val = self.get_sample_with_timestamp(m)
+                # FIXME alq - no metadata yet
+                metrics.append((m, ts, val, {}))
+            except:
+                pass
+        return metrics
 
 def gethostname(agentConfig):
     if agentConfig.has_key("hostname") and agentConfig['hostname'] is not None:
