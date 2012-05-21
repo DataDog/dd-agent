@@ -1,12 +1,17 @@
 import re
 import types
+from datetime import datetime
 
 from checks import *
 
 class MongoDb(Check):
 
     def __init__(self, logger):
+
         Check.__init__(self, logger)
+
+        self._last_state = -1
+
         self.counter("indexCounters.btree.accesses")
         self.counter("indexCounters.btree.hits")
         self.counter("indexCounters.btree.misses")
@@ -42,10 +47,39 @@ class MongoDb(Check):
         self.gauge("replSet.state")
         self.gauge("replSet.replicationLag")
 
+    def checkLastState(self, state, agentConfig, serverVersion):
+        if self._last_state != state:
+            self._last_state = state
+            return self.create_event(state, agentConfig, serverVersion)
+
+    def create_event(self, state, agentConfig, serverVersion):
+        """Create an event with a message describing the replication
+            state of a mongo node"""
+
+        def get_state_description(state):
+            if state == 0: return 'Starting Up'
+            elif state == 1: return 'Primary'
+            elif state == 2: return 'Secondary'
+            elif state == 3: return 'Recovering'
+            elif state == 4: return 'Fatal'
+            elif state == 5: return 'Starting up (forking threads)'
+            elif state == 6: return 'Unknown'
+            elif state == 7: return 'Arbiter'
+            elif state == 8: return 'Down'
+            elif state == 9: return 'Rollback'
+            
+        return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
+                 'event_type': 'Mongo',
+                 'host': gethostname(agentConfig),
+                 'api_key': agentConfig['apiKey'],
+                 'version': serverVersion,
+                 'state': get_state_description(state) }
+
     def check(self, agentConfig):
         """
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
         """
+
         if 'MongoDBServer' not in agentConfig or agentConfig['MongoDBServer'] == '':
             return False
 
@@ -61,12 +95,15 @@ class MongoDb(Check):
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
   
+            results = {}
+
             # Handle replica data, if any 
             # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
             try: 
                 data = {}
 
                 replSet = conn['admin'].command('replSetGetStatus')
+                serverVersion = conn.server_info()['version']
                 if replSet:
                     primary = None
                     current = None
@@ -92,6 +129,9 @@ class MongoDb(Check):
                         data['health'] = current['health']
 
                     data['state'] = replSet['myState']
+                    event = self.checkLastState(data['state'], agentConfig, serverVersion)
+                    if event is not None:
+                        results['events'] = {'Mongo': [event]}                        
                     status['replSet'] = data
             except:
                 self.logger.exception("Cannot determine replication set status")
@@ -109,7 +149,6 @@ class MongoDb(Check):
             # Flatten the metrics first
             # Collect samples
             # Send a dictionary back
-            results = {}
 
             for m in self.get_metrics():
                 # each metric is of the form: x.y.z with z optional
@@ -142,7 +181,7 @@ class MongoDb(Check):
 
                 except UnknownValue:
                     pass
-          
+         
             return results
 
         except ImportError:
@@ -155,7 +194,7 @@ class MongoDb(Check):
 
 if __name__ == "__main__":
     import logging
-    agentConfig = { 'MongoDBServer': 'localhost:27017' }
+    agentConfig = { 'MongoDBServer': 'localhost:27017', 'apiKey': 'toto' }
     db = MongoDb(logging)
     print db.check(agentConfig)
    

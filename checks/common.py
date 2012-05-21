@@ -303,6 +303,9 @@ class checks:
         
         # MongoDB
         if mongodb:
+            if mongodb.has_key('events'):
+                checksData['events']['Mongo'] = mongodb['events']['Mongo']
+                del mongodb['events']
             checksData['mongoDB'] = mongodb
             
         # CouchDB
