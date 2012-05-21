@@ -33,7 +33,7 @@ class EC2(Check):
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
-            socket.setdefaulttimeout(self.TIMEOUT)
+            socket.setdefaulttimeout(EC2.TIMEOUT)
         except:
             pass
 
