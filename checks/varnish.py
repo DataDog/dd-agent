@@ -29,29 +29,29 @@ class Varnish(Check):
             output, error = subprocess.Popen([config.get("varnishstat"), "-1"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
             assert error is None
             self.logger.debug("Varnishstats:\n%s" % output)
-
-            for line in output.split("\n"):
-                name, gauge_val, rate_val, desc = line.split()
-                metric_name = self.normalize(name, prefix="varnish")
-
-                # First time we see the metric?
-                if not self.is_metric(metric_name):
-                    self.gauge(metric_name)
-                    
-                # Now figure out which value to pick
-                try:
-                    if rate_val.lower() in ("nan", "."):
-                        # col 2 matters
-                        self.save_sample(metric_name, int(gauge_val))
-                    else:
-                        self.save_sample(metric_name, float(rate_val))
-                except TypeError:
-                    self.logger.exception("Cannot convert varnish value")
-                    
+            self._parse_varnishstat(output)
             return self.get_samples_with_timestamps()
-                
         except:
             self.logger.exception("Cannot get varnish stats")
             return False
 
-        
+    def _parse_varnishstat(self, output):
+        for line in output.split("\n"):
+            fields = line.split()
+            assert len(fields) >= 3
+            name, gauge_val, rate_val = fields[0], fields[1], fields[2]
+            metric_name = self.normalize(name, prefix="varnish")
+
+            # First time we see the metric?
+            if not self.is_metric(metric_name):
+                self.gauge(metric_name)
+                
+            # Now figure out which value to pick
+            try:
+                if rate_val.lower() in ("nan", "."):
+                    # col 2 matters
+                    self.save_sample(metric_name, int(gauge_val))
+                else:
+                    self.save_sample(metric_name, float(rate_val))
+            except TypeError:
+                self.logger.exception("Cannot convert varnish value")

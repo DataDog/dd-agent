@@ -39,6 +39,7 @@ from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.cacti import Cacti
+from checks.varnish import Varnish
 
 from checks.ec2 import EC2
 
@@ -73,7 +74,6 @@ class checks:
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
-        # Set global timeout to 15 seconds for all sockets (case 31033). Should be long enough
         socket.setdefaulttimeout(15)
         
         self._apache = Apache(self.checksLogger)
@@ -101,7 +101,7 @@ class checks:
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
-        self._metrics_checks = [Cacti(self.checksLogger)]
+        self._metrics_checks = [Cacti(self.checksLogger), Varnish(self.checksLogger)]
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 

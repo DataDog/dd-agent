@@ -100,7 +100,7 @@ class Check(object):
 
     def gauge(self, metric):
         """
-        Treats the metric as a guage, i.e. keep the data as is
+        Treats the metric as a gauge, i.e. keep the data as is
         ACHTUNG: Resets previous values associated with this metric.
         """
         self._sample_store[metric] = []
@@ -214,6 +214,19 @@ class Check(object):
         How these metadata are interpreted and processed is not defined here
         """
         return {}
+        
+    def get_metrics(self):
+        """This is the new format to send metrics backs
+        """
+        metrics = []
+        for m in self._sample_store:
+            try:
+                ts, val = self.get_sample_with_timestamp(m)
+                # FIXME alq - no metadata yet
+                metrics.append((m, ts, val, {}))
+            except:
+                pass
+        return metrics
 
 def gethostname(agentConfig):
     if agentConfig.has_key("hostname") and agentConfig['hostname'] is not None:
