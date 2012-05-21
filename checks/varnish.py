@@ -27,10 +27,11 @@ class Varnish(Check):
         try:
             # Location of varnishstat
             output, error = subprocess.Popen([config.get("varnishstat"), "-1"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-            assert error is None
+            if error and len(error) > 0:
+                self.logger.error(error)
             self.logger.debug("Varnishstats:\n%s" % output)
             self._parse_varnishstat(output)
-            return self.get_samples_with_timestamps()
+            return self.get_metrics()
         except:
             self.logger.exception("Cannot get varnish stats")
             return False
@@ -38,7 +39,8 @@ class Varnish(Check):
     def _parse_varnishstat(self, output):
         for line in output.split("\n"):
             fields = line.split()
-            assert len(fields) >= 3
+            if len(fields) < 3:
+                break
             name, gauge_val, rate_val = fields[0], fields[1], fields[2]
             metric_name = self.normalize(name, prefix="varnish")
 
