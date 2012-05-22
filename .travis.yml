@@ -5,12 +5,7 @@ python:
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
-script: PYTHONPATH=$PWD/tests nosetests tests
+script: nosetests tests
 before_script:
-  - mysql -e 'create database dog_test;'
-  - mongo dog_test --eval 'db.addUser("dog", "dog");'
-  - sudo apt-get install python-mysqldb
-  - sudo apt-get install nginx
-  - sudo apt-get install apache2
   - sudo apt-get install sysstat
   

@@ -168,7 +168,7 @@ class TestDogstream(TailTestCase):
         }
         self._write_log(log_data)
 
-        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:parse_stateful' % self.log_file.name})
+        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_stateful' % self.log_file.name})
         actual_output = statedog.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
@@ -226,7 +226,7 @@ class TestDogstream(TailTestCase):
 
         self._write_log(log_data)
 
-        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:parse_events' % self.log_file.name})
+        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_events' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
@@ -258,7 +258,7 @@ class TestDogstream(TailTestCase):
 
         self._write_log([repr(d) for d in log_data])
 
-        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:test_datadog:repr_event_parser' % self.log_file.name})
+        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:repr_event_parser' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
