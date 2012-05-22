@@ -9,8 +9,6 @@ want to use our packages.
 
 Feel free to fork this repository and submit pull requests.
 
-[![Build Status](https://secure.travis-ci.org/DataDog/dd-agent.png?branch=master)](http://travis-ci.org/DataDog/dd-agent)
-
 # How to configure it
 
 If you are using packages on linux, the configuration file lives in
