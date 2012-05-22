@@ -9,8 +9,8 @@ import socket
 import pymongo
 from checks.db.mongo import MongoDb
 
-PORT1 = 27017
-PORT2 = 27018
+PORT1 = 37017
+PORT2 = 37018
 MAX_WAIT = 150
 
 class TestMongo(unittest.TestCase):
