@@ -150,7 +150,7 @@ class MongoDb(Check):
             # Collect samples
             # Send a dictionary back
 
-            for m in self.get_metrics():
+            for m in self.get_metric_names():
                 # each metric is of the form: x.y.z with z optional
                 # and can be found at status[x][y][z]
                 value = status

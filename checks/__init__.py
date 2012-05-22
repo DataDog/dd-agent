@@ -112,7 +112,7 @@ class Check(object):
         return self.is_metric(metric) and \
                not self.is_counter(metric)
 
-    def get_metrics(self):
+    def get_metric_names(self):
         "Get all metric names"
         return self._sample_store.keys()
 
