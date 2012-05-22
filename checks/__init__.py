@@ -223,7 +223,7 @@ class Check(object):
             try:
                 ts, val = self.get_sample_with_timestamp(m)
                 # FIXME alq - no metadata yet
-                metrics.append((m, ts, val, {}))
+                metrics.append((m, int(ts), val, {}))
             except:
                 pass
         return metrics
