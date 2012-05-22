@@ -80,6 +80,7 @@ class TestDogstream(TailTestCase):
         }
         log.info("Test config: %s" % self.config)
         self.dogstream = Dogstreams.init(self.logger, self.config)
+        self.maxDiff = None
     
     def test_dogstream_gauge(self):
         log_data = [
@@ -288,12 +289,14 @@ class TestDogstream(TailTestCase):
                 "msg_title": "Compacting [SSTableReader(path='/var/cassandra/data/test_data/series-hc-6528-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6531-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6529-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6530-Data.db')]"[0:common.MAX_TITLE_LEN],
                 "msg_text": "Compacting [SSTableReader(path='/var/cassandra/data/test_data/series-hc-6528-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6531-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6529-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6530-Data.db')]",
                 "alert_type": alert_type,
+                "auto_priority": 0,
                 "event_type": event_type,
                 "event_object": event_object,
             },  {
                 "timestamp": common.parse_date("2012-05-12 21:10:54,851", cassandra.DATE_FORMAT),
                 "msg_title": "Compacted to [/var/cassandra/a-hc-65-Data.db,].  102,079,134 to 101,546,397",
                 "alert_type": alert_type,
+                "auto_priority": 0,
                 "event_type": event_type,
                 "event_object": event_object,
             },  {
@@ -302,18 +305,21 @@ class TestDogstream(TailTestCase):
                 "msg_text": "Compacting [SSTableReader(path='/var/cassandra/data/test_data/series-hc-6527-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6522-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6532-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6517-Data.db')]",
                 "alert_type": alert_type,
                 "event_type": event_type,
+                "auto_priority": 0,
                 "event_object": event_object,
             },  {
                 "timestamp": common.parse_date("2012-05-13 13:27:17,685", cassandra.DATE_FORMAT),
                 "msg_title": "Compacting large row test_data/series:6c6f677c32 (782001077 bytes) incrementally",
                 "alert_type": alert_type,
                 "event_type": event_type,
+                "auto_priority": 0,
                 "event_object": event_object,
             },  {
                 "timestamp": common.parse_date(datetime.utcnow().strftime("%Y-%m-%d") + " 13:27:17,685", cassandra.DATE_FORMAT),
                 "msg_title": "Compacting large row test_data/series:6c6f677c32 (782001077 bytes) incrementally",
                 "alert_type": alert_type,
                 "event_type": event_type,
+                "auto_priority": 0,
                 "event_object": event_object,
             },
         ]}
@@ -323,9 +329,6 @@ class TestDogstream(TailTestCase):
         dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:dogstream.cassandra:parse_cassandra' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
-
-
-
 
 class TestNagiosPerfData(TailTestCase):
     def setUp(self):
