@@ -10,7 +10,6 @@ FPM_BUILD=fpm -s dir -C $(BUILD) \
 -m "Datadog Packages <package@datadoghq.com>" \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
---config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --iteration $(BUILDNUMBER) \
 -v "$(VERSION)"
 
@@ -37,7 +36,7 @@ install_deb: install
 	ln -sf ../../dd-agent/supervisor_ddagent.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
 
 install_rpm: install
-	cp rpm/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
+	cp rpm/supervisor.conf $(BUILD)/etc/dd-agent/supervisor.conf
 	cp rpm/setup-supervisor.py $(BUILD)/usr/share/datadog/agent
 
 deb: clean install_deb
@@ -64,4 +63,5 @@ $(FPM_BUILD) -t rpm \
 --pre-install rpm/preinst \
 --post-install rpm/postinst \
 --pre-uninstall rpm/prerm \
+--config-files "/etc/dd-agent/supervisor.conf" \
 .
