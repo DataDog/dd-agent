@@ -23,7 +23,7 @@ class TestWatchdog(unittest.TestCase):
         """
         start = time.time()
         try:
-            result = subprocess.check_output(["python", "tests/test_watchdog.py", "busy"], stderr=subprocess.STDOUT)
+            subprocess.check_call(["python", "tests/test_watchdog.py", "busy"], stderr=subprocess.STDOUT)
             raise Exception("Should have died with an error")
         except subprocess.CalledProcessError:
             duration = int(time.time() - start)
