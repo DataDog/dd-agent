@@ -90,7 +90,7 @@ class checks:
         self._mysql = MySql(self.checksLogger)
         self._pgsql = PostgreSql(self.checksLogger)
         self._rabbitmq = RabbitMq()
-        self._ganglia = Ganglia()
+        self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
         self._jvm = Jvm(self.checksLogger)
@@ -171,7 +171,7 @@ class checks:
 
     @recordsize
     def getGangliaData(self):
-        return self._ganglia.check(self.checksLogger, self.agentConfig)
+        return self._ganglia.check(self.agentConfig)
 
     @recordsize
     def getCassandraData(self):

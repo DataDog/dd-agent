@@ -1,31 +1,49 @@
-import telnetlib
-import traceback
+from checks import Check
+import socket
+from cStringIO import StringIO
 
-class Ganglia(object):
+class Ganglia(Check):
+    BUFFER = 4096
+    TIMEOUT = 0.5
+    PORT = 8651
 
-    def check(self, logger, agentConfig):
-        logger.debug('get ganglia status: start')
+    def __init__(self, logger):
+        Check.__init__(self, logger)
 
-        logger.debug("Config: %s" % agentConfig)
+    def check(self, agentConfig):
+        self.logger.debug('get ganglia status: start')
         if 'ganglia_host' not in agentConfig or agentConfig['ganglia_host'] == '':
-            logger.debug('ganglia_host configuration not set, not checking ganglia')
+            self.logger.debug('ganglia_host configuration not set, skipping ganglia')
             return False
-
-        host = agentConfig['ganglia_host']
-        port = 8651
-
-        if 'ganglia_port' in agentConfig and agentConfig['ganglia_port'] != '':
-            port = int(agentConfig['ganglia_port'])
-
-        logger.debug("Using port %d" % port)
 
         try:
-            tn = telnetlib.Telnet(host,port)
-            data = tn.read_all()
+            host = agentConfig['ganglia_host']
+            port = Ganglia.PORT
+            try:
+                port = int(agentConfig.get('ganglia_port', Ganglia.PORT))
+            except:
+                pass
+            self.logger.debug("Retrieving Ganglia XML from %s:%d" % (host, port))
 
-        except Exception,e:
-            logger.error("Unable to get ganglia data, Exception:" + traceback.format_exc())
+            sio = StringIO()
+
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(Ganglia.TIMEOUT)
+            try:
+                s.connect((host, port))
+                while True:
+                    data = s.recv(Ganglia.BUFFER)
+                    if len(data) > 0:
+                        sio.write(data)
+                    else:
+                        break
+            finally:
+                if s is not None:
+                    s.close()
+
+            self.logger.debug('Ganglia status: done')
+            return sio.getvalue()
+        except:
+            self.logger.exception("Unable to get ganglia data")
             return False
 
-        logger.debug('get ganglia status: done')
-        return data
