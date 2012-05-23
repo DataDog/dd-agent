@@ -85,6 +85,10 @@ class Varnish(Check):
         </varnishstat>
         """
         try:
+            # Not configured? Not a problem.
+            if config.get("varnishstat", None) is None:
+                return False
+
             # Location of varnishstat
             output, error = subprocess.Popen([config.get("varnishstat"), "-x"],
                                              stdout=subprocess.PIPE,
