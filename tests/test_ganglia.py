@@ -18,7 +18,7 @@ class TestGanglia(unittest.TestCase):
     def testSpeed(self, size_in_bytes=10000):
         """Pretend to be gmetad and serve a large piece of content
         """
-        server = subprocess.Popen(["nc -l 8651 < %s" % TEST_FN], shell=True)
+        server = subprocess.Popen("nc -l 8651 < %s" % TEST_FN, shell=True)
 
         pfile = tempfile.NamedTemporaryFile()
         g = Ganglia(logging.getLogger('tests'))
