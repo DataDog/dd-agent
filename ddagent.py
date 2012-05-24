@@ -79,7 +79,7 @@ class MetricTransaction(Transaction):
         try:
             return format_body(self._data, logging)
         except:
-            logger.exception('http_emitter failed')
+            logging.exception('http_emitter failed')
 
     def flush(self):
 

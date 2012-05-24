@@ -7,7 +7,10 @@ import sys
 import time
 from checks import Check, gethostname
 
-class Disk(object):
+class Disk(Check):
+
+    def __init__(self, logger):
+        Check.__init__(self, logger)
 
     def _parse_df(self, lines, inodes = False, use_mount=False):
         """Multi-platform df output parser
@@ -91,7 +94,7 @@ class Disk(object):
                     # Available
                     parts[3] = int(parts[3])
             except IndexError:
-                logger.exception("Cannot parse %s" % (parts,))
+                self.logger.exception("Cannot parse %s" % (parts,))
 
             usageData.append(parts)
         return usageData

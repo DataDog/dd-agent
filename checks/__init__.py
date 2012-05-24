@@ -235,4 +235,4 @@ def gethostname(agentConfig):
         try:
             return socket.gethostname()
         except socket.error, e:
-            logger.debug("processes: unable to get hostanme: " + str(e))
+            logging.debug("processes: unable to get hostanme: " + str(e))
