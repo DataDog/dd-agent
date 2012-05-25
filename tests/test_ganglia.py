@@ -10,6 +10,7 @@ import pstats
 import tempfile
 from hashlib import md5
 from util import json
+import time
 
 from checks.ganglia import Ganglia
 
@@ -19,6 +20,8 @@ class TestGanglia(unittest.TestCase):
     def testSpeed(self):
         # Pretend to be gmetad and serve a large piece of content
         server = subprocess.Popen("nc -l 8651 < %s" % TEST_FN, shell=True)
+        # Wait for 1 second
+        time.sleep(1)
 
         pfile = tempfile.NamedTemporaryFile()
         g = Ganglia(logging.getLogger('tests'))
