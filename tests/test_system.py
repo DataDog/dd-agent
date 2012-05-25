@@ -18,8 +18,8 @@ class TestSystem(unittest.TestCase):
     def testDisk(self):
         """Testing disk stats gathering"""
         global logger
-        disk = Disk()
-        res = disk.check(logger, {})
+        disk = Disk(logger)
+        res = disk.check({})
 
     lion_df_i = """Filesystem                        512-blocks      Used Available Capacity  iused    ifree %iused  Mounted onto
 /dev/disk1                         487932936 220080040 267340896    46% 27574003 33417612   45%   /
@@ -64,7 +64,7 @@ none                  985964       1  985963    1% /lib/init/rw
 
     def testDfParser(self):
         global logger
-        disk = Disk()
+        disk = Disk(logger)
 
         if sys.platform == 'darwin':
             res = disk._parse_df(TestSystem.lion_df_k)

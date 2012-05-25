@@ -99,7 +99,7 @@ class Disk(Check):
             usageData.append(parts)
         return usageData
     
-    def check(self, logger, agentConfig):
+    def check(self, agentConfig):
         """Get disk space/inode stats"""
 
         # Check test_system for some examples of output

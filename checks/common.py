@@ -78,7 +78,7 @@ class checks:
         
         self._apache = Apache(self.checksLogger)
         self._nginx = Nginx(self.checksLogger)
-        self._disk = Disk()
+        self._disk = Disk(self.checksLogger)
         self._io = IO()
         self._load = Load(self.checksLogger)
         self._memory = Memory(self.checksLogger)
@@ -127,7 +127,7 @@ class checks:
     
     @recordsize
     def getDiskUsage(self):
-        return self._disk.check(self.checksLogger, self.agentConfig)
+        return self._disk.check(self.agentConfig)
 
     @recordsize
     def getIOStats(self):
