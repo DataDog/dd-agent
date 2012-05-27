@@ -87,7 +87,10 @@ class MongoDb(Check):
             from pymongo import Connection, uri_parser
 
             # Configuration a URL, mongodb://user:pass@server/db
-            dbName = uri_parser.parse_uri(agentConfig['MongoDBServer']).get('database', 'test')
+            dbName = uri_parser.parse_uri(agentConfig['MongoDBServer'])['database']
+            
+            # parse_uri gives a default database of None
+            dbName = dbName or 'test'
 
             conn = Connection(agentConfig['MongoDBServer'])
             db = conn[dbName]
