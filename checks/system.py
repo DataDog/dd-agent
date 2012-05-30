@@ -122,6 +122,46 @@ class Disk(Check):
 
 
 class IO(object):
+    def _parse_linux2_iostat_output(self, iostat_output):
+        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
+        itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
+        valueRegexp = re.compile(r'\d+\.\d+')
+
+        recentStats = iostat_output.split('Device:')[2].split('\n')
+        header = recentStats[0]
+        headerNames = re.findall(headerRegexp, header)
+        device = None
+
+        ioStats = {}
+
+        for statsIndex in range(1, len(recentStats)):
+            row = recentStats[statsIndex]
+
+            if not row:
+                # Ignore blank lines.
+                continue
+
+            deviceMatch = re.match(itemRegexp, row)
+
+            if deviceMatch is not None:
+                # Sometimes device names span two lines.
+                device = deviceMatch.groups()[0]
+
+            values = re.findall(valueRegexp, row)
+
+            if not values:
+                # Sometimes values are on the next line so we encounter
+                # instances of [].
+                continue
+
+            ioStats[device] = {}
+
+            for headerIndex in range(0, len(headerNames)):
+                headerName = headerNames[headerIndex]
+                ioStats[device][headerName] = values[headerIndex]
+
+        return ioStats
+
     def check(self, logger, agentConfig):
         logger.debug('getIOStats: start')
         
@@ -130,42 +170,9 @@ class IO(object):
         if sys.platform == 'linux2':
             logger.debug('getIOStats: linux2')
             
-            headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-            itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
-            valueRegexp = re.compile(r'\d+\.\d+')
-            
             try:
-                stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                recentStats = stats.split('Device:')[2].split('\n')
-                header = recentStats[0]
-                headerNames = re.findall(headerRegexp, header)
-                device = None
-                
-                for statsIndex in range(1, len(recentStats)):
-                    row = recentStats[statsIndex]
-                    
-                    if not row:
-                        # Ignore blank lines.
-                        continue
-                    
-                    deviceMatch = re.match(itemRegexp, row)
-                    
-                    if deviceMatch is not None:
-                        # Sometimes device names span two lines.
-                        device = deviceMatch.groups()[0]
-                    
-                    values = re.findall(valueRegexp, row)
-                    
-                    if not values:
-                        # Sometimes values are on the next line so we encounter
-                        # instances of [].
-                        continue
-                    
-                    ioStats[device] = {}
-                    
-                    for headerIndex in range(0, len(headerNames)):
-                        headerName = headerNames[headerIndex]
-                        ioStats[device][headerName] = values[headerIndex]
+                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                iostats.update(self._parse_linux2_iostat_output(stdout))
                     
             except:
                 logger.exception('getIOStats')
