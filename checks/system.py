@@ -123,7 +123,7 @@ class Disk(Check):
 
 class IO(object):
     def _parse_linux2_iostat_output(self, iostat_output):
-        headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
+        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
         itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
         valueRegexp = re.compile(r'\d+\.\d+')
 
