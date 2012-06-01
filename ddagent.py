@@ -81,11 +81,13 @@ class MetricTransaction(Transaction):
         except:
             logging.exception('http_emitter failed')
 
+    def get_url(self):
+        return self._application._agentConfig['ddUrl'] + '/intake/'
+
     def flush(self):
 
-        url = self._application._agentConfig['ddUrl'] + '/intake/'
         # Send Transaction to the intake
-        req = tornado.httpclient.HTTPRequest(url, 
+        req = tornado.httpclient.HTTPRequest(self.get_url(), 
                              method = "POST", body = self.get_data() )
         http = tornado.httpclient.AsyncHTTPClient()
         logging.debug("Sending transaction %d to datadog" % self.get_id())
@@ -99,6 +101,19 @@ class MetricTransaction(Transaction):
             self._trManager.tr_success(self)
 
         self._trManager.flush_next()
+
+
+class APIMetricTransaction(MetricTransaction):
+
+    def get_url(self):
+        config = self._application._agentConfig
+        api_key = config['apiKey']
+        base_url = config['ddUrl']
+        return base_url + '/api/v1/series/?api_key=' + api_key
+
+    def get_data(self):
+        return self._data
+
 
 class StatusHandler(tornado.web.RequestHandler):
 
@@ -143,6 +158,21 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
         self.write("Transaction: %s" % tr.get_id())
 
+class ApiInputHandler(tornado.web.RequestHandler):
+
+    def post(self):
+        """Read the message and forward it to the intake"""
+
+        # read message
+        msg = self.request.body
+
+        if msg is not None:
+            # Setup a transaction for this message
+            tr = APIMetricTransaction(msg)
+        else:
+            raise tornado.web.HTTPError(500)
+
+
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig):
@@ -183,6 +213,7 @@ class Application(tornado.web.Application):
 
         handlers = [
             (r"/intake/?", AgentInputHandler),
+            (r"/api/v1/series/?", ApiInputHandler),
             (r"/status/?", StatusHandler),
         ]
 
