@@ -21,9 +21,9 @@ class EC2(Check):
         # >>> import urllib2
         # >>> urllib2.urlopen('http://169.254.169.254/1.0/', timeout=1).read()
         # 'meta-data\nuser-data'
-        # >>> urllib2.urlopen('http://169.254.169.254/1.0/meta-data', timeout=1).read()
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data', timeout=1).read()
         # 'ami-id\nami-launch-index\nami-manifest-path\nhostname\ninstance-id\nlocal-ipv4\npublic-keys/\nreservation-id\nsecurity-groups'
-        # >>> urllib2.urlopen('http://169.254.169.254/1.0/meta-data/instance-id', timeout=1).read()
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data/instance-id', timeout=1).read()
         # 'i-deadbeef'
         metadata = {}
 
@@ -44,6 +44,12 @@ class EC2(Check):
                 metadata[k] = v
             except:
                 pass
+
+        # Get fqdn
+        try:
+            metadata['fqdn'] = socket.getfqdn()
+        except:
+            pass
 
         try:
             if socket_to is None:
