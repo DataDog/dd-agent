@@ -172,7 +172,7 @@ class IO(object):
             
             try:
                 stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                iostats.update(self._parse_linux2_iostat_output(stdout))
+                ioStats.update(self._parse_linux2_iostat_output(stdout))
                     
             except:
                 logger.exception('getIOStats')
