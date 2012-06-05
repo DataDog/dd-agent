@@ -117,7 +117,7 @@ class Disk(Check):
             inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
             return (disks, inodes)
         except:
-            logger.exception('getDiskUsage')
+            self.logger.exception('getDiskUsage')
             return False
 
 
@@ -302,7 +302,7 @@ class Memory(Check):
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
 
-                memData['physUsed'] = memData['physTotal'] - memData['physFree'] - memData['physBuffers'] - memData['physCached'] - memData['physShared']
+                memData['physUsed'] = memData['physTotal'] - memData['physFree']
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
             except:
