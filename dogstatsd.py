@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 '''
 A Python Statsd implementation with some datadog special sauce.
 '''
@@ -11,8 +13,9 @@ import socket
 import sys
 import time
 import threading
-import simplejson as json
 from urllib import urlencode
+
+from util import json
 
 # create logger
 logger = logging.getLogger()
