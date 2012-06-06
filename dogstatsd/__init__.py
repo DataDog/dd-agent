@@ -91,7 +91,9 @@ class Reporter(threading.Thread):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
-        params = {'api_key':self.api_key}
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
         url = '/api/v1/series?%s' % urlencode(params)
 
         start_time = time.time()
@@ -138,21 +140,16 @@ def main():
     parser.add_option("-H", '--host', dest='host', default='localhost')
     parser.add_option("-p", '--port', dest='port', default='8125')
     parser.add_option("-a", '--api-host', dest='api_host', default='https://app.datadoghq.com')
+    parser.add_option("-k", '--api-key', dest='api_key', default=None)
     parser.add_option("-i", '--interval', dest='interval', default='10')
     options, args = parser.parse_args()
-
-    if not len(args):
-        parser.print_help()
-        return sys.exit(1)
-
-    api_key = args[0]
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
     aggregator = MetricsAggregator()
 
     # Start the reporting thread.
-    reporter = Reporter(options.interval, aggregator, options.api_host, api_key)
+    reporter = Reporter(options.interval, aggregator, options.api_host, options.api_key)
     reporter.start()
 
     # Start the server.
