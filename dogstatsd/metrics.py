@@ -3,8 +3,12 @@ Aggregates different types of metrics.
 """
 
 
+import logging
 import random
 import time
+
+
+logger = logging.getLogger('dogstatsd')
 
 
 class Metric(object):
@@ -116,9 +120,9 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-
     def __init__(self):
         self.metrics = {}
+        self.count = 0
         self.metric_type_to_class = {
             'g': Gauge,
             'c': Counter,
@@ -127,6 +131,7 @@ class MetricsAggregator(object):
         }
 
     def submit(self, packet):
+        self.count += 1
         # We can have colons in tags, so split once.
         name_and_metadata = packet.split(':', 1)
 
@@ -163,12 +168,11 @@ class MetricsAggregator(object):
 
 
     def flush(self, timestamp=None):
-        """
-        Flush all metrics.
-        """
         timestamp = timestamp or time.time()
         metrics = []
         for context, metric in self.metrics.items():
             metrics += metric.flush(timestamp)
             del self.metrics[context]
+        logger.info("received %s payloads since last flush" % self.count)
+        self.count = 0
         return metrics

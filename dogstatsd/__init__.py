@@ -29,6 +29,9 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
+logger = logging.getLogger('dogstatsd')
+
+
 
 class Reporter(threading.Thread):
     """
@@ -39,7 +42,7 @@ class Reporter(threading.Thread):
     def __init__(self, interval, metrics_aggregator, dog_http_api):
         threading.Thread.__init__(self)
         self.daemon = True
-        self.interval = interval
+        self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.dog_http_api = dog_http_api
@@ -58,7 +61,6 @@ class Reporter(threading.Thread):
     def flush(self):
         try:
             self.flush_count += 1
-
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
             if not count:
@@ -87,8 +89,8 @@ class Server(object):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(self.address)
 
-
     def start(self):
+        """ Run the server. """
         logger.info('Starting dogstatsd server on %s' % str(self.address))
         while True:
             try:
@@ -99,27 +101,37 @@ class Server(object):
             except:
                 logger.exception('Error receiving datagram')
 
+
 def main():
     parser = optparse.OptionParser("usage: %prog [options] api_key")
     parser.add_option("-H", '--host', dest='host', default='localhost')
-    parser.add_option("-p", '--port', dest='port', default='9966')
+    parser.add_option("-p", '--port', dest='port', default='8125')
     parser.add_option("-a", '--api-host', dest='api_host', default='https://app.datadoghq.com')
+    parser.add_option("-i", '--interval', dest='interval', default='10')
     options, args = parser.parse_args()
 
     if not len(args):
         parser.print_help()
-        sys.exit(1)
+        return sys.exit(1)
 
     api_key = args[0]
-
     dog_http_api = dogapi.http.DogHttpApi(api_key=api_key, api_host=options.api_host)
 
+    # Create the aggregator (which is the point of communication between the
+    # server and reporting threads.
     metrics_aggregator = MetricsAggregator()
-    reporter = Reporter(5, metrics_aggregator, dog_http_api)
+
+    # Start the reporting thread.
+    reporter = Reporter(options.interval, metrics_aggregator, dog_http_api)
     reporter.start()
 
+    # Start the server.
     server = Server(metrics_aggregator, options.host, options.port)
     server.start()
+
+    # If we're here, we're done.
+    logger.info("Shutting down ...")
+
 
 if __name__ == '__main__':
     main()
