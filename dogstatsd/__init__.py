@@ -91,9 +91,11 @@ class Server(object):
     def start(self):
         logger.info('Starting dogstatsd server on %s' % str(self.address))
         while True:
-            data = self.socket.recv(self.buffer_size)
             try:
+                data = self.socket.recv(self.buffer_size)
                 self.metrics_aggregator.submit(data)
+            except (KeyboardInterrupt, SystemExit):
+                break
             except:
                 logger.exception('Error receiving datagram')
 
