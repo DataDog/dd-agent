@@ -2,17 +2,17 @@
 A Python Statsd implementation with some datadog special sauce.
 '''
 
-
+import httplib as http_client
 import logging
 import optparse
 import random
+import re
 import socket
 import sys
 import time
 import threading
-
-import dogapi
-
+import simplejson as json
+from urllib import urlencode
 
 from metrics import MetricsAggregator
 
@@ -39,14 +39,25 @@ class Reporter(threading.Thread):
     server.
     """
 
-    def __init__(self, interval, metrics_aggregator, dog_http_api):
+    def __init__(self, interval, metrics_aggregator, api_host, api_key=None):
         threading.Thread.__init__(self)
         self.daemon = True
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
-        self.dog_http_api = dog_http_api
         self.flush_count = 0
+
+        self.api_key = api_key
+        self.api_host = api_host
+
+        self.http_conn_cls = http_client.HTTPSConnection
+
+        match = re.match('^(https?)://(.*)', api_host)
+
+        if match:
+            self.api_host = match.group(2)
+            if match.group(1) == 'http':
+                self.http_conn_cls = http_client.HTTPConnection
 
     def end(self):
         self.finished.set()
@@ -67,11 +78,31 @@ class Reporter(threading.Thread):
                 logger.info("Flush #{0}: No metrics to flush.".format(self.flush_count))
                 return
             logger.info("Flush #{0}: flushing {1} metrics".format(self.flush_count, count))
-            self.dog_http_api.metrics(metrics)
+            self.submit(metrics)
         except:
             logger.exception("Error flushing metrics")
 
+    def submit(self, metrics):
 
+        # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
+        # dependencies with the agent.
+        conn = self.http_conn_cls(self.api_host)
+        body = json.dumps({"series" : metrics})
+        headers = {'Content-Type':'application/json'}
+        method = 'POST'
+
+        params = {'api_key':self.api_key}
+        url = '/api/v1/series?%s' % urlencode(params)
+
+        start_time = time.time()
+        conn.request(method, url, body, headers)
+
+        #FIXME: add timeout handling code here
+
+        response = conn.getresponse()
+        duration = round((time.time() - start_time) * 1000.0, 4)
+        logger.info("%s %s %s%s (%sms)" % (
+                        response.status, method, self.api_host, url, duration))
 
 class Server(object):
     """
@@ -115,18 +146,17 @@ def main():
         return sys.exit(1)
 
     api_key = args[0]
-    dog_http_api = dogapi.http.DogHttpApi(api_key=api_key, api_host=options.api_host)
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    metrics_aggregator = MetricsAggregator()
+    aggregator = MetricsAggregator()
 
     # Start the reporting thread.
-    reporter = Reporter(options.interval, metrics_aggregator, dog_http_api)
+    reporter = Reporter(options.interval, aggregator, options.api_host, api_key)
     reporter.start()
 
     # Start the server.
-    server = Server(metrics_aggregator, options.host, options.port)
+    server = Server(aggregator, options.host, options.port)
     server.start()
 
     # If we're here, we're done.
