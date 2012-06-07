@@ -318,16 +318,18 @@ def main():
 
     c = get_config(parse_args=False)
 
-    print c
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
     interval = c['dogstatsd_interval']
     api_key  = c['apiKey']
     host = 'localhost'
 
+
+    hostname = socket.gethostname()
+
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator()
+    aggregator = MetricsAggregator(hostname)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)
