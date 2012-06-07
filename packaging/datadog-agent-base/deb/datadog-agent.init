@@ -54,8 +54,15 @@ case "$1" in
 
         echo -n "Stopping $DESC: "
         if [ -f $USE_SUPERVISOR ]; then
-            echo -n "(using supervisorctl) "
-            supervisorctl stop datadog-agent:*
+	    # Prevent errors if not under actual supervision
+            supervised=$(supervisorctl avail | grep datadog-agent | wc -l)
+	    if [ $supervised -gt 1 ]; then
+            	echo -n "(using supervisorctl) "
+            	supervisorctl stop datadog-agent:*
+	    else
+		# Should have been
+                echo -n "(warning: datadog-agent supervisor config is missing) "
+            fi
         else
             su $AGENTUSER -c "$AGENTPATH stop init"
         fi
