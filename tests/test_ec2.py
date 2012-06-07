@@ -16,11 +16,12 @@ class TestEC2(unittest.TestCase):
         end = time.time()
         assert type(d) == types.DictType
         # fqdn must be set on ec2 and elsewhere
+        assert "hostname" in d, d
         assert "fqdn" in d
+        if d["fqdn"] != "localhost": # travis-ci
+            assert d["fqdn"].startswith(d["hostname"]), d
         # Either we're on ec2 or we're not (at least 7 attributes expected)
         assert len(d) == 2 or len(d) >= 7, d
-        assert "hostname" in d, d
-        assert d["fqdn"].startswith(d["hostname"]), d
         if len(d) > 2:
             assert "instance-id" in d, d
             assert d["instance-id"].startswith("i-"), d
