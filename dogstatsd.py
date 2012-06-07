@@ -55,10 +55,11 @@ class Metric(object):
 class Gauge(Metric):
     """ A metric that tracks a value at particular points in time. """
 
-    def __init__(self, name, tags):
+    def __init__(self, name, tags, hostname):
         self.name = name
         self.value = None
         self.tags = tags
+        self.hostname = hostname
 
     def sample(self, value, sample_rate):
         self.value = value
@@ -67,17 +68,19 @@ class Gauge(Metric):
         return [{
             'metric' : self.name,
             'points' : [(timestamp, self.value)],
-            'tags' : self.tags
+            'tags' : self.tags,
+            'host' : self.hostname
         }]
 
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
 
-    def __init__(self, name, tags):
+    def __init__(self, name, tags, hostname):
         self.name = name
         self.value = 0
         self.tags = tags
+        self.hostname = hostname
 
     def sample(self, value, sample_rate):
         self.value += value * int(1 / sample_rate)
@@ -86,14 +89,15 @@ class Counter(Metric):
         return [{
             'metric' : self.name,
             'points' : [(timestamp, self.value)],
-            'tags' : self.tags
+            'tags' : self.tags,
+            'host' : self.hostname
         }]
 
 
 class Histogram(Metric):
     """ A metric to track the distribution of a set of values. """
 
-    def __init__(self, name, tags):
+    def __init__(self, name, tags, hostname):
         self.name = name
         self.max = float("-inf")
         self.min = float("inf")
@@ -103,6 +107,7 @@ class Histogram(Metric):
         self.samples = []
         self.percentiles = [0.75, 0.85, 0.95, 0.99]
         self.tags = tags
+        self.hostname = hostname
 
     def sample(self, value, sample_rate):
         count = int(1 / sample_rate)
@@ -122,10 +127,10 @@ class Histogram(Metric):
             return []
 
         metrics = [
-            {'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, self.min)]},
-            {'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, self.max)]},
-            {'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, self.average())]},
-            {'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, self.min)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, self.max)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, self.average())]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
         ]
 
         length = len(self.samples)
@@ -133,7 +138,7 @@ class Histogram(Metric):
         for p in self.percentiles:
             val = self.samples[int(round(p * length - 1))]
             name = '%s.%spercentile' % (self.name, int(p * 100))
-            metrics.append({'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
+            metrics.append({'host': self.hostname, 'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
         return metrics
 
     def average(self):
@@ -146,7 +151,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self):
+    def __init__(self, hostname):
         self.metrics = {}
         self.count = 0
         self.metric_type_to_class = {
@@ -155,6 +160,7 @@ class MetricsAggregator(object):
             'h': Histogram,
             'ms' : Histogram
         }
+        self.hostname = hostname
 
     def submit(self, packet):
         self.count += 1
@@ -189,7 +195,7 @@ class MetricsAggregator(object):
 
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[type_]
-            self.metrics[context] = metric_class(name, tags)
+            self.metrics[context] = metric_class(name, tags, self.hostname)
         self.metrics[context].sample(value, sample_rate)
 
 
