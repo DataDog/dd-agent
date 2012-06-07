@@ -8,7 +8,7 @@ from checks import Check
 class EC2(Check):
     """Retrieve EC2 metadata
     """
-    URL = "http://169.254.169.254/latest/meta-data/"
+    URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
 
     def __init__(self, logger):
@@ -19,7 +19,7 @@ class EC2(Check):
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
         """
         # >>> import urllib2
-        # >>> urllib2.urlopen('http://169.254.169.254/1.0/', timeout=1).read()
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/', timeout=1).read()
         # 'meta-data\nuser-data'
         # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data', timeout=1).read()
         # 'ami-id\nami-launch-index\nami-manifest-path\nhostname\ninstance-id\nlocal-ipv4\npublic-keys/\nreservation-id\nsecurity-groups'
@@ -37,7 +37,7 @@ class EC2(Check):
         except:
             pass
 
-        for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'reservation-id', 'security-groups'):
+        for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
             try:
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
@@ -47,10 +47,14 @@ class EC2(Check):
 
         # Get fqdn, make sure that hostname only contains local part
         try:
-            metadata['fqdn'] = socket.getfqdn()
             hname = metadata.get("hostname", None)
             if hname is None:
                 hname = socket.gethostname()
+                metadata["fqdn"] = socket.getfqdn()
+            else:
+                metadata["fqdn"] = metadata["hostname"]
+
+            # Replace hostname with shortname
             metadata["hostname"] = hname.split(".")[0]
         except:
             pass

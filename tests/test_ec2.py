@@ -24,6 +24,7 @@ class TestEC2(unittest.TestCase):
             assert "instance-id" in d
             assert d["instance-id"].startswith("i-")
             assert d["hostname"].startswith("i-") or d["hostname"].startswith("domU-")
+            assert d["fqdn"].startswith(d["hostname"])
         # either way, it should have not taken more than 1s to get an answer
         assert end - start <= 1.0, "It took %s seconds to get ec2 metadata" % (end-start)
 
