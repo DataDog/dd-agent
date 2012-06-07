@@ -55,7 +55,7 @@ case "$1" in
         echo -n "Stopping $DESC: "
         if [ -f $USE_SUPERVISOR ]; then
 	    # Prevent errors if not under actual supervision
-            supervised=$(supervisorctl avail | grep datadog-agent | wc -l)
+	    supervised=$(supervisorctl avail | grep datadog-agent | wc -l)
 	    if [ $supervised -gt 1 ]; then
             	echo -n "(using supervisorctl) "
             	supervisorctl stop datadog-agent:*
