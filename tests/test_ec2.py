@@ -18,15 +18,14 @@ class TestEC2(unittest.TestCase):
         # fqdn must be set on ec2 and elsewhere
         assert "fqdn" in d
         # Either we're on ec2 or we're not (at least 7 attributes expected)
-        assert len(d) == 1 or len(d) >= 7
-        if len(d) > 1:
-            assert "hostname" in d
+        assert len(d) == 2 or len(d) >= 7, d
+        assert "hostname" in d
+        assert d["fqdn"].startswith(d["hostname"])
+        if len(d) > 2:
             assert "instance-id" in d
             assert d["instance-id"].startswith("i-")
             assert d["hostname"].startswith("i-") or d["hostname"].startswith("domU-")
-            assert d["fqdn"].startswith(d["hostname"])
-        # either way, it should have not taken more than 1s to get an answer
-        assert end - start <= 1.0, "It took %s seconds to get ec2 metadata" % (end-start)
+        assert end - start <= 1.1, "It took %s seconds to get ec2 metadata" % (end-start)
 
 if __name__ == "__main__":
     unittest.main()
