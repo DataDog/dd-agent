@@ -1,9 +1,9 @@
 #!/usr/bin/python
-
 '''
 A Python Statsd implementation with some datadog special sauce.
 '''
 
+# stdlib
 import httplib as http_client
 import logging
 import optparse
@@ -15,7 +15,11 @@ import time
 import threading
 from urllib import urlencode
 
+# project
+from config import get_config
 from util import json
+
+
 
 # create logger
 logger = logging.getLogger()
@@ -231,6 +235,7 @@ class Reporter(threading.Thread):
         self.finished.set()
 
     def run(self):
+        logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         while True:
             if self.finished.is_set():
                 break
@@ -304,24 +309,26 @@ class Server(object):
 
 
 def main():
-    parser = optparse.OptionParser("usage: %prog [options] api_key")
-    parser.add_option("-H", '--host', dest='host', default='localhost')
-    parser.add_option("-p", '--port', dest='port', default='8125')
-    parser.add_option("-a", '--api-host', dest='api_host', default='https://app.datadoghq.com')
-    parser.add_option("-k", '--api-key', dest='api_key', default=None)
-    parser.add_option("-i", '--interval', dest='interval', default='10')
-    options, args = parser.parse_args()
+
+    c = get_config(parse_args=False)
+
+    print c
+    port     = c['dogstatsd_port']
+    target   = c['dogstatsd_target']
+    interval = c['dogstatsd_interval']
+    api_key  = c['apiKey']
+    host = 'localhost'
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
     aggregator = MetricsAggregator()
 
     # Start the reporting thread.
-    reporter = Reporter(options.interval, aggregator, options.api_host, options.api_key)
+    reporter = Reporter(interval, aggregator, target, api_key)
     reporter.start()
 
     # Start the server.
-    server = Server(aggregator, options.host, options.port)
+    server = Server(aggregator, 'localhost', port)
     server.start()
 
     # If we're here, we're done.

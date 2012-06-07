@@ -1,16 +1,16 @@
 [Main]
 
-# The host of the Datadog intake server to send agent data to 
+# The host of the Datadog intake server to send agent data to
 dd_url: https://app.datadoghq.com
 
-# The Datadog api key to associate your agent's data with your organization. 
-# Can be found here: 
+# The Datadog api key to associate your agent's data with your organization.
+# Can be found here:
 # https://app.datadoghq.com/account/settings
-api_key: 
+api_key:
 
-# Boolean to enable debug_mode, which outputs massive amounts of log messages 
-# to the /tmp/ directory.  
-debug_mode: no 
+# Boolean to enable debug_mode, which outputs massive amounts of log messages
+# to the /tmp/ directory.
+debug_mode: no
 
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
@@ -27,6 +27,23 @@ use_mount: no
 
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
+
+# ========================================================================== #
+# dogstatsd configuration                                                    #
+# ========================================================================== #
+
+#  Make sure your client is sending to the same port.
+
+# dogstatsd_port : 8125
+
+# By default dogstatsd will post aggregate metrics to the agent (which handles
+# errors/timeouts/retries/etc). To send directly to the datadog api, set this
+# to https://app.datadoghq.com.
+
+# dogstatsd_target : http://localhost:17123
+
+## The dogstatsd flush period.
+# dogstatsd_interval : 10
 
 # ========================================================================== #
 # Service-specific configuration                                             #
@@ -80,8 +97,8 @@ use_mount: no
 # PostgreSQL port
 #postgresql_port:
 
-# PostgreSQL user. It needs to connect to the "postgres" database but does not 
-# require any privileges, so you should consider creating a separate, 
+# PostgreSQL user. It needs to connect to the "postgres" database but does not
+# require any privileges, so you should consider creating a separate,
 # unprivileged user
 #postgresql_user:
 
@@ -103,8 +120,8 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Url to RabbitMQ's status page. Must have rabbitmq-status plugin installed.
-# See http://www.lshift.net/blog/2009/11/30/introducing-rabbitmq-status-plugin 
-# for details. 
+# See http://www.lshift.net/blog/2009/11/30/introducing-rabbitmq-status-plugin
+# for details.
 #rabbitmq_status_url: http://www.example.com:55672/json
 #rabbitmq_user: guest
 #rabbitmq_pass: guest
@@ -170,7 +187,7 @@ use_mount: no
 
 # JMX server:port to connect to
 # jvm_jmx_server: localhost:8090
-#jvm_jmx_server: 
+#jvm_jmx_server:
 
 # JMX user to log in with, if needed
 #jvm_jmx_user: john
@@ -222,20 +239,20 @@ use_mount: no
 #solr_jmx_pass: foobar
 
 # -------------------------------------------------------------------------- #
-#  Rails                                                                     
+#  Rails
 # -------------------------------------------------------------------------- #
 
 #rails_logs: /var/log/myrailsapp.log
 
 # -------------------------------------------------------------------------- #
-#  Memcache                                                                     
+#  Memcache
 # -------------------------------------------------------------------------- #
 
 #memcache_server: localhost
 #memcache_port: 11211
 
 # -------------------------------------------------------------------------- #
-#  Dogstream (log file parser)                                                                     
+#  Dogstream (log file parser)
 # -------------------------------------------------------------------------- #
 
 # Comma-separated list of logs to parse and optionally custom parsers to use.
@@ -244,10 +261,10 @@ use_mount: no
 #   dogstreams: /path/to/log1:parsers:custom_parser, /path/to/log2, /path/to/log3, ...
 #
 # Each entry is a path to a log file and optionally a Python module/function pair
-# separated by colons. 
+# separated by colons.
 #
-# Custom parsers should take a 2 parameters, a logger object and 
-# a string parameter of the current line to parse. It should return a tuple of 
+# Custom parsers should take a 2 parameters, a logger object and
+# a string parameter of the current line to parse. It should return a tuple of
 # the form:
 #   (metric (str), timestamp (unix timestamp), value (float), attributes (dict))
 # where attributes should at least contain the key 'metric_type', specifying
