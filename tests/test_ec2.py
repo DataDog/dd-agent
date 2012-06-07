@@ -19,12 +19,12 @@ class TestEC2(unittest.TestCase):
         assert "fqdn" in d
         # Either we're on ec2 or we're not (at least 7 attributes expected)
         assert len(d) == 2 or len(d) >= 7, d
-        assert "hostname" in d
-        assert d["fqdn"].startswith(d["hostname"])
+        assert "hostname" in d, d
+        assert d["fqdn"].startswith(d["hostname"]), d
         if len(d) > 2:
-            assert "instance-id" in d
-            assert d["instance-id"].startswith("i-")
-            assert d["hostname"].startswith("i-") or d["hostname"].startswith("domU-")
+            assert "instance-id" in d, d
+            assert d["instance-id"].startswith("i-"), d
+            assert d["hostname"].startswith("i-") or d["hostname"].startswith("domU-"), d
         assert end - start <= 1.1, "It took %s seconds to get ec2 metadata" % (end-start)
 
 if __name__ == "__main__":
