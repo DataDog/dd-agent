@@ -324,7 +324,6 @@ def main():
     api_key  = c['apiKey']
     host = 'localhost'
 
-
     hostname = socket.gethostname()
 
     # Create the aggregator (which is the point of communication between the
@@ -336,7 +335,8 @@ def main():
     reporter.start()
 
     # Start the server.
-    server = Server(aggregator, 'localhost', port)
+    server_host = ''
+    server = Server(aggregator, server_host, port)
     server.start()
 
     # If we're here, we're done.
