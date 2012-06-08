@@ -298,10 +298,15 @@ class Server(object):
     def start(self):
         """ Run the server. """
         logger.info('Starting dogstatsd server on %s' % str(self.address))
+
+        # Inline variables to speed up look-ups.
+        buffer_size = self.buffer_size
+        aggregator_submit = self.metrics_aggregator.submit
+        socket_recv = self.socket.recv
+
         while True:
             try:
-                data = self.socket.recv(self.buffer_size)
-                self.metrics_aggregator.submit(data)
+                aggregator_submit(socket_recv(buffer_size))
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
