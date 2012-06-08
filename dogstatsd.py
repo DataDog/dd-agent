@@ -174,10 +174,6 @@ class MetricsAggregator(object):
         if len(metadata) < 2:
             raise Exception('Unparseable packet: %s' % packet)
 
-        # Get the value & type of the metric.
-        value = float(metadata[0])
-        type_ = metadata[1]
-
         # Parse the optional values - sample rate & tags.
         sample_rate = 1
         tags = None
@@ -192,9 +188,9 @@ class MetricsAggregator(object):
         context = (name, tags)
 
         if context not in self.metrics:
-            metric_class = self.metric_type_to_class[type_]
+            metric_class = self.metric_type_to_class[metadata[1]]
             self.metrics[context] = metric_class(name, tags, self.hostname)
-        self.metrics[context].sample(value, sample_rate)
+        self.metrics[context].sample(float(metadata[0]), sample_rate)
 
 
     def flush(self, timestamp=None):
