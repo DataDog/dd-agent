@@ -1,11 +1,14 @@
 #!/bin/sh
 
-if [ $# -ne 1 ]; then
+if [ $# -eq 1 ]; then
+    apikey=$1
+elif [ -n "$DD_API_KEY" ]; then
+    apikey=$DD_API_KEY
+else
     echo "Usage: $0 <api_key>"
     exit 1
 fi
 
-apikey=$1
 unamestr=`uname`
 
 # create home base for the agent
