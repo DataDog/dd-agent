@@ -7,7 +7,7 @@ A Python Statsd implementation with some datadog special sauce.
 import httplib as http_client
 import logging
 import optparse
-import random
+from random import randrange
 import re
 import socket
 import sys
@@ -114,13 +114,11 @@ class Histogram(Metric):
         self.max = self.max if self.max > value else value
         self.min = self.min if self.min < value else value
         self.sum += value * count
-        # Is there a cleaner way to do this?
-        for i in xrange(count):
-            if self.count < self.sample_size:
-                self.samples.append(value)
-            else:
-                self.samples[random.randrange(0, self.sample_size)] = value
         self.count += count
+        if len(self.samples) < self.sample_size:
+            self.samples.append(value)
+        else:
+            self.samples[randrange(0, self.sample_size)] = value
 
     def flush(self, ts):
         if not self.count:
