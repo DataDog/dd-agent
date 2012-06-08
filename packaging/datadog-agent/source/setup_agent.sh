@@ -1,11 +1,14 @@
 #!/bin/sh
 
-if [ $# -ne 1 ]; then
+if [ $# -eq 1 ]; then
+    apikey=$1
+elif [ -n "$DD_API_KEY" ]; then
+    apikey=$DD_API_KEY
+else
     echo "Usage: $0 <api_key>"
     exit 1
 fi
 
-apikey=$1
 unamestr=`uname`
 
 # create home base for the agent
@@ -24,7 +27,7 @@ pip install tornado
 mkdir -p $dd_base/agent
 curl -L -o $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/master
 tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz
-sed "s/api_key:.*/api_key: $1/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf
+sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf
 mkdir -p $dd_base/bin
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent
 chmod +x $dd_base/bin/agent

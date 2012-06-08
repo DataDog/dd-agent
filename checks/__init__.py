@@ -112,7 +112,7 @@ class Check(object):
         return self.is_metric(metric) and \
                not self.is_counter(metric)
 
-    def get_metrics(self):
+    def get_metric_names(self):
         "Get all metric names"
         return self._sample_store.keys()
 
@@ -235,4 +235,4 @@ def gethostname(agentConfig):
         try:
             return socket.gethostname()
         except socket.error, e:
-            logger.debug("processes: unable to get hostanme: " + str(e))
+            logging.debug("processes: unable to get hostanme: " + str(e))

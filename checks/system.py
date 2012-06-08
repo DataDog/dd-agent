@@ -7,7 +7,10 @@ import sys
 import time
 from checks import Check, gethostname
 
-class Disk(object):
+class Disk(Check):
+
+    def __init__(self, logger):
+        Check.__init__(self, logger)
 
     def _parse_df(self, lines, inodes = False, use_mount=False):
         """Multi-platform df output parser
@@ -91,12 +94,12 @@ class Disk(object):
                     # Available
                     parts[3] = int(parts[3])
             except IndexError:
-                logger.exception("Cannot parse %s" % (parts,))
+                self.logger.exception("Cannot parse %s" % (parts,))
 
             usageData.append(parts)
         return usageData
     
-    def check(self, logger, agentConfig):
+    def check(self, agentConfig):
         """Get disk space/inode stats"""
 
         # Check test_system for some examples of output
@@ -114,11 +117,51 @@ class Disk(object):
             inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
             return (disks, inodes)
         except:
-            logger.exception('getDiskUsage')
+            self.logger.exception('getDiskUsage')
             return False
 
 
 class IO(object):
+    def _parse_linux2_iostat_output(self, iostat_output):
+        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
+        itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
+        valueRegexp = re.compile(r'\d+\.\d+')
+
+        recentStats = iostat_output.split('Device:')[2].split('\n')
+        header = recentStats[0]
+        headerNames = re.findall(headerRegexp, header)
+        device = None
+
+        ioStats = {}
+
+        for statsIndex in range(1, len(recentStats)):
+            row = recentStats[statsIndex]
+
+            if not row:
+                # Ignore blank lines.
+                continue
+
+            deviceMatch = re.match(itemRegexp, row)
+
+            if deviceMatch is not None:
+                # Sometimes device names span two lines.
+                device = deviceMatch.groups()[0]
+
+            values = re.findall(valueRegexp, row)
+
+            if not values:
+                # Sometimes values are on the next line so we encounter
+                # instances of [].
+                continue
+
+            ioStats[device] = {}
+
+            for headerIndex in range(0, len(headerNames)):
+                headerName = headerNames[headerIndex]
+                ioStats[device][headerName] = values[headerIndex]
+
+        return ioStats
+
     def check(self, logger, agentConfig):
         logger.debug('getIOStats: start')
         
@@ -127,42 +170,9 @@ class IO(object):
         if sys.platform == 'linux2':
             logger.debug('getIOStats: linux2')
             
-            headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-            itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
-            valueRegexp = re.compile(r'\d+\.\d+')
-            
             try:
-                stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                recentStats = stats.split('Device:')[2].split('\n')
-                header = recentStats[0]
-                headerNames = re.findall(headerRegexp, header)
-                device = None
-                
-                for statsIndex in range(1, len(recentStats)):
-                    row = recentStats[statsIndex]
-                    
-                    if not row:
-                        # Ignore blank lines.
-                        continue
-                    
-                    deviceMatch = re.match(itemRegexp, row)
-                    
-                    if deviceMatch is not None:
-                        # Sometimes device names span two lines.
-                        device = deviceMatch.groups()[0]
-                    
-                    values = re.findall(valueRegexp, row)
-                    
-                    if not values:
-                        # Sometimes values are on the next line so we encounter
-                        # instances of [].
-                        continue
-                    
-                    ioStats[device] = {}
-                    
-                    for headerIndex in range(0, len(headerNames)):
-                        headerName = headerNames[headerIndex]
-                        ioStats[device][headerName] = values[headerIndex]
+                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                ioStats.update(self._parse_linux2_iostat_output(stdout))
                     
             except:
                 logger.exception('getIOStats')
@@ -292,7 +302,7 @@ class Memory(Check):
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
 
-                memData['physUsed'] = memData['physTotal'] - memData['physFree'] - memData['physBuffers'] - memData['physCached'] - memData['physShared']
+                memData['physUsed'] = memData['physTotal'] - memData['physFree']
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
             except:

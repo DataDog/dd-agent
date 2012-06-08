@@ -6,7 +6,7 @@ from checks.db.mysql import MySql
 class TestMySql(unittest.TestCase):
     def setUp(self):
         # This should run on pre-2.7 python so no skiptest
-        self.skip = False
+        self.skip = True
         try:
             import MySQLdb
             self.mock = MySQLdb.MockSql()

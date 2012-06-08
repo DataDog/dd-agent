@@ -18,8 +18,8 @@ class TestSystem(unittest.TestCase):
     def testDisk(self):
         """Testing disk stats gathering"""
         global logger
-        disk = Disk()
-        res = disk.check(logger, {})
+        disk = Disk(logger)
+        res = disk.check({})
 
     lion_df_i = """Filesystem                        512-blocks      Used Available Capacity  iused    ifree %iused  Mounted onto
 /dev/disk1                         487932936 220080040 267340896    46% 27574003 33417612   45%   /
@@ -64,7 +64,7 @@ none                  985964       1  985963    1% /lib/init/rw
 
     def testDfParser(self):
         global logger
-        disk = Disk()
+        disk = Disk(logger)
 
         if sys.platform == 'darwin':
             res = disk._parse_df(TestSystem.lion_df_k)
@@ -100,10 +100,56 @@ none                  985964       1  985963    1% /lib/init/rw
             for k in ("swapTotal", "swapFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable", "physShared"):
                 assert k in res, res
             assert res["swapTotal"] == res["swapFree"] + res["swapUsed"]
-            assert res["physTotal"] == res["physFree"] + res["physBuffers"] + res["physCached"] + res["physShared"] + res["physUsed"]
+            assert res["physTotal"] == res["physFree"] + res["physUsed"]
         elif sys.platform == 'darwin':
             for k in ("swapFree", "swapUsed", "physFree", "physUsed"):
                 assert k in res, res
+
+    def testDiskLatency(self):
+        # example output from `iostat -d 1 2 -x -k` on
+        # debian testing x86_64, from Debian package
+        # sysstat@10.0.4-1
+        debian_iostat_output = """Linux 3.2.0-2-amd64 (fireflyvm) 	05/29/2012 	_x86_64_	(2 CPU)
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.44     2.58    5.79    2.84   105.53   639.03   172.57     0.17   19.38    1.82   55.26   0.66   0.57
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+
+"""
+
+        checker = IO()
+        results = checker._parse_linux2_iostat_output(debian_iostat_output)
+        self.assertTrue('sda' in results)
+        for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
+                    'avgrq-sz', 'avgqu-sz', 'await', 'r_await',
+                    'w_await', 'svctm', '%util'):
+            self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
+            self.assertEqual(results['sda'][key], '0.00')
+
+        # example output from `iostat -d 1 d -x -k` on
+        # centos 5.8 x86_64, from RPM package
+        # sysstat@7.0.2; it differs from the above by
+        # not having split-out r_await and w_await fields
+        centos_iostat_output = """Linux 2.6.18-308.el5 (localhost.localdomain) 	05/29/2012
+
+Device:         rrqm/s   wrqm/s   r/s   w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               9.44     7.56 16.76  4.40   322.05    47.75    34.96     0.01    0.59   0.35   0.74
+
+Device:         rrqm/s   wrqm/s   r/s   w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
+sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+
+"""
+
+        checker = IO()
+        results = checker._parse_linux2_iostat_output(centos_iostat_output)
+        self.assertTrue('sda' in results)
+        for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
+                    'avgrq-sz', 'avgqu-sz', 'await', 'svctm', '%util'):
+            self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
+            self.assertEqual(results['sda'][key], '0.00')
+
 
 if __name__ == "__main__":
     unittest.main()

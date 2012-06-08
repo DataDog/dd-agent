@@ -8,7 +8,8 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) -n "datadog-agent-lib" \
 -a all -m "Datadog Packages <package@datadoghq.com>" \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
--v $(VERSION)-$(BUILDNUMBER) \
+-v $(VERSION) \
+--iteration $(BUILDNUMBER)
 
 clean:
 	rm -f checks

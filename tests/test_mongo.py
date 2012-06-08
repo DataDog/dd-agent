@@ -9,8 +9,8 @@ import socket
 import pymongo
 from checks.db.mongo import MongoDb
 
-PORT1 = 27017
-PORT2 = 27018
+PORT1 = 37017
+PORT2 = 37018
 MAX_WAIT = 150
 
 class TestMongo(unittest.TestCase):
@@ -66,7 +66,7 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testCheck(self):
-        r = self.c.check({"MongoDBServer": "mongodb://localhost:%s/local" % PORT1})
+        r = self.c.check({"MongoDBServer": "mongodb://localhost:%s/test" % PORT1, "apiKey": "abc123"})
         self.assertEquals(r and r["connections"]["current"] >= 1, True)
         assert r["connections"]["available"] >= 1
         assert r["uptime"] >= 0, r
@@ -74,7 +74,7 @@ class TestMongo(unittest.TestCase):
         assert r["mem"]["virtual"] > 0
         assert "replSet" in r
 
-        r = self.c.check({"MongoDBServer": "mongodb://localhost:%s/local" % PORT1})
+        r = self.c.check({"MongoDBServer": "mongodb://localhost:%s/test" % PORT2, "apiKey": "abc123"})
         self.assertEquals(r and r["connections"]["current"] >= 1, True)
         assert r["connections"]["available"] >= 1
         assert r["uptime"] >= 0, r

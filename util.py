@@ -18,7 +18,7 @@ else:
         
         @staticmethod
         def loads(data):
-            return minjson.safeRead(response)
+            return minjson.safeRead(data)
 
 
 def headers(agentConfig):

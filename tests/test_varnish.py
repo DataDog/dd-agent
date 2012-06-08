@@ -1847,9 +1847,8 @@ VBE.default(127.0.0.1,,8080).happy           0          .   Happy health probes"
     def testParsing(self):
         v = Varnish(logging.getLogger("tests"))
         v._parse_varnishstat(self.v_dump, False)
-        self.assertEquals(v.get_sample("varnish.LCK.vbe.locks"), 1.90)
         self.assertEquals(v.get_sample("varnish.n_waitinglist"), 980)
-        self.assertEquals(len(v.get_metrics()), len(self.v_dump.split("\n")))
+        self.assertRaises(UnknownValue, v.get_sample, "varnish.fetch_length")
 
         # XML parsing
         v._parse_varnishstat(self.xml_dump, True)

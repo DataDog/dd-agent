@@ -1,4 +1,3 @@
-
 import sys
 import time
 from datetime import datetime, timedelta
@@ -11,6 +10,8 @@ def plural(count):
     if count > 1:
         return "s"
     return ""
+
+class ImplementationError(Exception): pass
 
 class Transaction(object):
 
@@ -27,9 +28,6 @@ class Transaction(object):
     def set_id(self, new_id):
         assert self._id is None
         self._id = new_id
-
-    def get_error_count(self):
-        return self._error_count
 
     def inc_error_count(self):
         self._error_count = self._error_count + 1

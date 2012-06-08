@@ -91,8 +91,8 @@ class GraphiteConnection(object):
 
         try:
             datapoints = pickle.loads(data)
-        except Error, e:
-            logging.error(e)
+        except:
+            logging.exception("Cannot decode grapite points")
             return
    
         for (metric, datapoint) in datapoints:
