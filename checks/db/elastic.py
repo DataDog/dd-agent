@@ -3,12 +3,12 @@
 import urlparse
 import urllib2
 
-from checks import Check
+from checks import Check, gethostname
 from util import json, headers
 
 class ElasticSearch(Check):
 
-    STATS_URL = "/_nodes/stats?all=true&pretty=true"
+    STATS_URL = "/_nodes/stats?all=true"
 
     METRICS = { 
         "docs.count": "gauge",
@@ -74,8 +74,9 @@ class ElasticSearch(Check):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
-            def process_metric(metric, type, path):
-                self._process_metric(node_data, metric, path)
+            if node_data['hostname'] == gethostname(agentConfig):
+                def process_metric(metric, type, path):
+                    self._process_metric(node_data, metric, path)
 
             self._map_metric(process_metric)
 
