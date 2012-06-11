@@ -82,7 +82,7 @@ class checks:
         self._io = IO()
         self._load = Load(self.checksLogger)
         self._memory = Memory(self.checksLogger)
-        self._network = Network()
+        self._network = Network(self.checksLogger)
         self._processes = Processes()
         self._cpu = Cpu()
         self._couchdb = CouchDb(self.checksLogger)
@@ -155,7 +155,7 @@ class checks:
  
     @recordsize
     def getNetworkTraffic(self):
-        return self._network.check(self.checksLogger, self.agentConfig)
+        return self._network.check(self.agentConfig)
     
     @recordsize
     def getNginxStatus(self):
