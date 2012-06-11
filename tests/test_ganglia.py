@@ -1,5 +1,4 @@
 import logging
-logging.basicConfig()
 import unittest
 import subprocess
 try:
@@ -24,7 +23,7 @@ class TestGanglia(unittest.TestCase):
         time.sleep(1)
 
         pfile = tempfile.NamedTemporaryFile()
-        g = Ganglia(logging.getLogger('tests'))
+        g = Ganglia(logging.getLogger(__file__))
         # Running the profiler
         # profile.runctx("g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651})", {}, {"g": g}, pfile.name)
         # p = pstats.Stats(pfile.name)

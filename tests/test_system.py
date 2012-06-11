@@ -2,8 +2,7 @@ import unittest
 import logging
 import sys
 
-logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__file__)
 
 from checks.system import *
 
@@ -150,6 +149,16 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
             self.assertEqual(results['sda'][key], '0.00')
 
+    def testNetwork(self):
+        global logger
+        checker = Network(logger)
+        # First call yields nothing
+        self.assertEquals(False, checker.check({}))
+        # Second call yields values
+        if sys.platform == "darwin":
+            v = checker.check({})
+            assert "lo0" in v
+            
 
 if __name__ == "__main__":
     unittest.main()
