@@ -607,5 +607,5 @@ class TestNagiosPerfData(TailTestCase):
 
         
 if __name__ == '__main__':
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
+    # logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
     unittest.main()

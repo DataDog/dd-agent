@@ -1,7 +1,6 @@
 import unittest
 import logging
-logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__file__)
 
 from checks.web import *
 

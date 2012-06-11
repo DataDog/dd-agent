@@ -2,8 +2,7 @@ import unittest
 import logging
 import sys
 
-logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__file__)
 
 from checks.system import *
 

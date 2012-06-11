@@ -1,13 +1,12 @@
 import unittest
 import logging
-logging.basicConfig(level=logging.DEBUG)
 from subprocess import Popen, PIPE
 import multiprocessing
 from checks.db.mcache import *
 
 class TestMemCache(unittest.TestCase):
     def setUp(self):
-        self.c = Memcache(logging.getLogger())
+        self.c = Memcache(logging.getLogger(__file__))
 
     def _countConnections(self, port):
         pid = multiprocessing.current_process().pid
