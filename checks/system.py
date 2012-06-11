@@ -393,7 +393,7 @@ class Network(Check):
             
             interval = self.networkTrafficStore["current_ts"] - self.networkTrafficStore["last_ts"]
             self.logger.debug('getNetworkTraffic: interval (s) %s' % interval)
-            if interval == 0:
+            if interval <= 0.001:
                 self.logger.warn('0-sample interval, skipping network checks')
                 return False
             self.networkTrafficStore["last_ts"] = self.networkTrafficStore["current_ts"]
