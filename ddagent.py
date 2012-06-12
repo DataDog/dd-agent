@@ -86,13 +86,15 @@ class MetricTransaction(Transaction):
         return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
-        for endpoint in self._endpoints:
+        for endpoint, current_idx in enumerate(self._endpoints):
             # Send Transaction to the endpoint
             req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
                                  method = "POST", body = self.get_data() )
             http = tornado.httpclient.AsyncHTTPClient()
             logging.debug("Sending transaction %d to datadog" % self.get_id())
-            if endpoint == 'ddUrl':
+
+            # Check response for last endpoint
+            if current_idx == len(self._endpoints - 1):
                 http.fetch(req, callback=lambda(x): self.on_response(x))
             else: http.fetch(req, callback=lambda(x): None)
 
