@@ -48,6 +48,7 @@ class MetricTransaction(Transaction):
 
     _application = None
     _trManager = None
+    _endpoints = ['ddUrl', 'pupUrl']
 
     @classmethod
     def set_application(cls, app):
@@ -81,17 +82,19 @@ class MetricTransaction(Transaction):
         except:
             logging.exception('http_emitter failed')
 
-    def get_url(self):
-        return self._application._agentConfig['ddUrl'] + '/intake/'
+    def get_url(self, endpoint):
+        return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
-
-        # Send Transaction to the intake
-        req = tornado.httpclient.HTTPRequest(self.get_url(), 
-                             method = "POST", body = self.get_data() )
-        http = tornado.httpclient.AsyncHTTPClient()
-        logging.debug("Sending transaction %d to datadog" % self.get_id())
-        http.fetch(req, callback=lambda(x): self.on_response(x))
+        for endpoint in self._endpoints:
+            # Send Transaction to the endpoint
+            req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
+                                 method = "POST", body = self.get_data() )
+            http = tornado.httpclient.AsyncHTTPClient()
+            logging.debug("Sending transaction %d to datadog" % self.get_id())
+            if endpoint == 'ddUrl':
+                http.fetch(req, callback=lambda(x): self.on_response(x))
+            else: http.fetch(req, callback=lambda(x): None)
 
     def on_response(self, response):
         if response.error: 

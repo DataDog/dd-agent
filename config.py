@@ -83,6 +83,9 @@ def get_config(parse_args = True, cfg_path=None):
         if agentConfig['ddUrl'].endswith('/'):
             agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
 
+        # Also send to Pup
+        agentConfig['pupUrl'] = config.get('Main', 'pup_url')
+
         # Which API key to use
         agentConfig['apiKey'] = config.get('Main', 'api_key')
 

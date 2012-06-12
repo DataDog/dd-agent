@@ -70,7 +70,7 @@ class TransactionManager(object):
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
 
-        self._flush_without_ioloop = False # usefull for tests
+        self._flush_without_ioloop = False # useful for tests
 
         self._transactions = [] #List of all non commited transactions
         self._total_count = 0 # Maintain size/count not to recompute it everytime
