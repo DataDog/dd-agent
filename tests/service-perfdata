@@ -1,0 +1,4 @@
+[SERVICEPERFDATA]	1339511383	localhost	Current Load	0.003	0.112	(Return code of 127 is out of bounds - plugin may be missing)	
+[SERVICEPERFDATA]	1339511443	localhost	Current Users	0.030	0.182	USERS OK - 1 users currently logged in	users=1;20;50;0
+[SERVICEPERFDATA]	1339511503	localhost	PING	4.006	0.126	PING OK - Packet loss = 0%, RTA = 0.06 ms	rta=0.065000ms;100.000000;500.000000;0.000000 pl=0%;20;60;0
+[SERVICEPERFDATA]	1339511563	localhost	Root Partition	0.009	0.168	DISK OK - free space: / 4467 MB (64% inode=96%):	/=2470MB;5852;6583;0;7315
