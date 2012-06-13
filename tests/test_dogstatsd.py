@@ -146,6 +146,10 @@ class TestUnitDogStatsd(object):
         assert_almost_equal(p85['points'][0][1], 85, 10)
         assert_almost_equal(p95['points'][0][1], 95, 10)
         assert_almost_equal(p99['points'][0][1], 99, 10)
+        assert_almost_equal(pavg['points'][0][1], 50, 2)
+        assert_almost_equal(pmax['points'][0][1], 99, 1)
+        assert_almost_equal(pmin['points'][0][1], 0, 1)
+        assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
         nt.assert_equals(p75['host'], 'myhost')
 
     def test_sampled_histogram(self):

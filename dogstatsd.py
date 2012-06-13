@@ -94,38 +94,33 @@ class Histogram(Metric):
         self.hostname = hostname
 
     def sample(self, value, sample_rate):
-        count = int(1 / sample_rate)
-        self.max = self.max if self.max > value else value
-        self.min = self.min if self.min < value else value
-        self.sum += value * count
-        self.count += count
-        if len(self.samples) < self.sample_size:
-            self.samples.append(value)
-        else:
-            self.samples[randrange(0, self.sample_size)] = value
+        self.count += int(1 / sample_rate)
+        self.samples.append(value)
 
     def flush(self, ts):
         if not self.count:
             return []
 
+        self.samples.sort()
+        length = len(self.samples)
+
+        min_ = self.samples[0]
+        max_ = self.samples[-1]
+        avg = self.samples[int(round(length/2 - 1))]
+
+
         metrics = [
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, self.min)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, self.max)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, self.average())]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, min_)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, max_)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, avg)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
         ]
 
-        length = len(self.samples)
-        self.samples.sort()
         for p in self.percentiles:
             val = self.samples[int(round(p * length - 1))]
             name = '%s.%spercentile' % (self.name, int(p * 100))
             metrics.append({'host': self.hostname, 'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
         return metrics
-
-    def average(self):
-        return float(self.sum) / self.count
-
 
 
 class MetricsAggregator(object):
