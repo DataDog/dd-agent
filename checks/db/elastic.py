@@ -36,9 +36,9 @@ class ElasticSearch(Check):
         for metric in cls.METRICS:
             desc = cls.METRICS[metric]
             if type(desc) == tuple:
-                func(metric,*desc)
+                func("es." + metric,*desc)
             else:
-                func(metric,desc,metric)
+                func("es." + metric,desc,metric)
 
     def __init__(self, logger):
         Check.__init__(self, logger)
@@ -96,12 +96,13 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
 
         data = None
         try:
-            data = self._get_data(agentConfig, url)
+            data = self._get_data(config, url)
         except:
             self.logger.exception('Unable to get ElasticSearch statistics')
             return False
 
-        self._process_data(agentConfig, data)
+        self._process_data(config, data)
+
         return self.get_metrics()
 
 if __name__ == "__main__":
