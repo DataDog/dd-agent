@@ -48,6 +48,7 @@ class MetricTransaction(Transaction):
 
     _application = None
     _trManager = None
+    _endpoints = []
 
     @classmethod
     def set_application(cls, app):
@@ -60,6 +61,13 @@ class MetricTransaction(Transaction):
     @classmethod
     def get_tr_manager(cls):
         return cls._trManager
+
+    @classmethod
+    def set_endpoints(cls):
+        if cls._application._agentConfig['usePup']:
+            cls._endpoints.append('pupUrl')
+        if cls._application._agentConfig['useDd']:
+            cls._endpoints.append('ddUrl')
 
     def __init__(self, data):
         self._data = data
@@ -81,17 +89,29 @@ class MetricTransaction(Transaction):
         except:
             logging.exception('http_emitter failed')
 
-    def get_url(self):
-        return self._application._agentConfig['ddUrl'] + '/intake/'
+    def get_url(self, endpoint):
+        return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
-
-        # Send Transaction to the intake
-        req = tornado.httpclient.HTTPRequest(self.get_url(), 
-                             method = "POST", body = self.get_data() )
-        http = tornado.httpclient.AsyncHTTPClient()
         logging.debug("Sending transaction %d to datadog" % self.get_id())
-        http.fetch(req, callback=lambda(x): self.on_response(x))
+
+        for current_idx, endpoint in enumerate(self._endpoints):
+            # Send Transaction to the endpoint
+            req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
+                                 method = "POST", body = self.get_data() )
+            http = tornado.httpclient.AsyncHTTPClient()
+
+            # Check response for last endpoint
+            # 1st priority, ddUrl; 2nd priority, pupUrl.
+            if 'ddUrl' in self._endpoints:
+                if endpoint == 'ddUrl': 
+                    http.fetch(req, callback=lambda(x): self.on_response(x))
+                else: http.fetch(req, callback=lambda(x): None)
+            elif 'pupUrl' in self._endpoints:
+                if endpoint == 'pupUrl': 
+                    http.fetch(req, callback=lambda(x): self.on_response(x))
+                else: http.fetch(req, callback=lambda(x): None)
+            else: http.fetch(req, callback=lambda(x): self.on_response(x))
 
     def on_response(self, response):
         if response.error: 
@@ -105,7 +125,7 @@ class MetricTransaction(Transaction):
 
 class APIMetricTransaction(MetricTransaction):
 
-    def get_url(self):
+    def get_url(self, endpoint):
         config = self._application._agentConfig
         api_key = config['apiKey']
         base_url = config['ddUrl']
@@ -183,6 +203,7 @@ class Application(tornado.web.Application):
         self._metrics = {}
 
         MetricTransaction.set_application(self)
+        MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)

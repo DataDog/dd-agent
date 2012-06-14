@@ -19,10 +19,18 @@ def get_parsed_args():
                         dest='clean')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                         default=False,dest='use_forwarder')
+    parser.add_option('-p', '--disable-pup', action='store_true', default=False,
+                        dest="disable_pup")
+    parser.add_option('-n', '--disable-dd', action='store_true', default=False,
+                        dest="disable_dd")
     try:
         options, args = parser.parse_args()
     except SystemExit:
-        options, args = Values({'dd_url': None, 'clean': False, 'use_forwarder':False}), [] # Ignore parse errors
+        options, args = Values({'dd_url': None, 
+                                'clean': False, 
+                                'use_forwarder':False,
+                                'disable_pup':False,
+                                'disable_dd':False}), [] # Ignore parse errors
     return options, args
 
 def get_version():
@@ -70,18 +78,30 @@ def get_config(parse_args = True, cfg_path=None):
         # Core config
         #
 
-        # Where to send the data
+        agentConfig['useDd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
+
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main','listen_port'):
                 listen_port = config.get('Main','listen_port')
             agentConfig['ddUrl'] = "http://localhost:" + str(listen_port)
-        elif options is not None and options.dd_url:
+        elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['ddUrl'] = options.dd_url
         else:
             agentConfig['ddUrl'] = config.get('Main', 'dd_url')
         if agentConfig['ddUrl'].endswith('/'):
             agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
+
+        # Whether also to send to Pup
+        agentConfig['usePup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
+        if options is not None and options.disable_pup:
+            agentConfig['usePup'] = False
+        elif agentConfig['usePup']:
+            agentConfig['pupUrl'] = config.get('Main', 'pup_url')
+
+        if !agentConfig['useDd'] and !agentConfig['usePup']:
+            sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
+            exit(2)
 
         # Which API key to use
         agentConfig['apiKey'] = config.get('Main', 'api_key')
