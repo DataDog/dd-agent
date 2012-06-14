@@ -99,7 +99,7 @@ def get_config(parse_args = True, cfg_path=None):
         elif agentConfig['usePup']:
             agentConfig['pupUrl'] = config.get('Main', 'pup_url')
 
-        if !agentConfig['useDd'] and !agentConfig['usePup']:
+        if not agentConfig['useDd'] and not agentConfig['usePup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
             exit(2)
 
