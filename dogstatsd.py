@@ -128,8 +128,9 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname):
+    def __init__(self, hostname, interval):
         self.metrics = {}
+        self.total_count = 0
         self.count = 0
         self.metric_type_to_class = {
             'g': Gauge,
@@ -138,6 +139,7 @@ class MetricsAggregator(object):
             'ms' : Histogram
         }
         self.hostname = hostname
+        self.interval = interval
 
     def submit(self, packet):
         self.count += 1
@@ -164,21 +166,35 @@ class MetricsAggregator(object):
             elif m[0] == '#':
                 tags = tuple(sorted(m[1:].split(',')))
 
-        context = (name, tags)
+        # Bucket metrics by an interval of a few seconds to avoid race
+        # conditions betwen the threads.
+        timestamp = time.time()
+        interval = timestamp - timestamp % self.interval
 
+        context = (interval, name, tags)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[metadata[1]]
             self.metrics[context] = metric_class(name, tags, self.hostname)
         self.metrics[context].sample(float(metadata[0]), sample_rate)
 
 
-    def flush(self, timestamp=None):
-        timestamp = timestamp or time.time()
+    def flush(self):
+        # Flush all completed intervals bucketed up to this time.
+        timestamp = time.time()
+        interval = timestamp - timestamp % self.interval
+        
+        # Find all intervals that are completed (don't use a generator here)
+        past_contexts = [c for c in self.metrics if c[0] < interval]
+
+        # Flush all completed metrics and remove them.
         metrics = []
-        for context, metric in self.metrics.items():
-            metrics += metric.flush(timestamp)
+        for context in past_contexts:
+            metrics += self.metrics[context].flush(timestamp)
             del self.metrics[context]
+
+        # Save some stats.
         logger.info("received %s payloads since last flush" % self.count)
+        self.total_count += self.count
         self.count = 0
         return metrics
 
@@ -307,10 +323,11 @@ def main():
         logging.info("Debug logging to /tmp/dogstatsd.log")
 
     hostname = socket.gethostname()
+    rollup_interval = 5
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname)
+    aggregator = MetricsAggregator(hostname, rollup_interval)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)
