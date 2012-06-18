@@ -1,9 +1,14 @@
-"""
-    Datadog agent
+"""Base class for Checks.
 
-    Licensed under Simplified BSD License (see LICENSE)
-    (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc 2011 All Rights Reserved
+If you are writing your own checks you should subclass the Check class.
+
+The typicall workflow works like this:
+1. Create your Check class
+2. Declare your metrics as gauges or counters
+3. Call save_sample for each metric
+4. Call get_metrics() to get results
+5. Plug the results into checks/common.py
+
 """
 
 import logging
@@ -132,11 +137,14 @@ class Check(object):
             value = float(value)
         except ValueError, ve:
             raise NaN(ve)
-
-        # sort tags
+        
+        # Sort and validate tags
         if tags is not None:
-            tags.sort()
-            tags = tuple(tags)
+            if type(tags) != type([]):
+                raise CheckException("Tags must be a list of string")
+            else:
+                tags.sort()
+                tags = tuple(tags)
 
         # Data eviction rules
         if self.is_gauge(metric):
@@ -177,6 +185,12 @@ class Check(object):
 
     def get_sample_with_timestamp(self, metric, tags=None):
         "Get (timestamp-epoch-style, value)"
+
+        # Get the proper tags
+        if tags is not None and type(tags) == type([]):
+            tags.sort()
+            tags = tuple(tags)
+
         # Never seen this metric
         if metric not in self._sample_store:
             raise UnknownValue()
@@ -201,7 +215,7 @@ class Check(object):
         return x[1]
         
     def get_samples_with_timestamps(self):
-        "Return all values {metric: (ts, value)}"
+        "Return all values {metric: (ts, value)} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
@@ -211,7 +225,7 @@ class Check(object):
         return values
 
     def get_samples(self):
-        "Return all values {metric: value}"
+        "Return all values {metric: value} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
@@ -222,14 +236,21 @@ class Check(object):
         return values
 
     def get_metrics(self):
-        """This is the new format to send metrics backs
+        """Get all metrics, including the ones that are tagged.
+        This is the preferred method to retrieve metrics
+        
+        @return the list of samples
+        @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2]}), ...]
         """
         metrics = []
         for m in self._sample_store:
             try:
                 for t in self._sample_store[m]:
                    ts, val = self.get_sample_with_timestamp(m, t)
-                   metrics.append((m, int(ts), val, {"tags": list(t)}))
+                   if t is None:
+                       metrics.append((m, int(ts), val, {}))
+                   else:
+                       metrics.append((m, int(ts), val, {"tags": list(t)}))
             except:
                 pass
         return metrics
