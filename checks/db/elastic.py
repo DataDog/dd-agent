@@ -27,8 +27,29 @@ class ElasticSearch(Check):
         "get.exists.time": ("gauge","get.exists_time_in_millis"),
         "get.missing.total": ("gauge","get.missing_total"),
         "get.missing.time": ("gauge","get.missing_time_in_millis"),
+        "search.query.total": ("gauge","search.query_total"),
+        "search.query.time": ("gauge","search.query_time_in_millis"),
+        "search.query.current": ("gauge","search.query_current"),
+        "search.fetch.total": ("gauge","search.fetch_total"),
+        "search.fetch.time": ("gauge","search.fetch_time_in_millis"),
+        "search.fetch.current": ("gauge","search.fetch_current"),
+        "cache.field.evictions": ("gauge","cache.field_evictions"),
+        "cache.field.size": ("gauge","cache.field_size_in_bytes"),
+        "cache.filter.count": ("gauge","cache.filter_count"),
+        "cache.filter.evictions": ("gauge","cache.filter_evictions"),
+        "cache.filter.size": ("gauge","cache.filter_size_in_bytes"),
+        "merges.current": ("gauge","merges.current"),
+        "merges.current.docs": ("gauge","merges.current_docs"),
+        "merges.current.size": ("gauge","merges.current_size_in_bytes"),
+        "merges.total": ("gauge","merges.total"),
+        "merges.total.time": ("gauge","merges.total_time_in_millis"),
+        "merges.total.docs": ("gauge","merges.total_docs"),
+        "merges.total.size": ("gauge","merges.total_size_in_bytes"),
+        "refresh.total": ("gauge","refresh.total"),
+        "refresh.total.time": ("gauge","refresh.total_time_in_millis"),
+        "flush.total": ("gauge","flush.total"),
+        "flush.total.time": ("gauge","flush.total_time_in_millis"),
     }
-
 
     @classmethod
     def _map_metric(cls,func):
@@ -59,15 +80,24 @@ class ElasticSearch(Check):
         response = request.read()
         return json.loads(response)
 
+    def _metric_not_found(self, metric, path):
+        self.logger.warning("Metric not found: %s -> %s", path, metric)
+
     def _process_metric(self, data, metric, path):
 
         value = data.get("indices",None)
+        
         for key in path.split('.'):
             if value is not None:
                 value = value.get(key,None)
+            else:
+                value = None
+                break
 
         if value is not None:
             self.save_sample(metric,long(value))
+        else:
+            self._metric_not_found(metric, path)
 
     def _process_data(self, agentConfig, data):
 
