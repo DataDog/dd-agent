@@ -55,10 +55,13 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-metric", 3.0, now, tags = ["tag3", "tag4"])
         # This is a different combination of tags
         self.c.save_sample("test-metric", 3.0, now, tags = ["tag5", "tag3"])
-        self.assertEquals(self.c.get_metrics(),
-                          [("test-metric", now, 3.0, {"tags": ["tag3", "tag4"]}),
+        results = self.c.get_metrics()
+        results.sort()
+        self.assertEquals(results,
+                          [("test-counter", 2.0, 1.0, {"tags": ["tag1", "tag2"]}),
+                           ("test-metric", now, 3.0, {"tags": ["tag3", "tag4"]}),
                            ("test-metric", now, 3.0, {"tags": ["tag3", "tag5"]}),
-                           ("test-counter", 2.0, 1.0, {"tags": ["tag1", "tag2"]})])
+                           ])
 
     def test_samples(self):
         self.assertEquals(self.c.get_samples(), {})

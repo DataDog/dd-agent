@@ -60,8 +60,8 @@ class Check(object):
     """
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
-        # metric_name: {["sorted", "tags"]: [(ts, value), (ts, value)],
-        #                 tags are stored as a key
+        # metric_name: {("sorted", "tags"): [(ts, value), (ts, value)],
+        #                 tuple(tags) are stored as a key since lists are not hashable
         #               None: [(ts, value), (ts, value)]}
         #                 untagged values are indexed by None
         self._sample_store = {}
@@ -134,11 +134,13 @@ class Check(object):
             raise NaN(ve)
 
         # sort tags
-        if tags is not None: tags.sort()
+        if tags is not None:
+            tags.sort()
+            tags = tuple(tags)
 
         # Data eviction rules
         if self.is_gauge(metric):
-            self._sample_store[metric][tags] = (timestamp, value)
+            self._sample_store[metric][tags] = ((timestamp, value), )
         elif self.is_counter(metric):
             if self._sample_store[metric].get(tags) is None:
                 self._sample_store[metric][tags] = [(timestamp, value)]
@@ -148,9 +150,10 @@ class Check(object):
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
         if self.is_gauge(metric):
-            assert len(self._sample_store[metric][tags]) in (0, 1), self._sample_store[metric]
+            # store[metric][tags] = (ts, val) - only 1 value allowd
+            assert len(self._sample_store[metric][tags]) == 1, self._sample_store[metric]
         elif self.is_counter(metric):
-            assert len(self._sample_store[metric][tags]) in (0, 1, 2), self._sample_store[metric]
+            assert len(self._sample_store[metric][tags]) in (1, 2), self._sample_store[metric]
 
     @classmethod
     def _rate(cls, sample1, sample2):
@@ -226,7 +229,7 @@ class Check(object):
             try:
                 for t in self._sample_store[m]:
                    ts, val = self.get_sample_with_timestamp(m, t)
-                   metrics.append((m, int(ts), val, {"tags": t}))
+                   metrics.append((m, int(ts), val, {"tags": list(t)}))
             except:
                 pass
         return metrics
