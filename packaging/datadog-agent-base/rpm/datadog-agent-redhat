@@ -79,7 +79,7 @@ start() {
         else
             echo -n 'Starting Datadog agent: '
            	install -d -o $AGENTUSER $PIDPATH
-            daemon --user $AGENTUSER "$PYTHON $AGENTPATH start init --clean >/dev/null"
+            daemon --user $AGENTUSER "env LC_NUMERIC=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
             RETURNVALUE=$?
             echo
             [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
