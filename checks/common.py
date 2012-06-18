@@ -41,6 +41,8 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.cacti import Cacti
 from checks.varnish import Varnish
 
+from checks.db.elastic import ElasticSearch
+
 from checks.ec2 import EC2
 
 from resources.processes import Processes as ResProcesses
@@ -101,7 +103,10 @@ class checks:
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
-        self._metrics_checks = [Cacti(self.checksLogger), Varnish(self.checksLogger)]
+        self._metrics_checks = [Cacti(self.checksLogger), 
+                                Varnish(self.checksLogger), 
+                                ElasticSearch(self.checksLogger)]
+
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
