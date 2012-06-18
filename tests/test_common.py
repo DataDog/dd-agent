@@ -44,6 +44,22 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-counter", -2.0, 3.0)
         self.assertRaises(UnknownValue, self.c.get_sample_with_timestamp, "test-counter")
 
+    def test_tags(self):
+        # Test metric tagging
+        now = int(time.time())
+        # Tag metrics
+        self.c.save_sample("test-counter", 1.0, 1.0, tags = ["tag1", "tag2"])
+        self.c.save_sample("test-counter", 2.0, 2.0, tags = ["tag1", "tag2"])
+        # Only 1 point recording for this combination of tags, won't be sent
+        self.c.save_sample("test-counter", 3.0, 3.0, tags = ["tag1", "tag3"])
+        self.c.save_sample("test-metric", 3.0, now, tags = ["tag3", "tag4"])
+        # This is a different combination of tags
+        self.c.save_sample("test-metric", 3.0, now, tags = ["tag5", "tag3"])
+        self.assertEquals(self.c.get_metrics(),
+                          [("test-metric", now, 3.0, {"tags": ["tag3", "tag4"]}),
+                           ("test-metric", now, 3.0, {"tags": ["tag3", "tag5"]}),
+                           ("test-counter", 2.0, 1.0, {"tags": ["tag1", "tag2"]})])
+
     def test_samples(self):
         self.assertEquals(self.c.get_samples(), {})
         self.c.save_sample("test-metric", 1.0, 0.0)  # value, ts

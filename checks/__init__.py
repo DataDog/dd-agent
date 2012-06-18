@@ -53,12 +53,17 @@ class LaconicFilter(logging.Filter):
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
+    * store 1 (and only 1) sample for gauges per metric/tag combination
     * compute rates for counters
     * only log error messages once (instead of each time they occur)
+    
     """
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
-        # metric_name: [(ts, value), (ts, value)]
+        # metric_name: {["sorted", "tags"]: [(ts, value), (ts, value)],
+        #                 tags are stored as a key
+        #               None: [(ts, value), (ts, value)]}
+        #                 untagged values are indexed by None
         self._sample_store = {}
         self._counters = {} # metric_name: bool
         self.logger = logger
@@ -92,7 +97,7 @@ class Check(object):
         ACHTUNG: Resets previous values associated with this metric.
         """
         self._counters[metric] = True
-        self._sample_store[metric] = []
+        self._sample_store[metric] = {}
 
     def is_counter(self, metric):
         "Is this metric a counter?"
@@ -103,7 +108,7 @@ class Check(object):
         Treats the metric as a gauge, i.e. keep the data as is
         ACHTUNG: Resets previous values associated with this metric.
         """
-        self._sample_store[metric] = []
+        self._sample_store[metric] = {}
         
     def is_metric(self, metric):
         return metric in self._sample_store
@@ -116,8 +121,9 @@ class Check(object):
         "Get all metric names"
         return self._sample_store.keys()
 
-    def save_sample(self, metric, value, timestamp=None):
-        """Save a simple sample, evict old values if needed"""
+    def save_sample(self, metric, value, timestamp=None, tags=None):
+        """Save a simple sample, evict old values if needed
+        """
         if timestamp is None:
             timestamp = time.time()
         if metric not in self._sample_store:
@@ -127,21 +133,24 @@ class Check(object):
         except ValueError, ve:
             raise NaN(ve)
 
+        # sort tags
+        if tags is not None: tags.sort()
+
         # Data eviction rules
         if self.is_gauge(metric):
-            self._sample_store[metric] = [(timestamp, value)]
+            self._sample_store[metric][tags] = (timestamp, value)
         elif self.is_counter(metric):
-            if len(self._sample_store[metric]) == 0:
-                self._sample_store[metric] = [(timestamp, value)]
+            if self._sample_store[metric].get(tags) is None:
+                self._sample_store[metric][tags] = [(timestamp, value)]
             else:
-                self._sample_store[metric] = self._sample_store[metric][-1:] + [(timestamp, value)]
+                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
         if self.is_gauge(metric):
-            assert len(self._sample_store[metric]) in (0, 1), self._sample_store[metric]
+            assert len(self._sample_store[metric][tags]) in (0, 1), self._sample_store[metric]
         elif self.is_counter(metric):
-            assert len(self._sample_store[metric]) in (0, 1, 2), self._sample_store[metric]
+            assert len(self._sample_store[metric][tags]) in (0, 1, 2), self._sample_store[metric]
 
     @classmethod
     def _rate(cls, sample1, sample2):
@@ -163,28 +172,28 @@ class Check(object):
         except Exception, e:
             raise NaN(e)
 
-    def get_sample_with_timestamp(self, metric):
+    def get_sample_with_timestamp(self, metric, tags=None):
         "Get (timestamp-epoch-style, value)"
         # Never seen this metric
         if metric not in self._sample_store:
             raise UnknownValue()
 
         # Not enough value to compute rate
-        elif self.is_counter(metric) and len(self._sample_store[metric]) < 2:
+        elif self.is_counter(metric) and len(self._sample_store[metric][tags]) < 2:
             raise UnknownValue()
         
-        elif self.is_counter(metric) and len(self._sample_store[metric]) >= 2:
-            return self._rate(self._sample_store[metric][-2], self._sample_store[metric][-1])
+        elif self.is_counter(metric) and len(self._sample_store[metric][tags]) >= 2:
+            return self._rate(self._sample_store[metric][tags][-2], self._sample_store[metric][tags][-1])
 
-        elif self.is_gauge(metric) and len(self._sample_store[metric]) >= 1:
-            return self._sample_store[metric][-1]
+        elif self.is_gauge(metric) and len(self._sample_store[metric][tags]) >= 1:
+            return self._sample_store[metric][tags][-1]
 
         else:
             raise UnknownValue()
 
-    def get_sample(self, metric):
+    def get_sample(self, metric, tags=None):
         "Return the last value for that metric"
-        x = self.get_sample_with_timestamp(metric)
+        x = self.get_sample_with_timestamp(metric, tags)
         assert type(x) == types.TupleType and len(x) == 2, x
         return x[1]
         
@@ -209,21 +218,15 @@ class Check(object):
                 pass
         return values
 
-    def get_metadata(self):
-        """Return a dictionary of key-value pairs with metadata
-        How these metadata are interpreted and processed is not defined here
-        """
-        return {}
-        
     def get_metrics(self):
         """This is the new format to send metrics backs
         """
         metrics = []
         for m in self._sample_store:
             try:
-                ts, val = self.get_sample_with_timestamp(m)
-                # FIXME alq - no metadata yet
-                metrics.append((m, int(ts), val, {}))
+                for t in self._sample_store[m]:
+                   ts, val = self.get_sample_with_timestamp(m, t)
+                   metrics.append((m, int(ts), val, {"tags": t}))
             except:
                 pass
         return metrics
