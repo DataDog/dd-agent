@@ -27,6 +27,8 @@ class TestCore(unittest.TestCase):
         # with explicit timestamp
         self.c.save_sample("test-metric", 3.0, 1298066183.607717)
         self.assertEquals(self.c.get_sample_with_timestamp("test-metric"), (1298066183.607717, 3.0))
+        # get_samples()
+        self.assertEquals(self.c.get_samples(), {"test-metric": 3.0})
 
     def testEdgeCases(self):
         self.assertRaises(CheckException, self.c.get_sample, "unknown-metric")
@@ -41,8 +43,32 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-counter", 2.0, 2.0)
         self.assertEquals(self.c.get_sample("test-counter"), 1.0)
         self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0))
+        self.assertEquals(self.c.get_samples(), {"test-counter": 1.0})
         self.c.save_sample("test-counter", -2.0, 3.0)
         self.assertRaises(UnknownValue, self.c.get_sample_with_timestamp, "test-counter")
+
+    def test_tags(self):
+        # Test metric tagging
+        now = int(time.time())
+        # Tag metrics
+        self.c.save_sample("test-counter", 1.0, 1.0, tags = ["tag1", "tag2"])
+        self.c.save_sample("test-counter", 2.0, 2.0, tags = ["tag1", "tag2"])
+        # Only 1 point recording for this combination of tags, won't be sent
+        self.c.save_sample("test-counter", 3.0, 3.0, tags = ["tag1", "tag3"])
+        self.c.save_sample("test-metric", 3.0, now, tags = ["tag3", "tag4"])
+        # Arg checks
+        self.assertRaises(CheckException, self.c.save_sample, "test-metric", 4.0, now + 5, tags = "abc")
+        # This is a different combination of tags
+        self.c.save_sample("test-metric", 3.0, now, tags = ["tag5", "tag3"])
+        results = self.c.get_metrics()
+        results.sort()
+        self.assertEquals(results,
+                          [("test-counter", 2.0, 1.0, {"tags": ["tag1", "tag2"]}),
+                           ("test-metric", now, 3.0, {"tags": ["tag3", "tag4"]}),
+                           ("test-metric", now, 3.0, {"tags": ["tag3", "tag5"]}),
+                           ])
+        # Tagged metrics are not available through get_samples anymore
+        self.assertEquals(self.c.get_samples(), {})
 
     def test_samples(self):
         self.assertEquals(self.c.get_samples(), {})

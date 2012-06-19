@@ -8,4 +8,6 @@ install:
 script: nosetests tests
 before_script:
   - sudo apt-get install sysstat
+env:
+  - DB=redis
   
