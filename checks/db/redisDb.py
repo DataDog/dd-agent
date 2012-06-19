@@ -41,8 +41,10 @@ class Redis(Check):
 
     def _get_conn(self, host, port):
         import redis
-        #FIXME: cache these connections
-        return redis.Redis(host=host, port=port)
+        key = (host, port)
+        if key not in self.connections:
+            self.connections[key] = redis.Redis(host=host, port=port)
+        return self.connections[key]
 
     def _check_db(self, host, port):
         conn = self._get_conn(host, port)
