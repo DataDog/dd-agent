@@ -42,7 +42,7 @@ case "$1" in
                 mkdir -p $PIDPATH
             fi
             chown $AGENTUSER $PIDPATH
-            su $AGENTUSER -c "env LC_NUMERIC=POSIX $AGENTPATH start init --clean"
+            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean"
         fi
         echo "$NAME."
     ;;
