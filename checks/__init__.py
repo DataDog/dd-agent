@@ -240,7 +240,7 @@ class Check(object):
         This is the preferred method to retrieve metrics
         
         @return the list of samples
-        @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2]}), ...]
+        @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
         metrics = []
         for m in self._sample_store:
