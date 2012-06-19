@@ -286,6 +286,9 @@ def get_config(parse_args = True, cfg_path=None):
         if config.has_option('Main', 'varnishstat'):
             agentConfig['varnishstat'] = config.get('Main', 'varnishstat')
 
+        if config.has_option('Main', 'redis_urls'):
+            agentConfig['redis_urls'] = config.get('Main', 'redis_urls')
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
