@@ -7,14 +7,22 @@ import unittest
 
 import nose.tools as t
 
-from checks.db.redisDb import Redis
+from checks.db.redisDb import Redis as RedisCheck
+import redis
+
 
 logger = logging.getLogger()
 
 class TestRedis(object):
 
     def test_redis_default(self):
-        r = Redis(logger)
+        db = redis.Redis(db=14) # Datadog's test db
+        db.flushdb()
+        db.set("key1", "value")
+        db.set("key2", "value")
+        db.setex("expirekey", "expirevalue", 1000)
+        
+        r = RedisCheck(logger)
         metrics = self._sort_metrics(r.check({}))
         assert metrics, "we returned metrics"
 
@@ -37,9 +45,15 @@ class TestRedis(object):
 
         # Assert that the keys metrics are tagged by db. just check db0, since
         # it's the only one we can guarantee is there.
-        db_metrics = [m for m in metrics if m[0] in ['redis.keys',
-        'redis.expires'] and "db:db0" in m[3]["tags"]]
+        db_metrics = self._sort_metrics([m for m in metrics if m[0] in ['redis.keys',
+        'redis.expires'] and "db:db14" in m[3]["tags"]])
         t.assert_equals(2, len(db_metrics))
+
+        t.assert_equal('redis.expires', db_metrics[0][0])
+        t.assert_equal(1, db_metrics[0][2]) 
+
+        t.assert_equal('redis.keys', db_metrics[1][0])
+        t.assert_equal(3, db_metrics[1][2]) 
 
         # Run one more check and ensure we get total command count
         metrics = self._sort_metrics(r.check({}))
