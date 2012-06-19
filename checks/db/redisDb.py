@@ -54,6 +54,7 @@ class Redis(Check):
         # Save the database statistics.
         for key in info.keys():
             if self.db_key_pattern.match(key):
+                db_tags = list(tags) + ["db:" + key]
                 for subkey in self.subkeys:
                     # Old redis module on ubuntu 10.04 (python-redis 0.6.1) does not
                     # returns a dict for those key but a string: keys=3,expires=0
@@ -63,8 +64,8 @@ class Redis(Check):
                         val = info[key].get(subkey, -1)
                     except AttributeError:
                         val = self._parse_dict_string(info[key], subkey, -1)
-                    metric = '.'.join(['redis', key, subkey])
-                    self.save_gauge(metric, val, tags=tags)
+                    metric = '.'.join(['redis', subkey])
+                    self.save_gauge(metric, val, tags=db_tags)
 
         self.save_gauge('redis.net.clients', info['connected_clients'], tags=tags)
         self.save_gauge('redis.net.slaves', info['connected_slaves'], tags=tags)
@@ -96,5 +97,20 @@ class Redis(Check):
                 host, port = url.split(":")
                 self._check_db(host, int(port))
             except:
-                self.logger.exception("[REDIS] Error checking redis at %s:%s" % url)
+                self.logger.exception("[REDIS] Error checking redis at %s" % url)
         return self.get_metrics()
+
+if __name__ == '__main__':
+    import logging
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logger = logging.getLogger()
+    logger.addHandler(console)
+    
+    print Redis(logger).check({})
