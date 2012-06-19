@@ -101,7 +101,12 @@ class checks:
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
-        self._metrics_checks = [Cacti(self.checksLogger), Varnish(self.checksLogger)]
+        # All new checks should be metrics checks:
+        self._metrics_checks = [
+            Cacti(self.checksLogger),
+            Redis(self.checksLogger),
+            Varnish(self.checksLogger)
+        ]
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
@@ -178,10 +183,6 @@ class checks:
         return self._cassandra.check(self.checksLogger, self.agentConfig)
 
     @recordsize
-    def getRedisData(self):
-        return self._redis.check(self.agentConfig)
-
-    @recordsize
     def getJvmData(self):
         return self._jvm.check(self.agentConfig)
 
@@ -234,7 +235,6 @@ class checks:
         cpuStats = self.getCPUStats()
         gangliaData = self.getGangliaData()
         cassandraData = self.getCassandraData()
-        redisData = self.getRedisData()
         jvmData = self.getJvmData()
         tomcatData = self.getTomcatData()
         activeMQData = self.getActiveMQData()
@@ -315,9 +315,6 @@ class checks:
         if ioStats:
             checksData['ioStats'] = ioStats
             
-        if redisData:
-            checksData['redis'] = redisData
-       
         if jvmData:
             checksData['jvm'] = jvmData
 

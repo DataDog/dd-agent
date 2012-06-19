@@ -126,13 +126,19 @@ class Check(object):
         "Get all metric names"
         return self._sample_store.keys()
 
+    def save_gauge(self, metric, value, timestamp=None, tags=None):
+        """ Save a gauge value. """
+        if not self.is_gauge(metric):
+            self.gauge(metric)
+        self.save_sample(metric, value, timestamp, tags)
+
     def save_sample(self, metric, value, timestamp=None, tags=None):
         """Save a simple sample, evict old values if needed
         """
         if timestamp is None:
             timestamp = time.time()
         if metric not in self._sample_store:
-            raise CheckException("Saving a sample for an undefined metric %s" % metric)
+            raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
             value = float(value)
         except ValueError, ve:
@@ -140,11 +146,10 @@ class Check(object):
         
         # Sort and validate tags
         if tags is not None:
-            if type(tags) != type([]):
-                raise CheckException("Tags must be a list of string")
+            if type(tags) not in [type([]), type(())]:
+                raise CheckException("Tags must be a list or tuple of strings")
             else:
-                tags.sort()
-                tags = tuple(tags)
+                tags = tuple(sorted(tags))
 
         # Data eviction rules
         if self.is_gauge(metric):
