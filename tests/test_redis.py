@@ -18,6 +18,8 @@ class TestRedis(object):
         metrics = self._sort_metrics(r.check({}))
         assert metrics, "we returned metrics"
 
+        print metrics
+
         # Assert we have values, timestamps and tags for each metric.
         for m in metrics:
             assert isinstance(m[1], int)    # timestamp
