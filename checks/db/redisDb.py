@@ -21,7 +21,7 @@ class Redis(Check):
 
         logger.info("[REDIS] check enabled: %s" % self.enabled)
             
-        self.total_commands = {}
+        self.previous_total_commands = {}
         self.connections = {}
         
     def _parse_dict_string(self, string, key, default):
@@ -73,10 +73,10 @@ class Redis(Check):
 
         # Save the number of commands.
         total_commands = info['total_commands_processed'] - 1
-        if tags in self.total_commands:
-            count = self.total_commands[tags] - total_commands
+        if tags in self.previous_total_commands:
+            count = total_commands - self.previous_total_commands[tags]
             self.save_gauge('redis.net.commands', count, tags=tags)
-        self.total_commands[tags] = total_commands
+        self.previous_total_commands[tags] = total_commands
 
         try:
             self.save_gauge('redis.net.blocked', info['blocked_clients'], tags=tags)
