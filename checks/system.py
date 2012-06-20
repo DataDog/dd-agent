@@ -5,7 +5,7 @@ import string
 import subprocess
 import sys
 import time
-from checks import Check, gethostname
+from checks import Check, gethostname, UnknownValue
 
 class Disk(Check):
 
@@ -117,11 +117,51 @@ class Disk(Check):
             inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
             return (disks, inodes)
         except:
-            logger.exception('getDiskUsage')
+            self.logger.exception('getDiskUsage')
             return False
 
 
 class IO(object):
+    def _parse_linux2_iostat_output(self, iostat_output):
+        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
+        itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
+        valueRegexp = re.compile(r'\d+\.\d+')
+
+        recentStats = iostat_output.split('Device:')[2].split('\n')
+        header = recentStats[0]
+        headerNames = re.findall(headerRegexp, header)
+        device = None
+
+        ioStats = {}
+
+        for statsIndex in range(1, len(recentStats)):
+            row = recentStats[statsIndex]
+
+            if not row:
+                # Ignore blank lines.
+                continue
+
+            deviceMatch = re.match(itemRegexp, row)
+
+            if deviceMatch is not None:
+                # Sometimes device names span two lines.
+                device = deviceMatch.groups()[0]
+
+            values = re.findall(valueRegexp, row)
+
+            if not values:
+                # Sometimes values are on the next line so we encounter
+                # instances of [].
+                continue
+
+            ioStats[device] = {}
+
+            for headerIndex in range(0, len(headerNames)):
+                headerName = headerNames[headerIndex]
+                ioStats[device][headerName] = values[headerIndex]
+
+        return ioStats
+
     def check(self, logger, agentConfig):
         logger.debug('getIOStats: start')
         
@@ -130,42 +170,9 @@ class IO(object):
         if sys.platform == 'linux2':
             logger.debug('getIOStats: linux2')
             
-            headerRegexp = re.compile(r'([%\\/\-a-zA-Z0-9]+)[\s+]?')
-            itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
-            valueRegexp = re.compile(r'\d+\.\d+')
-            
             try:
-                stats = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                recentStats = stats.split('Device:')[2].split('\n')
-                header = recentStats[0]
-                headerNames = re.findall(headerRegexp, header)
-                device = None
-                
-                for statsIndex in range(1, len(recentStats)):
-                    row = recentStats[statsIndex]
-                    
-                    if not row:
-                        # Ignore blank lines.
-                        continue
-                    
-                    deviceMatch = re.match(itemRegexp, row)
-                    
-                    if deviceMatch is not None:
-                        # Sometimes device names span two lines.
-                        device = deviceMatch.groups()[0]
-                    
-                    values = re.findall(valueRegexp, row)
-                    
-                    if not values:
-                        # Sometimes values are on the next line so we encounter
-                        # instances of [].
-                        continue
-                    
-                    ioStats[device] = {}
-                    
-                    for headerIndex in range(0, len(headerNames)):
-                        headerName = headerNames[headerIndex]
-                        ioStats[device][headerName] = values[headerIndex]
+                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                ioStats.update(self._parse_linux2_iostat_output(stdout))
                     
             except:
                 logger.exception('getIOStats')
@@ -295,7 +302,7 @@ class Memory(Check):
                 memData['physCached'] = int(meminfo.get('Cached', 0)) / 1024
                 memData['physShared'] = int(meminfo.get('Shmem', 0)) / 1024
 
-                memData['physUsed'] = memData['physTotal'] - memData['physFree'] - memData['physBuffers'] - memData['physCached'] - memData['physShared']
+                memData['physUsed'] = memData['physTotal'] - memData['physFree']
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
             except:
@@ -332,13 +339,30 @@ class Memory(Check):
         else:
             return False
     
-class Network(object):
-    def __init__(self):
+class Network(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+
         self.networkTrafficStore = {}
         self.networkTrafficStore["last_ts"] = time.time()
         self.networkTrafficStore["current_ts"] = self.networkTrafficStore["last_ts"]
-    
-    def check(self, logger, agentConfig):
+
+    def _parse_value(self, v):
+        if v == "-":
+            return 0
+        else:
+            try:
+                return long(v)
+            except ValueError:
+                return 0
+
+    def check(self, agentConfig):
+        """Report network traffic in bytes by interface
+
+        @rtype dict
+        @return {"en0": {"recv_bytes": 123, "trans_bytes": 234}, ...}
+        """
+        # FIXME rework linux support to use the built-in Check logic
         if sys.platform == 'linux2':
             try:
                 proc = open('/proc/net/dev', 'r')
@@ -346,7 +370,7 @@ class Network(object):
                 self.networkTrafficStore["current_ts"] = time.time()
                 
             except:
-                logger.exception('getNetworkTraffic')
+                self.logger.exception('getNetworkTraffic')
                 return False
             
             proc.close()
@@ -365,13 +389,12 @@ class Network(object):
                 faceData = dict(zip(cols, data.split()))
                 faces[face] = faceData
             
-            
             interfaces = {}
             
             interval = self.networkTrafficStore["current_ts"] - self.networkTrafficStore["last_ts"]
-            logger.debug('getNetworkTraffic: interval (s) %s' % interval)
-            if interval == 0:
-                logger.warn('0-sample interval, skipping network checks')
+            self.logger.debug('getNetworkTraffic: interval (s) %s' % interval)
+            if interval <= 0.001:
+                self.logger.warn('0-sample interval, skipping network checks')
                 return False
             self.networkTrafficStore["last_ts"] = self.networkTrafficStore["current_ts"]
 
@@ -400,9 +423,89 @@ class Network(object):
         
             return interfaces
             
-        else:       
-            logger.debug('getNetworkTraffic: other platform, returning')
+        elif sys.platform == "darwin":
+            try:
+                netstat = subprocess.Popen(["netstat", "-i", "-b"],
+                                           stdout=subprocess.PIPE,
+                                           close_fds=True)
+                # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
+                # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
+                # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
+                # lo0   16384 127           localhost         318258     -  428252203   318258     -  428252203     -
+                # lo0   16384 localhost   ::1                 318258     -  428252203   318258     -  428252203     -
+                # gif0* 1280  <Link#2>                             0     0          0        0     0          0     0
+                # stf0* 1280  <Link#3>                             0     0          0        0     0          0     0
+                # en0   1500  <Link#4>    04:0c:ce:db:4e:fa 20801309     0 13835457425 15149389     0 11508790198     0
+                # en0   1500  seneca.loca fe80:4::60c:ceff: 20801309     - 13835457425 15149389     - 11508790198     -
+                # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+                # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+                # en0   1500  192.168.1     192.168.1.63    20801309     - 13835457425 15149389     - 11508790198     -
+                # en0   1500  2001:470:1f 2001:470:1f07:11d 20801309     - 13835457425 15149389     - 11508790198     -
+                # p2p0  2304  <Link#5>    06:0c:ce:db:4e:fa        0     0          0        0     0          0     0
+                # ham0  1404  <Link#6>    7a:79:05:4d:bf:f5    30100     0    6815204    18742     0    8494811     0
+                # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
+                # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
+                # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
+                out, err = netstat.communicate()
+                lines = out.split("\n")
+                headers = lines[0].split()
+                # Given the irregular structure of the table above, better to parse from the end of each line
+                # Verify headers first
+                #          -7       -6       -5        -4       -3       -2        -1
+                for h in ("Ipkts", "Ierrs", "Ibytes", "Opkts", "Oerrs", "Obytes", "Coll"):
+                    if h not in headers:
+                        self.logger.error("%s not found in %s; cannot parse" % (h, headers))
+                        return False
+                current = None
+                for l in lines[1:]:
+                    x = l.split()
+                    if len(x) == 0:
+                        break
+                    iface = x[0]
+                    if iface.endswith("*"):
+                        iface = iface[:-1]
+                    if iface == current:
+                        # skip multiple lines of same interface
+                        continue
+                    else:
+                        current = iface
+
+                    if not self.is_counter("%s.recv_bytes" % iface):
+                        self.counter("%s.recv_bytes" % iface)
+                    value = self._parse_value(x[-5])
+                    self.save_sample("%s.recv_bytes" % iface, value)
+
+                    if not self.is_counter("%s.trans_bytes" % iface):
+                        self.counter("%s.trans_bytes" % iface)
+                    value = self._parse_value(x[-2])
+                    self.save_sample("%s.trans_bytes" % iface, value)
+                
+                # now make a dictionary {"iface": {"recv_bytes": value, "trans_bytes": value}}
+                interfaces = {}
+                for m in self.get_metric_names():
+                    # m should be a counter
+                    if not self.is_counter(m):
+                        continue
+                    # metric name iface.recv|trans_bytes
+                    i, n = m.split(".")
+                    try:
+                        sample  = self.get_sample(m)
+                        # will raise if no value, thus skipping what's next
+                        if interfaces.get(i) is None:
+                            interfaces[i] = {}
+                        interfaces[i][n] = sample
+                    except UnknownValue:
+                        pass
+                if len(interfaces) > 0:
+                    return interfaces
+                else:
+                    return False
+            except:
+                self.logger.exception('getNetworkTraffic')
+                return False
         
+        else:
+            self.logger.debug("getNetworkTraffic: unsupported platform")
             return False    
 
 class Processes(object):

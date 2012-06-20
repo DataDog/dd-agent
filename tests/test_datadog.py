@@ -4,10 +4,15 @@ import time
 import unittest
 from tempfile import NamedTemporaryFile
 import re
+import os
 
 from checks.datadog import Dogstreams, EventDefaults, point_sorter
 
 log = logging.getLogger('datadog.test')
+NAGIOS_TEST_HOST = os.path.join(os.path.dirname(__file__), "host-perfdata")
+NAGIOS_TEST_SVC = os.path.join(os.path.dirname(__file__), "service-perfdata")
+NAGIOS_TEST_HOST_TEMPLATE="[HOSTPERFDATA]\t$TIMET$\t$HOSTNAME$\t$HOSTEXECUTIONTIME$\t$HOSTOUTPUT$\t$HOSTPERFDATA$"
+NAGIOS_TEST_SVC_TEMPLATE="[SERVICEPERFDATA]\t$TIMET$\t$HOSTNAME$\t$SERVICEDESC$\t$SERVICEEXECUTIONTIME$\t$SERVICELATENCY$\t$SERVICEOUTPUT$\t$SERVICEPERFDATA$"
 
 def parse_stateful(logger, line, state):
     """Simple stateful parser"""
@@ -604,8 +609,36 @@ class TestNagiosPerfData(TailTestCase):
 
         self.assertEquals(expected_output, actual_output)
 
+    def test_alt_service_perfdata(self):
+        from checks.datadog import NagiosServicePerfData
 
-        
+        self._write_nagios_config([
+            "service_perfdata_file=%s" % NAGIOS_TEST_SVC,
+            "service_perfdata_file_template=%s" % NAGIOS_TEST_SVC_TEMPLATE,
+        ])
+
+        dogstream = Dogstreams.init(self.logger, self.agent_config)
+        self.assertEquals([NagiosServicePerfData], [d.__class__ for d in dogstream.dogstreams])
+        actual_output = dogstream.check(self.agent_config, move_end=False)
+
+        expected_output = {'dogstream': [('nagios.current_users.users', 1339511440, 1.0, {'metric_type': 'gauge', 'warn': '20', 'host_name': 'localhost', 'crit': '50', 'min': '0'}), ('nagios.ping.pl', 1339511500, 0.0, {'warn': '20', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '60', 'unit': '%'}), ('nagios.ping.rta', 1339511500, 0.065, {'warn': '100.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '500.000000', 'unit': 'ms'}), ('nagios.root_partition', 1339511560, 2470.0, {'min': '0', 'max': '7315', 'device_name': '/', 'warn': '5852', 'metric_type': 'gauge', 'host_name': 'localhost', 'crit': '6583', 'unit': 'MB'})]}
+        self.assertEquals(expected_output, actual_output)
+
+    def test_alt_host_perfdata(self):
+        from checks.datadog import NagiosHostPerfData
+
+        self._write_nagios_config([
+            "host_perfdata_file=%s" % NAGIOS_TEST_HOST,
+            "host_perfdata_file_template=%s" % NAGIOS_TEST_HOST_TEMPLATE,
+        ])
+
+        dogstream = Dogstreams.init(self.logger, self.agent_config)
+        self.assertEquals([NagiosHostPerfData], [d.__class__ for d in dogstream.dogstreams])
+        actual_output = dogstream.check(self.agent_config, move_end=False)
+
+        expected_output = {'dogstream': [('nagios.host.pl', 1339511440, 0.0, {'warn': '80', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '100', 'unit': '%'}), ('nagios.host.rta', 1339511440, 0.048, {'warn': '3000.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '5000.000000', 'unit': 'ms'})]}
+        self.assertEquals(expected_output, actual_output)
+
 if __name__ == '__main__':
     logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
     unittest.main()

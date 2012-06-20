@@ -5,12 +5,7 @@ import time
 from transaction import Transaction, TransactionManager
 from ddagent import MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY
 
-#import logging
-#logging.basicConfig(level=logging.INFO)
-
 class memTransaction(Transaction):
-
-
     def __init__(self, size, manager):
         Transaction.__init__(self)
         self._trManager = manager

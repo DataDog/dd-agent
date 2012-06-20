@@ -320,7 +320,10 @@ class NagiosPerfData(object):
     @staticmethod
     def template_regex(file_template):
         try:
-            regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', file_template)
+            # Escape characters that will be interpreted as regex bits
+            # e.g. [ and ] in "[SERVICEPERFDATA]"
+            regex = re.sub(r'[[\]*]', r'.', file_template)
+            regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
             return re.compile(regex)
         except Exception, e:
             raise InvalidDataTemplate("%s (%s)"% (file_template, e))

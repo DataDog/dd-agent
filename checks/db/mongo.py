@@ -4,6 +4,11 @@ from datetime import datetime
 
 from checks import *
 
+# When running with pymongo < 2.0
+# Not the full spec for mongo URIs
+# http://www.mongodb.org/display/DOCS/connections6  
+mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
+
 class MongoDb(Check):
 
     def __init__(self, logger):
@@ -84,13 +89,23 @@ class MongoDb(Check):
             return False
 
         try:
-            from pymongo import Connection, uri_parser
-
-            # Configuration a URL, mongodb://user:pass@server/db
-            dbName = uri_parser.parse_uri(agentConfig['MongoDBServer'])['database']
+            from pymongo import Connection
+            dbName = None
+            try:
+                from pymongo import uri_parser
+                # Configuration a URL, mongodb://user:pass@server/db
+                dbName = uri_parser.parse_uri(agentConfig['MongoDBServer'])['database']
             
-            # parse_uri gives a default database of None
-            dbName = dbName or 'test'
+                # parse_uri gives a default database of None
+                dbName = dbName or 'test'
+
+            except ImportError:
+                # uri_parser is pymongo 2.0+
+                dbName = mongo_uri_re.match(agentConfig['MongoDBServer']).group(1)
+
+            if dbName is None:
+                self.logger.error("Mongo: cannot extract db name from config %s" % agentConfig['MongoDBServer'])
+                return False
 
             conn = Connection(agentConfig['MongoDBServer'])
             db = conn[dbName]

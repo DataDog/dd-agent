@@ -1,6 +1,5 @@
 import unittest
 import logging
-logging.basicConfig()
 import subprocess
 from tempfile import mkdtemp
 import time
@@ -29,7 +28,7 @@ class TestMongo(unittest.TestCase):
                     break
         
     def setUp(self):
-        self.c = MongoDb(logging.getLogger())
+        self.c = MongoDb(logging.getLogger(__file__))
         # Start 2 instances of Mongo in a replica set
         dir1 = mkdtemp()
         dir2 = mkdtemp()

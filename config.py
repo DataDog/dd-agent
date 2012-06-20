@@ -17,7 +17,7 @@ def get_parsed_args():
                         dest='dd_url')
     parser.add_option('-c', '--clean', action='store_true', default=False,
                         dest='clean')
-    parser.add_option('-u', '--use-local-forwarder', action='store_true', 
+    parser.add_option('-u', '--use-local-forwarder', action='store_true',
                         default=False,dest='use_forwarder')
     try:
         options, args = parser.parse_args()
@@ -26,7 +26,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "2.2.23"
+    return "2.2.26"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -85,11 +85,11 @@ def get_config(parse_args = True, cfg_path=None):
 
         # Which API key to use
         agentConfig['apiKey'] = config.get('Main', 'api_key')
-        
+
         # Debug mode
         agentConfig['debugMode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
-        if config.has_option('Main', 'use_ec2_instance_id'):    
+        if config.has_option('Main', 'use_ec2_instance_id'):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
             agentConfig['useEC2InstanceId'] = (use_ec2_instance_id.lower() == 'yes')
@@ -130,12 +130,23 @@ def get_config(parse_args = True, cfg_path=None):
         else:
             agentConfig['graphite_listen_port'] = None
 
+        # Dogstatsd config
+        dogstatsd_defaults = {
+            'dogstatsd_port' : 8125,
+            'dogstatsd_target' : 'http://localhost:17123',
+            'dogstatsd_interval' : 10
+        }
+        for key, value in dogstatsd_defaults.iteritems():
+            if config.has_option('Main', key):
+                agentConfig[key] = config.get('Main', key)
+            else:
+                agentConfig[key] = value
 
         # Optional config
         # FIXME not the prettiest code ever...
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
-            
+
         if config.has_option('Main', 'apache_status_url'):
             agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
 
@@ -244,7 +255,7 @@ def get_config(parse_args = True, cfg_path=None):
             agentConfig["memcache_server"] = config.get("Main", "memcache_server")
         if config.has_option("Main", "memcache_port"):
             agentConfig["memcache_port"] = config.get("Main", "memcache_port")
-        
+
         # Dogstream config
         if config.has_option("Main", "dogstream_log"):
             # Older version, single log support
@@ -253,10 +264,10 @@ def get_config(parse_args = True, cfg_path=None):
                 agentConfig["dogstreams"] = ':'.join([log_path, config.get("Main", "dogstream_line_parser")])
             else:
                 agentConfig["dogstreams"] = log_path
-                
+
         elif config.has_option("Main", "dogstreams"):
             agentConfig["dogstreams"] = config.get("Main", "dogstreams")
-        
+
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagiosPerfCfg"] = config.get("Main", "nagios_perf_cfg")
 

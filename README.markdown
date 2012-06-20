@@ -139,7 +139,7 @@ The canonical example is counting the number of lines in a log.
         return (metric_name, date, acc, {'metric_type': 'counter'})
 
 
-### Testing customer parsing functions
+### Testing custom parsing functions
 
 You'll want to be able to test your parser outside of the agent, so
 for the above example, you might add a test function like this:
