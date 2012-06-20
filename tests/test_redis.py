@@ -33,7 +33,7 @@ class TestRedis(object):
             assert isinstance(m[1], int)    # timestamp
             assert isinstance(m[2], float)  # value
             tags = m[3]["tags"]
-            expected_tags = ["host:localhost", "port:6379"]
+            expected_tags = ["redis_host:localhost", "redis_port:6379"]
             for e in expected_tags:
                 assert e in tags
 
@@ -46,7 +46,7 @@ class TestRedis(object):
         # Assert that the keys metrics are tagged by db. just check db0, since
         # it's the only one we can guarantee is there.
         db_metrics = self._sort_metrics([m for m in metrics if m[0] in ['redis.keys',
-        'redis.expires'] and "db:db14" in m[3]["tags"]])
+        'redis.expires'] and "redis_db:db14" in m[3]["tags"]])
         t.assert_equals(2, len(db_metrics))
 
         t.assert_equal('redis.expires', db_metrics[0][0])

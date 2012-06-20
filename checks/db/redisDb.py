@@ -48,13 +48,13 @@ class Redis(Check):
 
     def _check_db(self, host, port):
         conn = self._get_conn(host, port)
-        tags = ("host:%s" % host, "port:%s" % port)
+        tags = ("redis_host:%s" % host, "redis_port:%s" % port)
         info = conn.info()
 
         # Save the database statistics.
         for key in info.keys():
             if self.db_key_pattern.match(key):
-                db_tags = list(tags) + ["db:" + key]
+                db_tags = list(tags) + ["redis_db:" + key]
                 for subkey in self.subkeys:
                     # Old redis module on ubuntu 10.04 (python-redis 0.6.1) does not
                     # returns a dict for those key but a string: keys=3,expires=0
