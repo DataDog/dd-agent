@@ -8,4 +8,6 @@ install:
 script: nosetests tests
 before_script:
   - sudo apt-get install sysstat
+  - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.4.deb > /tmp/es.deb
+  - sudo dpkg -i /tmp/es.deb
   
