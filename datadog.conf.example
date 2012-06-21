@@ -303,6 +303,6 @@ use_mount: no
 #   information below:
 # -------------------------------------------------------------------------- #
 #
-#redis_urls: localhost:6379
+#redis_urls: localhost:6379, password@myserver:16379
 
 

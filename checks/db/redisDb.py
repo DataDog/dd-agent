@@ -1,11 +1,15 @@
 """
 Redis checks.
 """
+enabled = True
 
 import re
-
-
 from checks import *
+
+try:
+    import redis
+except ImportError:
+    enabled = False
 
 class Redis(Check):
     db_key_pattern = re.compile(r'^db\d+')
@@ -13,13 +17,8 @@ class Redis(Check):
     
     def __init__(self, logger):
         Check.__init__(self, logger)
-        self.enabled = True
-        try:
-            import redis
-        except ImportError:
-            self.enabled = False
-
-        logger.info("[REDIS] check enabled: %s" % self.enabled)
+        global enabled
+        logger.info("[REDIS] check enabled: %s" % enabled)
             
         self.previous_total_commands = {}
         self.connections = {}
@@ -39,15 +38,14 @@ class Redis(Check):
             self.logger.exception("[REDIS] Cannot parse dictionary string: %s" % string)
             return default
 
-    def _get_conn(self, host, port):
-        import redis
+    def _get_conn(self, host, port, password):
         key = (host, port)
         if key not in self.connections:
-            self.connections[key] = redis.Redis(host=host, port=port)
+            self.connections[key] = redis.Redis(host=host, port=port, password=password)
         return self.connections[key]
 
-    def _check_db(self, host, port):
-        conn = self._get_conn(host, port)
+    def _check_db(self, host, port, password):
+        conn = self._get_conn(host, port, password)
         tags = ("redis_host:%s" % host, "redis_port:%s" % port)
         info = conn.info()
 
@@ -83,10 +81,10 @@ class Redis(Check):
         except KeyError:
             # Redis 1.2 does not export this
             pass
- 
 
     def check(self, agentConfig):
-        if not self.enabled:
+        global enabled
+        if not enabled:
             return False
 
         # Allow the default redis database to be overridden.
@@ -94,8 +92,13 @@ class Redis(Check):
         for url in [u.strip() for u in urls.split(',')]:
             try:
                 self.logger.info("[REDIS] Checking instance: %s" % url)
-                host, port = url.split(":")
-                self._check_db(host, int(port))
+                password = None
+                if url.find("@") > -1:
+                    password, host_port = url.split("@")
+                    host, port = host_port.split(":")
+                else:
+                    host, port = url.split(":")
+                self._check_db(host, int(port), password)
             except:
                 self.logger.exception("[REDIS] Error checking redis at %s" % url)
         return self.get_metrics()
