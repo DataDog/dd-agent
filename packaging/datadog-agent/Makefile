@@ -25,9 +25,6 @@ install: dirs
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent/
 	mkdir -p $(BUILD)/usr/bin
-	mkdir -p $(BUILD)/var/log
-	touch $(BUILD)/var/log/dogstatsd.log
-	chmod a+rw $(BUILD)/var/log/dogstatsd.log
 	cp ../../ddagent.py $(BUILD)/usr/share/datadog/agent
 	cp ../../transaction.py $(BUILD)/usr/share/datadog/agent
 	cp ../../dogstatsd.py $(BUILD)/usr/share/datadog/agent

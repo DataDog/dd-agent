@@ -10,10 +10,6 @@ if [ -f /etc/init.d/datadog-agent ]; then
     fi
 fi
 
-mkdir -p /var/log
-touch /var/log/dogstatsd.log
-chown dd-agent:dd-agent /var/log/dogstatsd.log
-
 #DEBHELPER#
 
 exit 0

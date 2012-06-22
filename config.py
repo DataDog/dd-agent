@@ -35,10 +35,11 @@ def skip_leading_wsp(f):
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
 def initialize_logging(config_path):
-    try:
-        logging.config.fileConfig(config_path)
-    except Exception, e:
-        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
+    pass
+    #try:
+    #    logging.config.fileConfig(config_path)
+    #except Exception, e:
+    #    sys.stderr.write("Couldn't initialize logging: %s" % str(e))
     
 
 def get_config_path(cfg_path=None):
