@@ -128,7 +128,7 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(m['points'][0][1], 10)
 
     def test_histogram(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost', 2)
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -140,7 +140,7 @@ class TestUnitDogStatsd(object):
                     m = 'my.p:%s|%s' % (i, type_)
                     stats.submit(m)
 
-        time.sleep(1)
+        time.sleep(2)
         metrics = self.sort_metrics(stats.flush(False))
 
         def assert_almost_equal(i, j, e=1):
