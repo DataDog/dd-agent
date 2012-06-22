@@ -178,7 +178,7 @@ class MetricsAggregator(object):
         self.metrics[context].sample(float(metadata[0]), sample_rate)
 
 
-    def flush(self):
+    def flush(self, include_diagnostic_stats=True):
         # Flush all completed intervals bucketed up to this time.
         timestamp = time.time()
         interval = timestamp - timestamp % self.interval
@@ -193,12 +193,13 @@ class MetricsAggregator(object):
             del self.metrics[context]
 
         # Track how many points we see.
-        metrics.append({
-            'host':self.hostname,
-            'tags':None,
-            'metric': 'dd.dogstatsd.packet.count',
-            'points': [(timestamp, self.count)]
-        })
+        if include_diagnostic_stats:
+            metrics.append({
+                'host':self.hostname,
+                'tags':None,
+                'metric': 'dd.dogstatsd.packet.count',
+                'points': [(timestamp, self.count)]
+            })
 
         # Save some stats.
         logger.info("received %s payloads since last flush" % self.count)

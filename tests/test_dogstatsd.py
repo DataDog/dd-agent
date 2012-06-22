@@ -25,7 +25,7 @@ class TestUnitDogStatsd(object):
 
         time.sleep(1)
 
-        metrics = self.sort_metrics(stats.flush())
+        metrics = self.sort_metrics(stats.flush(False))
 
         assert len(metrics) == 3
         first, second, third = metrics
@@ -57,7 +57,7 @@ class TestUnitDogStatsd(object):
 
         time.sleep(1)
         # Ensure they roll up nicely.
-        metrics = self.sort_metrics(stats.flush())
+        metrics = self.sort_metrics(stats.flush(False))
         assert len(metrics) == 3
 
         first, second, third = metrics
@@ -72,7 +72,7 @@ class TestUnitDogStatsd(object):
         nt.assert_equals(third['points'][0][1], 3)
 
         # Ensure they're gone now.
-        assert not len(stats.flush())
+        assert not len(stats.flush(False))
 
     def test_sampled_counter(self):
 
@@ -80,7 +80,7 @@ class TestUnitDogStatsd(object):
         stats = MetricsAggregator('myhost', 1)
         stats.submit('sampled.counter:1|c|@0.5')
         time.sleep(1)
-        metrics = stats.flush()
+        metrics = stats.flush(False)
         assert len(metrics) == 1
         m = metrics[0]
         assert m['metric'] == 'sampled.counter'
@@ -96,7 +96,7 @@ class TestUnitDogStatsd(object):
 
         # Ensure they roll up nicely.
         time.sleep(1)
-        metrics = self.sort_metrics(stats.flush())
+        metrics = self.sort_metrics(stats.flush(False))
         assert len(metrics) == 2
 
         first, second = metrics
@@ -110,7 +110,7 @@ class TestUnitDogStatsd(object):
 
 
         # Ensure they shall be flushed no more.
-        metrics = stats.flush()
+        metrics = stats.flush(False)
         assert not len(metrics)
 
     def test_gauge_sample_rate(self):
@@ -121,7 +121,7 @@ class TestUnitDogStatsd(object):
 
         # Assert that it's treated normally.
         time.sleep(1)
-        metrics = stats.flush()
+        metrics = stats.flush(False)
         nt.assert_equal(len(metrics), 1)
         m = metrics[0]
         nt.assert_equal(m['metric'], 'sampled.gauge')
@@ -141,7 +141,7 @@ class TestUnitDogStatsd(object):
                     stats.submit(m)
 
         time.sleep(1)
-        metrics = self.sort_metrics(stats.flush())
+        metrics = self.sort_metrics(stats.flush(False))
 
         def assert_almost_equal(i, j, e=1):
             # Floating point math?
@@ -167,7 +167,7 @@ class TestUnitDogStatsd(object):
         time.sleep(1)
 
         # Assert we scale up properly.
-        metrics = self.sort_metrics(stats.flush())
+        metrics = self.sort_metrics(stats.flush(False))
         p75, p85, p95, p99, pavg, pcount, pmin, pmax = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
@@ -194,6 +194,21 @@ class TestUnitDogStatsd(object):
                 assert True
             else:
                 assert False, 'invalid : %s' % packet
+
+    def test_diagnostic_stats(self):
+        stats = MetricsAggregator('myhost', 1)
+        for i in xrange(10):
+            stats.submit('metric:10|c')
+        time.sleep(1)
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equals(2, len(metrics))
+        first, second = metrics
+
+        print metrics
+
+        nt.assert_equal(first['metric'], 'dd.dogstatsd.packet.count')
+        nt.assert_equal(first['points'][0][1], 10)
+            
 
 
 
