@@ -305,4 +305,39 @@ use_mount: no
 #
 #redis_urls: localhost:6379, password@myserver:16379
 
+# -------------------------------------------------------------------------- #
+#  Logging Configuration
+# -------------------------------------------------------------------------- #
 
+[loggers]
+keys:root,dogstatsd
+
+[handlers]
+keys:dogstatsd
+
+[formatters]
+keys:ddagent
+
+# DogStatsd logging
+
+[logger_root]
+level:INFO
+handlers:
+propagate:0
+qualname:root
+
+[logger_dogstatsd]
+level:INFO
+handlers:dogstatsd
+propagate:0
+qualname:dogstatsd
+
+[handler_dogstatsd]
+class:FileHandler
+level:INFO
+formatter:ddagent
+args:('/var/log/dogstatsd.log', 'a')
+
+[formatter_ddagent]
+format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
+class:logging.Formatter

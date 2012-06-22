@@ -1,5 +1,7 @@
 import ConfigParser
 import os
+import logging
+import logging.config
 import platform
 import string
 import subprocess
@@ -32,6 +34,31 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
+def initialize_logging(config_path):
+    try:
+        logging.config.fileConfig(config_path)
+    except Exception, e:
+        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
+    
+
+def get_config_path(cfg_path=None):
+    # Find the right config file
+    path = os.path.realpath(__file__)
+    path = os.path.dirname(path)
+
+    config_path = None
+    if cfg_path is not None and os.path.exists(cfg_path):
+        config_path = cfg_path
+    elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
+        config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+    elif os.path.exists(os.path.join(path, DATADOG_CONF)):
+        config_path = os.path.join(path, DATADOG_CONF)
+    else:
+        sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
+        sys.exit(3)
+    return config_path
+
+
 def get_config(parse_args = True, cfg_path=None):
     if parse_args:
         options, args = get_parsed_args()
@@ -52,19 +79,11 @@ def get_config(parse_args = True, cfg_path=None):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config_path = None
-        if cfg_path is not None and os.path.exists(cfg_path):
-            config_path = cfg_path
-        elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
-            config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
-        elif os.path.exists(os.path.join(path, DATADOG_CONF)):
-            config_path = os.path.join(path, DATADOG_CONF)
-        else:
-            sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
-            sys.exit(3)
-
+        config_path = get_config_path(cfg_path)
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
+
+        initialize_logging(config_path)
 
         #
         # Core config

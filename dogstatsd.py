@@ -308,19 +308,15 @@ class Server(object):
                 logger.exception('Error receiving datagram')
 
 
-def main():
+def main(config_path=None):
 
-    c = get_config(parse_args=False)
+    c = get_config(parse_args=False, cfg_path=config_path)
 
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
     interval = c['dogstatsd_interval']
     api_key  = c['apiKey']
     host = 'localhost'
-
-    if c.get('debugMode'):
-        logging.basicConfig(filename="/tmp/dogstatsd.log", filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        logging.info("Debug logging to /tmp/dogstatsd.log")
 
     hostname = socket.gethostname()
     rollup_interval = 5
