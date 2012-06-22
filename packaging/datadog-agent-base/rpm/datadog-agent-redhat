@@ -39,72 +39,87 @@ fi
 
 PROG="datadog-agent"
 PIDFILE=$PIDPATH/$PROG.pid
+SUPERVISOR_PIDFILE=/var/run/datadog-supervisord.pid
 LOCKFILE=/var/lock/subsys/$PROG
 
 check_status() {
     # run checks to determine if the service is running or use generic status
     if [ -f $USE_SUPERVISOR ]; then
-	p=`supervisorctl -c $SUPERVISOR_CONF status | grep RUNNING | wc -l`
-	if [ $p -eq 2 ]; then
-            echo 'Datadog agent is running'
-    	else
-            echo 'Datadog agent is not running'
-	fi  
-    elif [ -f $LOCKFILE ]; then
-            echo 'Datadog agent is running'
+        s=`supervisorctl -c $SUPERVISOR_CONF status`
+        p=`echo "$s" | grep -c RUNNING`
+        if [ "$p" -ne "2" ]; then
+            echo "$s"
+            echo -n "Datadog agent is NOT running all child processes" && failure && echo
+            return 1
+        else
+            echo -n "Datadog agent is running all child processes" && success && echo 
+            return 0
+        fi
+    fi
+            
+    if [ -f "$LOCKFILE" ]; then
+        echo -n 'Datadog agent is running'  && success && echo
+        return 0
     else
-            echo 'Datadog agent is not running'
+        echo -n 'Datadog agent is NOT running' && failure && echo
+        return 1
     fi
 }
 
 grab_status() {
-    GRABSTATUS=`check_status`
-    if [ "$GRABSTATUS" == "Datadog agent is running" ]; then
-        return 1
-    else
-        return 0
-    fi
+    GRABSTATUS=`check_status &>/dev/null`
 }
 
 start() {
+    grab_status
+    if [ "$?" -eq "0" ]; then
+        echo -n 'Datadog agent is already running' && warning && echo
+        return
+    fi
     if [ -f $USE_SUPERVISOR ]; then
         echo -n "Starting Datadog agent (using supervisorctl):"
-        daemon --pidfile=/var/run/datadog-supervisord.pid supervisord -c $SUPERVISOR_CONF
+        daemon --pidfile=$SUPERVISOR_PIDFILE supervisord -c $SUPERVISOR_CONF
         echo
-        return 0
-    else
-        grab_status
+        SLEEP=7
+        echo Waiting $SLEEP seconds to test for running child processes...
+        sleep $SLEEP
+        check_status
         if [ "$?" -eq "1" ]; then
-            echo -n 'Datadog agent is already running' && warning && echo
+            stop
         else
-            echo -n 'Starting Datadog agent: '
-           	install -d -o $AGENTUSER $PIDPATH
-            daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
-            RETURNVALUE=$?
-            echo
-            [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
-            return $RETURNVALUE
-        fi
+            touch $LOCKFILE
+        fi  
+        
+        echo
+        return 1
+    else
+        echo -n 'Starting Datadog agent: '
+        install -d -o $AGENTUSER $PIDPATH
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
+        RETURNVALUE=$?
+        echo
+        [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
+        return $RETURNVALUE
     fi
 }
 
 stop() {
+    grab_status
+    if [ "$?" -eq "1" ]; then
+        echo -n 'Datadog agent is NOT running' && warning && echo
+        return
+    fi
     if [ -f $USE_SUPERVISOR ]; then
         echo -n 'Stopping Datadog agent (using supervisorctl): '
-        killproc -p /var/run/datadog-supervisord.pid
+        killproc -p $SUPERVISOR_PIDFILE
+        rm -f $LOCKFILE
         echo
         RETURNVALUE=0
     else
-        grab_status
-        if [ "$?" -eq "1" ]; then                
-            echo -n 'Stopping Datadog agent: '
-            daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
-            RETURNVALUE=$?
-        	[ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
-        else
-            echo -n 'agent is not running' && warning && echo
-        	RETURNVALUE=2
-        fi
+        echo -n 'Stopping Datadog agent: '
+        daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
+        RETURNVALUE=$?
+        [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi
     return $RETURNVALUE
 }
