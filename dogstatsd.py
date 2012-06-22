@@ -192,6 +192,14 @@ class MetricsAggregator(object):
             metrics += self.metrics[context].flush(timestamp)
             del self.metrics[context]
 
+        # Track how many points we see.
+        metrics.append({
+            'host':self.hostname,
+            'tags':None,
+            'metric': 'dd.dogstatsd.packet.count',
+            'points': [(timestamp, self.count)]
+        })
+
         # Save some stats.
         logger.info("received %s payloads since last flush" % self.count)
         self.total_count += self.count
