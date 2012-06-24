@@ -87,7 +87,7 @@ class TestRedis(unittest.TestCase):
             assert isinstance(m[1], int)    # timestamp
             assert isinstance(m[2], float)  # value
             tags = m[3]["tags"]
-            expected_tags = ["redis_host:localhost", "redis_port:16379"]
+            expected_tags = ["redis_host:localhost", "redis_port:%s" % port]
             for e in expected_tags:
                 assert e in tags
 
