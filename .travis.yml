@@ -10,4 +10,6 @@ before_script:
   - sudo apt-get install sysstat
 env:
   - DB=redis
-  
+  - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.4.deb > /tmp/es.deb
+  - sudo dpkg -i /tmp/es.deb
+  - sudo service elasticsearch start

@@ -305,8 +305,14 @@ def get_config(parse_args = True, cfg_path=None):
         if config.has_option('Main', 'varnishstat'):
             agentConfig['varnishstat'] = config.get('Main', 'varnishstat')
 
+        # Redis
         if config.has_option('Main', 'redis_urls'):
             agentConfig['redis_urls'] = config.get('Main', 'redis_urls')
+
+        # Elasticsearch
+        if config.has_option('Main','elasticsearch'):
+            agentConfig['elasticsearch'] = config.get('Main','elasticsearch')
+
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
