@@ -79,7 +79,7 @@ class TestRedis(unittest.TestCase):
         db.setex("expirekey", "expirevalue", 1000)
         
         r = RedisCheck(logger)
-        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % NOAUTH_PORT}))
+        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % port}))
         assert metrics, "No metrics returned"
 
         # Assert we have values, timestamps and tags for each metric.
@@ -110,7 +110,7 @@ class TestRedis(unittest.TestCase):
         self.assertEquals(3, db_metrics[1][2]) 
 
         # Run one more check and ensure we get total command count
-        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % NOAUTH_PORT}))
+        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % port}))
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
 
