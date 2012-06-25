@@ -12,7 +12,7 @@ before_script:
   - sudo dpkg -i /tmp/es.deb
   - sudo service elasticsearch start
 env:
-  - DB=redis PYTHONPATH=$PWD
+  - DB=redis
 notifications:
   irc:
     - "irc.freenode.org#datadog"

@@ -5,6 +5,7 @@ import sys
 from random import random
 import urllib as url
 import time
+sys.path.append(os.getcwd())
 from ddagent import Application
 
 from util import Watchdog
