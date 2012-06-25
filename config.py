@@ -59,7 +59,7 @@ def get_config_path(cfg_path=None):
     return config_path
 
 
-def get_config(parse_args = True, cfg_path=None):
+def get_config(parse_args = True, cfg_path=None, init_logging=False):
     if parse_args:
         options, args = get_parsed_args()
     else:
@@ -83,7 +83,8 @@ def get_config(parse_args = True, cfg_path=None):
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
-        initialize_logging(config_path)
+        if init_logging:
+            initialize_logging(config_path)
 
         #
         # Core config

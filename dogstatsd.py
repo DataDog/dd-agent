@@ -319,7 +319,7 @@ class Server(object):
 
 def main(config_path=None):
 
-    c = get_config(parse_args=False, cfg_path=config_path)
+    c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
