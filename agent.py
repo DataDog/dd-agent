@@ -37,6 +37,7 @@ from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args
 from daemon import Daemon
 from emitter import http_emitter
+from util import Watchdog
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
