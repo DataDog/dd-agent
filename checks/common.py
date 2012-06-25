@@ -67,12 +67,11 @@ def recordsize(func):
         return res
     return wrapper
 
-class checks:
+class checks(object):
     def __init__(self, agentConfig, emitter):
         self.agentConfig = agentConfig
         self.plugins = None
         self.emitter = emitter
-        self.last_post_ts = None
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
@@ -115,13 +114,6 @@ class checks:
 
         self._ec2 = EC2(self.checksLogger)
     
-    def updateLastPostTs(self):
-        """Simple accessor to make it obvious that it is meant to work with late()
-        """
-        self.last_post_ts = time.time()
-
-    def lastPostTs(self): return self.last_post_ts
-
     #
     # Checks - FIXME migrating to the new Check interface is a WIP
     #
@@ -405,5 +397,4 @@ class checks:
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
         self.emitter(checksData, self.checksLogger, self.agentConfig)
-        self.updateLastPostTs()
         self.checksLogger.info("Checks done")

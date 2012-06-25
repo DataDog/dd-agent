@@ -157,7 +157,6 @@ def getPid(pid_dir=PID_DIR):
  
 # Control of daemon     
 if __name__ == '__main__':  
- 
     options, args = get_parsed_args()
     agentConfig = get_config()
     

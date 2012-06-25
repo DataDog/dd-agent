@@ -2,6 +2,7 @@
 
 import urlparse
 import urllib2
+import socket
 
 from checks import Check, gethostname
 from util import json, headers
@@ -103,11 +104,11 @@ class ElasticSearch(Check):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
-            if node_data['hostname'] == gethostname(agentConfig):
-                def process_metric(metric, type, path):
+            # ES nodes will use `hostname` regardless of how the agent is configured
+            if node_data['hostname'] in (gethostname(agentConfig), socket.gethostname()):
+                def process_metric(metric, xtype, path):
                     self._process_metric(node_data, metric, path)
-
-            self._map_metric(process_metric)
+                self._map_metric(process_metric)
 
     def check(self, config):
         """Extract data from stats URL
@@ -135,13 +136,3 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         self._process_data(config, data)
 
         return self.get_metrics()
-
-if __name__ == "__main__":
-    import logging
-    agentConfig = { 'elasticsearch': 'http://localhost:9200',
-                    'version': '0.1',
-                    'apiKey': 'toto' }
-    es = ElasticSearch(logging)
-    print es.check(agentConfig)
-    print es.check(agentConfig)
-

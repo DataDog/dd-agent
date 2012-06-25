@@ -102,18 +102,3 @@ class Redis(Check):
             except:
                 self.logger.exception("[REDIS] Error checking redis at %s" % url)
         return self.get_metrics()
-
-if __name__ == '__main__':
-    import logging
-    # define a Handler which writes INFO messages or higher to the sys.stderr
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    # set a format which is simpler for console use
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logger = logging.getLogger()
-    logger.addHandler(console)
-    
-    print Redis(logger).check({})

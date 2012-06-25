@@ -261,8 +261,8 @@ class Check(object):
         return metrics
 
 def gethostname(agentConfig):
-    if agentConfig.has_key("hostname") and agentConfig['hostname'] is not None:
-        return agentConfig['hostname']
+    if agentConfig.get("hostname") is not None:
+        return agentConfig["hostname"]
     else:
         try:
             return socket.gethostname()
