@@ -1,0 +1,3 @@
+[submodule "pup"]
+	path = pup
+	url = git@github.com:DataDog/pup.git
