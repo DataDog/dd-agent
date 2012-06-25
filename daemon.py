@@ -176,20 +176,8 @@ class Daemon:
         
         logging.info("Stopped")
 
-    def selfdestruct(self):
-        """Sometimes we must terminate ourselves"""
-        try:
-            import traceback
-            logging.error("Self-destructing...")
-            logging.error(traceback.format_exc())
-        finally:
-            os.kill(os.getpid(), SIGKILL)
-                 
-
     def restart(self):
-        """
-        Restart the daemon
-        """
+        "Restart the daemon"
         self.stop()     
         self.start()
 

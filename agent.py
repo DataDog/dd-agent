@@ -23,8 +23,6 @@ import urllib
 PID_DIR="/var/run/dd-agent"
 PID_FILE="dd-agent.pid"
 
-# Watchdog implementation
-from threading import Timer
 WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * checkFreq, 150s by default
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
@@ -42,27 +40,12 @@ from emitter import http_emitter
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):    
-
-    def late(self, cks, threshold, crash=True):
-        """Determine whether the agent run is late and optionally kill it if so.
-        """
-        late_p = cks.lastPostTs() is None or (time.time() - cks.lastPostTs() > threshold)
-        if late_p:
-            logging.error("Checks are late by at least %s seconds. Killing the agent..." % threshold)
-            # Calling sys.exit here only raises an exception that will be caught along the way.
-            if crash:
-                self.selfdestruct()
-        return late_p
-    
-    def run(self, agentConfig=None, run_forever=True):  
+    def run(self, agentConfig=None, run_forever=True):
+        """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
-
-        agentLogger.debug('Collecting basic system stats')
         systemStats = get_system_stats()
-        agentLogger.debug('System: ' + str(systemStats))
+        agentLogger.debug('System Properties: ' + str(systemStats))
                         
-        agentLogger.debug('Creating checks instance')
-        
         if agentConfig is None:
             agentConfig = get_config()
 
@@ -79,32 +62,25 @@ class agent(Daemon):
         emitter = http_emitter
 
         checkFreq = int(agentConfig['checkFreq'])
-        lateThresh = checkFreq * WATCHDOG_MULTIPLIER
         
         # Checks instance
         c = checks(agentConfig, emitter)
-        
-        # Run once
+
+        # Watchdog
+        watchdog = None
+        if agentConfig.get("watchdog", True):
+            watchdog = Watchdog(checkFreq * WATCHDOG_MULTIPLIER)
+            watchdog.reset()
+
+        # Run checks once, to get once-in-a-run data
         c.doChecks(True, systemStats)
-
+        
+        # Main loop
         while run_forever:
-            # Sleep, checkFreq is misleading. It's not really.
+            if watchdog is not None:
+                watchdog.reset()
             time.sleep(checkFreq)
-
-            if agentConfig.get("watchdog", True):
-                # Start the watchdog in a separate thread
-                agentLogger.debug("Starting watchdog, waiting %s seconds." % lateThresh)
-                t = Timer(lateThresh, self.late, (c, lateThresh, True))
-                t.start()
-
-            # Run checks
             c.doChecks()
-
-            if agentConfig.get("watchdog", True):
-                # Kill watchdog if it has not fired
-                t.cancel()
-
-            agentLogger.debug("Getting ready to sleep for %s seconds." % lateThresh)
         
 def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.

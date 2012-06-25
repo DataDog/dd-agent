@@ -18,7 +18,7 @@ from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
 
-#Tornado
+# Tornado
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
@@ -26,15 +26,15 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
+from util import Watchdog
 from emitter import http_emitter, format_body
 from config import get_config
-
 from checks.common import getUuid
 from checks import gethostname
-
 from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
+WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90) 
@@ -176,19 +176,16 @@ class ApiInputHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig):
-
         self._port = port
         self._agentConfig = agentConfig
-
         self._metrics = {}
-
+        self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
         MetricTransaction.set_application(self)
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
    
     def appendMetric(self, prefix, name, host, device, ts, value):
-
         if self._metrics.has_key(prefix):
             metrics = self._metrics[prefix]
         else:
@@ -201,16 +198,14 @@ class Application(tornado.web.Application):
             metrics[name] = [[host, device, ts, value]]
  
     def _postMetrics(self):
-
         if len(self._metrics) > 0:
             self._metrics['uuid'] = getUuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['apiKey']
             MetricTransaction(self._metrics)
-            self._metrics = {}            
+            self._metrics = {}
 
     def run(self):
-
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
@@ -232,10 +227,11 @@ class Application(tornado.web.Application):
         mloop = tornado.ioloop.IOLoop.instance() 
 
         def flush_trs():
+            self._watchdog.reset()
             self._postMetrics()
             self._tr_manager.flush()
 
-        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
+        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs, TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
 
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
@@ -246,6 +242,7 @@ class Application(tornado.web.Application):
             gs.listen(gport)
 
         # Start everything
+        self._watchdog.reset()
         tr_sched.start()
         mloop.start()
     
