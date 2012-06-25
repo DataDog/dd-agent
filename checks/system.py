@@ -512,27 +512,12 @@ class Processes(object):
     def check(self, logger, agentConfig):
         logger.debug('getProcesses: start')
         
-        # Memory logging (case 27152)
-        if agentConfig['debugMode'] and sys.platform == 'linux2':
-            mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            logger.debug('getProcesses: memory before Popen - ' + str(mem))
-        
         # Get output from ps
         try:
-            logger.debug('getProcesses: attempting Popen')
-            
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            
         except:
             logger.exception('getProcesses')
             return False
-        
-        logger.debug('getProcesses: Popen success, parsing')
-        
-        # Memory logging (case 27152)
-        if agentConfig['debugMode'] and sys.platform == 'linux2':
-            mem = subprocess.Popen(['free', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            logger.debug('getProcesses: memory after Popen - ' + str(mem))
         
         # Split out each process
         processLines = ps.split('\n')

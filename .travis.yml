@@ -13,3 +13,6 @@ before_script:
   - sudo service elasticsearch start
 env:
   - DB=redis
+notifications:
+  irc:
+    - "irc.freenode.org#datadog"

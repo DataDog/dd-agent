@@ -1,6 +1,8 @@
-import platform
-import sys
 import logging
+import os
+import platform
+import signal
+import sys
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -49,3 +51,28 @@ def getTopIndex():
         return 6
     else:
         return 5
+
+class Watchdog(object):
+    """Simple signal-based watchdog that will scuttle the current process
+    if it has not been reset every N seconds.
+    Can only be invoked once per process, so don't use with multiple threads.
+    If you instantiate more than one, you're also asking for trouble.
+    """
+    def __init__(self, duration):
+        """Set the duration
+        """
+        self._duration = int(duration)
+        signal.signal(signal.SIGALRM, Watchdog.self_destruct)
+
+    @staticmethod
+    def self_destruct(signum, frame):
+        try:
+            import traceback
+            logging.error("Self-destructing...")
+            logging.error(traceback.format_exc())
+        finally:
+            os.kill(os.getpid(), signal.SIGKILL)
+
+    def reset(self):
+        logging.debug("Resetting watchdog for %d" % self._duration)
+        signal.alarm(self._duration)
