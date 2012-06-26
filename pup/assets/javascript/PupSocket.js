@@ -12,7 +12,8 @@
 
 var PupSocket = function(port, save) {
 	var connEstablished = false,
-		closed = false;
+		closed = false,
+		hitLimitOnce = false;
 
 	// public interface -------------------------------------------------------------
 	pub = {};
@@ -46,11 +47,13 @@ var PupSocket = function(port, save) {
 					break;
 				case 2:	
 					// display graph limit hit notice for 5 seconds
+					if (!hitLimitOnce)
 					var hitLimit = document.getElementById("limit-error");
-					hitLimit.innerHTML = "You have reached the graph count limit";
+					hitLimit.innerHTML = "You have reached the graph count limit. This limit is enforced for reasons of performance.";
 					setTimeout(function() {
 						hitLimit.innerHTML = "";
 					}, 5000);
+					hitLimitOnce = true;
 					break;
 			}
 		};
