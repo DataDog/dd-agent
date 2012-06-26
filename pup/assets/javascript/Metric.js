@@ -33,7 +33,7 @@ var Metric = function(options) {
 	}
 };
 
-
+// Histogram -----------------------------------------------------------
 function Histogram(options) {
 	Metric.call(this, options);
 
@@ -55,52 +55,53 @@ function Histogram(options) {
 			"values" : {time: +options.now, value: 0}
 		};
 	});	
+}
 
+Histogram.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
-	this.updateMostRecent = function(incomingMetric, metric) {
-		this.mostRecent = incomingMetric.points.map(function(stk) {
-			return {
-				"name" 	 : stk.stackName,
-				"values" : stk.values.map(function(d) {
-					if (d[1] > max) { max = d[1]; }
-					return {
-						"time" 	: d[0] * 1000,
-						"value" : d[1]
-					};
-				})[0] // should make continuous
-			};
+	this.mostRecent = incomingMetric.points.map(function(stk) {
+		return {
+			"name" 	 : stk.stackName,
+			"values" : stk.values.map(function(d) {
+				if (d[1] > max) { max = d[1]; }
+				return {
+					"time" 	: d[0] * 1000,
+					"value" : d[1]
+				};
+			})[0] // should make continuous
+		};
+	});
+	this.max = max;
+}
+
+Histogram.prototype.pushRecent = function(timedOut, now) {
+	if (timedOut) {
+		this.data = this.data.map(function(stk) {
+			return stk.values.push({time: +now, value: 0});
 		});
-		this.max = max;
-	}
-
-	this.pushRecent = function(timedOut, now) {
-		if (timedOut) {
-			this.data = this.data.map(function(stk) {
-				return stk.values.push({time: +now, value: 0});
-			});
-		} else {
-			for (var i = 0; i < this.data.length; i++) {
-				this.mostRecent[i].values.time = +now;
-				this.data[i].values.push(this.mostRecent[i].values);
-				// TODO: Ensure proper ordering of stacks.
-			}
-		}
-	}
-
-	this.shiftOld = function() {
+	} else {
 		for (var i = 0; i < this.data.length; i++) {
-			this.data[i].values.shift();
+			var mostRecentValues = this.mostRecent[i].values;
+			mostRecentValues.time = +now;
+			this.data[i].values.push(mostRecentValues);
+			// TODO: Ensure proper ordering of stacks.
 		}
-	}	
-	
-	this.isTimedOut = function(now, timeout) {
-		return now - d3.min(this.mostRecent, function(stk) { 
-			return stk.time; 
-		}) > timeout ? true: false;
 	}
 }
 
+Histogram.prototype.shiftOld = function() {
+	for (var i = 0; i < this.data.length; i++) {
+		this.data[i].values.shift();
+	}
+}	
+	
+Histogram.prototype.isTimedOut = function(now, timeout) {
+	return now - d3.min(this.mostRecent, function(stk) { 
+		return stk.time; 
+	}) > timeout ? true: false;
+}
 
+// Line -----------------------------------------------------------
 function Line(options) {
 	Metric.call(this, options);
 
@@ -109,34 +110,35 @@ function Line(options) {
 	});
 
 	this.mostRecent = {"time": +options.now, "value": 0};
+}
 
+Line.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
-	this.updateMostRecent = function(incomingMetric, metric) {
-		this.mostRecent = incomingMetric.points.map(function(d) {
-			if (d[1] > max) { max = d[1]; }
-			return {
-				"time"  : d[0] * 1000,
-				"value" : d[1]
-			};
-		})[0]; // should make continuous
-		this.max = max;
-	}
+	this.mostRecent = incomingMetric.points.map(function(d) {
+		if (d[1] > max) { max = d[1]; }
+		return {
+			"time"  : d[0] * 1000,
+			"value" : d[1]
+		};
+	})[0]; // should make continuous
+	this.max = max;
+}
 
-	this.pushRecent = function(timedOut, now) {
-		if (timedOut) {
-			this.data.push({time: +now, value: 0});
-		} else {
-			this.mostRecent.time = +now;
-			this.data.push(this.mostRecent);
-		}
+Line.prototype.pushRecent = function(timedOut, now) {
+	if (timedOut) {
+		this.data.push({time: +now, value: 0});
+	} else {
+		var mostRecent = this.mostRecent;
+		mostRecent.time = +now;
+		this.data.push(mostRecent);
 	}
+}
 
-	this.shiftOld = function() {
-		this.data.shift();
-	}
+Line.prototype.shiftOld = function() {
+	this.data.shift();
+}
 
-	this.isTimedOut = function(now, timeout) {
-		return now - this.mostRecent.time > timeout ? true : false;
-	}
+Line.prototype.isTimedOut = function(now, timeout) {
+	return now - this.mostRecent.time > timeout ? true : false;
 }
 

@@ -8,7 +8,7 @@
  */
 
 var PupController = function(isWSClosed, Store, $) {
-	var minutes		= 4,									// window period
+	var minutes		= 10,									// window period
 		duration 	= Math.sqrt(minutes * 60 * 1000),		// transitions work best if duration and n are close in value
 															// 	duration represents the buffer time window for transitions
 		n 			= Math.ceil(duration),					// number of data points
@@ -68,10 +68,13 @@ var PupController = function(isWSClosed, Store, $) {
 		metricHead.append("a")
 				.attr("href", metric.name);
 
-		metricHead.append("span")
-				.attr("class", "download")
-				.text("download");
-		
+		if (metric.type !== "histogram") {
+			metricHead.append("a")
+					.attr("class", "csv")
+					.attr("name", metric.name)
+					.text("CSV");
+		}
+
 		var div = container.append("div")
 				.attr("class", "plot")
 
@@ -103,6 +106,7 @@ var PupController = function(isWSClosed, Store, $) {
 
 	var clearScreen = function() {
 		$('#graphs').empty();
+		$('#waiting').addClass("hidden");
 		$('#data-streaming').addClass("hidden");
 		$('#disconnected').removeClass("hidden");
 		$('#listening').html("Not " + $('#listening').html());
@@ -188,6 +192,21 @@ var PupController = function(isWSClosed, Store, $) {
 			$("#dot").addClass("hidden");
 		}
 		
+	
+		var downloadCSV = function(name, points) {
+		 	CSVWindow = window.open();
+			CSVWindow.document.title = name;
+			CSVWindow.document.write("timestamp,value</br>");
+	    	for (var i = 0; i < points.length; i++) {
+				var line = '';
+				for (var index in points[i]) {
+					if (line != '') line += ','
+						line += points[i][index];
+				}
+				CSVWindow.document.write(line + '</br>');
+			}
+		};
+
 		// interact public interface -----------------------------------------
 		intPub = {};
 
@@ -426,10 +445,18 @@ var PupController = function(isWSClosed, Store, $) {
 		// fade the graph when the mouse leaves the entry
 		intPub.fadeGraph = function(metricName) {
 			var graph = $('.plot-box[name=' + metricName + '] h5');
-			$(graph).animate({'backgroundColor': "white"}, 200);
+			$(graph).css('background-color', "white");
 			var entry = $('.li[name=' + metricName + ']');
-			$(entry).animate({'backgroundColor': "transparent"}, 200);
+			$(entry).css('background-color', "transparent");
 			return intPub;
+		};
+
+		intPub.downloadCSV = function(name) {
+			metric = Store.getMetricByName(name);
+			if (metric.type != "histogram") {
+				downloadCSV(metric.name, metric.data);
+			} // TODO: Add support for histograms
+			
 		};
 
 		return intPub;

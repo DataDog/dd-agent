@@ -30,7 +30,6 @@ var Metric = function(options) {
 	}
 };
 
-
 function Histogram(options) {
 	Metric.call(this, options);
 
@@ -51,50 +50,50 @@ function Histogram(options) {
 			"values" : {time: +options.now, value: 0}
 		};
 	});
+}
 
+Histogram.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
-	this.updateMostRecent = function(incomingMetric, metric) {
-		this.mostRecent = incomingMetric.points.map(function(stk) {
-			return {
-				"name" 	 : stk.stackName,
-				"values" : stk.values.map(function(d) {
-					if (d[1] > max) { max = d[1]; }
-					return {
-						"time" 	: d[0] * 1000,
-						"value" : d[1]
-					};
-				})[0] // should make continuous
-			};
+	this.mostRecent = incomingMetric.points.map(function(stk) {
+		return {
+			"name" 	 : stk.stackName,
+			"values" : stk.values.map(function(d) {
+				if (d[1] > max) { max = d[1]; }
+				return {
+					"time" 	: d[0] * 1000,
+					"value" : d[1]
+				};
+			})[0] // should make continuous
+		};
+	});
+	this.max = max;
+}
+
+Histogram.prototype.pushRecent = function(timedOut, now) {
+	if (timedOut) {
+		this.data = this.data.map(function(stk) {
+			return stk.values.push({time: +now, value: 0});
 		});
-		this.max = max;
-	}
-
-	this.pushRecent = function(timedOut, now) {
-		if (timedOut) {
-			this.data = this.data.map(function(stk) {
-				return stk.values.push({time: +now, value: 0});
-			});
-		} else {
-			for (var i = 0; i < this.data.length; i++) {
-				this.mostRecent[i].values.time = +now;
-				this.data[i].values.push(this.mostRecent[i].values);
-			}
-		}
-	}
-
-	this.shiftOld = function() {
+	} else {
 		for (var i = 0; i < this.data.length; i++) {
-			this.data[i].values.shift();
+			var mostRecentValues = this.mostRecent[i].values;
+			mostRecentValues.time = +now;
+			this.data[i].values.push(mostRecentValues);
 		}
-	}
-
-	this.isTimedOut = function(now, timeout) {
-		return now - d3.min(this.mostRecent, function(stk) {
-			return stk.time;
-		}) > timeout ? true: false;
 	}
 }
 
+Histogram.prototype.shiftOld = function() {
+	for (var i = 0; i < this.data.length; i++) {
+		this.data[i].values.shift();
+	}
+}
+
+Histogram.prototype.isTimedOut = function(now, timeout) {
+	return now - d3.min(this.mostRecent, function(stk) {
+		return stk.time;
+	}) > timeout ? true: false;
+}
 
 function Line(options) {
 	Metric.call(this, options);
@@ -104,35 +103,36 @@ function Line(options) {
 	});
 
 	this.mostRecent = {"time": +options.now, "value": 0};
+}
 
+Line.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
-	this.updateMostRecent = function(incomingMetric, metric) {
-		this.mostRecent = incomingMetric.points.map(function(d) {
-			if (d[1] > max) { max = d[1]; }
-			return {
-				"time"  : d[0] * 1000,
-				"value" : d[1]
-			};
-		})[0]; // should make continuous
-		this.max = max;
-	}
+	this.mostRecent = incomingMetric.points.map(function(d) {
+		if (d[1] > max) { max = d[1]; }
+		return {
+			"time"  : d[0] * 1000,
+			"value" : d[1]
+		};
+	})[0]; // should make continuous
+	this.max = max;
+}
 
-	this.pushRecent = function(timedOut, now) {
-		if (timedOut) {
-			this.data.push({time: +now, value: 0});
-		} else {
-			this.mostRecent.time = +now;
-			this.data.push(this.mostRecent);
-		}
+Line.prototype.pushRecent = function(timedOut, now) {
+	if (timedOut) {
+		this.data.push({time: +now, value: 0});
+	} else {
+		var mostRecent = this.mostRecent;
+		mostRecent.time = +now;
+		this.data.push(mostRecent);
 	}
+}
 
-	this.shiftOld = function() {
-		this.data.shift();
-	}
+Line.prototype.shiftOld = function() {
+	this.data.shift();
+}
 
-	this.isTimedOut = function(now, timeout) {
-		return now - this.mostRecent.time > timeout ? true : false;
-	}
+Line.prototype.isTimedOut = function(now, timeout) {
+	return now - this.mostRecent.time > timeout ? true : false;
 }
 
 /* Store.js
@@ -228,7 +228,8 @@ var Store = function() {
 
 var PupSocket = function(port, save) {
 	var connEstablished = false,
-		closed = false;
+		closed = false,
+		hitLimitOnce = false;
 
 	pub = {};
 
@@ -256,11 +257,13 @@ var PupSocket = function(port, save) {
 					throw "Malformed data sent to client"
 					break;
 				case 2:
+					if (!hitLimitOnce)
 					var hitLimit = document.getElementById("limit-error");
-					hitLimit.innerHTML = "You have reached the graph count limit";
+					hitLimit.innerHTML = "You have reached the graph count limit. This limit is enforced for reasons of performance.";
 					setTimeout(function() {
 						hitLimit.innerHTML = "";
 					}, 5000);
+					hitLimitOnce = true;
 					break;
 			}
 		};
@@ -497,7 +500,7 @@ var HistogramGraph = function(options) {
  */
 
 var PupController = function(isWSClosed, Store, $) {
-	var minutes		= 4,									// window period
+	var minutes		= 10,									// window period
 		duration 	= Math.sqrt(minutes * 60 * 1000),		// transitions work best if duration and n are close in value
 		n 			= Math.ceil(duration),					// number of data points
 		step		= 0,									// if smooth transitions are enabled, this signifies the lag
@@ -555,9 +558,12 @@ var PupController = function(isWSClosed, Store, $) {
 		metricHead.append("a")
 				.attr("href", metric.name);
 
-		metricHead.append("span")
-				.attr("class", "download")
-				.text("download");
+		if (metric.type !== "histogram") {
+			metricHead.append("a")
+					.attr("class", "csv")
+					.attr("name", metric.name)
+					.text("CSV");
+		}
 
 		var div = container.append("div")
 				.attr("class", "plot")
@@ -588,6 +594,7 @@ var PupController = function(isWSClosed, Store, $) {
 
 	var clearScreen = function() {
 		$('#graphs').empty();
+		$('#waiting').addClass("hidden");
 		$('#data-streaming').addClass("hidden");
 		$('#disconnected').removeClass("hidden");
 		$('#listening').html("Not " + $('#listening').html());
@@ -660,6 +667,21 @@ var PupController = function(isWSClosed, Store, $) {
 			$("#num-more").html(totalGraphCount - graphCount);
 			$("#dot").addClass("hidden");
 		}
+
+
+		var downloadCSV = function(name, points) {
+		 	CSVWindow = window.open();
+			CSVWindow.document.title = name;
+			CSVWindow.document.write("timestamp,value</br>");
+	    	for (var i = 0; i < points.length; i++) {
+				var line = '';
+				for (var index in points[i]) {
+					if (line != '') line += ','
+						line += points[i][index];
+				}
+				CSVWindow.document.write(line + '</br>');
+			}
+		};
 
 		intPub = {};
 
@@ -877,10 +899,18 @@ var PupController = function(isWSClosed, Store, $) {
 
 		intPub.fadeGraph = function(metricName) {
 			var graph = $('.plot-box[name=' + metricName + '] h5');
-			$(graph).animate({'backgroundColor': "white"}, 200);
+			$(graph).css('background-color', "white");
 			var entry = $('.li[name=' + metricName + ']');
-			$(entry).animate({'backgroundColor': "transparent"}, 200);
+			$(entry).css('background-color', "transparent");
 			return intPub;
+		};
+
+		intPub.downloadCSV = function(name) {
+			metric = Store.getMetricByName(name);
+			if (metric.type != "histogram") {
+				downloadCSV(metric.name, metric.data);
+			} // TODO: Add support for histograms
+
 		};
 
 		return intPub;

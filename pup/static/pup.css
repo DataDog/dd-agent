@@ -250,11 +250,12 @@ pre {
 	color: #6f56a2;
 }
 
-.download {
+.csv {
 	float: right;
-	width: 100px;
+	width: 30px;
 	margin-top: -43px;
 	font-size: 10px;
+	cursor: pointer;
 }
 
 .graph-tags {
