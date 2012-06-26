@@ -34,6 +34,6 @@ if __name__ == "__main__":
           url='http://datadoghq.com/',
           packages=['resources', 'compat'],
           scripts=['agent.py', 'daemon.py', 'minjson.py', 'util.py', 
-                    'emitter.py', 'config.py'],
+                    'emitter.py', 'config.py', 'graphite.py'],
           data_files=[('/etc/dd-agent/', ['../../datadog.conf.example'])] 
          )

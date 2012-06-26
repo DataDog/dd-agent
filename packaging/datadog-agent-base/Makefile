@@ -33,6 +33,7 @@ links:
 	ln -sf ../../util.py    .
 	ln -sf ../../emitter.py .
 	ln -sf ../../config.py  .
+	ln -sf ../../graphite.py  .
 
 dirs:
 	mkdir -p $(BUILD)
@@ -48,6 +49,7 @@ install: dirs links
 	chmod 644 $(BUILD)/usr/share/datadog/agent/daemon.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/minjson.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/emitter.py
+	chmod 644 $(BUILD)/usr/share/datadog/agent/graphite.py
 	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
 
 install_deb: install
