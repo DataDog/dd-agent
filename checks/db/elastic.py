@@ -57,9 +57,9 @@ class ElasticSearch(Check):
         for metric in cls.METRICS:
             desc = cls.METRICS[metric]
             if type(desc) == tuple:
-                func("es." + metric,*desc)
+                func("elasticsearch." + metric,*desc)
             else:
-                func("es." + metric,desc,metric)
+                func("elasticsearch." + metric,desc,metric)
 
     def __init__(self, logger):
         Check.__init__(self, logger)
@@ -105,7 +105,12 @@ class ElasticSearch(Check):
             node_data = data['nodes'][node]
 
             # ES nodes will use `hostname` regardless of how the agent is configured
-            if node_data['hostname'] in (gethostname(agentConfig), socket.gethostname()):
+            hostnames = (
+                gethostname(agentConfig),
+                socket.gethostname(),
+                socket.getfqdn()
+            )
+            if node_data['hostname'] in hostnames:
                 def process_metric(metric, xtype, path):
                     self._process_metric(node_data, metric, path)
                 self._map_metric(process_metric)
@@ -124,13 +129,13 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         # Try to fetch data from the stats URL
         url = urlparse.urljoin(host,self.STATS_URL)
 
-        self.logger.info("Fetching elastic search data from: %s" % url)
+        self.logger.info("Fetching elasticsearch data from: %s" % url)
 
         data = None
         try:
             data = self._get_data(config, url)
         except:
-            self.logger.exception('Unable to get ElasticSearch statistics')
+            self.logger.exception('Unable to get elasticsearch statistics')
             return False
 
         self._process_data(config, data)
