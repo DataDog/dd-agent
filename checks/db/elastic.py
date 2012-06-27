@@ -105,7 +105,12 @@ class ElasticSearch(Check):
             node_data = data['nodes'][node]
 
             # ES nodes will use `hostname` regardless of how the agent is configured
-            if node_data['hostname'] in (gethostname(agentConfig), socket.gethostname()):
+            hostnames = (
+                gethostname(agentConfig),
+                socket.gethostname(),
+                socket.getfqdn()
+            )
+            if node_data['hostname'] in hostnames:
                 def process_metric(metric, xtype, path):
                     self._process_metric(node_data, metric, path)
                 self._map_metric(process_metric)
