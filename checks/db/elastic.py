@@ -57,9 +57,9 @@ class ElasticSearch(Check):
         for metric in cls.METRICS:
             desc = cls.METRICS[metric]
             if type(desc) == tuple:
-                func("es." + metric,*desc)
+                func("elasticsearch." + metric,*desc)
             else:
-                func("es." + metric,desc,metric)
+                func("elasticsearch." + metric,desc,metric)
 
     def __init__(self, logger):
         Check.__init__(self, logger)
