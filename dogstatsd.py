@@ -182,7 +182,7 @@ class MetricsAggregator(object):
         # Flush all completed intervals bucketed up to this time.
         timestamp = time.time()
         interval = timestamp - timestamp % self.interval
-        
+
         # Find all intervals that are completed (don't use a generator here)
         past_contexts = [c for c in self.metrics if c[0] < interval]
 
@@ -328,7 +328,7 @@ def main(config_path=None):
     host = 'localhost'
 
     hostname = socket.gethostname()
-    rollup_interval = 5
+    rollup_interval = 10
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
