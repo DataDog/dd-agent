@@ -129,13 +129,13 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         # Try to fetch data from the stats URL
         url = urlparse.urljoin(host,self.STATS_URL)
 
-        self.logger.info("Fetching elastic search data from: %s" % url)
+        self.logger.info("Fetching elasticsearch data from: %s" % url)
 
         data = None
         try:
             data = self._get_data(config, url)
         except:
-            self.logger.exception('Unable to get ElasticSearch statistics')
+            self.logger.exception('Unable to get elasticsearch statistics')
             return False
 
         self._process_data(config, data)
