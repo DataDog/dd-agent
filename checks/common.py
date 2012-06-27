@@ -366,6 +366,8 @@ class checks(object):
 
             # Collect metadata
             checksData['meta'] = self._ec2.get_metadata()
+            if self.agentConfig.get('hostname'):
+                checksData['meta']['agent-hostname'] = self.agentConfig.get('hostname')
        
         # Resources checks
         has_resource = False
