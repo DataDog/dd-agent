@@ -47,7 +47,7 @@ check_status() {
     if [ -f $USE_SUPERVISOR ]; then
         s=`supervisorctl -c $SUPERVISOR_CONF status`
         p=`echo "$s" | grep -c RUNNING`
-        if [ "$p" -ne "2" ]; then
+        if [ "$p" -ne "3" ]; then
             echo "$s"
             echo -n "Datadog agent is NOT running all child processes" && failure && echo
             return 1
