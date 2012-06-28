@@ -106,11 +106,11 @@ class ElasticSearch(Check):
 
             # ES nodes will use `hostname` regardless of how the agent is configured
             hostnames = (
-                gethostname(agentConfig),
-                socket.gethostname(),
-                socket.getfqdn()
+                gethostname(agentConfig).decode('utf-8'),
+                socket.gethostname().decode('utf-8'),
+                socket.getfqdn().decode('utf-8')
             )
-            if node_data['hostname'] in hostnames:
+            if node_data['hostname'].decode('utf-8') in hostnames:
                 def process_metric(metric, xtype, path):
                     self._process_metric(node_data, metric, path)
                 self._map_metric(process_metric)
