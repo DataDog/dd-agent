@@ -3,6 +3,7 @@ import unittest
 import logging
 logger = logging.getLogger()
 from checks import *
+from checks.common import checks
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -87,6 +88,10 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
         self.assertEquals(self.c.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
 
+    def test_metadata(self):
+        c = checks({}, None)
+        assert "hostname" in c.get_metadata(), c.get_metadata()
+        assert "fqdn" in c.get_metadata(), c.get_metadata()
 
 if __name__ == '__main__':
     unittest.main()
