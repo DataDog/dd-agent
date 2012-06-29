@@ -212,23 +212,21 @@ class checks(object):
     @recordsize
     def get_metadata(self):
         metadata = self._ec2.get_metadata()
+        if metadata.get('hostname'):
+            metadata['ec2-hostname'] = metadata.get('hostname')
 
         if self.agentConfig.get('hostname'):
             metadata['agent-hostname'] = self.agentConfig.get('hostname')
 
-        # Get fqdn, make sure that hostname only contains local part
         try:
-            hname = metadata.get("hostname", None)
-            if hname is None:
-                hname = socket.gethostname()
-                metadata["fqdn"] = socket.getfqdn()
-            else:
-                metadata["fqdn"] = metadata["hostname"]
-
-            # Replace hostname with shortname
-            metadata["hostname"] = hname.split(".")[0]
+            metadata["hostname"] = socket.gethostname()
         except:
             pass
+        try:
+            metadata["fqdn"] = socket.getfqdn()
+        except:
+            pass
+
         return metadata
 
     def doChecks(self, firstRun=False, systemStats=False):
