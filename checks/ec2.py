@@ -45,20 +45,6 @@ class EC2(Check):
             except:
                 pass
 
-        # Get fqdn, make sure that hostname only contains local part
-        try:
-            hname = metadata.get("hostname", None)
-            if hname is None:
-                hname = socket.gethostname()
-                metadata["fqdn"] = socket.getfqdn()
-            else:
-                metadata["fqdn"] = metadata["hostname"]
-
-            # Replace hostname with shortname
-            metadata["hostname"] = hname.split(".")[0]
-        except:
-            pass
-
         try:
             if socket_to is None:
                 socket_to = 3
