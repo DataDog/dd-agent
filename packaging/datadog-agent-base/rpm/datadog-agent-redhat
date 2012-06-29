@@ -45,15 +45,26 @@ LOCKFILE=/var/lock/subsys/$PROG
 check_status() {
     # run checks to determine if the service is running or use generic status
     if [ -f $USE_SUPERVISOR ]; then
-        s=`supervisorctl -c $SUPERVISOR_CONF status`
-        p=`echo "$s" | grep -c RUNNING`
-        if [ "$p" -ne "3" ]; then
-            echo "$s"
-            echo -n "Datadog agent is NOT running all child processes" && failure && echo
-            return 1
+        if [ -e /var/tmp/datadog-supervisor.sock ]; then
+            s=`supervisorctl -c $SUPERVISOR_CONF status`
+            p=`echo "$s" | grep -c RUNNING`
+            if [ "$p" -ne "2" ]; then
+                echo "$s"
+                echo -n "Datadog agent (supervisor) is NOT running all child processes" && failure && echo
+                return 1
+            else
+                echo -n "Datadog agent (supervisor) is running all child processes" && success && echo 
+                return 0
+            fi
         else
-            echo -n "Datadog agent is running all child processes" && success && echo 
-            return 0
+            status -p $SUPERVISOR_PIDFILE $PROG
+            RETVAL=$?
+            if [ $RETVAL -eq 0 ]; then
+                echo -n "Datadog agent (supervisor) is running." && success && echo 
+            else
+                echo -n "Datadog agent (supervisor) is NOT running." && failure && echo
+            fi
+            return $RETVAL
         fi
     fi
             
@@ -77,7 +88,7 @@ start() {
         return
     fi
     if [ -f $USE_SUPERVISOR ]; then
-        echo -n "Starting Datadog agent (using supervisorctl):"
+        echo -n "Starting Datadog agent (using supervisord):"
         daemon --pidfile=$SUPERVISOR_PIDFILE supervisord -c $SUPERVISOR_CONF
         echo
         SLEEP=7
@@ -110,7 +121,7 @@ stop() {
         return
     fi
     if [ -f $USE_SUPERVISOR ]; then
-        echo -n 'Stopping Datadog agent (using supervisorctl): '
+        echo -n 'Stopping Datadog agent (using killproc on supervisord): '
         killproc -p $SUPERVISOR_PIDFILE
         rm -f $LOCKFILE
         echo
