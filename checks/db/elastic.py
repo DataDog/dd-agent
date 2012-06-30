@@ -9,7 +9,7 @@ from util import json, headers
 
 class ElasticSearch(Check):
 
-    STATS_URL = "/_nodes/stats?all=true"
+    STATS_URL = "/_cluster/nodes/stats?all=true"
 
     METRICS = {
         "docs.count": "gauge",
