@@ -45,10 +45,18 @@ LOCKFILE=/var/lock/subsys/$PROG
 check_status() {
     # run checks to determine if the service is running or use generic status
     if [ -f $USE_SUPERVISOR ]; then
+
+        # if the sock exists, we can use supervisorctl
         if [ -e /var/tmp/datadog-supervisor.sock ]; then
+
             s=`supervisorctl -c $SUPERVISOR_CONF status`
+
+            # number of RUNNING supervisord programs
             p=`echo "$s" | grep -c RUNNING`
-            if [ "$p" -ne "2" ]; then
+
+            # number of expected running supervisord programs
+            c=`grep -c '\[program:' $SUPERVISOR_CONF`
+            if [ "$p" -ne "$c" ]; then
                 echo "$s"
                 echo -n "Datadog agent (supervisor) is NOT running all child processes" && failure && echo
                 return 1
@@ -57,6 +65,8 @@ check_status() {
                 return 0
             fi
         else
+
+            # if no sock, use the rc status function
             status -p $SUPERVISOR_PIDFILE $PROG
             RETVAL=$?
             if [ $RETVAL -eq 0 ]; then
