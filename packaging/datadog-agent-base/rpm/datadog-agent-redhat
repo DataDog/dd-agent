@@ -92,12 +92,9 @@ grab_status() {
 }
 
 start() {
-    grab_status
-    if [ "$?" -eq "0" ]; then
-        echo -n 'Datadog agent is already running' && warning && echo
-        return
-    fi
     if [ -f $USE_SUPERVISOR ]; then
+        # no need to test for status before daemon,
+        # the daemon function does the right thing
         echo -n "Starting Datadog agent (using supervisord):"
         daemon --pidfile=$SUPERVISOR_PIDFILE supervisord -c $SUPERVISOR_CONF
         echo
@@ -114,6 +111,11 @@ start() {
         echo
         return 1
     else
+        grab_status
+        if [ "$?" -eq "0" ]; then
+            echo -n 'Datadog agent is already running' && warning && echo
+            return
+        fi
         echo -n 'Starting Datadog agent: '
         install -d -o $AGENTUSER $PIDPATH
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
@@ -125,18 +127,21 @@ start() {
 }
 
 stop() {
-    grab_status
-    if [ "$?" -eq "1" ]; then
-        echo -n 'Datadog agent is NOT running' && warning && echo
-        return
-    fi
     if [ -f $USE_SUPERVISOR ]; then
+        # no need to test for status before killproc,
+        # it does the right thing. and testing supervisorctl status
+        # before killproc can lead to states where you cannot stop!
         echo -n 'Stopping Datadog agent (using killproc on supervisord): '
         killproc -p $SUPERVISOR_PIDFILE
         rm -f $LOCKFILE
         echo
         RETURNVALUE=0
     else
+        grab_status
+        if [ "$?" -eq "1" ]; then
+            echo -n 'Datadog agent is NOT running' && warning && echo
+            return
+        fi
         echo -n 'Stopping Datadog agent: '
         daemon --user $AGENTUSER "$PYTHON $AGENTPATH stop >/dev/null"
         RETURNVALUE=$?
