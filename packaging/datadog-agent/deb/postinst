@@ -4,6 +4,11 @@ set -e
 
 case "$1" in
     configure)
+	suprunning=$(pgrep -fl supervisord)
+	if [ -z "$suprunning" ]; then
+	    echo "Restarting supervisord"
+	    service supervisor start
+	fi
         supervisorctl reread
         supervisorctl update
 

@@ -1,6 +1,43 @@
 #! /bin/sh
-
 set -e 
+
+# To fix https://github.com/DataDog/dd-agent/issues/95
+# The following lines were added by mistake, which confuse supervisor on restart
+
+# [supervisorctl]
+# serverurl = unix:///var/tmp/datadog-supervisor.sock
+#
+# [unix_http_server]
+# file=/var/tmp/datadog-supervisor.sock
+#
+# [rpcinterface:supervisor]
+# supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+# if these lines are there, *and* supervisorctl status fails with
+# ///var/run/supervisor.sock no such file
+
+if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
+    suprunning=$(pgrep -fl supervisord)
+    if [ -n "$suprunning" ]; then
+	brokenconf=$(grep /var/tmp/datadog-supervisor.sock /etc/supervisor/conf.d/ddagent.conf | wc -l)
+	if [ $brokenconf -gt 0 ]; then
+	    brokenproc=$(supervisorctl status | grep 'no such file' | wc -l)
+	    if [ $brokenproc -gt 0 ]; then
+		echo "Your supervisor configuration is incorrect. I can fix it for you but I need to restart supervisor (with all its supervised processes listed below). If only datadog-agent processes are listed, this is a safe operation."
+		supervisorctl -c /etc/supervisor/conf.d/ddagent.conf status
+		read -p "Should I shut supervisord down for you? (Y/N) " bounce
+		if [[ "$bounce" == "y" || "$bounce" == "Y" ]]; then
+		    echo "Understood. Supervisord is going down now."
+		    supervisorctl -c /etc/supervisor/conf.d/ddagent.conf shutdown
+		else
+		    echo "I understand. You can read on how to fix supervisord manually at http://dtdg.co/fix-supervisor."
+		    echo "Aborting install now"
+		    exit 1
+		fi
+	    fi
+	fi
+    fi
+fi
 
 if [ -f /etc/init.d/datadog-agent ]; then
     if which invoke-rc.d >/dev/null 2>&1; then
@@ -11,5 +48,4 @@ if [ -f /etc/init.d/datadog-agent ]; then
 fi
 
 #DEBHELPER#
-
 exit 0
