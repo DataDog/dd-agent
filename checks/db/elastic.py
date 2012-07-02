@@ -9,7 +9,7 @@ from util import json, headers
 
 class ElasticSearch(Check):
 
-    STATS_URL = "/_nodes/stats?all=true"
+    STATS_URL = "/_cluster/nodes/stats?all=true"
 
     METRICS = {
         "docs.count": "gauge",
@@ -120,14 +120,19 @@ class ElasticSearch(Check):
 http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         """
 
-        host = config.get("elasticsearch", None)
+        config_url = config.get("elasticsearch", None)
 
         # Check if we are configured properly
-        if host is None:
+        if config_url is None:
             return False
 
         # Try to fetch data from the stats URL
-        url = urlparse.urljoin(host,self.STATS_URL)
+        # If only the hostname was passed, accept that and add our stats_url
+        # Else use the full URL as provided
+        if urlparse.urlparse(config_url).path == "":
+            url = urlparse.urljoin(config_url, self.STATS_URL)
+        else:
+            url = config_url
 
         self.logger.info("Fetching elasticsearch data from: %s" % url)
 

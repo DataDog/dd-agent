@@ -17,6 +17,7 @@ from urllib import urlencode
 
 # project
 from config import get_config
+from checks import gethostname
 from util import json
 
 logger = logging.getLogger('dogstatsd')
@@ -316,7 +317,6 @@ class Server(object):
             except:
                 logger.exception('Error receiving datagram')
 
-
 def main(config_path=None):
 
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
@@ -327,7 +327,7 @@ def main(config_path=None):
     api_key  = c['apiKey']
     host = 'localhost'
 
-    hostname = socket.gethostname()
+    hostname = gethostname(c)
     rollup_interval = 10
 
     # Create the aggregator (which is the point of communication between the
@@ -345,7 +345,6 @@ def main(config_path=None):
 
     # If we're here, we're done.
     logger.info("Shutting down ...")
-
 
 if __name__ == '__main__':
     main()
