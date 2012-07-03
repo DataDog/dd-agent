@@ -1,12 +1,6 @@
 #! /bin/bash
 set -e
-suprunning=$(pgrep -fl supervisord)
 
-if [[ -z $suprunning ]]; then
-    echo "[postrm] Starting supervisor"
-    service supervisor start
-fi
-  
 supervisorctl reread
 supervisorctl update
 
