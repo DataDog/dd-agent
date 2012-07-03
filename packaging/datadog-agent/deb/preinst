@@ -1,5 +1,5 @@
 #! /bin/bash
-set -xe
+set -e
 
 # To fix https://github.com/DataDog/dd-agent/issues/95
 # The following lines were added by mistake, lines that confuse supervisor on restart
@@ -22,7 +22,7 @@ if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
 	if [ $brokenconf -gt 0 ]; then
 	    brokenproc=$(supervisorctl status | grep 'no such file' | wc -l)
 	    if [ $brokenproc -gt 0 ]; then
-		echo "Your supervisor configuration is incorrect. I can fix it for you but I need to restart supervisor (with all its supervised processes listed below). If only datadog-agent processes are listed, this is a safe operation."
+		echo "[preinst] Your supervisor configuration is incorrect. I can fix it for you but I need to restart supervisor (with all its supervised processes listed below). If only datadog-agent processes are listed, this is a safe operation."
 		supervisorctl -c /etc/supervisor/conf.d/ddagent.conf status
 		read -p "Should I shut supervisord down for you? (Y/N) " bounce
 		if [[ "$bounce" == "y" || "$bounce" == "Y" ]]; then

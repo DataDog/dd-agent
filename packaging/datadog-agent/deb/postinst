@@ -1,12 +1,12 @@
-#! /bin/sh
+#! /bin/bash
 
 set -e 
 
 case "$1" in
     configure)
 	suprunning=$(pgrep -fl supervisord)
-	if [ -z "$suprunning" ]; then
-	    echo "Restarting supervisord"
+	if [[ -z "$suprunning" ]]; then
+	    echo "[postinst] Restarting supervisord"
 	    service supervisor start
 	fi
         supervisorctl reread
