@@ -1,6 +1,6 @@
 #! /bin/bash
 
-set -e
+set -xe
 
 shutdown=0
 suprunning=$(pgrep -fl supervisord)
@@ -28,7 +28,7 @@ if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
     fi
 fi
 
-if [[ $suprunning && $shutdown -eq 0 ]]; then
+if [[ -n $suprunning && $shutdown -eq 0 ]]; then
     supervisorctl reread
     supervisorctl update
 
