@@ -39,7 +39,7 @@ if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
     fi
 fi
 
-if [ -n $suprunning && $shutdown -eq 0 ]; then
+if [[ -n $suprunning && $shutdown -eq 0 ]]; then
     if [ -f /etc/init.d/datadog-agent ]; then
 	if which invoke-rc.d >/dev/null 2>&1; then
             invoke-rc.d datadog-agent stop
