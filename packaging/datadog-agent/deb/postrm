@@ -3,9 +3,9 @@
 set -e
 
 shutdown=0
+suprunning=$(pgrep -fl supervisord)
 
 if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
-    suprunning=$(pgrep -fl supervisord)
     if [ -n "$suprunning" ]; then
 	brokenconf=$(grep /var/tmp/datadog-supervisor.sock /etc/supervisor/conf.d/ddagent.conf | wc -l)
 	if [ $brokenconf -gt 0 ]; then
@@ -28,7 +28,7 @@ if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
     fi
 fi
 
-if [ $shutdown -eq 0 ]; then
+if [[ $suprunning && $shutdown -eq 0 ]]; then
     supervisorctl reread
     supervisorctl update
 
@@ -38,3 +38,5 @@ if [ $shutdown -eq 0 ]; then
 	/etc/init.d/datadog-agent start
     fi
 fi
+
+exit 0
