@@ -16,7 +16,7 @@ dd_base=$HOME/.datadog-agent
 mkdir -p $dd_base
 
 # set up a virtual env
-curl -L -o $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/master/virtualenv.py
+curl -L -o $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/develop/virtualenv.py
 python $dd_base/virtualenv.py --python=python2.6 $dd_base/venv
 . $dd_base/venv/bin/activate
 
