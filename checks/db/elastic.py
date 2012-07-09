@@ -202,13 +202,11 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
 
         self.logger.info("Fetching elasticsearch data from: %s" % url)
 
-        data = None
         try:
             data = self._get_data(config, url)
+            self._process_data(config, data)
+            return self.get_metrics()
         except:
             self.logger.exception('Unable to get elasticsearch statistics')
             return False
 
-        self._process_data(config, data)
-
-        return self.get_metrics()
