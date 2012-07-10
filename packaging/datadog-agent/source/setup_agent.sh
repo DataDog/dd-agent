@@ -63,8 +63,6 @@ agent_pid=$!
 trap "{ kill $agent_pid; exit 255; }" SIGINT SIGTERM
 trap "{ kill $agent_pid; exit; }" EXIT
 
-for [
-
 # wait for metrics to be submitted
 echo "\033[32m
 Your agent has started for the first time as a test. Once we verify
