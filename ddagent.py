@@ -118,15 +118,21 @@ class APIMetricTransaction(MetricTransaction):
 class StatusHandler(tornado.web.RequestHandler):
 
     def get(self):
+        threshold = int(self.get_argument('threshold', -1))
 
         m = MetricTransaction.get_tr_manager()
-       
+
         self.write("<table><tr><td>Id</td><td>Size</td><td>Error count</td><td>Next flush</td></tr>")
-        for tr in m.get_transactions():
+        transactions = m.get_transactions()
+        for tr in transactions:
             self.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % 
                 (tr.get_id(), tr.get_size(), tr.get_error_count(), tr.get_next_flush()))
         self.write("</table>")
-  
+
+        if threshold >= 0:
+            if len(transactions) > threshold:
+                self.set_status(503)
+
 class AgentInputHandler(tornado.web.RequestHandler):
 
     HASH = "hash"

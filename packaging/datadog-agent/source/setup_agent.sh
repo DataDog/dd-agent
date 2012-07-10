@@ -56,51 +56,58 @@ rm $dd_base/virtualenv.py
 rm $dd_base/virtualenv.pyc
 rm $dd_base/agent.tar.gz
 
-# print instructions
-if [ "$unamestr" = "Darwin" ]; then
-echo "
+# run agent
+cd $dd_base
+supervisord -c $dd_base/supervisord/supervisord.conf &> /dev/null &
+agent_pid=$!
+trap "{ kill $agent_pid; exit 255; }" SIGINT SIGTERM
+trap "{ kill $agent_pid; exit; }" EXIT
 
-We're about to start up the agent for the first time. Once it's running,
-you can stop it with 'ctrl-c'. You should start seeing metrics within
+for [
+
+# wait for metrics to be submitted
+echo "\033[32m
+Your agent has started for the first time as a test. Once we verify
+that it's submitted data, well stop it. You should see it show up in
 a few seconds at:
 
-    https://app.datadoghq.com/dash/host_name/`hostname`
+    https://app.datadoghq.com/account/settings#agent\033[0m
 
-To start the agent up again after killing this script, run:
+Waiting for metrics...\c"
+
+c=0
+while [ "$c" -lt "30" ]; do
+    sleep 1
+    echo ".\c"
+    c=$(($c+1))
+done
+
+curl -f http://localhost:17123/status?threshold=0 &> /dev/null
+success=$?
+while [ "$success" -gt "0" ]; do
+    sleep 1
+    echo ".\c"
+    curl -f http://localhost:17123/status?threshold=0 &> /dev/null
+    success=$?
+done
+
+# print instructions
+echo "\033[32m
+
+Success! Your agent is functioning properly. To start it back up in
+the foreground, run:
 
     cd $dd_base
     sh bin/agent
+"
 
-To make it permanent, run:
+if [ "$unamestr" = "Darwin" ]; then
+echo "To set it up as a daemon, run:
 
     mkdir -p ~/Library/LaunchAgents
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
     launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-
-Here we go!
-
 "
 fi
 
-if [ "$unamestr" = "Linux" ]; then
-echo "
-
-We're about to start up the agent for the first time. Once it's running,
-you can stop it with 'ctrl-c'. You should start seeing metrics within
-a few seconds at:
-
-    https://app.datadoghq.com/dash/host_name/`hostname`
-
-To start the agent up again after killing this script, run:
-
-    cd $dd_base
-    sh bin/agent
-
-Here we go!
-
-"
-fi
-
-# run agent
-cd $dd_base
-supervisord -c $dd_base/supervisord/supervisord.conf
+echo "\033[0m\c"
