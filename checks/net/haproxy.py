@@ -19,3 +19,33 @@ datadog,BACKEND,0,0,1,1,0,67,43140,288183,0,0,,8,0,25,0,UP,1,1,0,,0,484,0,,1,2,0
 import urllib2
 from checks import *
 
+def __init__(self, logger):
+	Check.__init__(self, logger)
+
+
+def check(self, config):
+
+	host = config.get("haproxy", None)
+
+	# Check if we are configured properly
+    if host is None:
+    	return False
+
+    # Try to fetch data from the stats URL
+    url = urlparse.urljoin(host,self.STATS_URL)
+
+    self.logger.info("Fetching haproxy search data from: %s" % url)
+
+    data = None
+    try:
+        data = self._get_data(config, url)
+
+    except:
+        self.logger.exception('Unable to get haproxy statistics')
+        return False
+
+    raise exception(data)
+
+
+
+
