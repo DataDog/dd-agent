@@ -65,9 +65,9 @@ trap "{ kill $agent_pid; exit; }" EXIT
 
 # wait for metrics to be submitted
 echo "\033[32m
-Your agent has started for the first time as a test. Once we verify
-that it's submitted data, well stop it. You should see it show up in
-a few seconds at:
+Your agent has started up for the first time. We're currently
+verifying that data is being submitted. You should see your agent show
+up in Datadog within a few seconds at:
 
     https://app.datadoghq.com/account/settings#agent\033[0m
 
@@ -92,15 +92,17 @@ done
 # print instructions
 echo "\033[32m
 
-Success! Your agent is functioning properly. To start it back up in
-the foreground, run:
+Success! Your agent is functioning properly, and will continue to run
+in the foreground. To stop it, simply press CTRL-C. To start it back
+up again in the foreground, run:
 
     cd $dd_base
     sh bin/agent
 "
 
 if [ "$unamestr" = "Darwin" ]; then
-echo "To set it up as a daemon, run:
+echo "To set it up as a daemon that always runs in the background
+while you're logged in, run:
 
     mkdir -p ~/Library/LaunchAgents
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
@@ -109,3 +111,5 @@ echo "To set it up as a daemon, run:
 fi
 
 echo "\033[0m\c"
+
+wait $agent_pid
