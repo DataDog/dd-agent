@@ -209,6 +209,26 @@ class checks(object):
     def getCPUStats(self):
         return self._cpu.check(self.checksLogger, self.agentConfig)
 
+    @recordsize
+    def get_metadata(self):
+        metadata = self._ec2.get_metadata()
+        if metadata.get('hostname'):
+            metadata['ec2-hostname'] = metadata.get('hostname')
+
+        if self.agentConfig.get('hostname'):
+            metadata['agent-hostname'] = self.agentConfig.get('hostname')
+
+        try:
+            metadata["hostname"] = socket.gethostname()
+        except:
+            pass
+        try:
+            metadata["fqdn"] = socket.getfqdn()
+        except:
+            pass
+
+        return metadata
+
     def doChecks(self, firstRun=False, systemStats=False):
         """Actual work
         """
@@ -365,8 +385,8 @@ class checks(object):
                                             }]
 
             # Collect metadata
-            checksData['meta'] = self._ec2.get_metadata()
-       
+            checksData['meta'] = self.get_metadata()
+
         # Resources checks
         has_resource = False
         for resources_check in self._resources_checks:

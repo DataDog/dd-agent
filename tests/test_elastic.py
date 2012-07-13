@@ -45,13 +45,34 @@ class TestElastic(unittest.TestCase):
             self.process.terminate()
 
     def testCheck(self):
+        agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
+                      'version': '0.1',
+                      'apiKey': 'toto' }
+
+        r = self.c.check(agentConfig)
+        def _check(slf, r):
+            slf.assertTrue(type(r) == type([]))
+            slf.assertTrue(len(r) > 0)
+            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.get.total"]), 1, r)
+            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.search.fetch.total"]), 1, r)
+        _check(self, r)
+
+        # Same check, only given hostname
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
                       'version': '0.1',
                       'apiKey': 'toto' }
 
         r = self.c.check(agentConfig)
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
+        _check(self, r)
+
+        # Same check, only given hostname
+        agentConfig = { 'elasticsearch': 'http://localhost:%s/wrong_url' % PORT,
+                      'version': '0.1',
+                      'apiKey': 'toto' }
+
+        r = self.c.check(agentConfig)
+        self.assertFalse(r)
+        
 
 if __name__ == "__main__":
     unittest.main()
