@@ -21,9 +21,12 @@ from checks import *
 
 def __init__(self, logger):
 	Check.__init__(self, logger)
+    self.logger.info('HAAAAAAPROXY')
 
 
 def check(self, config):
+
+    self.logger.info('HAAAAAAPROXY')
 
 	host = config.get("haproxy", None)
 
@@ -39,12 +42,25 @@ def check(self, config):
     data = None
     try:
         data = self._get_data(config, url)
+        raise Exception(data)
 
-    except:
-        self.logger.exception('Unable to get haproxy statistics')
+    except Exception,e:
+        self.logger.exception('Unable to get haproxy statistics {0}'.format(e))
+        raise Exception(data)
         return False
 
     raise exception(data)
+
+    def _get_data(self, agentConfig, url):
+        "Hit a given URL and return the parsed json"
+
+        req = urllib2.Request(url, None, headers(agentConfig))
+        request = urllib2.urlopen(req)
+        response = request.read()
+
+        raise Exception(data)
+
+        return json.loads(response)
 
 
 
