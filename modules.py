@@ -54,15 +54,18 @@ def get_module(name):
     If the module is already loaded, takes no action."""
     if name.startswith('/'):
         basename, modulename = module_name_for_filename(name)
-        if modulename in sys.modules:
-            return sys.modules[modulename]
-        return load_qualified_module(modulename, path=[basename]) 
+        path = [basename]
     else:
-        return load_qualified_module(name)
+        modulename = name
+        path = None
+    if modulename in sys.modules:
+        return sys.modules[modulename]
+    return load_qualified_module(modulename, path)
 
-def load(config_string, default_name):
+def load(config_string, default_name=None):
     """Given a module name and an object expected to be contained within,
     return said object"""
     (module_name, object_name) = \
             (config_string.rsplit(':', 1) + [default_name])[:2]
-    return getattr(get_module(module_name), object_name)
+    module = get_module(module_name)
+    return getattr(module, object_name) if object_name else module
