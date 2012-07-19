@@ -103,6 +103,8 @@ class ElasticSearch(Check):
         "jvm.gc.concurrent_mark_sweep.collection_time": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_time_in_millis", lambda v: float(v)/1000),
         "jvm.gc.par_new.count": ("gauge", "jvm.gc.collectors.ParNew.collection_count"),
         "jvm.gc.par_new.collection_time": ("gauge", "jvm.gc.collectors.ParNew.collection_time_in_millis", lambda v: float(v)/1000),
+        "jvm.gc.copy.count": ("gauge", "jvm.gc.collectors.Copy.collection_count"),
+        "jvm.gc.copy.collection_time": ("gauge", "jvm.gc.collectors.Copy.collection_time_in_millis", lambda v: float(v)/1000),
         "jvm.mem.heap_committed": ("gauge", "jvm.mem.heap_committed_in_bytes"),
         "jvm.mem.heap_used": ("gauge", "jvm.mem.heap_used_in_bytes"),
         "jvm.mem.non_heap_committed": ("gauge", "jvm.mem.non_heap_committed_in_bytes"),
