@@ -93,7 +93,6 @@ class HAProxyMetrics(Check):
 
     def __init__(self, logger):
         Check.__init__(self, logger)
-        self.compteur=0
 
         li = ['BACKEND', 'FRONTEND']
         for kind in li:
@@ -105,10 +104,7 @@ class HAProxyMetrics(Check):
                     self.gauge(name)
 
     def check(self, config):
-        self.compteur+=1
         self.logger.debug('Launching HAProxy CHECK \n s ')
-
-
         # Check if we are configured properly
         if config.get('haproxy_url', None) is None:
             return False
