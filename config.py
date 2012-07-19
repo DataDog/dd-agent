@@ -314,6 +314,13 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if config.has_option('Main','elasticsearch'):
             agentConfig['elasticsearch'] = config.get('Main','elasticsearch')
 
+        # HAProxy
+        if config.has_option('Main','haproxy_url'):
+            agentConfig['haproxy_url'] = config.get('Main','haproxy_url')
+            agentConfig['haproxy_user'] = config.get('Main','haproxy_user')
+            agentConfig['haproxy_password'] = config.get('Main','haproxy_password')
+
+
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
