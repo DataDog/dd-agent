@@ -1,5 +1,5 @@
 import unittest
-from checks.haproxy import Haproxy
+from checks.net.haproxy import HAProxyEvents, HAProxyMetrics
 
 class HaproxyTestCase(unittest.Testcase):
     def setUp(self):
