@@ -251,10 +251,6 @@ class Check(object):
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
         metrics = []
-
-        logging.error("TRUC: {0}".format(self._sample_store))
-
-
         for m in self._sample_store:
             try:
                 for t in self._sample_store[m]:
