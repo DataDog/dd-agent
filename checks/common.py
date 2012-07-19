@@ -42,6 +42,8 @@ from checks.cacti import Cacti
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch
+from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
+
 
 from checks.ec2 import EC2
 
@@ -108,8 +110,9 @@ class checks(object):
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
+            HAProxyMetrics(self.checksLogger)
             ]
-        self._event_checks = [Hudson(), Nagios(socket.gethostname())]
+        self._event_checks = [HAProxyEvents(self.checksLogger),Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
         self._ec2 = EC2(self.checksLogger)
