@@ -10,6 +10,7 @@ from datetime import datetime
 import time
 
 STATS_URL = ";csv;norefresh"
+KINDS = ['BACKEND', 'FRONTEND']
 
 
 class HAProxyEvents(Check):
@@ -47,10 +48,10 @@ class HAProxyEvents(Check):
             else:
                 if status != data['status']:
                     # If the status of a host has changed, we trigger an event
-                    self.events.append(self.create_event(agentConfig, data['status'], hostname))
+                    self.events.append(self.create_event(agentConfig, data['status'], hostname, data.get('lastchg', 0)))
                     self.host_status["{0}:{1}".format(hostname,service)]=data['status']
 
-    def create_event(self, agentConfig, status, hostname):
+    def create_event(self, agentConfig, status, hostname, lastchg):
         if status in ["OPEN","UP"]:
             alert_type = "info"
             title = "HAProxy status update"
@@ -60,14 +61,14 @@ class HAProxyEvents(Check):
             title = "HAProxy reported a failure"
             msg = "{0} has just been reported {1}".format(hostname, status) 
 
-        return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
+        return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple()))-int(lastchg),
                  'event_type': 'haproxy',
                  'host': hostname,
                  'api_key': agentConfig['apiKey'],
                  'msg_text':msg,
                  'msg_title': title,
                  "alert_type": alert_type,
-                 "source_type_id": 38,
+                 "source_type": "HAProxy",
                  "event_object": hostname
             }
 
@@ -94,14 +95,15 @@ class HAProxyMetrics(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
 
-        li = ['BACKEND', 'FRONTEND']
-        for kind in li:
-            for key in HAProxyMetrics.METRICS.keys():
-                name = "haproxy."+kind.lower()+"."+HAProxyMetrics.METRICS[key][1]
-                if HAProxyMetrics.METRICS[key][0] == "counter":
-                    self.counter(name)
-                else:
-                    self.gauge(name)
+        
+        for metric_type, metric_suffix in HAProxyMetrics.METRICS.vals():
+            name = ".".join(["haproxy", kind.lower(), metric_suffix])
+            if metric_type == "counter":
+                self.counter(name)
+            elif metric_type == "gauge":
+                self.gauge(name)
+            else:
+                logger.error("Unknown metric type: %s" % metric_type)
 
     def check(self, config):
         self.logger.debug('Launching HAProxy CHECK \n s ')
@@ -129,14 +131,24 @@ class HAProxyMetrics(Check):
         
 
         for data in data_list:
+            """
+            Each element of data_list is a dictionary related to one host (one line) extracted from the csv.
+            All of these elements should have the same value for 'pxname' key
+            It should look like:
+            data_list = [
+            {'svname':'i-4562165', 'pxname':'dogweb', 'scur':'42', ...},
+            {'svname':'i-2854985', 'pxname':'dogweb', 'scur':'1337', ...},
+            ...
+            ]
+            """
             tags = ["type:{0}".format(kind)]
             hostname = data['svname']
             service = data['pxname']
 
-            if hostname in ['FRONTEND']:
+            if hostname==KINDS[1]:
                 hostname = gethostname(agentConfig)
 
-            if kind=='BACKEND':
+            if kind==KINDS[0]:
                 tags.append('frontend:{0}'.format(gethostname(agentConfig)))
             tags.append('host:{0}'.format(hostname))
             tags.append("service:{0}".format(service))
@@ -186,7 +198,9 @@ class HAProxyMetrics(Check):
 
 
 def process_data(check, agentConfig, data):
+    # data[0] should look like this: "# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,"
     data_index = data[0].replace('#','').strip().split(',')
+    
     data_list = []
 
     kind = ""
@@ -207,8 +221,8 @@ def process_data(check, agentConfig, data):
         kind = data_dict['svname']
 
         # We don't create metrics for aggregates
-        if kind in ['BACKEND','FRONTEND']:
-            if not data_list and kind =='FRONTEND':
+        if kind in KINDS:
+            if not data_list and kind ==KINDS[1]:
                 data_list.append(data_dict)
             check._process_metric(data_list, kind, agentConfig)
             data_list=[]
