@@ -60,12 +60,15 @@ class agent(Daemon):
             else:
                 agentLogger.info('Not running on EC2, using hostname to identify this server')
  
-        emitter = http_emitter
+        emitters = [http_emitter]
+        for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
+            if len(s) == 0: continue
+            emitters.append(modules.load(emitter_spec, 'emitter'))
 
         checkFreq = int(agentConfig['checkFreq'])
         
         # Checks instance
-        c = checks(agentConfig, emitter)
+        c = checks(agentConfig, emitters)
 
         # Watchdog
         watchdog = None
