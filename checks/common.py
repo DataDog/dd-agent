@@ -68,10 +68,10 @@ def recordsize(func):
     return wrapper
 
 class checks(object):
-    def __init__(self, agentConfig, emitter):
+    def __init__(self, agentConfig, emitters):
         self.agentConfig = agentConfig
         self.plugins = None
-        self.emitter = emitter
+        self.emitters = emitters
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
@@ -416,5 +416,6 @@ class checks(object):
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
-        self.emitter(checksData, self.checksLogger, self.agentConfig)
+        for emitter in self.emitters:
+            emitter(checksData, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")
