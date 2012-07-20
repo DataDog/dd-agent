@@ -102,14 +102,15 @@ start() {
         echo Waiting $SLEEP seconds to test for running child processes...
         sleep $SLEEP
         check_status
-        if [ "$?" -eq "1" ]; then
+        RETURNVALUE=$?
+        if [ "$RETURNVALUE" -eq "1" ]; then
             stop
         else
             touch $LOCKFILE
         fi  
         
         echo
-        return 1
+        return $RETURNVALUE
     else
         grab_status
         if [ "$?" -eq "0" ]; then
