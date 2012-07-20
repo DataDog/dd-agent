@@ -1,4 +1,5 @@
 from checks.utils import TailFile
+import modules
 import os
 import sys
 import traceback
@@ -98,17 +99,14 @@ class Dogstream(object):
         
         if parser_spec:
             try:
-                module_name, func_name = parser_spec.split(':')
-                __import__(module_name)
-                parse_func = getattr(sys.modules[module_name], func_name, 
-                    None)
+                parse_func = modules.load(parser_spec, 'parser')
             except:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
                     parser_spec, 
                     os.environ.get('PYTHONPATH', ''))
                 )
-            logger.info("dogstream: parsing %s with %s" % (log_path, parse_func))
+            logger.info("dogstream: parsing %s with %s (requested %s)" % (log_path, parse_func, parser_spec))
         else:
             logger.info("dogstream: parsing %s with default parser" % log_path)
         
@@ -236,7 +234,7 @@ class Dogstream(object):
         try:
             while line:
                 keyval, _, line = partition(line.strip(), sep)
-                key, val = keyval.split('=')
+                key, val = keyval.split('=', 1)
                 attributes[key] = val
         except Exception, e:
             logger.debug(traceback.format_exc())
