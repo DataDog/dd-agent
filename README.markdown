@@ -52,12 +52,18 @@ the following line to your agent configuration file:
 
     dogstreams: /var/log/web.log:parsers:parse_web
 
+or
+    dogstreams: /var/log/web.log:/home/dog/parsers.py:parse_web
+
 The `parsers:parse_web` portion indicates that the custom Python
 function lives in a package called `parsers` in the agent's
 `PYTHONPATH`, and the parsers package has a function named
 `parse_web`. The agent's `PYTHONPATH` is set in the agent startup
 script, `/etc/init.d/datadog- agent` for agent versions < 2.0, and in
 the supervisor config for agent version >= 2.0.
+
+As an alternative you must use an absolute path to a parser python file
+in case it does not reside in the `PYTHONPATH`.
 
 `parsers.py` might look like this:
 
