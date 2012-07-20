@@ -9,6 +9,7 @@ script: nosetests tests
 before_script:
   - sudo apt-get install sysstat
   - sudo apt-get install haproxy
+  - curl -L https://raw.github.com/DataDog/dd-agent/check-haproxy/tests/haproxy.cfg > /tmp/haproxy.cfg
   - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.4.deb > /tmp/es.deb
   - sudo dpkg -i /tmp/es.deb
   - sudo service elasticsearch start

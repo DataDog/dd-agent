@@ -8,6 +8,7 @@ from util import json, headers
 
 from datetime import datetime
 import time
+import pdb
 
 STATS_URL = ";csv;norefresh"
 KINDS = ['BACKEND', 'FRONTEND']
@@ -20,6 +21,7 @@ class HAProxyEvents(Check):
         Check.__init__(self, logger)
         self.host_status = {}
 
+
     def check(self, logger, config):
         self.events = []
 
@@ -31,7 +33,7 @@ class HAProxyEvents(Check):
             data = get_data(config, self.logger)
 
         except Exception,e:
-            self.logger.exception('Unable to get haproxy statistics {0}'.format(e))
+            self.logger.exception('Unable to get haproxy statistics %s' % e)
             return False
 
         process_data(self, config, data)
@@ -41,25 +43,31 @@ class HAProxyEvents(Check):
         for data in data_list:
             hostname = data['svname']
             service = data['pxname']
-            status = self.host_status.get("{0}:{1}".format(hostname,service), None)
+            status = self.host_status.get("%s:%s" % (hostname,service), None)
             if not status:
-                self.host_status["{0}:{1}".format(hostname,service)]=data['status']
+                self.host_status["%s:%s" % (hostname,service)]=data['status']
                 continue
             else:
                 if status != data['status']:
                     # If the status of a host has changed, we trigger an event
-                    self.events.append(self.create_event(agentConfig, data['status'], hostname, data.get('lastchg', 0)))
-                    self.host_status["{0}:{1}".format(hostname,service)]=data['status']
+                    try:
+                        lastchg = int(data['lastchg'])
+                    except:
+                        lastchg = 0
+                    self.events.append(self.create_event(agentConfig, data['status'], hostname, lastchg))
+                    self.host_status["%s:%s" % (hostname,service)]=data['status']
 
     def create_event(self, agentConfig, status, hostname, lastchg):
-        if status in ["OPEN","UP"]:
-            alert_type = "info"
-            title = "HAProxy status update"
-            msg = "{0} is back and {1}".format(hostname, status)
-        else:
+        if status=="DOWN":
             alert_type = "error"
             title = "HAProxy reported a failure"
-            msg = "{0} has just been reported {1}".format(hostname, status) 
+            msg = "%s has just been reported %s" % (hostname, status) 
+            
+        else:
+            alert_type = "info"
+            title = "HAProxy status update"
+            msg = "%s is back and %s" % (hostname, status)
+            
 
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple()))-int(lastchg),
                  'event_type': 'haproxy',
@@ -96,14 +104,15 @@ class HAProxyMetrics(Check):
         Check.__init__(self, logger)
 
         
-        for metric_type, metric_suffix in HAProxyMetrics.METRICS.vals():
-            name = ".".join(["haproxy", kind.lower(), metric_suffix])
-            if metric_type == "counter":
-                self.counter(name)
-            elif metric_type == "gauge":
-                self.gauge(name)
-            else:
-                logger.error("Unknown metric type: %s" % metric_type)
+        for metric_type, metric_suffix in HAProxyMetrics.METRICS.values():
+            for kind in KINDS:
+                name = ".".join(["haproxy", kind.lower(), metric_suffix])
+                if metric_type == "counter":
+                    self.counter(name)
+                elif metric_type == "gauge":
+                    self.gauge(name)
+                else:
+                    logger.error("Unknown metric type: %s" % metric_type)
 
     def check(self, config):
         self.logger.debug('Launching HAProxy CHECK \n s ')
@@ -116,20 +125,19 @@ class HAProxyMetrics(Check):
             data = get_data(config, self.logger)
 
         except Exception,e:
-            self.logger.exception('Unable to get haproxy statistics {0}'.format(e))
+            self.logger.exception('Unable to get haproxy statistics %s' % e)
             return False
 
         process_data(self, config, data)
 
-
-        return self.get_metrics()
+        metrics = self.get_metrics()
+        self.logger.info("metrics: {0}".format(metrics))
+        return metrics
 
 
     def _process_metric(self, data_list, kind, agentConfig):
 
         hosts_to_aggregate = {}
-        
-
         for data in data_list:
             """
             Each element of data_list is a dictionary related to one host (one line) extracted from the csv.
@@ -141,7 +149,7 @@ class HAProxyMetrics(Check):
             ...
             ]
             """
-            tags = ["type:{0}".format(kind)]
+            tags = ["type:%s" % kind]
             hostname = data['svname']
             service = data['pxname']
 
@@ -149,9 +157,9 @@ class HAProxyMetrics(Check):
                 hostname = gethostname(agentConfig)
 
             if kind==KINDS[0]:
-                tags.append('frontend:{0}'.format(gethostname(agentConfig)))
-            tags.append('host:{0}'.format(hostname))
-            tags.append("service:{0}".format(service))
+                tags.append('frontend:%s' % gethostname(agentConfig))
+            tags.append('host:%s' % hostname)
+            tags.append("service:%s" % service)
 
             hp = hostname.split(':')
             if len(hp) > 1:
@@ -160,12 +168,19 @@ class HAProxyMetrics(Check):
                 hosts_to_aggregate[hp[0]]=data_to_aggregate
                 continue
 
-
             for key in data.keys():
-                if data[key] and HAProxyMetrics.METRICS.get(key):
-                    name = "haproxy."+kind.lower()+"."+HAProxyMetrics.METRICS[key][1]
-                    
-                    self.save_sample(name, long(data[key]), tags=tags, hostname=hostname)
+                if HAProxyMetrics.METRICS.get(key):
+                    self.logger.info("PROCESSING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
+                    try:
+                        name = "haproxy."+kind.lower()+"."+HAProxyMetrics.METRICS.get(key,["nokey","nokey"])[1]
+                        value = long(data[key])
+                    except:
+                        self.logger.info("SKIPPING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
+                        continue
+
+                    self.logger.info("SAVING name:{0} value:{1} tags:{2}, host:{3}".format(name,value,tags, hostname))
+                    self.save_sample(name, value, tags=tags, hostname=hostname)
+
 
         if hosts_to_aggregate:
             self._aggregate_hosts(hosts_to_aggregate, kind, agentConfig)
@@ -175,7 +190,6 @@ class HAProxyMetrics(Check):
         """If there are many instances of a service running on different ports of a same host,
         we don't want to create as many metrics as the number of instances.
         So we aggregate these metrics into one host"""
-
         return_list = []
         for hostname in hosts_to_aggregate.keys():
             data_list = hosts_to_aggregate[hostname]
@@ -241,13 +255,14 @@ def get_data(agentConfig, logger):
     authhandler = urllib2.HTTPBasicAuthHandler(passman)
     opener = urllib2.build_opener(authhandler)
     urllib2.install_opener(opener)
-    url = "{0}{1}".format(url,STATS_URL)
+    url = "%s%s" % (url,STATS_URL)
 
     logger.info("HAProxy Fetching haproxy search data from: %s \n s" % url)
 
     req = urllib2.Request(url, None, headers(agentConfig))
     request = urllib2.urlopen(req)
     response = request.read()
+    logger.debug(response)
     data = response.split('\n')
 
     return data
