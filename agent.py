@@ -62,7 +62,7 @@ class agent(Daemon):
  
         emitters = [http_emitter]
         for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
-            if len(s) == 0: continue
+            if len(emitter_spec) == 0: continue
             emitters.append(modules.load(emitter_spec, 'emitter'))
 
         checkFreq = int(agentConfig['checkFreq'])
