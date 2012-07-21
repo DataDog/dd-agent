@@ -1,6 +1,4 @@
 import logging
-import sys
-import time
 import unittest
 from tempfile import NamedTemporaryFile
 import re
@@ -332,6 +330,51 @@ class TestDogstream(TailTestCase):
         self._write_log(log_data.split("\n"))
 
         dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:dogstream.cassandra:parse_cassandra' % self.log_file.name})
+        actual_output = dogstream.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
+    def test_supervisord_parser(self):
+        from dogstream import supervisord_log
+        log_data = """2012-07-16 22:30:48,335 INFO spawned: 'monitor' with pid 20216
+2012-07-14 03:02:47,325 INFO success: foo_bar entered RUNNING state, process has stayed up for > than 2 seconds (startsecs)
+2012-07-17 02:53:04,600 CRIT Server 'inet_http_server' running without any HTTP authentication checking
+2012-07-14 04:54:34,193 WARN received SIGTERM indicating exit request
+"""
+        event_type = supervisord_log.EVENT_TYPE
+        event_object = EventDefaults.EVENT_OBJECT
+
+        expected_output = {
+            "dogstreamEvents":[
+                {
+                    "alert_type": "info", "event_type": event_type,
+                    "aggregation_key": "monitor",
+                    "msg_title": "spawned: 'monitor' with pid 20216",
+                    "timestamp": 1342477848,
+                    "event_object": event_object,
+                }, {
+                    "alert_type": "success", "event_type": event_type,
+                    "aggregation_key": "foo_bar",
+                    "msg_title": "success: foo_bar entered RUNNING state, "
+                    "process has stayed up for > than 2 seconds (startsecs)",
+                    "timestamp": 1342234967,
+                    "event_object": event_object,
+                }, {
+                    "alert_type": "error", "event_type": event_type,
+                    "aggregation_key": "inet_http_server",
+                    "msg_title": "Server 'inet_http_server' running without any HTTP authentication checking",
+                    "timestamp": 1342493584,
+                    "event_object": event_object,
+                }, {
+                    "alert_type": "warning", "event_type": event_type,
+                    "aggregation_key": "SIGTERM",
+                    "msg_title": "received SIGTERM indicating exit request",
+                    "timestamp": 1342241674,
+                    "event_object": event_object,
+                },
+            ]}
+        self._write_log(log_data.split("\n"))
+
+        dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:dogstream.supervisord_log:parse_supervisord' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
