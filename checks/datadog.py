@@ -187,8 +187,12 @@ class Dogstream(object):
                         datum['event_type'] = EventDefaults.EVENT_TYPE
                     if 'timestamp' not in datum:
                         datum['timestamp'] = time.time()
-                    if 'event_object' not in datum:
-                        datum['event_object'] = EventDefaults.EVENT_OBJECT
+                    if 'event_object' not in datum and 'aggregation_key' not in datum:
+                        datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
+                    else:
+                        # Translate event_object into aggregation_key
+                        datum['aggregation_key'] = datum.pop('event_object', datum['aggregation_key'])
+                    
                     self._events.append(datum)
                     continue
 
