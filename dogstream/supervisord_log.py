@@ -10,7 +10,7 @@ import calendar
 from datetime import datetime
 import re
 
-EVENT_TYPE = "supervisord.log"
+EVENT_TYPE = "supervisor"
 
 # supervisord log levels
 SUPERVISORD_LEVELS = [
@@ -50,7 +50,6 @@ def parse_supervisord(log, line):
     date = calendar.timegm(dt.timetuple())
     event_type = line_items[2]
     msg = line_items[3]
-    print 'MSG:%s' %msg
     if event_type in SUPERVISORD_LEVELS:
         alert_type=ALERT_TYPES_MAPPING.get(event_type, 'info')
         if alert_type == 'info' and 'success' in msg:
