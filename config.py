@@ -67,11 +67,20 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         args = None
 
     # General config
-    agentConfig = {}
-    agentConfig['debug_mode'] = False
-    # not really a frequency, but the time to sleep between checks
-    agentConfig['check_freq'] = DEFAULT_CHECK_FREQUENCY
-    agentConfig['version'] = get_version()
+    agentConfig = {
+        'check_freq': DEFAULT_CHECK_FREQUENCY,
+        'debug_mode': False,
+        'dogstatsd_interval': 10,
+        'dogstatsd_port': 8125,
+        'dogstatsd_target': 'http://localhost:17123',
+        'graphite_listen_port': None,
+        'hostname': None,
+        'listen_port': None,
+        'tags': None,
+        'use_ec2_instance_id': False,
+        'version': get_version(),
+        'watchdog': True,
+    }
 
     # Config handling
     try:
@@ -85,6 +94,11 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
 
         if init_logging:
             initialize_logging(config_path)
+
+
+        # bulk import
+        for option in config.options('Main'):
+            agentConfig[option] = config.get('Main', option)
 
         #
         # Core config
@@ -103,9 +117,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
 
-        # Which API key to use
-        agentConfig['api_key'] = config.get('Main', 'api_key')
-
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
@@ -113,27 +124,14 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
             agentConfig['use_ec2_instance_id'] = (use_ec2_instance_id.lower() == 'yes')
-        else:
-            agentConfig['use_ec2_instance_id'] = False
 
         if config.has_option('Main', 'check_freq'):
             try:
                 agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
             except:
-                agentConfig['check_freq'] = DEFAULT_CHECK_FREQUENCY
-
-        if config.has_option('Main','hostname'):
-            agentConfig['hostname'] = config.get('Main','hostname')
-        else:
-            agentConfig['hostname'] = None
-
-        if config.has_option('Main','tags'):
-            agentConfig['tags'] = config.get('Main','tags')
-        else:
-            agentConfig['tags'] = None
+                pass
 
         # Disable Watchdog (optionally)
-        agentConfig['watchdog'] = True
         if config.has_option('Main', 'watchdog'):
             if config.get('Main', 'watchdog').lower() in ('no', 'false'):
                 agentConfig['watchdog'] = False
@@ -141,140 +139,18 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         # port we listen on (overriden via command line)
         if config.has_option('Main','port'):
             agentConfig['listen_port'] = int(config.get('Main','port'))
-        else:
-            agentConfig['listen_port'] = None
 
         # Optional graphite listener
         if config.has_option('Main','graphite_listen_port'):
             agentConfig['graphite_listen_port'] = int(config.get('Main','graphite_listen_port'))
-        else:
-            agentConfig['graphite_listen_port'] = None
-
-        # Dogstatsd config
-        dogstatsd_defaults = {
-            'dogstatsd_port' : 8125,
-            'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : 10
-        }
-        for key, value in dogstatsd_defaults.iteritems():
-            if config.has_option('Main', key):
-                agentConfig[key] = config.get('Main', key)
-            else:
-                agentConfig[key] = value
 
         # Optional config
         # FIXME not the prettiest code ever...
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
 
-        if config.has_option('Main', 'apache_status_url'):
-            agentConfig['apache_status_url'] = config.get('Main', 'apache_status_url')
-
-        if config.has_option('Main', 'mysql_server'):
-            agentConfig['mysql_server'] = config.get('Main', 'mysql_server')
-
-        if config.has_option('Main', 'mysql_user'):
-            agentConfig['mysql_user'] = config.get('Main', 'mysql_user')
-
-        if config.has_option('Main', 'mysql_pass'):
-            agentConfig['mysql_pass'] = config.get('Main', 'mysql_pass')
-
-        if config.has_option('Main', 'postgresql_server'):
-            agentConfig['postgresql_server'] = config.get('Main','postgresql_server')
-
-        if config.has_option('Main', 'postgresql_port'):
-            agentConfig['postgresql_port'] = config.get('Main','postgresql_port')
-
-        if config.has_option('Main', 'postgresql_user'):
-            agentConfig['postgresql_user'] = config.get('Main','postgresql_user')
-
-        if config.has_option('Main', 'postgresql_pass'):
-            agentConfig['postgresql_pass'] = config.get('Main','postgresql_pass')
-
-        if config.has_option('Main', 'nginx_status_url'):
-            agentConfig['nginx_status_url'] = config.get('Main', 'nginx_status_url')
-
-        if config.has_option('Main', 'plugin_directory'):
-            agentConfig['plugin_directory'] = config.get('Main', 'plugin_directory')
-
-        if config.has_option('Main', 'rabbitmq_status_url'):
-            agentConfig['rabbitmq_status_url'] = config.get('Main', 'rabbitmq_status_url')
-
-        if config.has_option('Main', 'rabbitmq_user'):
-            agentConfig['rabbitmq_user'] = config.get('Main', 'rabbitmq_user')
-
-        if config.has_option('Main', 'rabbitmq_pass'):
-            agentConfig['rabbitmq_pass'] = config.get('Main', 'rabbitmq_pass')
-
-        if config.has_option('Main', 'mongodb_server'):
-            agentConfig['mongodb_server'] = config.get('Main', 'mongodb_server')
-
-        if config.has_option('Main', 'couchdb_server'):
-            agentConfig['couchdb_server'] = config.get('Main', 'couchdb_server')
-
-        if config.has_option('Main', 'hudson_home'):
-            agentConfig['hudson_home'] = config.get('Main', 'hudson_home')
-
-        if config.has_option('Main', 'nagios_log'):
-            agentConfig['nagios_log'] = config.get('Main', 'nagios_log')
-
-        if config.has_option('Main', 'ganglia_host'):
-            agentConfig['ganglia_host'] = config.get('Main', 'ganglia_host')
-
-        if config.has_option('Main', 'ganglia_port'):
-            agentConfig['ganglia_port'] = config.get('Main', 'ganglia_port')
-
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
-            agentConfig['ddforwarder_log'] = config.get('datadog', 'ddforwarder_log')
-
-        # Cassandra config
-        if config.has_option('Main', 'cassandra_nodetool'):
-            agentConfig['cassandra_nodetool'] = config.get('Main', 'cassandra_nodetool')
-        if config.has_option('Main', 'cassandra_host'):
-            agentConfig['cassandra_host'] = config.get('Main', 'cassandra_host')
-        if config.has_option('Main', 'cassandra_nodetool'):
-            agentConfig['cassandra_port'] = config.get('Main', 'cassandra_port')
-
-        # Java config
-        if config.has_option('Main', 'jvm_jmx_server'):
-            agentConfig['jvm_jmx_server'] = config.get('Main', 'jvm_jmx_server')
-        if config.has_option('Main', 'jvm_jmx_user'):
-            agentConfig['jvm_jmx_user'] = config.get('Main', 'jvm_jmx_user')
-        if config.has_option('Main', 'jvm_jmx_pass'):
-            agentConfig['jvm_jmx_pass'] = config.get('Main', 'jvm_jmx_pass')
-        if config.has_option('Main', 'jvm_jmx_name'):
-            agentConfig['jvm_jmx_name'] = config.get('Main', 'jvm_jmx_name')
-
-        # Tomcat config
-        if config.has_option('Main', 'tomcat_jmx_server'):
-            agentConfig['tomcat_jmx_server'] = config.get('Main', 'tomcat_jmx_server')
-        if config.has_option('Main', 'tomcat_jmx_user'):
-            agentConfig['tomcat_jmx_user'] = config.get('Main', 'tomcat_jmx_user')
-        if config.has_option('Main', 'tomcat_jmx_pass'):
-            agentConfig['tomcat_jmx_pass'] = config.get('Main', 'tomcat_jmx_pass')
-
-        # ActiveMQ config
-        if config.has_option('Main', 'activemq_jmx_server'):
-            agentConfig['activemq_jmx_server'] = config.get('Main', 'activemq_jmx_server')
-        if config.has_option('Main', 'activemq_jmx_user'):
-            agentConfig['activemq_jmx_user'] = config.get('Main', 'activemq_jmx_user')
-        if config.has_option('Main', 'activemq_jmx_pass'):
-            agentConfig['activemq_jmx_pass'] = config.get('Main', 'activemq_jmx_pass')
-
-        # Solr config
-        if config.has_option('Main', 'solr_jmx_server'):
-            agentConfig['solr_jmx_server'] = config.get('Main', 'solr_jmx_server')
-        if config.has_option('Main', 'solr_jmx_user'):
-            agentConfig['solr_jmx_user'] = config.get('Main', 'solr_jmx_user')
-        if config.has_option('Main', 'solr_jmx_pass'):
-            agentConfig['solr_jmx_pass'] = config.get('Main', 'solr_jmx_pass')
-
-        # Memcache config
-        if config.has_option("Main", "memcache_server"):
-            agentConfig["memcache_server"] = config.get("Main", "memcache_server")
-        if config.has_option("Main", "memcache_port"):
-            agentConfig["memcache_port"] = config.get("Main", "memcache_port")
 
         # Dogstream config
         if config.has_option("Main", "dogstream_log"):
@@ -290,30 +166,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
 
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
-
-        if config.has_option('Main', 'cacti_mysql_server'):
-            agentConfig['cacti_mysql_server'] = config.get('Main', 'cacti_mysql_server')
-        if config.has_option('Main', 'cacti_mysql_user'):
-            agentConfig['cacti_mysql_user'] = config.get('Main', 'cacti_mysql_user')
-        if config.has_option('Main', 'cacti_mysql_pass'):
-            agentConfig['cacti_mysql_pass'] = config.get('Main', 'cacti_mysql_pass')
-        if config.has_option('Main', 'cacti_rrd_path'):
-            agentConfig['cacti_rrd_path'] = config.get('Main', 'cacti_rrd_path')
-        if config.has_option('Main', 'cacti_rrd_whitelist'):
-            agentConfig['cacti_rrd_whitelist'] = config.get('Main', 'cacti_rrd_whitelist')
-
-        # Varnish
-        if config.has_option('Main', 'varnishstat'):
-            agentConfig['varnishstat'] = config.get('Main', 'varnishstat')
-
-        # Redis
-        if config.has_option('Main', 'redis_urls'):
-            agentConfig['redis_urls'] = config.get('Main', 'redis_urls')
-
-        # Elasticsearch
-        if config.has_option('Main','elasticsearch'):
-            agentConfig['elasticsearch'] = config.get('Main','elasticsearch')
-
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
