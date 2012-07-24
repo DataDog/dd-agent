@@ -50,8 +50,8 @@ function Histogram(options) {
 
 	this.mostRecent = options.points.map(function(stk) {
 		return {
-			"name"		: stk.stackName,
-			"values"	: {time: +options.now, value: null}
+	   		"name"   : stk.stackName,
+			"values" : {time: +options.now, value: 0}
 		};
 	});	
 }

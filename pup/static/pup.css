@@ -224,7 +224,6 @@ pre {
 	line-height: 2.0em;
 	border-bottom: 2px dotted #f4f4f4;
 	background-color: #fefefe;
-	color: #6f56a2;
 }
 
 .highlight-graph-header {
@@ -499,6 +498,10 @@ pre {
 	clear:both;
 	background-color: transparent;
 	color: #6f56a2;
+}
+
+#metric-list li:active {
+	background-color: #6f56a2;
 }
 
 #metric-list li:hover {
