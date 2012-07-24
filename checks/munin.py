@@ -7,7 +7,7 @@ import select
 import subprocess
 import ConfigParser
 from datetime import datetime, timedelta
-
+from cStringIO import StringIO
 from checks import Check
 
 def usage():
@@ -41,52 +41,42 @@ class Munin(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self._current_plugin = None
-        self._current_metrics = None
+        self._current_parser = None
         self._parsers = {}
 
-    def default_metric_parser(self, section, metrics):
-        "Fallback: just a pass through. Prefix metric by munin"
+    def default_metric_parser(self, section, name, value):
+        "Fallback: register metric as a counter, prefix it by munin"
         
-        return "munin." + section, metrics
-
-    def parse_metrics(self, section, metrics):
-        """Find the correct parser and run it against the
-            dict of collected metrics"""
-        # Find metric parser
-        p = self.default_metric_parser
-        for parser in self._parsers:
-            if section.startswith(parser):
-                p = self._parsers[parser]
-   
-        return p(section, metrics)
+        mname = "munin." + section + "." + name
+        if not self.is_counter(mname):
+            self.counter(mname)
+        self.save_sample(mname,float(value))
 
     def read_metric(self, line):
-        """Read one metric line, append it to the current metric dict:
-            a line is metric_name.value = value"""
+        """Read one metric line, send it to the parser"""
         try:
             metric, value = line.split()
             if metric.endswith('.value'):
                 metric = metric[0:-6]
+            self._current_parser(self._current_plugin, metric, value)
         except Exception, e:
-            #Invalid metric
+            self.logger.exception(e)
             return
 
-        self._current_metrics[metric] = value
-
     def end_plugin(self):
-        """Flush current plugin metric dict: parse metrics and send
-            them back to the agent"""
-        if self._current_plugin is not None:
-
-            print self.parse_metrics(self._current_plugin,self._current_metrics)
-            self._current_plugin = None
-            self._current_metrics = None
+        """Reset plugin state"""
+        self._current_plugin = None
+        self._current_parser = None
 
     def start_plugin(self, name):    
         """Set up new metric context for a plugin"""
         self.end_plugin()
         self._current_plugin = name
-        self._current_metrics = {}
+        self._current_parser = self.default_metric_parser
+        for parser in self._parsers:
+            if self._current_plugin.startswith(parser):
+                self._current_parser = self._parsers[parser]
+                break
 
     def process_metric_line(self, line):
         """Parse a line sent by munin.py while running plugins:
@@ -107,10 +97,15 @@ class Munin(Check):
                 fcntl.F_SETFL,
                 fcntl.fcntl(p.stdout.fileno(), fcntl.F_GETFL) | os.O_NONBLOCK)
 
+        self._buf = StringIO()
+
         def updateChunck(chunck):
-            lines = chunck.split('\n')
-            for l in lines:
-                callback(l)
+            for c in chunck:
+                if c == '\n':
+                    callback(self._buf.getvalue())
+                    self._buf = StringIO()
+                else:
+                    self._buf.write(c)            
 
         started = datetime.now()
         to = timedelta(seconds = timeout)
