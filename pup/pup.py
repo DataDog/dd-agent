@@ -6,7 +6,6 @@ Pup.py
 	---
 	Make sense of your IT Data
 
-	Licensed uner the Simplified BSD License (see LICENSE)
 	(C) Datadog, Inc. 2012 all rights reserved
 """
 
@@ -22,6 +21,66 @@ import os
 import json
 import argparse
 import re
+
+AGENT_TRANSLATION = {
+    'cpuUser'     : 'CPU user (%)',
+    'cpuSystem'   : 'CPU system (%)',
+    'cpuWait'     : 'CPU iowait (%)',
+    'cpuIdle'     : 'CPU idle (%)',
+    'cpuStolen'   : 'CPU stolen (%)',
+    'memPhysUsed' : 'Memory used',
+    'memPhysFree' : 'Memory free',
+    'memPhysTotal': 'system.mem.total',
+    'memCached'   : 'system.mem.cached',
+    'memBuffers'  : 'system.mem.buffered',
+    'memShared'   : 'system.mem.shared',
+    'memPhysUsable': 'system.mem.usable',
+    'memSwapUsed' : 'Used Swap',
+    'memSwapFree' : 'Available Swap',
+    'memSwapTotal': 'system.swap.total',
+    'loadAvrg'    : 'Load Averages 1',
+    'loadAvrg1'   : 'Load Averages 1',
+    'loadAvrg5'   : 'Load Averages 5',
+    'loadAvrg15'  : 'Load Averages 15',
+    'nginxConnections'          : 'nginx.net.connections',
+    'nginxReqPerSec'            : 'nginx.net.request_per_s',
+    'nginxReading'              : 'nginx.net.reading',
+    'nginxWriting'              : 'nginx.net.writing',
+    'nginxWaiting'              : 'nginx.net.waiting',
+    'mysqlConnections'          : 'mysql.net.connections',
+    'mysqlCreatedTmpDiskTables' : 'mysql.performance.created_tmp_disk_tables',
+    'mysqlMaxUsedConnections'   : 'mysql.net.max_connections',
+    'mysqlQueries'              : 'mysql.performance.queries',
+    'mysqlQuestions'            : 'mysql.performance.questions',
+    'mysqlOpenFiles'            : 'mysql.performance.open_files',
+    'mysqlSlowQueries'          : 'mysql.performance.slow_queries',
+    'mysqlTableLocksWaited'     : 'mysql.performance.table_locks_waited',
+    'mysqlInnodbDataReads'      : 'mysql.innodb.data_reads', 
+    'mysqlInnodbDataWrites'     : 'mysql.innodb.data_writes',
+    'mysqlInnodbOsLogFsyncs'    : 'mysql.innodb.os_log_fsyncs',
+    'mysqlThreadsConnected'     : 'mysql.performance.threads_connected',
+    'mysqlKernelTime'           : 'mysql.performance.kernel_time',
+    'mysqlUserTime'             : 'mysql.performance.user_time',
+    'mysqlSecondsBehindMaster'  : 'mysql.replication.seconds_behind_master',
+    'apacheReqPerSec'           : 'apache.net.request_per_s',
+    'apacheConnections'         : 'apache.net.connections',
+    'apacheIdleWorkers'         : 'apache.performance.idle_workers',
+    'apacheBusyWorkers'         : 'apache.performance.busy_workers',
+    'apacheCPULoad'             : 'apache.performance.cpu_load',
+    'apacheUptime'              : 'apache.performance.uptime',
+    'apacheTotalBytes'          : 'apache.net.bytes',
+    'apacheTotalAccesses'       : 'apache.net.hits',
+    'apacheBytesPerSec'         : 'apache.net.bytes_per_s',
+}
+
+HISTOGRAM_IGNORE = [
+	"count",
+    "50percentile",
+	"75percentile",
+	"85percentile",
+	"95percentile",
+	"99percentile"
+]
 
 
 # Check if using old version of Python. Pup's usage of defaultdict requires 2.5 or later,
@@ -45,9 +104,9 @@ def is_number(n):
 def is_histogram(s):
     split = s['metric'].rsplit('.')
     if len(split) > 1:
-        return True
-    else:
-        return False
+        if split[-1] not in HISTOGRAM_IGNORE:
+            return True
+    return False
 
 def flush(message):
     for listener in listeners:
@@ -58,35 +117,41 @@ def send_metrics():
         flush(waiting)
     else: flush(metrics)
     metrics.clear()
-        
+    
 def update(series):
     for s in series:
         tags = s['tags']
         if is_histogram(s):
-            split = re.findall(r'\w+', s['metric'])
-            metric = split[0]
-            stack_name = ".".join(split[1:])
+            # split everything
+            split_metric_name = s['metric'].split(".")
+            namespace = split_metric_name[0]
+            if namespace == 'dd' or namespace == 'app': # for now
+                continue
+            metric = ".".join(split_metric_name[0:-1])
+            stack_name = split_metric_name[-1]
             values = s['points']
             metrics[metric]['points'].append({ "stackName" : stack_name, "values" : values })
             metrics[metric]['type'] = "histogram"
             metrics[metric]['tags'] = tags
+            metrics[metric]['freq'] = 5
         else:
-            metric_type = s['type']
+            if s['metric'].split(".")[-1] in HISTOGRAM_IGNORE:
+                continue
             metric = s['metric']
             points = s['points']
-            metrics[metric] = {"points" : points, "type" : metric_type, "tags" : tags}
+            metrics[metric] = {"points" : points, "type" : "line", "tags" : tags, "freq" : 5}
 
 def agent_update(payload):
     for p in payload:
         timestamp = payload['collection_timestamp']
         if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic']:
-            metric = p
-            metrics[metric] = {"points" : [[timestamp, float(payload[p])]], "type" : "gauge"}
+            metric = AGENT_TRANSLATION.get(p, p)
+            metrics[metric] = {"points" : [[timestamp, float(payload[p])]], "type" : "gauge", "freq" : 20}
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("pup.html",
-        title="Pup, by Datadog",
+        title="Pup",
         port=port)
             
 class PostHandler(tornado.web.RequestHandler):
@@ -144,7 +209,7 @@ def main():
     port = args.port
     application.listen(port)
 
-    interval_ms = 1000
+    interval_ms = 100
     io_loop = ioloop.IOLoop.instance()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()

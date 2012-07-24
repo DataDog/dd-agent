@@ -1,6 +1,6 @@
 desc "Runs jshint on all the pup .js files, using the config at .jshintrc in the root directory"
 task :hint do
-	sh "./node_modules/.bin/jshint ./static/pup.js"
+	sh "./node_modules/.bin/jshint ./static/pup.full.js"
 end
 
 desc "Runs nodeunit tests located in the test directory"
@@ -15,6 +15,7 @@ task :js do
 
 	# ordering matters due to variable scope
 	to_sprocketize = [
+		"Constants.js",
 		"Metric.js",
 		"Store.js",
 		"PupSocket.js",

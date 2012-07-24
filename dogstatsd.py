@@ -328,7 +328,8 @@ def main(config_path=None):
     host = 'localhost'
 
     hostname = gethostname(c)
-    rollup_interval = 10
+
+    rollup_interval = interval
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.

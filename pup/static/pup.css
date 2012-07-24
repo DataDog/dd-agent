@@ -7,75 +7,30 @@
 article, aside, details, figcaption, figure, footer, header, hgroup, nav, section { display: block; }
 audio, canvas, video { display: inline-block; *display: inline; *zoom: 1; }
 audio:not([controls]) { display: none; }
-[hidden] { display: none; }
 html { font-size: 100%; overflow-y: scroll; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
 body { margin: 0; font-size: 13px; line-height: 1.231; }
 body, button, input, select, textarea { font-family: sans-serif; color: #222; }
 ::-moz-selection { background: #fe57a1; color: #fff; text-shadow: none; }
-::selection { background: #fe57a1; color: #fff; text-shadow: none; }
 a { color: #00e; }
 a:focus { outline: none; }
 a:hover, a:active { outline: 0; }
-abbr[title] { border-bottom: 1px dotted; }
-b, strong { font-weight: bold; }
-blockquote { margin: 1em 40px; }
-dfn { font-style: italic; }
 hr { display: block; height: 1px; border: 0; border-top: 1px solid #ccc; margin: 1em 0; padding: 0; }
-ins { background: #ff9; color: #000; text-decoration: none; }
-mark { background: #ff0; color: #000; font-style: italic; font-weight: bold; }
 pre, code, kbd, samp { font-family: monospace, monospace; _font-family: 'courier new', monospace; font-size: 1em; }
 pre { white-space: pre; white-space: pre-wrap; word-wrap: break-word; }
-q { quotes: none; }
-q:before, q:after { content: ""; content: none; }
-small { font-size: 85%; }
-sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
-sup { top: -0.5em; }
-sub { bottom: -0.25em; }
 ul, ol { margin: 0; padding: 0; }
-dd { margin: 0; }
-nav ul, nav ol { list-style: none; list-style-image: none; margin: 0; padding: 0; }
+li {list-style: none;}
 img { border: 0; -ms-interpolation-mode: bicubic; vertical-align: middle; }
 svg:not(:root) { overflow: hidden; }
-figure { margin: 0; }
-form { margin: 0; overflow:auto;}
-fieldset { border: 0; margin: 0; padding: 0; }
-label { cursor: pointer; }
-legend { border: 0; *margin-left: -7px; padding: 0; }
 button, input, select, textarea { font-size: 100%; margin: 0; vertical-align: baseline; *vertical-align: middle; }
 button, input { line-height: normal; *overflow: visible; }
-table button, table input { *overflow: auto; }
-button, input[type="button"], input[type="reset"], input[type="submit"] { cursor: pointer; -webkit-appearance: button; }
-input[type="checkbox"], input[type="radio"] { box-sizing: border-box; }
 input[type="search"] { -webkit-appearance: textfield; -moz-box-sizing: content-box; -webkit-box-sizing: content-box; box-sizing: content-box; }
 input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
-button::-moz-focus-inner, input::-moz-focus-inner { border: 0; padding: 0; }
-textarea { overflow: auto; vertical-align: top; resize: vertical; }
-input:valid, textarea:valid {  }
-input:invalid, textarea:invalid { background-color: #f0dddd; }
-table { border-collapse: collapse; border-spacing: 0; }
-td { vertical-align: top; }
-li { list-style:none;}
-
 
 /* common classes */
-.fir { display: block; border: 0; text-indent: -999em; overflow: hidden; background-color: transparent; background-repeat: no-repeat; text-align: left; direction: ltr; }
-.fir br { display: none; }
-.fl, .alignleft { float: left; }
-.fr, .alignright { float: right; }
 .hidden { display: none !important; visibility: hidden; } /* Hide from both screenreaders and browsers */
-.visuallyhidden { border: 0; clip: rect(0 0 0 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; } /* Hide only visually, but have it available for screenreaders */
-.visuallyhidden.focusable:active, .visuallyhidden.focusable:focus { clip: auto; height: auto; margin: 0; overflow: visible; position: static; width: auto; } /* Extends the .visuallyhidden class to allow the element to be focusable when navigated to via the keyboard */
-.invisible { visibility: hidden; } /* Hide visually and from screenreaders, but maintain layout */
-.clearfix { zoom: 1; overflow:auto;}
-.center { text-align: center; }
 
 
 /* general */
-* {
-  	letter-spacing: 1px;
-  	text-rendering: optimizeLegibility;
-}
-
 a {
 	text-decoration: none;
 	color: #39c;
@@ -88,12 +43,25 @@ a:hover {
 
 hr {
 	width: 148px;
-	border-bottom: 1px solid #efefef;
+	border-bottom: 1px solid #fafafa;
 	border-top: 0;
 	height: 1px; 
-	background-color: #EADFF5;
 	box-shadow: 1px 1px #fafafa;
 	margin: 8px;
+}
+
+hr::before {
+	content: ""; 
+	position: absolute; /* #element must be position:relative */ 
+	height: 1px; /* change to suit your needs */ 
+	width: 148px; /* change to suit your needs */ 
+	background: #EADFF5; /* raise your hand if you like having six different prefixes/syntax */ 
+	background: -webkit-gradient(linear, left top, right top, color-stop(0%,#fff), color-stop(50%,#EADFF5), color-stop(100%,#fff)); 
+	background: -webkit-linear-gradient(left, #FFF 0%,#EADFF5 50%,#fff 100%); 
+	background: -moz-linear-gradient(left, #FFF 0%, #EADFF5 50%, #fff 100%); 
+	background: -ms-linear-gradient(left, #FFF 0%,#EADFF5 50%,#fff 100%); 
+	background: -o-linear-gradient(left, #FFF 0%,#EADFF5 50%,#fff 100%); 
+	background: linear-gradient(left, #FFF 0%,#EADFF5 50%,#fff 100%); 
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -101,7 +69,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ul {
-	margin-left: 10px;
+	margin-left: 5px;
 }
 
 @font-face {
@@ -121,6 +89,8 @@ html {
   	font-family: 'Open Sans', 'Lucida Sans','Lucida Sans Unicode',Arial, sans-serif;
 	height: 100%;
 	background: #f2f2f2 url("/graph.png") repeat;
+	letter-spacing: 1px;
+	text-rendering: optimizeLegibility;
 }
 
 #container {
@@ -136,14 +106,15 @@ html {
 	top: 0;
 	left: 0;
 	padding: 8px;
-	border-right: 1px dashed #dadada;
+	border-right: 1px solid #cacaca;
 	background-color: #fefefe;
 	overflow: scroll;
+	box-shadow: 3px 0 4px #e6e6e6;
 }
 
 #content {
 	height: 100%;
-	padding-left: 190px;	
+	padding: 0 0 0 190px;	
 }
 
 
@@ -185,22 +156,19 @@ pre {
 #dot {
 	font-size: 42px;
 	text-align: center;
-	padding: 50px 0;
+	padding: 50px 0 0 0;
 	color: #ddd;
 	width: 500px;
 	margin: 0 auto;
 	display: block;
 	clear: both;
-	text-shadow: #aaa 0 0 0.4em;
+	text-shadow: #ddd 0 2px 0.2em;
 }
-
-
-
 
 /* graphs */
 .plot-box {
-	min-width: 470px;
-	max-width: 600px;
+	min-width: 520px;
+	max-width: 900px;
 	width: 48%;
 	height: 192px;
 	float: left;
@@ -214,14 +182,39 @@ pre {
 	-o-box-shadow:0px 1px 3px rgba(0,0,0,0.33);
 	box-shadow:0px 1px 3px rgba(0,0,0,0.33);
 	background-color: white;
+	border-radius: 3px;
+	-moz-border-radius: 3px;
+	-webkit-border-radius: 3px;
 }
 
-.plot-box:hover {
+.plot-box:hover, .highlight-graph {
+	border: 1px solid #6f56a2;
 	-webkit-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	-moz-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	-ms-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	-o-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	box-shadow:0px 1px 3px rgba(0,0,0,0.66);
+	-webkit-transition: all 0.05s ease-in-out;
+	-moz-transition: all 0.05s ease-in-out;
+	-o-transition: all 0.05s ease-in-out;
+	transition: all 0.05s ease-in-out;
+}
+
+@media (max-width: 1396px) {
+	.plot-box {
+		width: 98%;
+	}
+}
+
+@media (min-width: 2140px) {
+	.plot-box {
+		width: 32.7%;
+	}
+}
+
+.plot {
+	margin: 0 auto;
+	width: 540px;
 }
 
 .metric-head {
@@ -229,8 +222,12 @@ pre {
 	height: 26px;
 	width: 100%;
 	line-height: 2.0em;
-	border-bottom: 1px solid #eaeaea;
+	border-bottom: 2px dotted #f4f4f4;
 	background-color: #fefefe;
+	color: #6f56a2;
+}
+
+.highlight-graph-header {
 }
 
 .metric-name {
@@ -238,16 +235,19 @@ pre {
 	color: #6f56a2;
 }
 
-.latest-val {
+.type-symbol {
 	float: left;
-	min-width: 40px;
+	min-width: 33px;
 	text-align: center;
 	font-size: 11px;
 	height: 100%;
-	margin: 0 10px 0 0;
+	margin: 0 9px 0 0;
 	border-right: 1px solid #eee;
 	background-color: #fafafa;
-	color: #6f56a2;
+}
+
+.type-symbol img {
+	box-shadow: 0 0 2px #ccc;
 }
 
 .csv {
@@ -261,12 +261,12 @@ pre {
 .graph-tags {
 	font-size: 10px;
 	color: #bbb;
-	padding: 5px;
+	padding: 0 10px;
 }
 
 .graph-tag {
 	display: inline;
-	list-style, none;
+	list-style: none;
 	color: #999;
 }
 
@@ -294,23 +294,33 @@ pre {
 
 /* sidebar */
 #branding {
-	height: 100px;
+	width: 100px;
+	margin: 8px auto;
 }
 
 #pup-title {
-	padding-top: 23px;
-	margin-bottom: 4px;
+	margin: 4px 0;
+	line-height: 28px;
+	font-size: 24px;
+	text-align: center;
+	color: #816CAD;	
 }
 
 #by {
 	font-size: 10px;
+	width: 132px;
+	margin: 20px auto;
+	padding-bottom: 50px;
+	color: #bbb;
 }
 
-#logo {
-	width: 75px;
-	float: left;
-	margin-right: 5px;
-	padding: 5px;
+#by a {
+	color: #aaa;
+	font-weight: bold;
+}
+
+#by a:hover {
+	color: #888;
 }
 
 #listening {
@@ -350,6 +360,7 @@ pre {
 	height: 25px;
 	line-height: 10px;
 	font-size: 10px;
+	letter-spacing: 1px;
 	-webkit-box-sizing: border-box;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
@@ -388,7 +399,7 @@ pre {
 }
 
 #sort-by {
-	padding: 5px;
+	padding: 5px 5px 0 5px;
 	-webkit-touch-callout: none;
 	-webkit-user-select: none;
 	-khtml-user-select: none;
@@ -414,11 +425,14 @@ pre {
 	position: relative;
 }
 
-.active {
+.sort-active {
 	background-color: #EADFF5;
+	border-radius: 2px;
+	-webkit-border-radius: 2px;
+	-moz-border-radius: 2px;
 }
 
-.active:after, .active:before {
+.sort-active:after, .sort-active:before {
 	border: solid transparent;
 	content: ' ';
 	height: 0;
@@ -427,14 +441,18 @@ pre {
 	width: 0;
 }
 
-.active:before {
+.sort-active:before {
 	border-width: 11px;
 	border-left-color: #EADFF5;
 	top: 0px;
 }
 
+#tag-list {
+	padding-bottom: 10px;
+}
+
 #tags {
-	padding: 5px 5px 10px 5px;
+	padding: 5px 5px 0 5px;
 	-webkit-touch-callout: none;
 	-webkit-user-select: none;
 	-khtml-user-select: none;
@@ -476,26 +494,38 @@ pre {
 #metric-list li {
 	line-height: 22px;
 	padding-left: 9px;
-	width: 126px;
+	width: 140px;
 	height: 22px;
 	clear:both;
 	background-color: transparent;
+	color: #6f56a2;
 }
 
 #metric-list li:hover {
-	background-color: #EADFF5;
 	cursor: pointer;
+}
+
+#metric-list li:hover, #metric-list li.highlight-metric {
+	background-color: #EADFF5;
+	border-radius: 2px;
+	-moz-border-radius: 2px;
+	-webkit-border-radius: 2px;
+	border-radius: 2px;	
 }
 
 .li-metric {
 	float: left;
 	font-size: 11px;
+	width: 100px;
+	white-space: nowrap;
+	overflow:hidden;
+	text-overflow: ellipsis;
+	color: #333;
 }
 
 .li-val {
 	float: right;
 	font-size: 8px;
-	color: #6f56a2;
 	font-weight: bold;
 	padding-right: 4px;
 }
@@ -507,17 +537,11 @@ pre {
 
 .sidebar-header {
 	font-size: 16px;
-	margin: 0 0 12px 8px;
+	margin: 0 0 10px 8px;
 }
 
 
 /* svg */
-.plot {
-	width: 400px;
-	margin: 0 auto;
-
-}
-
 .axis path {
   fill: none;
   stroke: #ddd;
@@ -532,14 +556,41 @@ pre {
 	font-size: 9px;
 }
 
-
 .line {
-  stroke-width: 1px;
+  stroke-width: 2px;
+  fill: none;
+  stroke: #6f56a2;
+}
+
+.area {
+  fill: #E1D0F2;
+  opacity: 0.5;
+}
+
+.area:hover {
+  opacity: 0.7;
 }
 
 .x.axis line {
 	stroke: #f0f0f0;
 }
+
 .x.axis .minor {
 	stroke-opacity: .5;
+}
+
+.latest-val {
+	font-size: 10px;
+	font-weight: bold;
+	fill: #6f56a2;
+	letter-spacing: 0px;
+}
+
+.progress-container {
+	fill: none;
+	stroke: black;
+}
+
+.progress {
+	fill: #6f56a2;
 }

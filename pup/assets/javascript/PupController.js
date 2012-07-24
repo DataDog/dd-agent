@@ -2,97 +2,86 @@
  * Coordinates UI for pup
  *
  * Public interface:
- * 	tryStart()		: starts controller if not already created
- *	isRunning()		: accessor returns whether or not PupController is running
- *
+ *	tryStart()		: starts controller if not already created
+ *	isRunning()		: accessor returns whether or not the controller is running
+ *	n()				: accessor returns number of datapoints
  */
 
 var PupController = function(isWSClosed, Store, $) {
 	var minutes		= 10,									// window period
-		duration 	= Math.sqrt(minutes * 60 * 1000),		// transitions work best if duration and n are close in value
+		duration	= Math.sqrt(minutes * 60 * 1000),		// transitions work best if duration and n are close in value
 															// 	duration represents the buffer time window for transitions
-		n 			= Math.ceil(duration),					// number of data points
+		n			= Math.ceil(duration),					// number of data points
 		step		= 0,									// if smooth transitions are enabled, this signifies the lag
-		timeout		= 10 * 1000,							// timeout a metric after this many milliseconds
 		now			= new Date(Date.now() - duration),		// now set to current time minus a transition period
 		running		= false,								// determines whether PupController is running
 		metrics		= [],									// an array of all the Metric objects
 		graphsByName= {},									// an object of all the graph objects, keyed by metric name
-		sideByName 	= {},									// an object of all the entries objects, keyed by metric name
-		format 		= d3.format(".2s");						// defines format. rounding to two significant digits.
+		sideByName	= {},									// an object of all the entries objects, keyed by metric name
+		format		= d3.format(".2s");						// defines format. rounding to two significant digits.
 
 	// private helpers --------------------------------------------------
 
-	var addEntry = function(metric) {
+	var addEntry = function(metric, creationTime) {
 		var entry = d3.select("#metric-list")
 			.append("li")
-				.attr("id", "li" + metric.uuid)
-				.attr("name", metric.name)
-				.attr("time", +metric.createdAt)
-				.attr("class", metric.type);
+				.attr(C.ID, "li" + metric.uuid)
+				.attr(C.NAME, metric.name)
+				.attr(C.TIME, +creationTime);
 
 		entry.append("span")
-				.attr("class", "li-metric")
-				.attr("x", 3)
-				.attr("y", 12)
+				.attr(C.CLASS, "li-metric")
 				.text(metric.name);
 
 		entry.append("span")
-				.attr("class", "li-val")
-				.attr("x", 150)
-				.attr("y", 12)
-				.text("");
-
-		$(entry[0]).hide().fadeIn(500);
+				.attr(C.CLASS, "li-val");
 
 		sideByName[metric.name] = entry;
 	};
 
-	var addGraph = function(metric) {
+	var addGraph = function(metric, creationTime) {
 		var container = d3.select("#graphs").append("div")
-				.attr("id", metric.name)
-				.attr("name", metric.name)
-				.attr("time", +metric.createdAt)
-				.attr("class", "plot-box");
+				.attr(C.ID, metric.name)
+				.attr(C.NAME, metric.name)
+				.attr(C.TIME, +creationTime)
+				.attr(C.CLASS, "plot-box");
 
 		var metricHead = container.append("div")
-				.attr("class", "metric-head")
+				.attr(C.CLASS, "metric-head");
 		
 		metricHead.append("span")
-				.attr("class", "latest-val")
+				.attr(C.CLASS, "type-symbol");
 
 		metricHead.append("h5")
-				.attr("class", "metric-name")
-				.text(metric.name)
+				.attr(C.CLASS, "metric-name")
+				.text(metric.name);
 
 		metricHead.append("a")
 				.attr("href", metric.name);
 
-		if (metric.type !== "histogram") {
-			metricHead.append("a")
-					.attr("class", "csv")
-					.attr("name", metric.name)
-					.text("CSV");
-		}
+		metricHead.append("a")
+				.attr(C.CLASS, "csv")
+				.attr(C.NAME, metric.name)
+				.text("CSV");
 
 		var div = container.append("div")
-				.attr("class", "plot")
+				.attr(C.CLASS, "plot");
 
 		if (metric.type === "histogram") {
 			graphsByName[metric.name] = new HistogramGraph({
-				metric 	: metric,
-				element : container,
-				n 		: n,
+				metric	: metric,
+				element	: container,
+				n		: n,
 				duration: duration,
-				now 	: +now
+				now		: +now
 			});
 		} else if (metric.type !== "histogram") {
 			graphsByName[metric.name] = new LineGraph({
-				metric 	: metric,
-				element : container,
-				n 		: n,
+				metric	: metric,
+				element	: container,
+				n		: n,
 				duration: duration,
-				now 	: +now
+				now		: +now
 			});
 		} // may be more types
 
@@ -112,15 +101,6 @@ var PupController = function(isWSClosed, Store, $) {
 		$('#listening').html("Not " + $('#listening').html());
 	};
 
-	// TODO: Make histogram most recent value the average.
-	var updateSidebar = function(metric) {
-		if (metric.type === "histogram")
-			sideByName[metric.name].select(".li-val").text("NA");
-		else {
-			sideByName[metric.name].select(".li-val").text(format(metric.mostRecent.value));
-		}
-	};
-	
 	var run = function() {
 		var interval = setInterval(function() {
 			// check if connection closed				
@@ -135,40 +115,66 @@ var PupController = function(isWSClosed, Store, $) {
 			// fetch metrics
 			metrics = Store.getMetrics();
 
-			for (var i = 0; i < metrics.length; i++) {
-				var metric = metrics[i],
-					graph = graphsByName[metric.name],
-					timedOut = metric.isTimedOut(now, timeout);
+			var i = metrics.length;
+			while (i--) {
+				var metric = metrics[i];
 
-				// if graph doesn't exist, create it
-				if (undefined == graph) {
-					addEntry(metric);
-					addGraph(metric);
-					graph = graphsByName[metric.name];
-				} 	
+				// set metric's timedOut value and time
+				metric.setIfTimedOut(now);
 
+				if (!graphsByName.hasOwnProperty(metric.name)) {
+					var creationTime = new Date();
+					addEntry(metric, creationTime);
+					addGraph(metric, creationTime);
+				}
+
+				graph = graphsByName[metric.name];
 				graph.updateScales(now);
 				
-				// push most recent data point on	
-				metric.pushRecent(timedOut, now);	
+				// push most recent data point on
+				if (metric.hasNewData()) {
+					metric.pushRecent();
+				} else if (metric.timedOut.is) {
+					metric.pushNull(new Date());
+				}
+
+				// check if progress bar needs to be drawn
+				graph.tryDrawProgress(now);
 				
-				// redraw the graph
+				// redraw the area/line
 				graph.redraw(now);
 
 				// shift off the old
-				metric.shiftOld();
+				var timeWindow = +now - (minutes * 60000 + metric.freq);
+				metric.shiftOld(timeWindow);
 
 				// update entry
-				graph.updateLatestVal();
+				graph.updateLatestVal(now);
 
 				// update sidebar
-				updateSidebar(metric);
+				// TODO: Make histogram NA, the average
+				if (metric.type === "histogram") {
+					sideByName[metric.name].select(".li-val").text(format(metric.average))
+						.classed("timed-out", false);
+				} else {
+					sideByName[metric.name].select(".li-val").text(format(metric.mostRecent[0].value))
+						.classed("timed-out", false);
+				}
+
+				if (metric.timedOut.is) {
+					sideByName[metric.name].select(".li-val").html("♦")
+						.classed("timed-out", true);
+				}
+	
+				if (metric.tags.length) {
+					$("#tags").removeClass("hidden");
+				}
 			}
 		}, duration + step + 0.5);
 	};
 
 	// public interface --------------------------------------------------
-	pub = {};
+	var pub = {};
 
 	// attempt to start the controller if it isn't running.
 	pub.tryStart = function() {
@@ -187,33 +193,26 @@ var PupController = function(isWSClosed, Store, $) {
 			totalGraphCount;
 
 		var showLeft = function() {
-			$("#if-more").removeClass("hidden").detach().appendTo("#content");
+			$("#if-more").removeClass("hidden").detach().insertBefore("#by");
 			$("#num-more").html(totalGraphCount - graphCount);
 			$("#dot").addClass("hidden");
-		}
-		
+		};	
 	
-		var downloadCSV = function(name, points) {
-		 	CSVWindow = window.open();
-			CSVWindow.document.title = name;
-			CSVWindow.document.write("timestamp,value</br>");
-	    	for (var i = 0; i < points.length; i++) {
-				var line = '';
-				for (var index in points[i]) {
-					if (line != '') line += ','
-						line += points[i][index];
-				}
-				CSVWindow.document.write(line + '</br>');
-			}
+		var downloadCSV = function(metric) {
+			var CSVWindow = window.open();
+			CSVWindow.document.title = metric.name;
+			var csv = metric.toCSV();
+			CSVWindow.document.write(csv);
+			CSVWindow.document.body.style.fontFamily = "monospace";
 		};
 
 		// interact public interface -----------------------------------------
-		intPub = {};
+		var intPub = {};
 
 		// internally updates plot counts	
 		intPub.updatePlotCount = function() {
-			var graphDivs 	= document.getElementById('graphs').children,
-				shownCount 	= 0;
+			var graphDivs	= document.getElementById('graphs').children,
+				shownCount	= 0;
 
 			// TODO: Strip out jQuery
 			$(graphDivs).each(function() {
@@ -224,19 +223,19 @@ var PupController = function(isWSClosed, Store, $) {
 			
 			graphCount		= shownCount;
 			totalGraphCount	= graphDivs.length;
-		}
+		};
 
 		// filter graphs and their corresponding sidebar entries by term
 		intPub.filterBy = function(term) {
-			var graphDivs 	= document.getElementById('graphs').children,
+			var graphDivs	= document.getElementById('graphs').children,
 				entryLis	= document.getElementById('metric-list').children,
-				lowerTerm 	= term.toLowerCase(),
-				i 			= graphDivs.length;
+				lowerTerm	= term.toLowerCase(),
+				i			= graphDivs.length;
 
 			while (i--) {
 				var id		= graphDivs[i].id,
 					lowerId	= id.toLowerCase(),
-					re 		= new RegExp(lowerTerm, 'gi');
+					re		= new RegExp(lowerTerm, 'gi');
 				if (lowerId.match(re)) {
 					graphDivs[i].style.display = "";
 					entryLis[i].style.display = "";
@@ -253,24 +252,24 @@ var PupController = function(isWSClosed, Store, $) {
 				$("#if-more").addClass("hidden");	
 				$("#dot").removeClass("hidden"); 
 			}
-		}
+		};
 
 		// sorting interface
 		intPub.sort = function() {
-			var graphsRoot 			= document.getElementById('graphs'),
-				graphsRootChildren 	= graphsRoot.children,
+			var graphsRoot			= document.getElementById('graphs'),
+				graphsRootChildren	= graphsRoot.children,
 				entriesRoot			= document.getElementById('metric-list'),
-				entriesRootChildren = entriesRoot.children,
+				entriesRootChildren	= entriesRoot.children,
 				graphsArray			= [],
 				entriesArray		= [],
-				i 					= graphsRootChildren.length;
+				i					= graphsRootChildren.length;
 
 			// private sorting helpers -------------------------------------
 			var loadArrays = function() {
 				var j = 0;
 				while (j < i) {
-					graphsArray.push(graphsRootChildren[j]);
-					entriesArray.push(entriesRootChildren[j]);
+					graphsArray[graphsArray.length] = graphsRootChildren[j];
+					entriesArray[graphsArray.length] = entriesRootChildren[j];
 					j++;
 				}
 			};
@@ -278,7 +277,7 @@ var PupController = function(isWSClosed, Store, $) {
 			var emptyArrays = function() {
 				graphsArray.length = 0;
 				entriesArray.length = 0;
-			}
+			};
 
 			var appendSortedArrays = function() {
 				for (var j = 0; j < i; j++) {
@@ -288,10 +287,9 @@ var PupController = function(isWSClosed, Store, $) {
 			};
 
 			var byName = function(array) {
-				console.log(array);
 				return array.sort(function(a, b) {
-					a = a.getAttribute("name");
-					b = b.getAttribute("name");
+					a = a.getAttribute(C.NAME);
+					b = b.getAttribute(C.NAME);
 					return a === b ? 0 
 									: (a < b) ? -1 : 1;
 				});
@@ -299,15 +297,15 @@ var PupController = function(isWSClosed, Store, $) {
 
 			var byTimeAdded = function(array) {
 				return array.sort(function(a, b) {
-					a = parseInt(a.getAttribute("time"));
-					b = parseInt(b.getAttribute("time"));
+					a = parseInt(a.getAttribute(C.TIME), 10);
+					b = parseInt(b.getAttribute(C.TIME), 10);
 					return a === b ? 0
 									: (a < b) ? -1: 1;
 				});
 			};	
 
 			// sort public interface ---------------------------------------	
-			sortPub = {};
+			var sortPub = {};
 
 			// sort graphs and entries by their names, descending
 			sortPub.byName = function() {
@@ -329,21 +327,21 @@ var PupController = function(isWSClosed, Store, $) {
 
 			// find which is active
 			sortPub.byActive = function() {
-				var active = $(".active")[0].getAttribute("id");
+				var active = $(".sort-active")[0].getAttribute(C.ID);
 				if (active === "by-name") {
 					sortPub.byName();
 				} else { sortPub.byTimeAdded(); }
 			};
 
 			return sortPub;
-		}
+		};
 		
 		// filter shown metrics by active tags
 		intPub.filterByTags = function(t) {
 			var graphDivs		= document.getElementById('graphs').children,
 				entries			= document.getElementById('metric-list').children,
-				tags 			= document.getElementById('tag-list').children,
-				i 				= graphDivs.length,
+				tags			= document.getElementById('tag-list').children,
+				i				= graphDivs.length,
 				tagSelected		= t[0],
 				key;	
 
@@ -359,17 +357,17 @@ var PupController = function(isWSClosed, Store, $) {
 
 				// get active tags
 				var activeTags = [];
-				for (var j = 0; j < tags.length; j++) {
+				for (var j = 0, len = tags.length; j < len; j++) {
 					if ($(tags[j]).hasClass("tag-active")) {
-						activeTags.push(tags[j].getAttribute("tag"));
+						activeTags[activeTags.length] = tags[j].getAttribute("tag");
 					}
 				}
 
 				// for each plot
 				while (i--) {
-					key = graphDivs[i].getAttribute("name");
+					key = graphDivs[i].getAttribute(C.NAME);
 					var graphTags =	Store.getMetricByName(key).tags,
-						j = activeTags.length;
+						k = activeTags.length;
 
 					// if no tags are selected, show all
 					if (!activeTags.length) {
@@ -377,12 +375,12 @@ var PupController = function(isWSClosed, Store, $) {
 						entries[i].style.display = "";
 					} else {
 						// else, check if current graph's tags match active tags
-						while (j--) {
-							if (graphTags.indexOf(activeTags[j]) > -1) { break; }
+						while (k--) {
+							if (graphTags.indexOf(activeTags[k]) > -1) { break; }
 						}
 				
 						// if current graph's tags match active tags, show them
-						if (!j) {
+						if (!k) {
 							graphDivs[i].style.display = "";
 							entries[i].style.display = "";
 						}
@@ -410,7 +408,7 @@ var PupController = function(isWSClosed, Store, $) {
 				});
 
 				while (i--) {
-					key = graphDivs[i].getAttribute("name");
+					key = graphDivs[i].getAttribute(C.NAME);
 
 					// hide those plots that don't match the tag just selected
 					if (-1 === Store.getMetricByName(key).tags.indexOf(tagSelected.getAttribute("tag"))) {
@@ -420,47 +418,50 @@ var PupController = function(isWSClosed, Store, $) {
 				}
 				
 				intPub.updatePlotCount();
-				showLeft();
+				if (graphCount < totalGraphCount) {
+					showLeft();
+				}
 			}
 			return intPub;
 		};
 
 		// highlights graph
 		intPub.highlightGraph = function(metricName) {
-			var graph = $('.plot-box[name=' + metricName + '] h5');
-			$(graph).css("background-color", "#EADFF5");
-			var entry = $('.li[name=' + metricName + ']');
-			$(entry).css("background-color", "#EADFF5");
+			var graph = $(".plot-box[name=\"" + metricName + '\"]');
+			var graphHeader = $(graph).find('h5');
+			$(graphHeader).addClass("highlight-graph-header");
+			$(graph).addClass("highlight-graph");
+			var entry = $('li[name=\"' + metricName + '\"]');
+			$(entry).addClass("highlight-metric");
 			return intPub;
 		};
 
 		// scroll to the graph just clicked on in the entries list
 		intPub.scrollToGraph = function(metricName) {
-			var graph = $('.plot-box[name=' + metricName + ']');
+			var graph = $('.plot-box[name=\"' + metricName + '\"]');
 			var y = $(graph).offset().top;
-			window.scrollTo(0, y);
+			window.scrollTo(0, y - 15);
 			return intPub;
 		};
 
 		// fade the graph when the mouse leaves the entry
 		intPub.fadeGraph = function(metricName) {
-			var graph = $('.plot-box[name=' + metricName + '] h5');
-			$(graph).css('background-color', "white");
-			var entry = $('.li[name=' + metricName + ']');
-			$(entry).css('background-color', "transparent");
+			var graph = $(".plot-box[name=\"" + metricName + '\"]');
+			var graphHeader = $(graph).find('h5');
+			$(graphHeader).removeClass("highlight-graph-header");
+			$(graph).removeClass("highlight-graph");
+			var entry = $('li[name=\"' + metricName + '\"]');
+			$(entry).removeClass("highlight-metric");
 			return intPub;
 		};
 
 		intPub.downloadCSV = function(name) {
-			metric = Store.getMetricByName(name);
-			if (metric.type != "histogram") {
-				downloadCSV(metric.name, metric.data);
-			} // TODO: Add support for histograms
-			
+			var metric = Store.getMetricByName(name);
+			downloadCSV(metric);	
 		};
 
 		return intPub;
-	}
+	};
 
 	// accessor for the number of datapoints in each graph
 	pub.n = function() { return n; };

@@ -36,7 +36,7 @@
     "proto"         : false,    // Tolerate __proto__ property. This property is deprecated.
     "regexdash"     : false,    // Tolerate unescaped last dash i.e. `[-...]`.
     "scripturl"     : false,    // Tolerate script-targeted URLs.
-    "smarttabs"     : false,    // Tolerate mixed tabs and spaces when the latter are used for alignmnent only.
+    "smarttabs"     : true,    // Tolerate mixed tabs and spaces when the latter are used for alignmnent only.
     "shadow"        : false,    // Allows re-define variables later in code e.g. `var x=1; x=2;`.
     "sub"           : false,    // Tolerate all forms of subscript notation besides dot notation e.g. `dict['key']` instead of `dict.key`.
     "supernew"      : false,    // Tolerate `new function () { ... };` and `new Object;`.

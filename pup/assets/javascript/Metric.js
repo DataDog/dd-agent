@@ -1,11 +1,11 @@
 // TODO: Make allTags and metricId not global.
-allTags = [];
-metricId = 0;
+var allTags = [],
+	metricId = 0;
 
 /* Metric.js
  * Defines Metric data objects, such as Line and Histogram.
  *
- *	updateMostRecent() 		: updates the Metric's mostRecent object
+ *	updateMostRecent()		: updates the Metric's mostRecent object
  *	pushRecent()			: pushes the Metric's mostRecent object onto data
  *	shiftOld()				: shifts off the Metric's oldest datapoint
  *	isTimedOut()			: returns whether a metric has timed out
@@ -13,22 +13,23 @@ metricId = 0;
 
 // TODO: Fix inheritance / static / private manipulation here
 
+var PupController;
 var Metric = function(options) {
-	this.n 			= PupController.n();		// defines number of datapoints in a graph
-	this.createdAt 	= new Date();				// creation timestamp. used in sorting by time added
-	this.uuid 		= metricId++;				// used in selection. TODO: Might not be needed.
+	this.n			= PupController.n();		// defines number of datapoints in a graph
+	this.createdAt	= new Date();				// creation timestamp. used in sorting by time added
+	this.uuid		= metricId++;				// used in selection. TODO: Might not be needed.
 	this.name		= options.metric;			// name of metric. used for sorting by name
-	this.type		= options.type;				// type of metric.
+	this.type		= options.type;				// type of metric
+	this.freq       = options.freq * 1000;      // estimated frequency of sending in milliseconds
 	this.tags		= options.tags;				// tags. used for listing tags
-	this.max 		= 0.0;						// maximum value. used for determining the y range
+	this.max		= 0.0;						// maximum value. used for determining the y range
 	this.data		= [];						// data series for a metric
-	this.mostRecent;							// what's updated when new data comes in and 
-												// 	what's pushed onto data
+	this.timedOut   = {at: +options.now, is: false};                    // if timedOut
 
 	for (var i = 0; i < this.tags.length; i++) {
 		var tag = this.tags[i];
 		if (-1 === allTags.indexOf(tag)) {
-			allTags.push(tag);					// used for tag filtering
+			allTags[allTags.length] = (tag);					// used for tag filtering
 		}
 	}
 };
@@ -40,81 +41,117 @@ function Histogram(options) {
 	// allow access from a closure	
 	var n = this.n;
 
-	this.data = d3.range(options.points.length-1).map(function(d, i) {
+	this.data = d3.range(options.points.length).map(function(d, i) {
 		return {
-			"name"   : options.points[i].stackName,
-			"values" : d3.range(n).map(function() {
-				return {"time": +options.now, "value": 0};
-			})
+			"name"		: options.points[i].stackName,
+			"values"	: [{"time": +options.now, "value": null}]
 		};
 	});
 
 	this.mostRecent = options.points.map(function(stk) {
 		return {
-	   		"name"   : stk.stackName,
-			"values" : {time: +options.now, value: 0}
+			"name"		: stk.stackName,
+			"values"	: {time: +options.now, value: null}
 		};
 	});	
 }
 
 Histogram.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
+	var average = this.average;
 	this.mostRecent = incomingMetric.points.map(function(stk) {
 		return {
-			"name" 	 : stk.stackName,
-			"values" : stk.values.map(function(d) {
+			"name"		: stk.stackName,
+			"values"	: stk.values.map(function(d) {
 				if (d[1] > max) { max = d[1]; }
+				if (stk.stackName === "avg") { average = d[1]; }
 				return {
-					"time" 	: d[0] * 1000,
-					"value" : d[1]
+					"time"	: d[0] * 1000,
+					"value"	: d[1]
 				};
-			})[0] // should make continuous
+			})[0] // TODO: should make continuous
 		};
 	});
 	this.max = max;
-}
+	this.average = average;
+};
 
-Histogram.prototype.pushRecent = function(timedOut, now) {
-	if (timedOut) {
-		this.data = this.data.map(function(stk) {
-			return stk.values.push({time: +now, value: 0});
-		});
-	} else {
-		for (var i = 0; i < this.data.length; i++) {
-			var mostRecentValues = this.mostRecent[i].values;
-			mostRecentValues.time = +now;
-			this.data[i].values.push(mostRecentValues);
-			// TODO: Ensure proper ordering of stacks.
+Histogram.prototype.pushRecent = function() {
+	for (var i = 0; i < this.data.length; i++) {
+		var mostRecent = {time: this.mostRecent[i].values.time, value: this.mostRecent[i].values.value};
+		this.data[i].values[this.data[i].values.length] = mostRecent;
+		// TODO: Ensure proper ordering of stacks.
+	}
+};
+
+Histogram.prototype.pushNull = function(now) {
+	this.data = this.data.map(function(stk) {
+		stk.values[stk.values.length] = {time: +now, value: null};
+		return stk;
+	});
+};
+
+Histogram.prototype.shiftOld = function(timeWindow) {
+	for (var i = 0; i < this.data.length; i++) {
+		while (this.data[i].values[0].time < timeWindow) {
+			this.data[i].values.shift();
 		}
 	}
-}
+};
 
-Histogram.prototype.shiftOld = function() {
-	for (var i = 0; i < this.data.length; i++) {
-		this.data[i].values.shift();
+Histogram.prototype.setIfTimedOut = function(now) {
+	this.timedOut.is = +now - d3.min(this.mostRecent, function(stk) {
+		return stk.values.time;
+	}) > this.freq * 2 ? true : false;
+	if (this.timedOut.is) { this.timedOut.at = +now; }
+};
+
+Histogram.prototype.hasNewData = function() {
+	return d3.min(this.mostRecent, function(stk) {
+		return stk.values.time;
+	}) > d3.min(this.data, function(stk) {
+		return stk.values[stk.values.length-1].time;
+	});
+};
+
+Histogram.prototype.toCSV = function() {
+	var csv = 'time,';
+	var sampleStack = this.data[0];
+	a = sampleStack;
+	for (var i = -1, dataCount = sampleStack.values.length; i < dataCount; i++) {
+		console.log("HEY");
+		var line = '';
+		if (i === -1) {
+			// headers
+			for (var stkI = 0, stackCount = this.data.length; stkI < stackCount; stkI++) {
+				if (line !== '') { line += ","; }
+				line += this.data[stkI].name;
+			}
+		} else {
+			// data
+			if (sampleStack.values[i]
+					&& sampleStack.values[i].value == null) { continue; }
+			line += sampleStack.values[i].time;
+			for (var stkI = 0, stackCount = this.data.length; stkI < stackCount; stkI++) {
+				if (line !== '') { line += ","; }
+				line += this.data[stkI].values[i].value;
+			}
+		}
+		csv += line + '</br>';
 	}
-}	
-	
-Histogram.prototype.isTimedOut = function(now, timeout) {
-	return now - d3.min(this.mostRecent, function(stk) { 
-		return stk.time; 
-	}) > timeout ? true: false;
-}
+	return csv;
+};
 
 // Line -----------------------------------------------------------
 function Line(options) {
 	Metric.call(this, options);
-
-	this.data = d3.range(this.n).map(function() {
-		return {"time": +options.now, "value": 0};
-	});
-
-	this.mostRecent = {"time": +options.now, "value": 0};
+	this.data = [{"time": +options.now, "value": null}];
+	this.mostRecent = [{"time": +options.now, "value": null}];
 }
 
 Line.prototype.updateMostRecent = function(incomingMetric, metric) {
 	var max = this.max;
-	this.mostRecent = incomingMetric.points.map(function(d) {
+	this.mostRecent[0] = incomingMetric.points.map(function(d) {
 		if (d[1] > max) { max = d[1]; }
 		return {
 			"time"  : d[0] * 1000,
@@ -122,23 +159,53 @@ Line.prototype.updateMostRecent = function(incomingMetric, metric) {
 		};
 	})[0]; // should make continuous
 	this.max = max;
-}
+};
 
-Line.prototype.pushRecent = function(timedOut, now) {
-	if (timedOut) {
-		this.data.push({time: +now, value: 0});
-	} else {
-		var mostRecent = this.mostRecent;
-		mostRecent.time = +now;
-		this.data.push(mostRecent);
+Line.prototype.pushNull = function(now) {
+	this.data[this.data.length] = {time: +now, value: null};
+};
+
+Line.prototype.pushRecent = function() {
+	var mostRecent = {time: this.mostRecent[0].time, value: this.mostRecent[0].value};
+	this.data[this.data.length] = mostRecent;
+};
+
+Line.prototype.shiftOld = function(timeWindow) {
+	while (this.data[0].time < timeWindow) {
+		this.data.shift();
 	}
-}
+};
 
-Line.prototype.shiftOld = function() {
-	this.data.shift();
-}
+Line.prototype.setIfTimedOut = function(now) {
+	this.timedOut.is = +now - this.mostRecent[0].time > this.freq * 2 ? true : false;
+	if (this.timedOut.is) { this.timedOut.at = +now; }
+};
 
-Line.prototype.isTimedOut = function(now, timeout) {
-	return now - this.mostRecent.time > timeout ? true : false;
-}
+Line.prototype.hasNewData = function() {
+	return this.mostRecent[0].time > this.data[this.data.length-1].time;
+};
 
+Line.prototype.toCSV = function() {
+	var csv = '';
+	var data = this.data;
+	for (var i = -1, len = data.length; i < len; i++) {
+		var line = '';
+		if (i === -1) {
+			for (var index in data[0]) {
+				console.log(index);
+				if (line !== '') { line += ","; }
+				line += index;
+			}	
+		} else {
+			if (data[i].value == null) { continue; }
+			for (var index in data[i]) {
+				if (data[i].hasOwnProperty(index)) {
+					if (line !== '') { line += ","; }
+					line += data[i][index];
+				}
+			}
+		}
+		csv += line += '</br>';
+	}
+	return csv;
+};

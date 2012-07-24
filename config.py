@@ -12,6 +12,7 @@ from cStringIO import StringIO
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
+STATSD_FREQUENCY = 2 # seconds
 
 def get_parsed_args():
     parser = OptionParser()
@@ -170,11 +171,14 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         else:
             agentConfig['graphite_listen_port'] = None
 
+        dogstatsd_interval = 10
+        if agentConfig['usePup']: dogstatsd_interval = STATSD_FREQUENCY
+
         # Dogstatsd config
         dogstatsd_defaults = {
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : 10
+            'dogstatsd_interval' : dogstatsd_interval
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):

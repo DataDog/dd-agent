@@ -16,9 +16,8 @@
   <div id="container">
     <div id="sidebar">
       <header id="branding">
-        <img id="logo" src="/logo.png" />
-        <h2 id="pup-title">Pup</h2>
-        <h4 id="by">by <a target="_blank" href="http://www.datadoghq.com/">Datadog</a></h4>
+	  <img id="logo" src="/pup_logo-100.png" />
+
       </header><!-- #branding -->
 
 	  <p id="listening">Listening on port <span id="port">{{ port }}</span></p>
@@ -35,7 +34,7 @@
               <input type="text" id="query" autocomplete="off" placeholder="Search metrics…">
               <span class="icon zoom-icon"></span>
               <a href="#clear-search" class="icon clear-icon" id="clear-query"></a>
-            </span><!-- #metric-search -->
+		  	</span><!-- #metric-search -->
           </div><!-- #search -->  
 
           <hr class="break" />
@@ -43,22 +42,22 @@
           <div id="sort-by">
             <h5 class="sidebar-header">sort by</h5>
             <ul id="sort-by-list">
-				<li id="by-time-added" class="active">Time added</li>
+				<li id="by-time-added" class="sort-active">Time added</li>
               <li id="by-name">Name</li>
-            </ul>
+		  	</ul>
+			<hr class="break" />
           </div><!-- #sort-by -->
 
-          <hr class="break" />
-
-          <div id="tags">
+          <div id="tags" class="hidden">
             <h5 class="sidebar-header">tags</h5>
             <ul id="tag-list">
               <!-- Tags go here -->
             </ul>
-          </div><!-- #tags -->
-        </div><!-- #filters -->
+			<hr class="break" />
+		</div><!-- #tags -->
+  
+ 	  </div><!-- #filters -->
 
-        <hr class="break" />
 
         <div id="metrics">
           <h5 class="sidebar-header">metrics</h5>
@@ -138,6 +137,8 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
 			<a id="show-all">Show all</a>
 		</span><!-- #if-more -->
 		<span id="dot">—</span>
+		
+        <h4 id="by">Powered by <a target="_blank" href="http://www.datadoghq.com/">Datadog</a></h4>
     </div><!-- #content -->
 
   </div><!-- #container -->
@@ -146,7 +147,7 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
   <script>
     var port = {{ port }};
   </script>  
-  <script src="./d3.v2.min.js"></script>
+  <script src="./d3.v2.js"></script>
   <script src="./jquery-1.7.2.min.js"></script>
   <script src="./highlight.pack.js"></script> 
   <script src="./pup.full.js"></script>
@@ -168,8 +169,8 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
 	// sort by time added
 	$("#by-time-added").click(function() {
 		// switch active tab
-		$(this).addClass("active");
-		$("#by-name").removeClass("active");
+		$(this).addClass("sort-active");
+		$("#by-name").removeClass("sort-active");
 
 		// sort by time
 		PupController.interact().sort().byTimeAdded();
@@ -178,8 +179,8 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
 	// sort by name
 	$("#by-name").click(function() {
 		// switch active tab
-		$(this).addClass("active");
-		$("#by-time-added").removeClass("active");
+		$(this).addClass("sort-active");
+		$("#by-time-added").removeClass("sort-active");
 
 		// sort by time
 		PupController.interact().sort().byName();
@@ -196,8 +197,8 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
 	});
 
 	// highlight graphs on mouseover
-	$('#metric-list li').live("mouseover", function() {
-		var metricName = $(this).find(":first-child").html();
+	$('#metric-list li,.plot-box').live("mouseover", function() {
+		var metricName = this.getAttribute('name');
 		PupController.interact().highlightGraph(metricName);
 	});
 
@@ -208,8 +209,8 @@ dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
 	});
 
 	// fade graphs on mouseout
-	$('#metric-list li').live("mouseout", function() {
-		var metricName = $(this).find(":first-child").html();
+	$('#metric-list li,.plot-box').live("mouseout", function() {
+		var metricName = this.getAttribute('name');
 		PupController.interact().fadeGraph(metricName);
 	});
 

@@ -96,21 +96,17 @@ class MetricTransaction(Transaction):
         logging.debug("Sending transaction %d to datadog" % self.get_id())
 
         for current_idx, endpoint in enumerate(self._endpoints):
-            # Send Transaction to the endpoint
             req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
-                                 method = "POST", body = self.get_data() )
+                 method = "POST", body = self.get_data() )
+            # Send Transaction to the endpoint
             http = tornado.httpclient.AsyncHTTPClient()
+
+            logging.info(req.url)
 
             # Check response for last endpoint
             # 1st priority, ddUrl; 2nd priority, pupUrl.
-            if 'ddUrl' in self._endpoints:
-                if endpoint == 'ddUrl': 
-                    http.fetch(req, callback=lambda(x): self.on_response(x))
-                else: http.fetch(req, callback=lambda(x): None)
-            elif 'pupUrl' in self._endpoints:
-                if endpoint == 'pupUrl': 
-                    http.fetch(req, callback=lambda(x): self.on_response(x))
-                else: http.fetch(req, callback=lambda(x): None)
+            if endpoint == 'ddUrl':
+                http.fetch(req, callback=lambda(x): None)
             else: http.fetch(req, callback=lambda(x): self.on_response(x))
 
     def on_response(self, response):
@@ -128,8 +124,10 @@ class APIMetricTransaction(MetricTransaction):
     def get_url(self, endpoint):
         config = self._application._agentConfig
         api_key = config['apiKey']
-        base_url = config['ddUrl']
-        return base_url + '/api/v1/series/?api_key=' + api_key
+        url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
+        if endpoint == 'pupUrl':
+            url = config[endpoint] + '/api/v1/series'
+        return url
 
     def get_data(self):
         return self._data
