@@ -341,7 +341,6 @@ class TestDogstream(TailTestCase):
 2012-07-14 04:54:34,193 WARN received SIGTERM indicating exit request
 """
         event_type = supervisord_log.EVENT_TYPE
-        event_object = EventDefaults.EVENT_OBJECT
 
         expected_output = {
             "dogstreamEvents":[

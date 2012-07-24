@@ -28,7 +28,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.0.3"
+    return "3.0.4"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -94,7 +94,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main','listen_port'):
-                listen_port = config.get('Main','listen_port')
+                listen_port = config.get('Main', 'listen_port')
             agentConfig['ddUrl'] = "http://localhost:" + str(listen_port)
         elif options is not None and options.dd_url:
             agentConfig['ddUrl'] = options.dd_url
@@ -137,12 +137,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if config.has_option('Main', 'watchdog'):
             if config.get('Main', 'watchdog').lower() in ('no', 'false'):
                 agentConfig['watchdog'] = False
-
-        # port we listen on (overriden via command line)
-        if config.has_option('Main','port'):
-            agentConfig['listen_port'] = int(config.get('Main','port'))
-        else:
-            agentConfig['listen_port'] = None
 
         # Optional graphite listener
         if config.has_option('Main','graphite_listen_port'):
