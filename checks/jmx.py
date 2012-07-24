@@ -167,7 +167,7 @@ class Jvm(Check):
                 self._store_metric("gauge",key,jvm_name,values[key])  
 
     def check(self, agentConfig):
-        self._check_jvm(agentConfig.get('JVMName'),agentConfig,'JVMServer','JVMUser','JVMPassword')
+        self._check_jvm(agentConfig.get('jvm_jmx_name'),agentConfig,'jvm_jmx_server','jvm_jmx_user','jvm_jmx_pass')
         return self.get_samples()
 
 class Tomcat(Jvm):
@@ -247,7 +247,7 @@ class Tomcat(Jvm):
     def check(self, agentConfig):
 
         try:
-            self._check_jvm('tomcat',agentConfig,'TomcatServer','TomcatUser','TomcatPassword')
+            self._check_jvm('tomcat',agentConfig,'tomcat_jmx_server','tomcat_jmx_user','tomcat_jmx_pass')
             if self.jmx.connected():
                 self.get_stats()
         except Exception, e:
@@ -307,8 +307,8 @@ class ActiveMQ(Jvm):
     def check(self, agentConfig):
 
         try:
-            self._check_jvm('activemq',agentConfig,'ActiveMQServer',
-                'ActiveMQUser','ActiveMQPassword')
+            self._check_jvm('activemq',agentConfig,'activemq_jmx_server',
+                'activemq_jmx_user','activemq_jmx_pass')
             if self.jmx.connected():
                 self.get_stats()
         except Exception, e:
@@ -375,8 +375,8 @@ class Solr(Jvm):
     def check(self, agentConfig):
 
         try:
-            self._check_jvm('solr',agentConfig,'SolrServer',
-                'SolrUser','SolrPassword')
+            self._check_jvm('solr',agentConfig,'solr_jmx_server',
+                'solr_jmx_user','solr_jmx_pass')
             if self.jmx.connected():
                 self.get_stats()
         except Exception, e:
@@ -390,16 +390,16 @@ if __name__ == "__main__":
     import logging
 
     #jvm = Jvm(logging)
-    #print jvm.check({'JVMServer': "localhost:8090", 'JVMName': "tomcat"})
+    #print jvm.check({'jvm_jmx_server': "localhost:8090", 'jvm_jmx_name': "tomcat"})
 
     tomcat = Tomcat(logging)
-    print tomcat.check({'TomcatServer': 'localhost:8090'})
-    print tomcat.check({'TomcatServer': 'localhost:8090'})
+    print tomcat.check({'tomcat_jmx_server': 'localhost:8090'})
+    print tomcat.check({'tomcat_jmx_server': 'localhost:8090'})
 
     #a = ActiveMQ(logging)
-    #print a.check({'ActiveMQServer': '4934'})
-    #print a.check({'ActiveMQServer': '4934'})
+    #print a.check({'activemq_jmx_server': '4934'})
+    #print a.check({'activemq_jmx_server': '4934'})
 
     #s = Solr(logging)
-    #print s.check({'SolrServer': '6975'})
-    #print s.check({'SolrServer': '6975'})
+    #print s.check({'solr_jmx_server': '6975'})
+    #print s.check({'solr_jmx_server': '6975'})

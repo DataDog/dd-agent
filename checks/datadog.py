@@ -130,7 +130,7 @@ class Dogstream(object):
     
     def check(self, agentConfig, move_end=True):
         if self.log_path:
-            self._freq = int(agentConfig.get('checkFreq', 15))
+            self._freq = int(agentConfig.get('check_freq', 15))
             self._values = []
             self._events = []
         
@@ -304,7 +304,7 @@ class NagiosPerfData(object):
 
     @classmethod
     def init(cls, logger, config):
-        nagios_perf_config = config.get('nagiosPerfCfg', None)
+        nagios_perf_config = config.get('nagios_perf_cfg', None)
         parsers = []
         if nagios_perf_config:
             nagios_config = cls.parse_nagios_config(nagios_perf_config)

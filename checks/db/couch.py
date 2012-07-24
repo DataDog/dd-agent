@@ -26,7 +26,7 @@ class CouchDb(Check):
             return None
 
     def check(self, agentConfig):
-        if 'CouchDBServer' not in agentConfig or agentConfig['CouchDBServer'] == '':
+        if 'couchdb_server' not in agentConfig or agentConfig['couchdb_server'] == '':
             return False
 
         # The dictionary to be returned.
@@ -35,7 +35,7 @@ class CouchDb(Check):
         # First, get overall statistics.
         endpoint = '/_stats/'
 
-        url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
+        url = '%s%s' % (agentConfig['couchdb_server'], endpoint)
         overall_stats = self._get_stats(agentConfig, url)
 
         # No overall stats? bail out now
@@ -47,14 +47,14 @@ class CouchDb(Check):
         # Next, get all database names.
         endpoint = '/_all_dbs/'
 
-        url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
+        url = '%s%s' % (agentConfig['couchdb_server'], endpoint)
         databases = self._get_stats(agentConfig, url)
 
         if databases is not None:
             for dbName in databases:
                 endpoint = '/%s/' % dbName
 
-                url = '%s%s' % (agentConfig['CouchDBServer'], endpoint)
+                url = '%s%s' % (agentConfig['couchdb_server'], endpoint)
                 db_stats = self._get_stats(agentConfig, url)
                 if db_stats is not None:
                     couchdb['databases'][dbName] = db_stats

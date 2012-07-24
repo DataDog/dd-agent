@@ -79,7 +79,7 @@ class TestDogstream(TailTestCase):
 
         self.config = {
             'dogstreams': self.log_file.name,
-            'checkFreq': 5,
+            'check_freq': 5,
         }
         log.info("Test config: %s" % self.config)
         self.dogstream = Dogstreams.init(self.logger, self.config)
@@ -380,8 +380,8 @@ class TestNagiosPerfData(TailTestCase):
         self.nagios_config.flush()
 
         self.agent_config = {
-            'nagiosPerfCfg': self.nagios_config.name,
-            'checkFreq': 5,
+            'nagios_perf_cfg': self.nagios_config.name,
+            'check_freq': 5,
         }
 
     def _write_nagios_config(self, config_data):

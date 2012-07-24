@@ -82,7 +82,7 @@ class MetricTransaction(Transaction):
             logging.exception('http_emitter failed')
 
     def get_url(self):
-        return self._application._agentConfig['ddUrl'] + '/intake/'
+        return self._application._agentConfig['dd_url'] + '/intake/'
 
     def flush(self):
 
@@ -107,8 +107,8 @@ class APIMetricTransaction(MetricTransaction):
 
     def get_url(self):
         config = self._application._agentConfig
-        api_key = config['apiKey']
-        base_url = config['ddUrl']
+        api_key = config['api_key']
+        base_url = config['dd_url']
         return base_url + '/api/v1/series/?api_key=' + api_key
 
     def get_data(self):
@@ -207,7 +207,7 @@ class Application(tornado.web.Application):
         if len(self._metrics) > 0:
             self._metrics['uuid'] = getUuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
-            self._metrics['apiKey'] = self._agentConfig['apiKey']
+            self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics)
             self._metrics = {}
 

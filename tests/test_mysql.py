@@ -19,7 +19,7 @@ class TestMySql(unittest.TestCase):
             return
 
         # First round for gauges
-        results = self.mysql.check({"MySQLServer": "localhost", "MySQLUser": "dog", "MySQLPass": "dog"})
+        results = self.mysql.check({"mysql_server": "localhost", "mysql_user": "dog", "mysql_pass": "dog"})
         self.assertEquals(results["mysqlCreatedTmpDiskTables"], 2.0)
         self.assertEquals(results["mysqlMaxUsedConnections"], 5.0)
         self.assertEquals(results["mysqlOpenFiles"], 6.0)
@@ -30,7 +30,7 @@ class TestMySql(unittest.TestCase):
         self.assertEquals("mysqlQuestions" not in results, True)
 
         # Add 2 counters
-        results = self.mysql.check({"MySQLServer": "localhost", "MySQLUser": "dog", "MySQLPass": "dog"})
+        results = self.mysql.check({"mysql_server": "localhost", "mysql_user": "dog", "mysql_pass": "dog"})
         self.assertEquals(results["mysqlConnections"], 0.0)
         self.assertEquals(results["mysqlSlowQueries"], 0.0)
         self.assertEquals(results["mysqlQuestions"], 0.0)
