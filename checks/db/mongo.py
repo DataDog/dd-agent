@@ -85,7 +85,7 @@ class MongoDb(Check):
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
         """
 
-        if 'MongoDBServer' not in agentConfig or agentConfig['MongoDBServer'] == '':
+        if 'mongodb_server' not in agentConfig or agentConfig['mongodb_server'] == '':
             return False
 
         try:
@@ -94,20 +94,20 @@ class MongoDb(Check):
             try:
                 from pymongo import uri_parser
                 # Configuration a URL, mongodb://user:pass@server/db
-                dbName = uri_parser.parse_uri(agentConfig['MongoDBServer'])['database']
+                dbName = uri_parser.parse_uri(agentConfig['mongodb_server'])['database']
             
                 # parse_uri gives a default database of None
                 dbName = dbName or 'test'
 
             except ImportError:
                 # uri_parser is pymongo 2.0+
-                dbName = mongo_uri_re.match(agentConfig['MongoDBServer']).group(1)
+                dbName = mongo_uri_re.match(agentConfig['mongodb_server']).group(1)
 
             if dbName is None:
-                self.logger.error("Mongo: cannot extract db name from config %s" % agentConfig['MongoDBServer'])
+                self.logger.error("Mongo: cannot extract db name from config %s" % agentConfig['mongodb_server'])
                 return False
 
-            conn = Connection(agentConfig['MongoDBServer'])
+            conn = Connection(agentConfig['mongodb_server'])
             db = conn[dbName]
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
@@ -212,7 +212,7 @@ class MongoDb(Check):
 
 if __name__ == "__main__":
     import logging
-    agentConfig = { 'MongoDBServer': 'localhost:27017', 'apiKey': 'toto' }
+    agentConfig = { 'mongodb_server': 'localhost:27017', 'apiKey': 'toto' }
     db = MongoDb(logging)
     print db.check(agentConfig)
    

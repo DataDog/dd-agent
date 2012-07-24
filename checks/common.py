@@ -278,7 +278,7 @@ class checks(object):
             'memShared': memory.get('physShared'),
             'networkTraffic' : networkTraffic, 
             'processes' : processes,
-            'apiKey': self.agentConfig['apiKey'],
+            'apiKey': self.agentConfig['api_key'],
             'events': {},
             'resources': {},
         }
@@ -377,7 +377,7 @@ class checks(object):
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
-            checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
+            checksData['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                                'event_type':'Agent Startup',
@@ -403,7 +403,7 @@ class checks(object):
  
         if has_resource:
             checksData['resources']['meta'] = {
-                        'api_key': self.agentConfig['apiKey'],
+                        'api_key': self.agentConfig['api_key'],
                         'host': checksData['internalHostname'],
                     }
 

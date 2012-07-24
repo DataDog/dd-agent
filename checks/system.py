@@ -536,7 +536,7 @@ class Processes(object):
         logger.debug('getProcesses: completed, returning')
         
         return { 'processes':   processes,
-                 'apiKey':      agentConfig['apiKey'],
+                 'apiKey':      agentConfig['api_key'],
                  'host':        gethostname(agentConfig) }
             
 class Cpu(object):

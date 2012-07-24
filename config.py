@@ -68,9 +68,9 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
 
     # General config
     agentConfig = {}
-    agentConfig['debugMode'] = False
+    agentConfig['debug_mode'] = False
     # not really a frequency, but the time to sleep between checks
-    agentConfig['checkFreq'] = DEFAULT_CHECK_FREQUENCY
+    agentConfig['check_freq'] = DEFAULT_CHECK_FREQUENCY
     agentConfig['version'] = get_version()
 
     # Config handling
@@ -95,32 +95,32 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             listen_port = 17123
             if config.has_option('Main','listen_port'):
                 listen_port = config.get('Main','listen_port')
-            agentConfig['ddUrl'] = "http://localhost:" + str(listen_port)
+            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
         elif options is not None and options.dd_url:
-            agentConfig['ddUrl'] = options.dd_url
+            agentConfig['dd_url'] = options.dd_url
         else:
-            agentConfig['ddUrl'] = config.get('Main', 'dd_url')
-        if agentConfig['ddUrl'].endswith('/'):
-            agentConfig['ddUrl'] = agentConfig['ddUrl'][:-1]
+            agentConfig['dd_url'] = config.get('Main', 'dd_url')
+        if agentConfig['dd_url'].endswith('/'):
+            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
 
         # Which API key to use
-        agentConfig['apiKey'] = config.get('Main', 'api_key')
+        agentConfig['api_key'] = config.get('Main', 'api_key')
 
         # Debug mode
-        agentConfig['debugMode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
+        agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
         if config.has_option('Main', 'use_ec2_instance_id'):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
-            agentConfig['useEC2InstanceId'] = (use_ec2_instance_id.lower() == 'yes')
+            agentConfig['use_ec2_instance_id'] = (use_ec2_instance_id.lower() == 'yes')
         else:
-            agentConfig['useEC2InstanceId'] = False
+            agentConfig['use_ec2_instance_id'] = False
 
         if config.has_option('Main', 'check_freq'):
             try:
-                agentConfig['checkFreq'] = int(config.get('Main', 'check_freq'))
+                agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
             except:
-                agentConfig['checkFreq'] = DEFAULT_CHECK_FREQUENCY
+                agentConfig['check_freq'] = DEFAULT_CHECK_FREQUENCY
 
         if config.has_option('Main','hostname'):
             agentConfig['hostname'] = config.get('Main','hostname')
@@ -168,49 +168,49 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
 
         if config.has_option('Main', 'apache_status_url'):
-            agentConfig['apacheStatusUrl'] = config.get('Main', 'apache_status_url')
+            agentConfig['apache_status_url'] = config.get('Main', 'apache_status_url')
 
         if config.has_option('Main', 'mysql_server'):
-            agentConfig['MySQLServer'] = config.get('Main', 'mysql_server')
+            agentConfig['mysql_server'] = config.get('Main', 'mysql_server')
 
         if config.has_option('Main', 'mysql_user'):
-            agentConfig['MySQLUser'] = config.get('Main', 'mysql_user')
+            agentConfig['mysql_user'] = config.get('Main', 'mysql_user')
 
         if config.has_option('Main', 'mysql_pass'):
-            agentConfig['MySQLPass'] = config.get('Main', 'mysql_pass')
+            agentConfig['mysql_pass'] = config.get('Main', 'mysql_pass')
 
         if config.has_option('Main', 'postgresql_server'):
-            agentConfig['PostgreSqlServer'] = config.get('Main','postgresql_server')
+            agentConfig['postgresql_server'] = config.get('Main','postgresql_server')
 
         if config.has_option('Main', 'postgresql_port'):
-            agentConfig['PostgreSqlPort'] = config.get('Main','postgresql_port')
+            agentConfig['postgresql_port'] = config.get('Main','postgresql_port')
 
         if config.has_option('Main', 'postgresql_user'):
-            agentConfig['PostgreSqlUser'] = config.get('Main','postgresql_user')
+            agentConfig['postgresql_user'] = config.get('Main','postgresql_user')
 
         if config.has_option('Main', 'postgresql_pass'):
-            agentConfig['PostgreSqlPass'] = config.get('Main','postgresql_pass')
+            agentConfig['postgresql_pass'] = config.get('Main','postgresql_pass')
 
         if config.has_option('Main', 'nginx_status_url'):
-            agentConfig['nginxStatusUrl'] = config.get('Main', 'nginx_status_url')
+            agentConfig['nginx_status_url'] = config.get('Main', 'nginx_status_url')
 
         if config.has_option('Main', 'plugin_directory'):
-            agentConfig['pluginDirectory'] = config.get('Main', 'plugin_directory')
+            agentConfig['plugin_directory'] = config.get('Main', 'plugin_directory')
 
         if config.has_option('Main', 'rabbitmq_status_url'):
-            agentConfig['rabbitMQStatusUrl'] = config.get('Main', 'rabbitmq_status_url')
+            agentConfig['rabbitmq_status_url'] = config.get('Main', 'rabbitmq_status_url')
 
         if config.has_option('Main', 'rabbitmq_user'):
-            agentConfig['rabbitMQUser'] = config.get('Main', 'rabbitmq_user')
+            agentConfig['rabbitmq_user'] = config.get('Main', 'rabbitmq_user')
 
         if config.has_option('Main', 'rabbitmq_pass'):
-            agentConfig['rabbitMQPass'] = config.get('Main', 'rabbitmq_pass')
+            agentConfig['rabbitmq_pass'] = config.get('Main', 'rabbitmq_pass')
 
         if config.has_option('Main', 'mongodb_server'):
-            agentConfig['MongoDBServer'] = config.get('Main', 'mongodb_server')
+            agentConfig['mongodb_server'] = config.get('Main', 'mongodb_server')
 
         if config.has_option('Main', 'couchdb_server'):
-            agentConfig['CouchDBServer'] = config.get('Main', 'couchdb_server')
+            agentConfig['couchdb_server'] = config.get('Main', 'couchdb_server')
 
         if config.has_option('Main', 'hudson_home'):
             agentConfig['hudson_home'] = config.get('Main', 'hudson_home')
@@ -238,37 +238,37 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
 
         # Java config
         if config.has_option('Main', 'jvm_jmx_server'):
-            agentConfig['JVMServer'] = config.get('Main', 'jvm_jmx_server')
+            agentConfig['jvm_jmx_server'] = config.get('Main', 'jvm_jmx_server')
         if config.has_option('Main', 'jvm_jmx_user'):
-            agentConfig['JVMUser'] = config.get('Main', 'jvm_jmx_user')
+            agentConfig['jvm_jmx_user'] = config.get('Main', 'jvm_jmx_user')
         if config.has_option('Main', 'jvm_jmx_pass'):
-            agentConfig['JVMPassword'] = config.get('Main', 'jvm_jmx_pass')
+            agentConfig['jvm_jmx_pass'] = config.get('Main', 'jvm_jmx_pass')
         if config.has_option('Main', 'jvm_jmx_name'):
-            agentConfig['JVMName'] = config.get('Main', 'jvm_jmx_name')
+            agentConfig['jvm_jmx_name'] = config.get('Main', 'jvm_jmx_name')
 
         # Tomcat config
         if config.has_option('Main', 'tomcat_jmx_server'):
-            agentConfig['TomcatServer'] = config.get('Main', 'tomcat_jmx_server')
+            agentConfig['tomcat_jmx_server'] = config.get('Main', 'tomcat_jmx_server')
         if config.has_option('Main', 'tomcat_jmx_user'):
-            agentConfig['TomcatUser'] = config.get('Main', 'tomcat_jmx_user')
+            agentConfig['tomcat_jmx_user'] = config.get('Main', 'tomcat_jmx_user')
         if config.has_option('Main', 'tomcat_jmx_pass'):
-            agentConfig['TomcatPassword'] = config.get('Main', 'tomcat_jmx_pass')
+            agentConfig['tomcat_jmx_pass'] = config.get('Main', 'tomcat_jmx_pass')
 
         # ActiveMQ config
         if config.has_option('Main', 'activemq_jmx_server'):
-            agentConfig['ActiveMQServer'] = config.get('Main', 'activemq_jmx_server')
+            agentConfig['activemq_jmx_server'] = config.get('Main', 'activemq_jmx_server')
         if config.has_option('Main', 'activemq_jmx_user'):
-            agentConfig['ActiveMQUser'] = config.get('Main', 'activemq_jmx_user')
+            agentConfig['activemq_jmx_user'] = config.get('Main', 'activemq_jmx_user')
         if config.has_option('Main', 'activemq_jmx_pass'):
-            agentConfig['ActiveMQPassword'] = config.get('Main', 'activemq_jmx_pass')
+            agentConfig['activemq_jmx_pass'] = config.get('Main', 'activemq_jmx_pass')
 
         # Solr config
         if config.has_option('Main', 'solr_jmx_server'):
-            agentConfig['SolrServer'] = config.get('Main', 'solr_jmx_server')
+            agentConfig['solr_jmx_server'] = config.get('Main', 'solr_jmx_server')
         if config.has_option('Main', 'solr_jmx_user'):
-            agentConfig['SolrUser'] = config.get('Main', 'solr_jmx_user')
+            agentConfig['solr_jmx_user'] = config.get('Main', 'solr_jmx_user')
         if config.has_option('Main', 'solr_jmx_pass'):
-            agentConfig['SolrPassword'] = config.get('Main', 'solr_jmx_pass')
+            agentConfig['solr_jmx_pass'] = config.get('Main', 'solr_jmx_pass')
 
         # Memcache config
         if config.has_option("Main", "memcache_server"):
@@ -289,7 +289,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             agentConfig["dogstreams"] = config.get("Main", "dogstreams")
 
         if config.has_option("Main", "nagios_perf_cfg"):
-            agentConfig["nagiosPerfCfg"] = config.get("Main", "nagios_perf_cfg")
+            agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
         if config.has_option('Main', 'cacti_mysql_server'):
             agentConfig['cacti_mysql_server'] = config.get('Main', 'cacti_mysql_server')
@@ -326,22 +326,22 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
     except ConfigParser.NoOptionError, e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
 
-    if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] == None:
+    if 'apache_status_url' in agentConfig and agentConfig['apache_status_url'] == None:
         sys.stderr.write('You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto.\n')
         sys.exit(2)
 
-    if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] == None:
+    if 'nginx_status_url' in agentConfig and agentConfig['nginx_status_url'] == None:
         sys.stderr.write('You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status.\n')
         sys.exit(2)
 
-    if 'MySQLServer' in agentConfig and agentConfig['MySQLServer'] != '' and 'MySQLUser' in agentConfig and agentConfig['MySQLUser'] != '' and 'MySQLPass' in agentConfig:
+    if 'mysql_server' in agentConfig and agentConfig['mysql_server'] != '' and 'mysql_user' in agentConfig and agentConfig['mysql_user'] != '' and 'mysql_pass' in agentConfig:
         try:
             import MySQLdb
         except ImportError:
             sys.stderr.write('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
             sys.exit(2)
 
-    if 'MongoDBServer' in agentConfig and agentConfig['MongoDBServer'] != '':
+    if 'mongodb_server' in agentConfig and agentConfig['mongodb_server'] != '':
         try:
             import pymongo
         except ImportError:
