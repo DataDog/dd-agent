@@ -12,6 +12,7 @@
 
 # Core modules
 import logging
+import modules
 import os
 import os.path
 import re
