@@ -130,7 +130,7 @@ class Nagios(object):
             self.logger.debug("Not checking nagios because nagios_log is not set in config file")
             return False
 
-        self.apikey = agentConfig['apiKey']
+        self.apikey = agentConfig['api_key']
         self.events = []
         self._line_parsed = 0
 

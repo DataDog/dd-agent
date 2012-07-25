@@ -76,7 +76,7 @@ class MongoDb(Check):
         return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
                  'event_type': 'Mongo',
                  'host': gethostname(agentConfig),
-                 'api_key': agentConfig['apiKey'],
+                 'api_key': agentConfig['api_key'],
                  'version': serverVersion,
                  'state': get_state_description(state) }
 
