@@ -21,12 +21,12 @@ def http_emitter(message, logger, agentConfig):
 
         # Post back the data
         postBackData = format_body(message, logger)
-        logger.debug('http_emitter: attempting postback to ' + agentConfig['ddUrl'])
+        logger.debug('http_emitter: attempting postback to ' + agentConfig['dd_url'])
         
         # Build the request handler
         apiKey = message.get('apiKey', None)
         if apiKey:
-            request = urllib2.Request("%s/intake?api_key=%s" % (agentConfig['ddUrl'], apiKey), postBackData, headers(agentConfig))
+            request = urllib2.Request("%s/intake?api_key=%s" % (agentConfig['dd_url'], apiKey), postBackData, headers(agentConfig))
             # Do the request, log any errors
             response = urllib2.urlopen(request)
             

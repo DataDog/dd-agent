@@ -183,15 +183,15 @@ class MySql(Check):
     def check(self, agentConfig):
         try:
             self.logger.debug("Mysql check start")
-            if  'MySQLServer' in agentConfig \
-                and 'MySQLUser'   in agentConfig\
-                and agentConfig['MySQLServer'] != ''\
-                and agentConfig['MySQLUser'] != '':
+            if  'mysql_server' in agentConfig \
+                and 'mysql_user'   in agentConfig\
+                and agentConfig['mysql_server'] != ''\
+                and agentConfig['mysql_user'] != '':
     
                 # Connect
                 try:
                     import MySQLdb
-                    self.db = MySQLdb.connect(agentConfig['MySQLServer'], agentConfig['MySQLUser'], agentConfig['MySQLPass'])
+                    self.db = MySQLdb.connect(agentConfig['mysql_server'], agentConfig['mysql_user'], agentConfig['mysql_pass'])
                     self.getVersion()
     
                 except ImportError, e:

@@ -12,6 +12,7 @@
 
 # Core modules
 import logging
+import modules
 import os
 import os.path
 import re
@@ -23,7 +24,7 @@ import urllib
 PID_DIR="/var/run/dd-agent"
 PID_FILE="dd-agent.pid"
 
-WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * checkFreq, 150s by default
+WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * check_freq, 150s by default
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -52,7 +53,7 @@ class agent(Daemon):
 
         # Try to fetch instance Id from EC2 if not hostname has been set
         # in the config file
-        if agentConfig.get('hostname') is None and agentConfig.get('useEC2InstanceId'):
+        if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
             instanceId = EC2.get_instance_id()
             if instanceId is not None:
                 agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
@@ -60,17 +61,20 @@ class agent(Daemon):
             else:
                 agentLogger.info('Not running on EC2, using hostname to identify this server')
  
-        emitter = http_emitter
+        emitters = [http_emitter]
+        for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
+            if len(emitter_spec) == 0: continue
+            emitters.append(modules.load(emitter_spec, 'emitter'))
 
-        checkFreq = int(agentConfig['checkFreq'])
+        check_freq = int(agentConfig['check_freq'])
         
         # Checks instance
-        c = checks(agentConfig, emitter)
+        c = checks(agentConfig, emitters)
 
         # Watchdog
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(checkFreq * WATCHDOG_MULTIPLIER)
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
 
         # Run checks once, to get once-in-a-run data
@@ -80,13 +84,13 @@ class agent(Daemon):
         while run_forever:
             if watchdog is not None:
                 watchdog.reset()
-            time.sleep(checkFreq)
+            time.sleep(check_freq)
             c.doChecks()
         
 def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.
-    Also controls debugMode."""
-    if agentConfig['debugMode']:
+    Also controls debug_mode."""
+    if agentConfig['debug_mode']:
         logFile = "/tmp/dd-agent.log"
         logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logging.info("Logging to %s" % logFile)

@@ -62,7 +62,7 @@ class TestNagios(unittest.TestCase):
 
     def testBulkParsing(self):
         """Make sure the log is read in one fell swoop"""
-        events = self.nagios.check(logger, {"nagios_log": NAGIOS_TEST_LOG, "apiKey": "123"}, move_end=False)
+        events = self.nagios.check(logger, {"nagios_log": NAGIOS_TEST_LOG, "api_key": "123"}, move_end=False)
         self.assertEquals(len(events), 503) # There are 503 events
         assert len([e for e in events if e["api_key"] == "123"]) > 500, "Missing api-keys in events"
 
@@ -75,7 +75,7 @@ class TestNagios(unittest.TestCase):
             for i in range(ITERATIONS):
                 f.write(x)
                 f.flush()
-                events.extend(self.nagios.check(logger, {"nagios_log": f.name, "apiKey": "123"}, move_end=False))
+                events.extend(self.nagios.check(logger, {"nagios_log": f.name, "api_key": "123"}, move_end=False))
         self.assertEquals(len(events), ITERATIONS * 503)
             
 

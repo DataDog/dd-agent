@@ -1,4 +1,5 @@
 from checks.utils import TailFile
+import modules
 import os
 import sys
 import traceback
@@ -98,17 +99,14 @@ class Dogstream(object):
         
         if parser_spec:
             try:
-                module_name, func_name = parser_spec.split(':')
-                __import__(module_name)
-                parse_func = getattr(sys.modules[module_name], func_name, 
-                    None)
+                parse_func = modules.load(parser_spec, 'parser')
             except:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
                     parser_spec, 
                     os.environ.get('PYTHONPATH', ''))
                 )
-            logger.info("dogstream: parsing %s with %s" % (log_path, parse_func))
+            logger.info("dogstream: parsing %s with %s (requested %s)" % (log_path, parse_func, parser_spec))
         else:
             logger.info("dogstream: parsing %s with default parser" % log_path)
         
@@ -132,7 +130,7 @@ class Dogstream(object):
     
     def check(self, agentConfig, move_end=True):
         if self.log_path:
-            self._freq = int(agentConfig.get('checkFreq', 15))
+            self._freq = int(agentConfig.get('check_freq', 15))
             self._values = []
             self._events = []
         
@@ -189,8 +187,12 @@ class Dogstream(object):
                         datum['event_type'] = EventDefaults.EVENT_TYPE
                     if 'timestamp' not in datum:
                         datum['timestamp'] = time.time()
-                    if 'event_object' not in datum:
-                        datum['event_object'] = EventDefaults.EVENT_OBJECT
+                    if 'event_object' not in datum and 'aggregation_key' not in datum:
+                        datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
+                    else:
+                        # Translate event_object into aggregation_key
+                        datum['aggregation_key'] = datum.pop('event_object', datum['aggregation_key'])
+                    
                     self._events.append(datum)
                     continue
 
@@ -236,7 +238,7 @@ class Dogstream(object):
         try:
             while line:
                 keyval, _, line = partition(line.strip(), sep)
-                key, val = keyval.split('=')
+                key, val = keyval.split('=', 1)
                 attributes[key] = val
         except Exception, e:
             logger.debug(traceback.format_exc())
@@ -302,7 +304,7 @@ class NagiosPerfData(object):
 
     @classmethod
     def init(cls, logger, config):
-        nagios_perf_config = config.get('nagiosPerfCfg', None)
+        nagios_perf_config = config.get('nagios_perf_cfg', None)
         parsers = []
         if nagios_perf_config:
             nagios_config = cls.parse_nagios_config(nagios_perf_config)

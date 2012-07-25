@@ -16,6 +16,8 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+import modules
+
 from config import get_version
 
 from checks import gethostname
@@ -68,10 +70,10 @@ def recordsize(func):
     return wrapper
 
 class checks(object):
-    def __init__(self, agentConfig, emitter):
+    def __init__(self, agentConfig, emitters):
         self.agentConfig = agentConfig
         self.plugins = None
-        self.emitter = emitter
+        self.emitters = emitters
         self.os = None
         
         self.checksLogger = logging.getLogger('checks')
@@ -109,6 +111,13 @@ class checks(object):
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             ]
+        for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
+            if len(module_spec) == 0: continue
+            try:
+                self._metrics_checks.append(modules.load(module_spec, 'Check')(self.checksLogger))
+            except Exception:
+                self.checksLogger.error('Unable to load custom check module %r', module_spec, exc_info=True)
+
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
@@ -278,7 +287,7 @@ class checks(object):
             'memShared': memory.get('physShared'),
             'networkTraffic' : networkTraffic, 
             'processes' : processes,
-            'apiKey': self.agentConfig['apiKey'],
+            'apiKey': self.agentConfig['api_key'],
             'events': {},
             'resources': {},
         }
@@ -377,7 +386,7 @@ class checks(object):
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
-            checksData['events']['System'] = [{'api_key': self.agentConfig['apiKey'],
+            checksData['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                                'event_type':'Agent Startup',
@@ -403,7 +412,7 @@ class checks(object):
  
         if has_resource:
             checksData['resources']['meta'] = {
-                        'api_key': self.agentConfig['apiKey'],
+                        'api_key': self.agentConfig['api_key'],
                         'host': checksData['internalHostname'],
                     }
 
@@ -416,5 +425,6 @@ class checks(object):
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
-        self.emitter(checksData, self.checksLogger, self.agentConfig)
+        for emitter in self.emitters:
+            emitter(checksData, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")

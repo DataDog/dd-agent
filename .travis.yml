@@ -1,3 +1,8 @@
+# blacklist
+branches:
+  except:
+    - check-haproxy
+    
 language: python
 python:
   - "2.6"
@@ -8,7 +13,7 @@ install:
 script: nosetests tests
 before_script:
   - sudo apt-get install sysstat
-  - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.4.deb > /tmp/es.deb
+  - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.8.deb > /tmp/es.deb
   - sudo dpkg -i /tmp/es.deb
   - sudo service elasticsearch start
 env:

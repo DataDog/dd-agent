@@ -17,7 +17,7 @@ mkdir -p $dd_base
 
 # set up a virtual env
 curl -L -o $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/develop/virtualenv.py
-python $dd_base/virtualenv.py --python=python2.6 $dd_base/venv
+python $dd_base/virtualenv.py $dd_base/venv
 . $dd_base/venv/bin/activate
 
 # install dependencies
@@ -56,51 +56,60 @@ rm $dd_base/virtualenv.py
 rm $dd_base/virtualenv.pyc
 rm $dd_base/agent.tar.gz
 
+# run agent
+cd $dd_base
+supervisord -c $dd_base/supervisord/supervisord.conf &> /dev/null &
+agent_pid=$!
+trap "{ kill $agent_pid; exit 255; }" SIGINT SIGTERM
+trap "{ kill $agent_pid; exit; }" EXIT
+
+# wait for metrics to be submitted
+echo "\033[32m
+Your agent has started up for the first time. We're currently
+verifying that data is being submitted. You should see your agent show
+up in Datadog within a few seconds at:
+
+    https://app.datadoghq.com/account/settings#agent\033[0m
+
+Waiting for metrics...\c"
+
+c=0
+while [ "$c" -lt "30" ]; do
+    sleep 1
+    echo ".\c"
+    c=$(($c+1))
+done
+
+curl -f http://localhost:17123/status?threshold=0 &> /dev/null
+success=$?
+while [ "$success" -gt "0" ]; do
+    sleep 1
+    echo ".\c"
+    curl -f http://localhost:17123/status?threshold=0 &> /dev/null
+    success=$?
+done
+
 # print instructions
-if [ "$unamestr" = "Darwin" ]; then
-echo "
+echo "\033[32m
 
-We're about to start up the agent for the first time. Once it's running,
-you can stop it with 'ctrl-c'. You should start seeing metrics within
-a few seconds at:
-
-    https://app.datadoghq.com/dash/host_name/`hostname`
-
-To start the agent up again after killing this script, run:
+Success! Your agent is functioning properly, and will continue to run
+in the foreground. To stop it, simply press CTRL-C. To start it back
+up again in the foreground, run:
 
     cd $dd_base
     sh bin/agent
+"
 
-To make it permanent, run:
+if [ "$unamestr" = "Darwin" ]; then
+echo "To set it up as a daemon that always runs in the background
+while you're logged in, run:
 
     mkdir -p ~/Library/LaunchAgents
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
     launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-
-Here we go!
-
 "
 fi
 
-if [ "$unamestr" = "Linux" ]; then
-echo "
+echo "\033[0m\c"
 
-We're about to start up the agent for the first time. Once it's running,
-you can stop it with 'ctrl-c'. You should start seeing metrics within
-a few seconds at:
-
-    https://app.datadoghq.com/dash/host_name/`hostname`
-
-To start the agent up again after killing this script, run:
-
-    cd $dd_base
-    sh bin/agent
-
-Here we go!
-
-"
-fi
-
-# run agent
-cd $dd_base
-supervisord -c $dd_base/supervisord/supervisord.conf
+wait $agent_pid

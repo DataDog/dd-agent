@@ -24,9 +24,9 @@ class Apache(Check):
         self.gauge("apacheCPULoad")
 
     def check(self, agentConfig):
-        if 'apacheStatusUrl' in agentConfig and agentConfig['apacheStatusUrl'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
+        if 'apache_status_url' in agentConfig and agentConfig['apache_status_url'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
             try: 
-                req = urllib2.Request(agentConfig['apacheStatusUrl'], None, headers(agentConfig))
+                req = urllib2.Request(agentConfig['apache_status_url'], None, headers(agentConfig))
                 request = urllib2.urlopen(req)
                 response = request.read()
                 sample_time = time.time()
@@ -85,9 +85,9 @@ class Nginx(Check):
          1156958 1156958 4491319 
         Reading: 0 Writing: 2 Waiting: 6
         """
-        if 'nginxStatusUrl' in agentConfig and agentConfig['nginxStatusUrl'] != 'http://www.example.com/nginx_status':  # Don't do it if the status URL hasn't been provided
+        if 'nginx_status_url' in agentConfig and agentConfig['nginx_status_url'] != 'http://www.example.com/nginx_status':  # Don't do it if the status URL hasn't been provided
             try: 
-                req = urllib2.Request(agentConfig['nginxStatusUrl'], None, headers(agentConfig))
+                req = urllib2.Request(agentConfig['nginx_status_url'], None, headers(agentConfig))
                 request = urllib2.urlopen(req)
                 response = request.read()
                 sample_time = time.time()

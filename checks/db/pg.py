@@ -86,10 +86,10 @@ class PostgreSql(Check):
 
     def check(self, agentConfig):
 
-        server = agentConfig.get('PostgreSqlServer','')
-        port = agentConfig.get('PostgreSqlPort','')
-        user = agentConfig.get('PostgreSqlUser','')
-        passwd = agentConfig.get('PostgreSqlPass','')
+        server = agentConfig.get('postgresql_server','')
+        port = agentConfig.get('postgresql_port','')
+        user = agentConfig.get('postgresql_user','')
+        passwd = agentConfig.get('postgresql_pass','')
  
         if server != '' and user != '':
 
@@ -124,5 +124,5 @@ if __name__ == "__main__":
 
     import logging
     pg = PostgreSql(logging)
-    pg.check({'PostgreSqlServer': 'localhost', 'PostgreSqlUser': 'dog', 'PostgreSqlPass': 'dog'})
+    pg.check({'postgresql_server': 'localhost', 'postgresql_user': 'dog', 'postgresql_pass': 'dog'})
 

@@ -211,7 +211,7 @@ class Load(Check):
                 
         # Split out the 3 load average values
         loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
-        return {'1': loadAvrgs[0], '5': loadAvrgs[1], '15': loadAvrgs[2]}  
+        return {'1': float(loadAvrgs[0]), '5': float(loadAvrgs[1]), '15': float(loadAvrgs[2])}
 
 class Memory(Check):
     def __init__(self, logger):
@@ -536,7 +536,7 @@ class Processes(object):
         logger.debug('getProcesses: completed, returning')
         
         return { 'processes':   processes,
-                 'apiKey':      agentConfig['apiKey'],
+                 'apiKey':      agentConfig['api_key'],
                  'host':        gethostname(agentConfig) }
             
 class Cpu(object):

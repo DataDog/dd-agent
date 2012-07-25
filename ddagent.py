@@ -64,10 +64,10 @@ class MetricTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
-        if cls._application._agentConfig['usePup']:
-            cls._endpoints.append('pupUrl')
-        if cls._application._agentConfig['useDd']:
-            cls._endpoints.append('ddUrl')
+        if cls._application._agentConfig['use_pup']:
+            cls._endpoints.append('pup_url')
+        if cls._application._agentConfig['use_dd']:
+            cls._endpoints.append('dd_url')
 
     def __init__(self, data):
         self._data = data
@@ -104,8 +104,8 @@ class MetricTransaction(Transaction):
             logging.info(req.url)
 
             # Check response for last endpoint
-            # 1st priority, ddUrl; 2nd priority, pupUrl.
-            if endpoint == 'ddUrl':
+            # 1st priority, dd_url; 2nd priority, pup_url.
+            if endpoint == 'dd_url':
                 http.fetch(req, callback=lambda(x): None)
             else: http.fetch(req, callback=lambda(x): self.on_response(x))
 
@@ -123,9 +123,9 @@ class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint):
         config = self._application._agentConfig
-        api_key = config['apiKey']
+        api_key = config['api_key']
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
-        if endpoint == 'pupUrl':
+        if endpoint == 'pup_url':
             url = config[endpoint] + '/api/v1/series'
         return url
 
@@ -136,15 +136,21 @@ class APIMetricTransaction(MetricTransaction):
 class StatusHandler(tornado.web.RequestHandler):
 
     def get(self):
+        threshold = int(self.get_argument('threshold', -1))
 
         m = MetricTransaction.get_tr_manager()
-       
+
         self.write("<table><tr><td>Id</td><td>Size</td><td>Error count</td><td>Next flush</td></tr>")
-        for tr in m.get_transactions():
+        transactions = m.get_transactions()
+        for tr in transactions:
             self.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % 
                 (tr.get_id(), tr.get_size(), tr.get_error_count(), tr.get_next_flush()))
         self.write("</table>")
-  
+
+        if threshold >= 0:
+            if len(transactions) > threshold:
+                self.set_status(503)
+
 class AgentInputHandler(tornado.web.RequestHandler):
 
     HASH = "hash"
@@ -224,7 +230,7 @@ class Application(tornado.web.Application):
         if len(self._metrics) > 0:
             self._metrics['uuid'] = getUuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
-            self._metrics['apiKey'] = self._agentConfig['apiKey']
+            self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics)
             self._metrics = {}            
 
