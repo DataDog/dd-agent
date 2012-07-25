@@ -115,7 +115,7 @@ class Hudson(object):
         
         for job_dir in job_dirs:
             for output in self._get_build_results(logger, job_dir):
-                output['api_key'] = agentConfig['apiKey']
+                output['api_key'] = agentConfig['api_key']
                 output['host'] = gethostname(agentConfig)
                 build_events.append(output)
         
@@ -135,7 +135,8 @@ if __name__ == '__main__':
     logger.addHandler(logging.StreamHandler())
     hudson = Hudson()
     while True:
-        print hudson.check(logger, {'hudson_home': hudson_home,
-                              'apiKey':      apiKey})
+        print hudson.check(logger,
+                           {'hudson_home': hudson_home,
+                            'apiKey': apiKey})
         time.sleep(1)
         
