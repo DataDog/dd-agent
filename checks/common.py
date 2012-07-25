@@ -16,6 +16,8 @@ try:
 except ImportError: # Python < 2.5
     from md5 import new as md5
 
+import modules
+
 from config import get_version
 
 from checks import gethostname
@@ -109,6 +111,13 @@ class checks(object):
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             ]
+        for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
+            if len(module_spec) == 0: continue
+            try:
+                self._metrics_checks.append(modules.load(module_spec, 'Check')(self.checksLogger))
+            except Exception:
+                self.checksLogger.error('Unable to load custom check module %r', module_spec, exc_info=True)
+
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 

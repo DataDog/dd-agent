@@ -321,11 +321,27 @@ use_mount: no
 
 # Comma-separated list of emitters to be used in addition to the standard one
 #
-# Expected to be passed as a colon-separated file (or module) / classname list.
+# Expected to be passed as a comma-separated list of colon-delimited
+# name/object pairs.
 #
 # custom_emitters: /usr/local/my-code/emitters/rabbitmq.py:RabbitMQEmitter
 #
-# If the name of the emitter function is not classed, 'emitter' is assumed.
+# If the name of the emitter function is not specified, 'emitter' is assumed.
+
+
+# ========================================================================== #
+# Custom Checks
+# ========================================================================== #
+
+# Comma-separated list of additional metric checks
+#
+# Expected to be passed as a comma-separated list of colon-delimited
+# name/object pairs.
+#
+# custom_checks: /usr/local/my-code/checks/foo.py:FooCheck
+#
+# If the name of the check is not specified, 'Check' is assumed.
+
 
 
 # -------------------------------------------------------------------------- #
