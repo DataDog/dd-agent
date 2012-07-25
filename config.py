@@ -109,7 +109,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             listen_port = 17123
             if config.has_option('Main','listen_port'):
                 listen_port = config.get('Main', 'listen_port')
-            agentConfig['ddUrl'] = "http://localhost:" + str(listen_port)
+            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
         elif options is not None and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
         else:
