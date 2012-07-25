@@ -207,6 +207,7 @@ class Application(tornado.web.Application):
         self._metrics = {}
         self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
         MetricTransaction.set_application(self)
+        MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)

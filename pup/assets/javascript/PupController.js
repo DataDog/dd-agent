@@ -99,6 +99,7 @@ var PupController = function(isWSClosed, Store, $) {
 		$('#data-streaming').addClass("hidden");
 		$('#disconnected').removeClass("hidden");
 		$('#listening').html("Not " + $('#listening').html());
+		window.scrollTo(0,0);
 	};
 
 	var run = function() {
