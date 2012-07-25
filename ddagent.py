@@ -64,10 +64,12 @@ class MetricTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
-        if cls._application._agentConfig['use_pup']:
-            cls._endpoints.append('pup_url')
-        if cls._application._agentConfig['use_dd']:
-            cls._endpoints.append('dd_url')
+        if 'use_pup' in cls._application._agentConfig:
+            if cls._application._agentConfig['use_pup']:
+                cls._endpoints.append('pup_url')
+        if 'use_dd' in cls._application._agentConfig:
+            if cls._application._agentConfig['use_dd']:
+                cls._endpoints.append('dd_url')
 
     def __init__(self, data):
         self._data = data
@@ -200,14 +202,11 @@ class ApiInputHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig):
-
         self._port = port
         self._agentConfig = agentConfig
-
         self._metrics = {}
-
+        self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
         MetricTransaction.set_application(self)
-        MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
@@ -257,6 +256,7 @@ class Application(tornado.web.Application):
         mloop = tornado.ioloop.IOLoop.instance() 
 
         def flush_trs():
+            self._watchdog.reset()
             self._postMetrics()
             self._tr_manager.flush()
 
@@ -271,6 +271,7 @@ class Application(tornado.web.Application):
             gs.listen(gport)
 
         # Start everything
+        self._watchdog.reset()
         tr_sched.start()
         mloop.start()
     

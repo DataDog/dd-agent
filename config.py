@@ -91,6 +91,8 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         'watchdog': True,
     }
 
+    dogstatsd_interval = 10
+
     # Config handling
     try:
         # Find the right config file
@@ -113,33 +115,36 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         # Core config
         #
 
-        agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
+        if config.has_option('Main', 'use_dd'):
+            agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
 
-        if options is not None and options.use_forwarder:
-            listen_port = 17123
-            if config.has_option('Main','listen_port'):
-                listen_port = config.get('Main','listen_port')
-            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
-        elif options is not None and not options.disable_dd and options.dd_url:
-            agentConfig['dd_url'] = options.dd_url
-        else:
-            agentConfig['dd_url'] = config.get('Main', 'dd_url')
-        if agentConfig['dd_url'].endswith('/'):
-            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
+            if options is not None and options.use_forwarder:
+                listen_port = 17123
+                if config.has_option('Main','listen_port'):
+                    listen_port = config.get('Main','listen_port')
+                agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            elif options is not None and not options.disable_dd and options.dd_url:
+                agentConfig['dd_url'] = options.dd_url
+            else:
+                agentConfig['dd_url'] = config.get('Main', 'dd_url')
+            if agentConfig['dd_url'].endswith('/'):
+                agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
 
         # Whether also to send to Pup
-        agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
-        if options is not None and options.disable_pup:
-            agentConfig['use_pup'] = False
-        elif agentConfig['use_pup']:
-            agentConfig['pup_url'] = config.get('Main', 'pup_url')
+        if config.has_option('Main', 'use_pup'):
+            agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
 
-        if not agentConfig['use_dd'] and not agentConfig['use_pup']:
-            sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
-            exit(2)
+            if options is not None and options.disable_pup:
+                agentConfig['use_pup'] = False
+            elif agentConfig['use_pup']:
+                agentConfig['pup_url'] = config.get('Main', 'pup_url')
+                dogstatsd_interval = STATSD_FREQUENCY
+            if not agentConfig['use_dd'] and not agentConfig['use_pup']:
+                sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
+                exit(2)
 
         # Which API key to use
-        agentConfig['apiKey'] = config.get('Main', 'api_key')
+        agentConfig['api_key'] = config.get('Main', 'api_key')
 
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
@@ -165,9 +170,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             agentConfig['graphite_listen_port'] = int(config.get('Main','graphite_listen_port'))
         else:
             agentConfig['graphite_listen_port'] = None
-
-        dogstatsd_interval = 10
-        if agentConfig['use_pup']: dogstatsd_interval = STATSD_FREQUENCY
 
         # Dogstatsd config
         dogstatsd_defaults = {
