@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 Pup.py
 	Datadog
@@ -89,6 +89,7 @@ if int(sys.version_info[1]) <= 5:
 	sys.stderr.write("Pup requires python 2.6 or later.\n")
 	sys.exit(2)
 
+PUP_HOME = os.path.realpath(os.path.dirname(__file__))
 metrics = defaultdict(lambda : defaultdict(list))
 listeners = {}
 waiting = dict({"Waiting":1})
@@ -150,7 +151,7 @@ def agent_update(payload):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("pup.html",
+        self.render(os.path.join(PUP_HOME, "pup.html"),
         title="Pup",
         port=port)
             
@@ -185,7 +186,7 @@ class PupSocket(websocket.WebSocketHandler):
         del listeners[self]
 
 settings = {
-    "static_path": os.path.join(os.path.dirname(__file__), "static"),
+    "static_path": os.path.join(PUP_HOME, "static"),
     "cookie_secret": "61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
     "login_url": "/login",
     "xsrf_cookies": True,
