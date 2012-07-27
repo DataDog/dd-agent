@@ -31,7 +31,7 @@ Import the library and include it in the code of your choice
     from statsd import statsd
 
     def query_my_database():
-      dog.increment("database.query count", tags=['db'])
+      statsd.increment("database query count", tags=['db'])
       # Run the query…
 
 Execute this code, and voilá! Metrics should be appearing any second now at localhost:17125.
@@ -51,7 +51,7 @@ Require the gem and initialize a new instance of Statsd in the code or your choi
     statsd = Statsd.new()
 
     get '/' do
-      tatsd.time('page render time', :tags => ['users']) do
+      statsd.time('page render time', :tags => ['users']) do
         erb :index
       end
     end
