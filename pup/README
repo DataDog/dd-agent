@@ -1,7 +1,0 @@
-pup
-===
-
-Collects and displays metrics at localhost from dogapi, StatsD, dd-agent and more.
-
-For contributors, make sure to run:
-    npm install
