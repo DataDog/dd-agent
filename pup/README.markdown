@@ -6,7 +6,7 @@ Pup faithfully collects and displays metrics at localhost from Statsd. It's a ha
 
 First install the [Datadog agent](https://github.com/DataDog/dd-agent) by running in the command prompt
 
-    $ sh -c "$(curl -L http://bit.ly/get-pup)"
+    $ sh -c "$(curl -L http://dtdg.co/setup-pup)"
 
 That's it! Now navigate to **localhost:17125**. Within ten seconds, system metrics should start streaming.
 
