@@ -132,7 +132,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
         
-        # Whether also to send to Pup
+		# Whether also to send to Pup
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
