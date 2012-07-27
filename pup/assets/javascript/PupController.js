@@ -153,7 +153,6 @@ var PupController = function(isWSClosed, Store, $) {
 				graph.updateLatestVal(now);
 
 				// update sidebar
-				// TODO: Make histogram NA, the average
 				if (metric.type === "histogram") {
 					sideByName[metric.name].select(".li-val").text(format(metric.average))
 						.classed("timed-out", false);
@@ -215,7 +214,6 @@ var PupController = function(isWSClosed, Store, $) {
 			var graphDivs	= document.getElementById('graphs').children,
 				shownCount	= 0;
 
-			// TODO: Strip out jQuery
 			$(graphDivs).each(function() {
 				if ( $(this).is(':visible') ) {
 					shownCount++;

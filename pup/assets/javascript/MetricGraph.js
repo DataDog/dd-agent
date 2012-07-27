@@ -78,14 +78,16 @@ var MetricGraph = function(options) {
 										.ticks(5)
 										.tickFormat(this.format));
 
-	
+	// avoids awkward on-the-pixel-divider issues	
+	var ANTIALIAS = 0.5;
+
 	// configure the line	
 	this.line = d3.svg.line()
 		.interpolate(interpolation)
 		.defined(function(d) { return d.value != null; })
-		.x(function(d) { return x(d.time); })
-		.y(function(d) { return y(d.value); });
-	
+		.x(function(d) { return x(d.time) + ANTIALIAS; })
+		.y(function(d) { return y(d.value) + ANTIALIAS; });
+
 	// configure line generator
 	this.area = d3.svg.area()
 		.interpolate(interpolation)
@@ -274,7 +276,7 @@ var HistogramGraph = function(options) {
 					return a === b ? 0 :
 									(a < b) ? 1 : -1;
 				});
-		return stack(values); // TODO: Handle ordering better.
+		return stack(values);
 	};
 
 	var height = graph.height,

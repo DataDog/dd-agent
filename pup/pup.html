@@ -77,47 +77,45 @@
       <!-- If no data streaming -->
       <div id="waiting">
         <h3 id="waiting-header">Pup is waiting for data…</h3>
-        <p>To send data to pup, follow one of these two options:</p>
+        <p>To send data to Pup:</p>
 		<!-- Detailed explanation of options go here -->
 			<ul>
-				<li id="option-1">
-				<h3>1. Install the Datadog <a href="https://github.com/DataDog/dd-agent" target="_blank">agent</a>.</h3>
-					<p>Run it, and make sure to send a copy of the collected metrics to pup.</p>
-					<pre><code class="bash">python ddagent.py -p</code></pre>
+				<li id="step-1">
+					<h3>1. Install the Datadog <a href="https://github.com/DataDog/dd-agent" target="_blank">agent</a>.</h3>
 				</li>
-				<li id="option-2">
-				<h3>2. Instrument your Python or Ruby code with dogapi</h3>
+				<li id"step-2">
+				<h3>2. Instrument your Python or Ruby code with dogstatsd</h3>
 					<p><strong>Python</strong></p>
-					<p>If you haven't already, install the <a href="http://pydoc.datadoghq.com/en/latest/index.html" target="_blank">dogapi</a> module</p>
-					<pre><code class="python">sudo easy_install dogapi</code></pre>
-					<p>Include it in the code of your choice</p>
-					<pre><code class="python">#Here's an example
-from dogapi import dog_stats_api as dog
-dog.start(api_key="my_api_key")
+					<p>If you haven't already, install the library</p>
+					<pre><code class="bash">$ sudo easy_install dogstatsd-python</code></pre>
+					<p>Import the library in the code of your choice</p>
+					<pre><code class="python"># Here's an example
+from statsd import statsd
 
-@dog.timed("home_page_render_time")
 def render_home_page(user_id):
-""" Render the home page for the given user. """
+  """ Render the home page for the given user. """
 
-user = user_cache.get(user_id)
-if user:
-	dog.increment("user_cache_hit")
-else:
-	dog.increment("user_cache_miss")</code></pre>
-					<p>Run that code, and voilà! Metrics should be appearing any second now.</p>
+  user = user_cache.get(user_id)
+  if user:
+    statsd.increment("user.cache_hit")
+  else: statsd.increment("user.cache_miss")</code></pre>
+					<p>Run your code, and voilà! Metrics should be appearing any second now.</p>
 					<p><strong>Ruby</strong></p>
-					<p>If you haven't already, install the <a href="https://github.com/DataDog/dogapi-rb" target="_blank">dogapi-rb</a> gem</p>
-					<pre><code class="bash">$ gem install dogapi</code></pre>
+					<p>If you haven't already, install the dogstatsd-ruby gem</p>
+					<pre><code class="bash">$ gem install dogstatsd-ruby</code></pre>
 					<p>Require the gem in the code of your choice</p>
-					<pre><code class="ruby">require 'rubygems'
-require 'dogapi'
+					<pre><code class="ruby"># Here's an example in Ruby
+require 'statsd'
+require 'sinatra'
 
-api_key = ""
+statsd = Statsd.new()
 
-dog = Dogapi::Client.new(api_key)
-
-dog.emit_point('biscuits_left', 50, :host => "my_host")</pre></code>
-					<p>Whabam! Insight.</p>
+get '/' do
+  statsd.increment('page hits (per ten seconds)')
+  erb :index
+end
+</pre></code>
+					<p>Whabam! Insight. Note: The "." separator indicates to Pup to group metrics under a namespace defined by what's left of the first "." in the metric name.</p>
 				</li>
 			</ul>
 			</br>

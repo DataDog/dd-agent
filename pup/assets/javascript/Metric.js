@@ -1,7 +1,3 @@
-// TODO: Make allTags and metricId not global.
-var allTags = [],
-	metricId = 0;
-
 /* Metric.js
  * Defines Metric data objects, such as Line and Histogram.
  *
@@ -11,13 +7,15 @@ var allTags = [],
  *	isTimedOut()			: returns whether a metric has timed out
  */
 
-// TODO: Fix inheritance / static / private manipulation here
+// global variables non-specific to any instance of a metric
+var allTags = [],
+	metricId = 0;
 
 var PupController;
 var Metric = function(options) {
 	this.n			= PupController.n();		// defines number of datapoints in a graph
 	this.createdAt	= new Date();				// creation timestamp. used in sorting by time added
-	this.uuid		= metricId++;				// used in selection. TODO: Might not be needed.
+	this.uuid		= metricId++;				// used in selection.
 	this.name		= options.metric;			// name of metric. used for sorting by name
 	this.type		= options.type;				// type of metric
 	this.freq       = options.freq * 1000;      // estimated frequency of sending in milliseconds
@@ -50,8 +48,8 @@ function Histogram(options) {
 
 	this.mostRecent = options.points.map(function(stk) {
 		return {
-	   		"name"   : stk.stackName,
-			"values" : {time: +options.now, value: 0}
+			"name"		: stk.stackName,
+			"values"	: {time: +options.now, value: null}
 		};
 	});	
 }
@@ -69,7 +67,7 @@ Histogram.prototype.updateMostRecent = function(incomingMetric, metric) {
 					"time"	: d[0] * 1000,
 					"value"	: d[1]
 				};
-			})[0] // TODO: should make continuous
+			})[0]
 		};
 	});
 	this.max = max;
@@ -80,7 +78,6 @@ Histogram.prototype.pushRecent = function() {
 	for (var i = 0; i < this.data.length; i++) {
 		var mostRecent = {time: this.mostRecent[i].values.time, value: this.mostRecent[i].values.value};
 		this.data[i].values[this.data[i].values.length] = mostRecent;
-		// TODO: Ensure proper ordering of stacks.
 	}
 };
 
@@ -94,6 +91,9 @@ Histogram.prototype.pushNull = function(now) {
 Histogram.prototype.shiftOld = function(timeWindow) {
 	for (var i = 0; i < this.data.length; i++) {
 		while (this.data[i].values[0].time < timeWindow) {
+			if (this.max === this.data[i].values[0].value) {
+				this.max = 0;	// reset the max
+			}
 			this.data[i].values.shift();
 		}
 	}
@@ -172,6 +172,7 @@ Line.prototype.pushRecent = function() {
 
 Line.prototype.shiftOld = function(timeWindow) {
 	while (this.data[0].time < timeWindow) {
+		if (this.max === this.data[0].value) { this.max = 0; }
 		this.data.shift();
 	}
 };

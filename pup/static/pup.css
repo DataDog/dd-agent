@@ -28,7 +28,7 @@ input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
 
 /* common classes */
 .hidden { display: none !important; visibility: hidden; } /* Hide from both screenreaders and browsers */
-
+.center { text-align: center; }
 
 /* general */
 a {
@@ -194,10 +194,6 @@ pre {
 	-ms-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	-o-box-shadow:0px 1px 3px rgba(0,0,0,0.66);
 	box-shadow:0px 1px 3px rgba(0,0,0,0.66);
-	-webkit-transition: all 0.05s ease-in-out;
-	-moz-transition: all 0.05s ease-in-out;
-	-o-transition: all 0.05s ease-in-out;
-	transition: all 0.05s ease-in-out;
 }
 
 @media (max-width: 1396px) {
@@ -224,6 +220,7 @@ pre {
 	line-height: 2.0em;
 	border-bottom: 2px dotted #f4f4f4;
 	background-color: #fefefe;
+	color: #6f56a2;
 }
 
 .highlight-graph-header {
@@ -500,10 +497,6 @@ pre {
 	color: #6f56a2;
 }
 
-#metric-list li:active {
-	background-color: #6f56a2;
-}
-
 #metric-list li:hover {
 	cursor: pointer;
 }
@@ -568,10 +561,6 @@ pre {
 .area {
   fill: #E1D0F2;
   opacity: 0.5;
-}
-
-.area:hover {
-  opacity: 0.7;
 }
 
 .x.axis line {

@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+
 """
 Pup.py
 	Datadog
@@ -73,6 +74,7 @@ AGENT_TRANSLATION = {
     'apacheBytesPerSec'         : 'apache.net.bytes_per_s',
 }
 
+# Comes along with the histogram series. Only min/avg/max are plotted.
 HISTOGRAM_IGNORE = [
 	"count",
     "50percentile",
@@ -82,6 +84,12 @@ HISTOGRAM_IGNORE = [
 	"99percentile"
 ]
 
+# Ignored namespaces for agent and other Datadog software
+AGENT_IGNORE = [
+	'dd',
+	'app',
+	'events'
+]
 
 # Check if using old version of Python. Pup's usage of defaultdict requires 2.5 or later,
 # and tornado only supports 2.5 or later. The agent supports 2.6 onwards it seems.
@@ -89,11 +97,9 @@ if int(sys.version_info[1]) <= 5:
 	sys.stderr.write("Pup requires python 2.6 or later.\n")
 	sys.exit(2)
 
-PUP_HOME = os.path.realpath(os.path.dirname(__file__))
 metrics = defaultdict(lambda : defaultdict(list))
 listeners = {}
-waiting = dict({"Waiting":1})
-port = 8888
+port = 17125
 
 def is_number(n):
     try:
@@ -115,34 +121,36 @@ def flush(message):
 
 def send_metrics():
     if metrics == {}:
-        flush(waiting)
+        flush(dict({"Waiting":1}))
     else: flush(metrics)
     metrics.clear()
-    
+
 def update(series):
+    """ Updates statsd metrics from POST to /api/v1/series """
     for s in series:
         tags = s['tags']
+        split_metric_name = s['metric'].split(".")
         if is_histogram(s):
             # split everything
-            split_metric_name = s['metric'].split(".")
             namespace = split_metric_name[0]
-            if namespace == 'dd' or namespace == 'app': # for now
+            if namespace in AGENT_IGNORE:
                 continue
-            metric = ".".join(split_metric_name[0:-1])
+            metric_name = ".".join(split_metric_name[0:-1])
             stack_name = split_metric_name[-1]
             values = s['points']
-            metrics[metric]['points'].append({ "stackName" : stack_name, "values" : values })
-            metrics[metric]['type'] = "histogram"
-            metrics[metric]['tags'] = tags
-            metrics[metric]['freq'] = 5
+            metrics[metric_name]['points'].append({ "stackName" : stack_name, "values" : values })
+            metrics[metric_name]['type'] = "histogram"
+            metrics[metric_name]['tags'] = tags
+            metrics[metric_name]['freq'] = 15
         else:
-            if s['metric'].split(".")[-1] in HISTOGRAM_IGNORE:
+            if split_metric_name[-1] in HISTOGRAM_IGNORE:
                 continue
-            metric = s['metric']
+            metric_name = s['metric']
             points = s['points']
-            metrics[metric] = {"points" : points, "type" : "line", "tags" : tags, "freq" : 5}
+            metrics[metric_name] = {"points" : points, "type" : "line", "tags" : tags, "freq" : 15}
 
 def agent_update(payload):
+    """ Updates system metrics from POST to /intake """
     for p in payload:
         timestamp = payload['collection_timestamp']
         if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic']:
@@ -151,7 +159,7 @@ def agent_update(payload):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render(os.path.join(PUP_HOME, "pup.html"),
+        self.render("pup.html",
         title="Pup",
         port=port)
             
@@ -186,9 +194,8 @@ class PupSocket(websocket.WebSocketHandler):
         del listeners[self]
 
 settings = {
-    "static_path": os.path.join(PUP_HOME, "static"),
+    "static_path": os.path.join(os.path.dirname(__file__), "static"),
     "cookie_secret": "61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
-    "login_url": "/login",
     "xsrf_cookies": True,
 }
 
@@ -202,15 +209,16 @@ application = tornado.web.Application([
 ])
 
 def main():
+    """ Parses arguments and starts Pup server """
     global port
-    parser = argparse.ArgumentParser(description='Pup server to collect and display metrics at localhost (default port 8888) from dogapi, StatsD, and dd-agent.')
-    parser.add_argument('-p', dest='port', default=8888, type=int, nargs='?',
-                       help='localhost port number for the server to listen on. Default is port 8888.')
+    parser = argparse.ArgumentParser(description='Pup server to collect and display metrics at localhost (default port 17125) from dogapi, StatsD, and dd-agent.')
+    parser.add_argument('-p', dest='port', default=17125, type=int, nargs='?',
+                       help='localhost port number for the server to listen on. Default is port 17125.')
     args = parser.parse_args()
     port = args.port
     application.listen(port)
 
-    interval_ms = 100
+    interval_ms = 2000
     io_loop = ioloop.IOLoop.instance()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()

@@ -49,12 +49,11 @@ var allTags = [],
  *	isTimedOut()			: returns whether a metric has timed out
  */
 
-
 var PupController;
 var Metric = function(options) {
 	this.n			= PupController.n();		// defines number of datapoints in a graph
 	this.createdAt	= new Date();				// creation timestamp. used in sorting by time added
-	this.uuid		= metricId++;				// used in selection. TODO: Might not be needed.
+	this.uuid		= metricId++;				// used in selection.
 	this.name		= options.metric;			// name of metric. used for sorting by name
 	this.type		= options.type;				// type of metric
 	this.freq       = options.freq * 1000;      // estimated frequency of sending in milliseconds
@@ -104,7 +103,7 @@ Histogram.prototype.updateMostRecent = function(incomingMetric, metric) {
 					"time"	: d[0] * 1000,
 					"value"	: d[1]
 				};
-			})[0] // TODO: should make continuous
+			})[0]
 		};
 	});
 	this.max = max;
@@ -128,6 +127,9 @@ Histogram.prototype.pushNull = function(now) {
 Histogram.prototype.shiftOld = function(timeWindow) {
 	for (var i = 0; i < this.data.length; i++) {
 		while (this.data[i].values[0].time < timeWindow) {
+			if (this.max === this.data[i].values[0].value) {
+				this.max = 0;	// reset the max
+			}
 			this.data[i].values.shift();
 		}
 	}
@@ -203,6 +205,7 @@ Line.prototype.pushRecent = function() {
 
 Line.prototype.shiftOld = function(timeWindow) {
 	while (this.data[0].time < timeWindow) {
+		if (this.max === this.data[0].value) { this.max = 0; }
 		this.data.shift();
 	}
 };
@@ -482,12 +485,13 @@ var MetricGraph = function(options) {
 										.ticks(5)
 										.tickFormat(this.format));
 
+	var ANTIALIAS = 0.5;
 
 	this.line = d3.svg.line()
 		.interpolate(interpolation)
 		.defined(function(d) { return d.value != null; })
-		.x(function(d) { return x(d.time); })
-		.y(function(d) { return y(d.value); });
+		.x(function(d) { return x(d.time) + ANTIALIAS; })
+		.y(function(d) { return y(d.value) + ANTIALIAS; });
 
 	this.area = d3.svg.area()
 		.interpolate(interpolation)
@@ -835,6 +839,7 @@ var PupController = function(isWSClosed, Store, $) {
 		$('#data-streaming').addClass("hidden");
 		$('#disconnected').removeClass("hidden");
 		$('#listening').html("Not " + $('#listening').html());
+		window.scrollTo(0,0);
 	};
 
 	var run = function() {

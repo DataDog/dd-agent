@@ -130,7 +130,8 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         else:
             agentConfig['dd_url'] = config.get('Main', 'dd_url')
         if agentConfig['dd_url'].endswith('/'):
-
+            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
+        
         # Whether also to send to Pup
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
@@ -144,6 +145,9 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:
                 agentConfig['pup_url'] = 'http://localhost:17125'
+   
+        # Increases the frequency of statsd metrics when only sending to Pup
+        if not agentConfig['use_dd'] and agentConfig['use_pup']:
             dogstatsd_interval = STATSD_FREQUENCY
 
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
