@@ -1,14 +1,18 @@
 
+from checks.munin import MuninPlugin
+
 class PostgresMuninPlugin(MuninPlugin):
 
-    def get_name(self):
+    @staticmethod
+    def get_name():
         return "postgres"
 
-    def parse_metrics(self, metrics):
+    @staticmethod
+    def parse_metric(check, section, mname, mvalue):
         """ Postgres metrics:
           - section: postgres_[metric type]_[optional database] """
 
-        #print section, metrics
+        print section, mname
 
         ignore = mtype = db = None
         if section.count('_') == 1:
@@ -16,18 +20,4 @@ class PostgresMuninPlugin(MuninPlugin):
         else:
             ignore, mtype, db = section.split('_',2)
 
-        #print "db:", db
-
-        ms = {}
-        for m in metrics:
-            if m == db:
-                ms[mtype] = metrics[m]
-            else:
-                ms[mtype + '.' + m] = metrics[m]
-
-        #print ms
-        if db is not None:
-            return 'postgres', { db: ms }
-        else:
-            return 'postgres', ms
-
+        print "db:", db, "mtype:", mtype

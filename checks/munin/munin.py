@@ -7,6 +7,7 @@ import select
 import subprocess
 import ConfigParser
 import inspect
+import imp
 from datetime import datetime, timedelta
 from cStringIO import StringIO
 from checks import Check
@@ -43,9 +44,29 @@ class Munin(Check):
         Check.__init__(self, logger)
         self._current_plugin = None
         self._current_parser = None
-        self._parsers = {}
         self._myself = os.path.abspath(inspect.getfile(inspect.currentframe()))
 
+        # Init parsers
+        self._parsers = {}
+        d = os.path.dirname(os.path.abspath(__file__))
+        self.logger.info("Looking for plugins in: %s" % d)
+        for m in os.listdir(d):
+            m = os.path.join(d,m)
+            name, ext = os.path.splitext(os.path.split(m)[-1])
+            if ext.lower() == ".py" and name not in ['__init__', "munin"]:
+                try:
+                    pclass = name.capitalize() + 'MuninPlugin'
+                    module = imp.load_source(pclass, os.path.abspath(m))
+                    if hasattr(module, pclass):
+                        inst = getattr(module,pclass)() 
+                        self._parsers[inst.get_name()] = inst.parse_metric
+                        self.logger.info("Registered plugin for %s" % inst.get_name())
+                except:
+                    self.logger.exception("Failed loading plugin from %s" % m)
+
+    # plugins are static and the check object is the first argument, hence the static
+    # with a self
+    @staticmethod 
     def default_metric_parser(self, section, name, value):
         "Fallback: register metric as a counter, prefix it by munin"
         
@@ -61,7 +82,7 @@ class Munin(Check):
             metric, value = line.split()
             if metric.endswith('.value'):
                 metric = metric[0:-6]
-            self._current_parser(self._current_plugin, metric, value)
+            self._current_parser(self, self._current_plugin, metric, value)
         except Exception, e:
             self.logger.exception(e)
             return
@@ -100,7 +121,7 @@ class Munin(Check):
         # Run the process. Add the current datadog root as PYTHONPATH for imports
         # to work. This is the first entry of the current sys.path
         p = subprocess.Popen(cmd, stdout = subprocess.PIPE, 
-            env={'PYTHONPATH':os.path.abspath(sys.path[0])})
+            env={'PYTHONPATH': os.path.abspath(os.environ.get("PYTHONPATH",sys.path[0]))})
 
         fcntl.fcntl(p.stdout.fileno(),
                 fcntl.F_SETFL,
