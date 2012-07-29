@@ -42,6 +42,7 @@ from checks.datadog import Dogstreams, DdForwarder
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.cacti import Cacti
 from checks.varnish import Varnish
+from checks.munin import Munin
 
 from checks.db.elastic import ElasticSearch
 
@@ -110,6 +111,7 @@ class checks(object):
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
+            Munin(self.checksLogger)
             ]
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue

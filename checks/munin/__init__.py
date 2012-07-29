@@ -1,3 +1,4 @@
+from munin import Munin
 
 class MuninPlugin(object):
 

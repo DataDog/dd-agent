@@ -6,6 +6,7 @@ import os
 import select
 import subprocess
 import ConfigParser
+import inspect
 from datetime import datetime, timedelta
 from cStringIO import StringIO
 from checks import Check
@@ -43,6 +44,7 @@ class Munin(Check):
         self._current_plugin = None
         self._current_parser = None
         self._parsers = {}
+        self._myself = os.path.abspath(inspect.getfile(inspect.currentframe()))
 
     def default_metric_parser(self, section, name, value):
         "Fallback: register metric as a counter, prefix it by munin"
@@ -92,7 +94,13 @@ class Munin(Check):
     def run_with_timeout(self, cmd, timeout, callback):
         """Run a subprocess for at max timeout seconds, calling
         'callback' for each line read from stdout"""
-        p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
+
+        self.logger.info("Munin: Running: %s" % cmd)
+
+        # Run the process. Add the current datadog root as PYTHONPATH for imports
+        # to work. This is the first entry of the current sys.path
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE, 
+            env={'PYTHONPATH':os.path.abspath(sys.path[0])})
 
         fcntl.fcntl(p.stdout.fileno(),
                 fcntl.F_SETFL,
@@ -119,11 +127,13 @@ class Munin(Check):
             if p.poll() is not None:
                 break
             if (datetime.now() - started) > to:
+                self.logger.info("Running for too long, stop")
                 p.terminate()
                 break
 
         # Don't forget to flush the last plugin
         self.end_plugin()
+        self.logger.info("Munin: done")
 
     def check(self, config):
         """As usual, called by the agent"""
@@ -138,7 +148,7 @@ class Munin(Check):
         #Check that prun is executable
         if os.access(prun, os.X_OK):
             try:
-                self.run_with_timeout(["/usr/bin/sudo", sys.argv[0], prun, ppdir], timeout, self.process_metric_line)
+                self.run_with_timeout(["/usr/bin/sudo", self._myself, prun, ppdir], timeout, self.process_metric_line)
                 return self.get_metrics()
             except:
                 self.logger.exception("Cannot get munin stats")
