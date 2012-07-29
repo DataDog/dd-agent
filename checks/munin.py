@@ -50,6 +50,7 @@ class Munin(Check):
         mname = "munin." + section + "." + name
         if not self.is_counter(mname):
             self.counter(mname)
+        #print "Saving:", mname, value
         self.save_sample(mname,float(value))
 
     def read_metric(self, line):
@@ -132,6 +133,8 @@ class Munin(Check):
 
         self.run_with_timeout(["/usr/bin/sudo", sys.argv[0], prun, ppdir], timeout, self.process_metric_line)
 
+        return self.get_metrics()
+
 if __name__ == "__main__":
     
     if len(sys.argv) == 3:
@@ -140,4 +143,5 @@ if __name__ == "__main__":
         import logging
         config = { "apikey": "toto" }
         munin = Munin(logging)
+        munin.check(config) 
         print munin.check(config) 
