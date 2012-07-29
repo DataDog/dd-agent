@@ -131,9 +131,21 @@ class Munin(Check):
         ppdir = config.get("munin_plugin_path", "/etc/munin/plugins")
         timeout = config.get("munin_timeout",60)
 
-        self.run_with_timeout(["/usr/bin/sudo", sys.argv[0], prun, ppdir], timeout, self.process_metric_line)
+        #Check that prun exists
+        if not os.path.exists(prun):
+            return False
 
-        return self.get_metrics()
+        #Check that prun is executable
+        if os.access(prun, os.X_OK):
+            try:
+                self.run_with_timeout(["/usr/bin/sudo", sys.argv[0], prun, ppdir], timeout, self.process_metric_line)
+                return self.get_metrics()
+            except:
+                self.logger.exception("Cannot get munin stats")
+                return False
+        else:
+            self.logger.warn("Munin runner is not executable. Please check agent configuration")
+            return False
 
 if __name__ == "__main__":
     
@@ -143,5 +155,5 @@ if __name__ == "__main__":
         import logging
         config = { "apikey": "toto" }
         munin = Munin(logging)
-        munin.check(config) 
         print munin.check(config) 
+        #print munin.check(config) 
