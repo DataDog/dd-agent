@@ -105,10 +105,10 @@ html {
 	position: fixed;
 	top: 0;
 	left: 0;
+	bottom: 0;
 	padding: 8px;
 	border-right: 1px solid #cacaca;
 	background-color: #fefefe;
-	overflow: scroll;
 	box-shadow: 3px 0 4px #e6e6e6;
 }
 
