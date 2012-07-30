@@ -32,6 +32,6 @@ if __name__ == "__main__":
           author='Datadog',
           author_email='info@datadoghq.com',
           url='http://datadoghq.com/',
-          packages=['checks', 'checks/db', 'dogstream'],
+          packages=['checks', 'checks/db', 'checks/net', 'dogstream'],
           package_data={'checks': ['libs/*']},
          )
