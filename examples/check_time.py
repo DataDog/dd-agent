@@ -3,6 +3,11 @@ import time
 
 class SecondCheck(Check):
     """An example of a custom check.
+    
+    To use it you need to place this file in a directory that is reachable by the dd-agent user
+    and let the agent know of its location via the following stanza in /etc/dd-agent/datadog.conf
+    
+    custom_checks: /my/director/check_time.py:SecondCheck
     """
 
     def __init__(self, logger):
