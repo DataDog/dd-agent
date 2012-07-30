@@ -7,22 +7,27 @@ pre-packaged binaries for your convenience.  Check out our
 [faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you
 want to use our packages.
 
-Feel free to fork this repository and submit pull requests.
+# How to contribute code
 
-# How to configure it
+Feel free to fork this repository and submit pull requests against the
+`unstable` branch.
+
+# How to configure the agent
 
 If you are using packages on linux, the configuration file lives in
 `/etc/dd-agent/datadog.conf`. We provide and example in the same
 directory that you can use as a template.
 
-# How to parse log files
+# How to instrument your own applications
+
+## How to parse custom log files
 
 The Datadog agent can read metrics directly from your log files, either
 
 * from the Datadog canonical log format, without additional programming
 * from any other log format, with a customized log parsing function
 
-## Reading logs in the  Datadog canonical log format
+### Reading logs in the  Datadog canonical log format
 
 Datadog logs are formatted as follows:
 
@@ -43,7 +48,7 @@ You can also specify multiple log files like this:
 
     dogstreams: /var/log/web.log, /var/log/db.log, /var/log/cache.log
 
-## Parsing custom log formats
+### Parsing custom log formats
 
 If you don't have control over logging or can't issue your logs in the
 canonical format, you may also tell the Datadog agent to use a custom
@@ -99,7 +104,7 @@ in case it does not reside in the `PYTHONPATH`.
         # Return the output as a tuple
         return (metric_name, date, metric_value, attr_dict)
 
-### Custom parsing functions
+#### Custom parsing functions
 
 * take two parameters: a Python `logger` object and a string parameter of the current line to parse. 
 * return a tuple or list of tuples of the form:
@@ -109,7 +114,7 @@ in case it does not reside in the `PYTHONPATH`.
 Where attributes should at least contain the key `metric_type`,
 specifying whether the given metric is a `counter` or `gauge`.
 
-### Stateful parsing functions
+#### Stateful parsing functions
 
 In some cases you will want to remember some data between each parsing function invocation.
 The canonical example is counting the number of lines in a log.
@@ -145,7 +150,7 @@ The canonical example is counting the number of lines in a log.
         return (metric_name, date, acc, {'metric_type': 'counter'})
 
 
-### Testing custom parsing functions
+#### Testing custom parsing functions
 
 You'll want to be able to test your parser outside of the agent, so
 for the above example, you might add a test function like this:
@@ -178,3 +183,10 @@ for the above example, you might add a test function like this:
         test()
         
 And you can test your parsing logic by calling `python /path/to/parsers.py`.
+
+## How to write custom checks
+
+First you need to write a check that conforms to the `Check` interface defined in `checks/__init__.py`.
+Then you need to enable that check via the agent configuration in `datadog.conf`.
+
+An example of a custom check is provided in `examples/check_time.py`.
