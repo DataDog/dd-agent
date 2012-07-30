@@ -312,11 +312,11 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 #  HAProxy
 # -------------------------------------------------------------------------- #
-haproxy_url: https://localhost/admin?stats
+#haproxy_url: https://localhost/admin?stats
 
 # If basic authentification is enabled
-haproxy_user = username
-haproxy_password = password
+#haproxy_user = username
+#haproxy_password = password
 
 # ========================================================================== #
 # Custom Emitters                                                            #
