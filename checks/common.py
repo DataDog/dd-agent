@@ -60,15 +60,6 @@ def getUuid():
     # on the back-end if need be, based on mac addresses.
     return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
-def recordsize(func):
-    "Record the size of the response"
-    def wrapper(*args, **kwargs):
-        logger = logging.getLogger("checks")
-        res = func(*args, **kwargs)
-        logger.debug("SIZE: %s wrote %d bytes uncompressed" % (func, len(str(res))))
-        return res
-    return wrapper
-
 class checks(object):
     def __init__(self, agentConfig, emitters):
         self.agentConfig = agentConfig
@@ -111,114 +102,20 @@ class checks(object):
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             ]
+
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
             try:
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(self.checksLogger))
-            except Exception:
-                self.checksLogger.error('Unable to load custom check module %r', module_spec, exc_info=True)
+                self.checksLogger.info("Registered custom check %s" % module_spec)
+            except Exception, e:
+                self.checksLogger.exception('Unable to load custom check module %s' % module_spec)
 
         self._event_checks = [Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
         self._ec2 = EC2(self.checksLogger)
     
-    #
-    # Checks - FIXME migrating to the new Check interface is a WIP
-    #
-    @recordsize 
-    def getApacheStatus(self):
-        return self._apache.check(self.agentConfig)
-
-    @recordsize 
-    def getCouchDBStatus(self):
-        return self._couchdb.check(self.agentConfig)
-    
-    @recordsize
-    def getDiskUsage(self):
-        return self._disk.check(self.agentConfig)
-
-    @recordsize
-    def getIOStats(self):
-        return self._io.check(self.checksLogger, self.agentConfig)
-            
-    @recordsize
-    def getLoadAvrgs(self):
-        return self._load.check(self.agentConfig)
-
-    @recordsize 
-    def getMemoryUsage(self):
-        return self._memory.check(self.agentConfig)
-        
-    @recordsize     
-    def getMongoDBStatus(self):
-        return self._mongodb.check(self.agentConfig)
-
-    @recordsize
-    def getMySQLStatus(self):
-        return self._mysql.check(self.agentConfig)
-   
-    @recordsize
-    def getPgSQLStatus(self):
-        return self._pgsql.check(self.agentConfig)
- 
-    @recordsize
-    def getNetworkTraffic(self):
-        return self._network.check(self.agentConfig)
-    
-    @recordsize
-    def getNginxStatus(self):
-        return self._nginx.check(self.agentConfig)
-        
-    @recordsize
-    def getProcesses(self):
-        return self._processes.check(self.checksLogger, self.agentConfig)
-        
-    @recordsize
-    def getRabbitMQStatus(self):
-        return self._rabbitmq.check(self.checksLogger, self.agentConfig)
-
-    @recordsize
-    def getGangliaData(self):
-        return self._ganglia.check(self.agentConfig)
-
-    @recordsize
-    def getCassandraData(self):
-        return self._cassandra.check(self.checksLogger, self.agentConfig)
-
-    @recordsize
-    def getJvmData(self):
-        return self._jvm.check(self.agentConfig)
-
-    @recordsize
-    def getTomcatData(self):
-        return self._tomcat.check(self.agentConfig)
-
-    @recordsize
-    def getActiveMQData(self):
-        return self._activemq.check(self.agentConfig)
-
-    @recordsize
-    def getSolrData(self):
-        return self._solr.check(self.agentConfig)
-
-    @recordsize
-    def getMemcacheData(self):
-        return self._memcache.check(self.agentConfig)
-
-    @recordsize
-    def getDogstreamData(self):
-        return self._dogstream.check(self.agentConfig)
-
-    @recordsize
-    def getDdforwarderData(self):
-        return self._ddforwarder.check(self.agentConfig)
-
-    @recordsize
-    def getCPUStats(self):
-        return self._cpu.check(self.checksLogger, self.agentConfig)
-
-    @recordsize
     def get_metadata(self):
         metadata = self._ec2.get_metadata()
         if metadata.get('hostname'):
@@ -243,29 +140,29 @@ class checks(object):
         """
         self.checksLogger.info("Starting checks")
 
-        apacheStatus = self.getApacheStatus()
-        diskUsage = self.getDiskUsage()
-        loadAvrgs = self.getLoadAvrgs()
-        memory = self.getMemoryUsage()
-        mysqlStatus = self.getMySQLStatus()
-        pgsqlStatus = self.getPgSQLStatus()
-        networkTraffic = self.getNetworkTraffic()
-        nginxStatus = self.getNginxStatus()
-        processes = self.getProcesses()
-        rabbitmq = self.getRabbitMQStatus()
-        mongodb = self.getMongoDBStatus()
-        couchdb = self.getCouchDBStatus()
-        ioStats = self.getIOStats()
-        cpuStats = self.getCPUStats()
-        gangliaData = self.getGangliaData()
-        cassandraData = self.getCassandraData()
-        jvmData = self.getJvmData()
-        tomcatData = self.getTomcatData()
-        activeMQData = self.getActiveMQData()
-        solrData = self.getSolrData()
-        memcacheData = self.getMemcacheData()
-        dogstreamData = self.getDogstreamData()
-        ddforwarderData = self.getDdforwarderData()
+        apacheStatus = self._apache.check(self.agentConfig)
+        diskUsage = self._disk.check(self.agentConfig)
+        loadAvrgs = self._load.check(self.agentConfig)
+        memory = self._memory.check(self.agentConfig)
+        mysqlStatus = self._mysql.check(self.agentConfig)
+        pgsqlStatus = self._pgsql.check(self.agentConfig)
+        networkTraffic = self._network.check(self.agentConfig)
+        nginxStatus = self._nginx.check(self.agentConfig)
+        processes = self._processes.check(self.checksLogger, self.agentConfig)
+        rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
+        mongodb = self._mongodb.check(self.agentConfig)
+        couchdb = self._couchdb.check(self.agentConfig)
+        ioStats = self._io.check(self.checksLogger, self.agentConfig)
+        cpuStats = self._cpu.check(self.checksLogger, self.agentConfig)
+        gangliaData = self._ganglia.check(self.agentConfig)
+        cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
+        jvmData = self._jvm.check(self.agentConfig)
+        tomcatData = self._tomcat.check(self.agentConfig)
+        activeMQData = self._activemq.check(self.agentConfig)
+        solrData = self._solr.check(self.agentConfig)
+        memcacheData = self._memcache.check(self.agentConfig)
+        dogstreamData = self._dogstream.check(self.agentConfig)
+        ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
         checksData = {
             'collection_timestamp': time.time(),
