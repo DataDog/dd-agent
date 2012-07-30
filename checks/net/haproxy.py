@@ -8,11 +8,9 @@ from util import json, headers
 
 from datetime import datetime
 import time
-import pdb
 
 STATS_URL = ";csv;norefresh"
 KINDS = ['BACKEND', 'FRONTEND']
-
 
 class HAProxyEvents(Check):
     key = 'HAProxy'
@@ -20,7 +18,6 @@ class HAProxyEvents(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.host_status = {}
-
 
     def check(self, logger, config):
         self.events = []
@@ -31,9 +28,8 @@ class HAProxyEvents(Check):
         data = None
         try:
             data = get_data(config, self.logger)
-
-        except Exception,e:
-            self.logger.exception('Unable to get haproxy statistics %s' % e)
+        except:
+            self.logger.exception('Unable to get haproxy statistics')
             return False
 
         process_data(self, config, data)
@@ -80,7 +76,6 @@ class HAProxyEvents(Check):
                  "event_object": hostname
             }
 
-
 class HAProxyMetrics(Check):
     METRICS = {
         "qcur": ("gauge", "queue.current"),
@@ -96,13 +91,11 @@ class HAProxyMetrics(Check):
         "eresp": ("counter", "errors.resp_rate"),
         "wretr": ("counter", "warnings.retr_rate"),
         "wredis": ("counter", "warnings.redis_rate"),
-
     }
 
 
     def __init__(self, logger):
         Check.__init__(self, logger)
-
         
         for metric_type, metric_suffix in HAProxyMetrics.METRICS.values():
             for kind in KINDS:
@@ -115,7 +108,6 @@ class HAProxyMetrics(Check):
                     logger.error("Unknown metric type: %s" % metric_type)
 
     def check(self, config):
-        self.logger.debug('Launching HAProxy CHECK \n s ')
         # Check if we are configured properly
         if config.get('haproxy_url', None) is None:
             return False
@@ -123,17 +115,13 @@ class HAProxyMetrics(Check):
         data = None
         try:
             data = get_data(config, self.logger)
-
-        except Exception,e:
-            self.logger.exception('Unable to get haproxy statistics %s' % e)
+            process_data(self, config, data)
+            metrics = self.get_metrics()
+            self.logger.info("metrics: {0}".format(metrics))
+            return metrics
+        except:
+            self.logger.exception('Unable to get haproxy statistics')
             return False
-
-        process_data(self, config, data)
-
-        metrics = self.get_metrics()
-        self.logger.info("metrics: {0}".format(metrics))
-        return metrics
-
 
     def _process_metric(self, data_list, kind, agentConfig):
 
@@ -248,7 +236,6 @@ def process_data(check, agentConfig, data):
 def get_data(agentConfig, logger):
     "Hit a given URL and return the parsed json"
     # Try to fetch data from the stats URL
-
     url = agentConfig.get('haproxy_url', None)
     passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
     passman.add_password(None, url, agentConfig.get('haproxy_user', None), agentConfig.get('haproxy_password', None))
@@ -257,12 +244,10 @@ def get_data(agentConfig, logger):
     urllib2.install_opener(opener)
     url = "%s%s" % (url,STATS_URL)
 
-    logger.info("HAProxy Fetching haproxy search data from: %s \n s" % url)
+    logger.info("HAProxy Fetching haproxy search data from: %s" % url)
 
     req = urllib2.Request(url, None, headers(agentConfig))
     request = urllib2.urlopen(req)
     response = request.read()
     logger.debug(response)
-    data = response.split('\n')
-
-    return data
+    return response.split('\n')
