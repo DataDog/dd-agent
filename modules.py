@@ -68,4 +68,7 @@ def load(config_string, default_name=None):
     (module_name, object_name) = \
             (config_string.rsplit(':', 1) + [default_name])[:2]
     module = get_module(module_name)
-    return getattr(module, object_name) if object_name else module
+    if object_name:
+        return getattr(module, object_name)
+    else:
+        return module
