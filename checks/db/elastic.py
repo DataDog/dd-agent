@@ -10,6 +10,8 @@ from checks import Check, gethostname
 from util import json, headers
 
 HEALTH_URL = "/_cluster/health?pretty=true"
+STATS_URL = "/_cluster/nodes/stats?all=true"
+NODES_URL = "/_cluster/nodes?network=true"
 
 
 def _get_data(agentConfig, url):
@@ -41,6 +43,9 @@ class ElasticSearchClusterStatus(Check):
                 data = _get_data(config, url)
             if not self.cluster_status:
                 self.cluster_status = data['status']
+                if data['status'] in ["yellow", "red"]:
+                    event = self._create_event(config)
+                    return [event]
                 return []
             if data['status'] != self.cluster_status:
                 self.cluster_status = data['status']
@@ -58,7 +63,7 @@ class ElasticSearchClusterStatus(Check):
         hostname = gethostname(agentConfig).decode('utf-8')
         if self.cluster_status == "red" or self.cluster_status=="yellow":
             alert_type = "error"
-            msg_title = "Warning: %s is %s" % (hostname, self.cluster_status)
+            msg_title = "%s is %s" % (hostname, self.cluster_status)
         else:
             # then it should be green
             alert_type == "info"
@@ -80,8 +85,7 @@ class ElasticSearchClusterStatus(Check):
 
 class ElasticSearch(Check):
 
-    STATS_URL = "/_cluster/nodes/stats?all=true"
-    NODES_URL = "/_cluster/nodes?network=true"
+
 
     METRICS = {
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
@@ -257,7 +261,7 @@ class ElasticSearch(Check):
                 # against the primary IP from ES
                 try:
                     base_url = self._base_es_url(agentConfig['elasticsearch'])
-                    url = "%s%s" % (base_url, self.NODES_URL)
+                    url = "%s%s" % (base_url, NODES_URL)
                     primary_addr = self._get_primary_addr(agentConfig, url, node)
                 except NodeNotFound:
                     # Skip any nodes that aren't found
@@ -345,7 +349,7 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         try:
             data = _get_data(config, url)
 
-            if url_suffix==self.STATS_URL:
+            if url_suffix==STATS_URL:
                 self._process_data(config, data)
                 self.check(config, HEALTH_URL)
 

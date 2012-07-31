@@ -50,13 +50,22 @@ class TestElastic(unittest.TestCase):
         agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
               'version': '0.1',
               'apiKey': 'toto' }
-        self.d.check(logging.getLogger(), agentConfig)
+
 
         url = urlparse.urljoin(agentConfig['elasticsearch'], HEALTH_URL)
+        data = _get_data(agentConfig, url)
+        self.assertEquals(len(data), 10,data)
+
+        data['status'] = "green"
+        events = self.d.check(logging.getLogger(), agentConfig,data)
+        self.assertEquals(len(events),0,events)
+
         data = _get_data(agentConfig, url)
         data['status'] = "red"
         events = self.d.check(logging.getLogger,agentConfig, data)
         self.assertEquals(len(events),1,events)
+
+
 
 
     def testCheck(self):
