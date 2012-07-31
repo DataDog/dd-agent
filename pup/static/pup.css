@@ -66,6 +66,7 @@ hr::before {
 
 h1, h2, h3, h4, h5, h6 {
 	margin-top: 0;
+	font-weight: 500;
 }
 
 ul {
@@ -223,11 +224,8 @@ pre {
 	color: #6f56a2;
 }
 
-.highlight-graph-header {
-}
-
 .metric-name {
-	font-weight: bold;
+	/*font-weight: 600;*/
 	color: #6f56a2;
 }
 
@@ -312,7 +310,7 @@ pre {
 
 #by a {
 	color: #aaa;
-	font-weight: bold;
+	font-weight: 600;
 }
 
 #by a:hover {
@@ -327,7 +325,7 @@ pre {
 }
 
 #port {
-	font-weight: bold;
+	font-weight: 600;
 }
 
 #no-metrics {
@@ -412,7 +410,7 @@ pre {
 
 #sort-by ul li:hover {
 	cursor: pointer;
-	font-weight: bold;
+	font-weight: 600;
 }
 
 #sort-by ul li {
@@ -522,7 +520,7 @@ pre {
 .li-val {
 	float: right;
 	font-size: 8px;
-	font-weight: bold;
+	font-weight: 600;
 	padding-right: 4px;
 }
 
@@ -573,9 +571,8 @@ pre {
 
 .latest-val {
 	font-size: 10px;
-	font-weight: bold;
+	font-weight: 500;
 	fill: #6f56a2;
-	letter-spacing: 0px;
 }
 
 .progress-container {
