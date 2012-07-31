@@ -50,6 +50,7 @@ def parse_supervisord(log, line):
     date = calendar.timegm(dt.timetuple())
     event_type = line_items[2]
     msg = line_items[3]
+    if msg is not None: msg = msg.strip()
     if event_type in SUPERVISORD_LEVELS:
         alert_type=ALERT_TYPES_MAPPING.get(event_type, 'info')
         if alert_type == 'info' and 'success' in msg:
@@ -65,3 +66,12 @@ def parse_supervisord(log, line):
         return [event]
     else:
         return None
+
+if __name__ == "__main__":
+    import sys
+    import pprint
+    import logging
+    logging.basicConfig()
+    log = logging.getLogger()
+    lines = open(sys.argv[1]).readlines()
+    pprint.pprint([parse_supervisord(log, line) for line in lines])
