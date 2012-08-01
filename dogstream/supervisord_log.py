@@ -50,7 +50,6 @@ def parse_supervisord(log, line):
     date = time.mktime(dt.timetuple())
     event_type = line_items[2]
     msg = line_items[3]
-    if msg is not None: msg = msg.strip()
     if event_type in SUPERVISORD_LEVELS:
         alert_type=ALERT_TYPES_MAPPING.get(event_type, 'info')
         if alert_type == 'info' and 'success' in msg:
@@ -58,10 +57,10 @@ def parse_supervisord(log, line):
         event = dict(timestamp=date,
                      event_type=EVENT_TYPE,
                      alert_type=alert_type,
-                     msg_title=msg)
+                     msg_title=msg.strip())
         program_result = program_matcher.match(msg)
         if program_result:
-            event['aggregation_key'] = program_result.groupdict()['program']
+            event['event_object'] = program_result.groupdict()['program']
         if log: log.debug('RESULT supervisord:%s' %event)
         return [event]
     else:
