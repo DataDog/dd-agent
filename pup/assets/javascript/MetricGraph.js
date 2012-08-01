@@ -163,6 +163,9 @@ var MetricGraph = function(options) {
 	this.updateScales = function(now) {
 		this.x.domain([now - (this.n - 2) * this.duration, now - this.duration]);
 		this.y.domain([0, yBuffer * metric.max]);
+		if (metric.max === 0) {
+			this.y.domain([0, 1]);
+		}
 	};
 
 	this.tryDrawProgress = function(now) {

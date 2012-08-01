@@ -37,9 +37,6 @@ var C = (function() {
 		TIME      : "time"
 	};
 }());
-var allTags = [],
-	metricId = 0;
-
 /* Metric.js
  * Defines Metric data objects, such as Line and Histogram.
  *
@@ -48,6 +45,9 @@ var allTags = [],
  *	shiftOld()				: shifts off the Metric's oldest datapoint
  *	isTimedOut()			: returns whether a metric has timed out
  */
+
+var allTags = [],
+	metricId = 0;
 
 var PupController;
 var Metric = function(options) {
@@ -128,7 +128,7 @@ Histogram.prototype.shiftOld = function(timeWindow) {
 	for (var i = 0; i < this.data.length; i++) {
 		while (this.data[i].values[0].time < timeWindow) {
 			if (this.max === this.data[i].values[0].value) {
-				this.max = 0;	// reset the max
+				this.resetMax();
 			}
 			this.data[i].values.shift();
 		}
@@ -150,12 +150,21 @@ Histogram.prototype.hasNewData = function() {
 	});
 };
 
+Histogram.prototype.resetMax = function() {
+	var max = this.max;
+	this.data.map(function(stk) {
+		stk.values.map(function(d) {
+			if (d.value > max) { max = d.value; }
+		});
+	});
+	this.max = max;
+};
+
 Histogram.prototype.toCSV = function() {
 	var csv = 'time,';
 	var sampleStack = this.data[0];
 	a = sampleStack;
 	for (var i = -1, dataCount = sampleStack.values.length; i < dataCount; i++) {
-		console.log("HEY");
 		var line = '';
 		if (i === -1) {
 			for (var stkI = 0, stackCount = this.data.length; stkI < stackCount; stkI++) {
@@ -205,7 +214,7 @@ Line.prototype.pushRecent = function() {
 
 Line.prototype.shiftOld = function(timeWindow) {
 	while (this.data[0].time < timeWindow) {
-		if (this.max === this.data[0].value) { this.max = 0; }
+		if (this.max === this.data[0].value) { this.resetMax(); }
 		this.data.shift();
 	}
 };
@@ -219,6 +228,16 @@ Line.prototype.hasNewData = function() {
 	return this.mostRecent[0].time > this.data[this.data.length-1].time;
 };
 
+Line.prototype.resetMax = function() {
+	var max = this.max;
+	this.data.map(function(d, i) {
+		if (d.value > max && i > 0) {
+			max = d.value;
+		}
+	});
+	this.max = max;
+};
+
 Line.prototype.toCSV = function() {
 	var csv = '';
 	var data = this.data;
@@ -226,7 +245,6 @@ Line.prototype.toCSV = function() {
 		var line = '';
 		if (i === -1) {
 			for (var index in data[0]) {
-				console.log(index);
 				if (line !== '') { line += ","; }
 				line += index;
 			}
@@ -560,6 +578,9 @@ var MetricGraph = function(options) {
 	this.updateScales = function(now) {
 		this.x.domain([now - (this.n - 2) * this.duration, now - this.duration]);
 		this.y.domain([0, yBuffer * metric.max]);
+		if (metric.max === 0) {
+			this.y.domain([0, 1]);
+		}
 	};
 
 	this.tryDrawProgress = function(now) {
@@ -672,7 +693,7 @@ var HistogramGraph = function(options) {
 					return a === b ? 0 :
 									(a < b) ? 1 : -1;
 				});
-		return stack(values); // TODO: Handle ordering better.
+		return stack(values);
 	};
 
 	var height = graph.height,

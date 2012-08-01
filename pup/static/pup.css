@@ -582,4 +582,5 @@ pre {
 
 .progress {
 	fill: #6f56a2;
+	z-index: -1;
 }

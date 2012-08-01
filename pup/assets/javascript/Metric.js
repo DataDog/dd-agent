@@ -197,8 +197,8 @@ Line.prototype.hasNewData = function() {
 
 Line.prototype.resetMax = function() {
 	var max = this.max;
-	this.data.map(function(d) {
-		if (d.value > max) {
+	this.data.map(function(d, i) {
+		if (d.value > max && i > 0) {
 			max = d.value;
 		}
 	});
@@ -212,7 +212,6 @@ Line.prototype.toCSV = function() {
 		var line = '';
 		if (i === -1) {
 			for (var index in data[0]) {
-				console.log(index);
 				if (line !== '') { line += ","; }
 				line += index;
 			}	
