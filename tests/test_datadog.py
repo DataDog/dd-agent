@@ -192,6 +192,7 @@ class TestDogstream(TailTestCase):
                     "msg_text": "2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
                 {
@@ -202,6 +203,7 @@ class TestDogstream(TailTestCase):
                     "msg_text": "2012-05-14 12:48:07 [ERROR] - host1 is down (got a bloody nose)",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
                 {
@@ -212,6 +214,7 @@ class TestDogstream(TailTestCase):
                     "msg_text": "2012-05-14 12:52:03 [RECOVERY] - host0 is up (collarbone healed)",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
                 {
@@ -222,6 +225,7 @@ class TestDogstream(TailTestCase):
                     "msg_text": "2012-05-14 12:59:09 [RECOVERY] - host1 is up (nose stopped bleeding)",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
             ]
@@ -247,6 +251,7 @@ class TestDogstream(TailTestCase):
                     "msg_title": "title",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
                 {
@@ -254,6 +259,7 @@ class TestDogstream(TailTestCase):
                     "msg_text": "body",
                     "event_type": EventDefaults.EVENT_TYPE,
                     "aggregation_key": EventDefaults.EVENT_OBJECT,
+                    "event_object": EventDefaults.EVENT_OBJECT,
                 },
 
             ]
@@ -295,6 +301,7 @@ class TestDogstream(TailTestCase):
                 "auto_priority": 0,
                 "event_type": event_type,
                 "aggregation_key": event_object,
+                "event_object": event_object,
             },  {
                 "timestamp": common.parse_date("2012-05-12 21:10:54,851", cassandra.DATE_FORMAT),
                 "msg_title": "Compacted to [/var/cassandra/a-hc-65-Data.db,].  102,079,134 to 101,546,397",
@@ -302,6 +309,7 @@ class TestDogstream(TailTestCase):
                 "auto_priority": 0,
                 "event_type": event_type,
                 "aggregation_key": event_object,
+                "event_object": event_object,
             },  {
                 "timestamp": common.parse_date("2012-05-13 13:15:01,927", cassandra.DATE_FORMAT),
                 "msg_title": "Compacting [SSTableReader(path='/var/cassandra/data/test_data/series-hc-6527-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6522-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6532-Data.db'), SSTableReader(path='/var/cassandra/data/test_data/series-hc-6517-Data.db')]"[0:common.MAX_TITLE_LEN],
@@ -310,6 +318,7 @@ class TestDogstream(TailTestCase):
                 "event_type": event_type,
                 "auto_priority": 0,
                 "aggregation_key": event_object,
+                "event_object": event_object,
             },  {
                 "timestamp": common.parse_date("2012-05-13 13:27:17,685", cassandra.DATE_FORMAT),
                 "msg_title": "Compacting large row test_data/series:6c6f677c32 (782001077 bytes) incrementally",
@@ -317,6 +326,7 @@ class TestDogstream(TailTestCase):
                 "event_type": event_type,
                 "auto_priority": 0,
                 "aggregation_key": event_object,
+                "event_object": event_object,
             },  {
                 "timestamp": common.parse_date(datetime.utcnow().strftime("%Y-%m-%d") + " 13:27:17,685", cassandra.DATE_FORMAT),
                 "msg_title": "Compacting large row test_data/series:6c6f677c32 (782001077 bytes) incrementally",
@@ -324,6 +334,7 @@ class TestDogstream(TailTestCase):
                 "event_type": event_type,
                 "auto_priority": 0,
                 "aggregation_key": event_object,
+                "event_object": event_object,
             },
         ]}
 
@@ -347,24 +358,28 @@ class TestDogstream(TailTestCase):
                 {
                     "alert_type": "info", "event_type": event_type,
                     "aggregation_key": "monitor",
+                    "event_object": "monitor",
                     "msg_title": "spawned: 'monitor' with pid 20216",
-                    "timestamp": 1342477848,
+                    "timestamp": 1342492248,
                 }, {
                     "alert_type": "success", "event_type": event_type,
                     "aggregation_key": "foo_bar",
+                    "event_object": "foo_bar",
                     "msg_title": "success: foo_bar entered RUNNING state, "
                     "process has stayed up for > than 2 seconds (startsecs)",
-                    "timestamp": 1342234967,
+                    "timestamp": 1342249367,
                 }, {
                     "alert_type": "error", "event_type": event_type,
                     "aggregation_key": "inet_http_server",
+                    "event_object": "inet_http_server",
                     "msg_title": "Server 'inet_http_server' running without any HTTP authentication checking",
-                    "timestamp": 1342493584,
+                    "timestamp": 1342507984,
                 }, {
                     "alert_type": "warning", "event_type": event_type,
                     "aggregation_key": "SIGTERM",
+                    "event_object": "SIGTERM",
                     "msg_title": "received SIGTERM indicating exit request",
-                    "timestamp": 1342241674,
+                    "timestamp": 1342256074,
                 },
             ]}
         self._write_log(log_data.split("\n"))
