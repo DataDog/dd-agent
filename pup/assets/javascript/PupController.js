@@ -287,8 +287,8 @@ var PupController = function(isWSClosed, Store, $) {
 
 			var byName = function(array) {
 				return array.sort(function(a, b) {
-					a = a.getAttribute(C.NAME);
-					b = b.getAttribute(C.NAME);
+					a = a.getAttribute(C.NAME).toLowerCase();
+					b = b.getAttribute(C.NAME).toLowerCase();
 					return a === b ? 0 
 									: (a < b) ? -1 : 1;
 				});
