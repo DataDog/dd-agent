@@ -6,8 +6,8 @@ Add to datadog.conf as follows:
 dogstreams: [path_to_supervisord.log]:datadog.streams.supervisord:parse_supervisord
 
 """
-import calendar
 from datetime import datetime
+import time
 import re
 
 EVENT_TYPE = "supervisor"
@@ -47,7 +47,7 @@ def parse_supervisord(log, line):
     timestamp_parts = timestamp.split(',')
     dt = datetime.strptime(timestamp_parts[0], "%Y-%m-%d %H:%M:%S")
     dt = dt.replace(microsecond=int(timestamp_parts[1]))
-    date = calendar.timegm(dt.timetuple())
+    date = time.mktime(dt.timetuple())
     event_type = line_items[2]
     msg = line_items[3]
     if msg is not None: msg = msg.strip()
