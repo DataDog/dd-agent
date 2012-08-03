@@ -25,6 +25,7 @@ def parse_stateful(logger, line, state):
     return tuple(res)
 
 
+import time
 from datetime import datetime
 import calendar
 
@@ -360,26 +361,26 @@ class TestDogstream(TailTestCase):
                     "aggregation_key": "monitor",
                     "event_object": "monitor",
                     "msg_title": "spawned: 'monitor' with pid 20216",
-                    "timestamp": 1342492248,
+                    "timestamp": int(time.mktime(datetime(2012, 7, 16, 22, 30, 48).timetuple())),
                 }, {
                     "alert_type": "success", "event_type": event_type,
                     "aggregation_key": "foo_bar",
                     "event_object": "foo_bar",
                     "msg_title": "success: foo_bar entered RUNNING state, "
                     "process has stayed up for > than 2 seconds (startsecs)",
-                    "timestamp": 1342249367,
+                    "timestamp": int(time.mktime(datetime(2012, 7, 14, 3, 2, 47).timetuple())),
                 }, {
                     "alert_type": "error", "event_type": event_type,
                     "aggregation_key": "inet_http_server",
                     "event_object": "inet_http_server",
                     "msg_title": "Server 'inet_http_server' running without any HTTP authentication checking",
-                    "timestamp": 1342507984,
+                    "timestamp": int(time.mktime(datetime(2012, 7, 17, 2, 53, 4).timetuple())),
                 }, {
                     "alert_type": "warning", "event_type": event_type,
                     "aggregation_key": "SIGTERM",
                     "event_object": "SIGTERM",
                     "msg_title": "received SIGTERM indicating exit request",
-                    "timestamp": 1342256074,
+                    "timestamp": int(time.mktime(datetime(2012, 7, 14, 4, 54, 34).timetuple())),
                 },
             ]}
         self._write_log(log_data.split("\n"))
