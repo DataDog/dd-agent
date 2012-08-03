@@ -263,7 +263,11 @@ def main():
 
     agentConfig = get_config(parse_args = False)
 
-    port = int(agentConfig.get('listen_port', 17123))
+    port = agentConfig.get('listen_port', 17123)
+    if port is None:
+        port = 17123
+    else:
+        port = int(port)
 
     app = Application(port, agentConfig)
     app.run()
