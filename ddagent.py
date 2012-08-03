@@ -182,7 +182,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig):
-        self._port = port
+        self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
         self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
@@ -227,7 +227,7 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
-        logging.info("Listening on port %s" % self._port)
+        logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
         mloop = tornado.ioloop.IOLoop.instance() 
@@ -263,13 +263,10 @@ def main():
 
     agentConfig = get_config(parse_args = False)
 
-    port = agentConfig.get('listen_port', None)
-    if port is None:
-        port = 17123
+    port = int(agentConfig.get('listen_port', 17123))
 
     app = Application(port, agentConfig)
     app.run()
 
 if __name__ == "__main__":
     main()
-
