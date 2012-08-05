@@ -1,0 +1,2 @@
+chown -R dd-agent /etc/dd-agent/
+exit 0

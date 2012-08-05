@@ -22,6 +22,7 @@ case "$1" in
     configure)
         update-rc.d datadog-agent defaults
         adduser --system dd-agent --shell /bin/sh --no-create-home --quiet
+	chown -R dd-agent /etc/dd-agent
 
         if which invoke-rc.d >/dev/null 2>&1; then
             invoke-rc.d datadog-agent restart
