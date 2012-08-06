@@ -380,7 +380,7 @@ var PupSocket = function(port, save) {
 
 	pub.tryStart = function(port) {
 		if (this.isEstablished()) { return; }
-		var ws = new WebSocket("ws://localhost:" + port + "/pupsocket");
+		var ws = new WebSocket("ws://" + window.location.hostname +":" + port + "/pupsocket");
 
 		setEstablished(true);
 
