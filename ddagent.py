@@ -69,13 +69,17 @@ class MetricTransaction(Transaction):
                 cls._endpoints.append('pup_url')
         # Only send data to Datadog if an API KEY exists
         # i.e. user is also Datadog user
-        is_dd_user = 'api_key' in cls._application._agentConfig\
-            and cls._application._agentConfig['api_key']\
-            and len(cls._application._agentConfig['api_key'] >= 16)
-        logging.info("Are you a Datadog user? %s" % is_dd_user)
-        if 'use_dd' in cls._application._agentConfig:
-            if cls._application._agentConfig['use_dd'] and is_dd_user:
+        try:
+            is_dd_user = 'api_key' in cls._application._agentConfig\
+                and 'use_dd' in cls._application._agentConfig\
+                and cls._application._agentConfig['use_dd']\
+                and cls._application._agentConfig.get('api_key') is not None\
+                and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
+            if is_dd_user:
+                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
+        except:
+            logging.info("Not a Datadog user")
 
     def __init__(self, data):
         self._data = data
@@ -102,6 +106,7 @@ class MetricTransaction(Transaction):
 
     def flush(self):
         for current_idx, endpoint in enumerate(self._endpoints):
+            logging.debug("End point: %s" % endpoint)
             req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
                  method = "POST", body = self.get_data() )
             # Send Transaction to the endpoint
