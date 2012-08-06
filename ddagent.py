@@ -67,9 +67,19 @@ class MetricTransaction(Transaction):
         if 'use_pup' in cls._application._agentConfig:
             if cls._application._agentConfig['use_pup']:
                 cls._endpoints.append('pup_url')
-        if 'use_dd' in cls._application._agentConfig:
-            if cls._application._agentConfig['use_dd']:
+        # Only send data to Datadog if an API KEY exists
+        # i.e. user is also Datadog user
+        try:
+            is_dd_user = 'api_key' in cls._application._agentConfig\
+                and 'use_dd' in cls._application._agentConfig\
+                and cls._application._agentConfig['use_dd']\
+                and cls._application._agentConfig.get('api_key') is not None\
+                and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
+            if is_dd_user:
+                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
+        except:
+            logging.info("Not a Datadog user")
 
     def __init__(self, data):
         self._data = data
@@ -95,9 +105,8 @@ class MetricTransaction(Transaction):
         return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
-        logging.debug("Sending transaction %d to datadog" % self.get_id())
-
         for current_idx, endpoint in enumerate(self._endpoints):
+            logging.debug("End point: %s" % endpoint)
             req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
                  method = "POST", body = self.get_data() )
             # Send Transaction to the endpoint
@@ -109,7 +118,8 @@ class MetricTransaction(Transaction):
             # 1st priority, dd_url; 2nd priority, pup_url.
             if endpoint == 'dd_url':
                 http.fetch(req, callback=lambda(x): None)
-            else: http.fetch(req, callback=lambda(x): self.on_response(x))
+            else:
+                http.fetch(req, callback=lambda(x): self.on_response(x))
 
     def on_response(self, response):
         if response.error: 
