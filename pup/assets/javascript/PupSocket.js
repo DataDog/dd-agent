@@ -30,7 +30,7 @@ var PupSocket = function(port, save) {
 	// tries to create a connection if not already established
 	pub.tryStart = function(port) {
 		if (this.isEstablished()) { return; }
-		var ws = new WebSocket("ws://localhost:" + port + "/pupsocket");
+		var ws = new WebSocket("ws://" + window.location.hostname + ":" + port + "/pupsocket");
 		
 		setEstablished(true);
 
