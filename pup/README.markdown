@@ -10,6 +10,10 @@ First install the [Datadog agent](https://github.com/DataDog/dd-agent) by runnin
 
 That's it! Now navigate to **localhost:17125**. Within ten seconds, system metrics should start streaming.
 
+### Upgrade
+
+It's easy, just re-install. No files will be lost.
+
 ### Custom metrics with statsd
 
 If you would like to add custom metrics to your applications, use the dogstatsd-python or dogstatsd-ruby libraries to instrument your code. Thorough documentation on using DogStatsd and Statsd can be found at [Datadog HQ](http://api.datadoghq.com/guides/dogstatsd/). Below is an abridged introduction to Statsd, and an walkthrough on getting custom metrics viewed on Pup.
