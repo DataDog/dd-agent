@@ -2,12 +2,12 @@
 
 """
 Pup.py
-	Datadog
-	www.datadoghq.com
-	---
-	Make sense of your IT Data
+    Datadog
+    www.datadoghq.com
+    ---
+    Make sense of your IT Data
 
-	(C) Datadog, Inc. 2012 all rights reserved
+    (C) Datadog, Inc. 2012 all rights reserved
 """
 
 import tornado
@@ -76,26 +76,26 @@ AGENT_TRANSLATION = {
 
 # Comes along with the histogram series. Only min/avg/max are plotted.
 HISTOGRAM_IGNORE = [
-	"count",
+    "count",
     "50percentile",
-	"75percentile",
-	"85percentile",
-	"95percentile",
-	"99percentile"
+    "75percentile",
+    "85percentile",
+    "95percentile",
+    "99percentile"
 ]
 
 # Ignored namespaces for agent and other Datadog software
 AGENT_IGNORE = [
-	'dd',
-	'app',
-	'events'
+    'dd',
+    'app',
+    'events'
 ]
 
 # Check if using old version of Python. Pup's usage of defaultdict requires 2.5 or later,
 # and tornado only supports 2.5 or later. The agent supports 2.6 onwards it seems.
 if int(sys.version_info[1]) <= 5:
-	sys.stderr.write("Pup requires python 2.6 or later.\n")
-	sys.exit(2)
+    sys.stderr.write("Pup requires python 2.6 or later.\n")
+    sys.exit(2)
 
 metrics = defaultdict(lambda : defaultdict(list))
 listeners = {}
