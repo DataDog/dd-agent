@@ -15,6 +15,9 @@ debug_mode: no
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
 
+# Set the host's tags
+#tags: mytag0, mytag1
+
 # Use the amazon EC2 instance-id instead of hostname (unless hostname is
 # explicitly set)
 use_ec2_instance_id: yes
