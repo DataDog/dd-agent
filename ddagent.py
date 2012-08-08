@@ -105,21 +105,21 @@ class MetricTransaction(Transaction):
         return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
-        for current_idx, endpoint in enumerate(self._endpoints):
-            logging.debug("End point: %s" % endpoint)
-            req = tornado.httpclient.HTTPRequest(self.get_url(endpoint), 
-                 method = "POST", body = self.get_data() )
+        for endpoint in self._endpoints:
+            url = self.get_url(endpoint)
+            logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            req = tornado.httpclient.HTTPRequest(url, method="POST", body=self.get_data())
+
             # Send Transaction to the endpoint
             http = tornado.httpclient.AsyncHTTPClient()
 
-            logging.info(req.url)
-
-            # Check response for last endpoint
-            # 1st priority, dd_url; 2nd priority, pup_url.
+            # The success of this metric transaction should only depend on
+            # whether or not it's successfully sent to datadoghq. If it fails
+            # getting sent to pup, it's not a big deal.
             if endpoint == 'dd_url':
-                http.fetch(req, callback=lambda(x): None)
+                http.fetch(req, callback=self.on_response)
             else:
-                http.fetch(req, callback=lambda(x): self.on_response(x))
+                http.fetch(req, callback=lambda(x): None)
 
     def on_response(self, response):
         if response.error: 
