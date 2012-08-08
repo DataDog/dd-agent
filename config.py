@@ -12,7 +12,6 @@ from cStringIO import StringIO
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
-STATSD_FREQUENCY = 2 # seconds
 
 def get_parsed_args():
     parser = OptionParser()
@@ -145,11 +144,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:
                 agentConfig['pup_url'] = 'http://localhost:17125'
-   
-        # Increases the frequency of statsd metrics when only sending to Pup
-        if not agentConfig['use_dd'] and agentConfig['use_pup']:
-            dogstatsd_interval = STATSD_FREQUENCY
-
+  
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
             exit(2)
