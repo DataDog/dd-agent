@@ -10,18 +10,26 @@ Pup.py
     (C) Datadog, Inc. 2012 all rights reserved
 """
 
+# std lib imports
+from collections import defaultdict
+import sys
+import os
+import json
+import re
+import logging
+
+# 3p imports
+import argparse
 import tornado
 from tornado import ioloop
 from tornado import web
 from tornado import websocket
 
-from collections import defaultdict
+# project imports
+from config import get_config
 
-import sys
-import os
-import json
-import argparse
-import re
+logger = logging.getLogger('pup')
+
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',
@@ -116,13 +124,15 @@ def is_histogram(s):
     return False
 
 def flush(message):
+    logger.debug("Flushing to %s listeners" % len(listeners))
     for listener in listeners:
         listener.write_message(message)
 
 def send_metrics():
     if metrics == {}:
         flush(dict({"Waiting":1}))
-    else: flush(metrics)
+    else:
+        flush(metrics)
     metrics.clear()
 
 def update(series):
@@ -169,7 +179,7 @@ class PostHandler(tornado.web.RequestHandler):
             body = json.loads(self.request.body)
             series = body['series']
         except:
-            #log.exception("Error parsing the POST request body")
+            logger.exception("Error parsing the POST request body")
             return
         update(series)
 
@@ -178,7 +188,7 @@ class AgentPostHandler(tornado.web.RequestHandler):
         try:
             payload = json.loads(self.get_argument('payload'))
         except:
-            #log.exception("Error parsing the agent's POST request body")
+            logger.exception("Error parsing the agent's POST request body")
             return
         agent_update(payload)
 
@@ -210,6 +220,11 @@ application = tornado.web.Application([
 
 def main():
     """ Parses arguments and starts Pup server """
+
+    # Initialize logging
+    c = get_config(parse_args=False, cfg_path=None, init_logging=True)
+    logger.info("Starting pup")
+
     global port
     parser = argparse.ArgumentParser(description='Pup server to collect and display metrics at localhost (default port 17125) from dogapi, StatsD, and dd-agent.')
     parser.add_argument('-p', dest='port', default=17125, type=int, nargs='?',
@@ -218,11 +233,12 @@ def main():
     port = args.port
     application.listen(port)
 
-    interval_ms = 2000
+    interval_ms = 10000
     io_loop = ioloop.IOLoop.instance()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
+    logger.info("Stopping pup")
 
 if __name__ == "__main__":
     main()
