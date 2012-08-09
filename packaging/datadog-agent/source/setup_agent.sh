@@ -31,7 +31,7 @@ pip install argparse
 
 # set up the agent
 mkdir -p $dd_base/agent
-$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/add-pup
+$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/pup
 tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1
