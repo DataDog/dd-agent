@@ -32,6 +32,7 @@ install: dirs
 	cp ../../dogstatsd.py $(BUILD)/usr/share/datadog/agent
 	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
 	ln -sf ../share/datadog/agent/dogstatsd.py $(BUILD)/usr/bin/dogstatsd
+	ln -sf ../share/datadog/agent/pup/pup.py $(BUILD)/usr/bin/pup
 
 install_deb: install
 	mkdir -p $(BUILD)/etc/supervisor/conf.d
