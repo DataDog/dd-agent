@@ -26,7 +26,6 @@ from tornado import web
 from tornado import websocket
 
 # project imports
-from config import get_config
 
 logger = logging.getLogger('pup')
 
@@ -221,8 +220,6 @@ application = tornado.web.Application([
 def main():
     """ Parses arguments and starts Pup server """
 
-    # Initialize logging
-    c = get_config(parse_args=False, cfg_path=None, init_logging=True)
     logger.info("Starting pup")
 
     global port
