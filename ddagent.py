@@ -116,10 +116,11 @@ class MetricTransaction(Transaction):
             # The success of this metric transaction should only depend on
             # whether or not it's successfully sent to datadoghq. If it fails
             # getting sent to pup, it's not a big deal.
-            if endpoint == 'dd_url':
-                http.fetch(req, callback=self.on_response)
-            else:
-                http.fetch(req, callback=lambda(x): None)
+            callback = lambda(x): None
+            if len(self._endpoints) <= 1 or endpoint == 'dd_url':
+                callback = self.on_response
+
+            http.fetch(req, callback=callback)
 
     def on_response(self, response):
         if response.error: 
