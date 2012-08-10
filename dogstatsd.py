@@ -325,7 +325,6 @@ def main(config_path=None):
     target   = c['dogstatsd_target']
     interval = c['dogstatsd_interval']
     api_key  = c['api_key']
-    host = 'localhost'
 
     hostname = gethostname(c)
 
