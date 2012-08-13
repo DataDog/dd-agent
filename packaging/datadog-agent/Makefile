@@ -12,8 +12,8 @@ FPM_BUILD=fpm -s dir -C $(BUILD) \
 --description "`cat desc`"\
 --iteration $(BUILDNUMBER) \
 -v "$(VERSION)" \
---depends "datadog-agent-base = $(VERSION)-$(BUILDNUMBER)" \
---depends "datadog-agent-lib = $(VERSION)-$(BUILDNUMBER)"
+--depends "datadog-agent-base >= $(VERSION)" \
+--depends "datadog-agent-lib >= $(VERSION)"
 
 clean:
 	rm -rf build*
