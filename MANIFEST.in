@@ -1,3 +1,4 @@
 include datadog.conf.example
-include redhat/datadog-agent
 include checks/libs/jmxterm-1.0-alpha-4-uber.jar
+include pup/pup.html
+include pup/static/*
