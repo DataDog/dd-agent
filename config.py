@@ -137,7 +137,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
 
         if options is not None and options.disable_pup:
             agentConfig['use_pup'] = False
