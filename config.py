@@ -12,7 +12,8 @@ from cStringIO import StringIO
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
-STATSD_FREQUENCY = 2 # seconds
+DEFAULT_STATSD_FREQUENCY = 10 # seconds
+PUP_STATSD_FREQUENCY = 2 # seconds
 
 def get_parsed_args():
     parser = OptionParser()
@@ -37,7 +38,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.0.4"
+    return "3.0.5"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -79,7 +80,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'debug_mode': False,
-        'dogstatsd_interval': 10,
+        'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -91,7 +92,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         'watchdog': True,
     }
 
-    dogstatsd_interval = 10
+    dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
 
     # Config handling
     try:
@@ -132,7 +133,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
         
-		# Whether also to send to Pup
+        # Whether also to send to Pup
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
@@ -148,7 +149,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
    
         # Increases the frequency of statsd metrics when only sending to Pup
         if not agentConfig['use_dd'] and agentConfig['use_pup']:
-            dogstatsd_interval = STATSD_FREQUENCY
+            dogstatsd_interval = PUP_STATSD_FREQUENCY
 
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
