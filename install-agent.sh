@@ -71,6 +71,12 @@ elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     else
         sudo apt-get install -y --force-yes datadog-agent
     fi
+else
+    echo -e "\033[31mYour OS or distribution are not supported by this install script.
+Please follow the instructions on the agent setup pa.ge:
+
+    https://app.datadoghq.com/account/settings#agent\033[0m"
+    exit;
 fi
 
 echo -e "\033[34m\n* Adding your API key to the agent configuration: /etc/dd-agent/datadog.conf\n\033[0m"
