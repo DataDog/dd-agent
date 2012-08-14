@@ -3,7 +3,7 @@ them to [Datadog](https://app.datadoghq.com) on your behalf so that
 you can do something with your monitoring and performance data.
 
 You're looking at the source code right now. We provide a number of
-pre-packaged binaries for your convenience.
+[pre-packaged binaries](https://app.datadoghq.com/account/settings#agent] for your convenience.
 
 # [Change log](https://github.com/DataDog/dd-agent/wiki/Change-Log)
 
