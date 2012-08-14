@@ -10,7 +10,7 @@ want to use our packages.
 # How to contribute code
 
 Feel free to fork this repository and submit pull requests against the
-`unstable` branch.
+`master` branch.
 
 # How to configure the agent
 
