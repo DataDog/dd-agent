@@ -3,16 +3,89 @@ import urllib2
 import socket
 import subprocess
 import sys
+from datetime import datetime
+import time
 
 from checks import Check, gethostname
 from util import json, headers
 
+HEALTH_URL = "/_cluster/health?pretty=true"
+STATS_URL = "/_cluster/nodes/stats?all=true"
+NODES_URL = "/_cluster/nodes?network=true"
+
+
+def _get_data(agentConfig, url):
+    "Hit a given URL and return the parsed json"
+    req = urllib2.Request(url, None, headers(agentConfig))
+    request = urllib2.urlopen(req)
+    response = request.read()
+    return json.loads(response)
+
 class NodeNotFound(Exception): pass
+
+class ElasticSearchClusterStatus(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+        self.cluster_status = None
+
+    def check(self, logger, config, data=None):
+        config_url = config.get("elasticsearch", None)
+
+        # Check if we are configured properly
+        if config_url is None:
+            return False
+
+        url = urlparse.urljoin(config_url, HEALTH_URL)
+        self.logger.info("Fetching elasticsearch data from: %s" % url)
+
+        try:
+            if not data:
+                data = _get_data(config, url)
+            if not self.cluster_status:
+                self.cluster_status = data['status']
+                if data['status'] in ["yellow", "red"]:
+                    event = self._create_event(config)
+                    return [event]
+                return []
+            if data['status'] != self.cluster_status:
+                self.cluster_status = data['status']
+                event = self._create_event(config)
+                return [event]
+            return []
+
+        except:
+            self.logger.exception('Unable to get elasticsearch statistics')
+            return False
+
+        
+
+    def _create_event(self, agentConfig):
+        hostname = gethostname(agentConfig).decode('utf-8')
+        if self.cluster_status == "red" or self.cluster_status=="yellow":
+            alert_type = "error"
+            msg_title = "%s is %s" % (hostname, self.cluster_status)
+        else:
+            # then it should be green
+            alert_type == "info"
+            msg_title = "%s recovered as %s" % (hostname, self.cluster_status)
+
+        msg = "%s just reported as %s" % (hostname, self.cluster_status)
+
+        return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
+                 'event_type': 'elasticsearch',
+                 'host': hostname,
+                 'api_key': agentConfig['apiKey'],
+                 'msg_text':msg,
+                 'msg_title': msg_title,
+                 "alert_type": alert_type,
+                 "source_type": "Elasticsearch",
+                 "event_object": hostname
+            } 
+
 
 class ElasticSearch(Check):
 
-    STATS_URL = "/_cluster/nodes/stats?all=true"
-    NODES_URL = "/_cluster/nodes?network=true"
+
 
     METRICS = {
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
@@ -111,6 +184,13 @@ class ElasticSearch(Check):
         "jvm.mem.non_heap_used": ("gauge", "jvm.mem.non_heap_used_in_bytes"),
         "jvm.threads.count": ("gauge", "jvm.threads.count"),
         "jvm.threads.peak_count": ("gauge", "jvm.threads.peak_count"),
+        "elasticsearch.number_of_nodes": ("gauge", "number_of_nodes"),
+        "elasticsearch.number_of_data_nodes": ("gauge", "number_of_data_nodes"),
+        "elasticsearch.active_primary_shards": ("gauge", "active_primary_shards"),
+        "elasticsearch.active_shards": ("gauge", "active_shards"),
+        "elasticsearch.relocating_shards": ("gauge", "relocating_shards"),
+        "elasticsearch.initializing_shards": ("gauge", "initializing_shards"),
+        "elasticsearch.unassigned_shards": ("gauge", "unassigned_shards"),
     }
 
     @classmethod
@@ -134,12 +214,6 @@ class ElasticSearch(Check):
 
         self._map_metric(generate_metric)
 
-    def _get_data(self, agentConfig, url):
-        "Hit a given URL and return the parsed json"
-        req = urllib2.Request(url, None, headers(agentConfig))
-        request = urllib2.urlopen(req)
-        response = request.read()
-        return json.loads(response)
 
     def _metric_not_found(self, metric, path):
         self.logger.warning("Metric not found: %s -> %s", path, metric)
@@ -187,13 +261,20 @@ class ElasticSearch(Check):
                 # against the primary IP from ES
                 try:
                     base_url = self._base_es_url(agentConfig['elasticsearch'])
-                    url = "%s%s" % (base_url, self.NODES_URL)
+                    url = "%s%s" % (base_url, NODES_URL)
                     primary_addr = self._get_primary_addr(agentConfig, url, node)
                 except NodeNotFound:
                     # Skip any nodes that aren't found
                     continue
                 if self._host_matches_node(primary_addr):
                     self._map_metric(process_metric)
+
+    def _process_health_data(self, agentConfig, data):
+            def process_metric(metric, xtype, path, xform=None):
+                # closure over node_data
+                self._process_metric(data, metric, path, xform)
+            self._map_metric(process_metric)
+
 
     def _get_primary_addr(self, agentConfig, url, node_name):
         ''' Returns a list of primary interface addresses as seen by ES.
@@ -244,7 +325,7 @@ class ElasticSearch(Check):
             return config_url
         return "%s://%s" % (parsed.scheme, parsed.netloc)
 
-    def check(self, config):
+    def check(self, config, url_suffix=STATS_URL):
         """Extract data from stats URL
 http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         """
@@ -259,15 +340,22 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
         # If only the hostname was passed, accept that and add our stats_url
         # Else use the full URL as provided
         if urlparse.urlparse(config_url).path == "":
-            url = urlparse.urljoin(config_url, self.STATS_URL)
+            url = urlparse.urljoin(config_url, url_suffix)
         else:
             url = config_url
 
         self.logger.info("Fetching elasticsearch data from: %s" % url)
 
         try:
-            data = self._get_data(config, url)
-            self._process_data(config, data)
+            data = _get_data(config, url)
+
+            if url_suffix==STATS_URL:
+                self._process_data(config, data)
+                self.check(config, HEALTH_URL)
+
+            else:
+                self._process_health_data(config, data)
+                
             return self.get_metrics()
         except:
             self.logger.exception('Unable to get elasticsearch statistics')
@@ -281,4 +369,6 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger = logging.getLogger()
     c = ElasticSearch(logger)
-    pprint.pprint(c.check({"elasticsearch": "http://localhost:9200", "version": get_version()}))
+    config = {"elasticsearch": "http://localhost:9200", "version": get_version(), "apiKey":"apiKey 2"}
+    pprint.pprint(c.check(config))
+

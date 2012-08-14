@@ -27,7 +27,7 @@ class TestCore(unittest.TestCase):
         self.assertEquals(len(self.c._sample_store["test-metric"]), 1)
         # with explicit timestamp
         self.c.save_sample("test-metric", 3.0, 1298066183.607717)
-        self.assertEquals(self.c.get_sample_with_timestamp("test-metric"), (1298066183.607717, 3.0))
+        self.assertEquals(self.c.get_sample_with_timestamp("test-metric"), (1298066183.607717, 3.0, None))
         # get_samples()
         self.assertEquals(self.c.get_samples(), {"test-metric": 3.0})
 
@@ -43,7 +43,7 @@ class TestCore(unittest.TestCase):
         self.assertRaises(UnknownValue, self.c.get_sample, "test-counter")
         self.c.save_sample("test-counter", 2.0, 2.0)
         self.assertEquals(self.c.get_sample("test-counter"), 1.0)
-        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0))
+        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0, None))
         self.assertEquals(self.c.get_samples(), {"test-counter": 1.0})
         self.c.save_sample("test-counter", -2.0, 3.0)
         self.assertRaises(UnknownValue, self.c.get_sample_with_timestamp, "test-counter")
@@ -77,9 +77,9 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-counter", 1.0, 1.0) # value, ts
         self.c.save_sample("test-counter", 4.0, 2.0) # value, ts
         assert "test-metric"  in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
-        self.assertEquals(self.c.get_samples_with_timestamps()["test-metric"], (0.0, 1.0))
+        self.assertEquals(self.c.get_samples_with_timestamps()["test-metric"], (0.0, 1.0, None))
         assert "test-counter" in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
-        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, 3.0))
+        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, 3.0, None))
 
     def test_name(self):
         self.assertEquals(self.c.normalize("metric"), "metric")

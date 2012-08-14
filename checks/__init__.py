@@ -126,13 +126,13 @@ class Check(object):
         "Get all metric names"
         return self._sample_store.keys()
 
-    def save_gauge(self, metric, value, timestamp=None, tags=None):
+    def save_gauge(self, metric, value, timestamp=None, tags=None, hostname=None):
         """ Save a gauge value. """
         if not self.is_gauge(metric):
             self.gauge(metric)
-        self.save_sample(metric, value, timestamp, tags)
+        self.save_sample(metric, value, timestamp, tags, hostname)
 
-    def save_sample(self, metric, value, timestamp=None, tags=None):
+    def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None):
         """Save a simple sample, evict old values if needed
         """
         if timestamp is None:
@@ -153,12 +153,12 @@ class Check(object):
 
         # Data eviction rules
         if self.is_gauge(metric):
-            self._sample_store[metric][tags] = ((timestamp, value), )
+            self._sample_store[metric][tags] = ((timestamp, value, hostname), )
         elif self.is_counter(metric):
             if self._sample_store[metric].get(tags) is None:
-                self._sample_store[metric][tags] = [(timestamp, value)]
+                self._sample_store[metric][tags] = [(timestamp, value, hostname)]
             else:
-                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value)]
+                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value, hostname)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
@@ -180,7 +180,10 @@ class Check(object):
             if delta < 0:
                 raise UnknownValue()
 
-            return (sample2[0], delta / interval)
+            if len(sample2)==3:
+                return (sample2[0], delta / interval, sample2[2])
+            else:
+                return (sample2[0], delta / interval, None)
         except Infinity:
             raise
         except UnknownValue:
@@ -216,7 +219,7 @@ class Check(object):
     def get_sample(self, metric, tags=None):
         "Return the last value for that metric"
         x = self.get_sample_with_timestamp(metric, tags)
-        assert type(x) == types.TupleType and len(x) == 2, x
+        assert type(x) == types.TupleType and len(x) == 3, x
         return x[1]
         
     def get_samples_with_timestamps(self):
@@ -251,11 +254,18 @@ class Check(object):
         for m in self._sample_store:
             try:
                 for t in self._sample_store[m]:
-                   ts, val = self.get_sample_with_timestamp(m, t)
-                   if t is None:
-                       metrics.append((m, int(ts), val, {}))
-                   else:
-                       metrics.append((m, int(ts), val, {"tags": list(t)}))
+                    ts, val, hostname = self.get_sample_with_timestamp(m, t)
+                    if not hostname:
+                        if t is None:
+                            metrics.append((m, int(ts), val, {}))
+                        else:
+                            metrics.append((m, int(ts), val, {"tags": list(t)}))
+                    else:
+                        if t is None:
+                            metrics.append((m, int(ts), val, {"host_name":hostname}))
+                        else:
+                            metrics.append((m, int(ts), val, {"tags": list(t), "host_name":hostname}))
+
             except:
                 pass
         return metrics
@@ -267,4 +277,4 @@ def gethostname(agentConfig):
         try:
             return socket.gethostname()
         except socket.error, e:
-            logging.debug("processes: unable to get hostanme: " + str(e))
+            logging.debug("processes: unable to get hostname: " + str(e))

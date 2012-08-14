@@ -43,7 +43,9 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.cacti import Cacti
 from checks.varnish import Varnish
 
-from checks.db.elastic import ElasticSearch
+from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
+from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
+
 
 from checks.ec2 import EC2
 
@@ -101,6 +103,7 @@ class checks(object):
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
+            HAProxyMetrics(self.checksLogger)
             ]
 
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
@@ -111,7 +114,7 @@ class checks(object):
             except Exception, e:
                 self.checksLogger.exception('Unable to load custom check module %s' % module_spec)
 
-        self._event_checks = [Hudson(), Nagios(socket.gethostname())]
+        self._event_checks = [ElasticSearchClusterStatus(self.checksLogger), HAProxyEvents(self.checksLogger), Hudson(), Nagios(socket.gethostname())]
         self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
 
         self._ec2 = EC2(self.checksLogger)
