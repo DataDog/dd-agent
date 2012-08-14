@@ -3,14 +3,14 @@ them to [Datadog](https://app.datadoghq.com) on your behalf so that
 you can do something with your monitoring and performance data.
 
 You're looking at the source code right now. We provide a number of
-pre-packaged binaries for your convenience.  Check out our
-[faq](http://help.datadoghq.com/kb/agent/datadog-repositories) if you
-want to use our packages.
+[pre-packaged binaries](https://app.datadoghq.com/account/settings#agent] for your convenience.
+
+# [Change log](https://github.com/DataDog/dd-agent/wiki/Change-Log)
 
 # How to contribute code
 
 Feel free to fork this repository and submit pull requests against the
-`unstable` branch.
+`master` branch.
 
 # How to configure the agent
 
