@@ -10,18 +10,21 @@ Pup.py
     (C) Datadog, Inc. 2012 all rights reserved
 """
 
+# stdlib
+from collections import defaultdict
+import sys
+import optparse
+import os
+import json
+import re
+
+
+# 3p
 import tornado
 from tornado import ioloop
 from tornado import web
 from tornado import websocket
 
-from collections import defaultdict
-
-import sys
-import os
-import json
-import argparse
-import re
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',
@@ -211,11 +214,12 @@ application = tornado.web.Application([
 def main():
     """ Parses arguments and starts Pup server """
     global port
-    parser = argparse.ArgumentParser(description='Pup server to collect and display metrics at localhost (default port 17125) from dogapi, StatsD, and dd-agent.')
-    parser.add_argument('-p', dest='port', default=17125, type=int, nargs='?',
+
+    parser = optparse.OptionParser(description='Pup collects and displays from the Datadog Agent and Dogstatsd.')
+    parser.add_option('-p', dest='port', default=17125, type='int', 
                        help='localhost port number for the server to listen on. Default is port 17125.')
-    args = parser.parse_args()
-    port = args.port
+    opts, args = parser.parse_args()
+    port = opts.port
     application.listen(port)
 
     interval_ms = 2000

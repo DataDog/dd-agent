@@ -27,7 +27,6 @@ python $dd_base/virtualenv.py $dd_base/venv
 
 # install dependencies
 pip install tornado
-pip install argparse
 
 # set up the agent
 mkdir -p $dd_base/agent
