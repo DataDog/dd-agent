@@ -141,6 +141,10 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:
                 agentConfig['pup_url'] = 'http://localhost:17125'
+
+            pup_port = 17125
+            if config.has_option('Main', 'pup_port'):
+                agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
    
         # Increases the frequency of statsd metrics when only sending to Pup
         if not agentConfig['use_dd'] and agentConfig['use_pup']:

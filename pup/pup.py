@@ -218,14 +218,12 @@ application = tornado.web.Application([
     (r"/intake/", AgentPostHandler),
 ])
 
-def run_pup():
+def run_pup(config):
     """ Run the pup server. """
     global port
-    parser = optparse.OptionParser(description='Pup collects and displays from the Datadog Agent and Dogstatsd.')
-    parser.add_option('-p', dest='port', default=17125, type='int', 
-                       help='localhost port number for the server to listen on. Default is port 17125.')
-    opts, args = parser.parse_args()
-    port = opts.port
+
+    port = config.get('pup_port', 17125)
+
     application.listen(port)
 
     interval_ms = 2000
@@ -243,7 +241,7 @@ def main():
 
     if is_enabled:
         logging.info("Starting pup")
-        run_pup()
+        run_pup(c)
     else:
         logging.info("Pup is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
