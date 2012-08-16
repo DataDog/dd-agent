@@ -21,7 +21,7 @@ function on_error() {
 It looks like you hit an issue when trying to install the agent.
 
 Please send an email to help@datadoghq.com with the contents of ddagent-install.log
-and we'll do our very best to help you solve your problem\n\033[0m" 
+and we'll do our very best to help you solve your problem\n\033[0m"
 }
 trap on_error ERR
 
