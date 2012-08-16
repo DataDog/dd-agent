@@ -23,8 +23,6 @@ def get_parsed_args():
                         dest='clean')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                         default=False,dest='use_forwarder')
-    parser.add_option('-p', '--disable-pup', action='store_true', default=False,
-                        dest="disable_pup")
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
     try:
@@ -33,7 +31,6 @@ def get_parsed_args():
         options, args = Values({'dd_url': None, 
                                 'clean': False, 
                                 'use_forwarder':False,
-                                'disable_pup':False,
                                 'disable_dd':False}), [] # Ignore parse errors
     return options, args
 
@@ -137,11 +134,9 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = False
+            agentConfig['use_pup'] = True
 
-        if options is not None and options.disable_pup:
-            agentConfig['use_pup'] = False
-        elif agentConfig['use_pup']:
+        if agentConfig['use_pup']:
             if config.has_option('Main', 'pup_url'):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:

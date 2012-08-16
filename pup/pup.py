@@ -17,13 +17,20 @@ import optparse
 import os
 import json
 import re
-
+import time
+import logging
 
 # 3p
 import tornado
 from tornado import ioloop
 from tornado import web
 from tornado import websocket
+
+# project
+from config import get_config
+
+
+logger = logging.getLogger('pup')
 
 
 AGENT_TRANSLATION = {
@@ -211,10 +218,9 @@ application = tornado.web.Application([
     (r"/intake/", AgentPostHandler),
 ])
 
-def main():
-    """ Parses arguments and starts Pup server """
+def run_pup():
+    """ Run the pup server. """
     global port
-
     parser = optparse.OptionParser(description='Pup collects and displays from the Datadog Agent and Dogstatsd.')
     parser.add_option('-p', dest='port', default=17125, type='int', 
                        help='localhost port number for the server to listen on. Default is port 17125.')
@@ -227,6 +233,25 @@ def main():
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
+
+
+def main():
+    """ Parses arguments and starts Pup server """
+
+    c = get_config(parse_args=False)
+    is_enabled = c['use_pup']
+
+    if is_enabled:
+        logging.info("Starting pup")
+        run_pup()
+    else:
+        logging.info("Pup is disabled. Exiting")
+        # We're exiting purposefully, so exit with zero (supervisor's expected
+        # code). Sleep a little bit so supervisor thinks we've started cleanly
+        # and thus exit cleanly.
+        time.sleep(2)
+        sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
