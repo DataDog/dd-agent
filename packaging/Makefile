@@ -40,9 +40,9 @@ incbuild:
 	mv build.number.tmp build.number
 
 installdeb:
-	dpkg -i `ls -t datadog-agent-lib_*.deb | head -1`  --force-confdef --force-confnew
-	dpkg -i `ls -t datadog-agent-base_*.deb | head -1` --force-confdef --force-confnew
-	dpkg -i `ls -t datadog-agent_*.deb | head -1`	   --force-confdef --force-confnew
+	dpkg -i --force-confdef --force-confnew `ls -t datadog-agent-lib_*.deb | head -1`  
+	dpkg -i --force-confdef --force-confnew `ls -t datadog-agent-base_*.deb | head -1` 
+	dpkg -i --force-confdef --force-confnew `ls -t datadog-agent_*.deb | head -1`	   
 
 archiverpm:
 	mkdir -p ../dist
