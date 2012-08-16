@@ -48,7 +48,7 @@ deb: clean install_deb
 $(FPM_BUILD) -t deb \
 -d "python (>= 2.6)" \
 -d "datadog-agent-base" \
--d "python-tornado" \
+-d "python-tornado (>= 2.3)" \
 -d "supervisor (>= 3.0)" \
 --post-install deb/postinst \
 --post-uninstall deb/postrm \
@@ -61,7 +61,7 @@ rpm: clean install_rpm
 	FPM_EDITOR="echo '' >>" \
 $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.6" \
--d "python-tornado" \
+-d "python-tornado >= 2.3" \
 -d "datadog-agent-base >= $(VERSION)" \
 -d "supervisor" \
 --pre-install rpm/preinst \
