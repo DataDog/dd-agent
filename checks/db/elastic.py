@@ -74,7 +74,7 @@ class ElasticSearchClusterStatus(Check):
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
                  'event_type': 'elasticsearch',
                  'host': hostname,
-                 'api_key': agentConfig['apiKey'],
+                 'api_key': agentConfig['api_key'],
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,

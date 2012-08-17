@@ -132,7 +132,7 @@ class Check(object):
             self.gauge(metric)
         self.save_sample(metric, value, timestamp, tags, hostname)
 
-    def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None):
+    def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """Save a simple sample, evict old values if needed
         """
         if timestamp is None:
@@ -153,12 +153,12 @@ class Check(object):
 
         # Data eviction rules
         if self.is_gauge(metric):
-            self._sample_store[metric][tags] = ((timestamp, value, hostname), )
+            self._sample_store[metric][tags] = ((timestamp, value, hostname, device_name), )
         elif self.is_counter(metric):
             if self._sample_store[metric].get(tags) is None:
-                self._sample_store[metric][tags] = [(timestamp, value, hostname)]
+                self._sample_store[metric][tags] = [(timestamp, value, hostname, device_name)]
             else:
-                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value, hostname)]
+                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value, hostname, device_name)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
@@ -180,14 +180,11 @@ class Check(object):
             if delta < 0:
                 raise UnknownValue()
 
-            if len(sample2)==3:
-                return (sample2[0], delta / interval, sample2[2])
-            else:
-                return (sample2[0], delta / interval, None)
+            return (sample2[0], delta / interval, sample2[2], sample2[3])
         except Infinity:
-            raise
+            raise 
         except UnknownValue:
-            raise
+            raise 
         except Exception, e:
             raise NaN(e)
 
@@ -254,17 +251,15 @@ class Check(object):
         for m in self._sample_store:
             try:
                 for t in self._sample_store[m]:
-                    ts, val, hostname = self.get_sample_with_timestamp(m, t)
-                    if not hostname:
-                        if t is None:
-                            metrics.append((m, int(ts), val, {}))
-                        else:
-                            metrics.append((m, int(ts), val, {"tags": list(t)}))
-                    else:
-                        if t is None:
-                            metrics.append((m, int(ts), val, {"host_name":hostname}))
-                        else:
-                            metrics.append((m, int(ts), val, {"tags": list(t), "host_name":hostname}))
+                    ts, val, hostname, device_name = self.get_sample_with_timestamp(m, t)
+                    attributes = {}
+                    if t:
+                        attributes['tags'] = list(t)
+                    if hostname:
+                        attributes['host_name'] = hostname
+                    if device_name:
+                        attributes['device_name'] = device_name
+                    metrics.append((m, int(ts), val, attributes))
 
             except:
                 pass

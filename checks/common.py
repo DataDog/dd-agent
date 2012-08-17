@@ -89,10 +89,6 @@ class checks(object):
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
-        self._jvm = Jvm(self.checksLogger)
-        self._tomcat = Tomcat(self.checksLogger)
-        self._activemq = ActiveMQ(self.checksLogger)
-        self._solr = Solr(self.checksLogger)
         self._memcache = Memcache(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
@@ -103,7 +99,11 @@ class checks(object):
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
-            HAProxyMetrics(self.checksLogger)
+            HAProxyMetrics(self.checksLogger),
+            Jvm(self.checksLogger),
+            Tomcat(self.checksLogger),
+            ActiveMQ(self.checksLogger),
+            Solr(self.checksLogger)
             ]
 
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
@@ -159,10 +159,6 @@ class checks(object):
         cpuStats = self._cpu.check(self.checksLogger, self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
-        jvmData = self._jvm.check(self.agentConfig)
-        tomcatData = self._tomcat.check(self.agentConfig)
-        activeMQData = self._activemq.check(self.agentConfig)
-        solrData = self._solr.check(self.agentConfig)
         memcacheData = self._memcache.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
@@ -239,18 +235,6 @@ class checks(object):
         if ioStats:
             checksData['ioStats'] = ioStats
             
-        if jvmData:
-            checksData['jvm'] = jvmData
-
-        if tomcatData:
-            checksData['tomcat'] = tomcatData
-
-        if activeMQData:
-            checksData['activemq'] = activeMQData
-
-        if solrData:
-            checksData['solr'] = solrData
-
         if memcacheData:
             checksData['memcache'] = memcacheData
         
