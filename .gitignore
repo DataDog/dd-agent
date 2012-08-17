@@ -1,6 +1,6 @@
 *.pyc
 *.*~
-build/*
+*/build/*
 datadog.conf
 datadog_agent.egg-info/*
 artifacts/*
@@ -10,3 +10,6 @@ node_modules/*
 *.txt
 *.log
 *.pid
+*.deb
+*.rpm
+*.egg-info*
