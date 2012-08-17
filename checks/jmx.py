@@ -184,7 +184,7 @@ class Jvm(Check):
                         passwd = passwords[0]
 
                 try:
-                    self.logger.info("JMX Connection with {0}".format(connection,user,passwd))
+                    self.logger.info("JMX Connection with %s %s %s" % (connection,user,passwd))
                     self.jmx.connect(connection,user,passwd)
                     values = self.jmx.get_jvm_status()
                 except Exception, e:
