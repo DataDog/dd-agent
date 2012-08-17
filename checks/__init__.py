@@ -216,7 +216,7 @@ class Check(object):
     def get_sample(self, metric, tags=None):
         "Return the last value for that metric"
         x = self.get_sample_with_timestamp(metric, tags)
-        assert type(x) == types.TupleType and len(x) == 3, x
+        assert type(x) == types.TupleType and len(x) == 4, x
         return x[1]
         
     def get_samples_with_timestamps(self):
