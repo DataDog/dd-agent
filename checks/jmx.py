@@ -150,7 +150,6 @@ class Jvm(Check):
         connections = agentConfig.get(key_server,None)
         users = agentConfig.get(key_user,None)
         passwords = agentConfig.get(key_passwd,None)
-        self.logger.info("TOMCAT ABCD {0}".format((connections,users,passwords)))
 
         if connections and jvm_name:
             connections = connections.split(',')
@@ -161,7 +160,6 @@ class Jvm(Check):
 
             for i in range(len(connections)):
                 connection = connections[i].split(':')
-                self.logger.info("CONNECTION: {0}".format(connection))
                 
                 tag = None
                 if len(connection) == 3:
@@ -179,14 +177,12 @@ class Jvm(Check):
                         passwd = passwords[0]
 
                 try:
-                    self.logger.info("Connecting with {0}".format(connection,user,passwd))
+                    self.logger.info("JMX Connection with {0}".format(connection,user,passwd))
                     self.jmx.connect(connection,user,passwd)
                     values = self.jmx.get_jvm_status()
                 except Exception, e:
                     self.logger.exception('Error while fetching JVM metrics: %s' % e)
                     return False
-
-                self.logger.info("TOMCAT: {0}".format(tag))
 
                 tags = ["instance:%s" % tag]
                 for key in values:
