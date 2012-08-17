@@ -66,7 +66,7 @@ AGENT_TRANSLATION = {
     'mysqlOpenFiles'            : 'mysql.performance.open_files',
     'mysqlSlowQueries'          : 'mysql.performance.slow_queries',
     'mysqlTableLocksWaited'     : 'mysql.performance.table_locks_waited',
-    'mysqlInnodbDataReads'      : 'mysql.innodb.data_reads', 
+    'mysqlInnodbDataReads'      : 'mysql.innodb.data_reads',
     'mysqlInnodbDataWrites'     : 'mysql.innodb.data_writes',
     'mysqlInnodbOsLogFsyncs'    : 'mysql.innodb.os_log_fsyncs',
     'mysqlThreadsConnected'     : 'mysql.performance.threads_connected',
@@ -172,7 +172,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("pup.html",
         title="Pup",
         port=port)
-            
+
 class PostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
@@ -245,9 +245,9 @@ def main():
     else:
         logging.info("Pup is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
-        # code). Sleep a little bit so supervisor thinks we've started cleanly
-        # and thus exit cleanly.
-        time.sleep(2)
+        # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
+        # and thus can exit cleanly.
+        time.sleep(4)
         sys.exit(0)
 
 
