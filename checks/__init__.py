@@ -126,11 +126,11 @@ class Check(object):
         "Get all metric names"
         return self._sample_store.keys()
 
-    def save_gauge(self, metric, value, timestamp=None, tags=None, hostname=None):
+    def save_gauge(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """ Save a gauge value. """
         if not self.is_gauge(metric):
             self.gauge(metric)
-        self.save_sample(metric, value, timestamp, tags, hostname)
+        self.save_sample(metric, value, timestamp, tags, hostname, device_name)
 
     def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """Save a simple sample, evict old values if needed
