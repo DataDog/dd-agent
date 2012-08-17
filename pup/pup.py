@@ -17,13 +17,20 @@ import optparse
 import os
 import json
 import re
-
+import time
+import logging
 
 # 3p
 import tornado
 from tornado import ioloop
 from tornado import web
 from tornado import websocket
+
+# project
+from config import get_config
+
+
+logger = logging.getLogger('pup')
 
 
 AGENT_TRANSLATION = {
@@ -59,7 +66,7 @@ AGENT_TRANSLATION = {
     'mysqlOpenFiles'            : 'mysql.performance.open_files',
     'mysqlSlowQueries'          : 'mysql.performance.slow_queries',
     'mysqlTableLocksWaited'     : 'mysql.performance.table_locks_waited',
-    'mysqlInnodbDataReads'      : 'mysql.innodb.data_reads', 
+    'mysqlInnodbDataReads'      : 'mysql.innodb.data_reads',
     'mysqlInnodbDataWrites'     : 'mysql.innodb.data_writes',
     'mysqlInnodbOsLogFsyncs'    : 'mysql.innodb.os_log_fsyncs',
     'mysqlThreadsConnected'     : 'mysql.performance.threads_connected',
@@ -165,7 +172,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("pup.html",
         title="Pup",
         port=port)
-            
+
 class PostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
@@ -211,15 +218,12 @@ application = tornado.web.Application([
     (r"/intake/", AgentPostHandler),
 ])
 
-def main():
-    """ Parses arguments and starts Pup server """
+def run_pup(config):
+    """ Run the pup server. """
     global port
 
-    parser = optparse.OptionParser(description='Pup collects and displays from the Datadog Agent and Dogstatsd.')
-    parser.add_option('-p', dest='port', default=17125, type='int', 
-                       help='localhost port number for the server to listen on. Default is port 17125.')
-    opts, args = parser.parse_args()
-    port = opts.port
+    port = config.get('pup_port', 17125)
+
     application.listen(port)
 
     interval_ms = 2000
@@ -227,6 +231,25 @@ def main():
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
+
+
+def main():
+    """ Parses arguments and starts Pup server """
+
+    c = get_config(parse_args=False)
+    is_enabled = c['use_pup']
+
+    if is_enabled:
+        logging.info("Starting pup")
+        run_pup(c)
+    else:
+        logging.info("Pup is disabled. Exiting")
+        # We're exiting purposefully, so exit with zero (supervisor's expected
+        # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
+        # and thus can exit cleanly.
+        time.sleep(4)
+        sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

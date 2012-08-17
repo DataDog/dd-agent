@@ -31,8 +31,18 @@ use_mount: no
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
 
-# Run pup locally
-# use_pup: no
+# ========================================================================== #
+# Pup configuration
+# 
+# Pup is a small server that displays metric data collected by the agent.
+# Think of it as a fancy status page or a toe dip into the world of
+# datadog. It can be connected to on the port below.
+# ========================================================================== #
+# use_pup: yes
+# The port for this pup to listen to.
+# pup_port: 17125
+# The address of the pup server to send metrics to
+# pup_url: http://localhost:17125
 
 # ========================================================================== #
 # dogstatsd configuration                                                    #
