@@ -72,7 +72,7 @@ class HAProxyEvents(Check):
                  'msg_text':msg,
                  'msg_title': title,
                  "alert_type": alert_type,
-                 "source_type": "haproxy",
+                 "source_type": "HAProxy",
                  "event_object": hostname
             }
 

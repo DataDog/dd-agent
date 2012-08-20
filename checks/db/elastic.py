@@ -79,7 +79,7 @@ class ElasticSearchClusterStatus(Check):
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,
-                 "source_type": "elasticsearch",
+                 "source_type": "Elasticsearch",
                  "event_object": hostname
             } 
 
