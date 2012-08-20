@@ -68,11 +68,11 @@ class HAProxyEvents(Check):
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple()))-int(lastchg),
                  'event_type': 'haproxy',
                  'host': hostname,
-                 'api_key': agentConfig['apiKey'],
+                 'api_key': agentConfig['api_key'],
                  'msg_text':msg,
                  'msg_title': title,
                  "alert_type": alert_type,
-                 "source_type": "HAProxy",
+                 "source_type": "haproxy",
                  "event_object": hostname
             }
 

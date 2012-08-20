@@ -49,7 +49,7 @@ class TestElastic(unittest.TestCase):
     def testEvent(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
               'version': '0.1',
-              'apiKey': 'toto' }
+              'api_key': 'toto' }
 
 
         url = urlparse.urljoin(agentConfig['elasticsearch'], HEALTH_URL)
@@ -71,7 +71,7 @@ class TestElastic(unittest.TestCase):
     def testCheck(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         def _check(slf, r):
@@ -94,7 +94,7 @@ class TestElastic(unittest.TestCase):
         # Same check, only given hostname
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         _check(self, r)
@@ -102,7 +102,7 @@ class TestElastic(unittest.TestCase):
         # Same check, only given hostname
         agentConfig = { 'elasticsearch': 'http://localhost:%s/wrong_url' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         self.assertFalse(r)

@@ -24,6 +24,7 @@ def _get_data(agentConfig, url):
 class NodeNotFound(Exception): pass
 
 class ElasticSearchClusterStatus(Check):
+    key = "ElasticSearch"
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.cluster_status = None
@@ -74,11 +75,11 @@ class ElasticSearchClusterStatus(Check):
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
                  'event_type': 'elasticsearch',
                  'host': hostname,
-                 'api_key': agentConfig['apiKey'],
+                 'api_key': agentConfig['api_key'],
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,
-                 "source_type": "Elasticsearch",
+                 "source_type": "elasticsearch",
                  "event_object": hostname
             } 
 
