@@ -133,7 +133,7 @@ class Jvm(Check):
         Check.__init__(self, logger)
         self.jmx = JmxConnector()
 
-    def _store_metric(self,kind,name,jvm_name,val,tags=None):
+    def _store_metric(self, kind, name, jvm_name, val, tags=None):
         if kind == "gauge":
             if not self.is_gauge(name):
                 self.gauge(name)
@@ -147,11 +147,11 @@ class Jvm(Check):
             self.jmx.get_attribute(attribute), tags=tags)
 
     def _check_jvm(self, jvm_name, agentConfig, key_server, key_user, key_passwd):
-        """ It knows allow multiple instances of a same check.
+        """ It allows multiple instances of a same check.
         THe datadog.conf file should follow the syntax below:
-        key_server = server_address1:server_port1:tag1, server_address2:server_port2:tag2
-        key_user = user1, user2 or key_user = user if you want to use the same username and password for all server_address2
-        key_passwd = passwd1, passwd2 or key_passwd = passwd if you want to use the same username and password for all server_address2
+        key_server: server_address1:server_port1:tag1, server_address2:server_port2:tag2
+        key_user: user1, user2 or key_user = user if you want to use the same username and password for all servers
+        key_passwd: passwd1, passwd2 or key_passwd = passwd if you want to use the same username and password for all server_address2
         """
 
         connections = agentConfig.get(key_server,None)
