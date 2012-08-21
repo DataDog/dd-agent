@@ -115,13 +115,13 @@ class Histogram(Metric):
 
         min_ = self.samples[0]
         max_ = self.samples[-1]
-        avg = self.samples[int(round(length/2 - 1))]
+        med = self.samples[int(round(length/2 - 1))]
 
 
         metrics = [
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, min_)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, max_)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, avg)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.median' % self.name, 'points' : [(ts, med)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
         ]
 
