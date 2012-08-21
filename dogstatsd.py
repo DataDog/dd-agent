@@ -50,6 +50,7 @@ class Gauge(Metric):
         self.value = value
 
     def flush(self, timestamp):
+        # Gauges don't reset. Continue to send the same value.
         return [{
             'metric' : self.name,
             'points' : [(timestamp, self.value)],
@@ -71,12 +72,15 @@ class Counter(Metric):
         self.value += value * int(1 / sample_rate)
 
     def flush(self, timestamp):
-        return [{
-            'metric' : self.name,
-            'points' : [(timestamp, self.value)],
-            'tags' : self.tags,
-            'host' : self.hostname
-        }]
+        try:
+            return [{
+                'metric' : self.name,
+                'points' : [(timestamp, self.value)],
+                'tags' : self.tags,
+                'host' : self.hostname
+            }]
+        finally:
+            self.value = 0
 
 
 class Histogram(Metric):
@@ -121,6 +125,11 @@ class Histogram(Metric):
             val = self.samples[int(round(p * length - 1))]
             name = '%s.%spercentile' % (self.name, int(p * 100))
             metrics.append({'host': self.hostname, 'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
+
+        # Reset our state.
+        self.samples = []
+        self.count = 0
+
         return metrics
 
 
@@ -170,9 +179,8 @@ class MetricsAggregator(object):
         # Bucket metrics by an interval of a few seconds to avoid race
         # conditions betwen the threads.
         timestamp = time.time()
-        interval = timestamp - timestamp % self.interval
 
-        context = (interval, name, tags)
+        context = (name, tags)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[metadata[1]]
             self.metrics[context] = metric_class(name, tags, self.hostname)
@@ -182,16 +190,14 @@ class MetricsAggregator(object):
     def flush(self, include_diagnostic_stats=True):
         # Flush all completed intervals bucketed up to this time.
         timestamp = time.time()
-        interval = timestamp - timestamp % self.interval
 
         # Find all intervals that are completed (don't use a generator here)
-        past_contexts = [c for c in self.metrics if c[0] < interval]
+        past_contexts = [c for c in self.metrics]
 
         # Flush all completed metrics and remove them.
         metrics = []
         for context in past_contexts:
             metrics += self.metrics[context].flush(timestamp)
-            del self.metrics[context]
 
         # Track how many points we see.
         if include_diagnostic_stats:
