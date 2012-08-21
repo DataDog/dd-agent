@@ -197,7 +197,7 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.info("Expiring %s hasnt been submitted in  %ss" % context)
+                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp)
@@ -311,7 +311,7 @@ class Server(object):
 
     def start(self):
         """ Run the server. """
-        logger.info('Starting dogstatsd server on %s' % str(self.address))
+        logger.info('Listening on host & port: %s' % str(self.address))
 
         # Inline variables to speed up look-ups.
         buffer_size = self.buffer_size
@@ -329,6 +329,8 @@ class Server(object):
 def main(config_path=None):
 
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
+
+    logger.info("Starting dogstatsd")
 
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
