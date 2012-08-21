@@ -6,7 +6,7 @@ from checks import *
 
 # When running with pymongo < 2.0
 # Not the full spec for mongo URIs
-# http://www.mongodb.org/display/DOCS/connections6  
+# http://www.mongodb.org/display/DOCS/connections6
 mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
 
 class MongoDb(Check):
@@ -72,7 +72,7 @@ class MongoDb(Check):
             elif state == 7: return 'Arbiter'
             elif state == 8: return 'Down'
             elif state == 9: return 'Rollback'
-            
+
         return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
                  'event_type': 'Mongo',
                  'host': gethostname(agentConfig),
@@ -95,7 +95,7 @@ class MongoDb(Check):
                 from pymongo import uri_parser
                 # Configuration a URL, mongodb://user:pass@server/db
                 dbName = uri_parser.parse_uri(agentConfig['mongodb_server'])['database']
-            
+
                 # parse_uri gives a default database of None
                 dbName = dbName or 'test'
 
@@ -112,12 +112,12 @@ class MongoDb(Check):
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
-  
+
             results = {}
 
-            # Handle replica data, if any 
+            # Handle replica data, if any
             # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
-            try: 
+            try:
                 data = {}
 
                 replSet = conn['admin'].command('replSetGetStatus')
@@ -149,7 +149,7 @@ class MongoDb(Check):
                     data['state'] = replSet['myState']
                     event = self.checkLastState(data['state'], agentConfig, serverVersion)
                     if event is not None:
-                        results['events'] = {'Mongo': [event]}                        
+                        results['events'] = {'Mongo': [event]}
                     status['replSet'] = data
             except:
                 self.logger.exception("Cannot determine replication set status")
@@ -175,7 +175,7 @@ class MongoDb(Check):
                 try:
                     for c in m.split("."):
                         value = value[c]
-                except KeyError:            
+                except KeyError:
                     continue
 
                 # value is now status[x][y][z]
@@ -199,7 +199,7 @@ class MongoDb(Check):
 
                 except UnknownValue:
                     pass
-         
+
             return results
 
         except ImportError:
@@ -212,7 +212,7 @@ class MongoDb(Check):
 
 if __name__ == "__main__":
     import logging
-    agentConfig = { 'mongodb_server': 'localhost:27017', 'apiKey': 'toto' }
+    agentConfig = { 'mongodb_server': 'localhost:27017', 'api_key': 'toto' }
     db = MongoDb(logging)
     print db.check(agentConfig)
-   
+

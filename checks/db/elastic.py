@@ -58,7 +58,7 @@ class ElasticSearchClusterStatus(Check):
             self.logger.exception('Unable to get elasticsearch statistics')
             return False
 
-        
+
 
     def _create_event(self, agentConfig):
         hostname = gethostname(agentConfig).decode('utf-8')
@@ -81,7 +81,7 @@ class ElasticSearchClusterStatus(Check):
                  "alert_type": alert_type,
                  "source_type": "Elasticsearch",
                  "event_object": hostname
-            } 
+            }
 
 
 class ElasticSearch(Check):
@@ -356,7 +356,7 @@ http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
 
             else:
                 self._process_health_data(config, data)
-                
+
             return self.get_metrics()
         except:
             self.logger.exception('Unable to get elasticsearch statistics')
@@ -370,6 +370,6 @@ if __name__ == "__main__":
     logging.basicConfig()
     logger = logging.getLogger()
     c = ElasticSearch(logger)
-    config = {"elasticsearch": "http://localhost:9200", "version": get_version(), "apiKey":"apiKey 2"}
+    config = {"elasticsearch": "http://localhost:9200", "version": get_version(), "api_key":"apiKey 2"}
     pprint.pprint(c.check(config))
 
