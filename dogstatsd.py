@@ -207,7 +207,7 @@ class MetricsAggregator(object):
             metrics.append({
                 'host':self.hostname,
                 'tags':None,
-                'metric': 'dd.dogstatsd.packet.count',
+                'metric': 'datadog.dogstatsd.packet.count',
                 'points': [(timestamp, self.count)]
             })
 
