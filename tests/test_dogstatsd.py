@@ -228,5 +228,5 @@ class TestUnitDogStatsd(object):
         nt.assert_equals(2, len(metrics))
         first, second = metrics
 
-        nt.assert_equal(first['metric'], 'dd.dogstatsd.packet.count')
+        nt.assert_equal(first['metric'], 'datadog.dogstatsd.packet.count')
         nt.assert_equal(first['points'][0][1], 10)
