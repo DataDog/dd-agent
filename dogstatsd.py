@@ -11,7 +11,7 @@ from random import randrange
 import re
 import socket
 import sys
-import time
+from time import time
 import threading
 from urllib import urlencode
 
@@ -45,9 +45,11 @@ class Gauge(Metric):
         self.value = None
         self.tags = tags
         self.hostname = hostname
+        self.last_sample_time = None
 
     def sample(self, value, sample_rate):
         self.value = value
+        self.last_sample_time = time()
 
     def flush(self, timestamp):
         # Gauges don't reset. Continue to send the same value.
@@ -70,6 +72,7 @@ class Counter(Metric):
 
     def sample(self, value, sample_rate):
         self.value += value * int(1 / sample_rate)
+        self.last_sample_time = time()
 
     def flush(self, timestamp):
         try:
@@ -101,6 +104,7 @@ class Histogram(Metric):
     def sample(self, value, sample_rate):
         self.count += int(1 / sample_rate)
         self.samples.append(value)
+        self.last_sample_time = time()
 
     def flush(self, ts):
         if not self.count:
@@ -138,7 +142,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname):
+    def __init__(self, hostname, expiry_seconds=300):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -149,6 +153,7 @@ class MetricsAggregator(object):
             'ms' : Histogram
         }
         self.hostname = hostname
+        self.expiry_seconds = expiry_seconds
 
     def submit(self, packet):
         self.count += 1
@@ -175,10 +180,6 @@ class MetricsAggregator(object):
             elif m[0] == '#':
                 tags = tuple(sorted(m[1:].split(',')))
 
-        # Bucket metrics by an interval of a few seconds to avoid race
-        # conditions betwen the threads.
-        timestamp = time.time()
-
         context = (name, tags)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[metadata[1]]
@@ -187,16 +188,19 @@ class MetricsAggregator(object):
 
 
     def flush(self, include_diagnostic_stats=True):
-        # Flush all completed intervals bucketed up to this time.
-        timestamp = time.time()
 
-        # Find all intervals that are completed (don't use a generator here)
-        past_contexts = [c for c in self.metrics]
+        timestamp = time()
+        expiry_timestamp = timestamp - self.expiry_seconds
 
-        # Flush all completed metrics and remove them.
+        # Flush points and remove expired metrics. We mutate this dictionary
+        # while iterating so don't use an iterator.
         metrics = []
-        for context in past_contexts:
-            metrics += self.metrics[context].flush(timestamp)
+        for context, metric in self.metrics.items():
+            if metric.last_sample_time < expiry_timestamp:
+                logger.info("Expiring %s hasnt been submitted in  %ss" % context)
+                del self.metrics[context]
+            else:
+                metrics += metric.flush(timestamp)
 
         # Track how many points we see.
         if include_diagnostic_stats:
@@ -279,13 +283,13 @@ class Reporter(threading.Thread):
             params['api_key'] = self.api_key
         url = '/api/v1/series?%s' % urlencode(params)
 
-        start_time = time.time()
+        start_time = time()
         conn.request(method, url, body, headers)
 
         #FIXME: add timeout handling code here
 
         response = conn.getresponse()
-        duration = round((time.time() - start_time) * 1000.0, 4)
+        duration = round((time() - start_time) * 1000.0, 4)
         logger.info("%s %s %s%s (%sms)" % (
                         response.status, method, self.api_host, url, duration))
 
@@ -333,11 +337,9 @@ def main(config_path=None):
 
     hostname = gethostname(c)
 
-    rollup_interval = interval
-
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname, rollup_interval)
+    aggregator = MetricsAggregator(hostname)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)

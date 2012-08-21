@@ -198,6 +198,28 @@ class TestUnitDogStatsd(object):
             else:
                 assert False, 'invalid : %s' % packet
 
+    def test_metrics_expiry(self):
+        # Ensure metrics eventually expire and stop submitting.
+        stats = MetricsAggregator('myhost', expiry_seconds=1)
+        stats.submit('test.counter:123|c')
+
+        # Ensure points keep submitting
+        assert stats.flush(False)
+        assert stats.flush(False)
+        time.sleep(0.5)
+        assert stats.flush(False)
+
+        # Now sleep for longer than the expiry window and ensure
+        # no points are submitted
+        time.sleep(2)
+        m = stats.flush(False)
+        assert not m, str(m)
+
+        # If we submit again, we're all good.
+        stats.submit('test.counter:123|c')
+        assert stats.flush(False)
+
+
     def test_diagnostic_stats(self):
         stats = MetricsAggregator('myhost')
         for i in xrange(10):
