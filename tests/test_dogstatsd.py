@@ -16,7 +16,7 @@ class TestUnitDogStatsd(object):
         return sorted(metrics, key=sort_by)
 
     def test_tags(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('gauge:1|c')
         stats.submit('gauge:2|c|@1')
         stats.submit('gauge:4|c|#tag1,tag2')
@@ -45,7 +45,7 @@ class TestUnitDogStatsd(object):
 
 
     def test_counter(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Track some counters.
         stats.submit('my.first.counter:1|c')
@@ -82,7 +82,7 @@ class TestUnitDogStatsd(object):
     def test_sampled_counter(self):
 
         # Submit a sampled counter.
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('sampled.counter:1|c|@0.5')
         metrics = stats.flush(False)
         assert len(metrics) == 1
@@ -91,7 +91,7 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(m['points'][0][1], 2)
 
     def test_gauge(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Track some counters.
         stats.submit('my.first.gauge:1|g')
@@ -114,7 +114,7 @@ class TestUnitDogStatsd(object):
             nt.assert_equals(second['points'][0][1], 1.5)
 
     def test_gauge_sample_rate(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Submit a sampled gauge metric.
         stats.submit('sampled.gauge:10|g|@0.1')
@@ -127,7 +127,7 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(m['points'][0][1], 10)
 
     def test_histogram(self):
-        stats = MetricsAggregator('myhost', 2)
+        stats = MetricsAggregator('myhost')
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -165,7 +165,7 @@ class TestUnitDogStatsd(object):
 
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('sampled.hist:5|h|@0.5')
 
 
@@ -189,7 +189,7 @@ class TestUnitDogStatsd(object):
             'string.sample.rate:0|c|@abc',
         ]
 
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         for packet in packets:
             try:
                 stats.submit(packet)
@@ -199,7 +199,7 @@ class TestUnitDogStatsd(object):
                 assert False, 'invalid : %s' % packet
 
     def test_diagnostic_stats(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         for i in xrange(10):
             stats.submit('metric:10|c')
         metrics = self.sort_metrics(stats.flush())

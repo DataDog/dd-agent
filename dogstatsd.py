@@ -138,7 +138,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname, interval):
+    def __init__(self, hostname):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -149,7 +149,6 @@ class MetricsAggregator(object):
             'ms' : Histogram
         }
         self.hostname = hostname
-        self.interval = interval
 
     def submit(self, packet):
         self.count += 1
