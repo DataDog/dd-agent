@@ -69,7 +69,7 @@ class HaproxyTestCase(unittest.TestCase):
             'haproxy_user': 'datadog', 
             'haproxy_password':'isdevops',
             'version': '0.1',
-            'apiKey': 'toto'
+            'api_key': 'apikey_2'
         }
 
         r = self.events_check.check(logging.getLogger(), agentConfig)
@@ -99,7 +99,7 @@ class HaproxyTestCase(unittest.TestCase):
             'haproxy_user': 'datadog', 
             'haproxy_password':'isdevops',
             'version': '0.1',
-            'apiKey': 'toto'
+            'api_key': 'toto'
         }
         r = self.metrics_check.check(agentConfig)
 
@@ -118,7 +118,7 @@ class HaproxyTestCase(unittest.TestCase):
             'haproxy_user': 'wrong', 
             'haproxy_password':'isdevops',
             'version': '0.1',
-            'apiKey': 'toto'
+            'api_key': 'toto'
         }
 
         r = self.metrics_check.check(agentConfig)
@@ -130,7 +130,7 @@ class HaproxyTestCase(unittest.TestCase):
         agentConfig = {
             'haproxy_url': 'http://localhost:3834/stats',
             'version': '0.1',
-            'apiKey': 'toto'
+            'api_key': 'toto'
         }
 
         # run the check twice to get rates
