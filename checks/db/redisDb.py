@@ -41,7 +41,14 @@ class Redis(Check):
     def _get_conn(self, host, port, password):
         key = (host, port)
         if key not in self.connections:
-            self.connections[key] = redis.Redis(host=host, port=port, password=password)
+            if password is not None and len(password) > 0:
+                try:
+                    self.connections[key] = redis.Redis(host=host, port=port, password=password)
+                except TypeError:
+                    self.logger.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
+            else:
+                self.connections[key] = redis.Redis(host=host, port=port)
+                
         return self.connections[key]
 
     def _check_db(self, host, port, password):

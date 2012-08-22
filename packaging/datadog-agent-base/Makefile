@@ -1,4 +1,3 @@
-
 .PHONY: clean links dirs deb rpm install_deb install_rpm install
 
 BUILD=build/package
@@ -68,6 +67,7 @@ $(FPM_BUILD) -t deb \
 -d "python >= 2.4" \
 -d "adduser" \
 -d "sysstat" \
+-d "python-pexpect" \
 --post-install deb/postinst \
 --post-uninstall deb/postrm \
 --pre-uninstall deb/prerm \
@@ -79,7 +79,9 @@ $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.4" \
 -d "python-uuid" \
 -d "sysstat" \
+-d "pexpect" \
 --pre-install rpm/pre_install \
+--post-install rpm/post_install \
 --pre-uninstall rpm/pre_uninstall \
 etc/init.d/datadog-agent \
 etc/dd-agent/datadog.conf.example \

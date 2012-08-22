@@ -23,6 +23,7 @@ clean:
 links:
 	ln -sf ../../checks .
 	ln -sf ../../dogstream .
+	ln -sf ../../pup .
 
 dirs:
 	mkdir -p $(BUILD)

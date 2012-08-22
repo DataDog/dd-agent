@@ -61,7 +61,7 @@ class Check(object):
     * store 1 (and only 1) sample for gauges per metric/tag combination
     * compute rates for counters
     * only log error messages once (instead of each time they occur)
-    
+
     """
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
@@ -114,7 +114,7 @@ class Check(object):
         ACHTUNG: Resets previous values associated with this metric.
         """
         self._sample_store[metric] = {}
-        
+
     def is_metric(self, metric):
         return metric in self._sample_store
 
@@ -126,13 +126,13 @@ class Check(object):
         "Get all metric names"
         return self._sample_store.keys()
 
-    def save_gauge(self, metric, value, timestamp=None, tags=None):
+    def save_gauge(self, metric, value, timestamp=None, tags=None, hostname=None):
         """ Save a gauge value. """
         if not self.is_gauge(metric):
             self.gauge(metric)
-        self.save_sample(metric, value, timestamp, tags)
+        self.save_sample(metric, value, timestamp, tags, hostname)
 
-    def save_sample(self, metric, value, timestamp=None, tags=None):
+    def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None):
         """Save a simple sample, evict old values if needed
         """
         if timestamp is None:
@@ -143,7 +143,7 @@ class Check(object):
             value = float(value)
         except ValueError, ve:
             raise NaN(ve)
-        
+
         # Sort and validate tags
         if tags is not None:
             if type(tags) not in [type([]), type(())]:
@@ -153,12 +153,12 @@ class Check(object):
 
         # Data eviction rules
         if self.is_gauge(metric):
-            self._sample_store[metric][tags] = ((timestamp, value), )
+            self._sample_store[metric][tags] = ((timestamp, value, hostname), )
         elif self.is_counter(metric):
             if self._sample_store[metric].get(tags) is None:
-                self._sample_store[metric][tags] = [(timestamp, value)]
+                self._sample_store[metric][tags] = [(timestamp, value, hostname)]
             else:
-                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value)]
+                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value, hostname)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
@@ -175,12 +175,15 @@ class Check(object):
             interval = sample2[0] - sample1[0]
             if interval == 0:
                 raise Infinity()
- 
+
             delta = sample2[1] - sample1[1]
             if delta < 0:
                 raise UnknownValue()
 
-            return (sample2[0], delta / interval)
+            if len(sample2)==3:
+                return (sample2[0], delta / interval, sample2[2])
+            else:
+                return (sample2[0], delta / interval, None)
         except Infinity:
             raise
         except UnknownValue:
@@ -203,7 +206,7 @@ class Check(object):
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][tags]) < 2:
             raise UnknownValue()
-        
+
         elif self.is_counter(metric) and len(self._sample_store[metric][tags]) >= 2:
             return self._rate(self._sample_store[metric][tags][-2], self._sample_store[metric][tags][-1])
 
@@ -216,9 +219,9 @@ class Check(object):
     def get_sample(self, metric, tags=None):
         "Return the last value for that metric"
         x = self.get_sample_with_timestamp(metric, tags)
-        assert type(x) == types.TupleType and len(x) == 2, x
+        assert type(x) == types.TupleType and len(x) == 3, x
         return x[1]
-        
+
     def get_samples_with_timestamps(self):
         "Return all values {metric: (ts, value)} for non-tagged metrics"
         values = {}
@@ -243,7 +246,7 @@ class Check(object):
     def get_metrics(self):
         """Get all metrics, including the ones that are tagged.
         This is the preferred method to retrieve metrics
-        
+
         @return the list of samples
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
@@ -251,11 +254,18 @@ class Check(object):
         for m in self._sample_store:
             try:
                 for t in self._sample_store[m]:
-                   ts, val = self.get_sample_with_timestamp(m, t)
-                   if t is None:
-                       metrics.append((m, int(ts), val, {}))
-                   else:
-                       metrics.append((m, int(ts), val, {"tags": list(t)}))
+                    ts, val, hostname = self.get_sample_with_timestamp(m, t)
+                    if not hostname:
+                        if t is None:
+                            metrics.append((m, int(ts), val, {}))
+                        else:
+                            metrics.append((m, int(ts), val, {"tags": list(t)}))
+                    else:
+                        if t is None:
+                            metrics.append((m, int(ts), val, {"host_name":hostname}))
+                        else:
+                            metrics.append((m, int(ts), val, {"tags": list(t), "host_name":hostname}))
+
             except:
                 pass
         return metrics
@@ -265,6 +275,6 @@ def gethostname(agentConfig):
         return agentConfig["hostname"]
     else:
         try:
-            return socket.gethostname()
+            return socket.getfqdn()
         except socket.error, e:
-            logging.debug("processes: unable to get hostanme: " + str(e))
+            logging.debug("processes: unable to get hostname: " + str(e))

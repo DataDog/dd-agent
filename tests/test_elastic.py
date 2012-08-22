@@ -4,8 +4,9 @@ logging.basicConfig()
 import subprocess
 import time
 import urllib2
+import urlparse
 
-from checks.db.elastic import ElasticSearch
+from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus, _get_data, HEALTH_URL
 
 PORT = 9200
 MAX_WAIT = 150
@@ -27,6 +28,7 @@ class TestElastic(unittest.TestCase):
 
     def setUp(self):
         self.c = ElasticSearch(logging.getLogger())
+        self.d = ElasticSearchClusterStatus(logging.getLogger())
         self.process = None
         try:
             # Start elasticsearch
@@ -44,10 +46,32 @@ class TestElastic(unittest.TestCase):
         if self.process is not None:
             self.process.terminate()
 
+    def testEvent(self):
+        agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
+              'version': '0.1',
+              'api_key': 'toto' }
+
+
+        url = urlparse.urljoin(agentConfig['elasticsearch'], HEALTH_URL)
+        data = _get_data(agentConfig, url)
+        self.assertEquals(len(data), 10,data)
+
+        data['status'] = "green"
+        events = self.d.check(logging.getLogger(), agentConfig,data)
+        self.assertEquals(len(events),0,events)
+
+        data = _get_data(agentConfig, url)
+        data['status'] = "red"
+        events = self.d.check(logging.getLogger,agentConfig, data)
+        self.assertEquals(len(events),1,events)
+
+
+
+
     def testCheck(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         def _check(slf, r):
@@ -70,7 +94,7 @@ class TestElastic(unittest.TestCase):
         # Same check, only given hostname
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         _check(self, r)
@@ -78,7 +102,7 @@ class TestElastic(unittest.TestCase):
         # Same check, only given hostname
         agentConfig = { 'elasticsearch': 'http://localhost:%s/wrong_url' % PORT,
                       'version': '0.1',
-                      'apiKey': 'toto' }
+                      'api_key': 'toto' }
 
         r = self.c.check(agentConfig)
         self.assertFalse(r)

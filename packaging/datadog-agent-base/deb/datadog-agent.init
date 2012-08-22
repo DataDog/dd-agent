@@ -19,7 +19,7 @@ AGENTUSER="dd-agent"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 PIDPATH="/var/run/dd-agent"
-NAME="dd-agent"
+NAME="datadog-agent"
 DESC="datadog agent"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"

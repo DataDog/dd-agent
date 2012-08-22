@@ -51,17 +51,17 @@ check_status() {
 
             s=`supervisorctl -c $SUPERVISOR_CONF status`
 
-            # number of RUNNING supervisord programs
-            p=`echo "$s" | grep -c RUNNING`
+            # number of RUNNING supervisord programs (ignoring pup)
+            p=`echo "$s" | grep -v pup | grep -c RUNNING`
 
-            # number of expected running supervisord programs
-            c=`grep -c '\[program:' $SUPERVISOR_CONF`
+            # number of expected running supervisord programs (ignoring pup)
+            c=`grep -v pup $SUPERVISOR_CONF | grep -c '\[program:'`
             if [ "$p" -ne "$c" ]; then
                 echo "$s"
                 echo -n "Datadog agent (supervisor) is NOT running all child processes" && failure && echo
                 return 1
             else
-                echo -n "Datadog agent (supervisor) is running all child processes" && success && echo 
+                echo -n "Datadog agent (supervisor) is running all child processes" && success && echo
                 return 0
             fi
         else
@@ -70,14 +70,14 @@ check_status() {
             status -p $SUPERVISOR_PIDFILE $PROG
             RETVAL=$?
             if [ $RETVAL -eq 0 ]; then
-                echo -n "Datadog agent (supervisor) is running." && success && echo 
+                echo -n "Datadog agent (supervisor) is running." && success && echo
             else
                 echo -n "Datadog agent (supervisor) is NOT running." && failure && echo
             fi
             return $RETVAL
         fi
     fi
-            
+
     if [ -f "$LOCKFILE" ]; then
         echo -n 'Datadog agent is running'  && success && echo
         return 0
@@ -107,8 +107,8 @@ start() {
             stop
         else
             touch $LOCKFILE
-        fi  
-        
+        fi
+
         echo
         return $RETURNVALUE
     else

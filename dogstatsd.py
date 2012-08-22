@@ -11,7 +11,7 @@ from random import randrange
 import re
 import socket
 import sys
-import time
+from time import time
 import threading
 from urllib import urlencode
 
@@ -45,11 +45,14 @@ class Gauge(Metric):
         self.value = None
         self.tags = tags
         self.hostname = hostname
+        self.last_sample_time = None
 
     def sample(self, value, sample_rate):
         self.value = value
+        self.last_sample_time = time()
 
     def flush(self, timestamp):
+        # Gauges don't reset. Continue to send the same value.
         return [{
             'metric' : self.name,
             'points' : [(timestamp, self.value)],
@@ -69,14 +72,18 @@ class Counter(Metric):
 
     def sample(self, value, sample_rate):
         self.value += value * int(1 / sample_rate)
+        self.last_sample_time = time()
 
     def flush(self, timestamp):
-        return [{
-            'metric' : self.name,
-            'points' : [(timestamp, self.value)],
-            'tags' : self.tags,
-            'host' : self.hostname
-        }]
+        try:
+            return [{
+                'metric' : self.name,
+                'points' : [(timestamp, self.value)],
+                'tags' : self.tags,
+                'host' : self.hostname
+            }]
+        finally:
+            self.value = 0
 
 
 class Histogram(Metric):
@@ -97,6 +104,7 @@ class Histogram(Metric):
     def sample(self, value, sample_rate):
         self.count += int(1 / sample_rate)
         self.samples.append(value)
+        self.last_sample_time = time()
 
     def flush(self, ts):
         if not self.count:
@@ -107,13 +115,13 @@ class Histogram(Metric):
 
         min_ = self.samples[0]
         max_ = self.samples[-1]
-        avg = self.samples[int(round(length/2 - 1))]
+        med = self.samples[int(round(length/2 - 1))]
 
 
         metrics = [
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, min_)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, max_)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, avg)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.median' % self.name, 'points' : [(ts, med)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
         ]
 
@@ -121,6 +129,11 @@ class Histogram(Metric):
             val = self.samples[int(round(p * length - 1))]
             name = '%s.%spercentile' % (self.name, int(p * 100))
             metrics.append({'host': self.hostname, 'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
+
+        # Reset our state.
+        self.samples = []
+        self.count = 0
+
         return metrics
 
 
@@ -129,7 +142,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname, interval):
+    def __init__(self, hostname, expiry_seconds=300):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -140,7 +153,7 @@ class MetricsAggregator(object):
             'ms' : Histogram
         }
         self.hostname = hostname
-        self.interval = interval
+        self.expiry_seconds = expiry_seconds
 
     def submit(self, packet):
         self.count += 1
@@ -167,12 +180,7 @@ class MetricsAggregator(object):
             elif m[0] == '#':
                 tags = tuple(sorted(m[1:].split(',')))
 
-        # Bucket metrics by an interval of a few seconds to avoid race
-        # conditions betwen the threads.
-        timestamp = time.time()
-        interval = timestamp - timestamp % self.interval
-
-        context = (interval, name, tags)
+        context = (name, tags)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[metadata[1]]
             self.metrics[context] = metric_class(name, tags, self.hostname)
@@ -180,25 +188,26 @@ class MetricsAggregator(object):
 
 
     def flush(self, include_diagnostic_stats=True):
-        # Flush all completed intervals bucketed up to this time.
-        timestamp = time.time()
-        interval = timestamp - timestamp % self.interval
 
-        # Find all intervals that are completed (don't use a generator here)
-        past_contexts = [c for c in self.metrics if c[0] < interval]
+        timestamp = time()
+        expiry_timestamp = timestamp - self.expiry_seconds
 
-        # Flush all completed metrics and remove them.
+        # Flush points and remove expired metrics. We mutate this dictionary
+        # while iterating so don't use an iterator.
         metrics = []
-        for context in past_contexts:
-            metrics += self.metrics[context].flush(timestamp)
-            del self.metrics[context]
+        for context, metric in self.metrics.items():
+            if metric.last_sample_time < expiry_timestamp:
+                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                del self.metrics[context]
+            else:
+                metrics += metric.flush(timestamp)
 
         # Track how many points we see.
         if include_diagnostic_stats:
             metrics.append({
                 'host':self.hostname,
                 'tags':None,
-                'metric': 'dd.dogstatsd.packet.count',
+                'metric': 'datadog.dogstatsd.packet.count',
                 'points': [(timestamp, self.count)]
             })
 
@@ -274,13 +283,13 @@ class Reporter(threading.Thread):
             params['api_key'] = self.api_key
         url = '/api/v1/series?%s' % urlencode(params)
 
-        start_time = time.time()
+        start_time = time()
         conn.request(method, url, body, headers)
 
         #FIXME: add timeout handling code here
 
         response = conn.getresponse()
-        duration = round((time.time() - start_time) * 1000.0, 4)
+        duration = round((time() - start_time) * 1000.0, 4)
         logger.info("%s %s %s%s (%sms)" % (
                         response.status, method, self.api_host, url, duration))
 
@@ -302,7 +311,7 @@ class Server(object):
 
     def start(self):
         """ Run the server. """
-        logger.info('Starting dogstatsd server on %s' % str(self.address))
+        logger.info('Listening on host & port: %s' % str(self.address))
 
         # Inline variables to speed up look-ups.
         buffer_size = self.buffer_size
@@ -321,18 +330,18 @@ def main(config_path=None):
 
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
+    logger.info("Starting dogstatsd")
+
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
     interval = c['dogstatsd_interval']
     api_key  = c['api_key']
-    host = 'localhost'
 
     hostname = gethostname(c)
-    rollup_interval = 10
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname, rollup_interval)
+    aggregator = MetricsAggregator(hostname)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)

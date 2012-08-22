@@ -15,6 +15,9 @@ debug_mode: no
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
 
+# Set the host's tags
+#tags: mytag0, mytag1
+
 # Use the amazon EC2 instance-id instead of hostname (unless hostname is
 # explicitly set)
 use_ec2_instance_id: yes
@@ -29,21 +32,35 @@ use_mount: no
 # graphite_listen_port: 17124
 
 # ========================================================================== #
-# dogstatsd configuration                                                    #
+# Pup configuration
 # ========================================================================== #
 
-#  Make sure your client is sending to the same port.
+# Pup is a small server that displays metric data collected by the agent.
+# Think of it as a fancy status page or a toe dip into the world of
+# datadog. It can be connected to on the port below.
 
+# use_pup: yes
+# pup_port: 17125
+# pup_url: http://localhost:17125
+
+# ========================================================================== #
+# DogStatsd configuration                                                    #
+# ========================================================================== #
+
+# DogStatsd is a small server that aggregates your custom app metrics. For
+# usage information, check out http://api.datadoghq.com
+
+#  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
 # By default dogstatsd will post aggregate metrics to the agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
-
 # dogstatsd_target : http://localhost:17123
 
 ## The dogstatsd flush period.
 # dogstatsd_interval : 10
+
 
 # ========================================================================== #
 # Service-specific configuration                                             #
@@ -308,6 +325,15 @@ use_mount: no
 #  ElaticSearch
 # -------------------------------------------------------------------------- #
 #elasticsearch: http://localhost:9200/_cluster/nodes/stats?all=true
+
+# -------------------------------------------------------------------------- #
+#  HAProxy
+# -------------------------------------------------------------------------- #
+#haproxy_url: https://localhost/admin?stats
+
+# If basic authentification is enabled
+#haproxy_user = username
+#haproxy_password = password
 
 # ========================================================================== #
 # Custom Emitters                                                            #

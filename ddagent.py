@@ -48,6 +48,7 @@ class MetricTransaction(Transaction):
 
     _application = None
     _trManager = None
+    _endpoints = []
 
     @classmethod
     def set_application(cls, app):
@@ -60,6 +61,25 @@ class MetricTransaction(Transaction):
     @classmethod
     def get_tr_manager(cls):
         return cls._trManager
+
+    @classmethod
+    def set_endpoints(cls):
+        if 'use_pup' in cls._application._agentConfig:
+            if cls._application._agentConfig['use_pup']:
+                cls._endpoints.append('pup_url')
+        # Only send data to Datadog if an API KEY exists
+        # i.e. user is also Datadog user
+        try:
+            is_dd_user = 'api_key' in cls._application._agentConfig\
+                and 'use_dd' in cls._application._agentConfig\
+                and cls._application._agentConfig['use_dd']\
+                and cls._application._agentConfig.get('api_key') is not None\
+                and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
+            if is_dd_user:
+                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
+                cls._endpoints.append('dd_url')
+        except:
+            logging.info("Not a Datadog user")
 
     def __init__(self, data):
         self._data = data
@@ -81,17 +101,26 @@ class MetricTransaction(Transaction):
         except:
             logging.exception('http_emitter failed')
 
-    def get_url(self):
-        return self._application._agentConfig['dd_url'] + '/intake/'
+    def get_url(self, endpoint):
+        return self._application._agentConfig[endpoint] + '/intake/'
 
     def flush(self):
+        for endpoint in self._endpoints:
+            url = self.get_url(endpoint)
+            logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            req = tornado.httpclient.HTTPRequest(url, method="POST", body=self.get_data())
 
-        # Send Transaction to the intake
-        req = tornado.httpclient.HTTPRequest(self.get_url(), 
-                             method = "POST", body = self.get_data() )
-        http = tornado.httpclient.AsyncHTTPClient()
-        logging.debug("Sending transaction %d to datadog" % self.get_id())
-        http.fetch(req, callback=lambda(x): self.on_response(x))
+            # Send Transaction to the endpoint
+            http = tornado.httpclient.AsyncHTTPClient()
+
+            # The success of this metric transaction should only depend on
+            # whether or not it's successfully sent to datadoghq. If it fails
+            # getting sent to pup, it's not a big deal.
+            callback = lambda(x): None
+            if len(self._endpoints) <= 1 or endpoint == 'dd_url':
+                callback = self.on_response
+
+            http.fetch(req, callback=callback)
 
     def on_response(self, response):
         if response.error: 
@@ -105,11 +134,13 @@ class MetricTransaction(Transaction):
 
 class APIMetricTransaction(MetricTransaction):
 
-    def get_url(self):
+    def get_url(self, endpoint):
         config = self._application._agentConfig
         api_key = config['api_key']
-        base_url = config['dd_url']
-        return base_url + '/api/v1/series/?api_key=' + api_key
+        url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
+        if endpoint == 'pup_url':
+            url = config[endpoint] + '/api/v1/series'
+        return url
 
     def get_data(self):
         return self._data
@@ -182,16 +213,18 @@ class ApiInputHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig):
-        self._port = port
+        self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
         self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
         MetricTransaction.set_application(self)
+        MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
    
     def appendMetric(self, prefix, name, host, device, ts, value):
+
         if self._metrics.has_key(prefix):
             metrics = self._metrics[prefix]
         else:
@@ -204,14 +237,16 @@ class Application(tornado.web.Application):
             metrics[name] = [[host, device, ts, value]]
  
     def _postMetrics(self):
+
         if len(self._metrics) > 0:
             self._metrics['uuid'] = getUuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics)
-            self._metrics = {}
+            self._metrics = {}            
 
     def run(self):
+
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
@@ -227,7 +262,7 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
-        logging.info("Listening on port %s" % self._port)
+        logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
         mloop = tornado.ioloop.IOLoop.instance() 
@@ -237,7 +272,7 @@ class Application(tornado.web.Application):
             self._postMetrics()
             self._tr_manager.flush()
 
-        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs, TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
+        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
 
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
@@ -263,13 +298,14 @@ def main():
 
     agentConfig = get_config(parse_args = False)
 
-    port = agentConfig.get('listen_port', None)
+    port = agentConfig.get('listen_port', 17123)
     if port is None:
         port = 17123
+    else:
+        port = int(port)
 
     app = Application(port, agentConfig)
     app.run()
 
 if __name__ == "__main__":
     main()
-
