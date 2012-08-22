@@ -77,7 +77,8 @@ class Munin(Check):
         if mgraph is not None:
             mname = mname + "." + mgraph
         self.register_metric(mname)
-        print "Saving:", mname, value, device
+        if device is None:
+          print "Saving:", mname, value, device
         self.save_sample(mname,value)
 
     def read_metric(self, line):
