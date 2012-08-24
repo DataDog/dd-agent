@@ -362,10 +362,19 @@ use_mount: no
 #
 # If the name of the check is not specified, 'Check' is assumed.
 
-
+##############################################################################
+#################### NOTHING TO MODIFY AFTER THIS LINE #######################
+##############################################################################
 
 # -------------------------------------------------------------------------- #
 #  Logging Configuration
+#
+#  PLEASE READ ME!
+#
+#  DO NOT PUT ANY INTEGRATION CONFIGURATION AFTER THIS SECTION
+#  IT WILL BE IGNORED.
+#  I REPEAT, IT WILL BE IGNORED.
+#
 # -------------------------------------------------------------------------- #
 
 [loggers]
@@ -400,3 +409,7 @@ args:('/tmp/dogstatsd.log', 'a')
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
 class:logging.Formatter
+
+# IF YOU ADD ANYTHING HERE, IT WILL BE IGNORED
+# SO IF YOU WANT TO CONFIGURE AN INTEGRATION,
+# DO IT IN THE SECTION ABOVE
