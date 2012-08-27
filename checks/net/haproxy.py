@@ -117,7 +117,6 @@ class HAProxyMetrics(Check):
             data = get_data(config, self.logger)
             process_data(self, config, data)
             metrics = self.get_metrics()
-            self.logger.info("metrics: {0}".format(metrics))
             return metrics
         except:
             self.logger.exception('Unable to get haproxy statistics')
@@ -158,7 +157,6 @@ class HAProxyMetrics(Check):
 
             for key in data.keys():
                 if HAProxyMetrics.METRICS.get(key):
-                    self.logger.info("PROCESSING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
                     try:
                         name = "haproxy."+kind.lower()+"."+HAProxyMetrics.METRICS.get(key,["nokey","nokey"])[1]
                         value = long(data[key])
@@ -166,7 +164,6 @@ class HAProxyMetrics(Check):
                         self.logger.info("SKIPPING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
                         continue
 
-                    self.logger.info("SAVING name:{0} value:{1} tags:{2}, host:{3}".format(name,value,tags, hostname))
                     self.save_sample(name, value, tags=tags, hostname=hostname)
 
 
@@ -249,5 +246,4 @@ def get_data(agentConfig, logger):
     req = urllib2.Request(url, None, headers(agentConfig))
     request = urllib2.urlopen(req)
     response = request.read()
-    logger.debug(response)
     return response.split('\n')

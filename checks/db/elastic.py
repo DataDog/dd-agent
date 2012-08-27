@@ -24,7 +24,7 @@ def _get_data(agentConfig, url):
 class NodeNotFound(Exception): pass
 
 class ElasticSearchClusterStatus(Check):
-    key = "ElasticSearch"
+    key = "Elasticsearch"
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.cluster_status = None
