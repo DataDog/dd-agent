@@ -36,4 +36,4 @@ class MuninPluginMetricIsDevice(MuninPlugin):
             mname = mname + "." + mgraph
         check.register_metric(mname)
         #print "Saving with device:", mname, device, mvalue
-        check.save_sample(mname, mvalue)
+        check.save_sample(mname, mvalue, device_name = device)

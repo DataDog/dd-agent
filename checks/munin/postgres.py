@@ -15,12 +15,11 @@ class PostgresMuninPlugin(MuninPlugin):
         #remove postgres_ from begining, remove trailing _ if any
         mtype = section.split('_',1)[1]
 
-        if device == "ALL" or mtype == 'connections_db':
+        if device == "ALL" or mtype == 'connections_db' or device == mname:
             device = mname
             mname = "munin.postgres.%s" % mtype
         else:
             mname = "munin.postgres.%s.%s" % (mtype, mname)
       
-        #FIXME: register device when available 
         check.register_metric(mname)
-        check.save_sample(mname,mvalue) 
+        check.save_sample(mname,mvalue,device_name=device) 

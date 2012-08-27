@@ -27,4 +27,4 @@ class DiskstatsMuninPlugin(MuninPlugin):
         #FIXME: register device when available 
         #print "Saving diskstat:", mname, device, mvalue
         check.register_metric(mname)
-        check.save_sample(mname,mvalue) 
+        check.save_sample(mname,mvalue,device_name=device) 

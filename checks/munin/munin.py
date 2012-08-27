@@ -77,9 +77,7 @@ class Munin(Check):
         if mgraph is not None:
             mname = mname + "." + mgraph
         self.register_metric(mname)
-        if device is None:
-          print "Saving:", mname, value, device
-        self.save_sample(mname,value)
+        self.save_sample(mname,value,device_name=device)
 
     def read_metric(self, line):
         """Read one metric line, send it to the parser"""
@@ -205,4 +203,4 @@ if __name__ == "__main__":
         config = { "apikey": "toto" }
         munin = Munin(logging)
         print munin.check(config) 
-        #print munin.check(config) 
+        print munin.check(config) 
