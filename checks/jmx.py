@@ -3,7 +3,7 @@ import re
 import os
 from checks import Check
 import sys
-from nose.tools import set_trace
+#from nose.tools import set_trace
 
 class JmxConnector:
 
