@@ -96,10 +96,10 @@ class JMXTestCase(unittest.TestCase):
         
         r = self.metrics_check.check(agentConfig)
         
-        #if first_instance:
-        #    first_instance.terminate()
-        #if second_instance:
-        #    second_instance.terminate()
+        if first_instance:
+            first_instance.terminate()
+        if second_instance:
+            second_instance.terminate()
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, r)
