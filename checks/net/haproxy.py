@@ -166,7 +166,7 @@ class HAProxyMetrics(Check):
                         self.logger.debug("SKIPPING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
                         continue
 
-                    self.logger.debu("SAVING name:{0} value:{1} tags:{2}, host:{3}".format(name,value,tags, hostname))
+                    self.logger.debug("SAVING name:{0} value:{1} tags:{2}, host:{3}".format(name,value,tags, hostname))
                     self.save_sample(name, value, tags=tags, hostname=hostname)
 
 
