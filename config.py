@@ -28,14 +28,14 @@ def get_parsed_args():
     try:
         options, args = parser.parse_args()
     except SystemExit:
-        options, args = Values({'dd_url': None, 
-                                'clean': False, 
+        options, args = Values({'dd_url': None,
+                                'clean': False,
                                 'use_forwarder':False,
                                 'disable_dd':False}), [] # Ignore parse errors
     return options, args
 
 def get_version():
-    return "3.1.0"
+    return "3.1.1"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -46,7 +46,7 @@ def initialize_logging(config_path):
         logging.config.fileConfig(config_path)
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
-    
+
 
 def get_config_path(cfg_path=None):
     # Find the right config file
@@ -129,7 +129,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             agentConfig['dd_url'] = config.get('Main', 'dd_url')
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
-        
+
         # Whether also to send to Pup
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
@@ -145,7 +145,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
             pup_port = 17125
             if config.has_option('Main', 'pup_port'):
                 agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
-   
+
         # Increases the frequency of statsd metrics when only sending to Pup
         if not agentConfig['use_dd'] and agentConfig['use_pup']:
             dogstatsd_interval = PUP_STATSD_FREQUENCY

@@ -61,7 +61,7 @@ class Check(object):
     * store 1 (and only 1) sample for gauges per metric/tag combination
     * compute rates for counters
     * only log error messages once (instead of each time they occur)
-    
+
     """
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
@@ -114,7 +114,7 @@ class Check(object):
         ACHTUNG: Resets previous values associated with this metric.
         """
         self._sample_store[metric] = {}
-        
+
     def is_metric(self, metric):
         return metric in self._sample_store
 
@@ -143,7 +143,7 @@ class Check(object):
             value = float(value)
         except ValueError, ve:
             raise NaN(ve)
-        
+
         # Sort and validate tags
         if tags is not None:
             if type(tags) not in [type([]), type(())]:
@@ -175,7 +175,7 @@ class Check(object):
             interval = sample2[0] - sample1[0]
             if interval == 0:
                 raise Infinity()
- 
+
             delta = sample2[1] - sample1[1]
             if delta < 0:
                 raise UnknownValue()
@@ -203,7 +203,7 @@ class Check(object):
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][tags]) < 2:
             raise UnknownValue()
-        
+
         elif self.is_counter(metric) and len(self._sample_store[metric][tags]) >= 2:
             return self._rate(self._sample_store[metric][tags][-2], self._sample_store[metric][tags][-1])
 
@@ -218,7 +218,7 @@ class Check(object):
         x = self.get_sample_with_timestamp(metric, tags)
         assert type(x) == types.TupleType and len(x) == 4, x
         return x[1]
-        
+
     def get_samples_with_timestamps(self):
         "Return all values {metric: (ts, value)} for non-tagged metrics"
         values = {}
@@ -243,7 +243,7 @@ class Check(object):
     def get_metrics(self):
         """Get all metrics, including the ones that are tagged.
         This is the preferred method to retrieve metrics
-        
+
         @return the list of samples
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
@@ -270,6 +270,6 @@ def gethostname(agentConfig):
         return agentConfig["hostname"]
     else:
         try:
-            return socket.gethostname()
+            return socket.getfqdn()
         except socket.error, e:
             logging.debug("processes: unable to get hostname: " + str(e))

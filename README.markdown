@@ -12,6 +12,8 @@ You're looking at the source code right now. We provide a number of
 Feel free to fork this repository and submit pull requests against the
 `master` branch.
 
+[![Build Status](https://secure.travis-ci.org/DataDog/dd-agent.png?branch=master)](http://travis-ci.org/DataDog/dd-agent)
+
 # How to configure the agent
 
 If you are using packages on linux, the configuration file lives in

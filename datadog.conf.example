@@ -33,33 +33,34 @@ use_mount: no
 
 # ========================================================================== #
 # Pup configuration
-# 
+# ========================================================================== #
+
 # Pup is a small server that displays metric data collected by the agent.
 # Think of it as a fancy status page or a toe dip into the world of
 # datadog. It can be connected to on the port below.
-# ========================================================================== #
+
 # use_pup: yes
-# The port for this pup to listen to.
 # pup_port: 17125
-# The address of the pup server to send metrics to
 # pup_url: http://localhost:17125
 
 # ========================================================================== #
-# dogstatsd configuration                                                    #
+# DogStatsd configuration                                                    #
 # ========================================================================== #
 
-#  Make sure your client is sending to the same port.
+# DogStatsd is a small server that aggregates your custom app metrics. For
+# usage information, check out http://api.datadoghq.com
 
+#  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
 # By default dogstatsd will post aggregate metrics to the agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
-
 # dogstatsd_target : http://localhost:17123
 
 ## The dogstatsd flush period.
 # dogstatsd_interval : 10
+
 
 # ========================================================================== #
 # Service-specific configuration                                             #
@@ -372,10 +373,19 @@ use_mount: no
 #
 # If the name of the check is not specified, 'Check' is assumed.
 
-
+##############################################################################
+#################### NOTHING TO MODIFY AFTER THIS LINE #######################
+##############################################################################
 
 # -------------------------------------------------------------------------- #
 #  Logging Configuration
+#
+#  PLEASE READ ME!
+#
+#  DO NOT PUT ANY INTEGRATION CONFIGURATION AFTER THIS SECTION
+#  IT WILL BE IGNORED.
+#  I REPEAT, IT WILL BE IGNORED.
+#
 # -------------------------------------------------------------------------- #
 
 [loggers]
@@ -410,3 +420,7 @@ args:('/tmp/dogstatsd.log', 'a')
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
 class:logging.Formatter
+
+# IF YOU ADD ANYTHING HERE, IT WILL BE IGNORED
+# SO IF YOU WANT TO CONFIGURE AN INTEGRATION,
+# DO IT IN THE SECTION ABOVE
