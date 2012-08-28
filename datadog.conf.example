@@ -201,20 +201,25 @@ use_mount: no
 #   Java                                                                     #
 # -------------------------------------------------------------------------- #
 
-# JMX server:port to connect to
-# jvm_jmx_server: server_address1:server_port1:tag1, server_address2:server_port2:tag2
-#jvm_jmx_server:
+# Get Java JVM metrics using JMX
+# You can set an unlimited number of Java instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance 
 
-# JMX user to log in with, if needed
-#jvm_jmx_user: user1, user2 or jvm_jmx_user: user if you want to use the same username and password for all servers
+#java_jmx_instance_1: user:password@server:port:tag
 
-# Password for the configured JMX user
-#jvm_jmx_pass: passwd1, passwd2 or jvm_jmx_pass: passwd if you want to use the same username and password for all servers
+#java_jmx_instance_2: user:password@server:port:tag
 
-# Name to report the statistics for this java VM. This will allow to monitor
-# Several JVMs running on the same machine
-#jvm_jmx_name: Java
+#...
 
+# -------------------------------------------------------------------------- #
+#   Tomcat                                                                   #
+# -------------------------------------------------------------------------- #
+
+# Get Tomcat metrics using JMX
 # -------------------------------------------------------------------------- #
 #   Tomcat                                                                   #
 # -------------------------------------------------------------------------- #
@@ -230,6 +235,8 @@ use_mount: no
 #tomcat_jmx_instance_1: user:password@server:port:tag
 
 #tomcat_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 
 
@@ -249,6 +256,8 @@ use_mount: no
 
 #activemq_jmx_instance_2: user:password@server:port:tag
 
+#...
+
 # -------------------------------------------------------------------------- #
 #  Solr                                                                      #
 # -------------------------------------------------------------------------- #
@@ -264,6 +273,8 @@ use_mount: no
 #solr_jmx_instance_1: user:password@server:port:tag
 
 #solr_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #  Memcache
