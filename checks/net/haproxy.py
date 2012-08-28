@@ -158,15 +158,12 @@ class HAProxyMetrics(Check):
 
             for key in data.keys():
                 if HAProxyMetrics.METRICS.get(key):
-                    self.logger.debug("PROCESSING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
                     try:
                         name = "haproxy."+kind.lower()+"."+HAProxyMetrics.METRICS.get(key,["nokey","nokey"])[1]
                         value = long(data[key])
                     except:
-                        self.logger.debug("SKIPPING key:{0} value:{1} kind:{2} service:{3} host:{4}".format(key,data[key], kind,service, hostname))
                         continue
 
-                    self.logger.debug("SAVING name:{0} value:{1} tags:{2}, host:{3}".format(name,value,tags, hostname))
                     self.save_sample(name, value, tags=tags, hostname=hostname)
 
 
