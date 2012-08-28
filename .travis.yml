@@ -23,12 +23,9 @@ before_script:
   - curl -L http://www.reverse.net/pub/apache/tomcat/tomcat-7/v7.0.29/bin/apache-tomcat-7.0.29.tar.gz > /tmp/tomcat7.tar.gz && cd /tmp && tar -xzvf /tmp/tomcat7.tar.gz && cd apache-tomcat-7.0.29/bin/ && echo 'export CATALINA_OPTS="-Dcom.sun.management.jmxremote.port=8091 -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/tmp/apache-tomcat-7.0.29/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/tmp/apache-tomcat-7.0.29/conf/jmxremote.access -Dcom.sun.management.jmxremote.ssl=false" export CATALINA_OUT="/tmp/apache-tomcat-7.0.29/catalina.out"' > setenv.sh && echo 'monitorRole readonly' > ../conf/jmxremote.access && echo 'monitorRole tomcat' > ../conf/jmxremote.password && chmod 400 ../conf/jmxremote.password
   - curl -L https://raw.github.com/DataDog/dd-agent/jmx_multiple_checks/tests/tomcat_cfg.xml > /tmp/apache-tomcat-6.0.35/conf/server.xml
   - curl -L http://apache.mesi.com.ar/lucene/solr/3.6.1/apache-solr-3.6.1.tgz > /tmp/solr.tgz && cd /tmp && tar -xzvf /tmp/solr.tgz && echo 'monitorRole readonly' > apache-solr-3.6.1/example/jmxremote.access && echo 'monitorRole solr' > apache-solr-3.6.1/example/jmxremote.password && chmod 400 apache-solr-3.6.1/example/jmxremote.password
-
+  - cd ~/builds/Datadog/dd-agent
 env:
   - DB=redis
 notifications:
   irc:
     - "irc.freenode.org#datadog"
-
-
-
