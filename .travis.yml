@@ -12,7 +12,6 @@ install:
   - pip install . --use-mirrors
 script: nosetests tests
 before_script:
-  - curl -L http://pexpect.sourceforge.net/pexpect-2.3.tar.gz > pexpect-2.3.tar.gz && tar xzf pexpect-2.3.tar.gz && sudo python pexpect-2.3/setup.py install
   - sudo apt-get install sysstat
   - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.8.deb > /tmp/es.deb
   - sudo apt-get install haproxy

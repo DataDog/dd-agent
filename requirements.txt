@@ -1,3 +1,4 @@
 pymongo
 tornado
 redis
+pexpect
