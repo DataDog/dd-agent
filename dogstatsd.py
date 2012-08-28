@@ -1,7 +1,7 @@
 #!/usr/bin/python
-'''
+"""
 A Python Statsd implementation with some datadog special sauce.
-'''
+"""
 
 # stdlib
 import httplib as http_client
@@ -97,7 +97,7 @@ class Histogram(Metric):
         self.count = 0
         self.sample_size = 1000
         self.samples = []
-        self.percentiles = [0.75, 0.85, 0.95, 0.99]
+        self.percentiles = [0.95]
         self.tags = tags
         self.hostname = hostname
 
@@ -113,15 +113,14 @@ class Histogram(Metric):
         self.samples.sort()
         length = len(self.samples)
 
-        min_ = self.samples[0]
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-
+        avg = sum(self.samples)/length
 
         metrics = [
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, min_)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, max_)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.median' % self.name, 'points' : [(ts, med)]},
+            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.avg' % self.name, 'points' : [(ts, avg)]},
             {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
         ]
 

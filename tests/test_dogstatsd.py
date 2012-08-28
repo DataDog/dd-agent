@@ -145,18 +145,15 @@ class TestUnitDogStatsd(object):
             # Floating point math?
             assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
 
-        nt.assert_equal(len(metrics), 8)
-        p75, p85, p95, p99, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
-        nt.assert_equal(p75['metric'], 'my.p.75percentile')
-        assert_almost_equal(p75['points'][0][1], 75, 10)
-        assert_almost_equal(p85['points'][0][1], 85, 10)
+        nt.assert_equal(len(metrics), 5)
+        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        nt.assert_equal(p95['metric'], 'my.p.95percentile')
         assert_almost_equal(p95['points'][0][1], 95, 10)
-        assert_almost_equal(p99['points'][0][1], 99, 10)
         assert_almost_equal(pmax['points'][0][1], 99, 1)
         assert_almost_equal(pmed['points'][0][1], 50, 2)
-        assert_almost_equal(pmin['points'][0][1], 0, 1)
+        assert_almost_equal(pavg['points'][0][1], 50, 2)
         assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
-        nt.assert_equals(p75['host'], 'myhost')
+        nt.assert_equals(p95['host'], 'myhost')
 
         # Ensure that histograms are reset.
         metrics = self.sort_metrics(stats.flush(False))
@@ -171,10 +168,10 @@ class TestUnitDogStatsd(object):
 
         # Assert we scale up properly.
         metrics = self.sort_metrics(stats.flush(False))
-        p75, p85, p95, p99, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
+        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
-        for p in [p75, p85, p99, pmin, pmed, pmax]:
+        for p in [p95, pavg, pmed, pmax]:
             nt.assert_equal(p['points'][0][1], 5)
 
 
