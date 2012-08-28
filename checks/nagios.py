@@ -97,7 +97,7 @@ class Nagios(object):
             if event_type in IGNORE_EVENT_TYPES:
                 self.logger.info("Ignoring nagios event of type %s" % (event_type))
                 return False
-            
+
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
@@ -144,7 +144,7 @@ class Nagios(object):
             self.logger.debug("Start nagios check for file %s" % (log_path))
             self.tail._log = self.logger
             self.gen.next()
-            self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" % 
+            self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
                 (log_path,self._line_parsed,len(self.events)))
         except StopIteration, e:
             self.logger.exception(e)
@@ -162,7 +162,7 @@ def parse_log(api_key, log_file):
     logger.addHandler(logging.StreamHandler())
     nagios = Nagios(socket.gethostname())
 
-    events = nagios.check(logger, {'apiKey': api_key, 'nagios_log': log_file}, move_end=False)
+    events = nagios.check(logger, {'api_key': api_key, 'nagios_log': log_file}, move_end=False)
     for e in events:
         yield e
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     nagios = Nagios(socket.gethostname())
 
-    config = {'apiKey':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}
+    config = {'api_key':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}
     events = nagios.check(logger, config,move_end = False)
     while True:
         #for e in events:

@@ -124,13 +124,18 @@ class checks(object):
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
 
+        # if hostname is set in the configuration file
+        # use that instead of gethostname
+        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
+        # will cause both to be aliased (see #157)
         if self.agentConfig.get('hostname'):
             metadata['agent-hostname'] = self.agentConfig.get('hostname')
-
-        try:
-            metadata["hostname"] = socket.gethostname()
-        except:
-            pass
+            metadata['hostname'] = metadata['agent-hostname']
+        else:
+            try:
+                metadata["hostname"] = socket.gethostname()
+            except:
+                pass
         try:
             metadata["fqdn"] = socket.getfqdn()
         except:

@@ -16,14 +16,12 @@ class TestUnitDogStatsd(object):
         return sorted(metrics, key=sort_by)
 
     def test_tags(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('gauge:1|c')
         stats.submit('gauge:2|c|@1')
         stats.submit('gauge:4|c|#tag1,tag2')
         stats.submit('gauge:8|c|#tag2,tag1') # Should be the same as above
         stats.submit('gauge:16|c|#tag3,tag4')
-
-        time.sleep(1)
 
         metrics = self.sort_metrics(stats.flush(False))
 
@@ -47,7 +45,7 @@ class TestUnitDogStatsd(object):
 
 
     def test_counter(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Track some counters.
         stats.submit('my.first.counter:1|c')
@@ -55,7 +53,6 @@ class TestUnitDogStatsd(object):
         stats.submit('my.second.counter:1|c')
         stats.submit('my.third.counter:3|c')
 
-        time.sleep(1)
         # Ensure they roll up nicely.
         metrics = self.sort_metrics(stats.flush(False))
         assert len(metrics) == 3
@@ -71,15 +68,22 @@ class TestUnitDogStatsd(object):
         nt.assert_equals(third['metric'], 'my.third.counter')
         nt.assert_equals(third['points'][0][1], 3)
 
-        # Ensure they're gone now.
-        assert not len(stats.flush(False))
+        # Ensure that counters reset to zero.
+        metrics = self.sort_metrics(stats.flush(False))
+        first, second, third = metrics
+        nt.assert_equals(first['metric'], 'my.first.counter')
+        nt.assert_equals(first['points'][0][1], 0)
+        nt.assert_equals(second['metric'], 'my.second.counter')
+        nt.assert_equals(second['points'][0][1], 0)
+        nt.assert_equals(third['metric'], 'my.third.counter')
+        nt.assert_equals(third['points'][0][1], 0)
+
 
     def test_sampled_counter(self):
 
         # Submit a sampled counter.
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('sampled.counter:1|c|@0.5')
-        time.sleep(1)
         metrics = stats.flush(False)
         assert len(metrics) == 1
         m = metrics[0]
@@ -87,40 +91,35 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(m['points'][0][1], 2)
 
     def test_gauge(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Track some counters.
         stats.submit('my.first.gauge:1|g')
         stats.submit('my.first.gauge:5|g')
         stats.submit('my.second.gauge:1.5|g')
 
-        # Ensure they roll up nicely.
-        time.sleep(1)
-        metrics = self.sort_metrics(stats.flush(False))
-        assert len(metrics) == 2
+        # Ensure that gauges roll up correctly. Run this test multiple times
+        # to make sure that gauges continue to flush the same value.
+        for i in xrange(3):
+            metrics = self.sort_metrics(stats.flush(False))
+            assert len(metrics) == 2
 
-        first, second = metrics
+            first, second = metrics
 
-        nt.assert_equals(first['metric'], 'my.first.gauge')
-        nt.assert_equals(first['points'][0][1], 5)
-        nt.assert_equals(first['host'], 'myhost')
+            nt.assert_equals(first['metric'], 'my.first.gauge')
+            nt.assert_equals(first['points'][0][1], 5)
+            nt.assert_equals(first['host'], 'myhost')
 
-        nt.assert_equals(second['metric'], 'my.second.gauge')
-        nt.assert_equals(second['points'][0][1], 1.5)
-
-
-        # Ensure they shall be flushed no more.
-        metrics = stats.flush(False)
-        assert not len(metrics)
+            nt.assert_equals(second['metric'], 'my.second.gauge')
+            nt.assert_equals(second['points'][0][1], 1.5)
 
     def test_gauge_sample_rate(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
 
         # Submit a sampled gauge metric.
         stats.submit('sampled.gauge:10|g|@0.1')
 
         # Assert that it's treated normally.
-        time.sleep(1)
         metrics = stats.flush(False)
         nt.assert_equal(len(metrics), 1)
         m = metrics[0]
@@ -128,7 +127,7 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(m['points'][0][1], 10)
 
     def test_histogram(self):
-        stats = MetricsAggregator('myhost', 2)
+        stats = MetricsAggregator('myhost')
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -140,38 +139,42 @@ class TestUnitDogStatsd(object):
                     m = 'my.p:%s|%s' % (i, type_)
                     stats.submit(m)
 
-        time.sleep(2)
         metrics = self.sort_metrics(stats.flush(False))
 
         def assert_almost_equal(i, j, e=1):
             # Floating point math?
             assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
+
         nt.assert_equal(len(metrics), 8)
-        p75, p85, p95, p99, pavg, pcount, pmax, pmin = self.sort_metrics(metrics)
+        p75, p85, p95, p99, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
         nt.assert_equal(p75['metric'], 'my.p.75percentile')
         assert_almost_equal(p75['points'][0][1], 75, 10)
         assert_almost_equal(p85['points'][0][1], 85, 10)
         assert_almost_equal(p95['points'][0][1], 95, 10)
         assert_almost_equal(p99['points'][0][1], 99, 10)
-        assert_almost_equal(pavg['points'][0][1], 50, 2)
         assert_almost_equal(pmax['points'][0][1], 99, 1)
+        assert_almost_equal(pmed['points'][0][1], 50, 2)
         assert_almost_equal(pmin['points'][0][1], 0, 1)
         assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
         nt.assert_equals(p75['host'], 'myhost')
 
+        # Ensure that histograms are reset.
+        metrics = self.sort_metrics(stats.flush(False))
+        assert not metrics
+
+
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         stats.submit('sampled.hist:5|h|@0.5')
 
-        time.sleep(1)
 
         # Assert we scale up properly.
         metrics = self.sort_metrics(stats.flush(False))
-        p75, p85, p95, p99, pavg, pcount, pmin, pmax = self.sort_metrics(metrics)
+        p75, p85, p95, p99, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
-        for p in [p75, p85, p99, pavg, pmin, pmax]:
+        for p in [p75, p85, p99, pmin, pmed, pmax]:
             nt.assert_equal(p['points'][0][1], 5)
 
 
@@ -186,7 +189,7 @@ class TestUnitDogStatsd(object):
             'string.sample.rate:0|c|@abc',
         ]
 
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         for packet in packets:
             try:
                 stats.submit(packet)
@@ -195,16 +198,35 @@ class TestUnitDogStatsd(object):
             else:
                 assert False, 'invalid : %s' % packet
 
+    def test_metrics_expiry(self):
+        # Ensure metrics eventually expire and stop submitting.
+        stats = MetricsAggregator('myhost', expiry_seconds=1)
+        stats.submit('test.counter:123|c')
+
+        # Ensure points keep submitting
+        assert stats.flush(False)
+        assert stats.flush(False)
+        time.sleep(0.5)
+        assert stats.flush(False)
+
+        # Now sleep for longer than the expiry window and ensure
+        # no points are submitted
+        time.sleep(2)
+        m = stats.flush(False)
+        assert not m, str(m)
+
+        # If we submit again, we're all good.
+        stats.submit('test.counter:123|c')
+        assert stats.flush(False)
+
+
     def test_diagnostic_stats(self):
-        stats = MetricsAggregator('myhost', 1)
+        stats = MetricsAggregator('myhost')
         for i in xrange(10):
             stats.submit('metric:10|c')
-        time.sleep(1)
         metrics = self.sort_metrics(stats.flush())
         nt.assert_equals(2, len(metrics))
         first, second = metrics
 
-        print metrics
-
-        nt.assert_equal(first['metric'], 'dd.dogstatsd.packet.count')
+        nt.assert_equal(first['metric'], 'datadog.dogstatsd.packet.count')
         nt.assert_equal(first['points'][0][1], 10)

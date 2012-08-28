@@ -63,7 +63,7 @@ $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.6" \
 -d "python-tornado >= 2.3" \
 -d "datadog-agent-base >= $(VERSION)" \
--d "supervisor" \
+-d "supervisor >= 3.0" \
 --pre-install rpm/preinst \
 --post-install rpm/postinst \
 --pre-uninstall rpm/prerm \
