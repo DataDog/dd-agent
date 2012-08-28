@@ -1,7 +1,7 @@
 #!/usr/bin/python
-'''
+"""
 A Python Statsd implementation with some datadog special sauce.
-'''
+"""
 
 # stdlib
 import httplib as http_client
