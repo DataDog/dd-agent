@@ -1,10 +1,15 @@
+#stdlib
+import sys
 import time
 import re
 import os
-from checks import Check
-import sys
-from nose.tools import set_trace
+
+# third party 
 import pexpect
+
+# project
+from checks import Check
+
 class JmxConnector:
 
     attr_re = re.compile(r"(.*)=(.*);")
@@ -19,7 +24,7 @@ class JmxConnector:
     def connected(self):
         return self._jmx is not None
 
-    def connect(self,connection,user=None,passwd=None,timeout = 15):
+    def connect(self, connection, user=None, passwd=None, timeout=15):
         if self._jmx is not None:
             if self._jmx.isalive():
                 self._wait_prompt()
@@ -27,7 +32,6 @@ class JmxConnector:
                 self._wait_prompt()
 
         if self._jmx is None or not self._jmx.isalive():
-            #print "connecting"
             # Figure out which path to the jar, __file__ is jmx.pyc
             pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-alpha-4-uber.jar"))
             self._jmx = pexpect.spawn("java -jar %s" % pth, timeout = timeout)
@@ -43,11 +47,8 @@ class JmxConnector:
         self._jmx.expect_exact("#Connection to "+connection+" is opened")
         self.logger.info("Connection to "+connection+" is opened")
         self._wait_prompt()
-        #print "done"
 
     def set_domain(self,domain):
-        #print "set domain"
-
         # Fix for solr domain which can be either "solr" or "solr/"
         if type(domain)==type([]):
             for dom in domain:
@@ -65,24 +66,18 @@ class JmxConnector:
 
 
     def set_bean(self,bean):
-        #print "set bean"
-        
         # Fix when you want to set a bean fetched by the list_beans() function
-        try:
+        if ":" in bean:
             bean = bean.split(":")[1]
-        except Exception:
-            pass
         self._jmx.sendline("bean " + bean)
         self._wait_prompt()
 
     def list_beans(self):
-        #print "list beans"
         self._jmx.sendline("beans")
         self._wait_prompt()
         return self._jmx.before.replace('\r','').split('\n')
 
     def get_attribute(self,attribute,**keywords):
-        #print "get attr"
         cmd = None
         domain = keywords.get("domain",None)
         for key in keywords:
@@ -99,7 +94,6 @@ class JmxConnector:
         if domain is not None:
             self._jmx.sendline("get -d %s -b %s %s" % (domain, cmd, attribute))
         elif cmd is not None:
-            #set_trace()
             self._jmx.sendline("get -b %s %s" % (cmd, attribute))
         else:
             self._jmx.sendline("get %s" % attribute)
@@ -126,7 +120,6 @@ class JmxConnector:
         return None
 
     def match_beans(self,string):
-        #print "match bean"
         beans = self.list_beans()
         matching_beans = []
         for bean in beans:
@@ -174,41 +167,80 @@ class Jvm(Check):
         self._store_metric(kind,mname,jvm_name,
             self.jmx.get_attribute(attribute), tags=tags)
 
-    def _check_jvm(self, jvm_name, agentConfig, config_key):
-        """ It allows multiple instances of a same check.
-        The datadog.conf file should follow the syntax below:
-        'config_key'_jmx_instance_1: user1:password1@server_address1:server_port1:tag1
-        'config_key'_jmx_instance_2: user2:password2@server_address2:server_port2:tag2
-        'config_key'_jmx_instance_3: server_address3:server_port3:tag3
-
-        Where config_key is the name of the service, (tomcat, activemq, solr, ...)
-        """
-
+    def _load_config(self, agentConfig, config_key):
         # We load the configuration according to the previous config schema
         connections = [agentConfig.get("%s_jmx_server" % config_key, None)]
         users = [agentConfig.get("%s_jmx_user" % config_key, None)]
         passwords = [agentConfig.get("%s_jmx_pass" % config_key, None)]
 
         # We load the configuration according to the current schema
-        def loadConf(index=1):
+        def load_conf(index=1):
             instance = agentConfig.get("%s_jmx_instance_%s" % (config_key, index), None)
             if instance:
                 if '@' in instance:
                     instance = instance.split('@')
-                    auth = instance[0].split(':')
+                    auth = "@".join(instance[0:-1]).split(':')
                     users.append(auth[0])
                     passwords.append(auth[1])
-                    connections.append(instance[1])
+                    connections.append(instance[-1])
                 else:
                     users.append(None)
                     passwords.append(None)
                     connections.append(instance)
-                loadConf(index+1)
+                load_conf(index+1)
 
-        loadConf()
+        load_conf()
+        return (connections, users, passwords)
+
+    def _get_jmx(self, connection, user, passwd):
+        try:
+            self.logger.info("JMX Connection with %s %s %s" % (connection,user,passwd))
+            self.jmx.connect(connection,user,passwd)
+            self.logger.info((self.jmx._jmx.isalive()))
+            if self.jmx.connected():
+                self.logger.info("Connected")
+                return True
+            else:
+                if(self.jmx._jmx):
+                            self.jmx._jmx.kill(0)
+                            self.jmx._jmx = None
+                self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
+                return False
+        except:
+            if(self.jmx._jmx):
+                self.jmx._jmx.kill(0)
+                self.jmx._jmx = None
+            self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
+            return False
+
+
+    def _get_jmx_metrics(self, jvm_name, tags):
+        values = self.jmx.get_jvm_status()
+        for key in values:
+            self._store_metric("gauge",key,jvm_name,values[key], tags=tags) 
+        try:
+            self.get_stats(tags)
+        except:
+            if(self.jmx._jmx):
+                self.jmx._jmx.kill(0)
+                self.jmx._jmx = None
+            self.logger.info('Error while fetching %s metrics %s' % (jvm_name, sys.exc_info()[0]))
+
+
+    def _check_jvm(self, jvm_name, agentConfig, config_key):
+        """ It allows multiple instances of a same check.
+        The datadog.conf file should follow the syntax below:
+        The "tag" field is optional
+        'config_key'_jmx_instance_1: user1:password1@server_address1:server_port1:tag1
+        'config_key'_jmx_instance_2: user2:password2@server_address2:server_port2
+        'config_key'_jmx_instance_3: server_address3:server_port3:tag3
+
+        Where config_key is the name of the service, (tomcat, activemq, solr, ...)
+        """
+
+        (connections, users, passwords) = self._load_config(agentConfig, config_key)
 
         if connections and jvm_name:
-
             for i in range(len(connections)):
                 user = None
                 passwd = None
@@ -221,41 +253,15 @@ class Jvm(Check):
                     if len(connection) == 3:
                         tags = ["instance:%s" % connection[2]]
                     connection = "%s:%s" % (connection[0], connection[1])
+                    if tags is None:
+                        tags = connection.replace(':','-')
 
-                    try:
-                        self.logger.info("JMX Connection with %s %s %s" % (connection,user,passwd))
-                        self.jmx.connect(connection,user,passwd)
-                        self.logger.info((self.jmx._jmx.isalive()))
-                        if self.jmx.connected():
-                            self.logger.info("Connected")
-                            values = self.jmx.get_jvm_status()
-
-                            for key in values:
-                                self._store_metric("gauge",key,jvm_name,values[key], tags=tags) 
-                        else:
-                            self.logger.info("Connection to %s %s %s failed" % (connection, user, passwd))
-                    except:
-                        if(self.jmx._jmx):
-                            self.jmx._jmx.kill(0)
-                            self.jmx._jmx = None
-                            continue
-                        self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
-
-                    try:
-                        self.get_stats(tags)
-                    except:
-                        if(self.jmx._jmx):
-                            self.jmx._jmx.kill(0)
-                            self.jmx._jmx = None
-                        self.logger.info('Error while fetching %s metrics %s' % (jvm_name, sys.exc_info()[0]))
-
-
+                    if self._get_jmx(connection, user, passwd):
+                        self._get_jmx_metrics(jvm_name, tags)
                         
-
-                    
     def get_stats(self):
         #Should be overwritten by inherited classes
-        pass
+        raise NotImplementedError
 
     def check(self, agentConfig):
         self._check_jvm(agentConfig.get('jvm_jmx_name'),agentConfig,'jvm')
@@ -457,7 +463,6 @@ class Solr(Jvm):
             self._lru_cache_stat(bean, tags=tags)
 
         beans = self.jmx.match_beans("id=org.apache.solr.handler.component.SearchHandler")
-        #print beans
         for bean in beans:
             self._get_search_handler_stats(bean, tags=tags)
 
@@ -474,23 +479,3 @@ def testprofiling():
     import logging
     tomcat = Tomcat(logging)
     print tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:moncat'})
-
-
-
-if __name__ == "__main__":
-    
-    import logging
-
-    #jvm = Jvm(logging)
-    #print jvm.check({'jvm_jmx_server': "localhost:8090", 'jvm_jmx_name': "tomcat"})
-
-    #tomcat = Tomcat(logging)
-    #print tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:moncat'})
-
-    #a = ActiveMQ(logging)
-    #print a.check({'activemq_jmx_server': '4934'})
-    #print a.check({'activemq_jmx_server': '4934'})
-
-    #s = Solr(logging)
-    #print s.check({'solr_jmx_server': '6975'})
-    #print s.check({'solr_jmx_server': '6975'})

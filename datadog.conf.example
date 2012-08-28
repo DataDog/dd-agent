@@ -203,12 +203,14 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Java JVM metrics using JMX
-# You can set an unlimited number of Java instances, using the schema below
+# You can set multiple Java instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
+
 
 #java_jmx_instance_1: user:password@server:port:tag
 
@@ -221,17 +223,13 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Tomcat metrics using JMX
-# -------------------------------------------------------------------------- #
-#   Tomcat                                                                   #
-# -------------------------------------------------------------------------- #
-
-# Get Tomcat metrics using JMX
-# You can set an unlimited number of Tomcat instances, using the schema below
+# You can set multiple Tomcat instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
 #tomcat_jmx_instance_1: user:password@server:port:tag
 
@@ -246,12 +244,14 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Activemq metrics using JMX
-# You can set an unlimited number of Activemq instances, using the schema below
+# You can set an multiple Activemq instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
+
 
 #activemq_jmx_instance_1: user:password@server:port:tag
 
@@ -264,12 +264,13 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Solr metrics using JMX
-# You can set an unlimited number of Solr instances, using the schema below
+# You can set multiple Solr instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
 #solr_jmx_instance_1: user:password@server:port:tag
 
