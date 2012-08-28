@@ -72,7 +72,7 @@ class HAProxyEvents(Check):
                  'msg_text':msg,
                  'msg_title': title,
                  "alert_type": alert_type,
-                 "source_type": "HAProxy",
+                 "source_type_name": "haproxy",
                  "event_object": hostname
             }
 
@@ -249,5 +249,4 @@ def get_data(agentConfig, logger):
     req = urllib2.Request(url, None, headers(agentConfig))
     request = urllib2.urlopen(req)
     response = request.read()
-    logger.debug(response)
     return response.split('\n')
