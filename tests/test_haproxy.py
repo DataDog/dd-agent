@@ -8,7 +8,7 @@ import os
 import logging
 logging.basicConfig()
 
-MAX_WAIT = 150
+MAX_WAIT = 30
 HAPROXY_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy.cfg"))
 HAPROXY_OPEN_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy-open.cfg"))
 
@@ -46,7 +46,7 @@ class HaproxyTestCase(unittest.TestCase):
             self.cfg.write(open(config_fn).read())
             self.cfg.flush()
             # Start haproxy
-            self.process = subprocess.Popen(["haproxy","-f", self.cfg.name],
+            self.process = subprocess.Popen(["haproxy","-d", "-f", self.cfg.name],
                         executable="haproxy",
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE)
@@ -105,6 +105,7 @@ class HaproxyTestCase(unittest.TestCase):
 
         #We run it twice as we want to check counter metrics too
         r = self.metrics_check.check(agentConfig)
+        self.assertTrue(r)
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[0] == "haproxy.backend.bytes.in_rate"]), 2, r)
@@ -136,6 +137,7 @@ class HaproxyTestCase(unittest.TestCase):
         # run the check twice to get rates
         self.metrics_check.check(agentConfig)
         r = self.metrics_check.check(agentConfig)
+        self.assertTrue(r)
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[0] == "haproxy.backend.bytes.in_rate"]), 2, r)

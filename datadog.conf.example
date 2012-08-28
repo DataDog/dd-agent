@@ -202,58 +202,81 @@ use_mount: no
 #   Java                                                                     #
 # -------------------------------------------------------------------------- #
 
-# JMX server:port to connect to
-# jvm_jmx_server: localhost:8090
-#jvm_jmx_server:
+# Get Java JVM metrics using JMX
+# You can set multiple Java instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
-# JMX user to log in with, if needed
-#jvm_jmx_user: john
 
-# Password for the configured JMX user
-#jvm_jmx_pass: foobar
+#java_jmx_instance_1: user:password@server:port:tag
 
-# Name to report the statistics for this java VM. This will allow to monitor
-# Several JVMs running on the same machine
-#jvm_jmx_name: Java
+#java_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #   Tomcat                                                                   #
 # -------------------------------------------------------------------------- #
 
-# JMX host:port to connect to. Must be configured in tomcat setenv.sh or similar
-#tomcat_jmx_server:
+# Get Tomcat metrics using JMX
+# You can set multiple Tomcat instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
-# JMX user to log in with, if needed
-#tomcat_jmx_user: john
+#tomcat_jmx_instance_1: user:password@server:port:tag
 
-# Password for the configured JMX user
-#tomcat_jmx_pass: foobar
+#tomcat_jmx_instance_2: user:password@server:port:tag
+
+#...
+
+
 
 # -------------------------------------------------------------------------- #
 #   Activemq                                                                 #
 # -------------------------------------------------------------------------- #
 
-# JMX host:port to connect to.
-#activemq_jmx_server:
+# Get Activemq metrics using JMX
+# You can set an multiple Activemq instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
-# JMX user to log in with, if needed
-#activemq_jmx_user: john
 
-# Password for the configured JMX user, if needed
-#activemq_jmx_pass: foobar
+#activemq_jmx_instance_1: user:password@server:port:tag
+
+#activemq_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #  Solr                                                                      #
 # -------------------------------------------------------------------------- #
 
-# JMX host:port to connect to.
-#solr_jmx_server:
+# Get Solr metrics using JMX
+# You can set multiple Solr instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
-# JMX user to log in with, if needed
-#solr_jmx_user: john
+#solr_jmx_instance_1: user:password@server:port:tag
 
-# Password for the configured JMX user, if needed
-#solr_jmx_pass: foobar
+#solr_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #  Memcache
