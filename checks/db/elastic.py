@@ -71,7 +71,7 @@ class ElasticSearchClusterStatus(Check):
             alert_type == "info"
             msg_title = "%s recovered as %s" % (hostname, self.cluster_status)
 
-        msg = "%s just reported as %s" % (hostname, self.cluster_status)
+        msg = "ElasticSearch: %s just reported as %s" % (hostname, self.cluster_status)
 
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
                  'event_type': 'elasticsearch',
@@ -80,7 +80,7 @@ class ElasticSearchClusterStatus(Check):
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,
-                 "source_type": "Elasticsearch",
+                 "source_type_name": "elasticsearch",
                  "event_object": hostname
             }
 
