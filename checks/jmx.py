@@ -6,6 +6,7 @@ import os
 
 # third party 
 import pexpect
+from pexpect import ExceptionPexpect
 
 # project
 from checks import Check
@@ -201,14 +202,13 @@ class Jvm(Check):
                 self.logger.info("Connected")
                 return True
             else:
-                if(self.jmx._jmx):
-                            self.jmx._jmx.kill(0)
-                            self.jmx._jmx = None
-                self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
-                return False
+                raise Exception("The JMX connection failed")
         except:
             if(self.jmx._jmx):
-                self.jmx._jmx.kill(0)
+                try:
+                    self.jmx._jmx.terminate(force=True)
+                except ExceptionPexpect:
+                    self.logger.error("Cannot terminate process %s" % self.jmx._jmx)
                 self.jmx._jmx = None
             self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
             return False

@@ -21,8 +21,6 @@ class JMXTestCase(unittest.TestCase):
 
             time.sleep(3)
 
-            raise Exception("started")
-
             return process
         except Exception:
             logging.getLogger().exception("Cannot instantiate Solr")
@@ -64,6 +62,9 @@ class JMXTestCase(unittest.TestCase):
 
         r = self.metrics_check.check(agentConfig)
 
+        if self.metrics_check.jmx._jmx is not None:
+            self.metrics_check.jmx._jmx.terminate(force=True)
+
         self.stop_tomcat(tomcat6)
         self.stop_tomcat(tomcat7)
         self.assertTrue(type(r) == type([]))
@@ -95,6 +96,9 @@ class JMXTestCase(unittest.TestCase):
         
         
         r = self.metrics_check.check(agentConfig)
+
+        if self.metrics_check.jmx._jmx is not None:
+            self.metrics_check.jmx._jmx.terminate(force=True)
         
         if first_instance:
             first_instance.terminate()

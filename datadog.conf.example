@@ -244,7 +244,7 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Activemq metrics using JMX
-# You can set an multiple Activemq instances, using the schema below
+# You can set multiple ActiveMQ instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
