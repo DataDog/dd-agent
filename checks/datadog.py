@@ -226,7 +226,7 @@ class Dogstream(object):
                 else:
                     self._values.append((metric, ts, value, attrs))
         except Exception, e:
-            self.logger.debug("Error while parsing line %s" % line)
+            self.logger.debug("Error while parsing line %s" % line, exc_info=True)
             self._error_count += 1
             self.logger.error("Parser error: %s out of %s" % (self._error_count, self._line_count))
 
