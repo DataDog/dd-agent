@@ -56,7 +56,8 @@ class Dogstreams(object):
                             logger,
                             log_path=parts[0],
                             parser_spec=':'.join(parts[1:3]),
-                            parser_args=parts[3:]))
+                            parser_args=parts[3:],
+                            config=config))
                     elif len(parts) > 3:
                         logger.warn("Invalid dogstream: %s" % ':'.join(parts))
                 except:
@@ -72,7 +73,6 @@ class Dogstreams(object):
 
     def __init__(self, logger, dogstreams):
         self.logger = logger
-
         self.dogstreams = dogstreams
 
     def check(self, agentConfig, move_end=True):
@@ -98,7 +98,7 @@ class Dogstreams(object):
 class Dogstream(object):
 
     @classmethod
-    def init(cls, logger, log_path, parser_spec=None, parser_args=None):
+    def init(cls, logger, log_path, parser_spec=None, parser_args=None, config=None):
         legacy = True
         parse_func = None
         parse_args = tuple(parser_args or ())
@@ -108,7 +108,12 @@ class Dogstream(object):
                 parse_func = modules.load(parser_spec, 'parser')
                 if isinstance(parse_func, type):
                     logger.info('Instantiating new-style logger')
-                    parse_func = parse_func(logger=logger, log_path=log_path, *(parse_args or ()))
+                    parse_func = parse_func(
+                        user_args=parse_args or (),
+                        logger=logger,
+                        log_path=log_path,
+                        config=config,
+                    )
                     parse_args = ()
                     legacy = False
                 else:

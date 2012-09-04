@@ -31,9 +31,9 @@ def parse_old_plugin(logger, line, state):
 
 class ParseModernPlugin(object):
     """Modern stateful parser"""
-    def __init__(self, *args, **kwargs):
-        self.logger = kwargs.get('logger')
-        self.args = '.'.join(args)
+    def __init__(self, logger=None, user_args=(), **kwargs):
+        self.logger = logger
+        self.args = '.'.join(user_args)
         self.acc = 0
         self.logger.info('Completed initialization')
     def parse_line(self, line):

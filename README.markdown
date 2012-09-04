@@ -82,7 +82,7 @@ Alternately, a class with a `parse_line()` method can be given:
 
 Additional colon-separated values will be passed as extra positional
 arguments on the end of each function invocation (if a function is
-given), or only once at object creation if a class is given.
+given), or in a `user_args` keyword argument if a class is given.
 
 Class-based dogstream parsers may have arbitrary keyword arguments added in the
 future (giving information such as logger or filename); thus, for forwards
