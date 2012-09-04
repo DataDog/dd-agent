@@ -4,10 +4,6 @@ import time
 import re
 import os
 
-# third party 
-import pexpect
-from pexpect import ExceptionPexpect
-
 # project
 from checks import Check
 
@@ -26,6 +22,8 @@ class JmxConnector:
         return self._jmx is not None
 
     def connect(self, connection, user=None, passwd=None, timeout=15):
+        # third party 
+        import pexpect
         if self._jmx is not None:
             if self._jmx.isalive():
                 self._wait_prompt()
@@ -194,6 +192,8 @@ class Jvm(Check):
         return (connections, users, passwords)
 
     def _get_jmx(self, connection, user, passwd):
+        from pexpect import ExceptionPexpect
+        
         try:
             self.logger.info("JMX Connection with %s %s %s" % (connection,user,passwd))
             self.jmx.connect(connection,user,passwd)
