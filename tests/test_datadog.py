@@ -12,7 +12,12 @@ NAGIOS_TEST_SVC = os.path.join(os.path.dirname(__file__), "service-perfdata")
 NAGIOS_TEST_HOST_TEMPLATE="[HOSTPERFDATA]\t$TIMET$\t$HOSTNAME$\t$HOSTEXECUTIONTIME$\t$HOSTOUTPUT$\t$HOSTPERFDATA$"
 NAGIOS_TEST_SVC_TEMPLATE="[SERVICEPERFDATA]\t$TIMET$\t$HOSTNAME$\t$SERVICEDESC$\t$SERVICEEXECUTIONTIME$\t$SERVICELATENCY$\t$SERVICEOUTPUT$\t$SERVICEPERFDATA$"
 
-def parse_stateful(logger, line, state):
+def parse_ancient_plugin(logger, line):
+    """Ancient stateless parser"""
+    res = line.split()
+    res[3] = {'metric_type': 'gauge'}
+
+def parse_old_plugin(logger, line, state):
     """Simple stateful parser"""
     try:
         acc = state["test_acc"] + 1
@@ -24,6 +29,21 @@ def parse_stateful(logger, line, state):
     res[3] = {'metric_type': 'counter'}
     return tuple(res)
 
+class ParseModernPlugin(object):
+    """Modern stateful parser"""
+    def __init__(self, *args, **kwargs):
+        self.logger = kwargs.get('logger')
+        self.args = '.'.join(args)
+        self.acc = 0
+        self.logger.info('Completed initialization')
+    def parse_line(self, line):
+        self.logger.info('Parsing line %r; counter is %r', line, self.acc)
+        self.acc += 1
+        res = line.split()
+        res[0] = self.args + ':' + res[0]
+        res[2] = self.acc
+        res[3] = {'metric_type': 'counter'}
+        return tuple(res)
 
 import time
 from datetime import datetime
@@ -160,7 +180,23 @@ class TestDogstream(TailTestCase):
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
-    def test_dogstream_stateful(self):
+    def test_dogstream_ancient_plugin(self):
+        """Ensure that pre-stateful plugins still work"""
+        log_data = [
+            'test.metric.simple 1000000000 1 metric_type=gauge',
+            'test.metric.simple 1100000000 1 metric_type=gauge'
+        ]
+        expected_output = {
+            "dogstream": [
+                ('test.metric.simple', 1000000000, 1, self.gauge),
+                ('test.metric.simple', 1100000000, 1, self.gauge)]
+        }
+        self._write_log(log_data)
+        plugdog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_ancient_plugin' % self.log_file.name})
+        actual_output = plugdog.check(self.config, move_end=False)
+
+    def test_dogstream_old_plugin(self):
+        """Ensure that non-class-based stateful plugins work"""
         log_data = [
             'test.metric.accumulator 1000000000 1 metric_type=counter',
             'test.metric.accumulator 1100000000 1 metric_type=counter'
@@ -172,7 +208,24 @@ class TestDogstream(TailTestCase):
         }
         self._write_log(log_data)
 
-        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_stateful' % self.log_file.name})
+        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_old_plugin' % self.log_file.name})
+        actual_output = statedog.check(self.config, move_end=False)
+        self.assertEquals(expected_output, actual_output)
+
+    def test_dogstream_new_plugin(self):
+        """Ensure that class-based stateful plugins work"""
+        log_data = [
+            'test.metric.accumulator 1000000000 1 metric_type=counter',
+            'test.metric.accumulator 1100000000 1 metric_type=counter'
+        ]
+        expected_output = {
+            "dogstream": [
+                ('foo.bar:test.metric.accumulator', 1000000000, 1, self.counter),
+                ('foo.bar:test.metric.accumulator', 1100000000, 2, self.counter)]
+        }
+        self._write_log(log_data)
+
+        statedog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:ParseModernPlugin:foo:bar' % self.log_file.name})
         actual_output = statedog.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 

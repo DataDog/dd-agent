@@ -51,8 +51,12 @@ class Dogstreams(object):
                         dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
                     elif len(parts) == 2:
                         logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                    elif len(parts) == 3:
-                        dogstreams.append(Dogstream.init(logger, log_path=parts[0], parser_spec=':'.join(parts[1:])))
+                    elif len(parts) >= 3:
+                        dogstreams.append(Dogstream.init(
+                            logger,
+                            log_path=parts[0],
+                            parser_spec=':'.join(parts[1:3]),
+                            parser_args=parts[3:]))
                     elif len(parts) > 3:
                         logger.warn("Invalid dogstream: %s" % ':'.join(parts))
                 except:
@@ -94,12 +98,21 @@ class Dogstreams(object):
 class Dogstream(object):
 
     @classmethod
-    def init(cls, logger, log_path, parser_spec=None):
+    def init(cls, logger, log_path, parser_spec=None, parser_args=None):
+        legacy = True
         parse_func = None
+        parse_args = tuple(parser_args or ())
 
         if parser_spec:
             try:
                 parse_func = modules.load(parser_spec, 'parser')
+                if isinstance(parse_func, type):
+                    logger.info('Instantiating new-style logger')
+                    parse_func = parse_func(logger=logger, log_path=log_path, *(parse_args or ()))
+                    parse_args = ()
+                    legacy = False
+                else:
+                    logger.info('Instantiating old-style logger')
             except:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
@@ -110,16 +123,18 @@ class Dogstream(object):
         else:
             logger.info("dogstream: parsing %s with default parser" % log_path)
 
-        return cls(logger, log_path, parse_func)
+        return cls(logger, log_path, parse_func, parse_args, legacy=legacy)
 
-    def __init__(self, logger, log_path, parse_func=None):
+    def __init__(self, logger, log_path, parse_func=None, parse_args=(), legacy=True):
         self.logger = logger
+        self.legacy = legacy
 
         # Apply LaconicFilter to avoid log flooding
         self.logger.addFilter(LaconicFilter("dogstream"))
 
         self.log_path = log_path
         self.parse_func = parse_func or self._default_line_parser
+        self.parse_args = parse_args
 
         self._gen = None
         self._values = None
@@ -161,11 +176,14 @@ class Dogstream(object):
             # One example is a running counter, which is incremented each time
             # a line is processed.
             parsed = None
-            try:
-                parsed = self.parse_func(self.logger, line, self.parser_state)
-            except TypeError, e:
-                # Arity of parse_func is 3 (old-style), not 4
-                parsed = self.parse_func(self.logger, line)
+            if self.legacy:
+                try:
+                    parsed = self.parse_func(self.logger, line, self.parser_state, *self.parse_args)
+                except TypeError, e:
+                    # Arity of parse_func is 3 (old-style), not 4
+                    parsed = self.parse_func(self.logger, line)
+            else:
+                parsed = self.parse_func.parse_line(line)
 
             self._line_count += 1
 

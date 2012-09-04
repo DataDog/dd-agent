@@ -60,13 +60,37 @@ the following line to your agent configuration file:
     dogstreams: /var/log/web.log:parsers:parse_web
 
 or
+
     dogstreams: /var/log/web.log:/home/dog/parsers.py:parse_web
+
+or even
+
+    dogstreams: /var/log/web.log:/home/dog/parsers.py:parse_web:arg1:arg2
 
 The `parsers:parse_web` portion indicates that the custom Python
 function lives in a package called `parsers` in the agent's
 `PYTHONPATH`, and the parsers package has a function named
-`parse_web`. The agent's `PYTHONPATH` is set in the agent startup
-script, `/etc/init.d/datadog- agent` for agent versions < 2.0, and in
+`parse_web`.
+
+Extra arguments to be passed to the custom parser (after all normal
+positional arguments) can be added as additional colon-separated
+values.
+
+Alternately, a class with a `parse_line()` method can be given:
+
+    dogstreams: /var/log/web.log:/home/dog/parsers.py:WebParser:arg1:arg2
+
+Additional colon-separated values will be passed as extra positional
+arguments on the end of each function invocation (if a function is
+given), or only once at object creation if a class is given.
+
+Class-based dogstream parsers may have arbitrary keyword arguments added in the
+future (giving information such as logger or filename); thus, for forwards
+compatibility, `**kwargs` should be accepted and unrecognized arguments
+silently ignored.
+
+The agent's `PYTHONPATH` is set in the agent startup
+script, `/etc/init.d/datadog-agent` for agent versions < 2.0, and in
 the supervisor config for agent version >= 2.0.
 
 As an alternative you must use an absolute path to a parser python file
