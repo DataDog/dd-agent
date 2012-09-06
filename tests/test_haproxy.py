@@ -1,5 +1,4 @@
 import unittest
-from checks.net.haproxy import HAProxyEvents, HAProxyMetrics, get_data, process_data
 import subprocess
 import time
 import urllib2
@@ -7,6 +6,8 @@ import tempfile
 import os
 import logging
 logging.basicConfig()
+
+from checks.net.haproxy import HAProxyEvents, HAProxyMetrics, get_data, process_data
 
 MAX_WAIT = 30
 HAPROXY_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy.cfg"))
