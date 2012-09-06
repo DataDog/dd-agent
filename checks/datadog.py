@@ -213,10 +213,10 @@ class Dogstream(object):
                     # Make sure event_object and aggregation_key (synonyms) are set
                     # FIXME when the backend treats those as true synonyms, we can
                     # deprecate event_object.
-                    if 'event_object' not in datum and 'aggregation_key' not in datum:
-                        datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
-                    else:
+                    if 'event_object' in datum or 'aggregation_key' in datum:
                         datum['aggregation_key'] = datum.get('event_object', datum.get('aggregation_key'))
+                    else:
+                        datum['aggregation_key'] = EventDefaults.EVENT_OBJECT
                     datum['event_object'] = datum['aggregation_key']
 
                     self._events.append(datum)

@@ -41,7 +41,10 @@ def parse_supervisord(log, line):
     """
     Parse the supervisord.log line into a dogstream event
     """
-    if log: log.debug('PARSE supervisord:%s' %line)
+    if len(line) == 0:
+        log.info("Skipping empty line of supervisord.log")
+        return None
+    if log: log.debug('PARSE supervisord:%s' % line)
     line_items = line.split(' ', 3)
     timestamp = ' '.join(line_items[:2])
     timestamp_parts = timestamp.split(',')
