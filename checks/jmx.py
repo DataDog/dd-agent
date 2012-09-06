@@ -48,14 +48,7 @@ class JmxConnector:
         self._wait_prompt()
 
     def set_domain(self,domain):
-        # Fix for solr domain which can be either "solr" or "solr/"
-        if type(domain)==type([]):
-            for dom in domain:
-                if dom in self.list_domains():
-                    self._jmx.sendline("domain " + dom)
-                    break
-        else:
-            self._jmx.sendline("domain " + domain)
+        self._jmx.sendline("domain " + domain)
         self._wait_prompt()
 
     def list_domains(self):
@@ -448,23 +441,27 @@ class Solr(Jvm):
     def get_stats(self, tags=None):
         
         # The solr domain depends on the version
-        self.jmx.set_domain(["solr","solr/"])
+        domains = self.jmx.list_domains()
+        for domain in domains:
+            if "solr" in domain:
+                tags.append("domain:%s" % domain)
+                self.jmx.set_domain(domain)
 
-        beans = self.jmx.match_beans("type=searcher")
-        if len(beans) > 0:
-            self._searcher_stat(beans[0], tags=tags)
+                beans = self.jmx.match_beans("type=searcher")
+                if len(beans) > 0:
+                    self._searcher_stat(beans[0], tags=tags)
 
-        beans = self.jmx.match_beans("id=org.apache.solr.search.FastLRUCache")
-        for bean in beans:
-            self._lru_cache_stat(bean, tags=tags)
+                beans = self.jmx.match_beans("id=org.apache.solr.search.FastLRUCache")
+                for bean in beans:
+                    self._lru_cache_stat(bean, tags=tags)
 
-        beans = self.jmx.match_beans("id=org.apache.solr.search.LRUCache")
-        for bean in beans:
-            self._lru_cache_stat(bean, tags=tags)
+                beans = self.jmx.match_beans("id=org.apache.solr.search.LRUCache")
+                for bean in beans:
+                    self._lru_cache_stat(bean, tags=tags)
 
-        beans = self.jmx.match_beans("id=org.apache.solr.handler.component.SearchHandler")
-        for bean in beans:
-            self._get_search_handler_stats(bean, tags=tags)
+                beans = self.jmx.match_beans("id=org.apache.solr.handler.component.SearchHandler")
+                for bean in beans:
+                    self._get_search_handler_stats(bean, tags=tags)
 
     def check(self, agentConfig):
 
