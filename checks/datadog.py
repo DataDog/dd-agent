@@ -99,7 +99,7 @@ class Dogstream(object):
 
     @classmethod
     def init(cls, logger, log_path, parser_spec=None, parser_args=None, config=None):
-        legacy = True
+        class_based = False
         parse_func = None
         parse_args = tuple(parser_args or ())
 
@@ -107,7 +107,7 @@ class Dogstream(object):
             try:
                 parse_func = modules.load(parser_spec, 'parser')
                 if isinstance(parse_func, type):
-                    logger.info('Instantiating new-style logger')
+                    logger.info('Instantiating class-based dogstream')
                     parse_func = parse_func(
                         user_args=parse_args or (),
                         logger=logger,
@@ -115,9 +115,9 @@ class Dogstream(object):
                         config=config,
                     )
                     parse_args = ()
-                    legacy = False
+                    class_based = True
                 else:
-                    logger.info('Instantiating old-style logger')
+                    logger.info('Instantiating function-based dogstream')
             except:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
@@ -128,11 +128,11 @@ class Dogstream(object):
         else:
             logger.info("dogstream: parsing %s with default parser" % log_path)
 
-        return cls(logger, log_path, parse_func, parse_args, legacy=legacy)
+        return cls(logger, log_path, parse_func, parse_args, class_based=class_based)
 
-    def __init__(self, logger, log_path, parse_func=None, parse_args=(), legacy=True):
+    def __init__(self, logger, log_path, parse_func=None, parse_args=(), class_based=False):
         self.logger = logger
-        self.legacy = legacy
+        self.class_based = class_based
 
         # Apply LaconicFilter to avoid log flooding
         self.logger.addFilter(LaconicFilter("dogstream"))
@@ -181,14 +181,14 @@ class Dogstream(object):
             # One example is a running counter, which is incremented each time
             # a line is processed.
             parsed = None
-            if self.legacy:
+            if self.class_based:
+                parsed = self.parse_func.parse_line(line)
+            else:
                 try:
                     parsed = self.parse_func(self.logger, line, self.parser_state, *self.parse_args)
                 except TypeError, e:
                     # Arity of parse_func is 3 (old-style), not 4
                     parsed = self.parse_func(self.logger, line)
-            else:
-                parsed = self.parse_func.parse_line(line)
 
             self._line_count += 1
 
