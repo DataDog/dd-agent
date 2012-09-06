@@ -1,7 +1,8 @@
 Datadog monitoring agent
- The datadog monitoring agent is a lightweight component sending system, 
- processes and services information back to your datadog account.
- This package includes the necessary support files as well as a working
- agent compatible with python 2.4
+ The Datadog monitoring agent is a lightweight process that monitors system
+ processes and services, and sends information back to your Datadog account.
+ .
+ This package includes support files as well as a basic agent for monitoring
+ system metrics.
  .
  See http://www.datadoghq.com/ for more information
