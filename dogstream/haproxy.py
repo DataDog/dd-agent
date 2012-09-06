@@ -42,10 +42,20 @@ Outputted metrics:
 """
 
 from datetime import datetime
-import calendar
+import time
+import logging
 
 def parse_timestamp(timestamp):
-    return calendar.timegm(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
+    return time.mktime(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
+
+def stem_url(url):
+    """Remove unneeded variability in URLs"""
+    try:
+        # First ditch parameters after ?
+        # Then remove all digits
+        return url.split("?")[0].translate(None, "0123456789")
+    except:
+        return None
 
 def parse_haproxy(logger, line):
     tokens = [
@@ -89,10 +99,17 @@ def parse_haproxy(logger, line):
         return None
     try:
         timestamp = parse_timestamp(data['accept_date'])
-    except Exception:
+    except:
+        return None
+    if data.get('server_name') in (None, '<STATS>'):
         return None
     device_name = '%s:%s' % (data['backend_name'], data['server_name'])
-    attributes = {'metric_type': 'counter', 'device_name': device_name}
+    attributes = {'metric_type': 'counter',
+                  'tags': ['backend:%s' % data['backend_name']]}
+    url_tag = stem_url(data.get('http_request').split()[1])
+    if url_tag:
+        attributes['tags'].append('url:%s' % url_tag)
+
     metrics = [
         'haproxy.http.tq',
         'haproxy.http.tw',
@@ -125,102 +142,13 @@ def parse_haproxy(logger, line):
 
     return points
 
-def test_haproxy():
-    haproxy_sample = """2011-11-11T20:33:50+00:00 localhost haproxy[14992]: 127.0.0.1:58067 [11/Nov/2011:20:33:50.639] dogarchive-frontend dogarchive-backend/dogarchive-3 0/0/0/45/46 200 132 - - ---- 17/0/0/0/0 0/0 "POST /intake HTTP/1.1"
-2011-11-11T20:33:52+00:00 localhost haproxy[14992]: 10.212.98.197:1367 [11/Nov/2011:20:33:51.005] public dogdispatcher/ip-10-114-117-234 970/0/1/47/1018 202 113 - - ---- 16/16/0/0/0 0/0 "POST /intake/ HTTP/1.1"
-2011-11-11T20:33:53+00:00 localhost haproxy[14992]: 127.0.0.1:58090 [11/Nov/2011:20:33:53.701] dogarchive-frontend dogarchive-backend/dogarchive-2 0/0/0/33/34 200 132 - - ---- 17/0/0/0/0 0/0 "POST /intake HTTP/1.1"
-2011-11-11T20:33:59+00:00 localhost haproxy[14992]: 10.212.98.197:1391 [11/Nov/2011:20:33:58.295] public dogweb/<STATS> 882/-1/-1/-1/883 200 23485 - - PR-- 16/16/0/0/0 0/0 "GET /admin?stats HTTP/1.1"
-2011-11-11T20:34:02+00:00 localhost haproxy[14992]: 10.84.199.126:37639 [11/Nov/2011:20:34:02.113] public public/<NOSRV> 0/-1/-1/-1/0 302 126 - - PR-- 17/17/0/0/0 0/0 "GET /status/pingdom?window=15 HTTP/1.1"
-2011-11-11T20:34:02+00:00 localhost haproxy[14992]: 10.212.98.197:1406 [11/Nov/2 """
-
-    expected = [
-        [
-            ('haproxy.http.tq', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.tw', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.tc', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.tr', 1321043630, 45, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.tt', 1321043630, 46, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.bytes_read', 1321043630, 132, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.actconn', 1321043630, 17, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.feconn', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.beconn', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.srv_conn', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.retries', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.srv_queue', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.backend_queue', 1321043630, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-            ('haproxy.http.status.200', 1321043630, 1, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-3'}),
-        ],
-        [
-            ('haproxy.http.tq', 1321043631, 970, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.tw', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.tc', 1321043631, 1, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.tr', 1321043631, 47, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.tt', 1321043631, 1018, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.bytes_read', 1321043631, 113, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.actconn', 1321043631, 16, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.feconn', 1321043631, 16, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.beconn', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.srv_conn', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.retries', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.srv_queue', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.backend_queue', 1321043631, 0, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-            ('haproxy.http.status.202', 1321043631, 1, {'metric_type':'counter', 'device_name': 'dogdispatcher:ip-10-114-117-234'}),
-        ],
-        [
-            ('haproxy.http.tq', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.tw', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.tc', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.tr', 1321043633, 33, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.tt', 1321043633, 34, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.bytes_read', 1321043633, 132, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.actconn', 1321043633, 17, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.feconn', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.beconn', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.srv_conn', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.retries', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.srv_queue', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.backend_queue', 1321043633, 0, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-            ('haproxy.http.status.200', 1321043633, 1, {'metric_type':'counter', 'device_name': 'dogarchive-backend:dogarchive-2'}),
-        ],
-        [
-            ('haproxy.http.tq', 1321043638, 882, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.tw', 1321043638, -1, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.tc', 1321043638, -1, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.tr', 1321043638, -1, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.tt', 1321043638, 883, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.bytes_read', 1321043638, 23485, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.actconn', 1321043638, 16, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.feconn', 1321043638, 16, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.beconn', 1321043638, 0, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.srv_conn', 1321043638, 0, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.retries', 1321043638, 0, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.srv_queue', 1321043638, 0, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.backend_queue', 1321043638, 0, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-            ('haproxy.http.status.200', 1321043638, 1, {'metric_type':'counter', 'device_name': 'dogweb:<STATS>'}),
-        ],
-        [
-            ('haproxy.http.tq', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.tw', 1321043642, -1, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.tc', 1321043642, -1, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.tr', 1321043642, -1, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.tt', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.bytes_read', 1321043642, 126, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.actconn', 1321043642, 17, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.feconn', 1321043642, 17, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.beconn', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.srv_conn', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.retries', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.srv_queue', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.backend_queue', 1321043642, 0, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-            ('haproxy.http.status.302', 1321043642, 1, {'metric_type':'counter', 'device_name': 'public:<NOSRV>'}),
-        ],
-        None
-    ]
-    for i, line in enumerate(haproxy_sample.split('\n')):
-        output = parse_haproxy(None, line)
-        assert output == expected[i], 'line %s: %s != %s' % (i, output, expected[i])
-
-    print "tests passed"
-
 if __name__ == '__main__':
-    test_haproxy()
+    # Parse stdin and extract metrics
+    import sys
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
+    while True:
+        line = sys.stdin.readline()
+        if line is None or len(line) == 0:
+            break
+        else:
+            print(parse_haproxy(logging.getLogger(), line))
