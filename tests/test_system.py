@@ -4,7 +4,7 @@ import sys
 
 logger = logging.getLogger(__file__)
 
-from checks.system import *
+from checks.system.unix import *
 
 class TestSystem(unittest.TestCase):
     def testCPU(self):
