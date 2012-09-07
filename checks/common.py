@@ -86,12 +86,11 @@ class checks(object):
 
         # Win32 System Checks
         self._win32_system_checks = {
-            #w32.Disk(self.checksLogger),
-            #w32.IO(self.checksLogger),
-            #w32.Load(self.checksLogger),
+            'disk': w32.Disk(self.checksLogger),
+            'io': w32.IO(self.checksLogger),
+            'proc': w32.Processes(self.checksLogger),
             'memory': w32.Memory(self.checksLogger),
-            #w32.Network(self.checksLogger),
-            #w32.Processes(),
+            'network': w32.Network(self.checksLogger),
             'cpu': w32.Cpu(self.checksLogger)
         }
 
@@ -187,8 +186,12 @@ class checks(object):
         # Run the system checks. Checks will depend on the OS
         if self.os == 'win32':
             # Win32 system checks
+            metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
             metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
             metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
         else:
             # Unix system checks
             sys_checks = self._unix_system_checks
