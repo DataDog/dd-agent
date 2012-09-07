@@ -26,7 +26,7 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog
+from util import Watchdog, getOS
 from emitter import http_emitter, format_body
 from config import get_config
 from checks.common import getUuid
@@ -35,6 +35,7 @@ from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
+WATCHDOG = getOS() not in 'win32'
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90) 
@@ -216,13 +217,17 @@ class Application(tornado.web.Application):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
-        self._watchdog = Watchdog(TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER)
         MetricTransaction.set_application(self)
         MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
-   
+
+        self._watchdog = None
+        if WATCHDOG:   
+            watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
+            self._watchdog = Watchdog(watchdog_timeout)
+
     def appendMetric(self, prefix, name, host, device, ts, value):
 
         if self._metrics.has_key(prefix):
@@ -268,7 +273,8 @@ class Application(tornado.web.Application):
         mloop = tornado.ioloop.IOLoop.instance() 
 
         def flush_trs():
-            self._watchdog.reset()
+            if self._watchdog:
+                self._watchdog.reset()
             self._postMetrics()
             self._tr_manager.flush()
 
@@ -283,7 +289,8 @@ class Application(tornado.web.Application):
             gs.listen(gport)
 
         # Start everything
-        self._watchdog.reset()
+        if self._watchdog:
+            self._watchdog.reset()
         tr_sched.start()
         mloop.start()
     
