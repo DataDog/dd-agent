@@ -20,30 +20,15 @@ Log format (from section 8.2.3 of http://haproxy.1wt.eu/download/1.3/doc/configu
      15   '{' captured_response_headers* '}'                                {}
      16   '"' http_request '"'                      "GET /index.html HTTP/1.1"
 
-
-Outputted metrics:
-    haproxy.http.tq
-    haproxy.http.tw
-    haproxy.http.tc
-    haproxy.http.tr
-    haproxy.http.tt
-    haproxy.http.status_code.<status_code>
-    haproxy.http.frontend_name
-    haproxy.http.backend_name
-    haproxy.http.server_name
-    haproxy.http.bytes_read
-    haproxy.http.actconn
-    haproxy.http.feconn
-    haproxy.http.beconn
-    haproxy.http.srv_conn
-    haproxy.http.retries
-    haproxy.http.srv_queue
-    haproxy.http.backend_queue
+Output metrics:
 """
 
 from datetime import datetime
 import time
 import logging
+import re
+
+HAPROXY_RE = re.compile("^.*haproxy\[(?P<pid>\d+)\]: (?P<client_ip>[\d.]+):(?P<client_port>\d+) \[(?P<accept_date>[^]]+)\] (?P<frontend_name>\w+) (?P<backend_name>\w+)/(?P<server_name>\S+) (?P<tq>-?\d+)/(?P<tw>-?\d+)/(?P<tc>-?\d+)/(?P<tr>-?\d+)/(?P<tt>-?\d+) (?P<status_code>\d{3}) (?P<bytes_read>\d+) . . .... (?P<actconn>\d+)/(?P<feconn>\d+)/(?P<beconn>\d+)/(?P<srvconn>\d+)/(?P<retries>\d+) (?P<srv_queue>\d+)/(?P<backend_queue>\d+).*\"(?P<cmd>\w+) (?P<url>\S+) HTTP/.\..\"$")
 
 def parse_timestamp(timestamp):
     return time.mktime(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
@@ -57,98 +42,83 @@ def stem_url(url):
     except:
         return None
 
-def parse_haproxy(logger, line):
-    tokens = [
-        ('syslog_timestamp',    ' '),
-        ('syslog_host',         ' '),
-        ('process_name',        '['),
-        ('pid',                 ']: '),
-        ('client_ip',           ':'),
-        ('client_port',         ' ['),
-        ('accept_date',         '] '),
-        ('frontend_name',       ' '),
-        ('backend_name',        '/'),
-        ('server_name',         ' '),
-        ('haproxy.http.tq',                  '/'),
-        ('haproxy.http.tw',                  '/'),
-        ('haproxy.http.tc',                  '/'),
-        ('haproxy.http.tr',                  '/'),
-        ('haproxy.http.tt',                  ' '),
-        ('status_code',         ' '),
-        ('haproxy.http.bytes_read',          ' '),
-        ('captured_request_cookie', ' '),
-        ('captured_response_cookie', ' '),
-        ('termination_state',   ' '),
-        ('haproxy.http.actconn',             '/'),
-        ('haproxy.http.feconn',              '/'),
-        ('haproxy.http.beconn',              '/'),
-        ('haproxy.http.srv_conn',            '/'),
-        ('haproxy.http.retries',             ' '),
-        ('haproxy.http.srv_queue',           '/'),
-        ('haproxy.http.backend_queue',       ' "'),
-        ('http_request',        '"'),
-    ]
-    data = {}
-    points = []
-    rest = line
-    for key, stop_token in tokens:
-        val, _, rest = rest.partition(stop_token)
-        data[key] = val
+def parse_status_code(counters, code, lbound, ubound, metric):
+    assert lbound < ubound
+    if int(code) >= lbound and int(code) <= ubound:
+        counters[metric] += 1
+    return counters
 
-    if not data.get('accept_date', ''):
+def parse_haproxy(logger, line, state):
+    points = []
+    # Simple init of status codes counters
+    if len(state) == 0:
+        state['codes'] = {'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}
+        state['aborts'] = 0
+
+    m = HAPROXY_RE.match(line)
+    # No match? skip
+    if m is None:
         return None
-    try:
-        timestamp = parse_timestamp(data['accept_date'])
-    except:
+
+    timestamp = parse_timestamp(m.group('accept_date'))
+    # Skip STATS call
+    if m.group('server_name') == '<STATS>':
         return None
-    if data.get('server_name') in (None, '<STATS>'):
-        return None
-    device_name = '%s:%s' % (data['backend_name'], data['server_name'])
-    attributes = {'metric_type': 'counter',
-                  'tags': ['backend:%s' % data['backend_name']]}
-    url_tag = stem_url(data.get('http_request').split()[1])
-    if url_tag:
-        attributes['tags'].append('url:%s' % url_tag)
+
+    attributes = {'tags': ['service:%s' % m.group('backend_name')]}
+    cmd = m.group('cmd')
+    # url_tag = stem_url(m.group('url'))
+    # if url_tag:
+    #     attributes['tags'].append('url:%s' % url_tag)
+
+    # status codes
+    parse_status_code(state['codes'], m.group('status_code'), 200, 299, '2xx')
+    parse_status_code(state['codes'], m.group('status_code'), 300, 399, '3xx')
+    parse_status_code(state['codes'], m.group('status_code'), 400, 499, '4xx')
+    parse_status_code(state['codes'], m.group('status_code'), 500, 599, '5xx')
 
     metrics = [
-        'haproxy.http.tq',
-        'haproxy.http.tw',
-        'haproxy.http.tc',
-        'haproxy.http.tr',
-        'haproxy.http.tt',
-        'haproxy.http.bytes_read',
-        'haproxy.http.actconn',
-        'haproxy.http.feconn',
-        'haproxy.http.beconn',
-        'haproxy.http.srv_conn',
-        'haproxy.http.retries',
-        'haproxy.http.srv_queue',
-        'haproxy.http.backend_queue',
+        ('haproxy.http.tq', 'gauge', lambda d: int(d.group('tq'))),
+        ('haproxy.http.tw', 'gauge', lambda d: int(d.group('tw'))),
+        ('haproxy.http.tc', 'gauge', lambda d: int(d.group('tc'))),
+        ('haproxy.http.tr', 'gauge', lambda d: int(d.group('tr'))),
+        ('haproxy.http.tt', 'gauge', lambda d: int(d.group('tt'))),
+        ('haproxy.http.bytes_read', 'gauge', lambda d: d.group('bytes_read')),
+        ('haproxy.http.2xx', 'counter', lambda m, s=state: s['codes']['2xx']),
+        ('haproxy.http.3xx', 'counter', lambda m, s=state: s['codes']['3xx']),
+        ('haproxy.http.4xx', 'counter', lambda m, s=state: s['codes']['4xx']),
+        ('haproxy.http.5xx', 'counter', lambda m, s=state: s['codes']['5xx']),
     ]
 
-    for metric in metrics:
-        value = data.get(metric, None)
-        if value is not None:
-            try:
-                value = int(float(value))
-            except Exception:
-                pass
+    is_abort = False
+    for name, typ, accessor in metrics:
+        value = accessor(m)
+        try:
+            value = int(value)
+        except:
+            pass
+        else:
+            # Treat -1 in timing as an abort and skip the metric
+            if value == -1 and name[-2:] in ('tq', 'tw', 'tc', 'tr', 'tt'):
+                if not is_abort:
+                    state['aborts'] += 1
+                    points.append(('haproxy.http.abort', timestamp, state['aborts'], attributes))
+                    is_abort = True
             else:
-                points.append((metric, timestamp, value, attributes))
-
-    status_code = data.get('status_code', None)
-    if status_code:
-        points.append(('haproxy.http.status.%s' % status_code, timestamp, 1, attributes))
-
+                points.append((name, timestamp, value, attributes))
     return points
 
 if __name__ == '__main__':
     # Parse stdin and extract metrics
     import sys
+    import pprint
+    state = {}
     logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
     while True:
         line = sys.stdin.readline()
         if line is None or len(line) == 0:
             break
         else:
-            print(parse_haproxy(logging.getLogger(), line))
+            r = parse_haproxy(logging.getLogger(), line, state)
+            if r is not None:
+                pprint.pprint(r)
