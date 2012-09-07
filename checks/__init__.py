@@ -96,6 +96,9 @@ class Check(object):
         else:
             return name
 
+    def normalize_device_name(self, device_name):
+        return device_name.strip().lower().replace(' ', '_')
+
     def counter(self, metric):
         """
         Treats the metric as a counter, i.e. computes its per second derivative
@@ -152,21 +155,22 @@ class Check(object):
                 tags = tuple(sorted(tags))
 
         # Data eviction rules
+        key = (tags, device_name)
         if self.is_gauge(metric):
-            self._sample_store[metric][tags] = ((timestamp, value, hostname, device_name), )
+            self._sample_store[metric][key] = ((timestamp, value, hostname, device_name), )
         elif self.is_counter(metric):
-            if self._sample_store[metric].get(tags) is None:
-                self._sample_store[metric][tags] = [(timestamp, value, hostname, device_name)]
+            if self._sample_store[metric].get(key) is None:
+                self._sample_store[metric][key] = [(timestamp, value, hostname, device_name)]
             else:
-                self._sample_store[metric][tags] = self._sample_store[metric][tags][-1:] + [(timestamp, value, hostname, device_name)]
+                self._sample_store[metric][key] = self._sample_store[metric][key][-1:] + [(timestamp, value, hostname, device_name)]
         else:
             raise CheckException("%s must be either gauge or counter, skipping sample at %s" % (metric, time.ctime(timestamp)))
 
         if self.is_gauge(metric):
             # store[metric][tags] = (ts, val) - only 1 value allowd
-            assert len(self._sample_store[metric][tags]) == 1, self._sample_store[metric]
+            assert len(self._sample_store[metric][key]) == 1, self._sample_store[metric]
         elif self.is_counter(metric):
-            assert len(self._sample_store[metric][tags]) in (1, 2), self._sample_store[metric]
+            assert len(self._sample_store[metric][key]) in (1, 2), self._sample_store[metric]
 
     @classmethod
     def _rate(cls, sample1, sample2):
@@ -250,17 +254,17 @@ class Check(object):
         metrics = []
         for m in self._sample_store:
             try:
-                for t in self._sample_store[m]:
-                    ts, val, hostname, device_name = self.get_sample_with_timestamp(m, t)
+                for key in self._sample_store[m]:
+                    tags, device_name = key
+                    ts, val, hostname, device_name = self.get_sample_with_timestamp(m, key)
                     attributes = {}
-                    if t:
-                        attributes['tags'] = list(t)
+                    if tags:
+                        attributes['tags'] = list(tags)
                     if hostname:
                         attributes['host_name'] = hostname
                     if device_name:
                         attributes['device_name'] = device_name
                     metrics.append((m, int(ts), val, attributes))
-
             except:
                 pass
         return metrics
