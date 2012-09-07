@@ -102,7 +102,7 @@ def parse_haproxy(logger, line, state):
             if value == -1 and name[-2:] in ('tq', 'tw', 'tc', 'tr', 'tt'):
                 if not is_abort:
                     state['aborts'] += 1
-                    points.append(('haproxy.http.abort', timestamp, state['aborts'], attributes))
+                    points.append(('haproxy.http.abort', timestamp, state['aborts'], {'metric_type': 'counter'}))
                     is_abort = True
             else:
                 points.append((name, timestamp, value, attributes))
