@@ -5,6 +5,8 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
+dogweb_reporting_url="https://app.datadoghq.com/agent_stats/report_failure"
+
 # Set up a named pipe for logging
 npipe=/tmp/$$.tmp
 mknod $npipe p
@@ -17,11 +19,37 @@ trap "rm -f $npipe" EXIT
 
 
 function on_error() {
+    echo "from config import get_version\nprint get_version()" > ~/.datadog-agent/agent/version.py
+    agent_version=`python ~/.datadog-agent/agent/version.py`
+    rm $dd_base/agent/version.py
+
+    if [ $agent_version = ""]; then
+        agent_version="Not determined"
+    fi
+    # OS/Distro Detection
+    if [ -f /etc/lsb-release ]; then
+        . /etc/lsb-release
+        OS=$DISTRIB_ID
+    elif [ -f /etc/debian_version ]; then
+        OS=Debian
+    elif [ -f /etc/redhat-release ]; then
+        # Just mark as RedHat and we'll use Python version detection
+        # to know what to install
+        OS=RedHat
+    else
+        OS=$(uname -s)
+    fi
+    if [ $OS = "Darwin" ]; then
+        OS="MacOS"
+    fi
+    echo "Reporting failure to datadog: OS:$OS version:$agent_version"
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
     echo -e "\033[31m
 It looks like you hit an issue when trying to install the agent.
 
 Please send an email to help@datadoghq.com with the contents of ddagent-install.log
 and we'll do our very best to help you solve your problem\n\033[0m"
+    exit
 }
 trap on_error ERR
 
@@ -156,6 +184,30 @@ while [ "$success" -gt "0" ]; do
 done
 
 # Metrics are submitted, echo some instructions and exit
+echo "from config import get_version\nprint get_version()" > ~/.datadog-agent/agent/version.py
+agent_version=`python ~/.datadog-agent/agent/version.py`
+rm $dd_base/agent/version.py
+
+if [ $agent_version = ""]; then
+    agent_version="Not determined"
+fi
+# OS/Distro Detection
+if [ -f /etc/lsb-release ]; then
+    . /etc/lsb-release
+    OS=$DISTRIB_ID
+elif [ -f /etc/debian_version ]; then
+    OS=Debian
+elif [ -f /etc/redhat-release ]; then
+    # Just mark as RedHat and we'll use Python version detection
+    # to know what to install
+    OS=RedHat
+else
+    OS=$(uname -s)
+fi
+if [ $OS = "Darwin" ]; then
+    OS="MacOS"
+fi
+curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
 echo -e "\033[32m
 
 Your agent is running and functioning properly. It will continue to run in the
