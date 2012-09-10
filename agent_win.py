@@ -19,15 +19,18 @@ class DDAgentSvc(win32serviceutil.ServiceFramework):
         socket.setdefaulttimeout(60)
 
     def SvcStop(self):
+        self.agent.stop()
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                servicemanage.PYS_SERVICE_STARTED,
-                                (self._svc_name, ''))
-        self.running = True
-        self.main()
+                                servicemanager.PYS_SERVICE_STARTED,
+                                (self._svc_name_, ''))
+        
+        # Init the agent and start it
+        self.agent = DDAgent(get_config(init_logging=True, parse_args=False))
+        self.agent.run()
 
 class DDAgent(object):
     def __init__(self, agentConfig):
@@ -44,7 +47,10 @@ class DDAgent(object):
         while self.running:
             chk.doChecks(firstRun)
             firstRun=False
-            time.sleep(agentConfig['check_freq'])
+            time.sleep(self.config['check_freq'])
+
+    def stop(self):
+        self.running = False
 
     def get_emitters(self):
         emitters = [http_emitter]
@@ -58,9 +64,4 @@ class DDAgent(object):
         return emitters
 
 if __name__ == '__main__':
-    agentConfig = get_config()
-    agent = DDAgent(agentConfig)
-    agent.run()
-
-    # FIXME: Once this is working, we'll run as a service for realz
-    #win32serviceutil.HandleCommandLine(DDAgentSvc)
+    win32serviceutil.HandleCommandLine(DDAgentSvc)
