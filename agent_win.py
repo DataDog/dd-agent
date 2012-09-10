@@ -12,6 +12,7 @@ from checks.common import checks
 class DDAgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddagent"
     _svc_display_name_ = "Datadog Agent"
+    _svc_description_ = "Sends metrics to Datadog"
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)

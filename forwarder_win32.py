@@ -11,6 +11,7 @@ from config import get_config
 class DDForwarderSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddforwarder"
     _svc_display_name_ = "Datadog Forwarder"
+    _svc_description_ = "Buffers metrics from the agent and forwards them to Datadog"
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
