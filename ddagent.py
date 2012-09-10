@@ -35,7 +35,6 @@ from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
-WATCHDOG = getOS() not in 'win32'
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90) 
@@ -213,7 +212,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig):
+    def __init__(self, port, agentConfig, watchdog=True):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -224,7 +223,7 @@ class Application(tornado.web.Application):
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
-        if WATCHDOG:   
+        if watchdog:   
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
             self._watchdog = Watchdog(watchdog_timeout)
 
@@ -270,7 +269,7 @@ class Application(tornado.web.Application):
         logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        mloop = tornado.ioloop.IOLoop.instance() 
+        self.mloop = tornado.ioloop.IOLoop.instance() 
 
         def flush_trs():
             if self._watchdog:
@@ -278,21 +277,25 @@ class Application(tornado.web.Application):
             self._postMetrics()
             self._tr_manager.flush()
 
-        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL, io_loop = mloop)
+        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL,
+            io_loop = self.mloop)
 
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
             logging.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
-            gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=mloop)
+            gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
             gs.listen(gport)
 
         # Start everything
         if self._watchdog:
             self._watchdog.reset()
         tr_sched.start()
-        mloop.start()
+        self.mloop.start()
+
+    def stop(self):
+        self.mloop.stop()
     
 def main():
     define("pycurl", default=1, help="Use pycurl")

@@ -16,6 +16,7 @@ class DDAgentSvc(win32serviceutil.ServiceFramework):
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+        socket.setdefaulttimeout(60)
 
     def SvcStop(self):
         self.agent.stop()
