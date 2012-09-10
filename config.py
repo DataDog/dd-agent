@@ -53,7 +53,7 @@ def initialize_logging(config_path):
 
 
 def _windows_config_path():
-    path = os.path.join(os.environ['APPDATA'], DATADOG_CONF)
+    path = os.path.join(os.environ['APPDATA'], 'Datadog Agent', DATADOG_CONF)
     if os.path.exists(path):
         return path
     raise DDConfigNotFound(path)
