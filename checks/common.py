@@ -184,7 +184,7 @@ class checks(object):
         metrics = []
 
         # Run the system checks. Checks will depend on the OS
-        if self.os == 'win32':
+        if self.os == 'windows':
             # Win32 system checks
             metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
             metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
@@ -333,7 +333,7 @@ class checks(object):
             checksData['meta'] = self.get_metadata()
 
         # Resources checks
-        if self.os != 'win32':
+        if self.os != 'windows':
             has_resource = False
             for resources_check in self._resources_checks:
                 resources_check.check()
