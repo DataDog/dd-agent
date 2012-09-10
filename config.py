@@ -8,12 +8,15 @@ import subprocess
 import sys
 from optparse import OptionParser, Values
 from cStringIO import StringIO
+from util import getOS
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
+
+class DDConfigNotFound(Exception): pass
 
 def get_parsed_args():
     parser = OptionParser()
@@ -42,29 +45,52 @@ def skip_leading_wsp(f):
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
 def initialize_logging(config_path):
-    try:
-        logging.config.fileConfig(config_path)
-    except Exception, e:
-        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
+    #try:
+    #    logging.config.fileConfig(config_path)
+    #except Exception, e:
+    #    sys.stderr.write("Couldn't initialize logging: %s" % str(e))
+    logging.basicConfig()
 
 
-def get_config_path(cfg_path=None):
-    # Find the right config file
+def _windows_config_path():
+    path = os.path.join(os.environ['APPDATA'], DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def _unix_config_path():
+    path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def get_config_path(cfg_path=None, os_name=None):
+    # Check if there's an override and if it exists
+    if cfg_path is not None and os.path.exists(cfg_path):
+        return cfg_path
+
+    # Check for an OS-specific path, continue on not-found exceptions
+    exc = None
+    if os_name == 'windows':
+        try:
+            return _windows_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+    else:
+        try:
+            return _unix_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+
+    # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
     path = os.path.dirname(path)
-
-    config_path = None
-    if cfg_path is not None and os.path.exists(cfg_path):
-        config_path = cfg_path
-    elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
-        config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
-    elif os.path.exists(os.path.join(path, DATADOG_CONF)):
-        config_path = os.path.join(path, DATADOG_CONF)
-    else:
-        sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
-        sys.exit(3)
-    return config_path
-
+    if os.path.exists(os.path.join(path, DATADOG_CONF)):
+        return os.path.join(path, DATADOG_CONF)
+    
+    # If all searches fail, exit the agent with an error
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
+    sys.exit(3)
 
 def get_config(parse_args = True, cfg_path=None, init_logging=False):
     if parse_args:
@@ -97,7 +123,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config_path = get_config_path(cfg_path)
+        config_path = get_config_path(cfg_path, os_name=getOS())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
