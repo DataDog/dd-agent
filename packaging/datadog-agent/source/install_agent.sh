@@ -5,7 +5,8 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
-dogweb_reporting_url="https://app.datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
 
 # Set up a named pipe for logging
 npipe=/tmp/$$.tmp
@@ -43,7 +44,7 @@ function on_error() {
         OS="MacOS"
     fi
     echo "Reporting failure to datadog: OS:$OS version:$agent_version"
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_failure_url
     echo -e "\033[31m
 It looks like you hit an issue when trying to install the agent.
 
@@ -207,7 +208,7 @@ fi
 if [ $OS = "Darwin" ]; then
     OS="MacOS"
 fi
-curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
+curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url
 echo -e "\033[32m
 
 Your agent is running and functioning properly. It will continue to run in the

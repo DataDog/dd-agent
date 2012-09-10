@@ -1,6 +1,7 @@
 #!/bin/sh
 
-dogweb_reporting_url="https://app.datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
 
 function on_error() {
     echo "from config import get_version\nprint get_version()" > $dd_base/agent/version.py
@@ -28,7 +29,7 @@ function on_error() {
         OS="MacOS"
     fi
     echo "Reporting failure to datadog: OS:$OS version:$agent_version"
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_failure_url
     echo -e "\033[31m
 It looks like you hit an issue when trying to install the agent.
 
@@ -167,7 +168,7 @@ Waiting for metrics...\c"
         OS="MacOS"
     fi
     echo "Reporting failure to datadog: OS:$OS version:$agent_version"
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_url
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url
 
     # print instructions
     echo "\033[32m
