@@ -49,7 +49,7 @@ class JMXTestCase(unittest.TestCase):
         agentConfig = {
             'java_jmx_instance_1': 'localhost:8090',
             'java_jmx_instance_2': 'dummyhost:9999:dummy',
-            'java_jmx_instance_3': 'localhost:3000:second_instance',
+            'java_jmx_instance_3': 'localhost:2222:second_instance',
             'version': '0.1',
             'api_key': 'toto'
         }
@@ -60,7 +60,7 @@ class JMXTestCase(unittest.TestCase):
 
         # Starting solr
         jmx_prefix = "-Dcom.sun.management.jmxremote"
-        first_instance = "%s.port=3000 %s.authenticate=false -Djetty.port=8980" % (jmx_prefix, jmx_prefix)
+        first_instance = "%s.port=2222 %s.authenticate=false -Djetty.port=8380" % (jmx_prefix, jmx_prefix)
         first_instance = self.start_solr(first_instance, 8983)
 
         r = metrics_check.check(agentConfig)
