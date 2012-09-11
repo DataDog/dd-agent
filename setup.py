@@ -42,7 +42,7 @@ if sys.platform == 'win32':
                 'bundle_files': 1,
             },
         },
-        'console': ['agent_win32.py', 'forwarder_win32.py'],
+        'console': ['win32\\agent.py', 'win32\\forwarder.py'],
         'zipfile': None
     }
 
