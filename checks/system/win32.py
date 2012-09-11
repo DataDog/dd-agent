@@ -54,7 +54,7 @@ class Cpu(Check):
         self.gauge('system.cpu.user')
         self.gauge('system.cpu.idle')
         self.gauge('system.cpu.interrupt')
-        self.gauge('system.cpu.privileged')
+        self.gauge('system.cpu.system')
 
     def check(self, agentConfig):
         import wmi
@@ -64,7 +64,7 @@ class Cpu(Check):
         self.save_sample('system.cpu.user', cpu.PercentUserTime)
         self.save_sample('system.cpu.idle', cpu.PercentIdleTime)
         self.save_sample('system.cpu.interrupt', cpu.PercentInterruptTime)
-        self.save_sample('system.cpu.privileged', cpu.PercentPrivilegedTime)
+        self.save_sample('system.cpu.system', cpu.PercentPrivilegedTime)
 
         return self.get_metrics()
 
@@ -142,6 +142,6 @@ class IO(Check):
                 device_name=name)
             self.save_sample('system.io.r_s', int(device.DiskReadsPerSec),
                 device_name=name)
-            self.save_sample('system.io.queue_length', device.CurrentDiskQueueLength,
+            self.save_sample('system.io.avg_q_sz', device.CurrentDiskQueueLength,
                 device_name=name)
         return self.get_metrics()
