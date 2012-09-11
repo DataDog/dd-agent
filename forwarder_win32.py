@@ -2,11 +2,12 @@ import win32serviceutil
 import win32service
 import win32event
 import servicemanager
-import socket
+import sys
 from tornado.options import define, parse_command_line, options
 
 from ddagent import Application
 from config import get_config
+from win32.common import handle_exe_click
 
 class DDForwarderSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddforwarder"
@@ -38,4 +39,7 @@ class DDForwarderSvc(win32serviceutil.ServiceFramework):
         self.app.run()
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(DDForwarderSvc)
+    if len(sys.argv) == 1:
+        handle_exe_click(DDForwarderSvc._svc_name_)
+    else:
+        win32serviceutil.HandleCommandLine(DDForwarderSvc)

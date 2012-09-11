@@ -33,28 +33,6 @@ if sys.platform == 'win32':
         'simplejson==2.6.1'
     ])
 
-    class Target(object):
-        def __init__(self, **kw):
-            self.__dict__.update(kw)
-            self.version = get_version()
-            self.company_name = "Datadog"
-            self.copyright = "2012 Datadog"
-
-    # Create the services
-    agent_service = Target(
-        name='Datadog Agent',
-        description='Sends metrics to Datadog',
-        modules=['agent_win32'],
-        cmdline_style='pywin32'
-    )
-
-    forwarder_service = Target(
-        name='Datadog Forwarder',
-        description='Buffers metrics from the agent and forwards them to Datadog',
-        modules=['forwarder_win32'],
-        cmdline_style='pywin32'
-    )
-
     extra_args = {
         'options': {
             'py2exe': {
@@ -64,7 +42,7 @@ if sys.platform == 'win32':
                 'bundle_files': 1,
             },
         },
-        'service': [agent_service, forwarder_service],
+        'console': ['agent_win32.py', 'forwarder_win32.py'],
         'zipfile': None
     }
 

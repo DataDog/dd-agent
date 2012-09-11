@@ -4,10 +4,12 @@ import win32event
 import servicemanager
 import socket
 import time
+import sys
 
 from config import get_config
 from emitter import http_emitter
 from checks.common import checks
+from win32.common import handle_exe_click
 
 class DDAgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddagent"
@@ -64,4 +66,7 @@ class DDAgent(object):
         return emitters
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(DDAgentSvc)
+    if len(sys.argv) == 1:
+        handle_exe_click(DDAgentSvc._svc_name_)
+    else:
+        win32serviceutil.HandleCommandLine(DDAgentSvc)
