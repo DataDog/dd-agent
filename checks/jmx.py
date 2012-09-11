@@ -258,8 +258,8 @@ class Jvm(Check):
     def check(self, agentConfig):
         try:
             self._check_jvm('java', agentConfig, 'java')
-        except Exception, e:
-            self.logger.exception('Error while fetching Java metrics: %s' % e)
+        except:
+            self.logger.exception('Error while fetching Java metrics')
         return self.get_metrics()
 
 class Tomcat(Jvm):
@@ -340,8 +340,8 @@ class Tomcat(Jvm):
 
         try:
             self._check_jvm('tomcat', agentConfig, 'tomcat')
-        except Exception, e:
-            self.logger.exception('Error while fetching Tomcat metrics: %s' % e)
+        except:
+            self.logger.exception('Error while fetching Tomcat metrics')
 
         return self.get_metrics()
         
@@ -398,8 +398,8 @@ class ActiveMQ(Jvm):
 
         try:
             self._check_jvm('activemq',agentConfig,'activemq')
-        except Exception, e:
-            self.logger.exception('Error while fetching ActiveMQ metrics: %s' % e)
+        except:
+            self.logger.exception('Error while fetching ActiveMQ metrics')
 
         return self.get_metrics()
 
@@ -469,8 +469,8 @@ class Solr(Jvm):
 
         try:
             self._check_jvm('solr',agentConfig,'solr')
-        except Exception, e:
-            self.logger.exception('Error while fetching Solr metrics: %s' % e)
+        except:
+            self.logger.exception('Error while fetching Solr metrics')
 
         return self.get_metrics()
 
