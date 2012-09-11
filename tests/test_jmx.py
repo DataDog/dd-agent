@@ -1,5 +1,5 @@
 import unittest
-from checks.jmx import Tomcat, Solr
+from checks.jmx import Tomcat, Solr, Jvm
 import logging
 import subprocess
 import time
@@ -44,9 +44,41 @@ class JMXTestCase(unittest.TestCase):
         except Exception:
             logging.getLogger().exception("Cannot instantiate Tomcat")
 
-    
+    def testJavaMetric(self):
+        metrics_check = Jvm(logging.getLogger())
+        agentConfig = {
+            'java_jmx_instance_1': 'localhost:8090',
+            'java_jmx_instance_2': 'dummyhost:9999:dummy',
+            'java_jmx_instance_3': 'localhost:3000:second_instance',
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        # Starting tomcat
+        tomcat6 = '/tmp/apache-tomcat-6.0.35/bin'
+        self.start_tomcat(tomcat6, 8080)
+
+        # Starting solr
+        jmx_prefix = "-Dcom.sun.management.jmxremote"
+        first_instance = "%s.port=3000 %s.authenticate=false -Djetty.port=8980" % (jmx_prefix, jmx_prefix)
+        first_instance = self.start_solr(first_instance, 8983)
+
+        r = metrics_check.check(agentConfig)
+
+        if metrics_check.jmx._jmx is not None:
+            metrics_check.jmx._jmx.terminate(force=True)
+
+        if first_instance:
+            first_instance.terminate()
+
+        self.stop_tomcat(tomcat6)
+
+        self.assertTrue(type(r) == type([]))
+        self.assertTrue(len(r) > 0)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.thread_count"]), 2, r)
+
     def testTomcatMetrics(self):
-        self.metrics_check = Tomcat(logging.getLogger())
+        metrics_check = Tomcat(logging.getLogger())
         agentConfig = {
             'tomcat_jmx_instance_1': 'localhost:8090:first_instance',
             'tomcat_jmx_instance_2': 'dummyurl:4444:fake_url',
@@ -60,10 +92,10 @@ class JMXTestCase(unittest.TestCase):
         self.start_tomcat(tomcat6, 8080)
         self.start_tomcat(tomcat7, 7070)
 
-        r = self.metrics_check.check(agentConfig)
+        r = metrics_check.check(agentConfig)
 
-        if self.metrics_check.jmx._jmx is not None:
-            self.metrics_check.jmx._jmx.terminate(force=True)
+        if metrics_check.jmx._jmx is not None:
+            metrics_check.jmx._jmx.terminate(force=True)
 
         self.stop_tomcat(tomcat6)
         self.stop_tomcat(tomcat7)
@@ -73,7 +105,7 @@ class JMXTestCase(unittest.TestCase):
 
     
     def testSolrMetrics(self):
-        self.metrics_check = Solr(logging.getLogger())
+        metrics_check = Solr(logging.getLogger())
         agentConfig = {
             'solr_jmx_instance_1': 'localhost:3000:first_instance',
             'solr_jmx_instance_2': 'dummyurl:4444:fake_url',
@@ -95,10 +127,10 @@ class JMXTestCase(unittest.TestCase):
         second_instance = self.start_solr(second_instance, 8984)
         
         
-        r = self.metrics_check.check(agentConfig)
+        r = metrics_check.check(agentConfig)
 
-        if self.metrics_check.jmx._jmx is not None:
-            self.metrics_check.jmx._jmx.terminate(force=True)
+        if metrics_check.jmx._jmx is not None:
+            metrics_check.jmx._jmx.terminate(force=True)
         
         if first_instance:
             first_instance.terminate()

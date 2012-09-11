@@ -232,7 +232,6 @@ class Jvm(Check):
         """
 
         (connections, users, passwords) = self._load_config(agentConfig, config_key)
-
         if connections and jvm_name:
             for i in range(len(connections)):
                 user = None
@@ -247,18 +246,21 @@ class Jvm(Check):
                         tags = ["instance:%s" % connection[2]]
                     connection = "%s:%s" % (connection[0], connection[1])
                     if tags is None:
-                        tags = connection.replace(':','-')
+                        tags = ["instance:%s" % connection.replace(':','-')]
 
                     if self._get_jmx(connection, user, passwd):
                         self._get_jmx_metrics(jvm_name, tags)
                         
-    def get_stats(self):
-        #Should be overwritten by inherited classes
-        raise NotImplementedError
+    def get_stats(self, tags=None):
+        #Should be overwritten by inherited classes, should do nothing for the basic java check
+        pass
 
     def check(self, agentConfig):
-        self._check_jvm(agentConfig.get('jvm_jmx_name'),agentConfig,'jvm')
-        return self.get_samples()
+        try:
+            self._check_jvm('java', agentConfig, 'java')
+        except Exception, e:
+            self.logger.exception('Error while fetching Java metrics: %s' % e)
+        return self.get_metrics()
 
 class Tomcat(Jvm):
 
