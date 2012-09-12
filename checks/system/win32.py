@@ -123,7 +123,7 @@ class IO(Check):
         self.gauge('system.io.w_s')
         self.gauge('system.io.rkb_s')
         self.gauge('system.io.r_s')
-        self.gauge('system.io.queue_length')
+        self.gauge('system.io.avg_q_sz')
 
     def check(self, agentConfig):
         import wmi
