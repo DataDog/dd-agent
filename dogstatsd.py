@@ -251,6 +251,7 @@ class Reporter(threading.Thread):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         while True:
             if self.finished.is_set():
+                print 'reporter is finished!'
                 break
             self.finished.wait(self.interval)
             self.flush()
@@ -312,21 +313,22 @@ class Server(object):
         """ Run the server. """
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        # Inline variables to speed up look-ups.
-        buffer_size = self.buffer_size
-        aggregator_submit = self.metrics_aggregator.submit
-        socket_recv = self.socket.recv
-
         while True:
             try:
-                aggregator_submit(socket_recv(buffer_size))
+                self.submit()
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
                 logger.exception('Error receiving datagram')
 
-def main(config_path=None):
+    def submit(self):
+        """ Submit metrics to the aggregator """
+        buffer_size = self.buffer_size
+        aggregator_submit = self.metrics_aggregator.submit
+        socket_recv = self.socket.recv
+        aggregator_submit(socket_recv(buffer_size))
 
+def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.info("Starting dogstatsd")
@@ -340,7 +342,7 @@ def main(config_path=None):
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname)
+    aggregator = MetricsAggregator(hostname)  
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)
@@ -349,6 +351,11 @@ def main(config_path=None):
     # Start the server.
     server_host = ''
     server = Server(aggregator, server_host, port)
+
+    return reporter, server
+
+def main(config_path=None):
+    reporter, server = init(config_path)
     server.start()
 
     # If we're here, we're done.

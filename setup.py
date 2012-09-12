@@ -43,6 +43,7 @@ if sys.platform == 'win32':
 
     agent_svc = Target(name='Datadog Agent', modules='win32.agent')
     forwarder_svc = Target(name='Datadog Forwarder', modules='win32.forwarder') 
+    dogstatsd_svc = Target(name='DogstatsD', modules='win32.dogstatsd_win32')
 
     extra_args = {
         'options': {
@@ -53,7 +54,7 @@ if sys.platform == 'win32':
                 'bundle_files': 1,
             },
         },
-        'service': [agent_svc, forwarder_svc],
+        'service': [agent_svc, forwarder_svc, dogstatsd_svc],
         'zipfile': None
     }
 
