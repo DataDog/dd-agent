@@ -1,17 +1,73 @@
 #!/bin/sh
+set -e
 
 dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
 dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
+email_reporting_failure="help@datadoghq.com"
+
+trap report_using_mail EXIT
+
+function report_using_mail() {
+    if [ $? = 22 ]; then
+        notfication_message_manual="\033[31m
+    It looks like you hit an issue when trying to install the agent.
+
+    Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
+    and we'll do our very best to help you solve your problem.
+
+    Agent installation failure: 
+    OS: $OS
+    Version: $agent_version
+    apikey: $key_to_report
+
+    \n\033[0m"
+
+        echo "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
+        exit 1
+    fi
+
+}
+
+function get_api_key_to_report() {
+    if [ $apikey ]; then
+        key_to_report=$apikey
+    else
+        key_to_report="No_key"
+    fi
+}
+
+function report_to_dogweb() {
+    notification_message="\033[31m
+It looks like you hit an issue when trying to install the agent.
+A notification has been sent to Datadog with the following informations:
+OS: $OS
+Version: $agent_version
+apikey: $key_to_report
+
+You can send an email to help@datadoghq.com if you need support
+and we'll do our very best to help you solve your problem\n\033[0m"
+
+    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report" $dogweb_reporting_failure_url && echo -e "$notification_message"
+}
 
 function on_error() {
-    echo "from config import get_version\nprint get_version()" > $dd_base/agent/version.py
-    agent_version=`python $dd_base/agent/version.py`
-    echo "agentversion:'$agent_version'"
-    rm $dd_base/agent/version.py
+    set +e
+    get_api_key_to_report
+    get_os
+    get_agent_version
+    report_to_dogweb
+    exit 1
 
-    if [ $agent_version = ""]; then
-        agent_version="Not determined"
-    fi
+}
+
+function get_agent_version() {
+    set +e
+    agent_version=$(cd $HOME/.datadog-agent/agent && python -c "from config import get_version; print get_version()" || echo "Not determined")
+    echo "version:'$agent_version'"
+    set -e
+}
+
+function get_os() {
     # OS/Distro Detection
     if [ -f /etc/lsb-release ]; then
         . /etc/lsb-release
@@ -28,16 +84,8 @@ function on_error() {
     if [ $OS = "Darwin" ]; then
         OS="MacOS"
     fi
-    echo "Reporting failure to datadog: OS:$OS version:$agent_version"
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_failure_url
-    echo -e "\033[31m
-It looks like you hit an issue when trying to install the agent.
-
-Please send an email to help@datadoghq.com with the contents of ddagent-install.log
-and we'll do our very best to help you solve your problem\n\033[0m"
-    exit
-
 }
+
 trap on_error ERR
 
 if [ -n "$DD_API_KEY" ]; then
@@ -59,7 +107,6 @@ else
     dd_base=$HOME/.pup
 fi
 mkdir -p $dd_base
-
 
 # set up a virtual env
 $dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/develop/virtualenv.py
@@ -117,6 +164,7 @@ trap "{ kill $agent_pid; exit; }" EXIT
 
 # regular agent install
 if [ $apikey ]; then
+
     # wait for metrics to be submitted
     echo "\033[32m
 Your agent has started up for the first time. We're currently
@@ -143,33 +191,14 @@ Waiting for metrics...\c"
         success=$?
     done
 
-    echo "from config import get_version\nprint get_version()" > $dd_base/agent/version.py
-    agent_version=`python $dd_base/agent/version.py`
-    echo "agentversion:'$agent_version'"
-    rm $dd_base/agent/version.py
-
-    if [ $agent_version = ""]; then
-        agent_version="Not determined"
-    fi
-    # OS/Distro Detection
-    if [ -f /etc/lsb-release ]; then
-        . /etc/lsb-release
-        OS=$DISTRIB_ID
-    elif [ -f /etc/debian_version ]; then
-        OS=Debian
-    elif [ -f /etc/redhat-release ]; then
-        # Just mark as RedHat and we'll use Python version detection
-        # to know what to install
-        OS=RedHat
-    else
-        OS=$(uname -s)
-    fi
-    if [ $OS = "Darwin" ]; then
-        OS="MacOS"
-    fi
-    echo "Reporting failure to datadog: OS:$OS version:$agent_version"
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url
-
+    # Report installation success to dogweb for stats purpose
+    set +e
+    get_os
+    echo "Trying to get agent_version"
+    get_agent_version
+    echo "Reporting installation success to dogweb"
+    
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
     # print instructions
     echo "\033[32m
 
