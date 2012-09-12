@@ -66,7 +66,7 @@ class DDAgent(object):
         return emitters
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        handle_exe_click(DDAgentSvc._svc_name_)
-    else:
-        win32serviceutil.HandleCommandLine(DDAgentSvc)
+    #if len(sys.argv) == 1:
+    #    handle_exe_click(DDAgentSvc._svc_name_)
+    #else:
+    win32serviceutil.HandleCommandLine(DDAgentSvc)
