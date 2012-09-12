@@ -2,8 +2,8 @@
 # Datadog Agent install script.
 set -e
 
-dogweb_reporting_failure_url="http://postbin.ryanbigg.com/b7787073"
-dogweb_reporting_success_url="http://postbin.ryanbigg.com/b7787073"
+dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
 email_reporting_failure="help@datadoghq.com"
 logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
