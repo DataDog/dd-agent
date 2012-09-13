@@ -20,9 +20,17 @@ class TestMemCache(unittest.TestCase):
         for i in range(3):
             # Count open connections to localhost:11211, should be 0
             self.assertEquals(self._countConnections(11211), 0)
-            self.c.check({"memcache_server": "localhost"})
+            r = self.c.check({"memcache_server": "localhost"})
             # Verify that the count is still 0
             self.assertEquals(self._countConnections(11211), 0)
+
+    def testMetrics(self):
+        r = self.c.check({"memcache_server": "localhost",
+                           "memcache_instance_1": "localhost:11211:mytag",
+                           "memcache_instance_2": "dummy:11211:myothertag",
+                           "memcache_instance_3": "localhost:11211:mythirdtag"})
+
+        self.assertEquals(len([t for t in r if t[0] == "total_items"]), 3, r)
 
 if __name__ == '__main__':
     unittest.main()

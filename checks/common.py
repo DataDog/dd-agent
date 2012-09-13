@@ -73,7 +73,6 @@ class checks(object):
         socket.setdefaulttimeout(15)
         
         self._apache = Apache(self.checksLogger)
-        self._nginx = Nginx(self.checksLogger)
         self._disk = Disk(self.checksLogger)
         self._io = IO()
         self._load = Load(self.checksLogger)
@@ -89,7 +88,6 @@ class checks(object):
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
-        self._memcache = Memcache(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
 
@@ -103,7 +101,9 @@ class checks(object):
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
-            Solr(self.checksLogger)
+            Solr(self.checksLogger),
+            Nginx(self.checksLogger),
+            Memcache(self.checksLogger)
             ]
 
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
@@ -155,7 +155,6 @@ class checks(object):
         mysqlStatus = self._mysql.check(self.agentConfig)
         pgsqlStatus = self._pgsql.check(self.agentConfig)
         networkTraffic = self._network.check(self.agentConfig)
-        nginxStatus = self._nginx.check(self.agentConfig)
         processes = self._processes.check(self.checksLogger, self.agentConfig)
         rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
@@ -164,7 +163,6 @@ class checks(object):
         cpuStats = self._cpu.check(self.checksLogger, self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
-        memcacheData = self._memcache.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
@@ -218,10 +216,6 @@ class checks(object):
         if pgsqlStatus: 
             checksData['postgresql'] = pgsqlStatus
 
-        # Nginx Status
-        if nginxStatus:
-            checksData.update(nginxStatus)
-            
         # RabbitMQ
         if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
@@ -240,9 +234,6 @@ class checks(object):
         if ioStats:
             checksData['ioStats'] = ioStats
             
-        if memcacheData:
-            checksData['memcache'] = memcacheData
-        
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:

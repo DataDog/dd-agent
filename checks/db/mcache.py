@@ -78,57 +78,96 @@ class Memcache(Check):
         self.counter("bytes_read_rate")
         self.counter("bytes_written_rate")
         self.counter("total_connections_rate")
+        
+    def _load_conf(self, agentConfig):
+        memcache_url = agentConfig.get("memcache_server", None)
+        memcache_port = agentConfig.get("memcache_port", None)
+        memcache_urls = []
+        memcache_ports = []
+        tags = []
+        if memcache_url is not None:
+            memcache_urls.append(memcache_url)
+            memcache_ports.append(memcache_port)
+            tags.append(None)
+
+
+        def load_conf(index=1):
+            instance = agentConfig.get("memcache_instance_%s" % index, None)
+            if instance is not None:
+                instance = instance.split(":")
+                if len(instance)==3:
+                    tags.append(instance[2])
+                    memcache_urls.append(instance[0])
+                    memcache_ports.append(instance[1])
+                load_conf(index+1)
+
+        load_conf()
+
+        return (memcache_urls, memcache_ports, tags)
+
+    def _get_metrics(self, server, port, tags, memcache):
+        self.logger.debug("Connecting to %s:%s tags:%s" % (server, port, tags))
+        mc = memcache.Client(["%s:%d" % (server, port)])
+        raw_stats = mc.get_stats()
+
+        assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
+        # Access the dict
+        stats = raw_stats[0][1]
+        for metric in stats:
+            self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
+
+            our_metric = metric
+            # Tweak the name if it's a counter so that we don't use the exact
+            # same metric name as the memcache documentation
+            if self.is_counter(metric + "_rate"):
+                our_metric = metric + "_rate"
+
+            if self.is_metric(our_metric):
+                self.save_sample(our_metric, float(stats[metric]), tags=tags)
+                self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
 
     def check(self, agentConfig):
-        mc = None # client
-        try:
-            server = agentConfig.get("memcache_server", None)
+        (memcache_urls, memcache_ports, tags) = self._load_conf(agentConfig)
+        if len(memcache_urls) == 0:
+            return False
+        try:        
+            import memcache
+        except ImportError:
+            self.logger.exception("Cannot import python-based memcache driver")
 
-            # Not configured, bail out now
+        for i in range(len(memcache_urls)):
+            mc = None # client
+            server = memcache_urls[i]
             if server is None:
-                return False
+                continue
+            if memcache_ports[i] is None:
+                memcache_ports[i] = 11211
+            port = int(memcache_ports[i])
+
+            tag = None
+
+            if tags[i] is not None:
+                tag = ["instance:%s" % tags[i]]
 
             try:
-                import memcache
-
-                port = int(agentConfig.get("memcache_port", 11211))
-                self.logger.debug("Connecting to %s:%s" % (server, port))
+                self._get_metrics(server, port, tag, memcache)                   
                 
-                mc = memcache.Client(["%s:%d" % (server, port)])
-                raw_stats = mc.get_stats()
-
-                assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
-                # Access the dict
-                stats = raw_stats[0][1]
-                for metric in stats:
-                    self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
-
-                    our_metric = metric
-                    # Tweak the name if it's a counter so that we don't use the exact
-                    # same metric name as the memcache documentation
-                    if self.is_counter(metric + "_rate"):
-                        our_metric = metric + "_rate"
-
-                    if self.is_metric(our_metric):
-                        self.save_sample(our_metric, float(stats[metric]))
-                        self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
-
-                samples = self.get_samples()
-                self.logger.debug("Memcache samples: %s" % samples)
-                return samples
-            except ImportError:
-                if agentConfig.get("memcache_server", None) is not None:
-                    self.logger.exception("Cannot import python-based memcache driver")
             except ValueError:
                 self.logger.exception("Cannot convert port value; check your configuration")
+                continue
             except CheckException:
                 self.logger.exception("Cannot save sampled data")
+                continue
             except:
                 self.logger.exception("Cannot get data from memcache")
-        finally:
-            if mc is not None:
-                mc.disconnect_all()
-                self.logger.debug("Disconnected from memcached")
-            del mc
+                continue
+            finally:
+                if mc is not None:
+                    mc.disconnect_all()
+                    self.logger.debug("Disconnected from memcached")
+                del mc
+        metrics = self.get_metrics()
+        self.logger.debug("Memcache samples: %s" % metrics)
+        return metrics
+
         
-        return False
