@@ -30,7 +30,13 @@ if sys.platform == 'win32':
         'tornado==2.1',
         'pywin32==217',
         'wmi==1.4.9',
-        'simplejson==2.6.1'
+        'simplejson==2.6.1',
+        'msql-python==1.2.3',
+        'pymongo==2.3',
+        'psycopg2==2.4.5',
+        'python-memcache==1.48',
+        'redis==2.6.2',
+        'elementtree'
     ])
 
     class Target(object):
