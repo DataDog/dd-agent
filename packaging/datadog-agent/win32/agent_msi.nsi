@@ -178,9 +178,10 @@ SectionEnd
 Section "Uninstall"
 
   Delete "$INSTDIR\ddagent.exe"
-  Delete "$INSTDIR\ddagent.exe"
   Delete "$INSTDIR\ddforwarder.exe"
+  Delete "$INSTDIR\dogstatsd.exe"
   Delete "$INSTDIR\datadog.conf"
+  Delete "$INSTDIR\ca-certificates.crt"
   Delete "$INSTDIR\Uninstall.exe"
 
   RMDir "$INSTDIR"
