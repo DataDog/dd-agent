@@ -351,7 +351,7 @@ def init(config_path=None):
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname)  
+    aggregator = MetricsAggregator(hostname)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)

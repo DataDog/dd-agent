@@ -30,7 +30,7 @@ class DDAgentSvc(win32serviceutil.ServiceFramework):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
                                 servicemanager.PYS_SERVICE_STARTED,
                                 (self._svc_name_, ''))
-        
+
         # Setup the correct options so we use the forwarder
         opts, args = Values({
             'dd_url': None,
@@ -64,13 +64,13 @@ class DDAgent(object):
 
     def get_emitters(self):
         emitters = [http_emitter]
-        custom = [s.strip() for s in 
+        custom = [s.strip() for s in
             self.config.get('custom_emitters', '').split(',')]
         for emitter_spec in custom:
             if not emitter_spec:
                 continue
             emitters.append(modules.load(emitter_spec, 'emitter'))
-       
+
         return emitters
 
 if __name__ == '__main__':

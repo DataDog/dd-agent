@@ -37,7 +37,7 @@ TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
 
 # Maximum delay before replaying a transaction
-MAX_WAIT_FOR_REPLAY = timedelta(seconds=90) 
+MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
@@ -123,7 +123,7 @@ class MetricTransaction(Transaction):
             http.fetch(req, callback=callback)
 
     def on_response(self, response):
-        if response.error: 
+        if response.error:
             logging.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
@@ -156,7 +156,7 @@ class StatusHandler(tornado.web.RequestHandler):
         self.write("<table><tr><td>Id</td><td>Size</td><td>Error count</td><td>Next flush</td></tr>")
         transactions = m.get_transactions()
         for tr in transactions:
-            self.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % 
+            self.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" %
                 (tr.get_id(), tr.get_size(), tr.get_error_count(), tr.get_next_flush()))
         self.write("</table>")
 
@@ -223,7 +223,7 @@ class Application(tornado.web.Application):
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
-        if watchdog:   
+        if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
             self._watchdog = Watchdog(watchdog_timeout)
 
@@ -234,12 +234,12 @@ class Application(tornado.web.Application):
         else:
             metrics = {}
             self._metrics[prefix] = metrics
-        
+
         if metrics.has_key(name):
             metrics[name].append([host, device, ts, value])
         else:
             metrics[name] = [[host, device, ts, value]]
- 
+
     def _postMetrics(self):
 
         if len(self._metrics) > 0:
@@ -247,7 +247,7 @@ class Application(tornado.web.Application):
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics)
-            self._metrics = {}            
+            self._metrics = {}
 
     def run(self):
 
@@ -269,7 +269,7 @@ class Application(tornado.web.Application):
         logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = tornado.ioloop.IOLoop.instance() 
+        self.mloop = tornado.ioloop.IOLoop.instance()
 
         def flush_trs():
             if self._watchdog:
