@@ -80,6 +80,8 @@ class Memcache(Check):
         self.counter("memcache.total_connections_rate")
         
     def _load_conf(self, agentConfig):
+
+        # Load the conf according to the old schema
         memcache_url = agentConfig.get("memcache_server", None)
         memcache_port = agentConfig.get("memcache_port", None)
         memcache_urls = []
@@ -91,14 +93,24 @@ class Memcache(Check):
             tags.append(None)
 
 
+        # Load the conf according to the new schema
+        #memcache_instance_1: first_host:first_port:first_tag
+        #memcache_instance_2: second_host:second_port:second_tag
+        #memcache_instance_3: third_host:third_port:third_tag
         def load_conf(index=1):
             instance = agentConfig.get("memcache_instance_%s" % index, None)
             if instance is not None:
                 instance = instance.split(":")
+                memcache_urls.append(instance[0])
+                if len(instance)>1:
+                    memcache_ports.append(instance[1])
+                else:
+                    memcache_ports.append(11211)
                 if len(instance)==3:
                     tags.append(instance[2])
-                    memcache_urls.append(instance[0])
-                    memcache_ports.append(instance[1])
+                else:
+                    tags.append(None)
+                    
                 load_conf(index+1)
 
         load_conf()
@@ -144,10 +156,10 @@ class Memcache(Check):
                 memcache_ports[i] = 11211
             port = int(memcache_ports[i])
 
-            tag = None
-
             if tags[i] is not None:
                 tag = ["instance:%s" % tags[i]]
+            else:
+                tag=["instance:%s_%s" % (server, port)]
 
             try:
                 self._get_metrics(server, port, tag, memcache)                   

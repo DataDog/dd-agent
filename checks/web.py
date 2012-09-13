@@ -78,6 +78,7 @@ class Nginx(Check):
         self.gauge("nginx.net.waiting")
 
     def _load_conf(self, agentConfig):
+        # Load the conf according to the old schema
         nginx_url = agentConfig.get("nginx_status_url", None)
         nginx_status_urls = []
         tags = []
@@ -85,7 +86,10 @@ class Nginx(Check):
             nginx_status_urls.append(nginx_url)
             tags.append(None)
 
-
+        # Load the conf according to the new schema
+        #nginx_status_url_1: http://www.example.com/nginx_status:first_tag
+        #nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
+        #nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
         def load_conf(index=1):
             instance = agentConfig.get("nginx_status_url_%s" % index, None)
             if instance is not None:
