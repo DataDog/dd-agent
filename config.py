@@ -8,12 +8,15 @@ import subprocess
 import sys
 from optparse import OptionParser, Values
 from cStringIO import StringIO
+from util import getOS
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
+
+class DDConfigNotFound(Exception): pass
 
 def get_parsed_args():
     parser = OptionParser()
@@ -41,36 +44,57 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path):
+def initialize_logging(config_path, os_name=None):
     try:
         logging.config.fileConfig(config_path)
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 
-def get_config_path(cfg_path=None):
-    # Find the right config file
+def _windows_config_path():
+    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent', DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def _unix_config_path():
+    path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def get_config_path(cfg_path=None, os_name=None):
+    # Check if there's an override and if it exists
+    if cfg_path is not None and os.path.exists(cfg_path):
+        return cfg_path
+
+    # Check for an OS-specific path, continue on not-found exceptions
+    exc = None
+    if os_name == 'windows':
+        try:
+            return _windows_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+    else:
+        try:
+            return _unix_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+
+    # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
     path = os.path.dirname(path)
+    if os.path.exists(os.path.join(path, DATADOG_CONF)):
+        return os.path.join(path, DATADOG_CONF)
+    
+    # If all searches fail, exit the agent with an error
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
+    sys.exit(3)
 
-    config_path = None
-    if cfg_path is not None and os.path.exists(cfg_path):
-        config_path = cfg_path
-    elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
-        config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
-    elif os.path.exists(os.path.join(path, DATADOG_CONF)):
-        config_path = os.path.join(path, DATADOG_CONF)
-    else:
-        sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
-        sys.exit(3)
-    return config_path
-
-
-def get_config(parse_args = True, cfg_path=None, init_logging=False):
+def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
     if parse_args:
         options, args = get_parsed_args()
-    else:
-        options = None
+    elif not options:
         args = None
 
     # General config
@@ -97,12 +121,12 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config_path = get_config_path(cfg_path)
+        config_path = get_config_path(cfg_path, os_name=getOS())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
         if init_logging:
-            initialize_logging(config_path)
+            initialize_logging(config_path, os_name=getOS())
 
 
         # bulk import
@@ -279,3 +303,17 @@ def get_system_stats():
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
     return systemStats
+
+def set_win32_cert_path():
+    ''' In order to use tornado.httpclient with the packaged .exe on Windows we
+    need to override the default ceritifcate location which is based on the path
+    to tornado and will give something like "C:\path\to\program.exe\tornado/cert-file".
+
+    If pull request #379 is accepted (https://github.com/facebook/tornado/pull/379) we
+    will be able to override this in a clean way. For now, we have to monkey patch
+    tornado.httpclient._DEFAULT_CA_CERTS
+    '''
+    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent',
+        'ca-certificates.crt')
+    import tornado.simple_httpclient
+    tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path

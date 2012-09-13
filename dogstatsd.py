@@ -10,6 +10,7 @@ import optparse
 from random import randrange
 import re
 import socket
+import select
 import sys
 from time import time
 import threading
@@ -306,27 +307,34 @@ class Server(object):
 
         self.buffer_size = 1024
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
     def start(self):
         """ Run the server. """
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        # Inline variables to speed up look-ups.
+        self.running = True
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
+        socket = self.socket
         socket_recv = self.socket.recv
+        timeout = 5
 
-        while True:
+        while self.running:
             try:
-                aggregator_submit(socket_recv(buffer_size))
+                ready = select.select([socket], [], [], timeout)
+                if ready[0]:
+                    aggregator_submit(socket_recv(buffer_size))
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
                 logger.exception('Error receiving datagram')
 
-def main(config_path=None):
+    def stop(self):
+        self.running = False
 
+def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.info("Starting dogstatsd")
@@ -349,6 +357,11 @@ def main(config_path=None):
     # Start the server.
     server_host = ''
     server = Server(aggregator, server_host, port)
+
+    return reporter, server
+
+def main(config_path=None):
+    reporter, server = init(config_path)
     server.start()
 
     # If we're here, we're done.

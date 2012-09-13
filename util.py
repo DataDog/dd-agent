@@ -38,6 +38,8 @@ def getOS():
         return 'freebsd'
     elif sys.platform.find('linux') != -1:
         return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
     else:
         return sys.platform
 
