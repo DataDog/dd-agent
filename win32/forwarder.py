@@ -5,7 +5,7 @@ import servicemanager
 import sys
 import tornado.httpclient
 
-from ddagent import Application
+import ddagent
 from config import get_config, set_win32_cert_path
 from win32.common import handle_exe_click
 
@@ -29,15 +29,8 @@ class DDForwarderSvc(win32serviceutil.ServiceFramework):
                                 (self._svc_name_, ''))
 
         set_win32_cert_path()
-        agentConfig = get_config(parse_args = False)
-        port = agentConfig.get('listen_port', 17123)
-        if port is None:
-            port = 17123
-        else:
-            port = int(port)
-
-        self.app = Application(port, agentConfig, watchdog=False)
-        self.app.run()
+        app = ddagent.init()
+        app.run()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:

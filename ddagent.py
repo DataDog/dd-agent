@@ -296,16 +296,8 @@ class Application(tornado.web.Application):
 
     def stop(self):
         self.mloop.stop()
-    
-def main():
-    define("pycurl", default=1, help="Use pycurl")
-    parse_command_line()
 
-    if options.pycurl == 0 or options.pycurl == "0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
-
-    import tornado.httpclient
-
+def init():
     agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', 17123)
@@ -315,6 +307,17 @@ def main():
         port = int(port)
 
     app = Application(port, agentConfig)
+    return app
+
+def main():
+    define("pycurl", default=1, help="Use pycurl")
+    parse_command_line()
+
+    if options.pycurl == 0 or options.pycurl == "0":
+        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
+
+    import tornado.httpclient
+    app = init()
     app.run()
 
 if __name__ == "__main__":
