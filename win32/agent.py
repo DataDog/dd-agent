@@ -5,6 +5,7 @@ import servicemanager
 import socket
 import time
 import sys
+from optparse import Values
 
 from config import get_config
 from emitter import http_emitter
@@ -30,8 +31,15 @@ class DDAgentSvc(win32serviceutil.ServiceFramework):
                                 servicemanager.PYS_SERVICE_STARTED,
                                 (self._svc_name_, ''))
         
-        # Init the agent and start it
-        self.agent = DDAgent(get_config(init_logging=True, parse_args=False))
+        # Setup the correct options so we use the forwarder
+        opts, args = Values({
+            'dd_url': None,
+            'clean': False,
+            'use_forwarder': True,
+            'disabled_dd': False
+        }), []
+        self.config = get_config(init_logging=True, parse_args=False, options=opts)
+        self.agent = DDAgent(self.config)
         self.agent.run()
 
 class DDAgent(object):
@@ -66,7 +74,7 @@ class DDAgent(object):
         return emitters
 
 if __name__ == '__main__':
-    #if len(sys.argv) == 1:
-    #    handle_exe_click(DDAgentSvc._svc_name_)
-    #else:
-    win32serviceutil.HandleCommandLine(DDAgentSvc)
+    if len(sys.argv) == 1:
+        handle_exe_click(DDAgentSvc._svc_name_)
+    else:
+        win32serviceutil.HandleCommandLine(DDAgentSvc)
