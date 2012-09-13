@@ -315,9 +315,14 @@ class Server(object):
         logger.info('Listening on host & port: %s' % str(self.address))
 
         self.running = True
+        buffer_size = self.buffer_size
+        aggregator_submit = self.metrics_aggregator.submit
+        socket = self.socket
+        socket_recv = self.socket.recv
+
         while self.running:
             try:
-                self.submit()
+                self.submit(buffer_size, aggregator_submit, socket, socket_recv)
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
@@ -326,12 +331,11 @@ class Server(object):
     def stop(self):
         self.running = False
 
-    def submit(self):
+    def submit(self, buffer_size, aggregator_submit, socket, socket_recv):
         """ Submit metrics to the aggregator """
-        buffer_size = self.buffer_size
-        aggregator_submit = self.metrics_aggregator.submit
-        ready = select.select([self.socket], [], [])
-        aggregator_submit(self.socket.recv(buffer_size))
+        ready = select.select([socket], [], [])
+        if ready[0]:
+            aggregator_submit(socket_recv(buffer_size))
 
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
