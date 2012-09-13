@@ -319,10 +319,13 @@ class Server(object):
         aggregator_submit = self.metrics_aggregator.submit
         socket = self.socket
         socket_recv = self.socket.recv
+        timeout = 5
 
         while self.running:
             try:
-                self.submit(buffer_size, aggregator_submit, socket, socket_recv)
+                ready = select.select([socket], [], [], timeout)
+                if ready[0]:
+                    aggregator_submit(socket_recv(buffer_size))
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
@@ -330,12 +333,6 @@ class Server(object):
 
     def stop(self):
         self.running = False
-
-    def submit(self, buffer_size, aggregator_submit, socket, socket_recv):
-        """ Submit metrics to the aggregator """
-        ready = select.select([socket], [], [])
-        if ready[0]:
-            aggregator_submit(socket_recv(buffer_size))
 
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
