@@ -78,7 +78,7 @@ class Memcache(Check):
         self.counter("memcache.bytes_read_rate")
         self.counter("memcache.bytes_written_rate")
         self.counter("memcache.total_connections_rate")
-        
+
     def _load_conf(self, agentConfig):
 
         # Load the conf according to the old schema
@@ -131,8 +131,8 @@ class Memcache(Check):
             our_metric = "memcache." + metric
             # Tweak the name if it's a counter so that we don't use the exact
             # same metric name as the memcache documentation
-            if self.is_counter(metric + "_rate"):
-                our_metric = metric + "_rate"
+            if self.is_counter(our_metric + "_rate"):
+                our_metric = our_metric + "_rate"
 
             if self.is_metric(our_metric):
                 self.save_sample(our_metric, float(stats[metric]), tags=tags)
