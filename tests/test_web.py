@@ -16,7 +16,7 @@ class TestWeb(unittest.TestCase):
 
     def testNginx(self):
         config = { "nginx_status_url": "http://localhost:44441/nginx_status/", 
-                    "nginx_status_url_1": "http://localhost:first_one",
+                    "nginx_status_url_1": "http://localhost:44441/nginx_status/:first_one",
                     "nginx_status_url_2": "http://dummyurl:44441/nginx_status/:dummy",
                     "nginx_status_url_3": "http://localhost:44441/nginx_status/:second",
                 'version': '0.1',
