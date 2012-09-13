@@ -20,20 +20,21 @@ exec 1>$npipe 2>&1
 
 function report_using_mail() {
     if [ $? = 22 ]; then
+        log=$(cat "$logfile")
         notfication_message_manual="\033[31m
     It looks like you hit an issue when trying to install the agent.
 
     Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
     and we'll do our very best to help you solve your problem.
 
-    Agent installation failure: 
+    Agent installation failure:
     OS: $OS
     Version: $agent_version
     apikey: $key_to_report
 
     \n\033[0m"
 
-        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
+        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report \n\n log:$log" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
         exit 1
     fi
     rm -f $npipe
@@ -53,6 +54,7 @@ function get_api_key_to_report() {
 }
 
 function report_to_dogweb() {
+    log=$(cat "$logfile")
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations:
@@ -63,7 +65,7 @@ apikey: $key_to_report
 You can send an email to help@datadoghq.com if you need support
 and we'll do our very best to help you solve your problem\n\033[0m"
 
-    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report" $dogweb_reporting_failure_url && echo -e "$notification_message"
+    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$log" $dogweb_reporting_failure_url && echo -e "$notification_message"
 }
 
 function get_agent_version() {
