@@ -30,7 +30,7 @@ class TestMemCache(unittest.TestCase):
                            "memcache_instance_2": "dummy:11211:myothertag",
                            "memcache_instance_3": "localhost:11211:mythirdtag"})
 
-        self.assertEquals(len([t for t in r if t[0] == "total_items"]), 3, r)
+        self.assertEquals(len([t for t in r if t[0] == "memcache.total_items"]), 3, r)
 
 if __name__ == '__main__':
     unittest.main()

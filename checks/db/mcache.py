@@ -57,27 +57,27 @@ from checks import *
 class Memcache(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
-        self.gauge("total_items")
-        self.gauge("curr_items")
-        self.gauge("limit_maxbytes")
-        self.gauge("uptime")
-        self.gauge("bytes")
-        self.gauge("curr_connections")
-        self.gauge("connection_structures")
-        self.gauge("threads")
-        self.gauge("pointer_size")
+        self.gauge("memcache.total_items")
+        self.gauge("memcache.curr_items")
+        self.gauge("memcache.limit_maxbytes")
+        self.gauge("memcache.uptime")
+        self.gauge("memcache.bytes")
+        self.gauge("memcache.curr_connections")
+        self.gauge("memcache.connection_structures")
+        self.gauge("memcache.threads")
+        self.gauge("memcache.pointer_size")
 
-        self.counter("rusage_user_rate")
-        self.counter("rusage_system_rate")
-        self.counter("cmd_get_rate")
-        self.counter("cmd_set_rate")
-        self.counter("cmd_flush_rate")
-        self.counter("get_hits_rate")
-        self.counter("get_misses_rate")
-        self.counter("evictions_rate")
-        self.counter("bytes_read_rate")
-        self.counter("bytes_written_rate")
-        self.counter("total_connections_rate")
+        self.counter("memcache.rusage_user_rate")
+        self.counter("memcache.rusage_system_rate")
+        self.counter("memcache.cmd_get_rate")
+        self.counter("memcache.cmd_set_rate")
+        self.counter("memcache.cmd_flush_rate")
+        self.counter("memcache.get_hits_rate")
+        self.counter("memcache.get_misses_rate")
+        self.counter("memcache.evictions_rate")
+        self.counter("memcache.bytes_read_rate")
+        self.counter("memcache.bytes_written_rate")
+        self.counter("memcache.total_connections_rate")
         
     def _load_conf(self, agentConfig):
         memcache_url = agentConfig.get("memcache_server", None)
@@ -116,7 +116,7 @@ class Memcache(Check):
         for metric in stats:
             self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
 
-            our_metric = metric
+            our_metric = "memcache." + metric
             # Tweak the name if it's a counter so that we don't use the exact
             # same metric name as the memcache documentation
             if self.is_counter(metric + "_rate"):
