@@ -19,7 +19,6 @@ exec 1>&-
 exec 1>$npipe 2>&1
 
 function report_using_mail() {
-    rm -f $npipe
     if [ $? = 22 ]; then
         notfication_message_manual="\033[31m
     It looks like you hit an issue when trying to install the agent.
@@ -37,6 +36,7 @@ function report_using_mail() {
         echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
         exit 1
     fi
+    rm -f $npipe
 
 }
 
