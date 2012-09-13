@@ -148,7 +148,7 @@ Section "Datadog Agent" SecDummy
   File /oname=ddforwarder.exe "install_files\forwarder.exe"
   File /oname=dogstatsd.exe "install_files\dogstatsd_win32.exe"
   FILE "install_files\ca-certificates.crt"
-  File "install_files\datadog.conf"
+  File /oname=datadog_win32.conf "install_files\datadog.conf"
 
   ;Store installation folder
   WriteRegStr HKCU "Software\Datadog Agent" "" $INSTDIR
