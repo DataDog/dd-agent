@@ -47,7 +47,7 @@ def skip_leading_wsp(f):
 def initialize_logging(config_path, os_name=None):
     try:
         logging.config.fileConfig(config_path)
-    except:
+    except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 
@@ -91,11 +91,10 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
-def get_config(parse_args = True, cfg_path=None, init_logging=False):
+def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
     if parse_args:
         options, args = get_parsed_args()
-    else:
-        options = None
+    elif not options:
         args = None
 
     # General config
@@ -304,3 +303,17 @@ def get_system_stats():
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
     return systemStats
+
+def set_win32_cert_path():
+    ''' In order to use tornado.httpclient with the packaged .exe on Windows we
+    need to override the default ceritifcate location which is based on the path
+    to tornado and will give something like "C:\path\to\program.exe\tornado/cert-file".
+
+    If pull request #379 is accepted (https://github.com/facebook/tornado/pull/379) we
+    will be able to override this in a clean way. For now, we have to monkey patch
+    tornado.httpclient._DEFAULT_CA_CERTS
+    '''
+    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent',
+        'ca-certificates.crt')
+    import tornado.simple_httpclient
+    tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path

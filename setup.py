@@ -27,7 +27,7 @@ install_requires=[
 if sys.platform == 'win32':
     import py2exe
     install_requires.extend([
-        'tornado==2.3',
+        'tornado==2.1',
         'pywin32==217',
         'wmi==1.4.9',
         'simplejson==2.6.1'
