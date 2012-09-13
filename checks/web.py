@@ -143,6 +143,8 @@ class Nginx(Check):
         """
         (nginx_status_urls, tags) = self._load_conf(agentConfig)
 
+        if not nginx_status_urls:
+            return False
         
         for i in range(len(nginx_status_urls)):
             url = nginx_status_urls[i]
