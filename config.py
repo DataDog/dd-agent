@@ -126,7 +126,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         config.readfp(skip_leading_wsp(open(config_path)))
 
         if init_logging:
-            initialize_logging(cfg_path, os_name=getOS())
+            initialize_logging(config_path, os_name=getOS())
 
 
         # bulk import
