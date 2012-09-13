@@ -44,12 +44,11 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path):
-    #try:
-    #    logging.config.fileConfig(config_path)
-    #except Exception, e:
-    #    sys.stderr.write("Couldn't initialize logging: %s" % str(e))
-    logging.basicConfig()
+def initialize_logging(config_path, os_name=None):
+    try:
+        logging.config.fileConfig(config_path)
+    except:
+        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 
 def _windows_config_path():
@@ -128,7 +127,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         config.readfp(skip_leading_wsp(open(config_path)))
 
         if init_logging:
-            initialize_logging(config_path)
+            initialize_logging(cfg_path, os_name=getOS())
 
 
         # bulk import
