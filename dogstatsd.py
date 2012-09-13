@@ -10,6 +10,7 @@ import optparse
 from random import randrange
 import re
 import socket
+import select
 import sys
 from time import time
 import threading
@@ -251,7 +252,6 @@ class Reporter(threading.Thread):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         while True:
             if self.finished.is_set():
-                print 'reporter is finished!'
                 break
             self.finished.wait(self.interval)
             self.flush()
@@ -307,13 +307,15 @@ class Server(object):
 
         self.buffer_size = 1024
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
     def start(self):
         """ Run the server. """
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        while True:
+        self.running = True
+        while self.running:
             try:
                 self.submit()
             except (KeyboardInterrupt, SystemExit):
@@ -321,12 +323,15 @@ class Server(object):
             except:
                 logger.exception('Error receiving datagram')
 
+    def stop(self):
+        self.running = False
+
     def submit(self):
         """ Submit metrics to the aggregator """
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
-        socket_recv = self.socket.recv
-        aggregator_submit(socket_recv(buffer_size))
+        ready = select.select([self.socket], [], [])
+        aggregator_submit(self.socket.recv(buffer_size))
 
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)

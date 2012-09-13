@@ -5,6 +5,7 @@ import servicemanager
 import logging
 import threading
 import sys
+import socket
 
 from config import get_config
 from checks import gethostname
@@ -23,22 +24,17 @@ class DogstatsdSvc(win32serviceutil.ServiceFramework):
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
 
     def SvcStop(self):
-        self.running = False
-        self.reporter.end()
-
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING, 1000)
         win32event.SetEvent(self.hWaitStop)
-        raise SystemExit
+        self.reporter.end()
+        self.server.stop()
 
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
                                 servicemanager.PYS_SERVICE_STARTED,
                                 (self._svc_name_, ''))
         self.reporter, self.server = dogstatsd.init()
-
-        self.running = True
-        while self.running:
-            self.server.submit()
+        self.server.start()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
