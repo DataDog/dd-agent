@@ -4,66 +4,13 @@ set -e
 dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
 dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
 email_reporting_failure="help@datadoghq.com"
+logfile="ddagent-install.log"
 
-trap report_using_mail EXIT
+gist_request=/tmp/agent-gist-request.tmp
+gist_response=/tmp/agent-gist-response.tmp
 
-function report_using_mail() {
-    if [ $? = 22 ]; then
-        notfication_message_manual="\033[31m
-    It looks like you hit an issue when trying to install the agent.
-
-    Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
-    and we'll do our very best to help you solve your problem.
-
-    Agent installation failure:
-    OS: $OS
-    Version: $agent_version
-
-    \n\033[0m"
-
-        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
-        exit 1
-    fi
-
-}
-function get_api_key_to_report() {
-    if [ $apikey ]; then
-        key_to_report=$apikey
-    else
-        key_to_report="No_key"
-    fi
-}
-
-function report_to_dogweb() {
-    notification_message="\033[31m
-It looks like you hit an issue when trying to install the agent.
-A notification has been sent to Datadog with the following informations:
-OS: $OS
-Version: $agent_version
-apikey: $key_to_report
-
-You can send an email to help@datadoghq.com if you need support
-and we'll do our very best to help you solve your problem\n\033[0m"
-
-    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report" $dogweb_reporting_failure_url && echo -e "$notification_message"
-}
-
-function on_error() {
-    set +e
-    get_api_key_to_report
-    get_os
-    get_agent_version
-    report_to_dogweb
-    exit 1
-
-}
-
-function get_agent_version() {
-    set +e
-    agent_version=$(cd $HOME/.datadog-agent/agent && python -c "from config import get_version; print get_version()" || echo "Not determined")
-    echo "version:'$agent_version'"
-    set -e
-}
+# Set up a named pipe for logging
+npipe=/tmp/$$.tmp
 
 function get_os() {
     # OS/Distro Detection
@@ -83,6 +30,85 @@ function get_os() {
         OS="MacOS"
     fi
 }
+
+get_os
+
+if [ $OS = "MacOS" ]; then
+    mkfifo $npipe
+else
+    mknod $npipe p
+fi
+
+# Log all output to a log for error checking
+tee <$npipe $logfile &
+exec 1>&-
+exec 1>$npipe 2>&1
+
+function report_using_mail() {
+    if [ $? = 22 ]; then
+        log=$(cat "$logfile")
+        notfication_message_manual="\033[31m
+    It looks like you hit an issue when trying to install the agent.
+
+    Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
+    and we'll do our very best to help you solve your problem.
+
+    Agent installation failure:
+    OS: $OS
+    Version: $agent_version
+    Log: $log
+
+    \n\033[0m"
+
+        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n\n Log:$log" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
+        exit 1
+    fi
+    rm -f $npipe
+
+}
+
+trap report_using_mail EXIT
+
+function get_api_key_to_report() {
+    if [ $apikey ]; then
+        key_to_report=$apikey
+    else
+        key_to_report="No_key"
+    fi
+}
+
+function report_to_dogweb() {
+    log=$(cat "$logfile")
+    notification_message="\033[31m
+It looks like you hit an issue when trying to install the agent.
+A notification has been sent to Datadog with the following informations:
+OS: $OS
+Version: $agent_version
+apikey: $key_to_report
+
+You can send an email to help@datadoghq.com if you need support
+and we'll do our very best to help you solve your problem\n\033[0m"
+
+    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$log" $dogweb_reporting_failure_url && echo -e "$notification_message"
+}
+
+function on_error() {
+    set +e
+    get_api_key_to_report
+    get_os
+    get_agent_version
+    report_to_dogweb
+    exit 1
+
+}
+
+function get_agent_version() {
+    set +e
+    agent_version=$(cd $HOME/.datadog-agent/agent && python -c "from config import get_version; print get_version()" || echo "Not determined")
+    echo "version:'$agent_version'"
+    set -e
+}
+
 
 trap on_error ERR
 
