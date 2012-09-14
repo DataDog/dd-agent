@@ -81,6 +81,9 @@ function get_api_key_to_report() {
 function report_to_dogweb() {
     log=$(cat "$logfile")
     encoded_log=$(echo "$log" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    OS=$(echo "$OS" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    key_to_report=$(echo "$key_to_report" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    agent_version=$(echo "$agent_version" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations and the content of ddagent-install.log:
