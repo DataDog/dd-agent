@@ -61,13 +61,13 @@ function report_to_dogweb() {
     agent_version=$(echo "$agent_version" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
+You can send an email to help@datadoghq.com if you need support
+and we'll do our very best to help you solve your problem\n\033[0m
+
 A notification has been sent to Datadog with the following informations:
 OS: $OS
 Version: $agent_version
-Log: $log
-
-You can send an email to help@datadoghq.com if you need support
-and we'll do our very best to help you solve your problem\n\033[0m"
+Log: $log"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url && echo -e "$notification_message"
 }
