@@ -60,7 +60,7 @@ It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations:
 OS: $OS
 Version: $agent_version
-apikey: $key_to_report
+Log: $log
 
 You can send an email to help@datadoghq.com if you need support
 and we'll do our very best to help you solve your problem\n\033[0m"
