@@ -61,9 +61,10 @@ function report_using_mail() {
     \n\033[0m"
 
         echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n\n Log:$log" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
-        exit 1
+        
     fi
     rm -f $npipe
+    exit 1
 
 }
 
