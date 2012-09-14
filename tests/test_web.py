@@ -26,6 +26,7 @@ class TestWeb(unittest.TestCase):
         r = self.nginx.check(config)
 
         self.assertEquals(len([t for t in r if t[0] == "nginx.net.connections"]), 3, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:second"]]), 5, r)
 
 
 if __name__ == '__main__':

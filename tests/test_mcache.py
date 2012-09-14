@@ -25,12 +25,15 @@ class TestMemCache(unittest.TestCase):
             self.assertEquals(self._countConnections(11211), 0)
 
     def testMetrics(self):
-        r = self.c.check({"memcache_server": "localhost",
+        agent_config = {"memcache_server": "localhost",
                            "memcache_instance_1": "localhost:11211:mytag",
                            "memcache_instance_2": "dummy:11211:myothertag",
-                           "memcache_instance_3": "localhost:11211:mythirdtag"})
+                           "memcache_instance_3": "localhost:11211:mythirdtag"}
+        self.c.check(agent_config)
+        r = self.c.check(agent_config)
 
         self.assertEquals(len([t for t in r if t[0] == "memcache.total_items"]), 3, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 20, r)
 
 if __name__ == '__main__':
     unittest.main()

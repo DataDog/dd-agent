@@ -103,7 +103,7 @@ class checks(object):
             ActiveMQ(self.checksLogger),
             Solr(self.checksLogger),
             Nginx(self.checksLogger),
-            Memcache(self.checksLogger)
+            Memcache(self.checksLogger),
             ]
 
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
