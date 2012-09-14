@@ -80,17 +80,19 @@ function get_api_key_to_report() {
 
 function report_to_dogweb() {
     log=$(cat "$logfile")
+    encoded_log=$(echo "$log" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
-A notification has been sent to Datadog with the following informations:
+A notification has been sent to Datadog with the following informations and the content of ddagent-install.log:
 OS: $OS
 Version: $agent_version
 apikey: $key_to_report
 
+
 You can send an email to help@datadoghq.com if you need support
 and we'll do our very best to help you solve your problem\n\033[0m"
 
-    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$log" $dogweb_reporting_failure_url && echo -e "$notification_message"
+    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url && echo -e "$notification_message"
 }
 
 function on_error() {
@@ -106,7 +108,7 @@ function on_error() {
 function get_agent_version() {
     set +e
     agent_version=$(cd $HOME/.datadog-agent/agent && python -c "from config import get_version; print get_version()" || echo "Not determined")
-    echo "version:'$agent_version'"
+    echo "version:$agent_version'"
     set -e
 }
 
