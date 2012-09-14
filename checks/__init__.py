@@ -22,6 +22,8 @@ try:
 except ImportError:
     import md5
 
+from aggregator import MetricsAggregator
+
 # Konstants
 class CheckException(Exception): pass
 class Infinity(CheckException): pass
@@ -265,6 +267,59 @@ class Check(object):
                 pass
         return metrics
 
+class CheckD(object):
+    ''' New interface to checks using checks.d/conf.d '''
+    def __init__(self, name, config, agentConfig):
+        self.hostname = gethostname(agentConfig)
+        self.logger = logging.getLogger('checks.%s' % name)
+        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
+        self.has_metrics = False
+        self.events = []
+
+    def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
+        ''' Save a gauge value '''
+        self.has_metrics = True
+        self.aggregator.gauge(name, metric, value, tags=tags,
+            hostname=hostname, device_name=device_name)
+
+    def increment(self, metric, value, tags=None, hostname=None, device_name=None):
+        ''' Increment a counter value '''
+        self.has_metrics = True
+        self.aggregator.increment(name, metric, value, tags=tags,
+            hostname=hostname, device_name=device_name)
+
+    #def rate(self, metric, value, tags=None, hostname=None, device_name=None):
+    #    self.has_metrics = True
+    #    self.aggregator.rate(name, metric, value, tags=tags,
+    #        hostname=hostname, device_name=device_name)
+
+    def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
+        ''' Save a histogram value '''
+        self.has_metrics = True
+        self.aggregator.histogram(name, metric, value, tags=tags,
+            hostname=hostname, device_name=device_name)
+
+    def event(self, event):
+        ''' Save an event '''
+        self.events.append(event)
+
+    def has_metrics(self):
+        return self.has_metrics
+
+    def has_events(self):
+        return len(self.events) > 0
+
+    def get_metrics(self):
+        """Get all metrics, including the ones that are tagged.
+
+        @return the list of samples
+        @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
+        """
+        return self.aggregator.flush()
+
+    def get_events(self):
+        return self.events
+
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
         return agentConfig["hostname"]
@@ -273,3 +328,18 @@ def gethostname(agentConfig):
             return socket.getfqdn()
         except socket.error, e:
             logging.debug("processes: unable to get hostname: " + str(e))
+
+def agent_formatter(self, metric, value, timestamp, tags, hostname, device_name):
+    """ Formats metrics coming from the MetricsAggregator. Will look like:
+     (metric_name, timestamp, value, {"tags": ["tag1", "tag2"], ...})
+    """
+    attributes = {}
+    if tags:
+        attributes['tags'] = tags
+    if hostname:
+        attributes['hostname'] = hostname
+    if device_name:
+        attributes['device_name'] = device_name
+    if attributes:
+        return (metric_name, timestamp, value, attributes)
+    return (metric_name, timestamp, value)
