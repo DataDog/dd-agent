@@ -4,7 +4,7 @@ set -e
 dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
 dogweb_reporting_success_url="https://app.datadoghq.com/agent_stats/report_success"
 email_reporting_failure="help@datadoghq.com"
-logfile="ddagent-install.log"
+logfile="/tmp/ddagent-install.log"
 
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
@@ -86,7 +86,7 @@ function report_to_dogweb() {
     agent_version=$(echo "$agent_version" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
-A notification has been sent to Datadog with the following informations and the content of ddagent-install.log:
+A notification has been sent to Datadog with the following informations and the content of /tmp/ddagent-install.log:
 OS: $OS
 Version: $agent_version
 apikey: $key_to_report
