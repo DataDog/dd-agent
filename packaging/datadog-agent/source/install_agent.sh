@@ -53,13 +53,12 @@ function report_using_mail() {
         notfication_message_manual="\033[31m
     It looks like you hit an issue when trying to install the agent.
 
-    Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
+    Please send an email to help@datadoghq.com with the following content, the content of the file ddagent-install.log and any informations you think would be useful
     and we'll do our very best to help you solve your problem.
 
     Agent installation failure:
     OS: $OS
     Version: $agent_version
-    Log: $log
 
     \n\033[0m"
 
