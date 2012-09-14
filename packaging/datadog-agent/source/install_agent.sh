@@ -9,6 +9,35 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
+
+function get_os() {
+    # OS/Distro Detection
+    if [ -f /etc/lsb-release ]; then
+        . /etc/lsb-release
+        OS=$DISTRIB_ID
+    elif [ -f /etc/debian_version ]; then
+        OS=Debian
+    elif [ -f /etc/redhat-release ]; then
+        # Just mark as RedHat and we'll use Python version detection
+        # to know what to install
+        OS=RedHat
+    else
+        OS=$(uname -s)
+    fi
+    if [ $OS = "Darwin" ]; then
+        OS="MacOS"
+    fi
+}
+
+get_os
+
+if [ $OS = "MacOS" ]; then
+    echo -e "\033[31mThis script does not support installing on the Mac.
+
+Please use the 1-step script available at https://app.datadoghq.com/account/settings#agent/mac.\033[0m"
+    exit 1;
+fi
+
 # Set up a named pipe for logging
 npipe=/tmp/$$.tmp
 mknod $npipe p
@@ -78,25 +107,6 @@ function get_agent_version() {
     set -e
 }
 
-function get_os() {
-    # OS/Distro Detection
-    if [ -f /etc/lsb-release ]; then
-        . /etc/lsb-release
-        OS=$DISTRIB_ID
-    elif [ -f /etc/debian_version ]; then
-        OS=Debian
-    elif [ -f /etc/redhat-release ]; then
-        # Just mark as RedHat and we'll use Python version detection
-        # to know what to install
-        OS=RedHat
-    else
-        OS=$(uname -s)
-    fi
-    if [ $OS = "Darwin" ]; then
-        OS="MacOS"
-    fi
-}
-
 function on_error() {
     set +e
     get_api_key_to_report
@@ -131,13 +141,6 @@ elif [ -f /etc/redhat-release ]; then
     OS=RedHat
 else
     OS=$(uname -s)
-fi
-
-if [ $OS = "Darwin" ]; then
-    echo -e "\033[31mThis script does not support installing on the Mac.
-
-Please use the 1-step script available at https://app.datadoghq.com/account/settings#agent/mac.\033[0m"
-    exit 1;
 fi
 
 # Python Detection
