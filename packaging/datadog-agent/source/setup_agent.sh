@@ -116,8 +116,6 @@ if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
 fi
 
-unamestr=`uname`
-
 if [ $(which curl) ]; then
     dl_cmd="curl -L -o"
 else
@@ -159,7 +157,7 @@ mkdir -p $dd_base/supervisord/logs
 pip install supervisor
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf
 
-if [ "$unamestr" = "Darwin" ]; then
+if [ $OS = "MacOS" ]; then
     # prepare launchd
     mkdir -p $dd_base/launchd/logs
     touch $dd_base/launchd/logs/launchd.log
@@ -169,7 +167,7 @@ fi
 # consolidate logging
 mkdir -p $dd_base/logs
 ln -s $dd_base/supervisord/logs $dd_base/logs/supervisord
-if [ "$unamestr" = "Darwin" ]; then
+if [ $OS = "MacOS" ]; then
     ln -s $dd_base/launchd/logs $dd_base/logs/launchd
 fi
 
@@ -190,7 +188,7 @@ trap "{ kill $agent_pid; exit; }" EXIT
 if [ $apikey ]; then
 
     # wait for metrics to be submitted
-    echo "\033[32m
+    echo -e "\033[32m
 Your agent has started up for the first time. We're currently
 verifying that data is being submitted. You should see your agent show
 up in Datadog within a few seconds at:
@@ -202,7 +200,7 @@ Waiting for metrics...\c"
     c=0
     while [ "$c" -lt "30" ]; do
         sleep 1
-        echo ".\c"
+        echo -e ".\c"
         c=$(($c+1))
     done
 
@@ -210,7 +208,7 @@ Waiting for metrics...\c"
     success=$?
     while [ "$success" -gt "0" ]; do
         sleep 1
-        echo ".\c"
+        echo -e ".\c"
         curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
         success=$?
     done
@@ -224,7 +222,7 @@ Waiting for metrics...\c"
     
     curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
     # print instructions
-    echo "\033[32m
+    echo -e "\033[32m
 
 Success! Your agent is functioning properly, and will continue to run
 in the foreground. To stop it, simply press CTRL-C. To start it back
@@ -234,7 +232,7 @@ cd $dd_base
 sh bin/agent
 "
 
-    if [ "$unamestr" = "Darwin" ]; then
+    if [ $OS = "MacOS" ]; then
     echo "To set it up as a daemon that always runs in the background
 while you're logged in, run:
 
@@ -244,7 +242,7 @@ while you're logged in, run:
 "
     fi
 
-    echo "\033[0m\c"
+    echo -e "\033[0m\c"
 
 # pup install
 else
@@ -260,8 +258,8 @@ up again in the foreground, run:
     sh bin/agent
 "
 
-    if [ "$unamestr" = "Darwin" ]; then
-    echo "To set it up as a daemon that always runs in the background
+    if [ $OS = "MacOS" ]; then
+    echo -e "To set it up as a daemon that always runs in the background
 while you're logged in, run:
 
     mkdir -p ~/Library/LaunchAgents
