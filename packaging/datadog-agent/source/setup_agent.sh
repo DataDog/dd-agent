@@ -35,7 +35,6 @@ function get_api_key_to_report() {
 }
 
 function report_to_dogweb() {
-    log=$(cat "$logfile")
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations:
