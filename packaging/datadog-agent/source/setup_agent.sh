@@ -225,6 +225,8 @@ Waiting for metrics...\c"
     echo "Trying to get agent_version"
     get_agent_version
     echo "Reporting installation success to dogweb"
+    OS=$(echo "$OS" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    agent_version=$(echo "$agent_version" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     
     curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
     # print instructions
