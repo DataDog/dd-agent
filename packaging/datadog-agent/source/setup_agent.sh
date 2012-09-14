@@ -15,19 +15,17 @@ function report_using_mail() {
     Please send an email to help@datadoghq.com with the following content and any informations you think would be useful
     and we'll do our very best to help you solve your problem.
 
-    Agent installation failure: 
+    Agent installation failure:
     OS: $OS
     Version: $agent_version
-    apikey: $key_to_report
 
     \n\033[0m"
 
-        echo "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
+        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
         exit 1
     fi
 
 }
-
 function get_api_key_to_report() {
     if [ $apikey ]; then
         key_to_report=$apikey
@@ -37,6 +35,7 @@ function get_api_key_to_report() {
 }
 
 function report_to_dogweb() {
+    log=$(cat "$logfile")
     notification_message="\033[31m
 It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations:

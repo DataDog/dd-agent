@@ -30,11 +30,11 @@ function report_using_mail() {
     Agent installation failure:
     OS: $OS
     Version: $agent_version
-    apikey: $key_to_report
+    Log: $log
 
     \n\033[0m"
 
-        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n apikey: $key_to_report \n\n log:$log" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
+        echo -e "Agent installation failure: \n OS: $OS \n Version: $agent_version \n \n\n Log:$log" | mail -s "Agent installation failure" $email_reporting_failure && echo -e "$notification_message" || echo -e "$notfication_message_manual"
         exit 1
     fi
     rm -f $npipe
