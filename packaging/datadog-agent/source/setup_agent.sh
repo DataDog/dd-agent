@@ -228,7 +228,7 @@ Waiting for metrics...\c"
     OS=$(echo "$OS" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     agent_version=$(echo "$agent_version" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     
-    curl -f -s -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
+    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
     # print instructions
     echo -e "\033[32m
 
