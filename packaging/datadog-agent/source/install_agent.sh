@@ -193,6 +193,15 @@ sudo /etc/init.d/datadog-agent restart
 # Datadog "base" installs don't have a forwarder, so we can't use the same
 # check for the initial payload being sent.
 if $DDBASE; then
+
+# Report installation success to dogweb for stats purpose
+set +e
+get_os
+echo "Trying to get agent_version"
+get_agent_version
+echo "Reporting installation success to dogweb"
+curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
+
 echo -en "\033[32m
 Your agent has started up for the first time and is submitting metrics to
 Datadog. You should see your agent show up in Datadog within a few seconds at:
@@ -207,7 +216,7 @@ And to run it again run:
 
     sudo /etc/init.d/datadog-agent start
 "
-exit;
+exit 1;
 fi
 
 # Wait for metrics to be submitted by the forwarder
@@ -237,13 +246,12 @@ while [ "$success" -gt "0" ]; do
 done
 
 # Report installation success to dogweb for stats purpose
-    set +e
-    get_os
-    echo "Trying to get agent_version"
-    get_agent_version
-    echo "Reporting installation success to dogweb"
-    
-    curl -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
+set +e
+get_os
+echo "Trying to get agent_version"
+get_agent_version
+echo "Reporting installation success to dogweb"
+curl -f -d "version=$agent_version&os=$OS" $dogweb_reporting_success_url > /dev/null 2>&1
 
 # Metrics are submitted, echo some instructions and exit
 echo -e "\033[32m
