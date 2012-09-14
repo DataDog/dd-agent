@@ -92,10 +92,9 @@ It looks like you hit an issue when trying to install the agent.
 You can send an email to help@datadoghq.com if you need support
 and we'll do our very best to help you solve your problem\n\033[0m
 
-A notification has been sent to Datadog with the following informations:
+A notification has been sent to Datadog with the following informations and the content of ddagent-install.log:
 OS: $OS
-Version: $agent_version
-Log: $log"
+Version: $agent_version"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url && echo -e "$notification_message"
 }

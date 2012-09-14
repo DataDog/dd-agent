@@ -88,7 +88,6 @@ It looks like you hit an issue when trying to install the agent.
 A notification has been sent to Datadog with the following informations and the content of /tmp/ddagent-install.log:
 OS: $OS
 Version: $agent_version
-apikey: $key_to_report
 
 
 You can send an email to help@datadoghq.com if you need support
