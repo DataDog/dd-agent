@@ -195,6 +195,23 @@ class TestUnitDogStatsd(object):
         for p in [p95, pavg, pmed, pmax]:
             nt.assert_equal(p['points'][0][1], 5)
 
+    def test_batch_submission(self):
+        # Submit a sampled histogram.
+        stats = MetricsAggregator('myhost')
+        metrics = [
+            'counter:1|c',
+            'counter:1|c',
+            'gauge:1|g'
+        ]
+        packet = "\n".join(metrics)
+        stats.submit(packet)
+
+        metrics = self.sort_metrics(stats.flush(False))
+        nt.assert_equal(2, len(metrics))
+        counter, gauge = metrics
+        assert counter['points'][0][1] == 2
+        assert gauge['points'][0][1] == 1
+
 
     def test_bad_packets_throw_errors(self):
         packets = [
