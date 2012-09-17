@@ -137,6 +137,34 @@ class Histogram(Metric):
         return metrics
 
 
+class Set(Metric):
+    """ A metric to track the number of unique elements in a set. """
+
+    def __init__(self, name, tags, hostname):
+        self.name = name
+        self.tags = tags
+        self.hostname = hostname
+        self.values = set()
+
+    def sample(self, value, sample_rate):
+        self.values.add(value)
+        self.last_sample_time = time()
+
+    def flush(self, timestamp):
+        if not self.values:
+            return []
+        try:
+            return [{
+                'metric' : self.name,
+                'points' : [(timestamp, len(self.values))],
+                'tags' : self.tags,
+                'host' : self.hostname
+            }]
+        finally:
+            self.values = set()
+
+
+
 class MetricsAggregator(object):
     """
     A metric aggregator class.
@@ -150,7 +178,8 @@ class MetricsAggregator(object):
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram
+            'ms' : Histogram,
+            's'  : Set
         }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds

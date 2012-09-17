@@ -113,6 +113,27 @@ class TestUnitDogStatsd(object):
             nt.assert_equals(second['metric'], 'my.second.gauge')
             nt.assert_equals(second['points'][0][1], 1.5)
 
+
+    def test_sets(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit('my.set:10|s')
+        stats.submit('my.set:20|s')
+        stats.submit('my.set:20|s')
+        stats.submit('my.set:30|s')
+        stats.submit('my.set:30|s')
+        stats.submit('my.set:30|s')
+
+        # Assert that it's treated normally.
+        metrics = stats.flush(False)
+        nt.assert_equal(len(metrics), 1)
+        m = metrics[0]
+        nt.assert_equal(m['metric'], 'my.set')
+        nt.assert_equal(m['points'][0][1], 3)
+
+        # Assert there are no more sets
+        assert not stats.flush(False)
+
+
     def test_gauge_sample_rate(self):
         stats = MetricsAggregator('myhost')
 
