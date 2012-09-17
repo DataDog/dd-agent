@@ -9,6 +9,7 @@ import threading
 import modules
 import time
 
+from optparse import Values
 from checks.common import checks
 from emitter import http_emitter
 from win32.common import handle_exe_click
@@ -36,9 +37,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'use_forwarder': True,
             'disabled_dd': False
         }), []
-        self.agentConfig = get_config(init_logging=True, parse_args=False,
+        agentConfig = get_config(init_logging=True, parse_args=False,
             options=opts)
-        self.agent = DDAgent(self.config)
+        self.agent = DDAgent(agentConfig)
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
@@ -81,7 +82,7 @@ class DDAgent(threading.Thread):
         firstRun = True
         while self.running:
             chk.doChecks(firstRun)
-            firstRun=False
+            firstRun = False
             time.sleep(self.config['check_freq'])
 
     def stop(self):
