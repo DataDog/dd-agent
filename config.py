@@ -257,6 +257,11 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
+        if config.has_section('WMI'):
+            agentConfig['WMI'] = {}
+            for key, value in config.items('WMI'):
+                agentConfig['WMI'][key] = value    
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
