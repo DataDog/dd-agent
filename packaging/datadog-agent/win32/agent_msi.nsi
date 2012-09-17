@@ -9,14 +9,13 @@
 
 ;--------------------------------
 ;General
-
   ;Name and file
   Name "Datadog Agent"
   OutFile "DDAgentInstall.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\Datadog Agent"
-  
+
   ;Get installation folder from registry if available
   InstallDirRegKey HKCU "Software\Datadog Agent" ""
 
@@ -78,6 +77,9 @@
   Page custom apiInfo infoSave
 
   Function apiInfo
+    SetShellVarContext all
+    StrCpy $0 $APPDATA
+    SetShellVarContext current
 
     nsDialogs::Create 1018
     Pop $Dialog
@@ -103,8 +105,8 @@
 
   Function infoSave
 
-    ${NSD_GetText} $Text $0
-    !insertmacro _ReplaceInFile "$INSTDIR\datadog.conf" "APIKEYHERE" "api_key: $0"
+    ${NSD_GetText} $Text $1
+    !insertmacro _ReplaceInFile "$0\Datadog Agent\datadog.conf" "APIKEYHERE" "api_key: $1"
 
     ${NSD_GetState} $Checkbox $1
     ${IF} $1 == ${BST_CHECKED}
@@ -131,6 +133,10 @@
 ;Installer Sections
 
 Section "Datadog Agent" SecDummy
+  ;Config will go in App Data
+  SetShellVarContext all
+  StrCpy $0 $APPDATA
+  SetShellVarContext current
 
   SetOutPath "$INSTDIR"
 
@@ -138,6 +144,9 @@ Section "Datadog Agent" SecDummy
   File "install_files\license.txt"
   File /oname=ddagent.exe "install_files\agent.exe"
   FILE "install_files\ca-certificates.crt"
+
+  ; Config does in App Data
+  SetOutPath "$0\Datadog Agent"
   File /oname=datadog.conf "install_files\datadog_win32.conf"
 
   ;Store installation folder
@@ -166,9 +175,12 @@ SectionEnd
 ;Uninstaller Section
 
 Section "Uninstall"
+  SetShellVarContext all
+  StrCpy $0 $APPDATA
+  SetShellVarContext current
 
   Delete "$INSTDIR\ddagent.exe"
-  Delete "$INSTDIR\datadog.conf"
+  Delete "$0\Datadog Agent\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
   Delete "$INSTDIR\Uninstall.exe"
 

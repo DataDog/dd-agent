@@ -52,7 +52,23 @@ def initialize_logging(config_path, os_name=None):
 
 
 def _windows_config_path():
-    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent', DATADOG_CONF)
+    # Find the 'common appdata' path
+    import ctypes
+    from ctypes import wintypes, windll
+
+    CSIDL_COMMON_APPDATA = 35
+
+    _SHGetFolderPath = windll.shell32.SHGetFolderPathW
+    _SHGetFolderPath.argtypes = [wintypes.HWND,
+                                ctypes.c_int,
+                                wintypes.HANDLE,
+                                wintypes.DWORD, wintypes.LPCWSTR]
+
+    path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
+    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    common_data = path_buf.value
+
+    path = os.path.join(common_data, 'Datadog Agent', DATADOG_CONF)
     if os.path.exists(path):
         return path
     raise DDConfigNotFound(path)
