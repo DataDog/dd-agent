@@ -184,36 +184,37 @@ class MetricsAggregator(object):
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
 
-    def submit(self, packet):
-        self.count += 1
-        # We can have colons in tags, so split once.
-        name_and_metadata = packet.split(':', 1)
+    def submit(self, packets):
+        for packet in packets.split("\n"):
+            self.count += 1
+            # We can have colons in tags, so split once.
+            name_and_metadata = packet.split(':', 1)
 
-        if len(name_and_metadata) != 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(name_and_metadata) != 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        name = name_and_metadata[0]
-        metadata = name_and_metadata[1].split('|')
+            name = name_and_metadata[0]
+            metadata = name_and_metadata[1].split('|')
 
-        if len(metadata) < 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(metadata) < 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        # Parse the optional values - sample rate & tags.
-        sample_rate = 1
-        tags = None
-        for m in metadata[2:]:
-            # Parse the sample rate
-            if m[0] == '@':
-                sample_rate = float(m[1:])
-                assert 0 <= sample_rate <= 1
-            elif m[0] == '#':
-                tags = tuple(sorted(m[1:].split(',')))
+            # Parse the optional values - sample rate & tags.
+            sample_rate = 1
+            tags = None
+            for m in metadata[2:]:
+                # Parse the sample rate
+                if m[0] == '@':
+                    sample_rate = float(m[1:])
+                    assert 0 <= sample_rate <= 1
+                elif m[0] == '#':
+                    tags = tuple(sorted(m[1:].split(',')))
 
-        context = (name, tags)
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[metadata[1]]
-            self.metrics[context] = metric_class(name, tags, self.hostname)
-        self.metrics[context].sample(float(metadata[0]), sample_rate)
+            context = (name, tags)
+            if context not in self.metrics:
+                metric_class = self.metric_type_to_class[metadata[1]]
+                self.metrics[context] = metric_class(name, tags, self.hostname)
+            self.metrics[context].sample(float(metadata[0]), sample_rate)
 
 
     def flush(self, include_diagnostic_stats=True):
