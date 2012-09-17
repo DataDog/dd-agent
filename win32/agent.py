@@ -2,17 +2,23 @@ import win32serviceutil
 import win32service
 import win32event
 import servicemanager
-import socket
-import time
 import sys
-from optparse import Values
+import logging
+import tornado.httpclient
+import threading
+import modules
+import time
 
-from config import get_config
-from emitter import http_emitter
+from optparse import Values
 from checks.common import checks
+from emitter import http_emitter
+from win32.common import handle_exe_click
+import dogstatsd
+from ddagent import Application
+from config import get_config, set_win32_cert_path
 from win32.common import handle_exe_click
 
-class DDAgentSvc(win32serviceutil.ServiceFramework):
+class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddagent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
@@ -20,30 +26,50 @@ class DDAgentSvc(win32serviceutil.ServiceFramework):
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+        config = get_config(parse_args=False)
+        self.forwarder = DDForwarder(config)
+        self.dogstatsd = DogstatsdThread(config)
 
-    def SvcStop(self):
-        self.agent.stop()
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.hWaitStop)
-
-    def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                servicemanager.PYS_SERVICE_STARTED,
-                                (self._svc_name_, ''))
-
-        # Setup the correct options so we use the forwarder
+        # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
             'dd_url': None,
             'clean': False,
             'use_forwarder': True,
             'disabled_dd': False
         }), []
-        self.config = get_config(init_logging=True, parse_args=False, options=opts)
-        self.agent = DDAgent(self.config)
-        self.agent.run()
+        agentConfig = get_config(init_logging=True, parse_args=False,
+            options=opts)
+        self.agent = DDAgent(agentConfig)
 
-class DDAgent(object):
+    def SvcStop(self):
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        win32event.SetEvent(self.hWaitStop)
+
+        # Stop all services
+        self.forwarder.stop()
+        self.agent.stop()
+        self.dogstatsd.stop()
+        self.running = False
+
+    def SvcDoRun(self):
+        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
+                                servicemanager.PYS_SERVICE_STARTED,
+                                (self._svc_name_, ''))
+        # Start all services
+        self.forwarder.start()
+        self.agent.start()
+        self.dogstatsd.start()
+
+        # Loop to keep the service running since all DD services are
+        # running in separate threads
+        self.running = True
+        while self.running:
+            time.sleep(1)
+
+
+class DDAgent(threading.Thread):
     def __init__(self, agentConfig):
+        threading.Thread.__init__(self)
         self.config = agentConfig
         # FIXME: `running` flag should be handled by the service
         self.running = True
@@ -56,7 +82,7 @@ class DDAgent(object):
         firstRun = True
         while self.running:
             chk.doChecks(firstRun)
-            firstRun=False
+            firstRun = False
             time.sleep(self.config['check_freq'])
 
     def stop(self):
@@ -73,8 +99,39 @@ class DDAgent(object):
 
         return emitters
 
+class DDForwarder(threading.Thread):
+    def __init__(self, agentConfig):
+        threading.Thread.__init__(self)
+        set_win32_cert_path()
+        self.config = get_config(parse_args = False)
+        port = agentConfig.get('listen_port', 17123)
+        if port is None:
+            port = 17123
+        else:
+            port = int(port)
+        self.port = port
+        self.forwarder = Application(port, agentConfig, watchdog=False)
+
+    def run(self):
+        self.forwarder.run()        
+
+    def stop(self):
+        self.forwarder.stop()
+
+class DogstatsdThread(threading.Thread):
+    def __init__(self, agentConfig):
+        threading.Thread.__init__(self)
+        self.reporter, self.server = dogstatsd.init()
+
+    def run(self):
+        self.server.start()
+
+    def stop(self):
+        self.server.stop()
+
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        handle_exe_click(DDAgentSvc._svc_name_)
+        handle_exe_click(AgentSvc._svc_name_)
     else:
-        win32serviceutil.HandleCommandLine(DDAgentSvc)
+        win32serviceutil.HandleCommandLine(AgentSvc)

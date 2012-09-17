@@ -9,14 +9,13 @@
 
 ;--------------------------------
 ;General
-
   ;Name and file
   Name "Datadog Agent"
   OutFile "DDAgentInstall.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\Datadog Agent"
-  
+
   ;Get installation folder from registry if available
   InstallDirRegKey HKCU "Software\Datadog Agent" ""
 
@@ -78,6 +77,9 @@
   Page custom apiInfo infoSave
 
   Function apiInfo
+    SetShellVarContext all
+    StrCpy $0 $APPDATA
+    SetShellVarContext current
 
     nsDialogs::Create 1018
     Pop $Dialog
@@ -103,22 +105,14 @@
 
   Function infoSave
 
-    ${NSD_GetText} $Text $0
-    !insertmacro _ReplaceInFile "$INSTDIR\datadog.conf" "APIKEYHERE" "api_key: $0"
+    ${NSD_GetText} $Text $1
+    !insertmacro _ReplaceInFile "$0\Datadog Agent\datadog.conf" "APIKEYHERE" "api_key: $1"
 
     ${NSD_GetState} $Checkbox $1
     ${IF} $1 == ${BST_CHECKED}
-      ; Install and start the forwader
-      Exec "$INSTDIR\ddforwarder.exe install"
-      Exec "$INSTDIR\ddforwarder.exe start"
-
       ; Install and start the agent
-      Exec "$INSTDIR\ddagent.exe install"
+      Exec "$INSTDIR\ddagent.exe --startup auto install"
       Exec "$INSTDIR\ddagent.exe start"
-
-      ; Install and start dogstatsd
-      Exec "$INSTDIR\dogstatsd.exe install"
-      Exec "$INSTDIR\dogstatsd.exe start"
     ${ENDIF}
 
   FunctionEnd
@@ -126,7 +120,7 @@
 ;--------------------------------
 ; Finish Page
 
-  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary services (ddforwarder, ddagent, dogstatsd).$\n$\nAll the Datadog services can be configured (e.g., to automatically start on boot) with 'Services Properties' at $WINDIR\system32\services.msc."
+  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary service (ddagent).$\n$\nAll the Datadog services can be configured (e.g., to automatically start on boot) with 'Services Properties' at $WINDIR\system32\services.msc."
   !insertmacro MUI_PAGE_FINISH
 
 
@@ -139,15 +133,20 @@
 ;Installer Sections
 
 Section "Datadog Agent" SecDummy
+  ;Config will go in App Data
+  SetShellVarContext all
+  StrCpy $0 $APPDATA
+  SetShellVarContext current
 
   SetOutPath "$INSTDIR"
 
   ; Files to install
   File "install_files\license.txt"
   File /oname=ddagent.exe "install_files\agent.exe"
-  File /oname=ddforwarder.exe "install_files\forwarder.exe"
-  File /oname=dogstatsd.exe "install_files\dogstatsd_win32.exe"
   FILE "install_files\ca-certificates.crt"
+
+  ; Config does in App Data
+  SetOutPath "$0\Datadog Agent"
   File /oname=datadog.conf "install_files\datadog_win32.conf"
 
   ;Store installation folder
@@ -165,7 +164,7 @@ SectionEnd
 ;Descriptions
 
   ;Language strings
-  LangString DESC_SecDummy ${LANG_ENGLISH} "Installs the Agent and the Forwarder so that you can send metrics to Datadog."
+  LangString DESC_SecDummy ${LANG_ENGLISH} "Installs the Agent so that you can send metrics to Datadog."
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
@@ -176,11 +175,12 @@ SectionEnd
 ;Uninstaller Section
 
 Section "Uninstall"
+  SetShellVarContext all
+  StrCpy $0 $APPDATA
+  SetShellVarContext current
 
   Delete "$INSTDIR\ddagent.exe"
-  Delete "$INSTDIR\ddforwarder.exe"
-  Delete "$INSTDIR\dogstatsd.exe"
-  Delete "$INSTDIR\datadog.conf"
+  Delete "$0\Datadog Agent\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
   Delete "$INSTDIR\Uninstall.exe"
 
