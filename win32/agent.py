@@ -48,7 +48,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.forwarder.stop()
         self.agent.stop()
         self.dogstatsd.stop()
-        self.running = True
+        self.running = False
 
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
@@ -63,7 +63,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         # running in separate threads
         self.running = True
         while self.running:
-            time.sleep(1000)
+            time.sleep(1)
 
 
 class DDAgent(threading.Thread):
