@@ -120,7 +120,7 @@ class checks(object):
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
             Solr(self.checksLogger),
-            WMICheck(self.checksLogger)
+            WMICheck(self.checksLogger),
             Nginx(self.checksLogger),
             Memcache(self.checksLogger),
         ]
