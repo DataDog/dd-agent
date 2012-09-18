@@ -71,11 +71,67 @@ class Nginx(Check):
     """
     def __init__(self, logger):
         Check.__init__(self, logger)
-        self.gauge("nginxConnections")
-        self.counter("nginxReqPerSec")
-        self.gauge("nginxReading")
-        self.gauge("nginxWriting")
-        self.gauge("nginxWaiting")
+        self.gauge("nginx.net.connections")
+        self.counter("nginx.net.request_per_s")
+        self.gauge("nginx.net.reading")
+        self.gauge("nginx.net.writing")
+        self.gauge("nginx.net.waiting")
+
+    def _load_conf(self, agentConfig):
+        # Load the conf according to the old schema
+        nginx_url = agentConfig.get("nginx_status_url", None)
+        nginx_status_urls = []
+        tags = []
+        if nginx_url is not None:
+            nginx_status_urls.append(nginx_url)
+            tags.append(None)
+
+        # Load the conf according to the new schema
+        #nginx_status_url_1: http://www.example.com/nginx_status:first_tag
+        #nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
+        #nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
+        def load_conf(index=1):
+            instance = agentConfig.get("nginx_status_url_%s" % index, None)
+            if instance is not None:
+                instance = instance.split(":")
+                tags.append(instance[-1])
+                nginx_status_urls.append(":".join(instance[:-1]))
+                load_conf(index+1)
+
+        load_conf()
+
+        return (nginx_status_urls, tags)
+
+    def _get_metrics(self, url, tag, agentConfig):
+        req = urllib2.Request(url, None, headers(agentConfig))
+        request = urllib2.urlopen(req)
+        response = request.read()
+        sample_time = time.time()
+
+        # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
+        # Connections
+        parsed = re.search(r'Active connections:\s+(\d+)', response)
+        if parsed:
+            connections = int(parsed.group(1))
+            self.save_sample("nginx.net.connections", connections, sample_time, tags=tag)
+    
+        # Requests per second
+        parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
+        if parsed:
+            requests = int(parsed.group(3))
+            self.save_sample("nginx.net.request_per_s", requests, sample_time, tags=tag)
+
+        # Connection states, reading, writing or waiting for clients
+        parsed = re.search(r'Reading: (\d+)\s+Writing: (\d+)\s+Waiting: (\d+)', response)
+        if parsed:
+            reading, writing, waiting = map(int, parsed.groups())
+            assert connections == reading + writing + waiting 
+            self.save_sample("nginx.net.reading", reading, sample_time, tags=tag)
+            self.save_sample("nginx.net.writing", writing, sample_time, tags=tag)
+            self.save_sample("nginx.net.waiting", waiting, sample_time, tags=tag)
+
+
+
     
     def check(self, agentConfig):
         """
@@ -85,38 +141,21 @@ class Nginx(Check):
          1156958 1156958 4491319 
         Reading: 0 Writing: 2 Waiting: 6
         """
-        if 'nginx_status_url' in agentConfig and agentConfig['nginx_status_url'] != 'http://www.example.com/nginx_status':  # Don't do it if the status URL hasn't been provided
-            try: 
-                req = urllib2.Request(agentConfig['nginx_status_url'], None, headers(agentConfig))
-                request = urllib2.urlopen(req)
-                response = request.read()
-                sample_time = time.time()
+        (nginx_status_urls, tags) = self._load_conf(agentConfig)
 
-                # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
-                # Connections
-                parsed = re.search(r'Active connections:\s+(\d+)', response)
-                if parsed:
-                    connections = int(parsed.group(1))
-                    self.save_sample("nginxConnections", connections, sample_time)
-            
-                # Requests per second
-                parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
-                if parsed:
-                    requests = int(parsed.group(3))
-                    self.save_sample("nginxReqPerSec", requests, sample_time)
-
-                # Connection states, reading, writing or waiting for clients
-                parsed = re.search(r'Reading: (\d+)\s+Writing: (\d+)\s+Waiting: (\d+)', response)
-                if parsed:
-                    reading, writing, waiting = map(int, parsed.groups())
-                    assert connections == reading + writing + waiting 
-                    self.save_sample("nginxReading", reading, sample_time)
-                    self.save_sample("nginxWriting", writing, sample_time)
-                    self.save_sample("nginxWaiting", waiting, sample_time)
-
-                return self.get_samples()
-            except:
-                self.logger.exception('Unable to get Nginx status')
-                return False
-        else:
+        if not nginx_status_urls:
             return False
+        
+        for i in range(len(nginx_status_urls)):
+            url = nginx_status_urls[i]
+            tag = None
+            if tags[i] is not None:
+                tag = ["instance:%s" % tags[i]]
+            
+            if url and url!='http://www.example.com/nginx_status':  # Don't do it if the status URL hasn't been provided
+                try:
+                    self._get_metrics(url, tag, agentConfig)
+                    
+                except:
+                    self.logger.exception('Unable to get Nginx status')
+        return self.get_metrics()

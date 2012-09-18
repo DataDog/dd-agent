@@ -85,7 +85,7 @@ if [ $OS = "RedHat" ]; then
     fi
 elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     echo -e "\033[34m\n* Installing APT package sources for Datadog\n\033[0m"
-    sudo sh -c "echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog.list"
+    sudo sh -c "echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog-source.list"
     sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     echo -e "\033[34m\n* Installing the Datadog Agent package\n\033[0m"
