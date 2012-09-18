@@ -101,7 +101,7 @@ class JMXTestCase(unittest.TestCase):
         self.stop_tomcat(tomcat7)
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[0] == "tomcat.threads.busy"]), 2, r)
+        self.assertEquals(len([t for t in r if t[0] == "tomcat.threads.busy"]), 4, r)
 
     
     def testSolrMetrics(self):
