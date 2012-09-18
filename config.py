@@ -68,7 +68,7 @@ def _windows_config_path():
     result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     common_data = path_buf.value
 
-    path = os.path.join(common_data, 'Datadog Agent', DATADOG_CONF)
+    path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
     if os.path.exists(path):
         return path
     raise DDConfigNotFound(path)
@@ -334,7 +334,7 @@ def set_win32_cert_path():
     will be able to override this in a clean way. For now, we have to monkey patch
     tornado.httpclient._DEFAULT_CA_CERTS
     '''
-    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent',
+    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
         'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
