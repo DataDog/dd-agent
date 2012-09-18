@@ -2,3 +2,4 @@ pymongo
 tornado
 redis
 pexpect
+python-memcached
