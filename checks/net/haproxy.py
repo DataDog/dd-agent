@@ -44,7 +44,7 @@ class HAProxyEvents(Check):
                 self.host_status["%s:%s" % (hostname,service)]=data['status']
                 continue
             else:
-                if status != data['status']:
+                if status != data['status'] and data['status'] in ["UP", "DOWN"]:
                     # If the status of a host has changed, we trigger an event
                     try:
                         lastchg = int(data['lastchg'])
@@ -59,7 +59,7 @@ class HAProxyEvents(Check):
             title = "HAProxy reported a failure"
             msg = "%s has just been reported %s" % (hostname, status) 
             
-        else:
+        elif status=="UP":
             alert_type = "info"
             title = "HAProxy status update"
             msg = "%s is back and %s" % (hostname, status)
