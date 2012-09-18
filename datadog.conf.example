@@ -129,7 +129,13 @@ use_mount: no
 
 # Url to nginx's status page. Must have http_stub_status_module installed.
 # See http://wiki.nginx.org/HttpStubStatusModule for details.
-#nginx_status_url: http://www.example.com/nginx_status
+# You can set multiple Nginx instances, using the schema below
+# You have to set the end tag, your metrics will be then tagged instance:your_tag
+# 
+#nginx_status_url_1: http://www.example.com/nginx_status:first_tag
+#nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
+#nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
+#...
 
 
 # -------------------------------------------------------------------------- #
@@ -281,9 +287,14 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 #  Memcache
 # -------------------------------------------------------------------------- #
+# You can set multiple memcache instances, using the schema below
+# You can set a tag (optional), your memcache metrics will then be tagged
+# instance:your_tag or instance:host_port if you don't specify one
 
-#memcache_server: localhost
-#memcache_port: 11211
+#memcache_instance_1: localhost:11211:first_tag
+#memcache_instance_2: second_host:second_port:second_tag
+#memcache_instance_3: third_host:third_port:third_tag
+# ...
 
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)
