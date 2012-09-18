@@ -12,6 +12,6 @@ python setup.py py2exe
 mv dist/*.exe packaging/datadog-agent/win32/install_files
 ```
 
-3. Build the installer using NSIS GUI or command line, using the `agent_msi.nsi` file.
+3. Build the UI installer in the `nsis` folder. (See `nsis/README.md`)
 
-4. The install `DDAgentInstaller.exe` will be created.
+4. Build the CLI installer in the `wix` folder. (See `wix/README.md`)
