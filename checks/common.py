@@ -48,6 +48,7 @@ from checks.varnish import Varnish
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
 
+from checks.wmi_check import WMICheck
 
 from checks.ec2 import EC2
 
@@ -119,6 +120,7 @@ class checks(object):
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
             Solr(self.checksLogger),
+            WMICheck(self.checksLogger)
             Nginx(self.checksLogger),
             Memcache(self.checksLogger),
         ]
