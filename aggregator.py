@@ -111,7 +111,7 @@ class Histogram(Metric):
         med = self.samples[int(round(length/2 - 1))]
         avg = sum(self.samples)/length
 
-        metrics_aggrs = [
+        metric_aggrs = [
             ('max', max_),
             ('median', med),
             ('avg', avg),
@@ -277,7 +277,7 @@ class MetricsAggregator(object):
             if context not in self.metrics:
                 metric_class = self.metric_type_to_class[metadata[1]]
                 self.metrics[context] = metric_class(self.formatter, name, tags,
-                    hostname, device_name)
+                    hostname or self.hostname, device_name)
             self.metrics[context].sample(float(metadata[0]), sample_rate)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
