@@ -6,6 +6,7 @@ import platform
 import string
 import subprocess
 import sys
+import glob
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 from util import getOS
@@ -338,3 +339,80 @@ def set_win32_cert_path():
         'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
+
+def get_confd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    cur_path = os.path.join(cur_path, 'conf.d')
+
+    if os.path.exists(cur_path):
+        log.debug("Using '%s' as the path to conf.d" % cur_path)
+        return cur_path
+
+    # Try /etc/dd-agent/conf.d/
+    # FIXME: Make this work on Windows when it's in the mainline
+    path_check = os.path.join('/etc/dd-agent', 'conf.d')
+    if os.path.exists(path_check):
+        log.debug("Using '%s' as the path to conf.d" % path_check)
+        return path_check
+
+    sys.stderr.write("No conf.d folder found in /etc/dd-agent/ or in the directory where the agent is currently deployed.\n")
+    sys.exit(3)
+
+def get_checksd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    checksd_path = os.path.join(cur_path, 'checks.d')
+
+    return checksd_path
+
+def get_checks(agentConfig):
+    ''' Return the checks from checks.d. Only checks that have a configuration
+    file in conf.d will be returned. '''
+    from util import yaml
+    checks = []
+
+    log = logging.getLogger('config')
+    checks_path = get_checksd_path()
+    confd_path = get_confd_path()
+    conf_glob = os.path.join(confd_path, '*.yaml')
+
+    # Update the python path before the import
+    sys.path.append(checks_path)
+
+    for conf in glob.glob(conf_glob):
+        # For every valid config file:
+        # - Try to import the corresponding check
+        # - Parse it into a config object
+        conf = os.path.basename(conf)
+        check_name = conf.split('.')[0]
+        try:
+            check_module = __import__(check_name)
+        except:
+            log.warn("Unable to import check module for %s" % conf)
+            continue
+
+        try:
+            module_checks = [getattr(check_module, m) for m in check_module.CHECKS]
+        except:
+            log.warn("Unable to find CHECKS value for the checks.d module %s.py" % check_name)
+            continue
+
+        with open(os.path.join(confd_path, conf)) as f:
+            try:
+                check_config = yaml.load(f.read())
+            except:
+                log.warn("Unable to parse yaml config in %s" % conf)
+                continue
+
+        # Init all of the check's classes
+        for i, mc in enumerate(module_checks):
+            module_checks[i] = mc(check_name, check_config, agentConfig)
+
+        checks.append({
+            'name': check_name,
+            'config': check_config,
+            'checks': module_checks
+        })
+
+    return checks

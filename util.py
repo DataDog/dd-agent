@@ -17,10 +17,13 @@ else:
         @staticmethod
         def dumps(data):
             return minjson.write(data)
-        
+
         @staticmethod
         def loads(data):
             return minjson.safeRead(data)
+
+# FIXME: Do a check for C version
+import yaml
 
 
 def headers(agentConfig):
