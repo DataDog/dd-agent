@@ -1,4 +1,42 @@
-"""Haproxy log parser.
+"""HAProxy log parser
+
+Parses every single line of an HAProxy log to extract metrics that are not captured
+from the admin interface (timings, response code, query size).
+
+By default, each log is going to create 9-10 data points per line.
+
+Each metric is tagged with:
+
+* service:backend_name
+* cmd:(get/post/put/delete)
+
+Optionally the parser can match the URL parameter of each line against a list
+of regular expressions to apply additional tags. That list of regex is passed
+to the parser constructor as a dictionary named `url_tags`.
+
+Example of url_tags:
+
+{
+    r"^/help": "help,public",
+    r"^/private": "private",
+    r"^/api/v1/metric": "api, metric"
+}
+
+will yield the following tags when presented with URLs:
+
+* /help/abc?yes  => ["help", "public"]
+* /private       => ["private"]
+* /api/v1/metric => ["api", "metric"]
+* /download      => None
+* /privat        => None 
+
+The more URL regexes there are, the slower parsing will be. To get of parsing
+you can edit the sample url_tags at the end of the file in the parser constructor and run:
+
+cat my_haproxy_log | python dogstream/haproxy.py > /dev/null
+
+to get a short code profile. If you see _sre.match taking a lot of cumulative time
+it is a sign that the URL matching is too slow.
 
 Log format (from section 8.2.3 of http://haproxy.1wt.eu/download/1.3/doc/configuration.txt):
 
@@ -8,9 +46,9 @@ Log format (from section 8.2.3 of http://haproxy.1wt.eu/download/1.3/doc/configu
       3   '[' accept_date ']'                       [06/Feb/2009:12:14:14.655]
       4   frontend_name                                                http-in
       5   backend_name '/' server_name                             static/srv1
-      6   Tq '/' Tw '/' Tc '/' Tr '/' Tt*                       10/0/30/69/109
-      7   status_code                                                      200
-      8   bytes_read*                                                     2750
+      6   Tq '/' Tw '/' Tc '/' Tr '/' Tt*                       10/0/30/69/109 <--- datadog gauges
+      7   status_code                                                      200 <--- datadog counters
+      8   bytes_read*                                                     2750 <--- datadog gauge
       9   captured_request_cookie                                            -
      10   captured_response_cookie                                           -
      11   termination_state                                               ----
@@ -30,10 +68,15 @@ import re
 
 HAPROXY_RE = re.compile("^.*haproxy\[(?P<pid>\d+)\]: (?P<client_ip>[\d.]+):(?P<client_port>\d+) \[(?P<accept_date>[^]]+)\] (?P<frontend_name>\S+) (?P<backend_name>\S+)/(?P<server_name>\S+) (?P<tq>-?\d+)/(?P<tw>-?\d+)/(?P<tc>-?\d+)/(?P<tr>-?\d+)/(?P<tt>-?\d+) (?P<status_code>\d{3}) (?P<bytes_read>\d+) . . .... (?P<actconn>\d+)/(?P<feconn>\d+)/(?P<beconn>\d+)/(?P<srvconn>\d+)/(?P<retries>\d+) (?P<srv_queue>\d+)/(?P<backend_queue>\d+).*\"(?P<cmd>\w+) (?P<url>\S+) HTTP/.\..\"$")
 
+NO_TAG = ()
+
 class HAProxyLogParser(object):
     def __init__(self, config):
         self._logger = logging.getLogger('haproxy-logparser')
         self._state = {}
+        # per tag status code counter
+        self._state['codes'] = {NO_TAG: {'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}}
+        self._state['aborts'] = 0
 
         # Maps url regex to one or more tags
         # { url_regex: ("tag1", "tag2"), ...}
@@ -52,34 +95,34 @@ class HAProxyLogParser(object):
     def parse_timestamp(timestamp):
         return time.mktime(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
 
-    @staticmethod
-    def parse_status_code(counters, code, lbound, ubound, metric):
+    def parse_status_code(self, code, lbound, ubound, metric, url_tags):
         assert lbound < ubound
+        assert url_tags is None or type(url_tags) == type(())
         if int(code) >= lbound and int(code) <= ubound:
-            counters[metric] += 1
-        return counters
+            if url_tags is not None and len(url_tags) > 0:
+                if url_tags not in self._state['codes']:
+                    self._state['codes'][url_tags] = {'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}
+                self._state['codes'][url_tags][metric] += 1
+            else:
+                self._state['codes'][NO_TAG][metric] += 1
 
     def map_tag(self, url):
-        """Find the corresponding tag based on a given url
-        If no tag is found, an empty list is returned
+        """Find the corresponding tag(s) based on a given url
+        If no tag is found, NO_TAG (empty tuple) is returned
         """
         try:
             if url is None or len(url) == "":
-                return []
+                return NO_TAG
             # Regex everything
             for r in self._tags:
                 if r.match(url):
-                    return self._tags.get(r)
-            return []
+                    return tuple(self._tags.get(r))
+            return NO_TAG
         except:
-            return []
+            return NO_TAG
 
     def parse_line(self, line):
         points = []
-        # Simple init of status codes counters
-        if len(self._state) == 0:
-            self._state['codes'] = {'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}
-            self._state['aborts'] = 0
 
         m = HAPROXY_RE.match(line)
         # No match? skip
@@ -96,15 +139,15 @@ class HAProxyLogParser(object):
         attributes = {'tags': ['service:%s' % m.group('backend_name'),
                                'cmd:%s' % m.group('cmd').lower()]}
         url_tags = self.map_tag(m.group('url'))
-        if url_tags and len(url_tags) > 0:
+        if url_tags and url_tags != NO_TAG and len(url_tags) > 0:
             # lookup tags based on url stem
             attributes['tags'].extend(url_tags)
 
         # status codes
-        HAProxyLogParser.parse_status_code(self._state['codes'], m.group('status_code'), 200, 299, '2xx')
-        HAProxyLogParser.parse_status_code(self._state['codes'], m.group('status_code'), 300, 399, '3xx')
-        HAProxyLogParser.parse_status_code(self._state['codes'], m.group('status_code'), 400, 499, '4xx')
-        HAProxyLogParser.parse_status_code(self._state['codes'], m.group('status_code'), 500, 599, '5xx')
+        self.parse_status_code(m.group('status_code'), 200, 299, '2xx', url_tags)
+        self.parse_status_code(m.group('status_code'), 300, 399, '3xx', url_tags)
+        self.parse_status_code(m.group('status_code'), 400, 499, '4xx', url_tags)
+        self.parse_status_code(m.group('status_code'), 500, 599, '5xx', url_tags)
 
         metrics = [
             ('haproxy.http.tq', 'gauge', lambda d: int(d.group('tq'))),
@@ -113,10 +156,10 @@ class HAProxyLogParser(object):
             ('haproxy.http.tr', 'gauge', lambda d: int(d.group('tr'))),
             ('haproxy.http.tt', 'gauge', lambda d: int(d.group('tt'))),
             ('haproxy.http.bytes_read', 'gauge', lambda d: d.group('bytes_read')),
-            ('haproxy.http.2xx', 'counter', lambda m, s=self._state: s['codes']['2xx']),
-            ('haproxy.http.3xx', 'counter', lambda m, s=self._state: s['codes']['3xx']),
-            ('haproxy.http.4xx', 'counter', lambda m, s=self._state: s['codes']['4xx']),
-            ('haproxy.http.5xx', 'counter', lambda m, s=self._state: s['codes']['5xx']),
+            ('haproxy.http.2xx', 'counter', lambda m, s=self._state, t=url_tags: s['codes'][t]['2xx']),
+            ('haproxy.http.3xx', 'counter', lambda m, s=self._state, t=url_tags: s['codes'][t]['3xx']),
+            ('haproxy.http.4xx', 'counter', lambda m, s=self._state, t=url_tags: s['codes'][t]['4xx']),
+            ('haproxy.http.5xx', 'counter', lambda m, s=self._state, t=url_tags: s['codes'][t]['5xx']),
         ]
 
         def counter(d):
