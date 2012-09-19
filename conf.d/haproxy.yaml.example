@@ -1,0 +1,4 @@
+host1:
+    username: doggie
+    password: w00fw00f
+    url: https://app.datadoghq.com/admin?stats
