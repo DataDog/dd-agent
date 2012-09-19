@@ -113,6 +113,27 @@ class TestUnitDogStatsd(object):
             nt.assert_equals(second['metric'], 'my.second.gauge')
             nt.assert_equals(second['points'][0][1], 1.5)
 
+
+    def test_sets(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit('my.set:10|s')
+        stats.submit('my.set:20|s')
+        stats.submit('my.set:20|s')
+        stats.submit('my.set:30|s')
+        stats.submit('my.set:30|s')
+        stats.submit('my.set:30|s')
+
+        # Assert that it's treated normally.
+        metrics = stats.flush(False)
+        nt.assert_equal(len(metrics), 1)
+        m = metrics[0]
+        nt.assert_equal(m['metric'], 'my.set')
+        nt.assert_equal(m['points'][0][1], 3)
+
+        # Assert there are no more sets
+        assert not stats.flush(False)
+
+
     def test_gauge_sample_rate(self):
         stats = MetricsAggregator('myhost')
 
@@ -173,6 +194,23 @@ class TestUnitDogStatsd(object):
         nt.assert_equal(pcount['points'][0][1], 2)
         for p in [p95, pavg, pmed, pmax]:
             nt.assert_equal(p['points'][0][1], 5)
+
+    def test_batch_submission(self):
+        # Submit a sampled histogram.
+        stats = MetricsAggregator('myhost')
+        metrics = [
+            'counter:1|c',
+            'counter:1|c',
+            'gauge:1|g'
+        ]
+        packet = "\n".join(metrics)
+        stats.submit(packet)
+
+        metrics = self.sort_metrics(stats.flush(False))
+        nt.assert_equal(2, len(metrics))
+        counter, gauge = metrics
+        assert counter['points'][0][1] == 2
+        assert gauge['points'][0][1] == 1
 
 
     def test_bad_packets_throw_errors(self):

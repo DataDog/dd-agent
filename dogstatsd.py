@@ -10,6 +10,7 @@ import optparse
 from random import randrange
 import re
 import socket
+import select
 import sys
 from time import time
 import threading
@@ -136,6 +137,34 @@ class Histogram(Metric):
         return metrics
 
 
+class Set(Metric):
+    """ A metric to track the number of unique elements in a set. """
+
+    def __init__(self, name, tags, hostname):
+        self.name = name
+        self.tags = tags
+        self.hostname = hostname
+        self.values = set()
+
+    def sample(self, value, sample_rate):
+        self.values.add(value)
+        self.last_sample_time = time()
+
+    def flush(self, timestamp):
+        if not self.values:
+            return []
+        try:
+            return [{
+                'metric' : self.name,
+                'points' : [(timestamp, len(self.values))],
+                'tags' : self.tags,
+                'host' : self.hostname
+            }]
+        finally:
+            self.values = set()
+
+
+
 class MetricsAggregator(object):
     """
     A metric aggregator class.
@@ -149,41 +178,43 @@ class MetricsAggregator(object):
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram
+            'ms' : Histogram,
+            's'  : Set
         }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
 
-    def submit(self, packet):
-        self.count += 1
-        # We can have colons in tags, so split once.
-        name_and_metadata = packet.split(':', 1)
+    def submit(self, packets):
+        for packet in packets.split("\n"):
+            self.count += 1
+            # We can have colons in tags, so split once.
+            name_and_metadata = packet.split(':', 1)
 
-        if len(name_and_metadata) != 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(name_and_metadata) != 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        name = name_and_metadata[0]
-        metadata = name_and_metadata[1].split('|')
+            name = name_and_metadata[0]
+            metadata = name_and_metadata[1].split('|')
 
-        if len(metadata) < 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(metadata) < 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        # Parse the optional values - sample rate & tags.
-        sample_rate = 1
-        tags = None
-        for m in metadata[2:]:
-            # Parse the sample rate
-            if m[0] == '@':
-                sample_rate = float(m[1:])
-                assert 0 <= sample_rate <= 1
-            elif m[0] == '#':
-                tags = tuple(sorted(m[1:].split(',')))
+            # Parse the optional values - sample rate & tags.
+            sample_rate = 1
+            tags = None
+            for m in metadata[2:]:
+                # Parse the sample rate
+                if m[0] == '@':
+                    sample_rate = float(m[1:])
+                    assert 0 <= sample_rate <= 1
+                elif m[0] == '#':
+                    tags = tuple(sorted(m[1:].split(',')))
 
-        context = (name, tags)
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[metadata[1]]
-            self.metrics[context] = metric_class(name, tags, self.hostname)
-        self.metrics[context].sample(float(metadata[0]), sample_rate)
+            context = (name, tags)
+            if context not in self.metrics:
+                metric_class = self.metric_type_to_class[metadata[1]]
+                self.metrics[context] = metric_class(name, tags, self.hostname)
+            self.metrics[context].sample(float(metadata[0]), sample_rate)
 
 
     def flush(self, include_diagnostic_stats=True):
@@ -306,27 +337,34 @@ class Server(object):
 
         self.buffer_size = 1024
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
     def start(self):
         """ Run the server. """
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        # Inline variables to speed up look-ups.
+        self.running = True
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
+        socket = self.socket
         socket_recv = self.socket.recv
+        timeout = 5
 
-        while True:
+        while self.running:
             try:
-                aggregator_submit(socket_recv(buffer_size))
+                ready = select.select([socket], [], [], timeout)
+                if ready[0]:
+                    aggregator_submit(socket_recv(buffer_size))
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
                 logger.exception('Error receiving datagram')
 
-def main(config_path=None):
+    def stop(self):
+        self.running = False
 
+def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.info("Starting dogstatsd")
@@ -349,6 +387,11 @@ def main(config_path=None):
     # Start the server.
     server_host = ''
     server = Server(aggregator, server_host, port)
+
+    return reporter, server
+
+def main(config_path=None):
+    reporter, server = init(config_path)
     server.start()
 
     # If we're here, we're done.
