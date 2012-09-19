@@ -44,25 +44,25 @@ class HAProxyEvents(Check):
                 self.host_status["%s:%s" % (hostname,service)]=data['status']
                 continue
             else:
-                if status != data['status']:
+                if status != data['status'] and data['status'] in ["UP", "DOWN"]:
                     # If the status of a host has changed, we trigger an event
                     try:
                         lastchg = int(data['lastchg'])
                     except:
                         lastchg = 0
-                    self.events.append(self.create_event(agentConfig, data['status'], hostname, lastchg))
+                    self.events.append(self.create_event(agentConfig, data['status'], hostname, lastchg, service))
                     self.host_status["%s:%s" % (hostname,service)]=data['status']
 
-    def create_event(self, agentConfig, status, hostname, lastchg):
+    def create_event(self, agentConfig, status, hostname, lastchg, service):
         if status=="DOWN":
             alert_type = "error"
             title = "HAProxy reported a failure"
-            msg = "%s has just been reported %s" % (hostname, status) 
+            msg = "%%%%%%\n * %s has just been reported %s \n * Frontend: %s \n%%%%%%" % (hostname, status, service)
             
         else:
             alert_type = "info"
             title = "HAProxy status update"
-            msg = "%s is back and %s" % (hostname, status)
+            msg = "%%%%%%\n * %s is back and  %s \n * Frontend: %s \n%%%%%%" % (hostname, status, service)
             
 
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple()))-int(lastchg),
@@ -73,7 +73,8 @@ class HAProxyEvents(Check):
                  'msg_title': title,
                  "alert_type": alert_type,
                  "source_type_name": "haproxy",
-                 "event_object": hostname
+                 "event_object": hostname,
+                 "tags": ["frontend:%s" % service, "host:%s" % hostname]
             }
 
 class HAProxyMetrics(Check):
