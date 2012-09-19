@@ -46,7 +46,6 @@ from checks.cacti import Cacti
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
-from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
 
 from checks.wmi_check import WMICheck
 
@@ -115,7 +114,6 @@ class checks(object):
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
-            HAProxyMetrics(self.checksLogger),
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
@@ -137,7 +135,6 @@ class checks(object):
         # Event Checks
         self._event_checks = [
             ElasticSearchClusterStatus(self.checksLogger),
-            HAProxyEvents(self.checksLogger), Hudson(),
             Nagios(socket.gethostname())
         ]
 
