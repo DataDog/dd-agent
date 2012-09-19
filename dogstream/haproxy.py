@@ -35,6 +35,19 @@ class HAProxyLogParser(object):
         self._logger = logging.getLogger('haproxy-logparser')
         self._state = {}
 
+        # Maps url regex to one or more tags
+        # { url_regex: ("tag1", "tag2"), ...}
+        patterns = config.get('url_tags', {})
+        self._tags = {}
+        try:
+            for p, tags in patterns.items():
+                # compile the regex and turn the tag or tags into a list of tags
+                self._tags[re.compile(p)] = ["url:%s" % t.strip() for t in tags.split(",")]
+        except:
+            # if we fail, log and don't tag anything
+            self._logger.warn("Cannot parse url patterns to tag URLs. Won't tag any URL.", exc_info = True)
+            self._tags = {}
+
     @staticmethod
     def parse_timestamp(timestamp):
         return time.mktime(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
@@ -56,6 +69,21 @@ class HAProxyLogParser(object):
             counters[metric] += 1
         return counters
 
+    def map_tag(self, url):
+        """Find the corresponding tag based on a given url
+        If no tag is found, an empty list is returned
+        """
+        try:
+            if url is None or len(url) == "":
+                return []
+            # Regex everything
+            for r in self._tags:
+                if r.match(url):
+                    return self._tags.get(r)
+            return []
+        except:
+            return []
+
     def parse_line(self, line):
         points = []
         # Simple init of status codes counters
@@ -73,11 +101,14 @@ class HAProxyLogParser(object):
         if m.group('server_name') == '<STATS>':
             return None
 
-        attributes = {'tags': ['service:%s' % m.group('backend_name')]}
-        cmd = m.group('cmd')
-        # url_tag = stem_url(m.group('url'))
-        # if url_tag:
-        #     attributes['tags'].append('url:%s' % url_tag)
+        # attributes['tags'] always exists and contains the backend_name
+        # and the HTTP verb
+        attributes = {'tags': ['service:%s' % m.group('backend_name'),
+                               'cmd:%s' % m.group('cmd').lower()]}
+        url_tags = self.map_tag(m.group('url'))
+        if url_tags and len(url_tags) > 0:
+            # lookup tags based on url stem
+            attributes['tags'].extend(url_tags)
 
         # status codes
         HAProxyLogParser.parse_status_code(self._state['codes'], m.group('status_code'), 200, 299, '2xx')
@@ -119,14 +150,26 @@ class HAProxyLogParser(object):
 if __name__ == '__main__':
     # Parse stdin and extract metrics
     import sys
-    import pprint
+    import tempfile
+    import cProfile
+    from pstats import Stats
     logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
-    parser = HAProxyLogParser({})
-    while True:
-        line = sys.stdin.readline()
-        if line is None or len(line) == 0:
-            break
-        else:
-            r = parser.parse_line(line)
-            if r is not None:
-                pprint.pprint(r)
+    def loop():
+        parser = HAProxyLogParser({'url_tags': {r'^/api/v1/metric': "metric",
+                                                r'/admin?stats': "stats, admin",
+                                                r'^/status/sobotka': "status, sobotka"}})
+        while True:
+            line = sys.stdin.readline()
+            if line is None or len(line) == 0:
+                break
+            else:
+                r = parser.parse_line(line)
+                if r is not None:
+                    print(r)
+    tmp = tempfile.NamedTemporaryFile()
+    cProfile.run('loop()', tmp.name)
+    try:
+        Stats(tmp.name, stream=sys.stderr).sort_stats('cumulative').print_stats(40)
+    except:
+        Stats(tmp.name).sort_stats('cumulative').print_stats(40)
+    
