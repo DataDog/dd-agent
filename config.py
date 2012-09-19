@@ -369,7 +369,7 @@ def get_checksd_path():
 def get_checks(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from util import yaml
+    from util import yaml, yLoader
     checks = []
 
     log = logging.getLogger('config')
@@ -400,7 +400,7 @@ def get_checks(agentConfig):
 
         with open(os.path.join(confd_path, conf)) as f:
             try:
-                check_config = yaml.load(f.read())
+                check_config = yaml.load(f.read(), loader=yLoader)
             except:
                 log.warn("Unable to parse yaml config in %s" % conf)
                 continue

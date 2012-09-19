@@ -22,8 +22,11 @@ else:
         def loads(data):
             return minjson.safeRead(data)
 
-# FIXME: Do a check for C version
 import yaml
+try:
+    from yaml import CLoader as yLoader
+except ImportError:
+    from yaml import Loader as yLoader
 
 
 def headers(agentConfig):
