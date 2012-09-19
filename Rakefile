@@ -1,4 +1,3 @@
-task :default => [test]
 
 desc "Run tests"
 task "test" do
@@ -28,3 +27,6 @@ task "pup:tag" do
   sh("git co add-pup && git merge pup-release")
   sh("git push origin add-pup")
 end
+
+task :default => [:test]
+

@@ -122,6 +122,34 @@ class Histogram(Metric):
         return metrics
 
 
+class Set(Metric):
+    """ A metric to track the number of unique elements in a set. """
+
+    def __init__(self, name, tags, hostname):
+        self.name = name
+        self.tags = tags
+        self.hostname = hostname
+        self.values = set()
+
+    def sample(self, value, sample_rate):
+        self.values.add(value)
+        self.last_sample_time = time()
+
+    def flush(self, timestamp):
+        if not self.values:
+            return []
+        try:
+            return [{
+                'metric' : self.name,
+                'points' : [(timestamp, len(self.values))],
+                'tags' : self.tags,
+                'host' : self.hostname
+            }]
+        finally:
+            self.values = set()
+
+
+
 class MetricsAggregator(object):
     """
     A metric aggregator class.
@@ -135,46 +163,44 @@ class MetricsAggregator(object):
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram
+            'ms' : Histogram,
+            's'  : Set,
         }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or self.api_formatter
 
     def submit(self, packet, hostname=None, device_name=None):
-        self.count += 1
-        # We can have colons in tags, so split once.
-        name_and_metadata = packet.split(':', 1)
+        for packet in packets.split("\n"):
+            self.count += 1
+            # We can have colons in tags, so split once.
+            name_and_metadata = packet.split(':', 1)
 
-        if len(name_and_metadata) != 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(name_and_metadata) != 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        name = name_and_metadata[0]
-        metadata = name_and_metadata[1].split('|')
+            name = name_and_metadata[0]
+            metadata = name_and_metadata[1].split('|')
 
-        if len(metadata) < 2:
-            raise Exception('Unparseable packet: %s' % packet)
+            if len(metadata) < 2:
+                raise Exception('Unparseable packet: %s' % packet)
 
-        # Parse the optional values - sample rate & tags.
-        sample_rate = 1
-        tags = None
-        for m in metadata[2:]:
-            # Parse the sample rate
-            if m[0] == '@':
-                sample_rate = float(m[1:])
-                assert 0 <= sample_rate <= 1
-            elif m[0] == '#':
-                tags = tuple(sorted(m[1:].split(',')))
-            elif m[0:1] == 'd:':
-                device_name = m[:2]
+            # Parse the optional values - sample rate & tags.
+            sample_rate = 1
+            tags = None
+            for m in metadata[2:]:
+                # Parse the sample rate
+                if m[0] == '@':
+                    sample_rate = float(m[1:])
+                    assert 0 <= sample_rate <= 1
+                elif m[0] == '#':
+                    tags = tuple(sorted(m[1:].split(',')))
 
-        hostname = hostname or self.hostname
-        context = (name, tags, hostname, device_name)
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[metadata[1]]
-            self.metrics[context] = metric_class(name, tags, hostname,
-                device_name=device_name)
-        self.metrics[context].sample(float(metadata[0]), sample_rate)
+            context = (name, tags)
+            if context not in self.metrics:
+                metric_class = self.metric_type_to_class[metadata[1]]
+                self.metrics[context] = metric_class(name, tags, self.hostname)
+            self.metrics[context].sample(float(metadata[0]), sample_rate)
 
     def gauge(metric, value, tags=None, hostname=None, device_name=None):
         ''' Format the gague metric into a StatsD packet format and submit'''

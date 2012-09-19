@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Name="Datadog Agent" Id="61704ad8-3e45-4519-bade-7f53457831fb" UpgradeCode="82210ed1-bbe4-4051-aa15-002ea31dde15"
+    Language="1033" Codepage="1252" Version="1.3.1" Manufacturer="Datadog Inc.">
+        <Package Id="*" Keywords="Installer" Description="Datadog Agent Installer"
+          Comments="Copyright 2012 Datadog, Inc." Manufacturer="Datadog Inc."
+          InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
+
+        <Media Id="1" Cabinet="agent.cab" EmbedCab="yes" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="APPLICATIONROOTDIRECTORY" Name="Datadog"/>
+            </Directory>
+            <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
+                <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog"/>
+            </Directory>
+        </Directory>
+
+
+        <Binary Id="FindReplace" SourceFile="FindReplace.exe" />
+        <CustomAction 
+            Id="ReplaceAPIKey"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" APIKEYHERE [APIKEY]'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
+        <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
+            <Directory Id="INSTALLDIR" Name="Datadog Agent">
+                <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
+                    <File Id="ddagent.exe" Source="..\install_files\agent.exe" KeyPath="yes"></File>
+                    <ServiceInstall
+                        Id="ServiceInstaller"
+                        Type="ownProcess"
+                        Vital="yes"
+                        Name="DatadogAgent"
+                        DisplayName="Datadog Agent"
+                        Description="Send metrics to Datadog"
+                        Start="auto"
+                        Account="LocalSystem"
+                        ErrorControl="ignore"
+                        Interactive="no"
+                        >
+                    </ServiceInstall>
+                    <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="DatadogAgent" Wait="no" />
+                </Component>
+                <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
+                    <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="..\install_files\ca-certificates.crt" KeyPath="yes"></File>
+                </Component>
+                <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
+                    <File Id="license.txt" Source="..\install_files\license.txt" KeyPath="yes"></File>
+                </Component>
+            </Directory>
+        </DirectoryRef>
+
+        <DirectoryRef Id="APPLIDATIONDATADIRECTORY">
+            <Component Id="datadog.conf" Guid="83461594-01AC-11E2-BE35-37EC6088709B">
+                <File Id="datadog.conf" Name="datadog.conf" Source="..\install_files\datadog_win32.conf"></File>
+            </Component>
+        </DirectoryRef>
+
+        <Feature Id="MainApplication" Title="Main Application" Level="1">
+            <ComponentRef Id="ddagent.exe" />
+            <ComponentRef Id="cacertificates.crt" />
+            <ComponentRef Id="license.txt" />
+            <ComponentRef Id="datadog.conf" />
+        </Feature>
+
+        <InstallExecuteSequence>
+            <Custom Action="ReplaceAPIKey" Before="StartServices" />
+        </InstallExecuteSequence>
+
+    </Product>
+</Wix>

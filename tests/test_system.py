@@ -4,7 +4,7 @@ import sys
 
 logger = logging.getLogger(__file__)
 
-from checks.system import *
+from checks.system.unix import *
 
 class TestSystem(unittest.TestCase):
     def testCPU(self):
@@ -108,7 +108,7 @@ none                  985964       1  985963    1% /lib/init/rw
         # example output from `iostat -d 1 2 -x -k` on
         # debian testing x86_64, from Debian package
         # sysstat@10.0.4-1
-        debian_iostat_output = """Linux 3.2.0-2-amd64 (fireflyvm) 	05/29/2012 	_x86_64_	(2 CPU)
+        debian_iostat_output = """Linux 3.2.0-2-amd64 (fireflyvm)   05/29/2012  _x86_64_    (2 CPU)
 
 Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
 sda               0.44     2.58    5.79    2.84   105.53   639.03   172.57     0.17   19.38    1.82   55.26   0.66   0.57
@@ -131,7 +131,7 @@ sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0
         # centos 5.8 x86_64, from RPM package
         # sysstat@7.0.2; it differs from the above by
         # not having split-out r_await and w_await fields
-        centos_iostat_output = """Linux 2.6.18-308.el5 (localhost.localdomain) 	05/29/2012
+        centos_iostat_output = """Linux 2.6.18-308.el5 (localhost.localdomain)  05/29/2012
 
 Device:         rrqm/s   wrqm/s   r/s   w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
 sda               9.44     7.56 16.76  4.40   322.05    47.75    34.96     0.01    0.59   0.35   0.74
