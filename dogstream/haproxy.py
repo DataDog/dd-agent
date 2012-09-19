@@ -28,7 +28,7 @@ import time
 import logging
 import re
 
-HAPROXY_RE = re.compile("^.*haproxy\[(?P<pid>\d+)\]: (?P<client_ip>[\d.]+):(?P<client_port>\d+) \[(?P<accept_date>[^]]+)\] (?P<frontend_name>\w+) (?P<backend_name>\w+)/(?P<server_name>\S+) (?P<tq>-?\d+)/(?P<tw>-?\d+)/(?P<tc>-?\d+)/(?P<tr>-?\d+)/(?P<tt>-?\d+) (?P<status_code>\d{3}) (?P<bytes_read>\d+) . . .... (?P<actconn>\d+)/(?P<feconn>\d+)/(?P<beconn>\d+)/(?P<srvconn>\d+)/(?P<retries>\d+) (?P<srv_queue>\d+)/(?P<backend_queue>\d+).*\"(?P<cmd>\w+) (?P<url>\S+) HTTP/.\..\"$")
+HAPROXY_RE = re.compile("^.*haproxy\[(?P<pid>\d+)\]: (?P<client_ip>[\d.]+):(?P<client_port>\d+) \[(?P<accept_date>[^]]+)\] (?P<frontend_name>\S+) (?P<backend_name>\S+)/(?P<server_name>\S+) (?P<tq>-?\d+)/(?P<tw>-?\d+)/(?P<tc>-?\d+)/(?P<tr>-?\d+)/(?P<tt>-?\d+) (?P<status_code>\d{3}) (?P<bytes_read>\d+) . . .... (?P<actconn>\d+)/(?P<feconn>\d+)/(?P<beconn>\d+)/(?P<srvconn>\d+)/(?P<retries>\d+) (?P<srv_queue>\d+)/(?P<backend_queue>\d+).*\"(?P<cmd>\w+) (?P<url>\S+) HTTP/.\..\"$")
 
 class HAProxyLogParser(object):
     def __init__(self, config):
@@ -129,6 +129,12 @@ class HAProxyLogParser(object):
             ('haproxy.http.5xx', 'counter', lambda m, s=self._state: s['codes']['5xx']),
         ]
 
+        def counter(d):
+            "Update attributes dictionary to add counter type"
+            new_d = d.copy()
+            new_d['metric_type'] = 'counter'
+            return new_d
+
         is_abort = False
         for name, typ, accessor in metrics:
             value = accessor(m)
@@ -141,10 +147,13 @@ class HAProxyLogParser(object):
                 if value == -1 and name[-2:] in ('tq', 'tw', 'tc', 'tr', 'tt'):
                     if not is_abort:
                         self._state['aborts'] += 1
-                        points.append(('haproxy.http.abort', timestamp, self._state['aborts'], {'metric_type': 'counter'}))
+                        points.append(('haproxy.http.abort', timestamp, self._state['aborts'], counter(attributes)))
                         is_abort = True
                 else:
-                    points.append((name, timestamp, value, attributes))
+                    if typ == 'gauge':
+                        points.append((name, timestamp, value, attributes))
+                    else:
+                        points.append((name, timestamp, value, counter(attributes)))
         return points
 
 if __name__ == '__main__':
