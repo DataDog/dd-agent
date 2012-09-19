@@ -107,10 +107,7 @@ class HAProxy(CheckD):
                     data_dict[fields[i]] = val
 
             # Don't create metrics for aggregates
-            try:
-                service = data_dict['svname']
-            except:
-                import pdb; pdb.set_trace()
+            service = data_dict['svname']
             if data_dict['svname'] in Services.ALL:
                 if not data_list and service == Services.FRONTEND:
                     data_list.append(data_dict)
@@ -222,10 +219,10 @@ class HAProxy(CheckD):
             status = self.host_status.get("%s:%s" % (hostname,service_name), None)
 
             if status is None:
-                self.host_status["%s:%s" % (hostname,service_name)] = data['status']
+                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
                 continue
 
-            if status != data['status']:
+            if status != data['status'] and data['status'] in ('UP', 'DOWN'):
                 # If the status of a host has changed, we trigger an event
                 try:
                     lastchg = int(data['lastchg'])
@@ -234,24 +231,26 @@ class HAProxy(CheckD):
 
                 # Create the event object
                 ev = self._create_event(self.agentConfig['api_key'],
-                    data['status'], hostname, lastchg)
+                    data['status'], hostname, lastchg, service_name)
                 self.event(ev)
 
                 # Store this host status so we can check against it later
-                self.host_status["%s:%s" % (hostname,service_name)] = data['status']
+                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
 
-    def _create_event(self, api_key, status, hostname, lastchg):
+    def _create_event(self, api_key, status, hostname, lastchg, service_name):
         if status == "DOWN":
             alert_type = "error"
             title = "HAProxy reported a failure"
-            msg = "%s has just been reported %s" % (hostname, status)
+            msg = "%%%%%%\n * %s has just been reported %s \n * Frontend: %s \n%%%%%%" \
+                % (hostname, status, service_name)
         else:
             alert_type = "info"
             title = "HAProxy status update"
-            msg = "%s is back and %s" % (hostname, status)
+            msg = "%%%%%%\n * %s is back and  %s \n * Frontend: %s \n%%%%%%" \
+                % (hostname, status, service_name)
 
         return {
-            'timestamp': int(time.mktime(datetime.utcnow().timetuple())) - int(lastchg),
+             'timestamp': int(time.mktime(datetime.utcnow().timetuple())) - int(lastchg),
              'event_type': EVENT_TYPE,
              'host': hostname,
              'api_key': api_key,
@@ -259,5 +258,6 @@ class HAProxy(CheckD):
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,
-             "event_object": hostname
+             "event_object": hostname,
+             "tags": ["frontend:%s" % service_name, "host:%s" % hostname]
         }
