@@ -53,16 +53,6 @@ class HAProxyLogParser(object):
         return time.mktime(datetime.strptime(timestamp, '%d/%b/%Y:%H:%M:%S.%f').timetuple())
 
     @staticmethod
-    def stem_url(url):
-        """Remove unneeded variability in URLs"""
-        try:
-            # First ditch parameters after ?
-            # Then remove all digits
-            return url.split("?")[0].translate(None, "0123456789")
-        except:
-            return None
-
-    @staticmethod
     def parse_status_code(counters, code, lbound, ubound, metric):
         assert lbound < ubound
         if int(code) >= lbound and int(code) <= ubound:
@@ -181,4 +171,4 @@ if __name__ == '__main__':
         Stats(tmp.name, stream=sys.stderr).sort_stats('cumulative').print_stats(40)
     except:
         Stats(tmp.name).sort_stats('cumulative').print_stats(40)
-    
+
