@@ -785,7 +785,7 @@ class TestHAProxyDogstream(TailTestCase):
         for i in range(len(outputs)):
             output = outputs[i]
             for j in range(len(expected[i])):
-                for k in range(3): # skip tags for now
+                for k in (0, 2): # skip timestamp and tags for now
                     self.assertEquals(output[j][k], expected[i][j][k], "%s != %s" % (pprint.pformat(output), pprint.pformat(expected[i])))
 
 
