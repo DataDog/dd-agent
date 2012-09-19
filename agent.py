@@ -31,7 +31,7 @@ WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * che
 if int(sys.version_info[1]) <= 3:
     sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
     sys.exit(2)
-    
+
 # Custom modules
 from checks.common import checks
 from checks.ec2 import EC2
@@ -41,13 +41,13 @@ from emitter import http_emitter
 from util import Watchdog
 
 # Override the generic daemon class to run our checks
-class agent(Daemon):    
+class agent(Daemon):
     def run(self, agentConfig=None, run_forever=True):
         """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
         systemStats = get_system_stats()
         agentLogger.debug('System Properties: ' + str(systemStats))
-                        
+
         if agentConfig is None:
             agentConfig = get_config()
 
@@ -60,14 +60,14 @@ class agent(Daemon):
                 agentConfig['hostname'] = instanceId
             else:
                 agentLogger.info('Not running on EC2, using hostname to identify this server')
- 
+
         emitters = [http_emitter]
         for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
             if len(emitter_spec) == 0: continue
             emitters.append(modules.load(emitter_spec, 'emitter'))
 
         check_freq = int(agentConfig['check_freq'])
-        
+
         # Checks instance
         c = checks(agentConfig, emitters)
 
@@ -79,14 +79,14 @@ class agent(Daemon):
 
         # Run checks once, to get once-in-a-run data
         c.doChecks(True, systemStats)
-        
+
         # Main loop
         while run_forever:
             if watchdog is not None:
                 watchdog.reset()
             time.sleep(check_freq)
             c.doChecks()
-        
+
 def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.
     Also controls debug_mode."""
@@ -105,11 +105,11 @@ def setupLogging(agentConfig):
             # Special-case macs
             if sys.platform == 'darwin':
                 sys_log_addr = "/var/run/syslog"
-            
+
             handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
             formatter = logging.Formatter("dd-agent - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
-            rootLog.addHandler(handler) 
+            rootLog.addHandler(handler)
             logging.info('Logging to syslog is set up')
         except Exception,e:
             sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
@@ -128,7 +128,7 @@ def getPidFile(pid_dir=PID_DIR):
     except:
         logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
         # continue
-    
+
     # if all else fails
     if os.access("/tmp", os.W_OK):
         logging.warn("Pid file: /tmp/%s" % PID_FILE)
@@ -158,42 +158,42 @@ def getPid(pid_dir=PID_DIR):
     except:
         logging.exception("Cannot read pid")
         return None
- 
-# Control of daemon     
-if __name__ == '__main__':  
+
+# Control of daemon
+if __name__ == '__main__':
     options, args = get_parsed_args()
     agentConfig = get_config()
-    
+
     # Logging
     setupLogging(agentConfig)
 
     argLen = len(sys.argv)
-    
+
     if len(args) > 0:
         command = args[0]
-        
+
         if options.clean:
             cleanPidFile()
 
         pidFile = getPidFile()
         daemon = agent(pidFile)
-    
+
         if 'start' == command:
             logging.info('Start daemon')
             daemon.start()
-            
+
         elif 'stop' == command:
             logging.info('Stop daemon')
             daemon.stop()
-            
+
         elif 'restart' == command:
             logging.info('Restart daemon')
             daemon.restart()
-            
+
         elif 'foreground' == command:
             logging.info('Running in foreground')
             daemon.run()
-            
+
         elif 'status' == command:
             pid = getPid()
             if pid is not None:
@@ -206,9 +206,9 @@ if __name__ == '__main__':
         else:
             sys.stderr.write('Unknown command: %s.\n' % sys.argv[1])
             sys.exit(2)
-            
+
         sys.exit(0)
-        
+
     else:
         sys.stderr.write('Usage: %s start|stop|restart|foreground|status' % sys.argv[0])
         sys.exit(2)
