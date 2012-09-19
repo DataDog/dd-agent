@@ -48,6 +48,7 @@ from checks.varnish import Varnish
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
 
+from checks.wmi_check import WMICheck
 
 from checks.ec2 import EC2
 
@@ -96,7 +97,6 @@ class checks(object):
 
         # Old-style metric checks
         self._apache = Apache(self.checksLogger)
-        self._nginx = Nginx(self.checksLogger)
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
@@ -105,7 +105,6 @@ class checks(object):
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
-        self._memcache = Memcache(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
         self._ec2 = EC2(self.checksLogger)
@@ -120,7 +119,10 @@ class checks(object):
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
-            Solr(self.checksLogger)
+            Solr(self.checksLogger),
+            WMICheck(self.checksLogger),
+            Nginx(self.checksLogger),
+            Memcache(self.checksLogger),
         ]
 
         # Custom metric checks
@@ -240,13 +242,11 @@ class checks(object):
         apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
         pgsqlStatus = self._pgsql.check(self.agentConfig)
-        nginxStatus = self._nginx.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
-        memcacheData = self._memcache.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
@@ -268,10 +268,6 @@ class checks(object):
         if pgsqlStatus: 
             checksData['postgresql'] = pgsqlStatus
 
-        # Nginx Status
-        if nginxStatus:
-            checksData.update(nginxStatus)
-            
         # RabbitMQ
         if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
@@ -287,9 +283,6 @@ class checks(object):
         if couchdb:
             checksData['couchDB'] = couchdb
             
-        if memcacheData:
-            checksData['memcache'] = memcacheData
-        
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:

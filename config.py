@@ -68,7 +68,7 @@ def _windows_config_path():
     result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
     common_data = path_buf.value
 
-    path = os.path.join(common_data, 'Datadog Agent', DATADOG_CONF)
+    path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
     if os.path.exists(path):
         return path
     raise DDConfigNotFound(path)
@@ -257,6 +257,11 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
+        if config.has_section('WMI'):
+            agentConfig['WMI'] = {}
+            for key, value in config.items('WMI'):
+                agentConfig['WMI'][key] = value    
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
@@ -329,7 +334,7 @@ def set_win32_cert_path():
     will be able to override this in a clean way. For now, we have to monkey patch
     tornado.httpclient._DEFAULT_CA_CERTS
     '''
-    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog Agent',
+    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
         'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
