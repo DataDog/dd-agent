@@ -1,4 +1,4 @@
 host1:
-    username: doggie
-    password: w00fw00f
-    url: https://app.datadoghq.com/admin?stats
+    username: myuser
+    password: password
+    url: https://path/to/haproxy/stats
