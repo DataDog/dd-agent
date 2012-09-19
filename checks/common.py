@@ -170,7 +170,7 @@ class checks(object):
 
         return metadata
 
-    def doChecks(self, firstRun=False, systemStats=False):
+    def doChecks(self, firstRun=False, systemStats=False, checksd=None):
         """Actual work
         """
         self.checksLogger.info("Starting checks")
@@ -184,6 +184,7 @@ class checks(object):
             'resources': {}
         }
         metrics = []
+        events = {}
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
@@ -275,7 +276,7 @@ class checks(object):
         # MongoDB
         if mongodb:
             if mongodb.has_key('events'):
-                checksData['events']['Mongo'] = mongodb['events']['Mongo']
+                events['Mongo'] = mongodb['events']['Mongo']
                 del mongodb['events']
             checksData['mongoDB'] = mongodb
             
@@ -287,9 +288,9 @@ class checks(object):
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in checksData['events']:
-                    checksData['events']['dogstream'].extend(dogstreamEvents)
+                    events['dogstream'].extend(dogstreamEvents)
                 else:
-                    checksData['events']['dogstream'] = dogstreamEvents
+                    events['dogstream'] = dogstreamEvents
                 del dogstreamData['dogstreamEvents']
 
             checksData.update(dogstreamData)
@@ -306,7 +307,7 @@ class checks(object):
         for event_check in self._event_checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
-                checksData['events'][event_check.key] = event_data
+                events[event_check.key] = event_data
        
         # Include system stats on first postback
         if firstRun:
@@ -315,7 +316,7 @@ class checks(object):
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
-            checksData['events']['System'] = [{'api_key': self.agentConfig['api_key'],
+            events['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                                'event_type':'Agent Startup',
@@ -350,7 +351,23 @@ class checks(object):
             res = metrics_check.check(self.agentConfig)
             if res:
                 metrics.extend(res)
+
+        # checks.d checks
+        for check in checksd:
+            for c in check['checks']:
+                c.check()
+                if c.has_metrics():
+                    metrics.extend(c.get_metrics())
+                if c.has_events():
+                    events[check['name']] = c.get_events()
+
+
+        # Store the metrics in the payload
         checksData['metrics'] = metrics
+        checksData['events'] = events
+        print checksData['metrics']
+
+        # Store the events in the payload
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
