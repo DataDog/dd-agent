@@ -396,6 +396,15 @@ class AgentCheck(object):
         """
         return self.events
 
+    def check(self, instance):
+        """
+        Overriden by the check class. This will be called to run the check.
+
+        :param instance: A dict with the instance information. This will vary
+        depending on your config structure.
+        """
+        raise NotImplementedError()
+
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
         return agentConfig["hostname"]

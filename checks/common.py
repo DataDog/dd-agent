@@ -352,9 +352,9 @@ class checks(object):
         # checks.d checks
         for check in checksd:
             check_cls = check['class']
-            for check_case in check['percheck']:
+            for instance in check['instances']:
                 # Run the check for each configuration
-                check_cls.check(**check_case)
+                check_cls.check(**instance)
                 metrics.extend(check_cls.get_metrics())
                 if check_cls.has_events():
                     events[check['name']] = check_cls.get_events()

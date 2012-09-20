@@ -422,18 +422,18 @@ def load_check_directory(agentConfig):
             agentConfig=agentConfig)
 
         # Look for the per-check config, which *must* exist
-        if not check_config.get('percheck_config'):
-            log.error("Config %s is missing 'percheck_config'" % conf)
+        if not check_config.get('instances'):
+            log.error("Config %s is missing 'instances'" % conf)
             continue
 
-        # Although most percheck_configs will be a list to support multi-instance
+        # Although most instancess will be a list to support multi-instance
         # checks, accept non-list formatted.
-        if type(check_config['percheck_config']) != type([]):
-            check_config['percheck_config'] = [check_config['percheck_config']]
+        if type(check_config['instances']) != type([]):
+            check_config['instances'] = [check_config['instances']]
 
         checks.append({
             'name': check_name,
-            'percheck': check_config['percheck_config'],
+            'instances': check_config['instances'],
             'class': check_class
         })
 
