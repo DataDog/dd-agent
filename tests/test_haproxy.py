@@ -72,11 +72,11 @@ class HaproxyTestCase(unittest.TestCase):
         self.start_server(HAPROXY_CFG, config)
 
         # Run the check against our running server
-        self.check.check(**config['instances'][0])
+        self.check.check(config['instances'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(**config['instances'][0])
+        self.check.check(config['instances'][0])
 
         # Metric assertions
         metrics = self.check.get_metrics()
@@ -111,7 +111,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.start_server(HAPROXY_CFG, config)
 
         # Run the check, make sure there are no metrics or events
-        self.check.check(**config['instances'][0])
+        self.check.check(config['instances'][0])
         metrics = self.check.get_metrics()
         assert len(metrics) == 0
         assert self.check.has_events() == False
@@ -126,11 +126,11 @@ class HaproxyTestCase(unittest.TestCase):
         self.start_server(HAPROXY_OPEN_CFG, config)
 
         # Run the check against our running server
-        self.check.check(**config['instances'][0])
+        self.check.check(config['instances'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(**config['instances'][0])
+        self.check.check(config['instances'][0])
 
         metrics = self.check.get_metrics()
         assert metrics

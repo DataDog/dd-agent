@@ -354,7 +354,7 @@ class checks(object):
             check_cls = check['class']
             for instance in check['instances']:
                 # Run the check for each configuration
-                check_cls.check(**instance)
+                check_cls.check(instance)
                 metrics.extend(check_cls.get_metrics())
                 if check_cls.has_events():
                     events[check['name']] = check_cls.get_events()

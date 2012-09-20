@@ -40,7 +40,11 @@ class HAProxy(AgentCheck):
         "wredis": ("rate", "warnings.redis_rate"),
     }
 
-    def check(self, url, username=None, password=None):
+    def check(self, instance):
+        url = instance.get('url')
+        username = instance.get('username')
+        password = instance.get('password')
+
         self.log.debug('Processing HAProxy data for %s' % url)
         try:
             data = self._fetch_data(url, username, password)
