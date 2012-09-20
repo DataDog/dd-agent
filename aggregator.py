@@ -1,7 +1,7 @@
 import logging
 from time import time
 
-logger = logging.getLogger('dogstatsd')
+logger = logging.getLogger(__name__)
 
 
 class Infinity(Exception): pass
