@@ -375,22 +375,23 @@ def load_check_directory(agentConfig):
     log = logging.getLogger('config')
     checks_path = get_checksd_path()
     confd_path = get_confd_path()
-    conf_glob = os.path.join(confd_path, '*.yaml')
+    check_glob = os.path.join(checks_path, '*.py')
 
     # Update the python path before the import
     sys.path.append(checks_path)
 
-    for conf in glob.glob(conf_glob):
-        # For every valid config file:
-        # - Try to import the corresponding check
-        # - Parse it into a config object
-        conf = os.path.basename(conf)
-        check_name = conf.split('.')[0]
+    # For backwards-compatability with old style checks, we have to load every
+    # checks.d module and check for a corresponding config OR check if the old
+    # config will "activate" the check.
+    #
+    # Once old-style checks aren't supported, we'll just read the configs and
+    # import the corresponding check module
+    for check in glob.glob(check_glob):
+        check_name = os.path.basename(check).split('.')[0]
         try:
             check_module = __import__(check_name)
         except:
-            log.warn("Unable to import check module for %s" % conf)
-            continue
+            log.warn('Unable to import check module %s.py from checks.d' % check_name)
 
         try:
             check_class = getattr(check_module, check_module.CHECK)
@@ -398,12 +399,22 @@ def load_check_directory(agentConfig):
             log.warn("Unable to find CHECK value for the checks.d module %s.py" % check_name)
             continue
 
-        with open(os.path.join(confd_path, conf)) as f:
-            try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-            except:
-                log.warn("Unable to parse yaml config in %s" % conf)
+        # Check if the config exists OR we match the old-style config
+        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+        if os.path.exists(conf_path):
+            with open(conf_path) as f:
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                except:
+                    log.warn("Unable to parse yaml config in %s" % conf)
+                    continue
+        elif hasattr(check_class, 'parse_agent_config'):
+            # FIXME: Remove this check once all old-style checks are gone
+            check_config = check_module.parse_agent_config(agentConfig)
+            if not check_config:
                 continue
+        else:
+            continue
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', None)

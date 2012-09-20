@@ -253,3 +253,14 @@ class HAProxy(AgentCheck):
              "event_object": hostname,
              "tags": ["frontend:%s" % service_name, "host:%s" % hostname]
         }
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+        if not agentConfig.get('haproxy_url'):
+            return False
+
+        return [{
+            'url': agentConfig.get('haproxy_url'),
+            'username': agentConfig.get('haproxy_username'),
+            'password': agentConfig.get('haproxy_password')
+        }]
