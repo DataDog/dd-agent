@@ -134,6 +134,23 @@ class TestUnitDogStatsd(object):
         assert not stats.flush(False)
 
 
+    def test_rate(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit('my.rate:10|_dd-r')
+        # Sleep 1 second so the time interval > 0
+        time.sleep(1)
+        stats.submit('my.rate:40|_dd-r')
+
+        # Check that the rate is calculated correctly
+        metrics = stats.flush(False)
+        nt.assert_equal(len(metrics), 1)
+        m = metrics[0]
+        nt.assert_equals(m['metric'], 'my.rate')
+        nt.assert_equals(m['points'][0][1], 30)
+
+        # Assert that no more rates are given
+        assert not stats.flush(False)
+
     def test_gauge_sample_rate(self):
         stats = MetricsAggregator('myhost')
 
