@@ -35,7 +35,7 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.common import checks
 from checks.ec2 import EC2
-from config import get_config, get_system_stats, get_parsed_args, get_checks
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
 from util import Watchdog
@@ -52,7 +52,7 @@ class agent(Daemon):
             agentConfig = get_config()
 
         # Load the checks.d checks
-        checksd = get_checks(agentConfig)
+        checksd = load_check_directory(agentConfig)
 
         # Try to fetch instance Id from EC2 if not hostname has been set
         # in the config file

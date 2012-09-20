@@ -366,7 +366,7 @@ def get_checksd_path():
 
     return checksd_path
 
-def get_checks(agentConfig):
+def load_check_directoy(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
     file in conf.d will be returned. '''
     from util import yaml, yLoader
