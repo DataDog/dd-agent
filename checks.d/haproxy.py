@@ -7,9 +7,7 @@ from util import json, headers
 
 import time
 
-CHECKS = [
-    'HAProxy'
-]
+CHECK = 'HAProxy'
 
 STATS_URL = ";csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
@@ -20,8 +18,8 @@ class Services(object):
     ALL = (BACKEND, FRONTEND)
 
 class HAProxy(AgentCheck):
-    def __init__(self, name, config, agentConfig):
-        AgentCheck.__init__(self, name, config, agentConfig)
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
 
         # Host status needs to persist across all checks
         self.host_status = {}
@@ -42,28 +40,23 @@ class HAProxy(AgentCheck):
         "wredis": ("rate", "warnings.redis_rate"),
     }
 
-    def check(self):
-        for host, conf in self.config.items():
-            self.log.debug('Processing HAProxy data for %s' % host)
-            try:
-                data = self._fetch_data(conf)
-            except:
-                self.log.exception('Unable to get haproxy statistics for %s' % host)
-                continue
+    def check(self, url, username=None, password=None):
+        self.log.debug('Processing HAProxy data for %s' % url)
+        try:
+            data = self._fetch_data(url, username, password)
+        except:
+            self.log.exception('Unable to get haproxy statistics for %s' % url)
+            return
 
-            my_hostname = gethostname(self.agentConfig)
-            self._process_data(data, my_hostname, self._process_metrics,
-                self._process_events)
+        self._process_data(data, self.hostname, self._process_metrics,
+            self._process_events)
 
-    def _fetch_data(self, conf):
+    def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''
         # Try to fetch data from the stats URL
-        agentConfig = self.agentConfig
 
-        url = conf.get('url', None)
         passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        passman.add_password(None, url, conf.get('username', None),
-            conf.get('password', None))
+        passman.add_password(None, url, username, password)
         authhandler = urllib2.HTTPBasicAuthHandler(passman)
         opener = urllib2.build_opener(authhandler)
         urllib2.install_opener(opener)
@@ -71,7 +64,7 @@ class HAProxy(AgentCheck):
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
-        req = urllib2.Request(url, None, headers(agentConfig))
+        req = urllib2.Request(url, None, headers(self.agentConfig))
         request = urllib2.urlopen(req)
         response = request.read()
         # Split the data by line

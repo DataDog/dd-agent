@@ -1,4 +1,0 @@
-host1:
-    username: myuser
-    password: password
-    url: https://path/to/haproxy/stats

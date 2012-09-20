@@ -276,16 +276,16 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
-    def __init__(self, name, config, agentConfig):
+    def __init__(self, name, init_config, agentConfig):
         """
         Initialize a new check.
 
         :param name: The name of the check
-        :param config: The check configuration
+        :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
         """
         self.name = name
-        self.config = config
+        self.init_config = init_config
         self.agentConfig = agentConfig
         self.hostname = gethostname(agentConfig)
         self.log = logging.getLogger('checks.%s' % name)

@@ -351,19 +351,20 @@ class checks(object):
 
         # checks.d checks
         for check in checksd:
-            for c in check['checks']:
-                c.check()
-                metrics.extend(c.get_metrics())
-                if c.has_events():
-                    events[check['name']] = c.get_events()
+            check_cls = check['class']
+            for check_case in check['percheck']:
+                # Run the check for each configuration
+                check_cls.check(**check_case)
+                metrics.extend(check_cls.get_metrics())
+                if check_cls.has_events():
+                    events[check['name']] = check_cls.get_events()
 
 
         # Store the metrics in the payload
         checksData['metrics'] = metrics
-        checksData['events'] = events
-        print checksData['metrics']
 
         # Store the events in the payload
+        checksData['events'] = events
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)

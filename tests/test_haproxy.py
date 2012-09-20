@@ -7,7 +7,7 @@ import os
 import logging
 
 from checks import gethostname
-from tests.common import get_checksd_module
+from tests.common import load_check
 
 logging.basicConfig()
 
@@ -43,9 +43,7 @@ class HaproxyTestCase(unittest.TestCase):
         }
 
         # Initialize the check from checks.d
-        check_module = get_checksd_module('haproxy')
-        check_cls = getattr(check_module, check_module.CHECKS[0])
-        self.check = check_cls('haproxy', config, self.agentConfig)
+        self.check = load_check('haproxy', config, self.agentConfig)
 
         self.process = None
         try:
@@ -65,20 +63,20 @@ class HaproxyTestCase(unittest.TestCase):
 
     def testCheck(self):
         config = {
-            'host_abc': {
+            'percheck_config': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
                 'password': 'isdevops'
-            }
+            }]
         }
         self.start_server(HAPROXY_CFG, config)
 
         # Run the check against our running server
-        self.check.check()
+        self.check.check(**config['percheck_config'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check()
+        self.check.check(**config['percheck_config'][0])
 
         # Metric assertions
         metrics = self.check.get_metrics()
@@ -91,7 +89,8 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
-        data = self.check._fetch_data(config['host_abc'])
+        inst = config['percheck_config'][0]
+        data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
         new_data = [l.replace("OPEN", "DOWN") for l in data]
 
         self.check._process_data(new_data, gethostname(self.agentConfig),
@@ -103,16 +102,16 @@ class HaproxyTestCase(unittest.TestCase):
     def testWrongConfig(self):
         # Same check, with wrong data
         config = {
-            'host_abc': {
+            'percheck_config': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
                 'password': 'isdevops'
-            }
+            }]
         }
         self.start_server(HAPROXY_CFG, config)
 
         # Run the check, make sure there are no metrics or events
-        self.check.check()
+        self.check.check(**config['percheck_config'][0])
         metrics = self.check.get_metrics()
         assert len(metrics) == 0
         assert self.check.has_events() == False
@@ -120,18 +119,18 @@ class HaproxyTestCase(unittest.TestCase):
     def testOpenConfig(self):
         # No passwords this time
         config = {
-            'host_abc': {
+            'percheck_config': [{
                 'url': 'http://localhost:3834/stats',
-            }
+            }]
         }
         self.start_server(HAPROXY_OPEN_CFG, config)
 
         # Run the check against our running server
-        self.check.check()
+        self.check.check(**config['percheck_config'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check()
+        self.check.check(**config['percheck_config'][0])
 
         metrics = self.check.get_metrics()
         assert metrics

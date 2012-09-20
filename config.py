@@ -366,7 +366,7 @@ def get_checksd_path():
 
     return checksd_path
 
-def load_check_directoy(agentConfig):
+def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
     file in conf.d will be returned. '''
     from util import yaml, yLoader
@@ -393,26 +393,37 @@ def load_check_directoy(agentConfig):
             continue
 
         try:
-            module_checks = [getattr(check_module, m) for m in check_module.CHECKS]
+            check_class = getattr(check_module, check_module.CHECK)
         except:
-            log.warn("Unable to find CHECKS value for the checks.d module %s.py" % check_name)
+            log.warn("Unable to find CHECK value for the checks.d module %s.py" % check_name)
             continue
 
         with open(os.path.join(confd_path, conf)) as f:
             try:
-                check_config = yaml.load(f.read(), loader=yLoader)
+                check_config = yaml.load(f.read(), Loader=yLoader)
             except:
                 log.warn("Unable to parse yaml config in %s" % conf)
                 continue
 
-        # Init all of the check's classes
-        for i, mc in enumerate(module_checks):
-            module_checks[i] = mc(check_name, check_config, agentConfig)
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config', None)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
+
+        # Look for the per-check config, which *must* exist
+        if not check_config.get('percheck_config'):
+            log.error("Config %s is missing 'percheck_config'" % conf)
+            continue
+
+        # Although most percheck_configs will be a list to support multi-instance
+        # checks, accept non-list formatted.
+        if type(check_config['percheck_config']) != type([]):
+            check_config['percheck_config'] = [check_config['percheck_config']]
 
         checks.append({
             'name': check_name,
-            'config': check_config,
-            'checks': module_checks
+            'percheck': check_config['percheck_config'],
+            'class': check_class
         })
 
     return checks
