@@ -308,7 +308,7 @@ class MetricsAggregator(object):
             packet += '|#%s' % ','.join(tags)
         return packet
 
-    def flush(self, include_diagnostic_stats=True):
+    def flush(self):
 
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
@@ -323,21 +323,14 @@ class MetricsAggregator(object):
             else:
                 metrics += metric.flush(timestamp)
 
-        # Track how many points we see.
-        if include_diagnostic_stats:
-            metrics.append(self.formatter(
-                hostname=self.hostname,
-                tags=None,
-                metric='datadog.dogstatsd.packet.count',
-                timestamp=timestamp,
-                value=self.count
-            ))
-
         # Save some stats.
         logger.info("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics
+
+    def send_packet_count(self, metric_name):
+        self.gauge(metric_name, self.count)
 
     def api_formatter(self, metric, value, timestamp, tags, hostname, device_name=None):
         return {
