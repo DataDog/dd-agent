@@ -224,7 +224,7 @@ class Rate(Metric):
                 timestamp=timestamp
             )]
         finally:
-            self.samples = []
+            self.samples = self.samples[-1:]
 
 
 
