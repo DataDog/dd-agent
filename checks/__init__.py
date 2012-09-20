@@ -284,38 +284,30 @@ class CheckD(object):
         self.hostname = gethostname(agentConfig)
         self.log = logging.getLogger('checks.%s' % name)
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
-        self._has_metrics = False
         self.events = []
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
         ''' Save a gauge value '''
-        self._has_metrics = True
         self.aggregator.gauge(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
 
     def increment(self, metric, value, tags=None, hostname=None, device_name=None):
         ''' Increment a counter value '''
-        self._has_metrics = True
         self.aggregator.increment(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
-        self._has_metrics = True
         self.aggregator.rate(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
 
     def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
         ''' Save a histogram value '''
-        self._has_metrics = True
         self.aggregator.histogram(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
 
     def event(self, event):
         ''' Save an event '''
         self.events.append(event)
-
-    def has_metrics(self):
-        return self._has_metrics
 
     def has_events(self):
         return len(self.events) > 0
@@ -326,7 +318,7 @@ class CheckD(object):
         @return the list of samples
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
-        return self.aggregator.flush()
+        return self.aggregator.flush(include_diagnostic_stats=False)
 
     def get_events(self):
         return self.events

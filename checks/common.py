@@ -353,8 +353,7 @@ class checks(object):
         for check in checksd:
             for c in check['checks']:
                 c.check()
-                if c.has_metrics():
-                    metrics.extend(c.get_metrics())
+                metrics.extend(c.get_metrics())
                 if c.has_events():
                     events[check['name']] = c.get_events()
 

@@ -81,8 +81,8 @@ class HaproxyTestCase(unittest.TestCase):
         self.check.check()
 
         # Metric assertions
-        assert self.check.has_metrics()
         metrics = self.check.get_metrics()
+        assert metrics
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
@@ -113,7 +113,8 @@ class HaproxyTestCase(unittest.TestCase):
 
         # Run the check, make sure there are no metrics or events
         self.check.check()
-        assert self.check.has_metrics() == False
+        metrics = self.check.get_metrics()
+        assert len(metrics) == 0
         assert self.check.has_events() == False
 
     def testOpenConfig(self):
@@ -132,8 +133,8 @@ class HaproxyTestCase(unittest.TestCase):
         # Run the check again so we get the rates
         self.check.check()
 
-        assert self.check.has_metrics()
         metrics = self.check.get_metrics()
+        assert metrics
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
