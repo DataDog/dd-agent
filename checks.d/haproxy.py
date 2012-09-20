@@ -5,7 +5,6 @@ import socket
 from checks import AgentCheck, gethostname
 from util import json, headers
 
-from datetime import datetime
 import time
 
 CHECKS = [
@@ -250,7 +249,7 @@ class HAProxy(AgentCheck):
                 % (hostname, status, service_name)
 
         return {
-             'timestamp': int(time.mktime(datetime.utcnow().timetuple())) - int(lastchg),
+             'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
              'host': hostname,
              'api_key': api_key,
