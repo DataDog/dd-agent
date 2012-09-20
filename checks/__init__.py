@@ -275,7 +275,7 @@ class Check(object):
                 pass
         return metrics
 
-class CheckD(object):
+class AgentCheck(object):
     ''' New interface to checks using checks.d/conf.d '''
     def __init__(self, name, config, agentConfig):
         self.name = name

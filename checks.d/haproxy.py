@@ -2,7 +2,7 @@ import urlparse
 import urllib2
 import socket
 
-from checks import CheckD, gethostname
+from checks import AgentCheck, gethostname
 from util import json, headers
 
 from datetime import datetime
@@ -20,9 +20,9 @@ class Services(object):
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
 
-class HAProxy(CheckD):
+class HAProxy(AgentCheck):
     def __init__(self, name, config, agentConfig):
-        CheckD.__init__(self, name, config, agentConfig)
+        AgentCheck.__init__(self, name, config, agentConfig)
 
         # Host status needs to persist across all checks
         self.host_status = {}
