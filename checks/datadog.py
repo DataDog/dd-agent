@@ -373,22 +373,26 @@ class NagiosPerfData(object):
 
         f = None
         try:
-            f = open(filename)
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                for key in keys:
-                    if line.startswith(key + '='):
-                        eq_pos = line.find('=')
-                        if eq_pos:
-                            output[key] = line[eq_pos + 1:]
-                            break
+            try:
+                f = open(filename)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    for key in keys:
+                        if line.startswith(key + '='):
+                            eq_pos = line.find('=')
+                            if eq_pos:
+                                output[key] = line[eq_pos + 1:]
+                                break
+                return output
+            except:
+                # Can't parse, assume it's just not working
+                # Don't return an incomplete config
+                return {}
         finally:
             if f is not None:
                 f.close()
-
-        return output
 
     def __init__(self, logger, line_pattern, datafile):
         if isinstance(line_pattern, (str, unicode)):
