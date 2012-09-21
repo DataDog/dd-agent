@@ -1,0 +1,6 @@
+init_config:
+
+instances:
+#    -   username: username
+#        password: password
+#        url: https://path/to/haproxy
