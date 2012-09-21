@@ -371,6 +371,7 @@ class NagiosPerfData(object):
             'service_perfdata_file',
         ]
 
+        f = None
         try:
             f = open(filename)
             for line in f:
@@ -384,7 +385,8 @@ class NagiosPerfData(object):
                             output[key] = line[eq_pos + 1:]
                             break
         finally:
-            f.close()
+            if f is not None:
+                f.close()
 
         return output
 
