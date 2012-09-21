@@ -385,7 +385,7 @@ class AgentCheck(object):
         @return the list of samples
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
-        return self.aggregator.flush(include_diagnostic_stats=False)
+        return self.aggregator.flush()
 
     def get_events(self):
         """

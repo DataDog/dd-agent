@@ -263,8 +263,10 @@ class HAProxy(AgentCheck):
         if not agentConfig.get('haproxy_url'):
             return False
 
-        return [{
-            'url': agentConfig.get('haproxy_url'),
-            'username': agentConfig.get('haproxy_username'),
-            'password': agentConfig.get('haproxy_password')
-        }]
+        return {
+            'instances': [{
+                'url': agentConfig.get('haproxy_url'),
+                'username': agentConfig.get('haproxy_user'),
+                'password': agentConfig.get('haproxy_password')
+            }]
+        }

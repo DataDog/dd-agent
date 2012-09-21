@@ -392,6 +392,7 @@ def load_check_directory(agentConfig):
             check_module = __import__(check_name)
         except:
             log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            continue
 
         try:
             check_class = getattr(check_module, check_module.CHECK)
@@ -410,7 +411,7 @@ def load_check_directory(agentConfig):
                     continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
-            check_config = check_module.parse_agent_config(agentConfig)
+            check_config = check_class.parse_agent_config(agentConfig)
             if not check_config:
                 continue
         else:
