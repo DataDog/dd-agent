@@ -38,7 +38,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.1.3"
+    return "3.1.4"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
