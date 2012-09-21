@@ -112,7 +112,7 @@
     ${IF} $1 == ${BST_CHECKED}
       ; Install and start the agent
       Exec "$INSTDIR\ddagent.exe --startup auto install"
-      Exec "$INSTDIR\ddagent.exe start"
+      Exec "$INSTDIR\ddagent.exe restart"
     ${ENDIF}
 
   FunctionEnd
@@ -120,7 +120,7 @@
 ;--------------------------------
 ; Finish Page
 
-  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary service (ddagent).$\n$\nAll the Datadog services can be configured (e.g., to automatically start on boot) with 'Services Properties' at $WINDIR\system32\services.msc."
+  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary service (ddagent).$\n$\nAll the Datadog services can be configured with 'Services Properties' at $WINDIR\system32\services.msc."
   !insertmacro MUI_PAGE_FINISH
 
 
@@ -182,9 +182,11 @@ Section "Uninstall"
   Delete "$INSTDIR\ddagent.exe"
   Delete "$0\Datadog\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
+  Delete "$INSTDIR\license.txt"
   Delete "$INSTDIR\Uninstall.exe"
 
   RMDir "$INSTDIR"
+  RMDir "$0\Datadog"
 
   DeleteRegKey /ifempty HKCU "Software\Datadog Agent"
 
