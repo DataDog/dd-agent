@@ -18,9 +18,12 @@ except ImportError: # Python < 2.5
 
 import modules
 
+from util import getOS
 from config import get_version
-
 from checks import gethostname
+
+import checks.system.unix as u
+import checks.system.win32 as w32
 
 from checks.nagios import Nagios
 from checks.build import Hudson
@@ -33,7 +36,6 @@ from checks.db.pg import PostgreSql
 from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
-from checks.system import Disk, IO, Load, Memory, Network, Processes, Cpu
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
@@ -45,8 +47,8 @@ from checks.varnish import Varnish
 from checks.munin import Munin
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
-from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
 
+from checks.wmi_check import WMICheck
 
 from checks.ec2 import EC2
 
@@ -66,22 +68,35 @@ def getUuid():
 class checks(object):
     def __init__(self, agentConfig, emitters):
         self.agentConfig = agentConfig
+        self.os = getOS()
         self.plugins = None
-        self.emitters = emitters
-        self.os = None
-        
+        self.emitters = emitters            
         self.checksLogger = logging.getLogger('checks')
         socket.setdefaulttimeout(15)
         
+        # Unix System Checks
+        self._unix_system_checks = {
+            'disk': u.Disk(self.checksLogger),
+            'io': u.IO(),
+            'load': u.Load(self.checksLogger),
+            'memory': u.Memory(self.checksLogger),
+            'network': u.Network(self.checksLogger),
+            'processes': u.Processes(),
+            'cpu': u.Cpu()
+        }
+
+        # Win32 System Checks
+        self._win32_system_checks = {
+            'disk': w32.Disk(self.checksLogger),
+            'io': w32.IO(self.checksLogger),
+            'proc': w32.Processes(self.checksLogger),
+            'memory': w32.Memory(self.checksLogger),
+            'network': w32.Network(self.checksLogger),
+            'cpu': w32.Cpu(self.checksLogger)
+        }
+
+        # Old-style metric checks
         self._apache = Apache(self.checksLogger)
-        self._nginx = Nginx(self.checksLogger)
-        self._disk = Disk(self.checksLogger)
-        self._io = IO()
-        self._load = Load(self.checksLogger)
-        self._memory = Memory(self.checksLogger)
-        self._network = Network(self.checksLogger)
-        self._processes = Processes()
-        self._cpu = Cpu()
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
@@ -90,24 +105,27 @@ class checks(object):
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
         self._redis = Redis(self.checksLogger)
-        self._memcache = Memcache(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
+        self._ec2 = EC2(self.checksLogger)
 
-        # All new checks should be metrics checks:
+        # Metric Checks
         self._metrics_checks = [
             Cacti(self.checksLogger),
             Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             Munin(self.checksLogger),
-            HAProxyMetrics(self.checksLogger),
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
-            Solr(self.checksLogger)
-            ]
+            Solr(self.checksLogger),
+            WMICheck(self.checksLogger),
+            Nginx(self.checksLogger),
+            Memcache(self.checksLogger),
+        ]
 
+        # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
             try:
@@ -116,10 +134,16 @@ class checks(object):
             except Exception, e:
                 self.checksLogger.exception('Unable to load custom check module %s' % module_spec)
 
-        self._event_checks = [ElasticSearchClusterStatus(self.checksLogger), HAProxyEvents(self.checksLogger), Hudson(), Nagios(socket.gethostname())]
-        self._resources_checks = [ResProcesses(self.checksLogger,self.agentConfig)]
+        # Event Checks
+        self._event_checks = [
+            ElasticSearchClusterStatus(self.checksLogger),
+            Nagios(socket.gethostname())
+        ]
 
-        self._ec2 = EC2(self.checksLogger)
+        # Resource Checks
+        self._resources_checks = [
+            ResProcesses(self.checksLogger,self.agentConfig)
+        ]
     
     def get_metadata(self):
         metadata = self._ec2.get_metadata()
@@ -145,62 +169,86 @@ class checks(object):
 
         return metadata
 
-    def doChecks(self, firstRun=False, systemStats=False):
+    def doChecks(self, firstRun=False, systemStats=False, checksd=None):
         """Actual work
         """
         self.checksLogger.info("Starting checks")
-
-        apacheStatus = self._apache.check(self.agentConfig)
-        diskUsage = self._disk.check(self.agentConfig)
-        loadAvrgs = self._load.check(self.agentConfig)
-        memory = self._memory.check(self.agentConfig)
-        mysqlStatus = self._mysql.check(self.agentConfig)
-        pgsqlStatus = self._pgsql.check(self.agentConfig)
-        networkTraffic = self._network.check(self.agentConfig)
-        nginxStatus = self._nginx.check(self.agentConfig)
-        processes = self._processes.check(self.checksLogger, self.agentConfig)
-        rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
-        mongodb = self._mongodb.check(self.agentConfig)
-        couchdb = self._couchdb.check(self.agentConfig)
-        ioStats = self._io.check(self.checksLogger, self.agentConfig)
-        cpuStats = self._cpu.check(self.checksLogger, self.agentConfig)
-        gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
-        memcacheData = self._memcache.check(self.agentConfig)
-        dogstreamData = self._dogstream.check(self.agentConfig)
-        ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
         checksData = {
             'collection_timestamp': time.time(),
             'os' : self.os,
             'python': sys.version,
-            'agentVersion' : self.agentConfig['version'], 
-            'loadAvrg1' : loadAvrgs['1'], 
-            'loadAvrg5' : loadAvrgs['5'], 
-            'loadAvrg15' : loadAvrgs['15'], 
-            'memPhysUsed' : memory.get('physUsed'), 
-            'memPhysFree' : memory.get('physFree'), 
-            'memPhysTotal' : memory.get('physTotal'), 
-            'memPhysUsable' : memory.get('physUsable'), 
-            'memSwapUsed' : memory.get('swapUsed'), 
-            'memSwapFree' : memory.get('swapFree'), 
-            'memSwapTotal' : memory.get('swapTotal'), 
-            'memCached' : memory.get('physCached'), 
-            'memBuffers': memory.get('physBuffers'),
-            'memShared': memory.get('physShared'),
-            'networkTraffic' : networkTraffic, 
-            'processes' : processes,
+            'agentVersion' : self.agentConfig['version'],             
             'apiKey': self.agentConfig['api_key'],
             'events': {},
-            'resources': {},
+            'resources': {}
         }
+        metrics = []
+        events = {}
 
-        if diskUsage is not False and len(diskUsage) == 2:
-            checksData["diskUsage"] = diskUsage[0]
-            checksData["inodes"] = diskUsage[1]
-            
-        if cpuStats is not False and cpuStats is not None:
-            checksData.update(cpuStats)
+        # Run the system checks. Checks will depend on the OS
+        if self.os == 'windows':
+            # Win32 system checks
+            metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
+            metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+        else:
+            # Unix system checks
+            sys_checks = self._unix_system_checks
+
+            diskUsage = sys_checks['disk'].check(self.agentConfig)
+            if diskUsage is not False and len(diskUsage) == 2:
+                checksData["diskUsage"] = diskUsage[0]
+                checksData["inodes"] = diskUsage[1]
+
+            loadAvrgs = sys_checks['load'].check(self.agentConfig)
+            checksData.update({
+                'loadAvrg1': loadAvrgs['1'],
+                'loadAvrg5': loadAvrgs['5'],
+                'loadAvrg15': loadAvrgs['15']
+            })
+
+            memory = sys_checks['memory'].check(self.agentConfig)
+            checksData.update({
+                'memPhysUsed' : memory.get('physUsed'), 
+                'memPhysFree' : memory.get('physFree'), 
+                'memPhysTotal' : memory.get('physTotal'), 
+                'memPhysUsable' : memory.get('physUsable'), 
+                'memSwapUsed' : memory.get('swapUsed'), 
+                'memSwapFree' : memory.get('swapFree'), 
+                'memSwapTotal' : memory.get('swapTotal'), 
+                'memCached' : memory.get('physCached'), 
+                'memBuffers': memory.get('physBuffers'),
+                'memShared': memory.get('physShared')
+            })
+
+            ioStats = sys_checks['io'].check(self.checksLogger, self.agentConfig)
+            if ioStats:
+                checksData['ioStats'] = ioStats
+
+            processes = sys_checks['processes'].check(self.checksLogger, self.agentConfig)
+            checksData.update({'processes': processes})
+
+            networkTraffic = sys_checks['network'].check(self.agentConfig)
+            checksData.update({'networkTraffic': processes})
+
+            cpuStats = sys_checks['cpu'].check(self.checksLogger, self.agentConfig)
+            if cpuStats is not False and cpuStats is not None:
+                checksData.update(cpuStats)
+
+        # Run old-style checks
+        apacheStatus = self._apache.check(self.agentConfig)
+        mysqlStatus = self._mysql.check(self.agentConfig)
+        pgsqlStatus = self._pgsql.check(self.agentConfig)
+        rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
+        mongodb = self._mongodb.check(self.agentConfig)
+        couchdb = self._couchdb.check(self.agentConfig)
+        gangliaData = self._ganglia.check(self.agentConfig)
+        cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
+        dogstreamData = self._dogstream.check(self.agentConfig)
+        ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
         if gangliaData is not False and gangliaData is not None:
             checksData['ganglia'] = gangliaData
@@ -220,10 +268,6 @@ class checks(object):
         if pgsqlStatus: 
             checksData['postgresql'] = pgsqlStatus
 
-        # Nginx Status
-        if nginxStatus:
-            checksData.update(nginxStatus)
-            
         # RabbitMQ
         if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
@@ -231,27 +275,21 @@ class checks(object):
         # MongoDB
         if mongodb:
             if mongodb.has_key('events'):
-                checksData['events']['Mongo'] = mongodb['events']['Mongo']
+                events['Mongo'] = mongodb['events']['Mongo']
                 del mongodb['events']
             checksData['mongoDB'] = mongodb
             
         # CouchDB
         if couchdb:
             checksData['couchDB'] = couchdb
-        
-        if ioStats:
-            checksData['ioStats'] = ioStats
             
-        if memcacheData:
-            checksData['memcache'] = memcacheData
-        
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in checksData['events']:
-                    checksData['events']['dogstream'].extend(dogstreamEvents)
+                    events['dogstream'].extend(dogstreamEvents)
                 else:
-                    checksData['events']['dogstream'] = dogstreamEvents
+                    events['dogstream'] = dogstreamEvents
                 del dogstreamData['dogstreamEvents']
 
             checksData.update(dogstreamData)
@@ -268,16 +306,16 @@ class checks(object):
         for event_check in self._event_checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
-                checksData['events'][event_check.key] = event_data
+                events[event_check.key] = event_data
        
-       # Include system stats on first postback
+        # Include system stats on first postback
         if firstRun:
             checksData['systemStats'] = systemStats
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
-            checksData['events']['System'] = [{'api_key': self.agentConfig['api_key'],
+            events['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                                'event_type':'Agent Startup',
@@ -288,31 +326,47 @@ class checks(object):
             checksData['meta'] = self.get_metadata()
 
         # Resources checks
-        has_resource = False
-        for resources_check in self._resources_checks:
-            resources_check.check()
-            snaps = resources_check.pop_snapshots()
-            if snaps:
-                has_resource = True
-                res_value = { 'snaps': snaps,
-                              'format_version': resources_check.get_format_version() }                              
-                res_format = resources_check.describe_format_if_needed()
-                if res_format is not None:
-                    res_value['format_description'] = res_format
-                checksData['resources'][resources_check.RESOURCE_KEY] = res_value
- 
-        if has_resource:
-            checksData['resources']['meta'] = {
-                        'api_key': self.agentConfig['api_key'],
-                        'host': checksData['internalHostname'],
-                    }
+        if self.os != 'windows':
+            has_resource = False
+            for resources_check in self._resources_checks:
+                resources_check.check()
+                snaps = resources_check.pop_snapshots()
+                if snaps:
+                    has_resource = True
+                    res_value = { 'snaps': snaps,
+                                  'format_version': resources_check.get_format_version() }                              
+                    res_format = resources_check.describe_format_if_needed()
+                    if res_format is not None:
+                        res_value['format_description'] = res_format
+                    checksData['resources'][resources_check.RESOURCE_KEY] = res_value
+     
+            if has_resource:
+                checksData['resources']['meta'] = {
+                            'api_key': self.agentConfig['api_key'],
+                            'host': checksData['internalHostname'],
+                        }
 
-        metrics = []
         for metrics_check in self._metrics_checks:
             res = metrics_check.check(self.agentConfig)
             if res:
                 metrics.extend(res)
+
+        # checks.d checks
+        for check in checksd:
+            check_cls = check['class']
+            for instance in check['instances']:
+                # Run the check for each configuration
+                check_cls.check(instance)
+                metrics.extend(check_cls.get_metrics())
+                if check_cls.has_events():
+                    events[check['name']] = check_cls.get_events()
+
+
+        # Store the metrics in the payload
         checksData['metrics'] = metrics
+
+        # Store the events in the payload
+        checksData['events'] = events
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)

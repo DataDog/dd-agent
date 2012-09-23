@@ -17,10 +17,16 @@ else:
         @staticmethod
         def dumps(data):
             return minjson.write(data)
-        
+
         @staticmethod
         def loads(data):
             return minjson.safeRead(data)
+
+import yaml
+try:
+    from yaml import CLoader as yLoader
+except ImportError:
+    from yaml import Loader as yLoader
 
 
 def headers(agentConfig):
@@ -38,6 +44,8 @@ def getOS():
         return 'freebsd'
     elif sys.platform.find('linux') != -1:
         return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
     else:
         return sys.platform
 

@@ -129,7 +129,13 @@ use_mount: no
 
 # Url to nginx's status page. Must have http_stub_status_module installed.
 # See http://wiki.nginx.org/HttpStubStatusModule for details.
-#nginx_status_url: http://www.example.com/nginx_status
+# You can set multiple Nginx instances, using the schema below
+# You have to set the end tag, your metrics will be then tagged instance:your_tag
+# 
+#nginx_status_url_1: http://www.example.com/nginx_status:first_tag
+#nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
+#nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
+#...
 
 
 # -------------------------------------------------------------------------- #
@@ -202,35 +208,40 @@ use_mount: no
 #   Java                                                                     #
 # -------------------------------------------------------------------------- #
 
-# JMX server:port to connect to
-# jvm_jmx_server: server_address1:server_port1:tag1, server_address2:server_port2:tag2
-#jvm_jmx_server:
+# Get Java JVM metrics using JMX
+# You can set multiple Java instances, using the schema below
+# user is the JMX user (if any) used to connect to the related JMX instance
+# password is the JMX password (if any) used to connect to the related JMX instance
+# server is the JMX server url
+# port is the port where the JMX server runs
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
-# JMX user to log in with, if needed
-#jvm_jmx_user: user1, user2 or jvm_jmx_user: user if you want to use the same username and password for all servers
 
-# Password for the configured JMX user
-#jvm_jmx_pass: passwd1, passwd2 or jvm_jmx_pass: passwd if you want to use the same username and password for all servers
+#java_jmx_instance_1: user:password@server:port:tag
 
-# Name to report the statistics for this java VM. This will allow to monitor
-# Several JVMs running on the same machine
-#jvm_jmx_name: Java
+#java_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #   Tomcat                                                                   #
 # -------------------------------------------------------------------------- #
 
 # Get Tomcat metrics using JMX
-# You can set an unlimited number of Tomcat instances, using the schema below
+# You can set multiple Tomcat instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
 #tomcat_jmx_instance_1: user:password@server:port:tag
 
 #tomcat_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 
 
@@ -239,39 +250,51 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 # Get Activemq metrics using JMX
-# You can set an unlimited number of Activemq instances, using the schema below
+# You can set multiple ActiveMQ instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
+
 
 #activemq_jmx_instance_1: user:password@server:port:tag
 
 #activemq_jmx_instance_2: user:password@server:port:tag
+
+#...
 
 # -------------------------------------------------------------------------- #
 #  Solr                                                                      #
 # -------------------------------------------------------------------------- #
 
 # Get Solr metrics using JMX
-# You can set an unlimited number of Solr instances, using the schema below
+# You can set multiple Solr instances, using the schema below
 # user is the JMX user (if any) used to connect to the related JMX instance
 # password is the JMX password (if any) used to connect to the related JMX instance
 # server is the JMX server url
 # port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance 
+# tag is the tag you want to associate to this instance, it's an optional parameter
+# if not present the tag would be "server-port"
 
 #solr_jmx_instance_1: user:password@server:port:tag
 
 #solr_jmx_instance_2: user:password@server:port:tag
 
+#...
+
 # -------------------------------------------------------------------------- #
 #  Memcache
 # -------------------------------------------------------------------------- #
+# You can set multiple memcache instances, using the schema below
+# You can set a tag (optional), your memcache metrics will then be tagged
+# instance:your_tag or instance:host_port if you don't specify one
 
-#memcache_server: localhost
-#memcache_port: 11211
+#memcache_instance_1: localhost:11211:first_tag
+#memcache_instance_2: second_host:second_port:second_tag
+#memcache_instance_3: third_host:third_port:third_tag
+# ...
 
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)
@@ -373,10 +396,31 @@ use_mount: no
 #
 # If the name of the check is not specified, 'Check' is assumed.
 
+# ========================================================================== #
+# WMI Metrics
+# ========================================================================== #
+[WMI]
+# Each value should have the following structure:
+#
+# my.custom.metric_name: Win32_Metric_Name:value_to_use
+#
+# Example:
+#
+# system.users.count: Win32_OperatingSystem:NumberOfUsers
 
+##############################################################################
+#################### NOTHING TO MODIFY AFTER THIS LINE #######################
+##############################################################################
 
 # -------------------------------------------------------------------------- #
 #  Logging Configuration
+#
+#  PLEASE READ ME!
+#
+#  DO NOT PUT ANY INTEGRATION CONFIGURATION AFTER THIS SECTION
+#  IT WILL BE IGNORED.
+#  I REPEAT, IT WILL BE IGNORED.
+#
 # -------------------------------------------------------------------------- #
 
 [loggers]
@@ -411,3 +455,7 @@ args:('/tmp/dogstatsd.log', 'a')
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
 class:logging.Formatter
+
+# IF YOU ADD ANYTHING HERE, IT WILL BE IGNORED
+# SO IF YOU WANT TO CONFIGURE AN INTEGRATION,
+# DO IT IN THE SECTION ABOVE

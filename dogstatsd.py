@@ -1,7 +1,7 @@
 #!/usr/bin/python
-'''
+"""
 A Python Statsd implementation with some datadog special sauce.
-'''
+"""
 
 # stdlib
 import httplib as http_client
@@ -10,6 +10,7 @@ import optparse
 from random import randrange
 import re
 import socket
+import select
 import sys
 from time import time
 import threading
@@ -19,204 +20,9 @@ from urllib import urlencode
 from config import get_config
 from checks import gethostname
 from util import json
+from aggregator import MetricsAggregator
 
 logger = logging.getLogger('dogstatsd')
-
-class Metric(object):
-    """
-    A base metric class that accepts points, slices them into time intervals
-    and performs roll-ups within those intervals.
-    """
-
-    def sample(self, value, sample_rate):
-        """ Add a point to the given metric. """
-        raise NotImplementedError()
-
-    def flush(self, timestamp):
-        """ Flush all metrics up to the given timestamp. """
-        raise NotImplementedError()
-
-
-class Gauge(Metric):
-    """ A metric that tracks a value at particular points in time. """
-
-    def __init__(self, name, tags, hostname):
-        self.name = name
-        self.value = None
-        self.tags = tags
-        self.hostname = hostname
-        self.last_sample_time = None
-
-    def sample(self, value, sample_rate):
-        self.value = value
-        self.last_sample_time = time()
-
-    def flush(self, timestamp):
-        # Gauges don't reset. Continue to send the same value.
-        return [{
-            'metric' : self.name,
-            'points' : [(timestamp, self.value)],
-            'tags' : self.tags,
-            'host' : self.hostname
-        }]
-
-
-class Counter(Metric):
-    """ A metric that tracks a counter value. """
-
-    def __init__(self, name, tags, hostname):
-        self.name = name
-        self.value = 0
-        self.tags = tags
-        self.hostname = hostname
-
-    def sample(self, value, sample_rate):
-        self.value += value * int(1 / sample_rate)
-        self.last_sample_time = time()
-
-    def flush(self, timestamp):
-        try:
-            return [{
-                'metric' : self.name,
-                'points' : [(timestamp, self.value)],
-                'tags' : self.tags,
-                'host' : self.hostname
-            }]
-        finally:
-            self.value = 0
-
-
-class Histogram(Metric):
-    """ A metric to track the distribution of a set of values. """
-
-    def __init__(self, name, tags, hostname):
-        self.name = name
-        self.max = float("-inf")
-        self.min = float("inf")
-        self.sum = 0
-        self.count = 0
-        self.sample_size = 1000
-        self.samples = []
-        self.percentiles = [0.75, 0.85, 0.95, 0.99]
-        self.tags = tags
-        self.hostname = hostname
-
-    def sample(self, value, sample_rate):
-        self.count += int(1 / sample_rate)
-        self.samples.append(value)
-        self.last_sample_time = time()
-
-    def flush(self, ts):
-        if not self.count:
-            return []
-
-        self.samples.sort()
-        length = len(self.samples)
-
-        min_ = self.samples[0]
-        max_ = self.samples[-1]
-        med = self.samples[int(round(length/2 - 1))]
-
-
-        metrics = [
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.min' % self.name, 'points' : [(ts, min_)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.max' % self.name, 'points' : [(ts, max_)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.median' % self.name, 'points' : [(ts, med)]},
-            {'host':self.hostname, 'tags': self.tags, 'metric' : '%s.count' % self.name, 'points' : [(ts, self.count)]},
-        ]
-
-        for p in self.percentiles:
-            val = self.samples[int(round(p * length - 1))]
-            name = '%s.%spercentile' % (self.name, int(p * 100))
-            metrics.append({'host': self.hostname, 'tags':self.tags, 'metric': name, 'points': [(ts, val)]})
-
-        # Reset our state.
-        self.samples = []
-        self.count = 0
-
-        return metrics
-
-
-class MetricsAggregator(object):
-    """
-    A metric aggregator class.
-    """
-
-    def __init__(self, hostname, expiry_seconds=300):
-        self.metrics = {}
-        self.total_count = 0
-        self.count = 0
-        self.metric_type_to_class = {
-            'g': Gauge,
-            'c': Counter,
-            'h': Histogram,
-            'ms' : Histogram
-        }
-        self.hostname = hostname
-        self.expiry_seconds = expiry_seconds
-
-    def submit(self, packet):
-        self.count += 1
-        # We can have colons in tags, so split once.
-        name_and_metadata = packet.split(':', 1)
-
-        if len(name_and_metadata) != 2:
-            raise Exception('Unparseable packet: %s' % packet)
-
-        name = name_and_metadata[0]
-        metadata = name_and_metadata[1].split('|')
-
-        if len(metadata) < 2:
-            raise Exception('Unparseable packet: %s' % packet)
-
-        # Parse the optional values - sample rate & tags.
-        sample_rate = 1
-        tags = None
-        for m in metadata[2:]:
-            # Parse the sample rate
-            if m[0] == '@':
-                sample_rate = float(m[1:])
-                assert 0 <= sample_rate <= 1
-            elif m[0] == '#':
-                tags = tuple(sorted(m[1:].split(',')))
-
-        context = (name, tags)
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[metadata[1]]
-            self.metrics[context] = metric_class(name, tags, self.hostname)
-        self.metrics[context].sample(float(metadata[0]), sample_rate)
-
-
-    def flush(self, include_diagnostic_stats=True):
-
-        timestamp = time()
-        expiry_timestamp = timestamp - self.expiry_seconds
-
-        # Flush points and remove expired metrics. We mutate this dictionary
-        # while iterating so don't use an iterator.
-        metrics = []
-        for context, metric in self.metrics.items():
-            if metric.last_sample_time < expiry_timestamp:
-                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
-                del self.metrics[context]
-            else:
-                metrics += metric.flush(timestamp)
-
-        # Track how many points we see.
-        if include_diagnostic_stats:
-            metrics.append({
-                'host':self.hostname,
-                'tags':None,
-                'metric': 'datadog.dogstatsd.packet.count',
-                'points': [(timestamp, self.count)]
-            })
-
-        # Save some stats.
-        logger.info("received %s payloads since last flush" % self.count)
-        self.total_count += self.count
-        self.count = 0
-        return metrics
-
 
 
 class Reporter(threading.Thread):
@@ -254,6 +60,7 @@ class Reporter(threading.Thread):
             if self.finished.is_set():
                 break
             self.finished.wait(self.interval)
+            self.aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
 
     def flush(self):
@@ -307,27 +114,34 @@ class Server(object):
 
         self.buffer_size = 1024
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
     def start(self):
         """ Run the server. """
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        # Inline variables to speed up look-ups.
+        self.running = True
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
+        socket = self.socket
         socket_recv = self.socket.recv
+        timeout = 5
 
-        while True:
+        while self.running:
             try:
-                aggregator_submit(socket_recv(buffer_size))
+                ready = select.select([socket], [], [], timeout)
+                if ready[0]:
+                    aggregator_submit(socket_recv(buffer_size))
             except (KeyboardInterrupt, SystemExit):
                 break
             except:
                 logger.exception('Error receiving datagram')
 
-def main(config_path=None):
+    def stop(self):
+        self.running = False
 
+def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.info("Starting dogstatsd")
@@ -350,6 +164,11 @@ def main(config_path=None):
     # Start the server.
     server_host = ''
     server = Server(aggregator, server_host, port)
+
+    return reporter, server
+
+def main(config_path=None):
+    reporter, server = init(config_path)
     server.start()
 
     # If we're here, we're done.

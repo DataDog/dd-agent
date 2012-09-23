@@ -6,14 +6,18 @@ import platform
 import string
 import subprocess
 import sys
+import glob
 from optparse import OptionParser, Values
 from cStringIO import StringIO
+from util import getOS
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
+
+class DDConfigNotFound(Exception): pass
 
 def get_parsed_args():
     parser = OptionParser()
@@ -35,42 +39,79 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.1.1"
+    return "3.1.3"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path):
+def initialize_logging(config_path, os_name=None):
     try:
         logging.config.fileConfig(config_path)
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 
-def get_config_path(cfg_path=None):
-    # Find the right config file
+def _windows_config_path():
+    # Find the 'common appdata' path
+    import ctypes
+    from ctypes import wintypes, windll
+
+    CSIDL_COMMON_APPDATA = 35
+
+    _SHGetFolderPath = windll.shell32.SHGetFolderPathW
+    _SHGetFolderPath.argtypes = [wintypes.HWND,
+                                ctypes.c_int,
+                                wintypes.HANDLE,
+                                wintypes.DWORD, wintypes.LPCWSTR]
+
+    path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
+    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
+    common_data = path_buf.value
+
+    path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def _unix_config_path():
+    path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+    if os.path.exists(path):
+        return path
+    raise DDConfigNotFound(path)
+
+def get_config_path(cfg_path=None, os_name=None):
+    # Check if there's an override and if it exists
+    if cfg_path is not None and os.path.exists(cfg_path):
+        return cfg_path
+
+    # Check for an OS-specific path, continue on not-found exceptions
+    exc = None
+    if os_name == 'windows':
+        try:
+            return _windows_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+    else:
+        try:
+            return _unix_config_path()
+        except DDConfigNotFound, e:
+            exc = e
+
+    # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
     path = os.path.dirname(path)
+    if os.path.exists(os.path.join(path, DATADOG_CONF)):
+        return os.path.join(path, DATADOG_CONF)
+    
+    # If all searches fail, exit the agent with an error
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
+    sys.exit(3)
 
-    config_path = None
-    if cfg_path is not None and os.path.exists(cfg_path):
-        config_path = cfg_path
-    elif os.path.exists(os.path.join('/etc/dd-agent', DATADOG_CONF)):
-        config_path = os.path.join('/etc/dd-agent', DATADOG_CONF)
-    elif os.path.exists(os.path.join(path, DATADOG_CONF)):
-        config_path = os.path.join(path, DATADOG_CONF)
-    else:
-        sys.stderr.write("Please supply a configuration file at /etc/dd-agent/%s or in the directory where the agent is currently deployed.\n" % DATADOG_CONF)
-        sys.exit(3)
-    return config_path
-
-
-def get_config(parse_args = True, cfg_path=None, init_logging=False):
+def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
     if parse_args:
         options, args = get_parsed_args()
-    else:
-        options = None
+    elif not options:
         args = None
 
     # General config
@@ -97,12 +138,12 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config_path = get_config_path(cfg_path)
+        config_path = get_config_path(cfg_path, os_name=getOS())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
         if init_logging:
-            initialize_logging(config_path)
+            initialize_logging(config_path, os_name=getOS())
 
 
         # bulk import
@@ -217,6 +258,11 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False):
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
+        if config.has_section('WMI'):
+            agentConfig['WMI'] = {}
+            for key, value in config.items('WMI'):
+                agentConfig['WMI'][key] = value    
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
@@ -279,3 +325,117 @@ def get_system_stats():
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
     return systemStats
+
+def set_win32_cert_path():
+    ''' In order to use tornado.httpclient with the packaged .exe on Windows we
+    need to override the default ceritifcate location which is based on the path
+    to tornado and will give something like "C:\path\to\program.exe\tornado/cert-file".
+
+    If pull request #379 is accepted (https://github.com/facebook/tornado/pull/379) we
+    will be able to override this in a clean way. For now, we have to monkey patch
+    tornado.httpclient._DEFAULT_CA_CERTS
+    '''
+    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
+        'ca-certificates.crt')
+    import tornado.simple_httpclient
+    tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
+
+def get_confd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    cur_path = os.path.join(cur_path, 'conf.d')
+
+    if os.path.exists(cur_path):
+        log.debug("Using '%s' as the path to conf.d" % cur_path)
+        return cur_path
+
+    # Try /etc/dd-agent/conf.d/
+    # FIXME: Make this work on Windows when it's in the mainline
+    path_check = os.path.join('/etc/dd-agent', 'conf.d')
+    if os.path.exists(path_check):
+        log.debug("Using '%s' as the path to conf.d" % path_check)
+        return path_check
+
+    sys.stderr.write("No conf.d folder found in /etc/dd-agent/ or in the directory where the agent is currently deployed.\n")
+    sys.exit(3)
+
+def get_checksd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    checksd_path = os.path.join(cur_path, 'checks.d')
+
+    return checksd_path
+
+def load_check_directory(agentConfig):
+    ''' Return the checks from checks.d. Only checks that have a configuration
+    file in conf.d will be returned. '''
+    from util import yaml, yLoader
+    checks = []
+
+    log = logging.getLogger('config')
+    checks_path = get_checksd_path()
+    confd_path = get_confd_path()
+    check_glob = os.path.join(checks_path, '*.py')
+
+    # Update the python path before the import
+    sys.path.append(checks_path)
+
+    # For backwards-compatability with old style checks, we have to load every
+    # checks.d module and check for a corresponding config OR check if the old
+    # config will "activate" the check.
+    #
+    # Once old-style checks aren't supported, we'll just read the configs and
+    # import the corresponding check module
+    for check in glob.glob(check_glob):
+        check_name = os.path.basename(check).split('.')[0]
+        try:
+            check_module = __import__(check_name)
+        except:
+            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            continue
+
+        try:
+            check_class = getattr(check_module, check_module.CHECK)
+        except:
+            log.warn("Unable to find CHECK value for the checks.d module %s.py" % check_name)
+            continue
+
+        # Check if the config exists OR we match the old-style config
+        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+        if os.path.exists(conf_path):
+            with open(conf_path) as f:
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                except:
+                    log.warn("Unable to parse yaml config in %s" % conf)
+                    continue
+        elif hasattr(check_class, 'parse_agent_config'):
+            # FIXME: Remove this check once all old-style checks are gone
+            check_config = check_class.parse_agent_config(agentConfig)
+            if not check_config:
+                continue
+        else:
+            continue
+
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config', None)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
+
+        # Look for the per-check config, which *must* exist
+        if not check_config.get('instances'):
+            log.error("Config %s is missing 'instances'" % conf)
+            continue
+
+        # Although most instancess will be a list to support multi-instance
+        # checks, accept non-list formatted.
+        if type(check_config['instances']) != type([]):
+            check_config['instances'] = [check_config['instances']]
+
+        checks.append({
+            'name': check_name,
+            'instances': check_config['instances'],
+            'class': check_class
+        })
+
+    return checks
