@@ -140,23 +140,28 @@ Section "Datadog Agent" SecDummy
 
   SetOutPath "$INSTDIR"
 
+  ; Stop the service if it exists so we can overwrite the exe
+  ${If} ${FileExists} "$INSTDIR\ddagent.exe" 
+    Exec "$INSTDIR\ddagent.exe stop"
+  ${EndIf}
+
   ; Files to install
   File "../install_files\license.txt"
   File /oname=ddagent.exe "..\install_files\agent.exe"
   FILE "../install_files\ca-certificates.crt"
 
   ; Config does in App Data
-  SetOutPath "$0\Datadog"
-  File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+  ; Only write the config if it doesn't exist yet
+  ${IfNot} ${FileExists} "$0\Datadog\datadog.conf"
+    SetOutPath "$0\Datadog"
+    File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+  ${EndIf}
 
   ;Store installation folder
   WriteRegStr HKCU "Software\Datadog Agent" "" $INSTDIR
   
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-
-  ; Open the Readme file
-  ExecShell "$INSTDIR\ddagent.exe" "install"
 
 SectionEnd
 
@@ -178,6 +183,10 @@ Section "Uninstall"
   SetShellVarContext all
   StrCpy $0 $APPDATA
   SetShellVarContext current
+
+  ; Remove the agent service
+  Exec "$INSTDIR\ddagent.exe stop"
+  Exec "$INSTDIR\ddagent.exe remove"
 
   Delete "$INSTDIR\ddagent.exe"
   Delete "$0\Datadog\datadog.conf"
