@@ -230,7 +230,7 @@ class checks(object):
             checksData.update({'processes': processes})
 
             networkTraffic = sys_checks['network'].check(self.agentConfig)
-            checksData.update({'networkTraffic': processes})
+            checksData.update({'networkTraffic': networkTraffic})
 
             cpuStats = sys_checks['cpu'].check(self.checksLogger, self.agentConfig)
             if cpuStats is not False and cpuStats is not None:

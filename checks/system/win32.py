@@ -27,6 +27,7 @@ class Memory(Check):
         Check.__init__(self, logger)
         self.logger = logger
         self.gauge('system.mem.free')
+        self.gauge('system.mem.used')
         self.gauge('system.mem.total')
         self.gauge('system.mem.cached')
         self.gauge('system.mem.committed')
@@ -38,8 +39,11 @@ class Memory(Check):
         w = wmi.WMI()
         os = w.Win32_OperatingSystem()[0]
         mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
-        self.save_sample('system.mem.total', int(os.TotalVisibleMemorySize) / KB2MB)
-        self.save_sample('system.mem.free', int(os.FreePhysicalMemory) / KB2MB)
+        total = int(os.TotalVisibleMemorySize) / KB2MB
+        free = int(os.FreePhysicalMemory) / KB2MB
+        self.save_sample('system.mem.total', total)
+        self.save_sample('system.mem.free', free)
+        self.save_sample('system.mem.used', total - free)
         self.save_sample('system.mem.cached', int(mem.CacheBytes) / B2MB)
         self.save_sample('system.mem.committed', int(mem.CommittedBytes) / B2MB)
         self.save_sample('system.mem.paged', int(mem.PoolPagedBytes) / B2MB)
