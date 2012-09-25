@@ -30,7 +30,6 @@ from checks.build import Hudson
 
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
-from checks.db.redisDb import Redis
 from checks.db.couch import CouchDb
 from checks.db.pg import PostgreSql
 from checks.db.mcache import Memcache
@@ -103,7 +102,6 @@ class checks(object):
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
-        self._redis = Redis(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
         self._ec2 = EC2(self.checksLogger)
@@ -111,7 +109,6 @@ class checks(object):
         # Metric Checks
         self._metrics_checks = [
             Cacti(self.checksLogger),
-            Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             Jvm(self.checksLogger),
