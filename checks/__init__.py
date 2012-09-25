@@ -440,5 +440,5 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     if device_name:
         attributes['device_name'] = device_name
     if attributes:
-        return (metric, timestamp, value, attributes)
-    return (metric, timestamp, value)
+        return (metric, int(timestamp), value, attributes)
+    return (metric, int(timestamp), value)
