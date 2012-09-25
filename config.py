@@ -7,6 +7,7 @@ import string
 import subprocess
 import sys
 import glob
+import inspect
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 from util import getOS
@@ -371,6 +372,8 @@ def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
     file in conf.d will be returned. '''
     from util import yaml, yLoader
+    from checks import AgentCheck
+
     checks = []
 
     log = logging.getLogger('config')
@@ -395,10 +398,15 @@ def load_check_directory(agentConfig):
             log.warn('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
-        try:
-            check_class = getattr(check_module, check_module.CHECK)
-        except:
-            log.warn("Unable to find CHECK value for the checks.d module %s.py" % check_name)
+        check_class = None
+        classes = inspect.getmembers(check_module, inspect.isclass)
+        for name, clsmember in classes:
+            if AgentCheck in clsmember.__bases__:
+                check_class = clsmember
+                break
+
+        if not check_class:
+            log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config

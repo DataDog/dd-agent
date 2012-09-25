@@ -7,8 +7,6 @@ from util import json, headers
 
 import time
 
-CHECK = 'HAProxy'
-
 STATS_URL = ";csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 

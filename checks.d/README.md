@@ -120,8 +120,6 @@ import requests
 from checks import AgentCheck
 from hashlib import md5
 
-CHECK = 'HTTPCheck'
-
 class HTTPCheck(AgentCheck):
     def check(self, instance):
         if 'url' not in instance:
