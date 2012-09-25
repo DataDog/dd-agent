@@ -234,7 +234,6 @@ class checks(object):
         # Run old-style checks
         apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
-        pgsqlStatus = self._pgsql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
