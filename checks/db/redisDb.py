@@ -95,7 +95,7 @@ class Redis(Check):
             return False
 
         # Allow the default redis database to be overridden.
-        urls = agentConfig.get('redis_urls', 'localhost:6379')
+        urls = agentConfig.get('redis_urls', '')
         for url in [u.strip() for u in urls.split(',')]:
             try:
                 self.logger.info("[REDIS] Checking instance: %s" % url)
