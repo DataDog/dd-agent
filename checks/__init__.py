@@ -306,18 +306,32 @@ class AgentCheck(object):
         self.aggregator.gauge(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
 
-    def increment(self, metric, value, tags=None, hostname=None, device_name=None):
+    def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
         """
         Increment a counter with optional tags, hostname and device name.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value to increment by
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
         self.aggregator.increment(metric, value, tags=tags, hostname=hostname,
             device_name=device_name)
+
+    def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
+        """
+        Increment a counter with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to increment by
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.decrement(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """

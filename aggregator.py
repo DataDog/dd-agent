@@ -287,7 +287,12 @@ class MetricsAggregator(object):
         packet = self._create_packet(metric, value, tags, 'g')
         self.submit(packet, hostname=hostname, device_name=device_name)
 
-    def increment(self, metric, value, tags=None, hostname=None, device_name=None):
+    def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
+        ''' Format the counter metric into a StatsD packet format and submit'''
+        packet = self._create_packet(metric, value, tags, 'c')
+        self.submit(packet, hostname=hostname, device_name=device_name)
+
+    def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
         ''' Format the counter metric into a StatsD packet format and submit'''
         packet = self._create_packet(metric, value, tags, 'c')
         self.submit(packet, hostname=hostname, device_name=device_name)
