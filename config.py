@@ -324,6 +324,7 @@ def get_system_stats():
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
+
     return systemStats
 
 def set_win32_cert_path():
@@ -407,7 +408,7 @@ def load_check_directory(agentConfig):
                 try:
                     check_config = yaml.load(f.read(), Loader=yLoader)
                 except:
-                    log.warn("Unable to parse yaml config in %s" % conf)
+                    log.warn("Unable to parse yaml config in %s" % conf_path)
                     continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
