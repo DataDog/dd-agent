@@ -31,7 +31,6 @@ from checks.build import Hudson
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
 from checks.db.couch import CouchDb
-from checks.db.pg import PostgreSql
 from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
@@ -98,7 +97,6 @@ class checks(object):
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
-        self._pgsql = PostgreSql(self.checksLogger)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
@@ -259,10 +257,6 @@ class checks(object):
         if mysqlStatus:
             checksData.update(mysqlStatus)
        
-        # PostgreSQL status
-        if pgsqlStatus: 
-            checksData['postgresql'] = pgsqlStatus
-
         # RabbitMQ
         if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
