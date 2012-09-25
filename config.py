@@ -433,7 +433,7 @@ def load_check_directory(agentConfig):
 
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
-            log.error("Config %s is missing 'instances'" % conf)
+            log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
         # Although most instancess will be a list to support multi-instance
