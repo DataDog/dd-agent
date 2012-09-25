@@ -307,6 +307,11 @@ class MetricsAggregator(object):
         packet = self._create_packet(metric, value, tags, '_dd-r')
         self.submit(packet, hostname=hostname, device_name=device_name)
 
+    def set(self, metric, value, tags=None, hostname=None, device_name=None):
+        ''' Format the histogram metric into a StatsD packet format and submit'''
+        packet = self._create_packet(metric, value, tags, 's')
+        self.submit(packet, hostname=hostname, device_name=device_name)
+
     def _create_packet(self, metric, value, tags, stat_type):
         packet = '%s:%s|%s' % (metric, value, stat_type)
         if tags:

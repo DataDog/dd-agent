@@ -324,7 +324,7 @@ class AgentCheck(object):
         Increment a counter with optional tags, hostname and device name.
 
         :param metric: The name of the metric
-        :param value: The value to increment by
+        :param value: The value to decrement by
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
@@ -340,7 +340,7 @@ class AgentCheck(object):
         point to generate a rate on the flush.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value of the rate
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
@@ -353,7 +353,20 @@ class AgentCheck(object):
         Sample a histogram value, with optional tags, hostname and device name.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value to sample for the histogram
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.histogram(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def set(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Sample a set value, with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value for the set
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
