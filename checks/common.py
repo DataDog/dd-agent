@@ -30,9 +30,7 @@ from checks.build import Hudson
 
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
-from checks.db.redisDb import Redis
 from checks.db.couch import CouchDb
-from checks.db.pg import PostgreSql
 from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
@@ -46,7 +44,6 @@ from checks.cacti import Cacti
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
-from checks.net.haproxy import HAProxyMetrics, HAProxyEvents
 
 from checks.wmi_check import WMICheck
 
@@ -100,11 +97,9 @@ class checks(object):
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
-        self._pgsql = PostgreSql(self.checksLogger)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(self.checksLogger)
         self._cassandra = Cassandra()
-        self._redis = Redis(self.checksLogger)
         self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
         self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
         self._ec2 = EC2(self.checksLogger)
@@ -112,10 +107,8 @@ class checks(object):
         # Metric Checks
         self._metrics_checks = [
             Cacti(self.checksLogger),
-            Redis(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
-            HAProxyMetrics(self.checksLogger),
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
             ActiveMQ(self.checksLogger),
@@ -137,7 +130,6 @@ class checks(object):
         # Event Checks
         self._event_checks = [
             ElasticSearchClusterStatus(self.checksLogger),
-            HAProxyEvents(self.checksLogger), Hudson(),
             Nagios(socket.gethostname())
         ]
 
@@ -170,7 +162,7 @@ class checks(object):
 
         return metadata
 
-    def doChecks(self, firstRun=False, systemStats=False):
+    def doChecks(self, firstRun=False, systemStats=False, checksd=None):
         """Actual work
         """
         self.checksLogger.info("Starting checks")
@@ -184,6 +176,7 @@ class checks(object):
             'resources': {}
         }
         metrics = []
+        events = {}
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
@@ -241,7 +234,6 @@ class checks(object):
         # Run old-style checks
         apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
-        pgsqlStatus = self._pgsql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
@@ -264,10 +256,6 @@ class checks(object):
         if mysqlStatus:
             checksData.update(mysqlStatus)
        
-        # PostgreSQL status
-        if pgsqlStatus: 
-            checksData['postgresql'] = pgsqlStatus
-
         # RabbitMQ
         if rabbitmq:
             checksData['rabbitMQ'] = rabbitmq
@@ -275,7 +263,7 @@ class checks(object):
         # MongoDB
         if mongodb:
             if mongodb.has_key('events'):
-                checksData['events']['Mongo'] = mongodb['events']['Mongo']
+                events['Mongo'] = mongodb['events']['Mongo']
                 del mongodb['events']
             checksData['mongoDB'] = mongodb
             
@@ -287,9 +275,9 @@ class checks(object):
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
                 if 'dogstream' in checksData['events']:
-                    checksData['events']['dogstream'].extend(dogstreamEvents)
+                    events['dogstream'].extend(dogstreamEvents)
                 else:
-                    checksData['events']['dogstream'] = dogstreamEvents
+                    events['dogstream'] = dogstreamEvents
                 del dogstreamData['dogstreamEvents']
 
             checksData.update(dogstreamData)
@@ -306,7 +294,7 @@ class checks(object):
         for event_check in self._event_checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
-                checksData['events'][event_check.key] = event_data
+                events[event_check.key] = event_data
        
         # Include system stats on first postback
         if firstRun:
@@ -315,7 +303,7 @@ class checks(object):
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
-            checksData['events']['System'] = [{'api_key': self.agentConfig['api_key'],
+            events['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
                                                'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
                                                'event_type':'Agent Startup',
@@ -350,7 +338,23 @@ class checks(object):
             res = metrics_check.check(self.agentConfig)
             if res:
                 metrics.extend(res)
+
+        # checks.d checks
+        for check in checksd:
+            check_cls = check['class']
+            for instance in check['instances']:
+                # Run the check for each configuration
+                check_cls.check(instance)
+                metrics.extend(check_cls.get_metrics())
+                if check_cls.has_events():
+                    events[check['name']] = check_cls.get_events()
+
+
+        # Store the metrics in the payload
         checksData['metrics'] = metrics
+
+        # Store the events in the payload
+        checksData['events'] = events
 
         # Send back data
         self.checksLogger.debug("checksData: %s" % checksData)
