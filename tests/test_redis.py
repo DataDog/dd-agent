@@ -8,7 +8,7 @@ import subprocess
 import time
 import redis
 
-from checks.db.redisDb import Redis as RedisCheck
+from tests.common import load_check
 
 logger = logging.getLogger()
 
@@ -53,18 +53,35 @@ class TestRedis(unittest.TestCase):
     def test_redis_auth(self):
         # Test connection with password
         if not self.is_travis():
-            r = RedisCheck(logger)
             # correct password
-            metrics = self._sort_metrics(r.check({"redis_urls": "datadog-is-devops-best-friend@localhost:%s" % AUTH_PORT}))
+            r = load_check('redisdb', {}, {})
+            instance = {
+                'host': 'localhost',
+                'port': AUTH_PORT,
+                'password': 'datadog-is-devops-best-friend'
+            }
+            r.check(instance)
+            metrics = self._sort_metrics(r.get_metrics())
             assert len(metrics) > 0, "No metrics returned"
-            del r, metrics
 
             # wrong passwords
-            for u in ("@localhost:%s" % AUTH_PORT, "localhost:%s" % AUTH_PORT, "badpassword@localhost:%s" % AUTH_PORT):
-                r = RedisCheck(logger)
-                metrics = self._sort_metrics(r.check({"redis_urls": u}))
+            instances = [
+                {
+                    'host': 'localhost',
+                    'port': AUTH_PORT,
+                    'password': ''
+                },
+                {
+                    'host': 'localhost',
+                    'port': AUTH_PORT,
+                    'password': 'badpassword'
+                }
+            ]
+            for instance in instances:
+                r = load_check('redisdb', {}, {})
+                r.check(instance)
+                metrics = self._sort_metrics(r.get_metrics())
                 assert len(metrics) == 0, "Should have failed with bad password; got %s instead" % metrics
-                del r, metrics
 
     def test_redis_default(self):
         # Base test, uses the noauth instance
@@ -72,14 +89,21 @@ class TestRedis(unittest.TestCase):
             port = DEFAULT_PORT
         else:
             port = NOAUTH_PORT
+
+        instance = {
+            'host': 'localhost',
+            'port': port
+        }
+
         db = redis.Redis(port=port, db=14) # Datadog's test db
         db.flushdb()
         db.set("key1", "value")
         db.set("key2", "value")
         db.setex("expirekey", "expirevalue", 1000)
-        
-        r = RedisCheck(logger)
-        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % port}))
+
+        r = load_check('redisdb', {}, {})
+        r.check(instance)
+        metrics = self._sort_metrics(r.get_metrics())
         assert metrics, "No metrics returned"
 
         # Assert we have values, timestamps and tags for each metric.
@@ -110,7 +134,8 @@ class TestRedis(unittest.TestCase):
         self.assertEquals(3, db_metrics[1][2]) 
 
         # Run one more check and ensure we get total command count
-        metrics = self._sort_metrics(r.check({"redis_urls": "localhost:%s" % port}))
+        r.check(instance)
+        metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
 

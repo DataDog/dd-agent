@@ -13,6 +13,10 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) -n "datadog-agent-lib" \
 
 clean:
 	rm -f checks
+	rm -f dogstream
+	rm -f pup
+	rm -f yaml
+	rm -f checks.d
 	rm -rf build*
 	rm -rf *.egg-info
 	rm -rf dist
@@ -24,6 +28,8 @@ links:
 	ln -sf ../../checks .
 	ln -sf ../../dogstream .
 	ln -sf ../../pup .
+	ln -sf ../../yaml .
+	ln -sf ../../checks.d .
 
 dirs:
 	mkdir -p $(BUILD)
