@@ -1,7 +1,9 @@
 
 desc "Run tests"
-task "test" do
-  sh("nosetests")
+task :test, [:attrs] do |t, args|
+  attrs = args.attrs ? "-a #{args.attrs}" : ""
+  cmd = "nosetests #{attrs}"
+  sh cmd
 end
 
 desc "Run dogstatsd tests"
