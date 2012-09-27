@@ -340,14 +340,15 @@ class checks(object):
                 metrics.extend(res)
 
         # checks.d checks
-        for check in checksd:
-            check_cls = check['class']
-            for instance in check['instances']:
-                # Run the check for each configuration
-                check_cls.check(instance)
-                metrics.extend(check_cls.get_metrics())
-                if check_cls.has_events():
-                    events[check['name']] = check_cls.get_events()
+        if checksd:
+            for check in checksd:
+                check_cls = check['class']
+                for instance in check['instances']:
+                    # Run the check for each configuration
+                    check_cls.check(instance)
+                    metrics.extend(check_cls.get_metrics())
+                    if check_cls.has_events():
+                        events[check['name']] = check_cls.get_events()
 
 
         # Store the metrics in the payload
