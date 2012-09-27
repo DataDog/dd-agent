@@ -1,7 +1,6 @@
 """Check cassandra cluster health via nodetool.
 """
 from subprocess import Popen, PIPE
-from collections import deque
 import os.path
 import re
 import itertools
