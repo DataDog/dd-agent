@@ -18,7 +18,7 @@ DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
 
-class DDConfigNotFound(Exception): pass
+class PathNotFound(Exception): pass
 
 def get_parsed_args():
     parser = OptionParser()
@@ -52,9 +52,10 @@ def initialize_logging(config_path, os_name=None):
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
-
-def _windows_config_path():
-    # Find the 'common appdata' path
+def _windows_commondata_path():
+    ''' Return the common appdata path, using ctypes 
+    From: http://stackoverflow.com/questions/626796/how-do-i-find-the-windows-common-application-data-folder-using-python
+    '''
     import ctypes
     from ctypes import wintypes, windll
 
@@ -68,18 +69,41 @@ def _windows_config_path():
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
     result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
-    common_data = path_buf.value
+    return path_buf.value
 
+
+def _windows_config_path():
+    common_data = _windows_commondata_path()
     path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
     if os.path.exists(path):
         return path
-    raise DDConfigNotFound(path)
+    raise PathNotFound(path)
+
+def _windows_confd_path():
+    common_data = _windows_commondata_path()
+    path = os.path.join(common_data, 'conf.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
+def _windows_checksd_path():
+    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
+        'checks.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
 
 def _unix_config_path():
     path = os.path.join('/etc/dd-agent', DATADOG_CONF)
     if os.path.exists(path):
         return path
-    raise DDConfigNotFound(path)
+    raise PathNotFound(path)
+
+def _unix_confd_path():
+    path = os.path.join('/etc/dd-agent', 'conf.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
 
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
@@ -91,12 +115,12 @@ def get_config_path(cfg_path=None, os_name=None):
     if os_name == 'windows':
         try:
             return _windows_config_path()
-        except DDConfigNotFound, e:
+        except PathNotFound, e:
             exc = e
     else:
         try:
             return _unix_config_path()
-        except DDConfigNotFound, e:
+        except PathNotFound, e:
             exc = e
 
     # Check if there's a config stored in the current agent directory
@@ -342,31 +366,45 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
-def get_confd_path():
-    log = logging.getLogger('config')
+def get_confd_path(osname):
+    path = None
+
+    if osname == 'windows':
+        try:
+            return _windows_confd_path()
+        except PathNotFound, e:
+            exc = e
+    else:
+        try:
+            return _unix_confd_path()
+        except PathNotFound, e:
+            exc = e
+
     cur_path = os.path.dirname(os.path.realpath(__file__))
     cur_path = os.path.join(cur_path, 'conf.d')
 
     if os.path.exists(cur_path):
-        log.debug("Using '%s' as the path to conf.d" % cur_path)
         return cur_path
 
-    # Try /etc/dd-agent/conf.d/
-    # FIXME: Make this work on Windows when it's in the mainline
-    path_check = os.path.join('/etc/dd-agent', 'conf.d')
-    if os.path.exists(path_check):
-        log.debug("Using '%s' as the path to conf.d" % path_check)
-        return path_check
-
-    sys.stderr.write("No conf.d folder found in /etc/dd-agent/ or in the directory where the agent is currently deployed.\n")
+    sys.stderr.write("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
-def get_checksd_path():
-    log = logging.getLogger('config')
+def get_checksd_path(osname):
+    if osname == 'windows':
+        try:
+            return _windows_checksd_path()
+        except PathNotFound, e:
+            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
+
+    # Unix only will look up based on the current directory
+    # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     checksd_path = os.path.join(cur_path, 'checks.d')
+    if os.path.exists(checksd_path):
+        return checksd_path
 
-    return checksd_path
+    sys.stderr.write("No checks.d folder at '%s'.\n" % checksd_path)
+    sys.exit(3)
 
 def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
@@ -377,8 +415,9 @@ def load_check_directory(agentConfig):
     checks = []
 
     log = logging.getLogger('config')
-    checks_path = get_checksd_path()
-    confd_path = get_confd_path()
+    osname = getOS()
+    checks_path = get_checksd_path(osname)
+    confd_path = get_confd_path(osname)
     check_glob = os.path.join(checks_path, '*.py')
 
     # Update the python path before the import
