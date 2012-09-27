@@ -147,8 +147,8 @@ class Memcache(Check):
             self.logger.exception("Cannot get data from memcache")
 
         if mc is not None:
-                mc.disconnect_all()
-                self.logger.debug("Disconnected from memcached")
+            mc.disconnect_all()
+            self.logger.debug("Disconnected from memcached")
         del mc
 
     def check(self, agentConfig):
@@ -179,4 +179,4 @@ class Memcache(Check):
         self.logger.debug("Memcache samples: %s" % metrics)
         return metrics
 
-        
+ 
