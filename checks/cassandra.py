@@ -1,6 +1,7 @@
 """Check cassandra cluster health via nodetool.
 """
 from subprocess import Popen, PIPE
+from collections import deque
 import os.path
 import re
 import itertools
@@ -35,8 +36,44 @@ class Cassandra(object):
                 return None
             else:
                 return res[0]
+
+
+    def _parseInfoToken(self, lines):
+        """
+        Extract the token from the cassandra info
+
+        v 0.7
+        36299342986353445520010708318471778930
+
+        v 0.8
+        Token            : 51022655878160265769426795515063697984
+
+         With order preserving partitioner
+        Token            : Token(bytes[56713727820156410577229101240436610842])
+        """
+
+        # The first regex to match will return the token.
+        regexes = deque([
+            r"^(\d+)$",                     # Version 0.7
+            r"Token.*\(bytes\[(\d+)\]\)",   # Version 0.8 with order preserving
+            r"^Token[^:]+: ([0-9]+)$"       # Version 0.8
+        ])
+
+        token = None
+        while not token and regexes:
+            r = regexes.popleft()
+            token = self._find(lines, r)
+
+        if not token:
+            raise Exception("Couldn't find token in:\n %s" % "\n".join(lines))
+
+        # Convert token to a float since it does not fit in a 2**64 value.
+        # The loss of precision does not really matter since a well-balanced cluster
+        # will have markedly different tokens across all nodes.
+        return float(token)
+
         
-    def _parseInfo(self, info, results):
+    def _parseInfo(self, info, results, logger):
         """
         v 0.7
 
@@ -66,14 +103,11 @@ class Cassandra(object):
             return str(int(float(size) * self. UNITS_FACTOR[unit]))
   
         lines = info.split("\n")
-        # Convert token to a float since it does not fit in a 2**64 value.
-        # The loss of precision does not really matter since a well-balanced cluster
-        # will have markedly different tokens across all nodes.
-        t = Cassandra._find(lines, r"^(\d+)$")
-        if t: # v0.7
-            results["token"] = float(t)
-        else: # v0.8
-            results["token"] = float(Cassandra._find(lines, r"^Token[^:]+: ([0-9]+)$"))
+
+        try:
+            results["token"] = self._parseInfoToken(lines)
+        except:
+            logger.exception("Unable to parse Cassandra token. Continuing. Stacktrace:")
 
         results["load"]     = float(Cassandra._find(lines, 
             r"^Load[^:]+:\s+([0-9.]+).*([KMGT]B|bytes)$", postprocess=convert_size))
@@ -293,7 +327,7 @@ class Cassandra(object):
             
             # nodetool info
             pipe = Popen("%s %s" % (nodetool_cmd, "info"), shell=True, universal_newlines=True, bufsize=bufsize, stdout=PIPE, stderr=None).stdout
-            self._parseInfo(pipe.read(), results)
+            self._parseInfo(pipe.read(), results, logger)
             logger.debug("Cassandra info: %s" % results)
             pipe.close()
             
