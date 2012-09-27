@@ -30,6 +30,3 @@ before_script:
   - sudo apt-get install memcached
 env:
   - DB=redis
-notifications:
-  irc:
-    - "irc.freenode.org#datadog"
