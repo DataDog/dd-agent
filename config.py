@@ -367,7 +367,7 @@ def set_win32_cert_path():
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
 def get_confd_path(osname):
-    path = None
+    log = logging.getLogger('config')
 
     if osname == 'windows':
         try:
@@ -386,10 +386,12 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    sys.stderr.write("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
+    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
 def get_checksd_path(osname):
+    log = logging.getLogger('config')
+
     if osname == 'windows':
         try:
             return _windows_checksd_path()
@@ -403,7 +405,7 @@ def get_checksd_path(osname):
     if os.path.exists(checksd_path):
         return checksd_path
 
-    sys.stderr.write("No checks.d folder at '%s'.\n" % checksd_path)
+    log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
 def load_check_directory(agentConfig):
