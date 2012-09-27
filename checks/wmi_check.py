@@ -33,6 +33,11 @@ class WMICheck(Check):
             try:
                 res = getattr(w, wmi_name)()[0]
                 val = getattr(res, wmi_val)
+                try:
+                    val = float(val)
+                except:
+                    self.logger.error('Unable to parse %s/%s as a metric. The value %s can not be parsed as a float' % (wmi_name, wmi_val, val))
+                    continue
                 self.save_gauge(metric_name, val)
             except:
                 self.logger.exception('Unable to get metric %s/%s' % (wmi_name, wmi_val))
