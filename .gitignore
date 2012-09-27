@@ -14,3 +14,7 @@ node_modules/*
 *.rpm
 *.egg-info*
 dist/*
+*.msi
+*.wixobj
+*.wixpdb
+*.exe
