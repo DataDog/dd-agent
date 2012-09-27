@@ -19,8 +19,8 @@ from config import get_config, set_win32_cert_path, get_system_stats
 from win32.common import handle_exe_click
 
 class AgentSvc(win32serviceutil.ServiceFramework):
-    _svc_name_ = "ddagent_debug"
-    _svc_display_name_ = "DEBUG Datadog Agent"
+    _svc_name_ = "ddagent"
+    _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
 
     def __init__(self, args):
