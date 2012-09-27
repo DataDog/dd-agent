@@ -112,6 +112,7 @@
     ${IF} $1 == ${BST_CHECKED}
       ; Install and start the agent
       Exec "$INSTDIR\ddagent.exe --startup auto install"
+      Sleep 2000
       Exec "$INSTDIR\ddagent.exe start"
     ${ENDIF}
 
@@ -120,7 +121,7 @@
 ;--------------------------------
 ; Finish Page
 
-  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary service (ddagent).$\n$\nAll the Datadog services can be configured (e.g., to automatically start on boot) with 'Services Properties' at $WINDIR\system32\services.msc."
+  !define MUI_FINISHPAGE_TEXT "If you chose to install the Agent as a service, it should be currently running in the background and submitting metrics to Datadog.$\n$\nOtherwise, you will have to setup the Agent services manually by navigating to $INSTDIR in the console and installing the necessary service (ddagent).$\n$\nAll the Datadog services can be configured with 'Services Properties' at $WINDIR\system32\services.msc."
   !insertmacro MUI_PAGE_FINISH
 
 
@@ -140,23 +141,29 @@ Section "Datadog Agent" SecDummy
 
   SetOutPath "$INSTDIR"
 
+  ; Stop the service if it exists so we can overwrite the exe
+  ${If} ${FileExists} "$INSTDIR\ddagent.exe" 
+    Exec "$INSTDIR\ddagent.exe stop"
+    Sleep 2000
+  ${EndIf}
+
   ; Files to install
   File "../install_files\license.txt"
   File /oname=ddagent.exe "..\install_files\agent.exe"
   FILE "../install_files\ca-certificates.crt"
 
   ; Config does in App Data
-  SetOutPath "$0\Datadog"
-  File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+  ; Only write the config if it doesn't exist yet
+  ${IfNot} ${FileExists} "$0\Datadog\datadog.conf"
+    SetOutPath "$0\Datadog"
+    File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+  ${EndIf}
 
   ;Store installation folder
   WriteRegStr HKCU "Software\Datadog Agent" "" $INSTDIR
   
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-
-  ; Open the Readme file
-  ExecShell "$INSTDIR\ddagent.exe" "install"
 
 SectionEnd
 
@@ -179,12 +186,18 @@ Section "Uninstall"
   StrCpy $0 $APPDATA
   SetShellVarContext current
 
+  ; Remove the agent service
+  Exec "$INSTDIR\ddagent.exe stop"
+  Exec "$INSTDIR\ddagent.exe remove"
+
   Delete "$INSTDIR\ddagent.exe"
   Delete "$0\Datadog\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
+  Delete "$INSTDIR\license.txt"
   Delete "$INSTDIR\Uninstall.exe"
 
   RMDir "$INSTDIR"
+  RMDir "$0\Datadog"
 
   DeleteRegKey /ifempty HKCU "Software\Datadog Agent"
 

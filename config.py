@@ -6,6 +6,8 @@ import platform
 import string
 import subprocess
 import sys
+import glob
+import inspect
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 from util import getOS
@@ -38,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.1.3"
+    return "3.1.5"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -323,6 +325,7 @@ def get_system_stats():
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
 
+
     return systemStats
 
 def set_win32_cert_path():
@@ -338,3 +341,110 @@ def set_win32_cert_path():
         'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
+
+def get_confd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    cur_path = os.path.join(cur_path, 'conf.d')
+
+    if os.path.exists(cur_path):
+        log.debug("Using '%s' as the path to conf.d" % cur_path)
+        return cur_path
+
+    # Try /etc/dd-agent/conf.d/
+    # FIXME: Make this work on Windows when it's in the mainline
+    path_check = os.path.join('/etc/dd-agent', 'conf.d')
+    if os.path.exists(path_check):
+        log.debug("Using '%s' as the path to conf.d" % path_check)
+        return path_check
+
+    sys.stderr.write("No conf.d folder found in /etc/dd-agent/ or in the directory where the agent is currently deployed.\n")
+    sys.exit(3)
+
+def get_checksd_path():
+    log = logging.getLogger('config')
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    checksd_path = os.path.join(cur_path, 'checks.d')
+
+    return checksd_path
+
+def load_check_directory(agentConfig):
+    ''' Return the checks from checks.d. Only checks that have a configuration
+    file in conf.d will be returned. '''
+    from util import yaml, yLoader
+    from checks import AgentCheck
+
+    checks = []
+
+    log = logging.getLogger('config')
+    checks_path = get_checksd_path()
+    confd_path = get_confd_path()
+    check_glob = os.path.join(checks_path, '*.py')
+
+    # Update the python path before the import
+    sys.path.append(checks_path)
+
+    # For backwards-compatability with old style checks, we have to load every
+    # checks.d module and check for a corresponding config OR check if the old
+    # config will "activate" the check.
+    #
+    # Once old-style checks aren't supported, we'll just read the configs and
+    # import the corresponding check module
+    for check in glob.glob(check_glob):
+        check_name = os.path.basename(check).split('.')[0]
+        try:
+            check_module = __import__(check_name)
+        except:
+            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            continue
+
+        check_class = None
+        classes = inspect.getmembers(check_module, inspect.isclass)
+        for name, clsmember in classes:
+            if AgentCheck in clsmember.__bases__:
+                check_class = clsmember
+                break
+
+        if not check_class:
+            log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
+            continue
+
+        # Check if the config exists OR we match the old-style config
+        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+        if os.path.exists(conf_path):
+            with open(conf_path) as f:
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                except:
+                    log.warn("Unable to parse yaml config in %s" % conf_path)
+                    continue
+        elif hasattr(check_class, 'parse_agent_config'):
+            # FIXME: Remove this check once all old-style checks are gone
+            check_config = check_class.parse_agent_config(agentConfig)
+            if not check_config:
+                continue
+        else:
+            continue
+
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config', None)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
+
+        # Look for the per-check config, which *must* exist
+        if not check_config.get('instances'):
+            log.error("Config %s is missing 'instances'" % conf_path)
+            continue
+
+        # Although most instancess will be a list to support multi-instance
+        # checks, accept non-list formatted.
+        if type(check_config['instances']) != type([]):
+            check_config['instances'] = [check_config['instances']]
+
+        checks.append({
+            'name': check_name,
+            'instances': check_config['instances'],
+            'class': check_class
+        })
+
+    return checks

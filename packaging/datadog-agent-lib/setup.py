@@ -18,20 +18,34 @@ def getVersion():
         import sys
         sys.path.append("../..")
         from config import get_version
-   
     return get_version()
 
 def printVersion():
     print getVersion()
 
-if __name__ == "__main__":
+def getDataFiles():
+    ''' Load the data files from checks.d '''
+    import glob
+    curpath = os.path.dirname(os.path.join(os.path.realpath(__file__)))
+    checksd_path = os.path.join(curpath, 'checks.d')
+    checksd_glob = os.path.join(checksd_path, '*.py')
 
+    # Find all py files in the checks.d directory
+    checks = []
+    for check in glob.glob(checksd_glob):
+        check = os.path.basename(check)
+        checks.append(check)
+
+    return [('share/datadog/agent/checks.d', ['checks.d/%s' % c for c in checks])]
+
+if __name__ == "__main__":
     setup(name='datadog-agent-lib',
           version=getVersion(),
           description='Datatadog monitoring agent check library',
           author='Datadog',
           author_email='info@datadoghq.com',
           url='http://datadoghq.com/',
-          packages=['checks', 'checks/db', 'checks/net', 'checks/system', 'dogstream','pup'],
+          packages=['checks', 'checks/db', 'checks/system', 'dogstream','pup', 'yaml'],
           package_data={'checks': ['libs/*'], 'pup' : ['static/*', 'pup.html']},
+          data_files=getDataFiles()
          )

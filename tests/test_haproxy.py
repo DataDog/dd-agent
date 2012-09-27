@@ -5,6 +5,10 @@ import urllib2
 import tempfile
 import os
 import logging
+
+from checks import gethostname
+from tests.common import load_check
+
 logging.basicConfig()
 
 from checks.net.haproxy import HAProxyEvents, HAProxyMetrics, get_data, process_data
@@ -34,12 +38,14 @@ class HaproxyTestCase(unittest.TestCase):
                 if loop >= MAX_WAIT:
                     break
 
-    def setUp(self):
-        "Don't do anything here since init changes depending on the test"
+    def start_server(self, config_fn, config):
+        self.agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
 
-    def real_setup(self, config_fn):
-        self.metrics_check = HAProxyMetrics(logging.getLogger())
-        self.events_check = HAProxyEvents(logging.getLogger())
+        # Initialize the check from checks.d
+        self.check = load_check('haproxy', config, self.agentConfig)
 
         self.process = None
         try:
@@ -57,92 +63,91 @@ class HaproxyTestCase(unittest.TestCase):
         except:
             logging.getLogger().exception("Cannot instantiate haproxy")
 
+    def testCheck(self):
+        config = {
+            'instances': [{
+                'url': 'http://localhost:3834/stats',
+                'username': 'datadog',
+                'password': 'isdevops'
+            }]
+        }
+        self.start_server(HAPROXY_CFG, config)
+
+        # Run the check against our running server
+        self.check.check(config['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(config['instances'][0])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
+
+        inst = config['instances'][0]
+        data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
+        new_data = [l.replace("OPEN", "DOWN") for l in data]
+
+        self.check._process_data(new_data, gethostname(self.agentConfig),
+            event_cb=self.check._process_events)
+
+        assert self.check.has_events()
+        assert len(self.check.get_events()) == 1
+
+    def testWrongConfig(self):
+        # Same check, with wrong data
+        config = {
+            'instances': [{
+                'url': 'http://localhost:3834/stats',
+                'username': 'wrong',
+                'password': 'isdevops'
+            }]
+        }
+        self.start_server(HAPROXY_CFG, config)
+
+        # Run the check, make sure there are no metrics or events
+        self.check.check(config['instances'][0])
+        metrics = self.check.get_metrics()
+        assert len(metrics) == 0
+        assert self.check.has_events() == False
+
+    def testOpenConfig(self):
+        # No passwords this time
+        config = {
+            'instances': [{
+                'url': 'http://localhost:3834/stats',
+            }]
+        }
+        self.start_server(HAPROXY_OPEN_CFG, config)
+
+        # Run the check against our running server
+        self.check.check(config['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(config['instances'][0])
+
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
     def tearDown(self):
         if self.process is not None:
             self.process.terminate()
         del self.cfg
-
-    def testCheckEvents(self):
-        self.real_setup(HAPROXY_CFG)
-        agentConfig = {
-            'haproxy_url': 'http://localhost:3834/stats', 
-            'haproxy_user': 'datadog', 
-            'haproxy_password':'isdevops',
-            'version': '0.1',
-            'api_key': 'apikey_2'
-        }
-
-        r = self.events_check.check(logging.getLogger(), agentConfig)
-
-        try:
-            data = get_data(agentConfig, logging.getLogger())
-
-        except Exception,e:
-            logging.getLogger().exception('Unable to get haproxy statistics %s' % e)
-            assert(False)
-
-        new_data = []
-
-        for line in data:
-            new_data.append(line.replace("OPEN", "DOWN"))
-
-        process_data(self.events_check, agentConfig, new_data)
-
-        self.assertTrue(len(self.events_check.events) == 1)
-
-
-    def testCheckMetrics(self):
-        # Metric check
-        self.real_setup(HAPROXY_CFG)
-        agentConfig = {
-            'haproxy_url': 'http://localhost:3834/stats', 
-            'haproxy_user': 'datadog', 
-            'haproxy_password':'isdevops',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-        r = self.metrics_check.check(agentConfig)
-
-        #We run it twice as we want to check counter metrics too
-        r = self.metrics_check.check(agentConfig)
-        self.assertTrue(r)
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[0] == "haproxy.backend.bytes.in_rate"]), 2, r)
-        self.assertEquals(len([t for t in r if t[0] == "haproxy.frontend.session.current"]), 1, r)
-
-    def testWrongConfig(self):
-        # Same check, with wrong data
-        self.real_setup(HAPROXY_CFG)
-        agentConfig = {
-            'haproxy_url': 'http://localhost:3834/stats',
-            'haproxy_user': 'wrong', 
-            'haproxy_password':'isdevops',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-
-        r = self.metrics_check.check(agentConfig)
-        self.assertFalse(r)
-
-    def testOpenConfig(self):
-        # No passwords this time
-        self.real_setup(HAPROXY_OPEN_CFG)
-        agentConfig = {
-            'haproxy_url': 'http://localhost:3834/stats',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-
-        # run the check twice to get rates
-        self.metrics_check.check(agentConfig)
-        r = self.metrics_check.check(agentConfig)
-        self.assertTrue(r)
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[0] == "haproxy.backend.bytes.in_rate"]), 2, r)
-        self.assertEquals(len([t for t in r if t[0] == "haproxy.frontend.session.current"]), 1, r)
 
 if __name__ == "__main__":
     unittest.main()

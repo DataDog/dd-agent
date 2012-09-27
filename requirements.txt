@@ -3,3 +3,4 @@ tornado
 redis
 pexpect
 python-memcached
+pyyaml
