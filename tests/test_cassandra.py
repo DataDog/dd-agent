@@ -26,20 +26,12 @@ class TestCassandra(unittest.TestCase):
 
     @attr('cassandra')
     def testParseInfoOpp(self):
-        # Assert we can parse tokens from nodes using the order preserving
-        # partitioner.
+        # Assert we can parse info from nodes using the order preserving
+        # partitioner, event if we dont' do anything with the token.
         res = {}
         self.c._parseInfo(self.info_opp, res, logger)
-        self.assertNotEquals(len(res.keys()), 0)
-        self.assertEquals(res.get("token"), 5.6713727820156407e+37)
-#        self.assertEquals(res.get("load"), 304803091578.0)
-#        self.assertEquals(res.get("uptime"), 188319)
-#        self.assertEquals(res.get("heap_used"), 2527.04)
-#        self.assertEquals(res.get("heap_total"), 3830.0)
-#        self.assertEquals(res.get("datacenter"), 28)
-#        self.assertEquals(res.get("rack"), 76)
-#        self.assertEquals(res.get("exceptions"), 0)
-#
+        self.assertEquals(res.get("load"), 304803091578.0)
+
         
     @attr('cassandra')
     def testParseInfo(self):
@@ -48,7 +40,6 @@ class TestCassandra(unittest.TestCase):
         self.c._parseInfo(self.info, res, logger)
         self.assertNotEquals(len(res.keys()), 0)
         self.assertEquals(res.get("load"), 467988.0)
-        self.assertEquals(res.get("token"), 3.6299342986353447e+37)
         self.assertEquals(res.get("uptime"), 95)
         self.assertEquals(res.get("heap_used"), 521.86)
         self.assertEquals(res.get("heap_total"), 1019.88)
@@ -57,7 +48,6 @@ class TestCassandra(unittest.TestCase):
         self.c._parseInfo(self.info8, res, logger)
         self.assertNotEquals(len(res.keys()), 0)
         self.assertEquals(res.get("load"), 304803091578.0)
-        self.assertEquals(res.get("token"), 5.102265587816026e+37)
         self.assertEquals(res.get("uptime"), 188319)
         self.assertEquals(res.get("heap_used"), 2527.04)
         self.assertEquals(res.get("heap_total"), 3830.0)
