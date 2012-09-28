@@ -35,8 +35,8 @@ class Cassandra(object):
                 return None
             else:
                 return res[0]
-        
-    def _parseInfo(self, info, results):
+
+    def _parseInfo(self, info, results, logger):
         """
         v 0.7
 
@@ -66,14 +66,6 @@ class Cassandra(object):
             return str(int(float(size) * self. UNITS_FACTOR[unit]))
   
         lines = info.split("\n")
-        # Convert token to a float since it does not fit in a 2**64 value.
-        # The loss of precision does not really matter since a well-balanced cluster
-        # will have markedly different tokens across all nodes.
-        t = Cassandra._find(lines, r"^(\d+)$")
-        if t: # v0.7
-            results["token"] = float(t)
-        else: # v0.8
-            results["token"] = float(Cassandra._find(lines, r"^Token[^:]+: ([0-9]+)$"))
 
         results["load"]     = float(Cassandra._find(lines, 
             r"^Load[^:]+:\s+([0-9.]+).*([KMGT]B|bytes)$", postprocess=convert_size))
@@ -293,7 +285,7 @@ class Cassandra(object):
             
             # nodetool info
             pipe = Popen("%s %s" % (nodetool_cmd, "info"), shell=True, universal_newlines=True, bufsize=bufsize, stdout=PIPE, stderr=None).stdout
-            self._parseInfo(pipe.read(), results)
+            self._parseInfo(pipe.read(), results, logger)
             logger.debug("Cassandra info: %s" % results)
             pipe.close()
             

@@ -168,8 +168,11 @@ use_mount: no
 #   Cassandra                                                                #
 # -------------------------------------------------------------------------- #
 #cassandra_host: localhost
-#cassandra_port: 8080
 #cassandra_nodetool: /usr/bin/nodetool
+## If you're using Cassandra 0.8 or higher:
+# cassandra_port: 7199
+## If you're using Cassandra 0.7 or lower:
+#cassandra_port: 8080
 
 # -------------------------------------------------------------------------- #
 #   Hudson                                                                   #
