@@ -30,7 +30,7 @@
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
-                    <File Id="ddagent.exe" Source="..\install_files\agent.exe" KeyPath="yes"></File>
+                    <File Id="ddagent.exe" Source="..\install_files\agent.exe" Name="ddagent.exe" KeyPath="yes"></File>
                     <ServiceInstall
                         Id="ServiceInstaller"
                         Type="ownProcess"
