@@ -6,20 +6,12 @@ enabled = True
 import re
 from checks import *
 
-try:
-    import redis
-except ImportError:
-    enabled = False
-
 class Redis(Check):
     db_key_pattern = re.compile(r'^db\d+')
     subkeys = ['keys', 'expires']
     
     def __init__(self, logger):
         Check.__init__(self, logger)
-        global enabled
-        logger.info("[REDIS] check enabled: %s" % enabled)
-            
         self.previous_total_commands = {}
         self.connections = {}
         
@@ -39,6 +31,8 @@ class Redis(Check):
             return default
 
     def _get_conn(self, host, port, password):
+        import redis
+
         key = (host, port)
         if key not in self.connections:
             if password is not None and len(password) > 0:
@@ -90,8 +84,14 @@ class Redis(Check):
             pass
 
     def check(self, agentConfig):
-        global enabled
-        if not enabled:
+        urls = agentConfig.get('redis_urls', '')
+        if not urls:
+            return False
+
+        try:
+            import redis
+        except ImportError:
+            self.logger.exception("[REDIS] Unable to import redis module")
             return False
 
         # Allow the default redis database to be overridden.
