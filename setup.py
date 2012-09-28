@@ -34,7 +34,7 @@ if sys.platform == 'win32':
         'mysql-python==1.2.3',
         'pymongo==2.3',
         'psycopg2==2.4.5',
-        'python-memcache==1.48',
+        'python-memcached==1.48',
         'redis==2.6.2',
         'elementtree'
     ])
