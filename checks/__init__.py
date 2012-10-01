@@ -22,6 +22,8 @@ try:
 except ImportError:
     import md5
 
+from aggregator import MetricsAggregator
+
 # Konstants
 class CheckException(Exception): pass
 class Infinity(CheckException): pass
@@ -273,6 +275,163 @@ class Check(object):
                 pass
         return metrics
 
+class AgentCheck(object):
+    def __init__(self, name, init_config, agentConfig):
+        """
+        Initialize a new check.
+
+        :param name: The name of the check
+        :param init_config: The config for initializing the check
+        :param agentConfig: The global configuration for the agent
+        """
+        self.name = name
+        self.init_config = init_config
+        self.agentConfig = agentConfig
+        self.hostname = gethostname(agentConfig)
+        self.log = logging.getLogger('checks.%s' % name)
+        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
+        self.events = []
+
+    def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Record the value of a gauge, with optional tags, hostname and device
+        name.
+
+        :param metric: The name of the metric
+        :param value: The value of the gauge
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.gauge(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
+        """
+        Increment a counter with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to increment by
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.increment(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
+        """
+        Increment a counter with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to decrement by
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.decrement(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+
+    def rate(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Submit a point for a metric that will be calculated as a rate on flush.
+        Values will persist across each call to `check` if there is not enough
+        point to generate a rate on the flush.
+
+        :param metric: The name of the metric
+        :param value: The value of the rate
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.rate(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Sample a histogram value, with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to sample for the histogram
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.histogram(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def set(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Sample a set value, with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value for the set
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.histogram(metric, value, tags=tags, hostname=hostname,
+            device_name=device_name)
+
+    def event(self, event):
+        """
+        Save an event.
+
+        :param event: The event payload as a dictionary. Has the following
+        structure:
+
+            {
+                "timestamp": int, the epoch timestamp for the event,
+                "event_type": string, the event time name,
+                "api_key": string, the api key of the account to associate the event with,
+                "msg_title": string, the title of the event,
+                "msg_text": string, the text body of the event,
+                "alert_type": (optional) string, one of ('error', 'warning', 'success', 'info').
+                    Defaults to 'info'.
+                "source_type_name": (optional) string, the source type name,
+                "host": (optional) string, the name of the host,
+                "tags": (optional) list, a list of tags to associate with this event
+            }
+        """
+        self.events.append(event)
+
+    def has_events(self):
+        """
+        Check whether the check has saved any events
+
+        @return whether or not the check has saved any events
+        @rtype boolean
+        """
+        return len(self.events) > 0
+
+    def get_metrics(self):
+        """
+        Get all metrics, including the ones that are tagged.
+
+        @return the list of samples
+        @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
+        """
+        return self.aggregator.flush()
+
+    def get_events(self):
+        """
+        Return a list of the events saved by the check, if any
+
+        @return the list of events saved by this check
+        @rtype list of event dictionaries
+        """
+        return self.events
+
+    def check(self, instance):
+        """
+        Overriden by the check class. This will be called to run the check.
+
+        :param instance: A dict with the instance information. This will vary
+        depending on your config structure.
+        """
+        raise NotImplementedError()
+
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
         return agentConfig["hostname"]
@@ -281,3 +440,18 @@ def gethostname(agentConfig):
             return socket.getfqdn()
         except socket.error, e:
             logging.debug("processes: unable to get hostname: " + str(e))
+
+def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+    """ Formats metrics coming from the MetricsAggregator. Will look like:
+     (metric, timestamp, value, {"tags": ["tag1", "tag2"], ...})
+    """
+    attributes = {}
+    if tags:
+        attributes['tags'] = list(tags)
+    if hostname:
+        attributes['hostname'] = hostname
+    if device_name:
+        attributes['device_name'] = device_name
+    if attributes:
+        return (metric, int(timestamp), value, attributes)
+    return (metric, int(timestamp), value)

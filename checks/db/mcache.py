@@ -118,25 +118,38 @@ class Memcache(Check):
         return (memcache_urls, memcache_ports, tags)
 
     def _get_metrics(self, server, port, tags, memcache):
-        self.logger.debug("Connecting to %s:%s tags:%s" % (server, port, tags))
-        mc = memcache.Client(["%s:%d" % (server, port)])
-        raw_stats = mc.get_stats()
+        mc = None # client
+        try:
+            self.logger.debug("Connecting to %s:%s tags:%s" % (server, port, tags))
+            mc = memcache.Client(["%s:%d" % (server, port)])
+            raw_stats = mc.get_stats()
 
-        assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
-        # Access the dict
-        stats = raw_stats[0][1]
-        for metric in stats:
-            self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
+            assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
+            # Access the dict
+            stats = raw_stats[0][1]
+            for metric in stats:
+                self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
 
-            our_metric = "memcache." + metric
-            # Tweak the name if it's a counter so that we don't use the exact
-            # same metric name as the memcache documentation
-            if self.is_counter(our_metric + "_rate"):
-                our_metric = our_metric + "_rate"
+                our_metric = "memcache." + metric
+                # Tweak the name if it's a counter so that we don't use the exact
+                # same metric name as the memcache documentation
+                if self.is_counter(our_metric + "_rate"):
+                    our_metric = our_metric + "_rate"
 
-            if self.is_metric(our_metric):
-                self.save_sample(our_metric, float(stats[metric]), tags=tags)
-                self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+                if self.is_metric(our_metric):
+                    self.save_sample(our_metric, float(stats[metric]), tags=tags)
+                    self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+        except ValueError:
+            self.logger.exception("Cannot convert port value; check your configuration")
+        except CheckException:
+            self.logger.exception("Cannot save sampled data")
+        except:
+            self.logger.exception("Cannot get data from memcache")
+
+        if mc is not None:
+            mc.disconnect_all()
+            self.logger.debug("Disconnected from memcached")
+        del mc
 
     def check(self, agentConfig):
         (memcache_urls, memcache_ports, tags) = self._load_conf(agentConfig)
@@ -146,9 +159,9 @@ class Memcache(Check):
             import memcache
         except ImportError:
             self.logger.exception("Cannot import python-based memcache driver")
+            return False
 
         for i in range(len(memcache_urls)):
-            mc = None # client
             server = memcache_urls[i]
             if server is None:
                 continue
@@ -161,25 +174,10 @@ class Memcache(Check):
             else:
                 tag=["instance:%s_%s" % (server, port)]
 
-            try:
-                self._get_metrics(server, port, tag, memcache)                   
+            self._get_metrics(server, port, tag, memcache)
                 
-            except ValueError:
-                self.logger.exception("Cannot convert port value; check your configuration")
-                continue
-            except CheckException:
-                self.logger.exception("Cannot save sampled data")
-                continue
-            except:
-                self.logger.exception("Cannot get data from memcache")
-                continue
-            finally:
-                if mc is not None:
-                    mc.disconnect_all()
-                    self.logger.debug("Disconnected from memcached")
-                del mc
         metrics = self.get_metrics()
         self.logger.debug("Memcache samples: %s" % metrics)
         return metrics
 
-        
+ 

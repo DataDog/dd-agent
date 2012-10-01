@@ -17,10 +17,16 @@ else:
         @staticmethod
         def dumps(data):
             return minjson.write(data)
-        
+
         @staticmethod
         def loads(data):
             return minjson.safeRead(data)
+
+import yaml
+try:
+    from yaml import CLoader as yLoader
+except ImportError:
+    from yaml import Loader as yLoader
 
 
 def headers(agentConfig):
