@@ -60,7 +60,7 @@ class Reporter(threading.Thread):
             if self.finished.is_set():
                 break
             self.finished.wait(self.interval)
-            self.aggregator.send_packet_count('datadog.dogstatsd.packet.count')
+            self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
 
     def flush(self):

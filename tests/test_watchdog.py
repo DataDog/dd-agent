@@ -13,7 +13,7 @@ from util import Watchdog
 class TestWatchdog(unittest.TestCase):
     """Test watchdog in various conditions
     """
-    def runTest(self):
+    def test_watchdog(self):
         """Verify that watchdog kills ourselves even when spinning
         Verify that watchdog kills ourselves when hanging
         """

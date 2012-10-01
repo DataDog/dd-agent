@@ -112,7 +112,8 @@
     ${IF} $1 == ${BST_CHECKED}
       ; Install and start the agent
       Exec "$INSTDIR\ddagent.exe --startup auto install"
-      Exec "$INSTDIR\ddagent.exe restart"
+      Sleep 2000
+      Exec "$INSTDIR\ddagent.exe start"
     ${ENDIF}
 
   FunctionEnd
@@ -143,6 +144,7 @@ Section "Datadog Agent" SecDummy
   ; Stop the service if it exists so we can overwrite the exe
   ${If} ${FileExists} "$INSTDIR\ddagent.exe" 
     Exec "$INSTDIR\ddagent.exe stop"
+    Sleep 2000
   ${EndIf}
 
   ; Files to install

@@ -7,10 +7,13 @@ artifacts/*
 node_modules/*
 .DS_Store
 *.swp
-*.txt
 *.log
 *.pid
 *.deb
 *.rpm
 *.egg-info*
 dist/*
+*.msi
+*.wixobj
+*.wixpdb
+*.exe
