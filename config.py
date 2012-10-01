@@ -81,7 +81,7 @@ def _windows_config_path():
 
 def _windows_confd_path():
     common_data = _windows_commondata_path()
-    path = os.path.join(common_data, 'conf.d')
+    path = os.path.join(common_data, 'Datadog', 'conf.d')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
