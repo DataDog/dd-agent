@@ -15,7 +15,8 @@ from emitter import http_emitter
 from win32.common import handle_exe_click
 import dogstatsd
 from ddagent import Application
-from config import get_config, set_win32_cert_path, get_system_stats
+from config import (get_config, set_win32_cert_path, get_system_stats,
+    load_check_directory)
 from win32.common import handle_exe_click
 
 class AgentSvc(win32serviceutil.ServiceFramework):
@@ -77,6 +78,9 @@ class DDAgent(threading.Thread):
     def run(self):
         emitters = self.get_emitters();
         chk = checks(self.config, emitters)
+
+        # Load the checks.d checks
+        checksd = load_check_directory(self.config)
 
         # Main agent loop will run until interrupted
         systemStats = get_system_stats()

@@ -148,15 +148,19 @@ Section "Datadog Agent" SecDummy
   ${EndIf}
 
   ; Files to install
-  File "../install_files\license.txt"
+  File "..\install_files\license.txt"
   File /oname=ddagent.exe "..\install_files\agent.exe"
-  FILE "../install_files\ca-certificates.crt"
+  File "..\install_files\ca-certificates.crt"
+
+  ; Install all of the checks.d checks
+  File /r "..\install_files\checks.d"
 
   ; Config does in App Data
   ; Only write the config if it doesn't exist yet
   ${IfNot} ${FileExists} "$0\Datadog\datadog.conf"
     SetOutPath "$0\Datadog"
     File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+    File /r "..\install_files\conf.d"
   ${EndIf}
 
   ;Store installation folder
