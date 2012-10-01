@@ -146,6 +146,7 @@ class Memcache(Check):
             import memcache
         except ImportError:
             self.logger.exception("Cannot import python-based memcache driver")
+            return False
 
         for i in range(len(memcache_urls)):
             mc = None # client
