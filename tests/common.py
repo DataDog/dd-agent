@@ -1,10 +1,11 @@
 from checks import AgentCheck
 from config import get_checksd_path
+from util import getOS
 import sys
 import inspect
 
 def load_check(name, config, agentConfig):
-    checksd_path = get_checksd_path()
+    checksd_path = get_checksd_path(getOS())
     if checksd_path not in sys.path:
         sys.path.append(checksd_path)
 
