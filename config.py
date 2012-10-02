@@ -453,12 +453,14 @@ def load_check_directory(agentConfig):
         # Check if the config exists OR we match the old-style config
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
         if os.path.exists(conf_path):
-            with open(conf_path) as f:
-                try:
-                    check_config = yaml.load(f.read(), Loader=yLoader)
-                except:
-                    log.warn("Unable to parse yaml config in %s" % conf_path)
-                    continue
+            f = open(conf_path)
+            try:
+                check_config = yaml.load(f.read(), Loader=yLoader)
+                f.close()
+            except:
+                f.close()
+                log.warn("Unable to parse yaml config in %s" % conf_path)
+                continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
             check_config = check_class.parse_agent_config(agentConfig)
