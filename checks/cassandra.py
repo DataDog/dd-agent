@@ -4,7 +4,8 @@ from subprocess import Popen, PIPE
 import os.path
 import re
 import itertools
-import math
+
+from util import isnan
 
 def _fst(groups):
     if groups is not None and len(groups) > 0:
@@ -209,7 +210,7 @@ class Cassandra(object):
                     if val.endswith(" ms."):
                         val = val[:-4]
                     val = float(val)
-                    if math.isnan(val):
+                    if isnan(val):
                         return None, None
 
                     return self._normalize(line[:i]), val

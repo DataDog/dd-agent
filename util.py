@@ -3,6 +3,7 @@ import os
 import platform
 import signal
 import sys
+import math
 
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
@@ -59,6 +60,14 @@ def getTopIndex():
         return 6
     else:
         return 5
+
+def isnan(val):
+    if hasattr(math, 'isnan'):
+        return math.isnan(val)
+
+    # for py < 2.6, use a different check
+    # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
+    return str(val) == str(1e400*0)
 
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
