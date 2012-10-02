@@ -55,10 +55,10 @@ def parse_cassandra(log, line):
         # Convert the timestamp string into an epoch timestamp
         time_val = event.get('time', None)
         if time_val:
-            event['timestamp'] = common.parse_date("%s %s" % (datetime.utcnow().strftime("%Y-%m-%d"), time_val))
+            event['timestamp'] = parse_date("%s %s" % (datetime.utcnow().strftime("%Y-%m-%d"), time_val))
         else:
             try:
-                event['timestamp'] = common.parse_date(event['timestamp'])
+                event['timestamp'] = parse_date(event['timestamp'])
             except ValueError:
                 # only python >= 2.6 supports %f in strptime
                 event
