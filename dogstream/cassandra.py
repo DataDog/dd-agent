@@ -28,6 +28,7 @@ THREADS = [
 ]
 
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S,%f'
+LEGACY_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 LOG_PATTERN = re.compile(r"".join([
     r"\s*(?P<priority>%s)\s+" % "|".join("(%s)" % p for p in LOG4J_PRIORITY),
@@ -38,6 +39,14 @@ LOG_PATTERN = re.compile(r"".join([
 ]))
 
 
+def parse_date(timestamp):
+    try:
+        return common.parse_date(timestamp, DATE_FORMAT)
+    except ValueError:
+        # Only Python >= 2.6 supports %f in the date string
+        timestamp, _ = timestamp.split(',')
+        common.parse_date(timestamp, LEGACY_DATE_FORMAT)
+
 def parse_cassandra(log, line):
     matched = LOG_PATTERN.match(line)
     if matched:
@@ -46,9 +55,13 @@ def parse_cassandra(log, line):
         # Convert the timestamp string into an epoch timestamp
         time_val = event.get('time', None)
         if time_val:
-            event['timestamp'] = common.parse_date("%s %s" % (datetime.utcnow().strftime("%Y-%m-%d"), time_val), DATE_FORMAT)
+            event['timestamp'] = common.parse_date("%s %s" % (datetime.utcnow().strftime("%Y-%m-%d"), time_val))
         else:
-            event['timestamp'] = common.parse_date(event['timestamp'], DATE_FORMAT)
+            try:
+                event['timestamp'] = common.parse_date(event['timestamp'])
+            except ValueError:
+                # only python >= 2.6 supports %f in strptime
+                event
         del event['time']
 
         # Process the log priority
