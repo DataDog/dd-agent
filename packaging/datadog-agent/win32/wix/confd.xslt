@@ -24,6 +24,7 @@
             <xsl:attribute name="Permanent">
                 <xsl:text>yes</xsl:text>
             </xsl:attribute>
+            <xsl:copy-of select="wix:File" />
         </xsl:copy>
     </xsl:template>
 </xsl:stylesheet>
