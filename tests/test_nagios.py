@@ -71,11 +71,12 @@ class TestNagios(unittest.TestCase):
         x = open(NAGIOS_TEST_LOG).read()
         events = []
         ITERATIONS = 10
-        with tempfile.NamedTemporaryFile(mode="a+b") as f:
-            for i in range(ITERATIONS):
-                f.write(x)
-                f.flush()
-                events.extend(self.nagios.check(logger, {"nagios_log": f.name, "api_key": "123"}, move_end=False))
+        f = tempfile.NamedTemporaryFile(mode="a+b")
+        for i in range(ITERATIONS):
+            f.write(x)
+            f.flush()
+            events.extend(self.nagios.check(logger, {"nagios_log": f.name, "api_key": "123"}, move_end=False))
+        f.close()
         self.assertEquals(len(events), ITERATIONS * 503)
             
 
