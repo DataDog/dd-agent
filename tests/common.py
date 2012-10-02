@@ -4,6 +4,7 @@ from util import getOS
 import sys
 import inspect
 import os
+import signal
 
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(getOS())
