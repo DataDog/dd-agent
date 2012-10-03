@@ -30,6 +30,7 @@ links:
 	ln -sf ../../pup .
 	ln -sf ../../yaml .
 	ln -sf ../../checks.d .
+	ln -sf ../../aggregator.py .
 
 dirs:
 	mkdir -p $(BUILD)

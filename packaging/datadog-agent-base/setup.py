@@ -52,6 +52,6 @@ if __name__ == "__main__":
           url='http://datadoghq.com/',
           packages=['resources', 'compat'],
           scripts=['agent.py', 'daemon.py', 'minjson.py', 'util.py', 
-                    'emitter.py', 'config.py', 'graphite.py', 'modules.py', 'aggregator.py'],
+                    'emitter.py', 'config.py', 'graphite.py', 'modules.py'],
           data_files=getDataFiles()
          )

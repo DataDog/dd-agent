@@ -15,7 +15,7 @@ FPM_BUILD=fpm -s dir -C $(BUILD) -e -n "datadog-agent-base" \
 
 clean:
 	rm -f resources compat
-	rm -f agent.py daemon.py minjson.py util.py emitter.py config.py modules.py aggregator.py conf.d
+	rm -f agent.py daemon.py minjson.py util.py emitter.py config.py modules.py conf.d
 	rm -rf *.pyc
 	rm -rf build*
 	rm -rf *.egg-info
@@ -34,7 +34,6 @@ links:
 	ln -sf ../../config.py  .
 	ln -sf ../../graphite.py  .
 	ln -sf ../../modules.py  .
-	ln -sf ../../aggregator.py .
 	ln -sf ../../conf.d .
 
 dirs:
@@ -53,7 +52,6 @@ install: dirs links
 	chmod 644 $(BUILD)/usr/share/datadog/agent/emitter.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/graphite.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/modules.py
-	chmod 644 $(BUILD)/usr/share/datadog/agent/aggregator.py
 	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
 
 install_deb: install
