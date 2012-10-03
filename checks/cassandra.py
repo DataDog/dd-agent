@@ -5,8 +5,6 @@ import os.path
 import re
 import itertools
 
-from util import isnan
-
 def _fst(groups):
     if groups is not None and len(groups) > 0:
         return groups[0]
@@ -201,6 +199,8 @@ class Cassandra(object):
 
         def get_metric(line):
             """    metric name: val"""
+            from util import isnan
+
             i = line.rfind(':')
             if i == -1:
                 return None, None
