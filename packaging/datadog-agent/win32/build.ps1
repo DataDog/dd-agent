@@ -24,7 +24,7 @@ cp ..\..\..\conf.d\* install_files\conf.d
 ## Generate the UI install with NSIS
 
     # Assumes makensis.exe is within the PATH
-    makensis nsis/agent.nsi
+    makensis /DVersion="$version" nsis/agent.nsi
     mv nsis/DDAgentInstall.exe ..\..\..\build\
 
 ## Generate the CLI installer with WiX
