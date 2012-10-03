@@ -88,5 +88,6 @@ $(FPM_BUILD) -t rpm \
 --pre-uninstall rpm/pre_uninstall \
 etc/init.d/datadog-agent \
 etc/dd-agent/datadog.conf.example \
+etc/dd-agent/conf.d \
 usr/share/datadog \
 usr/bin
