@@ -1,5 +1,5 @@
 # Variables
-$version = $(python -c "from config import get_version; print get_version()")
+$version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
 
 # Remove old artifacts
 rm build/*.exe
@@ -11,7 +11,6 @@ cp dist\agent.exe packaging\datadog-agent\win32\install_files\agent.exe
 
 # Change to the packaging directory
 cd packaging\datadog-agent\win32
-mkdir build
 
 # Copy checks.d files into the install_files
 mkdir install_files\checks.d
@@ -53,4 +52,3 @@ cd ..\..\..\
 
 # Install the new version of the agent
 msiexec /qn /i build\ddagent.msi
-#rm -r build
