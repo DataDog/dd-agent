@@ -38,8 +38,7 @@ class Gauge(Metric):
         self.last_sample_time = time()
 
     def flush(self, timestamp):
-        # Gauges don't reset. Continue to send the same value.
-        return [self.formatter(
+        res = [self.formatter(
             metric=self.name,
             timestamp=timestamp,
             value=self.value,
@@ -48,6 +47,11 @@ class Gauge(Metric):
             device_name=self.device_name
         )]
 
+        # Reset our sample state
+        self.value = None
+        self.last_sample_time = None
+
+        return res
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -283,7 +287,7 @@ class MetricsAggregator(object):
             self.metrics[context].sample(float(metadata[0]), sample_rate)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the gague metric into a StatsD packet format and submit'''
+        ''' Format the gauge metric into a StatsD packet format and submit'''
         packet = self._create_packet(metric, value, tags, 'g')
         self.submit(packet, hostname=hostname, device_name=device_name)
 
