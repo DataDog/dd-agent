@@ -34,6 +34,22 @@
             Return="check"
             Impersonate="no" />
 
+        <CustomAction
+            Id="ReplaceTags"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#tags: mytag0, mytag1" "tags: [TAGS]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
+        <CustomAction
+            Id="ReplaceHostname"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
@@ -80,6 +96,8 @@
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
+            <Custom Action="ReplaceTags" Before="StartServices" />
+            <Custom Action="ReplaceHostname" Before="StartServices" />
         </InstallExecuteSequence>
 
     </Product>
