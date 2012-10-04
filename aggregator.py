@@ -38,20 +38,18 @@ class Gauge(Metric):
         self.last_sample_time = time()
 
     def flush(self, timestamp):
-        res = [self.formatter(
-            metric=self.name,
-            timestamp=timestamp,
-            value=self.value,
-            tags=self.tags,
-            hostname=self.hostname,
-            device_name=self.device_name
-        )]
+        if self.value is not None:
+            return [self.formatter(
+                metric=self.name,
+                timestamp=timestamp,
+                value=self.value,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name
+            )]
+            self.value = None
 
-        # Reset our sample state
-        self.value = None
-        self.last_sample_time = None
-
-        return res
+        return []
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
