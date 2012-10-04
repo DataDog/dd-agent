@@ -16,6 +16,7 @@ import re
 import socket
 import time
 import types
+import os
 
 try:
     from hashlib import md5
@@ -431,6 +432,24 @@ class AgentCheck(object):
         depending on your config structure.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def from_yaml(cls, path_to_yaml, agentConfig=None):
+        """
+        A method used for testing your check without running the agent.
+        """
+        from util import yaml, yLoader
+        check_name = os.path.basename(path_to_yaml).split('.')[0]
+        try:
+            f = open(path_to_yaml)
+        except IOError:
+            raise Exception('Unable to open yaml config: %s' % path_to_yaml)
+
+        config = yaml.load(f.read(), Loader=yLoader)
+        f.close()
+        check = cls(check_name, config.get('init_config', {}), agentConfig or {})
+
+        return check, config.get('instances', [])
 
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
