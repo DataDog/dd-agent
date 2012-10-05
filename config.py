@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.1.7"
+    return "3.2.1"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -453,12 +453,15 @@ def load_check_directory(agentConfig):
         # Check if the config exists OR we match the old-style config
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
         if os.path.exists(conf_path):
-            with open(conf_path) as f:
-                try:
-                    check_config = yaml.load(f.read(), Loader=yLoader)
-                except:
-                    log.warn("Unable to parse yaml config in %s" % conf_path)
-                    continue
+            f = open(conf_path)
+            try:
+                check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
+                f.close()
+            except:
+                f.close()
+                log.warn("Unable to parse yaml config in %s" % conf_path)
+                continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
             check_config = check_class.parse_agent_config(agentConfig)
@@ -477,10 +480,10 @@ def load_check_directory(agentConfig):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
-        # Although most instancess will be a list to support multi-instance
-        # checks, accept non-list formatted.
-        if type(check_config['instances']) != type([]):
-            check_config['instances'] = [check_config['instances']]
+        # Accept instances as a list, as a single dict, or as non-existant
+        instances = check_config.get('instances', {})
+        if type(instances) != type([]):
+            instances = [instances]
 
         checks.append({
             'name': check_name,

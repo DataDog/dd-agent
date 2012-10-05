@@ -34,6 +34,22 @@
             Return="check"
             Impersonate="no" />
 
+        <CustomAction
+            Id="ReplaceTags"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#tags: mytag0, mytag1" "tags: [TAGS]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
+        <CustomAction
+            Id="ReplaceHostname"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
@@ -53,6 +69,9 @@
                     </ServiceInstall>
                     <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="DatadogAgent" Wait="no" />
                 </Component>
+                <Component Id="shell.exe" Guid="42AC39F4-0F18-11E2-B391-8E816188709B">
+                    <File Id="shell.exe" Source="$(var.InstallFiles)\shell.exe" Name="shell.exe"></File>
+                </Component>
                 <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
                     <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
                 </Component>
@@ -70,6 +89,7 @@
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="ddagent.exe" />
+            <ComponentRef Id="shell.exe" />
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="license.txt" />
             <ComponentRef Id="datadog.conf" />
@@ -80,6 +100,8 @@
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
+            <Custom Action="ReplaceTags" Before="StartServices" />
+            <Custom Action="ReplaceHostname" Before="StartServices" />
         </InstallExecuteSequence>
 
     </Product>

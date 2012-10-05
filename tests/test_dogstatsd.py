@@ -98,20 +98,18 @@ class TestUnitDogStatsd(object):
         stats.submit('my.first.gauge:5|g')
         stats.submit('my.second.gauge:1.5|g')
 
-        # Ensure that gauges roll up correctly. Run this test multiple times
-        # to make sure that gauges continue to flush the same value.
-        for i in xrange(3):
-            metrics = self.sort_metrics(stats.flush())
-            assert len(metrics) == 2
+        # Ensure that gauges roll up correctly.
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 2
 
-            first, second = metrics
+        first, second = metrics
 
-            nt.assert_equals(first['metric'], 'my.first.gauge')
-            nt.assert_equals(first['points'][0][1], 5)
-            nt.assert_equals(first['host'], 'myhost')
+        nt.assert_equals(first['metric'], 'my.first.gauge')
+        nt.assert_equals(first['points'][0][1], 5)
+        nt.assert_equals(first['host'], 'myhost')
 
-            nt.assert_equals(second['metric'], 'my.second.gauge')
-            nt.assert_equals(second['points'][0][1], 1.5)
+        nt.assert_equals(second['metric'], 'my.second.gauge')
+        nt.assert_equals(second['points'][0][1], 1.5)
 
 
     def test_sets(self):

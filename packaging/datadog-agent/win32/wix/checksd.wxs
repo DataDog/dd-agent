@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <DirectoryRef Id="INSTALLDIR">
+            <Directory Id="dirE8CFC7B03182CF94EBCF2876C639773D" Name="checks.d" />
+        </DirectoryRef>
+    </Fragment>
+    <Fragment>
+        <ComponentGroup Id="checks.d">
+            <Component Id="cmp9EBB5B681AE7A74C4393AFB2320CF874" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{00B21B31-2636-474F-8439-4D3385C11B6E}">
+                <File Id="fil96C8F069E717CA5ABD12000F74587E3B" KeyPath="yes" Source="$(var.InstallFilesChecksD)\haproxy.py" />
+            </Component>
+            <Component Id="cmp733CBF0410FB0B4ECD71632A8EDDBFFF" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{C747F898-710D-40E9-9E2C-63F357E3B1E2}">
+                <File Id="fil02BD512FDBC54DBEE3ED6BD15AEBFDF1" KeyPath="yes" Source="$(var.InstallFilesChecksD)\haproxy.pyc" />
+            </Component>
+            <Component Id="cmp653EC8D1EA38C912D9563668E969CC6B" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{4D2EC9B1-1810-480A-BEAF-3324E06AA091}">
+                <File Id="fil625EE38FB29208119BE43ADBB7093C00" KeyPath="yes" Source="$(var.InstallFilesChecksD)\postgres.py" />
+            </Component>
+            <Component Id="cmp6DBD5B40D9B9E603455C3AD3D7D16575" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{66E4C02C-2E88-43B2-A875-991F161ADE08}">
+                <File Id="filA6FFB3F9A811AA814D08AB27580DF6EF" KeyPath="yes" Source="$(var.InstallFilesChecksD)\postgres.pyc" />
+            </Component>
+            <Component Id="cmp6D0DF10D64F6C1884482F9F1DF351E1B" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{F733AAC8-E01C-49AB-BEBB-01D48099C1D7}">
+                <File Id="fil3048DB1B81017872A160EF5DAC04EF94" KeyPath="yes" Source="$(var.InstallFilesChecksD)\README.md" />
+            </Component>
+            <Component Id="cmp142538EFE01FDFBD57842DCD5C957428" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{A3A0B3A0-57D0-4107-954B-B3CD559AF374}">
+                <File Id="fil7D7D72CBF580B72C43CE7E5273B0786D" KeyPath="yes" Source="$(var.InstallFilesChecksD)\redisdb.py" />
+            </Component>
+            <Component Id="cmpEF351895053D3EECB9D9E79255111EAF" Directory="dirE8CFC7B03182CF94EBCF2876C639773D" Guid="{7BFC78B6-4664-4D34-8A1B-2DD30985E5F0}">
+                <File Id="fil180518D63BA261A786BC84787BBA79D5" KeyPath="yes" Source="$(var.InstallFilesChecksD)\redisdb.pyc" />
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+</Wix>

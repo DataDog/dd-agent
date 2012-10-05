@@ -58,6 +58,7 @@ if sys.platform == 'win32':
                 'bundle_files': 1,
             },
         },
+        'console': ['win32\shell.py'],
         'service': [agent_svc],
         'zipfile': None
     }

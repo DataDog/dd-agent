@@ -5,6 +5,8 @@ import subprocess
 import time
 import urllib2
 
+from tests.common import kill_subprocess
+
 class JMXTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -69,7 +71,7 @@ class JMXTestCase(unittest.TestCase):
             metrics_check.jmx._jmx.terminate(force=True)
 
         if first_instance:
-            first_instance.terminate()
+            kill_subprocess(first_instance)
 
         self.stop_tomcat(tomcat6)
 
@@ -133,9 +135,9 @@ class JMXTestCase(unittest.TestCase):
             metrics_check.jmx._jmx.terminate(force=True)
         
         if first_instance:
-            first_instance.terminate()
+            kill_subprocess(first_instance)
         if second_instance:
-            second_instance.terminate()
+            kill_subprocess(second_instance)
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, r)

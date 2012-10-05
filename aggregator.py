@@ -38,16 +38,18 @@ class Gauge(Metric):
         self.last_sample_time = time()
 
     def flush(self, timestamp):
-        # Gauges don't reset. Continue to send the same value.
-        return [self.formatter(
-            metric=self.name,
-            timestamp=timestamp,
-            value=self.value,
-            tags=self.tags,
-            hostname=self.hostname,
-            device_name=self.device_name
-        )]
+        if self.value is not None:
+            return [self.formatter(
+                metric=self.name,
+                timestamp=timestamp,
+                value=self.value,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name
+            )]
+            self.value = None
 
+        return []
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -264,6 +266,11 @@ class MetricsAggregator(object):
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
+            try:
+                metadata[0] = float(metadata[0])
+            except ValueError:
+                raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
+
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
             tags = None
@@ -283,7 +290,7 @@ class MetricsAggregator(object):
             self.metrics[context].sample(float(metadata[0]), sample_rate)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the gague metric into a StatsD packet format and submit'''
+        ''' Format the gauge metric into a StatsD packet format and submit'''
         packet = self._create_packet(metric, value, tags, 'g')
         self.submit(packet, hostname=hostname, device_name=device_name)
 

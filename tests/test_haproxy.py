@@ -7,7 +7,7 @@ import os
 import logging
 
 from checks import gethostname
-from tests.common import load_check
+from tests.common import load_check, kill_subprocess
 
 logging.basicConfig()
 
@@ -144,7 +144,7 @@ class HaproxyTestCase(unittest.TestCase):
 
     def tearDown(self):
         if self.process is not None:
-            self.process.terminate()
+            kill_subprocess(self.process)
         del self.cfg
 
 if __name__ == "__main__":

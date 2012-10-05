@@ -4,7 +4,6 @@ from subprocess import Popen, PIPE
 import os.path
 import re
 import itertools
-import math
 
 def _fst(groups):
     if groups is not None and len(groups) > 0:
@@ -200,6 +199,8 @@ class Cassandra(object):
 
         def get_metric(line):
             """    metric name: val"""
+            from util import isnan
+
             i = line.rfind(':')
             if i == -1:
                 return None, None
@@ -209,7 +210,7 @@ class Cassandra(object):
                     if val.endswith(" ms."):
                         val = val[:-4]
                     val = float(val)
-                    if math.isnan(val):
+                    if isnan(val):
                         return None, None
 
                     return self._normalize(line[:i]), val
