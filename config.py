@@ -480,10 +480,10 @@ def load_check_directory(agentConfig):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
-        # Although most instancess will be a list to support multi-instance
-        # checks, accept non-list formatted.
-        if type(check_config['instances']) != type([]):
-            check_config['instances'] = [check_config['instances']]
+        # Accept instances as a list, as a single dict, or as non-existant
+        instances = check_config.get('instances', {})
+        if type(instances) != type([]):
+            instances = [instances]
 
         checks.append({
             'name': check_name,
