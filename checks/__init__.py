@@ -423,7 +423,9 @@ class AgentCheck(object):
         @return the list of events saved by this check
         @rtype list of event dictionaries
         """
-        return self.events
+        events = self.events
+        self.events = []
+        return events
 
     def check(self, instance):
         """
