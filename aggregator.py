@@ -266,7 +266,9 @@ class MetricsAggregator(object):
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
-            if not isinstance(metadata[0], [int, float, long]):
+            try:
+                metadata[0] = float(metadata[0])
+            except ValueError:
                 raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
             # Parse the optional values - sample rate & tags.
