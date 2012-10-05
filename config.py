@@ -456,6 +456,7 @@ def load_check_directory(agentConfig):
             f = open(conf_path)
             try:
                 check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
                 f.close()
             except:
                 f.close()
