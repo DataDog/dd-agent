@@ -1,7 +1,0 @@
-init_config:
-    default_timeout: 5
-
-instances:
-    - url: http://google.com/
-    - url: http://httpbin.org/delay/10
-    - url: http://httpbin.org/status/400
