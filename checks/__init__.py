@@ -23,8 +23,6 @@ try:
 except ImportError:
     import md5
 
-from aggregator import MetricsAggregator
-
 # Konstants
 class CheckException(Exception): pass
 class Infinity(CheckException): pass
@@ -285,6 +283,9 @@ class AgentCheck(object):
         :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
         """
+        from aggregator import MetricsAggregator
+
+
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
