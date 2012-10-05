@@ -1,5 +1,5 @@
 # Variables
-$version = "$(python -c "from config import get_version; print get_version()").0"
+$version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
 
 # Remove old artifacts
 rm build/*.exe
