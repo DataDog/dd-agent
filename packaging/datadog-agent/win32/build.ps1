@@ -1,5 +1,5 @@
 # Variables
-$version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
+$version = "$(python -c "from config import get_version; print get_version()").0"
 
 # Remove old artifacts
 rm build/*.exe
@@ -8,6 +8,7 @@ rm build/*.msi
 # Build the agent.exe service
 python setup.py py2exe
 cp dist\agent.exe packaging\datadog-agent\win32\install_files\agent.exe
+cp dist\shell.exe packaging\datadog-agent\win32\install_files\shell.exe
 
 # Change to the packaging directory
 cd packaging\datadog-agent\win32

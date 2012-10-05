@@ -69,6 +69,9 @@
                     </ServiceInstall>
                     <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="DatadogAgent" Wait="no" />
                 </Component>
+                <Component Id="shell.exe" Guid="42AC39F4-0F18-11E2-B391-8E816188709B">
+                    <File Id="shell.exe" Source="$(var.InstallFiles)\shell.exe" Name="shell.exe"></File>
+                </Component>
                 <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
                     <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
                 </Component>
@@ -86,6 +89,7 @@
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="ddagent.exe" />
+            <ComponentRef Id="shell.exe" />
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="license.txt" />
             <ComponentRef Id="datadog.conf" />
