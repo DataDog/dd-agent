@@ -362,7 +362,10 @@ class checks(object):
                         check_cls.check(instance)
                         metrics.extend(check_cls.get_metrics())
                         if check_cls.has_events():
-                            events[check['name']] = check_cls.get_events()
+                            if check['name'] not in events:
+                                events[check['name']] = []
+                            for ev in check_cls.get_events():
+                                events[check['name']].append(ev)
                     except Exception:
                         self.checksLogger.exception("Check %s failed" % check_cls.name)
 

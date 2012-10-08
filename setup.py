@@ -25,6 +25,7 @@ install_requires=[
 ]
 
 if sys.platform == 'win32':
+    from glob import glob
     import py2exe
     install_requires.extend([
         'tornado==2.1',
@@ -60,7 +61,8 @@ if sys.platform == 'win32':
         },
         'console': ['win32\shell.py'],
         'service': [agent_svc],
-        'zipfile': None
+        'zipfile': None,
+        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))]
     }
 
 setup(

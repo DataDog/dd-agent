@@ -9,6 +9,8 @@ rm build/*.msi
 python setup.py py2exe
 cp dist\agent.exe packaging\datadog-agent\win32\install_files\agent.exe
 cp dist\shell.exe packaging\datadog-agent\win32\install_files\shell.exe
+mkdir packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT
+cp dist\Microsoft.VC90.CRT\* packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT\
 
 # Change to the packaging directory
 cd packaging\datadog-agent\win32
@@ -44,6 +46,7 @@ cp ..\..\..\conf.d\* install_files\conf.d
 rm *wixobj*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
+rm -r install_files\Microsoft.VC90.CRT
 
 # Move back to the root workspace
 cd ..\..\..\
