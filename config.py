@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.2.0"
+    return "3.2.2"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -456,6 +456,7 @@ def load_check_directory(agentConfig):
             f = open(conf_path)
             try:
                 check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
                 f.close()
             except:
                 f.close()
@@ -479,10 +480,10 @@ def load_check_directory(agentConfig):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
-        # Although most instancess will be a list to support multi-instance
-        # checks, accept non-list formatted.
-        if type(check_config['instances']) != type([]):
-            check_config['instances'] = [check_config['instances']]
+        # Accept instances as a list, as a single dict, or as non-existant
+        instances = check_config.get('instances', {})
+        if type(instances) != type([]):
+            instances = [instances]
 
         checks.append({
             'name': check_name,

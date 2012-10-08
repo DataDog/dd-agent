@@ -34,6 +34,22 @@
             Return="check"
             Impersonate="no" />
 
+        <CustomAction
+            Id="ReplaceTags"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#tags: mytag0, mytag1" "tags: [TAGS]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
+        <CustomAction
+            Id="ReplaceHostname"
+            BinaryKey="FindReplace"
+            ExeCommand='"[CommonAppDataFolder]\Datadog\datadog.conf" "#hostname: mymachine.mydomain" "hostname: [HOSTNAME]"'
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
@@ -53,11 +69,23 @@
                     </ServiceInstall>
                     <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="DatadogAgent" Wait="no" />
                 </Component>
+                <Component Id="shell.exe" Guid="42AC39F4-0F18-11E2-B391-8E816188709B">
+                    <File Id="shell.exe" Source="$(var.InstallFiles)\shell.exe" Name="shell.exe"></File>
+                </Component>
                 <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
                     <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
                 </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
+                </Component>
+                <Component Id="Microsoft.VC90.CRT.manifest" Guid="491C4E02-10C9-11E2-AC50-DD0B6288709B">
+                    <File Id="Microsoft.VC90.CRT.manifest" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\Microsoft.VC90.CRT.manifest" KeyPath="yes"></File>
+                </Component>
+                <Component Id="msvcp90.dll" Guid="9142E11E-10C9-11E2-94FC-4B0C6288709B">
+                    <File Id="msvcp90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcp90.dll" KeyPath="yes"></File>
+                </Component>
+                <Component Id="msvcr90.dll" Guid="9A9A9342-10C9-11E2-A0B9-4D0C6288709B">
+                    <File Id="msvcr90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcr90.dll" KeyPath="yes"></File>
                 </Component>
             </Directory>
         </DirectoryRef>
@@ -70,8 +98,12 @@
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="ddagent.exe" />
+            <ComponentRef Id="shell.exe" />
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="license.txt" />
+            <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
+            <ComponentRef Id="msvcp90.dll" />
+            <ComponentRef Id="msvcr90.dll" />
             <ComponentRef Id="datadog.conf" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
@@ -80,6 +112,8 @@
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
+            <Custom Action="ReplaceTags" Before="StartServices" />
+            <Custom Action="ReplaceHostname" Before="StartServices" />
         </InstallExecuteSequence>
 
     </Product>

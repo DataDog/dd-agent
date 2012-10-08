@@ -427,10 +427,10 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 [loggers]
-keys:root,dogstatsd
+keys:root,dogstatsd,checks
 
 [handlers]
-keys:dogstatsd
+keys:dogstatsd,checks
 
 [formatters]
 keys:ddagent
@@ -449,11 +449,23 @@ handlers:dogstatsd
 propagate:0
 qualname:dogstatsd
 
+[logger_checks]
+level:WARN
+handlers:checks
+propagate:0
+qualname:checks
+
 [handler_dogstatsd]
 class:FileHandler
 level:INFO
 formatter:ddagent
 args:('/tmp/dogstatsd.log', 'a')
+
+[handle_checks]
+class:FileHandler
+level:WARN
+formatter:ddagent
+args:('/tmp/dd-agent.log', 'a')
 
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s

@@ -17,7 +17,6 @@ clean:
 	rm -f pup
 	rm -f yaml
 	rm -f checks.d
-	rm -rf aggregator.py
 	rm -rf build*
 	rm -rf *.egg-info
 	rm -rf dist
@@ -31,7 +30,6 @@ links:
 	ln -sf ../../pup .
 	ln -sf ../../yaml .
 	ln -sf ../../checks.d .
-	ln -sf ../../aggregator.py .
 
 dirs:
 	mkdir -p $(BUILD)

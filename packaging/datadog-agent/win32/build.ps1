@@ -8,6 +8,9 @@ rm build/*.msi
 # Build the agent.exe service
 python setup.py py2exe
 cp dist\agent.exe packaging\datadog-agent\win32\install_files\agent.exe
+cp dist\shell.exe packaging\datadog-agent\win32\install_files\shell.exe
+mkdir packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT
+cp dist\Microsoft.VC90.CRT\* packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT\
 
 # Change to the packaging directory
 cd packaging\datadog-agent\win32
@@ -43,6 +46,7 @@ cp ..\..\..\conf.d\* install_files\conf.d
 rm *wixobj*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
+rm -r install_files\Microsoft.VC90.CRT
 
 # Move back to the root workspace
 cd ..\..\..\
@@ -51,4 +55,4 @@ cd ..\..\..\
 # TODO
 
 # Install the new version of the agent
-msiexec /qn /i build\ddagent.msi
+msiexec /qn /i build\ddagent.msi APIKEY="apikey_2" HOSTNAME="agent-build-win32"
