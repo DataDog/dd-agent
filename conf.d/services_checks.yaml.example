@@ -1,0 +1,17 @@
+init_config:
+    parallelize: True
+
+instances:
+#    -   name: my_first_service
+#        type: http
+#        url: http://google.com/
+
+#   -   name: my_second_service
+#        type: tcp
+#        url: localhost
+#        port: 5000
+
+#    -   name: my_third_service
+#        type: tcp
+#        url: 127.0.0.1
+#        port: 4321
