@@ -8,19 +8,19 @@ init_config:
     #
     #    This is a basic custom metric. There is not instance assicated with
     #    this counter.
-    #    Options for type are: gague, rate, histogram
+    #    Options for type are: gauge, rate, histogram
     #
     #    -   name: sqlserver.clr.execution
-    #        type: gague
+    #        type: gauge
     #        counter_name: CLR Execution
     #
     #    This counter has multiple instances assocaited with it and we're
     #    choosing to only fetch the '_Total' instance.
     #
     #    -   name: sqlserver.exec.in_progress
-    #        type: gague
+    #        type: gauge
     #        counter_name: OLEDB calls
-    #        instance_name: Cumulative execution time
+    #        instance_name: Cumulative execution time (ms) per second
     #
     #    This counter has multiple instances assocaited with it and we want
     #    every instance available. We'll use the special case ALL instance
@@ -28,12 +28,12 @@ init_config:
     #    tagged as "db:mydb1", "db:mydb2".
     #
     #    -   name: sqlserver.db.commit_table_entries
-    #        type: gague
+    #        type: gauge
     #        counter_name: Log Flushes/sec
     #        instance_name: ALL
     #        tag_by: db
 
 instances:
-    -   server: sqlhost:port
-        username: username
-        password: password
+    -   host: HOST,PORT
+        username: my_username
+        password: my_password
