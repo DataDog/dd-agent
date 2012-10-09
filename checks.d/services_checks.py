@@ -129,7 +129,6 @@ class ServicesCheck(AgentCheck):
             self.pool.apply_async(self._process, args=(instance,), 
                 callback=self._job_finished)
 
-        time.sleep(1)
         for i in range(self.eventsq.qsize()):
             event, instance = self.eventsq.get_nowait()
             self.events.append(event)
