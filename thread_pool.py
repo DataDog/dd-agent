@@ -21,8 +21,6 @@
 # them to their caller in a very simple way.
 
 import sys, threading, Queue, traceback
-import logging
-log = logging.getLogger('abcd')
 
 
 ## Item pushed on the work queue to tell the worker threads to terminate
@@ -382,7 +380,6 @@ class ApplyResult(object):
         during the processing of the function. The object will become
         ready but not successful. The collector's notify_ready()
         method will be called, but NOT the callback method"""
-        log.info(traceback.print_exc())
         assert not self.ready()
         self._data    = sys.exc_info()
         self._success = False
