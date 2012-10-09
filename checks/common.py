@@ -51,8 +51,6 @@ from checks.ec2 import EC2
 
 from resources.processes import Processes as ResProcesses
 
-from process_manager import ProcessManager
-
 def getUuid():
     # Generate a unique name that will stay constant between
     # invocations, such as platform.node() + uuid.getnode()
@@ -356,25 +354,18 @@ class checks(object):
 
         # checks.d checks
         if checksd:
-            process_manager = ProcessManager.instance()
             for check in checksd:
                 check_cls = check['class']
                 for instance in check['instances']:
-                    # Run the check for each configuration
                     try:
-                        if check_cls.init_config.get("parallelize", False) == True:
-                            process_manager.run_parallel(check_cls, instance)
-                            instance_metrics, instance_events = process_manager.get_metrics_and_events(check_cls, instance)
-                        else:
-                            check_cls.check(instance)
-                            instance_metrics = check_cls.get_metrics()
-                            instance_events = check_cls.get_events()
-                        metrics.extend(instance_metrics)
-                        if check['name'] not in events:
+                        # Run the check for each configuration
+                        check_cls.check(instance)
+                        metrics.extend(check_cls.get_metrics())
+                        if check_cls.has_events():
+                            if check['name'] not in events:
                                 events[check['name']] = []
-                        for ev in instance_events:
-                            events[check['name']].append(ev)
-
+                            for ev in check_cls.get_events():
+                                events[check['name']].append(ev)
                     except Exception:
                         self.checksLogger.exception("Check %s failed" % check_cls.name)
 

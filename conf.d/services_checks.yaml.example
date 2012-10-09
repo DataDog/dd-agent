@@ -1,12 +1,13 @@
 init_config:
-    parallelize: True
+#    parallelize: True
+#    nb_workers: 4
 
 instances:
 #    -   name: my_first_service
 #        type: http
-#        url: http://google.com/
+#        url: http://google.com/kfdgjdkfgjdfklgjdfk.htnk
 
-#   -   name: my_second_service
+#    -   name: my_second_service
 #        type: tcp
 #        url: localhost
 #        port: 5000

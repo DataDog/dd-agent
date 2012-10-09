@@ -436,21 +436,6 @@ class AgentCheck(object):
         """
         raise NotImplementedError()
 
-    def set_shared(self, shared_object):
-        """
-        Overriden by the check class. Used when you want to parallelize the checks over
-        your instances. This object will be shared over the iterations of your check.
-        """
-        self.shared_object = shared_object
-
-    def get_shared(self, object):
-        """
-        Overriden by the check class. Used when you want to parallelize the checks over
-        your instances. This object will be shared over the iterations of your check.
-        """
-        return self.shared_object
-
-
     @classmethod
     def from_yaml(cls, path_to_yaml, agentConfig=None):
         """
