@@ -58,7 +58,7 @@ class SQLServer(AgentCheck):
             self.log.error("Unable to import adodbapi module.")
             return
 
-        host = instance.get('host', 'localhost')
+        host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
         password = instance.get('password')
         database = instance.get('database', 'master')
