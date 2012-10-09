@@ -49,8 +49,6 @@ class ServicesCheck(AgentCheck):
         connect_type = instance.get('type', None)
         name = instance.get('name', None)
 
-        self.log.info((self.statuses))
-
         if url is None or connect_type not in ['http', 'tcp']:
             return False
 
@@ -124,6 +122,7 @@ def _check_tcp(url, instance, agentConfig, log):
     try:
         log.debug("Connecting to %s %s" % (addr, port))
         sock = socket.socket(socket_type)
+        sock.settimeout(int(instance.get('timeout', 10)))
         sock.connect((addr, port))
         sock.close()
 
@@ -139,7 +138,7 @@ def _check_http(url, instance, agentConfig, log):
         log.debug("Connecting to %s" % url)
         username = instance.get('username', None)
         password = instance.get('password', None)
-        timeout = instance.get('timeout', 10)
+        timeout = int(instance.get('timeout', 10))
         passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
         passman.add_password(None, url, username, password)
         authhandler = urllib2.HTTPBasicAuthHandler(passman)

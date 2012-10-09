@@ -10,6 +10,7 @@ instances:
 #        type: tcp
 #        url: localhost
 #        port: 5000
+#        timeout: 5
 
 #    -   name: my_third_service
 #        type: tcp
