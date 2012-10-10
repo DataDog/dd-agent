@@ -122,7 +122,7 @@ start() {
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX /usr/bin/dogstatsd start > /dev/null"
-	RETURNVALUE=$(($RETURNVALUE || $?))
+        RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
         return $RETURNVALUE
@@ -146,10 +146,10 @@ stop() {
             return
         fi
         echo -n 'Stopping Datadog agent: '
- 	daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop >/dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop >/dev/null"
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX /usr/bin/dogstatsd stop > /dev/null"
-	RETURNVALUE=$(($RETURNVALUE || $?))
+        RETURNVALUE=$(($RETURNVALUE || $?))
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi
     return $RETURNVALUE
