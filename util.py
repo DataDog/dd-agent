@@ -93,3 +93,57 @@ class Watchdog(object):
     def reset(self):
         logging.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
+
+
+class PidFile(object):
+    """ A small helper class for pidfiles. """
+
+    PID_DIR = '/var/run/dd-agent'
+
+    def __init__(self, program, pid_dir=PID_DIR):
+        self.pid_file = "%s.pid" % program
+        self.pid_dir = pid_dir
+        self.pid_path = os.path.join(self.pid_dir, self.pid_file)
+
+    def get_path(self):
+        # Can we write to the directory
+        try:
+            if os.access(self.pid_dir, os.W_OK):
+                logging.info("Pid file is: %s" % self.pid_path)
+                return self.pid_path
+        except:
+            logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+
+        # if all else fails
+        if os.access("/tmp", os.W_OK):
+            tmp_path = os.path.join('/tmp', self.pid_file)
+            logging.warn("Pid file: %s" % tmp_path)
+            return tmp_path
+        else:
+            # Can't save pid file, bail out
+            logging.error("Cannot save pid file anywhere")
+            raise Exception("Cannot save pid file anywhere")
+
+    def clean(self):
+        try:
+            path = self.get_path()
+            logging.debug("Cleaning up pid file %s" % path)
+            os.remove(path)
+            return True
+        except:
+            logging.exception("Could not clean up pid file")
+            return False
+
+    def get_pid(self):
+        "Retrieve the actual pid"
+        try:
+            pf = open(self.get_path())
+            pid_s = pf.read()
+            pf.close()
+
+            return int(pid_s.strip())
+        except:
+            logging.exception("Cannot read pid")
+            return None
+
+    
