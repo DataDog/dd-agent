@@ -21,7 +21,7 @@ from aggregator import MetricsAggregator
 from checks import gethostname
 from config import get_config
 from daemon import Daemon
-from util import json, PidFile, Watchdog
+from util import json, PidFile
 
 
 WATCHDOG_TIMEOUT = 120 
@@ -37,14 +37,18 @@ class Reporter(threading.Thread):
     server.
     """
 
-    def __init__(self, interval, metrics_aggregator, api_host, api_key=None):
+    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False):
         threading.Thread.__init__(self)
         self.daemon = True
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
-        self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
+
+        self.watchdog = None
+        if use_watchdog:
+            from util import Watchdog
+            self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host
@@ -63,13 +67,15 @@ class Reporter(threading.Thread):
 
     def run(self):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
+        logger.debug("Watchdog enabled: %s" % bool(self.watchdog))
         while True:
             if self.finished.is_set():
                 break
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
-            self.watchdog.reset()
+            if self.watchdog:
+                self.watchdog.reset()
 
     def flush(self):
         try:
@@ -167,7 +173,7 @@ class Dogstatsd(Daemon):
         self.server.start()
 
 
-def init(config_path=None):
+def init(config_path=None, use_watchdog=False):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.debug("Configuration dogstatsd")
@@ -184,7 +190,7 @@ def init(config_path=None):
     aggregator = MetricsAggregator(hostname)
 
     # Start the reporting thread.
-    reporter = Reporter(interval, aggregator, target, api_key)
+    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
 
     # Start the server.
     server_host = ''
@@ -193,11 +199,11 @@ def init(config_path=None):
     return reporter, server
 
 def main(config_path=None):
-    """ Run dogstatsd """
+    """ The pain entry point for the unix version of dogstatsd. """
     parser = optparse.OptionParser("%prog [start|stop|restart|status]")
     opts, args = parser.parse_args()
 
-    reporter, server = init(config_path)
+    reporter, server = init(config_path, use_watchdog=True)
 
     # If no args were passed in, run the server in the foreground.
     if not args:

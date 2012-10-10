@@ -105,6 +105,9 @@ def _unix_confd_path():
         return path
     raise PathNotFound(path)
 
+def _is_affirmative(s):
+    return s.lower() in ('yes', 'true')
+
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
     if cfg_path is not None and os.path.exists(cfg_path):
@@ -252,13 +255,19 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         dogstatsd_defaults = {
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : dogstatsd_interval
+            'dogstatsd_interval' : dogstatsd_interval,
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # optionally send dogstatsd data directly to the agent.
+        if config.has_option('Main', 'dogstatsd_use_ddurl'):
+            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
+            if use_ddurl:
+                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
         # FIXME not the prettiest code ever...
