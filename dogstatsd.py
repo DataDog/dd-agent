@@ -17,10 +17,16 @@ import threading
 from urllib import urlencode
 
 # project
-from config import get_config
-from checks import gethostname
-from util import json
 from aggregator import MetricsAggregator
+from checks import gethostname
+from config import get_config
+from daemon import Daemon
+from util import json, PidFile, Watchdog
+
+
+WATCHDOG_TIMEOUT = 120 
+UDP_SOCKET_TIMEOUT = 5
+
 
 logger = logging.getLogger('dogstatsd')
 
@@ -38,6 +44,7 @@ class Reporter(threading.Thread):
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
+        self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host
@@ -51,7 +58,7 @@ class Reporter(threading.Thread):
             if match.group(1) == 'http':
                 self.http_conn_cls = http_client.HTTPConnection
 
-    def end(self):
+    def stop(self):
         self.finished.set()
 
     def run(self):
@@ -62,6 +69,7 @@ class Reporter(threading.Thread):
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
+            self.watchdog.reset()
 
     def flush(self):
         try:
@@ -109,25 +117,29 @@ class Server(object):
         self.host = host
         self.port = int(port)
         self.address = (self.host, self.port)
-
         self.metrics_aggregator = metrics_aggregator
-
         self.buffer_size = 1024
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        self.socket.bind(self.address)
+
+        self.running = False
 
     def start(self):
         """ Run the server. """
+        # Bind to the UDP socket.
+        self.socket.bind(self.address)
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        self.running = True
+        # Inline variables for quick look-up.
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
         socket = self.socket
         socket_recv = self.socket.recv
-        timeout = 5
+        timeout = UDP_SOCKET_TIMEOUT
 
+        # Run our select loop.
+        self.running = True
         while self.running:
             try:
                 ready = select.select([socket], [], [], timeout)
@@ -141,10 +153,24 @@ class Server(object):
     def stop(self):
         self.running = False
 
+
+class Dogstatsd(Daemon):
+    """ This class is the dogstats daemon. """
+
+    def __init__(self, pid_file, server, reporter):
+        Daemon.__init__(self, pid_file)
+        self.server = server
+        self.reporter = reporter
+
+    def run(self):
+        self.reporter.start()
+        self.server.start()
+
+
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
-    logger.info("Starting dogstatsd")
+    logger.debug("Configuration dogstatsd")
 
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
@@ -159,7 +185,6 @@ def init(config_path=None):
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)
-    reporter.start()
 
     # Start the server.
     server_host = ''
@@ -168,11 +193,47 @@ def init(config_path=None):
     return reporter, server
 
 def main(config_path=None):
-    reporter, server = init(config_path)
-    server.start()
+    """ Run dogstatsd """
+    parser = optparse.OptionParser("%prog [start|stop|restart|status]")
+    opts, args = parser.parse_args()
 
-    # If we're here, we're done.
-    logger.info("Shutting down ...")
+    reporter, server = init(config_path)
+
+    # If no args were passed in, run the server in the foreground.
+    if not args:
+        reporter.start()
+        server.start()
+
+        # If we're here, we're done.
+        logger.info("Shutting down ...")
+        return 0
+
+    # Otherwise, we're process the deamon command.
+    else:
+        command = args[0]
+        pid_file = PidFile('dogstatsd')
+        daemon = Dogstatsd(pid_file.get_path(), server, reporter)
+
+        if command == 'start':
+            daemon.start()
+        elif command == 'stop':
+            daemon.stop()
+        elif command == 'restart':
+            daemon.restart()
+        elif command == 'status':
+            pid = pid_file.get_pid()
+            if pid:
+                message = 'dogstatsd is running with pid %s' % pid
+            else:
+                message = 'dogstatsd is not running'
+            logger.info(message)
+            sys.stdout.write(message + "\n")
+        else:
+            sys.stderr.write("Unknown command: %s\n\n" % command)
+            parser.print_help()
+            return 1
+        return 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
