@@ -1,0 +1,39 @@
+init_config:
+    #
+    # By default, we only capture *some* of the metrics available in the
+    # `sys.dm_os_performance_counters` table. You can easily add additional
+    # metrics by following the custom_metrics structure shown below.
+    #
+    #custom_metrics:
+    #
+    #    This is a basic custom metric. There is not instance assicated with
+    #    this counter.
+    #    Options for type are: gauge, rate, histogram
+    #
+    #    -   name: sqlserver.clr.execution
+    #        type: gauge
+    #        counter_name: CLR Execution
+    #
+    #    This counter has multiple instances assocaited with it and we're
+    #    choosing to only fetch the '_Total' instance.
+    #
+    #    -   name: sqlserver.exec.in_progress
+    #        type: gauge
+    #        counter_name: OLEDB calls
+    #        instance_name: Cumulative execution time (ms) per second
+    #
+    #    This counter has multiple instances assocaited with it and we want
+    #    every instance available. We'll use the special case ALL instance
+    #    which *requires* a value for "tag_by". In this case, we'll get metrics
+    #    tagged as "db:mydb1", "db:mydb2".
+    #
+    #    -   name: sqlserver.db.commit_table_entries
+    #        type: gauge
+    #        counter_name: Log Flushes/sec
+    #        instance_name: ALL
+    #        tag_by: db
+
+instances:
+    -   host: HOST,PORT
+        username: my_username
+        password: my_password

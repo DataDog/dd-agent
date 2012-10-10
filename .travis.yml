@@ -11,7 +11,7 @@ python:
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
-script: nosetests tests
+script: nosetests -A 'not windows' tests
 before_script:
   - sudo apt-get install sysstat
   - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.8.deb > /tmp/es.deb
