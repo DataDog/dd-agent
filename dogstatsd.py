@@ -21,7 +21,7 @@ from aggregator import MetricsAggregator
 from checks import gethostname
 from config import get_config
 from daemon import Daemon
-from util import json
+from util import json, PidFile, PidFile, PidFile, PidFile
 
 
 logger = logging.getLogger('dogstatsd')
@@ -204,7 +204,8 @@ def main(config_path=None):
         return 0
     else:
         command = args[0]
-        daemon = Dogstatsd('/tmp/dogstatsd.pidfile', server, reporter)
+        pid_file = PidFile('dogstatsd')
+        daemon = Dogstatsd(pid_file.get_path(), server, reporter)
 
         if command == 'start':
             daemon.start()
@@ -212,6 +213,14 @@ def main(config_path=None):
             daemon.stop()
         elif command == 'restart':
             daemon.restart()
+        elif command == 'status':
+            pid = pid_file.get_pid()
+            if pid:
+                message = 'dogstatsd is running with pid %s' % pid
+            else:
+                message = 'dogstatsd is not running'
+            logger.info(message)
+            sys.stdout.write(message + "\n")
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()
