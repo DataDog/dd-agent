@@ -170,7 +170,7 @@ class Dogstatsd(Daemon):
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
-    logger.info("Starting dogstatsd")
+    logger.debug("Configuration dogstatsd")
 
     port     = c['dogstatsd_port']
     target   = c['dogstatsd_target']
