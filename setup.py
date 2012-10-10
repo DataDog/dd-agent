@@ -37,6 +37,7 @@ if sys.platform == 'win32':
         'psycopg2==2.4.5',
         'python-memcached==1.48',
         'redis==2.6.2',
+        'adodbapi'
         'elementtree'
     ])
 
@@ -53,7 +54,7 @@ if sys.platform == 'win32':
     extra_args = {
         'options': {
             'py2exe': {
-                'includes': 'win32service,win32serviceutil,win32event,simplejson',
+                'includes': 'win32service,win32serviceutil,win32event,simplejson,adodbapi',
                 'optimize': 2,
                 'compressed': 1,
                 'bundle_files': 1,
@@ -62,7 +63,7 @@ if sys.platform == 'win32':
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'zipfile': None,
-        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))]
+        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))],
     }
 
 setup(

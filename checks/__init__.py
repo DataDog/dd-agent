@@ -437,20 +437,22 @@ class AgentCheck(object):
         raise NotImplementedError()
 
     @classmethod
-    def from_yaml(cls, path_to_yaml, agentConfig=None):
+    def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
         """
         A method used for testing your check without running the agent.
         """
         from util import yaml, yLoader
-        check_name = os.path.basename(path_to_yaml).split('.')[0]
-        try:
-            f = open(path_to_yaml)
-        except IOError:
-            raise Exception('Unable to open yaml config: %s' % path_to_yaml)
+        if path_to_yaml:
+            check_name = os.path.basename(path_to_yaml).split('.')[0]
+            try:
+                f = open(path_to_yaml)
+            except IOError:
+                raise Exception('Unable to open yaml config: %s' % path_to_yaml)
+            yaml_text = f.read()
+            f.close()
 
-        config = yaml.load(f.read(), Loader=yLoader)
-        f.close()
-        check = cls(check_name, config.get('init_config', {}), agentConfig or {})
+        config = yaml.load(yaml_text, Loader=yLoader)
+        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
         return check, config.get('instances', [])
 

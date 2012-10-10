@@ -392,18 +392,18 @@ def get_confd_path(osname):
 def get_checksd_path(osname):
     log = logging.getLogger('config')
 
-    if osname == 'windows':
-        try:
-            return _windows_checksd_path()
-        except PathNotFound, e:
-            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
-
     # Unix only will look up based on the current directory
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     checksd_path = os.path.join(cur_path, 'checks.d')
     if os.path.exists(checksd_path):
         return checksd_path
+
+    if osname == 'windows':
+        try:
+            return _windows_checksd_path()
+        except PathNotFound, e:
+            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
