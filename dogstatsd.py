@@ -21,7 +21,11 @@ from aggregator import MetricsAggregator
 from checks import gethostname
 from config import get_config
 from daemon import Daemon
-from util import json, PidFile, PidFile, PidFile, PidFile
+from util import json, PidFile, Watchdog
+
+
+WATCHDOG_TIMEOUT = 120 
+UDP_SOCKET_TIMEOUT = 5
 
 
 logger = logging.getLogger('dogstatsd')
@@ -40,6 +44,7 @@ class Reporter(threading.Thread):
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
+        self.watchdog = Watchdog(WATCHDOG_TIMEOUT)
 
         self.api_key = api_key
         self.api_host = api_host
@@ -64,6 +69,7 @@ class Reporter(threading.Thread):
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
+            self.watchdog.reset()
 
     def flush(self):
         try:
@@ -116,7 +122,6 @@ class Server(object):
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        self.socket_timeout = 5
 
         self.running = False
 
@@ -131,7 +136,7 @@ class Server(object):
         aggregator_submit = self.metrics_aggregator.submit
         socket = self.socket
         socket_recv = self.socket.recv
-        timeout = self.socket_timeout
+        timeout = UDP_SOCKET_TIMEOUT
 
         # Run our select loop.
         self.running = True
@@ -189,19 +194,21 @@ def init(config_path=None):
 
 def main(config_path=None):
     """ Run dogstatsd """
-    parser = optparse.OptionParser("%prog [start|stop|restart]")
+    parser = optparse.OptionParser("%prog [start|stop|restart|status]")
     opts, args = parser.parse_args()
 
     reporter, server = init(config_path)
 
+    # If no args were passed in, run the server in the foreground.
     if not args:
-        # If no args were passed in, run the server in the foreground.
         reporter.start()
         server.start()
 
         # If we're here, we're done.
         logger.info("Shutting down ...")
         return 0
+
+    # Otherwise, we're process the deamon command.
     else:
         command = args[0]
         pid_file = PidFile('dogstatsd')
