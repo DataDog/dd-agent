@@ -105,6 +105,9 @@ def _unix_confd_path():
         return path
     raise PathNotFound(path)
 
+def _is_affirmative(s):
+    return s.lower() in ('yes', 'true')
+
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
     if cfg_path is not None and os.path.exists(cfg_path):
@@ -252,13 +255,19 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         dogstatsd_defaults = {
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : dogstatsd_interval
+            'dogstatsd_interval' : dogstatsd_interval,
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # optionally send dogstatsd data directly to the agent.
+        if config.has_option('Main', 'dogstatsd_use_ddurl'):
+            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
+            if use_ddurl:
+                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
         # FIXME not the prettiest code ever...
@@ -392,18 +401,18 @@ def get_confd_path(osname):
 def get_checksd_path(osname):
     log = logging.getLogger('config')
 
-    if osname == 'windows':
-        try:
-            return _windows_checksd_path()
-        except PathNotFound, e:
-            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
-
     # Unix only will look up based on the current directory
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     checksd_path = os.path.join(cur_path, 'checks.d')
     if os.path.exists(checksd_path):
         return checksd_path
+
+    if osname == 'windows':
+        try:
+            return _windows_checksd_path()
+        except PathNotFound, e:
+            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
