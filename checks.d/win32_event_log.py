@@ -33,7 +33,7 @@ class Win32EventLog(AgentCheck):
             self.last_ts[instance_key] = datetime.now()
             return
 
-        # Find all events in the last check that match our search by running a 
+        # Find all events in the last check that match our search by running a
         # straight WQL query against the event log
         last_ts = self.last_ts[instance_key]
         q = EventLogQuery(
@@ -46,7 +46,7 @@ class Win32EventLog(AgentCheck):
         events = w.query(q.to_wql())
 
         # Save any events returned to the payload as Datadog events
-        for ev in [events[0]]:
+        for ev in events:
             log_ev = LogEvent(ev, self.agentConfig.get('api_key', ''),
                 self.hostname, tags, self._get_tz_offset())
 
@@ -62,7 +62,7 @@ class Win32EventLog(AgentCheck):
     def _instance_key(self, instance):
         ''' Generate a unique key per instance for use with keeping track of
         state for each instance '''
-        return '%s'.format(instance)
+        return '%s' % (instance)
 
     def _get_tz_offset(self):
         ''' Return the timezone offset for the current local time
@@ -103,7 +103,6 @@ class EventLogQuery(object):
             q += '\nAND %s = "%s"' % (name, vals)
         else:
             q += "\nAND (%s)" % (' OR '.join(['%s = "%s"' % (name, l) for l in vals]))
-        
         return q
 
     def _dt_to_wmi(self, dt):
@@ -153,7 +152,7 @@ class LogEvent(object):
         '''
         import wmi
         year, month, day, hour, minute, second, microsecond, tz = wmi.to_time(wmi_ts)
-        dt = datetime(year=year, month=month, day=day, hour=hour,
+        dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
             second=second, microsecond=microsecond)
         return int(time.mktime(dt.timetuple())) + (self.tz_offset * 60 * 60)
 
@@ -163,7 +162,7 @@ class LogEvent(object):
     def _alert_type(self, event):
         event_type = event.Type
         try:
-            # For Server 2003, event type is a number 
+            # For Server 2003, event type is a number
             event_type = int(event_type)
             event_type = LogEventType.from_wmi(event_type)
         except ValueError:
@@ -182,7 +181,7 @@ class LogEvent(object):
 
 class LogEventType(object):
     ''' A basic class for converting between EventTypes number values and
-        strings for <= Windows Server 2003 
+        strings for <= Windows Server 2003
     '''
     ERROR = 1
     WARN = 2
