@@ -170,8 +170,6 @@ if __name__ == '__main__':
     # Logging
     setupLogging(agentConfig)
 
-    argLen = len(sys.argv)
-
     if len(args) > 0:
         command = args[0]
 
