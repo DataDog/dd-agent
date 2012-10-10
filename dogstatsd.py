@@ -199,7 +199,7 @@ def init(config_path=None, use_watchdog=False):
     return reporter, server
 
 def main(config_path=None):
-    """ The pain entry point for the unix version of dogstatsd. """
+    """ The main entry point for the unix version of dogstatsd. """
     parser = optparse.OptionParser("%prog [start|stop|restart|status]")
     opts, args = parser.parse_args()
 
