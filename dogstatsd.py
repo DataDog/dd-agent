@@ -51,7 +51,7 @@ class Reporter(threading.Thread):
             if match.group(1) == 'http':
                 self.http_conn_cls = http_client.HTTPConnection
 
-    def end(self):
+    def stop(self):
         self.finished.set()
 
     def run(self):
@@ -159,7 +159,6 @@ def init(config_path=None):
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key)
-    reporter.start()
 
     # Start the server.
     server_host = ''
@@ -169,6 +168,7 @@ def init(config_path=None):
 
 def main(config_path=None):
     reporter, server = init(config_path)
+    reporter.start()
     server.start()
 
     # If we're here, we're done.

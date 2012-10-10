@@ -129,10 +129,12 @@ class DogstatsdThread(threading.Thread):
         self.reporter, self.server = dogstatsd.init()
 
     def run(self):
+        self.reporter.start()
         self.server.start()
 
     def stop(self):
         self.server.stop()
+        self.reporter.stop()
 
 
 if __name__ == '__main__':
