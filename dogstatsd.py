@@ -17,10 +17,12 @@ import threading
 from urllib import urlencode
 
 # project
-from config import get_config
-from checks import gethostname
-from util import json
 from aggregator import MetricsAggregator
+from checks import gethostname
+from config import get_config
+from daemon import Daemon
+from util import json
+
 
 logger = logging.getLogger('dogstatsd')
 
@@ -109,25 +111,30 @@ class Server(object):
         self.host = host
         self.port = int(port)
         self.address = (self.host, self.port)
-
         self.metrics_aggregator = metrics_aggregator
-
         self.buffer_size = 1024
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        self.socket.bind(self.address)
+        self.socket_timeout = 5
+
+        self.running = False
 
     def start(self):
         """ Run the server. """
+        # Bind to the UDP socket.
+        self.socket.bind(self.address)
         logger.info('Listening on host & port: %s' % str(self.address))
 
-        self.running = True
+        # Inline variables for quick look-up.
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit
         socket = self.socket
         socket_recv = self.socket.recv
-        timeout = 5
+        timeout = self.socket_timeout
 
+        # Run our select loop.
+        self.running = True
         while self.running:
             try:
                 ready = select.select([socket], [], [], timeout)
@@ -140,6 +147,20 @@ class Server(object):
 
     def stop(self):
         self.running = False
+
+
+class Dogstatsd(Daemon):
+    """ This class is the dogstats daemon. """
+
+    def __init__(self, pid_file, server, reporter):
+        Daemon.__init__(self, pid_file)
+        self.server = server
+        self.reporter = reporter
+
+    def run(self):
+        self.reporter.start()
+        self.server.start()
+
 
 def init(config_path=None):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
@@ -167,12 +188,36 @@ def init(config_path=None):
     return reporter, server
 
 def main(config_path=None):
-    reporter, server = init(config_path)
-    reporter.start()
-    server.start()
+    """ Run dogstatsd """
+    parser = optparse.OptionParser("%prog [start|stop|restart]")
+    opts, args = parser.parse_args()
 
-    # If we're here, we're done.
-    logger.info("Shutting down ...")
+    reporter, server = init(config_path)
+
+    if not args:
+        # If no args were passed in, run the server in the foreground.
+        reporter.start()
+        server.start()
+
+        # If we're here, we're done.
+        logger.info("Shutting down ...")
+        return 0
+    else:
+        command = args[0]
+        daemon = Dogstatsd('/tmp/dogstatsd.pidfile', server, reporter)
+
+        if command == 'start':
+            daemon.start()
+        elif command == 'stop':
+            daemon.stop()
+        elif command == 'restart':
+            daemon.restart()
+        else:
+            sys.stderr.write("Unknown command: %s\n\n" % command)
+            parser.print_help()
+            return 1
+        return 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
