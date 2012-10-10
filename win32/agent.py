@@ -84,10 +84,10 @@ class DDAgent(threading.Thread):
 
         # Main agent loop will run until interrupted
         systemStats = get_system_stats()
-        chk.doChecks(True, systemStats)
+        chk.doChecks(True, systemStats, checksd)
 
         while self.running:
-            chk.doChecks()
+            chk.doChecks(checksd=checksd)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
