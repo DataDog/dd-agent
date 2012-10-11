@@ -444,16 +444,19 @@ def load_check_directory(agentConfig):
         check_name = os.path.basename(check).split('.')[0]
         try:
             check_module = __import__(check_name)
-        except:
-            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+        except Exception, e:
+            log.warn('Unable to import check module %s.py from checks.d %s' % (check_name,str(e)))
             continue
 
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for name, clsmember in classes:
-            if AgentCheck in clsmember.__bases__:
+            if issubclass(clsmember, AgentCheck):
                 check_class = clsmember
-                break
+                if AgentCheck in clsmember.__bases__:
+                    continue
+                else:
+                    break
 
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
@@ -479,11 +482,6 @@ def load_check_directory(agentConfig):
         else:
             continue
 
-        # Init all of the check's classes with
-        init_config = check_config.get('init_config', None)
-        check_class = check_class(check_name, init_config=init_config,
-            agentConfig=agentConfig)
-
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
             log.error("Config %s is missing 'instances'" % conf_path)
@@ -493,6 +491,12 @@ def load_check_directory(agentConfig):
         instances = check_config.get('instances', {})
         if type(instances) != type([]):
             instances = [instances]
+
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config', {})
+        init_config['instances_number'] = len(instances)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
 
         checks.append({
             'name': check_name,

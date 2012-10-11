@@ -15,9 +15,12 @@ def load_check(name, config, agentConfig):
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
-        if AgentCheck in clsmember.__bases__:
+        if issubclass(clsmember, AgentCheck):
             check_class = clsmember
-            break
+            if AgentCheck in clsmember.__bases__:
+                continue
+            else:
+                break
     if check_class is None:
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 

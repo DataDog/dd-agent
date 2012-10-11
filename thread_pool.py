@@ -81,6 +81,9 @@ class Pool(object):
             else:
                 self._workers.append(thr)
 
+    def get_nworkers(self):
+        return len(self._workers)
+
     def apply(self, func, args=(), kwds=dict()):
         """Equivalent of the apply() builtin function. It blocks till
         the result is ready."""

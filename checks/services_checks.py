@@ -1,17 +1,12 @@
 from checks import AgentCheck
-from util import headers
-import urllib2
 import time
-import socket
-import logging
 from Queue import Queue
-import hashlib
-
 from thread_pool import Pool
 
 SOURCE_TYPE_NAME = 'servicecheck'
 
 TIMEOUT = 180
+DEFAULT_SIZE_POOL = 6
 
 class Status:
     DOWN = "DOWN"
@@ -20,8 +15,6 @@ class Status:
 class EventType:
     DOWN = "servicecheck.state_change.down"
     UP = "servicecheck.state_change.up"
-
-class BadConfException(Exception): pass
 
 
 class ServicesCheck(AgentCheck):
@@ -42,7 +35,14 @@ class ServicesCheck(AgentCheck):
         self._init_pool()
 
     def _init_pool(self):
-        self.pool = Pool(int(self.init_config.get('nb_threads', 4)))
+        # The pool size should be the minimum between the number of instances
+        # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'nb_threads'
+        # parameter in the init_config of the check
+        pool_size = int(self.init_config.get('nb_threads', 
+            min([self.init_config.get('instances_number', DEFAULT_SIZE_POOL), 
+                DEFAULT_SIZE_POOL])))
+        self.pool = Pool(pool_size)
+
         self.resultsq = Queue()
         self.jobs_status = {}
 
@@ -70,21 +70,10 @@ class ServicesCheck(AgentCheck):
 
 
     def _process(self, instance):
-        connect_type = instance.get('type', None)
         name = instance.get('name', None)
 
-        if connect_type not in ['http', 'tcp']:
-            self.log.error("The service type must be 'http' or 'tcp'")
-            return (None, None, None, None)
-
         try:
-            if connect_type == 'http':
-                addr, username, password, timeout = self._load_http_conf(instance)
-                status, msg = self._check_http(addr, username, password, timeout)
-
-            if connect_type == 'tcp':
-                addr, port, timeout, socket_type = self._load_tcp_conf(instance)
-                status, msg = self._check_tcp(addr, port, socket_type, timeout)
+            status, msg = self._check(instance)
 
             result = (status, msg, name, instance)
             # We put the results in the result queue
@@ -92,6 +81,7 @@ class ServicesCheck(AgentCheck):
 
         except Exception, e:
             self.log.exception(e)
+            self.restart_pool()
 
     def _process_results(self):
         for i in range(1000):
@@ -140,13 +130,12 @@ class ServicesCheck(AgentCheck):
     def _create_status_event(self, status, msg, instance):
         url = instance.get('url', None)
         name = instance.get('name', None)
-        notify = instance.get('notify', self.init_config.get('notify', None))
+        notify = instance.get('notify', self.init_config.get('notify', []))
         notify_message = ""
-        if notify is not None:
-            notify_list = []
-            for handle in notify.split(','):
-                notify_list.append("@%s" % handle.strip())
-            notify_message = " ".join(notify_list)
+        notify_list = []
+        for handle in notify:
+            notify_list.append("@%s" % handle.strip())
+        notify_message = " ".join(notify_list)
 
         if status == Status.DOWN:
             title = "Alert: %s is Down" % name
@@ -174,90 +163,4 @@ class ServicesCheck(AgentCheck):
              "event_object": name,
         }
 
-    def _load_tcp_conf(self, instance):
-        # Fetches the conf
-
-        port = instance.get('port', None)
-        timeout = int(instance.get('timeout', 10))
-        socket_type = None
-        try:
-            port = int(port)
-        except Exception:
-            raise BadConfException("%s is not a correct port." % str(port))
-
-        try:
-            url = instance.get('url', None)
-            split = url.split(":")
-        except Exception: # Would be raised if url is not a string 
-            raise BadConfException("A valid url must be specified")
-
-        # IPv6 address format: 2001:db8:85a3:8d3:1319:8a2e:370:7348
-        if len(split) == 8: # It may then be a IP V8 address, we check that
-            for block in split:
-                if len(block) != 4:
-                    raise BadConfException("%s is not a correct IPv6 address." % url)
-
-            addr = url
-            # It's a correct IP V6 address
-            socket_type = socket.AF_INET6
-            
-        if socket_type is None:
-            try:
-                addr = socket.gethostbyname(url)
-                socket_type = socket.AF_INET
-            except Exception:
-                raise BadConfException("URL: %s is not a correct IPv4, IPv6 or hostname" % url)
-
-        return addr, port, timeout, socket_type
-
-    def _load_http_conf(self, instance):
-        # Fetches the conf
-        username = instance.get('username', None)
-        password = instance.get('password', None)
-        timeout = int(instance.get('timeout', 10))
-        url = instance.get('url', None)
-        return url, username, password, timeout
-
-    def _check_tcp(self, addr, port, socket_type, timeout=10):
-        try:
-            self.log.debug("Connecting to %s %s" % (addr, port))
-            sock = socket.socket(socket_type)
-            try:
-                sock.settimeout(timeout)
-                sock.connect((addr, port))
-            finally:
-                sock.close()
-
-        except Exception, e:
-            self.log.info("%s:%s is down" % (addr, port))
-            return Status.DOWN, str(e)
-
-        self.log.info("%s:%s is UP" % (addr, port))
-        return Status.UP, "UP"
-
-    def _check_http(self, addr, username=None, password=None, timeout=10):
-        try:
-            self.log.debug("Connecting to %s" % addr)
-            passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-            passman.add_password(None, addr, username, password)
-            authhandler = urllib2.HTTPBasicAuthHandler(passman)
-            opener = urllib2.build_opener(authhandler)
-            urllib2.install_opener(opener)
-            req = urllib2.Request(addr, None, headers(self.agentConfig))
-            request = urllib2.urlopen(req, timeout=timeout)
-        
-        except urllib2.URLError, e:
-            self.log.info("%s is DOWN" % addr)
-            return Status.DOWN, str(e)
-
-        except  urllib2.HTTPError, e:
-            if int(e.code) >= 400:
-                self.log.info("%s is DOWN, error code: %s" % (addr, str(e.code)))
-                return Status.DOWN, str(e)
-
-        except Exception, e:
-            self.log.error("Unhandled exception %s" % str(e))
-            raise
-
-        self.log.info("%s is UP" % addr)
-        return Status.UP, "UP"
+   

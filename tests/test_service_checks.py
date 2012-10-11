@@ -6,20 +6,83 @@ from nose.tools import set_trace
 
 class ServiceCheckTestCase(unittest.TestCase):
 
-    def init_check(self, config):
+    def setUp(self):
+        self.checks = []
+
+    def init_check(self, config, check_name):
         self.agentConfig = {
             'version': '0.1',
             'api_key': 'toto'
         }
 
-        self.check = load_check('services_checks', config, self.agentConfig)
-        logging.getLogger().info(self.check.statuses)
+        self.check = load_check(check_name, config, self.agentConfig)
+        self.checks.append(self.check)
 
-    def testHighNumber(self):
+    def testTcpHighNumber(self):
+        config = {
+            'init_config': {
+                'notify': ['handle1', 'handle2']
+            }}
+
+        config['instances'] = []
+
+
+        def add_tcp_service(name, url, port):
+            config['instances'].append({
+                'name': name,
+                'host': url,
+                'port': port,
+                'timeout': 1,
+                'notify': ['handle3']
+        })
+
+        work_tcp_url = "datadoghq.com"
+        work_tcp_port = 80
+        fail_tcp_url = "127.0.0.2"
+        fail_tcp_port = 65530
+
+        for i in range(25):
+            add_tcp_service("fail_tcp_{0}".format(i), fail_tcp_url, fail_tcp_port)
+
+        for i in range(25):
+            add_tcp_service("work_tcp_{0}".format(i), work_tcp_url, work_tcp_port)
+
+
+        self.init_check(config, 'tcp_check')
+
+        self.assertTrue(self.check.pool.get_nworkers() == 6)
+
+        for instance in config['instances']:
+            self.check.check(instance)
+
+        time.sleep(10)
+        self.check.check(config['instances'][0])
+
+        events = self.check.get_events()
+
+        assert events
+        self.assertTrue(type(events) == type([]))
+        self.assertTrue(len(events) == 25, len(events))
+
+        handles={
+            '@handle1': 0,
+            '@handle2': 0,
+            '@handle3': 0,
+            }
+        for event in events:
+            for handle in handles:
+                if handle in event['msg_text']:
+                    handles[handle] += 1
+
+        self.assertTrue(handles['@handle1'] == 0)
+        self.assertTrue(handles['@handle2'] == 0)
+        self.assertTrue(handles['@handle3'] == 25)
+
+    def testHttpHighNumber(self):
         config = {
             'init_config': {
                 'nb_threads': 12,
-                'notify': 'handle1, handle2'
+                'notify': ['handle1', 'handle2']
             }}
 
         config['instances'] = []
@@ -33,25 +96,9 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'timeout': 1
                 })
 
-        def add_tcp_service(name, url, port):
-            config['instances'].append({
-                'name': name,
-                'type': 'tcp',
-                'url': url,
-                'port': port,
-                'timeout': 1,
-                'notify': 'handle3'
-        })
 
         work_http_url = "http://datadoghq.com"
         fail_http_url = "http://google.com/sdfsdfsdfsdfsdfsdfsdffsd.html"
-        work_tcp_url = "datadoghq.com"
-        work_tcp_port = 80
-        fail_tcp_url = "127.0.0.2"
-        fail_tcp_port = 65530
-
-        for i in range(25):
-            add_tcp_service("fail_tcp_{0}".format(i), fail_tcp_url, fail_tcp_port)
 
         for i in range(25):
             add_http_service("fail_http_{0}".format(i), fail_http_url)
@@ -59,11 +106,10 @@ class ServiceCheckTestCase(unittest.TestCase):
         for i in range(25):
             add_http_service("work_http_{0}".format(i), work_http_url)
 
-        for i in range(25):
-            add_tcp_service("work_tcp_{0}".format(i), work_tcp_url, work_tcp_port)
 
+        self.init_check(config,'http_check')
 
-        self.init_check(config)
+        self.assertTrue(self.check.pool.get_nworkers() == 12)
 
         for instance in config['instances']:
             self.check.check(instance)
@@ -75,41 +121,40 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         assert events
         self.assertTrue(type(events) == type([]))
-        self.assertTrue(len(events) == 50, len(events))
+        self.assertTrue(len(events) == 25, len(events))
 
         handles={
             '@handle1': 0,
             '@handle2': 0,
-            '@handle3': 0,
             }
         for event in events:
             for handle in handles:
                 if handle in event['msg_text']:
                     handles[handle] += 1
 
-        for handle in handles:
-            self.assertTrue(handles[handle] == 25)
+        self.assertTrue(handles['@handle1'] == 25, handles)
+        self.assertTrue(handles['@handle2'] == 25, handles)
 
     def testHTTP(self):
         # No passwords this time
         config = {
             'init_config': {
-                'nb_workers': 4
+                'instances_number': 2
             },
             'instances': [{
                 'url': 'http://fsdfdsfsdfsdfsdfsdfsdfsdfsdfsd.com/fake',
-                'type': 'http',
                 'name': 'DownService'
             },{
                 'url': 'http://google.com',
-                'type': 'http',
                 'name': 'UpService',
                 'timeout': 1
 
             }]
         }
 
-        self.init_check(config)
+        self.init_check(config, 'http_check')
+
+        self.assertTrue(self.check.pool.get_nworkers() == 2, self.check.pool.get_nworkers())
 
         # We launch each instance twice to be sure to get the results
         self.check.check(config['instances'][0])
@@ -153,30 +198,27 @@ class ServiceCheckTestCase(unittest.TestCase):
         # No passwords this time
         config = {
             'init_config': {
-                'parallelize': True,
-                'nb_workers': 4
             },
             'instances': [{
-                'url': '127.0.0.1',
+                'host': '127.0.0.1',
                 'port': 65530,
-                'type': 'tcp',
                 'name': 'DownService'
             },{
-                'url': '126.0.0.1',
+                'host': '126.0.0.1',
                 'port': 65530,
                 'timeout': 1,
-                'type': 'tcp',
                 'name': 'DownService2'
             },{
-                'url': 'datadoghq.com',
+                'host': 'datadoghq.com',
                 'port': 80,
-                'type': 'tcp',
                 'name': 'UpService'
 
             }]
         }
 
-        self.init_check(config)
+        self.init_check(config, 'tcp_check')
+
+        self.assertTrue(self.check.pool.get_nworkers() == 6, self.check.pool.get_nworkers())
 
         # We launch each instance twice to be sure to get the results
         self.check.check(config['instances'][0])
@@ -217,9 +259,10 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         # We restart the pool of worker to not get conflicts with the other test
         self.check.restart_pool()
-
+    
     def tearDown(self):
-        self.check.stop_pool()
+        for check in self.checks:
+            check.stop_pool()
 
 if __name__ == "__main__":
     unittest.main()
