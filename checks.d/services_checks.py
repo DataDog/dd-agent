@@ -9,13 +9,17 @@ import hashlib
 
 from thread_pool import Pool
 
-EVENT_TYPE = SOURCE_TYPE_NAME = 'servicecheck'
+SOURCE_TYPE_NAME = 'servicecheck'
 
 TIMEOUT = 180
 
 class Status:
     DOWN = "DOWN"
     UP = "UP"
+
+class EventType:
+    DOWN = "servicecheck.state_change.down"
+    UP = "servicecheck.state_change.up"
 
 class BadConfException(Exception): pass
 
@@ -28,7 +32,7 @@ class ServicesCheck(AgentCheck):
         each iteration of the loop.
         The check method will make an asynchronous call to the _process method in 
         one of the thread initiated in the thread pool created in this class constructor.
-        
+
     """
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -149,16 +153,18 @@ class ServicesCheck(AgentCheck):
             alert_type = "error"
             msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s \n %%%%%%" \
                     % (notify_message, name, status, url, self.hostname, msg)
+            event_type = EventType.DOWN
 
         else: # Status is UP
             title = "Alert: %s recovered" % name
             alert_type = "info"
             msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n %%%%%%" \
                     % (notify_message, name, url, status, self.hostname)
+            event_type = EventType.UP
 
         return {
              'timestamp': int(time.time()),
-             'event_type': EVENT_TYPE,
+             'event_type': event_type,
              'host': self.hostname,
              'api_key': self.agentConfig['api_key'],
              'msg_text': msg,
