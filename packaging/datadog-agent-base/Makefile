@@ -55,6 +55,7 @@ install: dirs links
 	chmod 644 $(BUILD)/usr/share/datadog/agent/modules.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/aggregator.py
 	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
+	ln -sf ../share/datadog/agent/dogstatsd.py $(BUILD)/usr/bin/dogstatsd
 
 install_deb: install
 	cp deb/datadog-agent.init $(BUILD)/etc/init.d/datadog-agent
