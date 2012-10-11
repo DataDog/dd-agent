@@ -17,7 +17,6 @@ class IIS(AgentCheck):
         ('iis.net.connection_attempts', 'gauge', 'ConnectionAttemptsPerSec'),
 
         # HTTP Methods
-        ('iis.httpd_request_method.copy', 'gauge', 'CopyRequestsPerSec'),
         ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
         ('iis.httpd_request_method.get', 'gauge', 'GetRequestsPerSec'),
         ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),
@@ -25,15 +24,7 @@ class IIS(AgentCheck):
         ('iis.httpd_request_method.put', 'gauge', 'PostRequestsPerSec'),
         ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
         ('iis.httpd_request_method.options', 'gauge', 'OptionsRequestsPerSec'),
-        ('iis.httpd_request_method.unlock', 'gauge', 'UnlockRequestsPerSec'),
-        ('iis.httpd_request_method.lock', 'gauge', 'LockRequestsPerSec'),
-        ('iis.httpd_request_method.mkcol', 'gauge', 'MkcolRequestsPerSec'),
-        ('iis.httpd_request_method.move', 'gauge', 'MoveRequestsPerSec'),
-        ('iis.httpd_request_method.propfind', 'gauge', 'PropfindRequestsPerSec'),
-        ('iis.httpd_request_method.proppatch', 'gauge', 'ProppatchRequestsPerSec'),
-        ('iis.httpd_request_method.search', 'gauge', 'SearchRequestsPerSec'),
         ('iis.httpd_request_method.trace', 'gauge', 'TraceRequestsPerSec'),
-        ('iis.httpd_request_method.other', 'gauge', 'OtherRequestMethodsPerSec'),
 
         # Errors
         ('iis.errors.net_found', 'gauge', 'NotFoundErrorsPerSec'),
