@@ -1,0 +1,25 @@
+init_config:
+
+
+instances:
+    # By default, this check will run against a single instance - the current
+    # machine that the Agent is running on. It will check the WMI performance
+    # counters for IIS on that machine. 
+    #
+    # If you want to check other remote machines as well, you can add one
+    # instance per host. Note: If you also want to check the counters on the
+    # current machine, you will have to create an instance with empty params.
+    #
+    # Here's an example of configuration that would check the current machine
+    # and a remove machine called MYREMOTESERVER (with optional tags):
+    #
+    #-  host: . # "." means the current host
+    #   tags:
+    #       - myapp1
+    #
+    #-  host: MYREMOTESERVER
+    #   username: MYREMOTESERVER\fred
+    #   password: mysecretpassword
+    #   tags:
+    #        - myapp2
+    #        - east
