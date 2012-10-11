@@ -5,7 +5,8 @@ init_config:
 instances:
 #    -   name: my_first_service
 #        type: http
-#        url: http://google.com/kfdgjdkfgjdfklgjdfk.htnk
+#        url: http://google.com
+#        timeout: 10
 
 #    -   name: my_second_service
 #        type: tcp
