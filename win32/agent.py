@@ -84,10 +84,10 @@ class DDAgent(threading.Thread):
 
         # Main agent loop will run until interrupted
         systemStats = get_system_stats()
-        chk.doChecks(True, systemStats)
+        chk.doChecks(True, systemStats, checksd)
 
         while self.running:
-            chk.doChecks()
+            chk.doChecks(checksd=checksd)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
@@ -129,10 +129,12 @@ class DogstatsdThread(threading.Thread):
         self.reporter, self.server = dogstatsd.init()
 
     def run(self):
+        self.reporter.start()
         self.server.start()
 
     def stop(self):
         self.server.stop()
+        self.reporter.stop()
 
 
 if __name__ == '__main__':
