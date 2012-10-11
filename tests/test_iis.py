@@ -17,8 +17,8 @@ instances:
             - mytag2
 """
 
-@attr('windows')
 class IISTestCase(unittest.TestCase):
+    @attr('windows')
     def testIIS(self):
         check, instances = get_check('iis', CONFIG)
         check.check(instances[0])
