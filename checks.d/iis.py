@@ -20,10 +20,10 @@ class IIS(AgentCheck):
         ('iis.httpd_request_method.copy', 'gauge', 'CopyRequestsPerSec'),
         ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
         ('iis.httpd_request_method.get', 'gauge', 'GetRequestsPerSec'),
-        ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),        
-        ('iis.httpd_request_method.head', 'gauge', 'PostRequestsPerSec'),        
-        ('iis.httpd_request_method.put', 'gauge', 'PostRequestsPerSec'),        
-        ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),        
+        ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),
+        ('iis.httpd_request_method.head', 'gauge', 'PostRequestsPerSec'),
+        ('iis.httpd_request_method.put', 'gauge', 'PostRequestsPerSec'),
+        ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
         ('iis.httpd_request_method.options', 'gauge', 'OptionsRequestsPerSec'),
         ('iis.httpd_request_method.unlock', 'gauge', 'UnlockRequestsPerSec'),
         ('iis.httpd_request_method.lock', 'gauge', 'LockRequestsPerSec'),
@@ -69,7 +69,7 @@ class IIS(AgentCheck):
         except Exception:
             self.log.exception('Unable to fetch Win32_PerfFormattedData_W3SVC_WebService class')
             return
-        
+
         wmi_cls = wmi_cls[0]
         for metric, mtype, wmi_val in self.METRICS:
             if not hasattr(wmi_cls, wmi_val):
