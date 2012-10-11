@@ -6,6 +6,8 @@ instances:
 #    -   name: my_first_service
 #        type: http
 #        url: http://google.com
+#        username: user
+#        password: pass
 #        timeout: 10
 
 #    -   name: my_second_service

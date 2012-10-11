@@ -29,9 +29,10 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'type': 'http',
                 'name': 'DownService'
             },{
-                'url': 'http://datadoghq.com',
+                'url': 'http://google.com',
                 'type': 'http',
-                'name': 'UpService'
+                'name': 'UpService',
+                'timeout': 1
 
             }]
         }
@@ -41,7 +42,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         # We launch each instance twice to be sure to get the results
         self.check.check(config['instances'][0])
         self.check.check(config['instances'][1])
-        time.sleep(1)
+        time.sleep(2)
         self.check.check(config['instances'][0])
         self.check.check(config['instances'][1])
 
