@@ -244,7 +244,6 @@ class ServicesCheck(AgentCheck):
             opener = urllib2.build_opener(authhandler)
             urllib2.install_opener(opener)
             req = urllib2.Request(addr, None, headers(self.agentConfig))
-            self.log.info("TIMEOUT: {0}".format(timeout))
             request = urllib2.urlopen(req, timeout=timeout)
         
         except urllib2.URLError, e:
