@@ -10,7 +10,8 @@ import hashlib
 from thread_pool import Pool
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'servicecheck'
-TIMEOUT = 150
+
+TIMEOUT = 180
 
 class Status:
     DOWN = "DOWN"
@@ -20,6 +21,15 @@ class BadConfException(Exception): pass
 
 
 class ServicesCheck(AgentCheck):
+    """
+    Work flow:
+        This class is instanciated ONCE during the whole agent life
+        The main agent loop will call the check function for each instance for 
+        each iteration of the loop.
+        The check method will make an asynchronous call to the _process method in 
+        one of the thread initiated in the thread pool created in this class constructor.
+        
+    """
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
@@ -28,8 +38,8 @@ class ServicesCheck(AgentCheck):
         self._init_pool()
 
     def _init_pool(self):
-        self.pool = Pool(int(self.init_config.get('nb_workers', 4)))
-        self.eventsq = Queue()
+        self.pool = Pool(int(self.init_config.get('nb_threads', 4)))
+        self.resultsq = Queue()
         self.jobs_status = {}
 
     def stop_pool(self):
@@ -39,35 +49,112 @@ class ServicesCheck(AgentCheck):
         self.stop_pool()
         self._init_pool()
 
+    def check(self, instance):
+        self._process_results()
+        self._clean()
+        name = instance.get('name', None)
+        if name is None:
+            self.log.error('Each service check must have a name')
+            return
+
+        if name not in self.jobs_status: 
+            # A given instance should be processed one at a time
+            self.jobs_status[name] = time.time()
+            self.pool.apply_async(self._process, args=(instance,))
+        else:
+            self.log.error("Instance: %s skipped because it's already running." % name)
+
+
+    def _process(self, instance):
+        connect_type = instance.get('type', None)
+        name = instance.get('name', None)
+
+        if connect_type not in ['http', 'tcp']:
+            self.log.error("The service type must be 'http' or 'tcp'")
+            return (None, None, None, None)
+
+        try:
+            if connect_type == 'http':
+                addr, username, password, timeout = self._load_http_conf(instance)
+                status, msg = self._check_http(addr, username, password, timeout)
+
+            if connect_type == 'tcp':
+                addr, port, timeout, socket_type = self._load_tcp_conf(instance)
+                status, msg = self._check_tcp(addr, port, socket_type, timeout)
+
+            result = (status, msg, name, instance)
+            # We put the results in the result queue
+            self.resultsq.put(result)
+
+        except Exception, e:
+            self.log.exception(e)
+
+    def _process_results(self):
+        for i in range(1000):
+            try:
+                # We want to fetch the result in a non blocking way
+                status, msg, name, queue_instance = self.resultsq.get_nowait()
+            except Exception:
+                break
+
+            event = None
+
+            if self.statuses.get(name, None) is None and status == Status.DOWN:
+                # First time the check is run since agent startup and the service is down
+                # We trigger an event
+                self.statuses[name] = status
+                event = self._create_status_event(status, msg, queue_instance)
+
+            elif self.statuses.get(name, Status.UP) != status:
+                # There is a change in the state versus previous state
+                # We trigger an event
+                self.statuses[name] = status
+                event = self._create_status_event(status, msg, queue_instance)
+
+            else:
+                # Either it's the first time the check is run and the service is up
+                # or there is no change in the status
+                self.statuses[name] = status
+
+            if event is not None:
+                self.events.append(event)
+
+            # The job is finish here, this instance can be re processed
+            del self.jobs_status[name]
+
+
     def _clean(self):
         now = time.time()
         stuck_process = None
         stuck_time = time.time()
-        for key in self.jobs_status.keys():
-            start_time = self.jobs_status[key]
-            # We find the oldest job
+        for name in self.jobs_status.keys():
+            start_time = self.jobs_status[name]
             if now - start_time > TIMEOUT:
                 self.log.critical("Restarting Pool. One check is stuck.")
                 self.restart_pool()
                 
-    def _generate_key(self, instance):
-        return hashlib.md5(str(instance)).digest()[:8]
-        
     def _create_status_event(self, status, msg, instance):
         url = instance.get('url', None)
         name = instance.get('name', None)
+        notify = instance.get('notify', self.init_config.get('notify', None))
+        notify_message = ""
+        if notify is not None:
+            notify_list = []
+            for handle in notify.split(','):
+                notify_list.append("@%s" % handle.strip())
+            notify_message = " ".join(notify_list)
 
         if status == Status.DOWN:
             title = "Alert: %s is Down" % name
             alert_type = "error"
-            msg = "%%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s \n%%%%%%" \
-                    % (name, status, url, self.hostname, msg)
+            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s \n %%%%%%" \
+                    % (notify_message, name, status, url, self.hostname, msg)
 
         else: # Status is UP
             title = "Alert: %s recovered" % name
             alert_type = "info"
-            msg = "%%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n%%%%%%" \
-                    % (name, url, status, self.hostname)
+            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n %%%%%%" \
+                    % (notify_message, name, url, status, self.hostname)
 
         return {
              'timestamp': int(time.time()),
@@ -98,6 +185,7 @@ class ServicesCheck(AgentCheck):
         except Exception: # Would be raised if url is not a string 
             raise BadConfException("A valid url must be specified")
 
+        # IPv6 address format: 2001:db8:85a3:8d3:1319:8a2e:370:7348
         if len(split) == 8: # It may then be a IP V8 address, we check that
             for block in split:
                 if len(block) != 4:
@@ -118,108 +206,21 @@ class ServicesCheck(AgentCheck):
 
     def _load_http_conf(self, instance):
         # Fetches the conf
-
         username = instance.get('username', None)
         password = instance.get('password', None)
         timeout = int(instance.get('timeout', 10))
         url = instance.get('url', None)
         return url, username, password, timeout
 
-    def check(self, instance):
-        self._process_results()
-        self._clean()
-        # We generate a key for an instance to save the statuses of each instance
-        key = self._generate_key(instance)
-
-        if key not in self.jobs_status: 
-            # A given instance should be processed one at a time
-            self.jobs_status[key] = time.time()
-            self.pool.apply_async(self._process, args=(instance,), 
-                callback=self._job_finished)
-
-        
-
-    def _process_results(self):
-        for i in range(self.eventsq.qsize()):
-            # We process every result in the queue
-
-            try:
-                # We want to fetch the result in a non blocking way
-                status, msg, name, queue_instance = self.eventsq.get_nowait()
-            except Exception:
-                continue
-
-            event = None
-
-            if status is None:
-                # Something went wront when the instance was processed
-                # We delete the key to allows this instance to be rerun 
-                del self.jobs_status[self._generate_key(queue_instance)]
-                continue
-
-            if self.statuses.get(name, None) is None and status == Status.DOWN:
-                # First time the check is run since agent startup and the service is down
-                # We trigger an event
-                self.statuses[name] = status
-                event = self._create_status_event(status, msg, queue_instance)
-
-            elif self.statuses.get(name, Status.UP) != status:
-                # There is a change in the state versus previous state
-                # We trigger an event
-                self.statuses[name] = status
-                event =self._create_status_event(status, msg, queue_instance)
-
-            else:
-                # Either it's the first time the check is run and the service is up
-                # or there is no change in the status
-                self.statuses[name] = status
-
-            if event is not None:
-                self.events.append(event)
-
-            # The job is finish here, this instance can be re processed
-            del self.jobs_status[self._generate_key(queue_instance)]
-
-
-
-
-    def _job_finished(self, result):
-        if result[0] is not None:
-            # We push the result in the queue
-            self.eventsq.put(result)
-
-    def _process(self, instance):
-        connect_type = instance.get('type', None)
-        name = instance.get('name', None)
-
-        if connect_type not in ['http', 'tcp']:
-            self.log.error("The service type must be 'http' or 'tcp'")
-            return None
-
-        try:
-            if connect_type == 'http':
-                addr, username, password, timeout = self._load_http_conf(instance)
-                status, msg = self._check_http(addr, username, password, timeout)
-
-            if connect_type == 'tcp':
-                addr, port, timeout, socket_type = self._load_tcp_conf(instance)
-                status, msg = self._check_tcp(addr, port, socket_type, timeout)
-
-            return (status, msg, name, instance)
-
-
-        except Exception, e:
-            self.log.exception(e)
-            return (None, None, None, None)
-
-
     def _check_tcp(self, addr, port, socket_type, timeout=10):
         try:
             self.log.debug("Connecting to %s %s" % (addr, port))
             sock = socket.socket(socket_type)
-            sock.settimeout(timeout)
-            sock.connect((addr, port))
-            sock.close()
+            try:
+                sock.settimeout(timeout)
+                sock.connect((addr, port))
+            finally:
+                sock.close()
 
         except Exception, e:
             self.log.info("%s:%s is down" % (addr, port))
@@ -237,6 +238,7 @@ class ServicesCheck(AgentCheck):
             opener = urllib2.build_opener(authhandler)
             urllib2.install_opener(opener)
             req = urllib2.Request(addr, None, headers(self.agentConfig))
+            self.log.info("TIMEOUT: {0}".format(timeout))
             request = urllib2.urlopen(req, timeout=timeout)
         
         except urllib2.URLError, e:
@@ -245,7 +247,7 @@ class ServicesCheck(AgentCheck):
 
         except  urllib2.HTTPError, e:
             if int(e.code) >= 400:
-                self.log.info("%s is DOWN" % addr)
+                self.log.info("%s is DOWN, error code: %s" % (addr, str(e.code)))
                 return Status.DOWN, str(e)
 
         except Exception, e:

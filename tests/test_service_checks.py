@@ -15,13 +15,85 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.check = load_check('services_checks', config, self.agentConfig)
         logging.getLogger().info(self.check.statuses)
 
+    def testHighNumber(self):
+        config = {
+            'init_config': {
+                'nb_threads': 12,
+                'notify': 'handle1, handle2'
+            }}
 
+        config['instances'] = []
+
+
+        def add_http_service(name, url):
+            config['instances'].append({
+                'name': name,
+                'type': 'http',
+                'url': url,
+                'timeout': 1
+                })
+
+        def add_tcp_service(name, url, port):
+            config['instances'].append({
+                'name': name,
+                'type': 'tcp',
+                'url': url,
+                'port': port,
+                'timeout': 1,
+                'notify': 'handle3'
+        })
+
+        work_http_url = "http://datadoghq.com"
+        fail_http_url = "http://google.com/sdfsdfsdfsdfsdfsdfsdffsd.html"
+        work_tcp_url = "datadoghq.com"
+        work_tcp_port = 80
+        fail_tcp_url = "127.0.0.2"
+        fail_tcp_port = 65530
+
+        for i in range(25):
+            add_tcp_service("fail_tcp_{0}".format(i), fail_tcp_url, fail_tcp_port)
+
+        for i in range(25):
+            add_http_service("fail_http_{0}".format(i), fail_http_url)
+
+        for i in range(25):
+            add_http_service("work_http_{0}".format(i), work_http_url)
+
+        for i in range(25):
+            add_tcp_service("work_tcp_{0}".format(i), work_tcp_url, work_tcp_port)
+
+
+        self.init_check(config)
+
+        for instance in config['instances']:
+            self.check.check(instance)
+
+        time.sleep(10)
+        self.check.check(config['instances'][0])
+
+        events = self.check.get_events()
+
+        assert events
+        self.assertTrue(type(events) == type([]))
+        self.assertTrue(len(events) == 50, len(events))
+
+        handles={
+            '@handle1': 0,
+            '@handle2': 0,
+            '@handle3': 0,
+            }
+        for event in events:
+            for handle in handles:
+                if handle in event['msg_text']:
+                    handles[handle] += 1
+
+        for handle in handles:
+            self.assertTrue(handles[handle] == 25)
 
     def testHTTP(self):
         # No passwords this time
         config = {
             'init_config': {
-                'parallelize': True,
                 'nb_workers': 4
             },
             'instances': [{
