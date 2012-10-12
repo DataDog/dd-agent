@@ -481,7 +481,7 @@ def load_check_directory(agentConfig):
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', None)
-        check_class = check_class(check_name, init_config=init_config,
+        check_class = check_class(check_name, init_config=init_config or {},
             agentConfig=agentConfig)
 
         # Look for the per-check config, which *must* exist
