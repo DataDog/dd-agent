@@ -36,6 +36,7 @@ links:
 	ln -sf ../../modules.py  .
 	ln -sf ../../aggregator.py .
 	ln -sf ../../conf.d .
+	ln -sf ../../dogstatsd.py .
 
 dirs:
 	mkdir -p $(BUILD)
