@@ -445,7 +445,7 @@ def load_check_directory(agentConfig):
         try:
             check_module = __import__(check_name)
         except:
-            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
