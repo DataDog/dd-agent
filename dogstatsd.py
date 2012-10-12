@@ -69,7 +69,7 @@ class Reporter(threading.Thread):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         logger.debug("Watchdog enabled: %s" % bool(self.watchdog))
         while True:
-            if self.finished.is_set():
+            if self.finished.isSet(): # Use camel case version for 2.4 support.
                 break
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
