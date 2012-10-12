@@ -425,7 +425,7 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('config')
+    log = logging.getLogger('checks')
     osname = getOS()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
@@ -477,6 +477,7 @@ def load_check_directory(agentConfig):
             if not check_config:
                 continue
         else:
+            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Init all of the check's classes with
@@ -494,6 +495,7 @@ def load_check_directory(agentConfig):
         if type(instances) != type([]):
             instances = [instances]
 
+        log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
             'name': check_name,
             'instances': check_config['instances'],
