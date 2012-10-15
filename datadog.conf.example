@@ -461,7 +461,7 @@ level:INFO
 formatter:ddagent
 args:('/tmp/dogstatsd.log', 'a')
 
-[handle_checks]
+[handler_checks]
 class:FileHandler
 level:WARN
 formatter:ddagent
