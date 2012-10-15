@@ -13,7 +13,7 @@ class IIS(AgentCheck):
         ('iis.net.bytes_total', 'gauge', 'BytesTotalPerSec'),
         ('iis.net.num_connections', 'gauge', 'CurrentConnections'),
         ('iis.net.files_sent', 'gauge', 'FilesSentPerSec'),
-        ('iis.net.files_received', 'gauge', 'FilesReceivedPerSec'),
+        ('iis.net.files_rcvd', 'gauge', 'FilesReceivedPerSec'),
         ('iis.net.connection_attempts', 'gauge', 'ConnectionAttemptsPerSec'),
 
         # HTTP Methods
