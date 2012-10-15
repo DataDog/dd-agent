@@ -17,7 +17,6 @@ class IIS(AgentCheck):
         ('iis.net.connection_attempts', 'gauge', 'ConnectionAttemptsPerSec'),
 
         # HTTP Methods
-        ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
         ('iis.httpd_request_method.get', 'gauge', 'GetRequestsPerSec'),
         ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),
         ('iis.httpd_request_method.head', 'gauge', 'HeadRequestsPerSec'),
