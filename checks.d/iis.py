@@ -26,7 +26,7 @@ class IIS(AgentCheck):
         ('iis.httpd_request_method.trace', 'gauge', 'TraceRequestsPerSec'),
 
         # Errors
-        ('iis.errors.net_found', 'gauge', 'NotFoundErrorsPerSec'),
+        ('iis.errors.not_found', 'gauge', 'NotFoundErrorsPerSec'),
         ('iis.errors.locked', 'gauge', 'LockedErrorsPerSec'),
 
         # Users
