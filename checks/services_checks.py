@@ -19,12 +19,21 @@ class EventType:
 
 class ServicesCheck(AgentCheck):
     """
+    Services checks inherits from this class.
+    This class should never be directly instanciated.
+
     Work flow:
-        This class is instanciated ONCE during the whole agent life
         The main agent loop will call the check function for each instance for 
         each iteration of the loop.
         The check method will make an asynchronous call to the _process method in 
         one of the thread initiated in the thread pool created in this class constructor.
+        The _process method will call the _check method of the inherited class
+        which will perform the actual check.
+
+        The _check method must return a tuple which first element is either
+            Status.UP or Status.DOWN.
+            The second element is a short error message that will be displayed 
+            when the service turns down.
 
     """
     def __init__(self, name, init_config, agentConfig):
@@ -115,6 +124,10 @@ class ServicesCheck(AgentCheck):
 
             # The job is finish here, this instance can be re processed
             del self.jobs_status[name]
+
+    def _check(self, instance):
+        """This function should be implemented by inherited classes"""
+        raise NotImplementedError
 
 
     def _clean(self):
