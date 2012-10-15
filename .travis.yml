@@ -30,6 +30,5 @@ before_script:
   - sudo /etc/init.d/nginx restart
   - sudo apt-get remove memcached
   - sudo apt-get install memcached
-  - sudo /etc/init.d/memcached restart
 env:
   - DB=redis
