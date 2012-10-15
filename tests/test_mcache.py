@@ -27,7 +27,7 @@ class TestMemCache(unittest.TestCase):
             self.assertEquals(self._countConnections(11211), 0)
 
     def testMetrics(self):
-        SkipTest("Test is not working anymore on travis boxes. Needs further investigation")
+        raise SkipTest("Test is not working anymore on travis boxes. Needs further investigation")
         agent_config = {"memcache_server": "localhost",
                            "memcache_instance_1": "localhost:11211:mytag",
                            "memcache_instance_2": "dummy:11211:myothertag",
