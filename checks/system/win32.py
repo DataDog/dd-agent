@@ -131,7 +131,7 @@ class Disk(Check):
                 self.save_sample('system.disk.total', total, device_name=name)
                 self.save_sample('system.disk.used', total - free,
                     device_name=name)
-                self.save_sample('system.disk.in_use', (free / total) * 100,
+                self.save_sample('system.disk.in_use', (free / total),
                     device_name=name)
         return self.get_metrics()
 
