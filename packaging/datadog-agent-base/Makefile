@@ -36,6 +36,7 @@ links:
 	ln -sf ../../modules.py  .
 	ln -sf ../../aggregator.py .
 	ln -sf ../../conf.d .
+	ln -sf ../../dogstatsd.py .
 
 dirs:
 	mkdir -p $(BUILD)
@@ -66,7 +67,7 @@ install_rpm: install
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
 
 deb: clean install_deb
-	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0)' >>" \
+	FPM_EDITOR="echo 'Replaces: datadog-agent (< 3.2.3)' >>" \
 $(FPM_BUILD) -t deb \
 -d "python >= 2.4" \
 -d "adduser" \

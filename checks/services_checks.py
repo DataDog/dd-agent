@@ -5,7 +5,7 @@ from thread_pool import Pool
 
 SOURCE_TYPE_NAME = 'servicecheck'
 
-TIMEOUT = 180
+TIMEOUT = 120
 DEFAULT_SIZE_POOL = 6
 
 class Status:
@@ -47,7 +47,7 @@ class ServicesCheck(AgentCheck):
         # The pool size should be the minimum between the number of instances
         # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'nb_threads'
         # parameter in the init_config of the check
-        pool_size = int(self.init_config.get('nb_threads', 
+        pool_size = int(self.init_config.get('threads_count', 
             min([self.init_config.get('instances_number', DEFAULT_SIZE_POOL), 
                 DEFAULT_SIZE_POOL])))
         self.pool = Pool(pool_size)
@@ -141,6 +141,18 @@ class ServicesCheck(AgentCheck):
                 self.restart_pool()
                 
     def _create_status_event(self, status, msg, instance):
+        msg = msg.replace("<", "")
+        msg = msg.replace(">", "")
+
+
+        custom_message = instance.get('message', None)
+        if custom_message is not None:
+            custom_message = "\n * Message: %s " % custom_message
+        else:
+            custom_message = ""
+
+        self.log.info(msg)
+
         url = instance.get('url', None)
         name = instance.get('name', None)
         notify = instance.get('notify', self.init_config.get('notify', []))
@@ -153,15 +165,15 @@ class ServicesCheck(AgentCheck):
         if status == Status.DOWN:
             title = "Alert: %s is Down" % name
             alert_type = "error"
-            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s \n %%%%%%" \
-                    % (notify_message, name, status, url, self.hostname, msg)
+            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s %s \n %%%%%%" \
+                    % (notify_message, name, status, url, self.hostname, msg, custom_message)
             event_type = EventType.DOWN
 
         else: # Status is UP
             title = "Alert: %s recovered" % name
             alert_type = "info"
-            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n %%%%%%" \
-                    % (notify_message, name, url, status, self.hostname)
+            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s %s \n %%%%%%" \
+                    % (notify_message, name, status, url, self.hostname, custom_message)
             event_type = EventType.UP
 
         return {

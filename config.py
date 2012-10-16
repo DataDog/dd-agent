@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.2.2"
+    return "3.2.3"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -425,7 +425,7 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('config')
+    log = logging.getLogger('checks')
     osname = getOS()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
@@ -444,8 +444,8 @@ def load_check_directory(agentConfig):
         check_name = os.path.basename(check).split('.')[0]
         try:
             check_module = __import__(check_name)
-        except Exception, e:
-            log.warn('Unable to import check module %s.py from checks.d %s' % (check_name,str(e)))
+        except:
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
@@ -480,6 +480,7 @@ def load_check_directory(agentConfig):
             if not check_config:
                 continue
         else:
+            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Look for the per-check config, which *must* exist
@@ -498,6 +499,7 @@ def load_check_directory(agentConfig):
         check_class = check_class(check_name, init_config=init_config,
             agentConfig=agentConfig)
 
+        log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
             'name': check_name,
             'instances': check_config['instances'],

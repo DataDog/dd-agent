@@ -69,7 +69,7 @@ class Reporter(threading.Thread):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         logger.debug("Watchdog enabled: %s" % bool(self.watchdog))
         while True:
-            if self.finished.is_set():
+            if self.finished.isSet(): # Use camel case version for 2.4 support.
                 break
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
@@ -83,9 +83,9 @@ class Reporter(threading.Thread):
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
             if not count:
-                logger.info("Flush #{0}: No metrics to flush.".format(self.flush_count))
+                logger.info("Flush #%s: No metrics to flush." % self.flush_count)
                 return
-            logger.info("Flush #{0}: flushing {1} metrics".format(self.flush_count, count))
+            logger.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
             self.submit(metrics)
         except:
             logger.exception("Error flushing metrics")

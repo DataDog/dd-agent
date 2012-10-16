@@ -28,6 +28,7 @@ before_script:
   - curl -L https://raw.github.com/DataDog/dd-agent/multiple_instances/tests/nginx.conf > /tmp/default.conf
   - sudo cp /tmp/default.conf /etc/nginx/conf.d/default.conf
   - sudo /etc/init.d/nginx restart
+  - sudo apt-get remove memcached
   - sudo apt-get install memcached
 env:
   - DB=redis

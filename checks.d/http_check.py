@@ -27,7 +27,7 @@ class HTTPCheck(ServicesCheck):
             request = urllib2.urlopen(req, timeout=timeout)
         
         except urllib2.URLError, e:
-            self.log.info("%s is DOWN" % addr)
+            self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
 
         except  urllib2.HTTPError, e:
