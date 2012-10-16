@@ -5,6 +5,8 @@ import signal
 import sys
 import math
 
+NumericTypes = (float, int, long)
+
 # We need to return the data using JSON. As of Python 2.6+, there is a core JSON
 # module. We have a 2.4/2.5 compatible lib included with the agent but if we're
 # on 2.6 or above, we should use the core module which will be faster
@@ -68,6 +70,21 @@ def isnan(val):
     # for py < 2.6, use a different check
     # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
     return str(val) == str(1e400*0)
+
+def cast_metric_val(val):
+    # ensure that the metric value is a numeric type
+    if not isinstance(val, NumericTypes):
+        # Try the int conversion first because want to preserve
+        # whether the value is an int or a float. If neither work,
+        # raise a ValueError to be handled elsewhere
+        for cast in [int, float]:
+            try:
+                val = cast(val)
+                return val
+            except ValueError:
+                continue
+        raise ValueError
+    return val
 
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process

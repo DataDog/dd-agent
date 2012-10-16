@@ -139,12 +139,14 @@ class Check(object):
     def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """Save a simple sample, evict old values if needed
         """
+        from util import cast_metric_val
+
         if timestamp is None:
             timestamp = time.time()
         if metric not in self._sample_store:
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
-            value = float(value)
+            value = cast_metric_val(value)
         except ValueError, ve:
             raise NaN(ve)
 
