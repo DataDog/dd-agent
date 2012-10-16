@@ -40,8 +40,8 @@ instances:
         password: 340$Uuxwp7Mcxo7Khy
 """
 
-@attr('windows')
 class SQLServerTestCase(unittest.TestCase):
+    @attr('windows')
     def testSqlServer(self):
         check, instances = get_check('sqlserver', CONFIG)
         check.check(instances[0])

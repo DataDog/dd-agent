@@ -111,7 +111,7 @@ class Histogram(Metric):
 
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-        avg = sum(self.samples)/length
+        avg = sum(self.samples) / float(length)
 
         metric_aggrs = [
             ('max', max_),
@@ -252,10 +252,15 @@ class MetricsAggregator(object):
         self.formatter = formatter or self.api_formatter
 
     def submit(self, packets, hostname=None, device_name=None):
+        from util import cast_metric_val
+
         for packet in packets.split("\n"):
             self.count += 1
             # We can have colons in tags, so split once.
             name_and_metadata = packet.split(':', 1)
+
+            if not packet.strip():
+                continue
 
             if len(name_and_metadata) != 2:
                 raise Exception('Unparseable packet: %s' % packet)
@@ -267,7 +272,7 @@ class MetricsAggregator(object):
                 raise Exception('Unparseable packet: %s' % packet)
 
             try:
-                metadata[0] = float(metadata[0])
+                value = cast_metric_val(metadata[0])
             except ValueError:
                 raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
@@ -287,7 +292,7 @@ class MetricsAggregator(object):
                 metric_class = self.metric_type_to_class[metadata[1]]
                 self.metrics[context] = metric_class(self.formatter, name, tags,
                     hostname or self.hostname, device_name)
-            self.metrics[context].sample(float(metadata[0]), sample_rate)
+            self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
         ''' Format the gauge metric into a StatsD packet format and submit'''

@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.2.2"
+    return "3.2.3"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -104,6 +104,9 @@ def _unix_confd_path():
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
+
+def _is_affirmative(s):
+    return s.lower() in ('yes', 'true')
 
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
@@ -252,13 +255,19 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         dogstatsd_defaults = {
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : dogstatsd_interval
+            'dogstatsd_interval' : dogstatsd_interval,
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # optionally send dogstatsd data directly to the agent.
+        if config.has_option('Main', 'dogstatsd_use_ddurl'):
+            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
+            if use_ddurl:
+                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
         # FIXME not the prettiest code ever...
@@ -416,7 +425,7 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('config')
+    log = logging.getLogger('checks')
     osname = getOS()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
@@ -436,7 +445,7 @@ def load_check_directory(agentConfig):
         try:
             check_module = __import__(check_name)
         except:
-            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
@@ -468,11 +477,12 @@ def load_check_directory(agentConfig):
             if not check_config:
                 continue
         else:
+            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', None)
-        check_class = check_class(check_name, init_config=init_config,
+        check_class = check_class(check_name, init_config=init_config or {},
             agentConfig=agentConfig)
 
         # Look for the per-check config, which *must* exist
@@ -485,6 +495,7 @@ def load_check_directory(agentConfig):
         if type(instances) != type([]):
             instances = [instances]
 
+        log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
             'name': check_name,
             'instances': check_config['instances'],

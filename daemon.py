@@ -26,7 +26,6 @@ import sys
 import time
 import logging
 
-from signal import SIGTERM, SIGKILL 
 
 class Daemon:
     """
@@ -136,6 +135,8 @@ class Daemon:
         """
         Stop the daemon
         """
+
+        from signal import SIGTERM
 
         logging.info("Stopping...") 
         # Get the pid from the pidfile

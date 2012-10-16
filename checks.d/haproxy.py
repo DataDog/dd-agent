@@ -36,6 +36,7 @@ class HAProxy(AgentCheck):
         "eresp": ("rate", "errors.resp_rate"),
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
+        "req_rate": ("gauge", "requests.rate"),
     }
 
     def check(self, instance):
