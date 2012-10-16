@@ -451,6 +451,8 @@ def load_check_directory(agentConfig):
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for name, clsmember in classes:
+            if(clsmember==AgentCheck):
+                continue
             if issubclass(clsmember, AgentCheck):
                 check_class = clsmember
                 if AgentCheck in clsmember.__bases__:
