@@ -269,7 +269,7 @@ class MetricsAggregator(object):
                 raise Exception('Unparseable packet: %s' % packet)
 
             try:
-                metadata[0] = cast_metric_val(metadata[0])
+                value = cast_metric_val(metadata[0])
             except ValueError:
                 raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
@@ -289,7 +289,7 @@ class MetricsAggregator(object):
                 metric_class = self.metric_type_to_class[metadata[1]]
                 self.metrics[context] = metric_class(self.formatter, name, tags,
                     hostname or self.hostname, device_name)
-            self.metrics[context].sample(float(metadata[0]), sample_rate)
+            self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
         ''' Format the gauge metric into a StatsD packet format and submit'''
