@@ -53,6 +53,6 @@ if __name__ == "__main__":
           packages=['resources', 'compat'],
           scripts=['agent.py', 'daemon.py', 'minjson.py', 'util.py', 
                     'emitter.py', 'config.py', 'graphite.py', 'modules.py',
-                    'aggregator.py', 'dogstatsd.py', 'thread_pool.py'],
+                    'aggregator.py', 'dogstatsd.py'],
           data_files=getDataFiles()
          )
