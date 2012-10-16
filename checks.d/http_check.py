@@ -1,6 +1,7 @@
 from checks.services_checks import ServicesCheck, Status
 from util import headers
 import urllib2
+import socket
 
 class HTTPCheck(ServicesCheck):
 
@@ -24,8 +25,16 @@ class HTTPCheck(ServicesCheck):
             opener = urllib2.build_opener(authhandler)
             urllib2.install_opener(opener)
             req = urllib2.Request(addr, None, headers(self.agentConfig))
-            request = urllib2.urlopen(req, timeout=timeout)
-        
+            try:
+                request = urllib2.urlopen(req, timeout=timeout)
+            except TypeError:
+                socket.setdefaulttimeout(timeout)
+                request = urllib2.urlopen(req)
+
+        except socket.timeout, e:
+            self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
+            return Status.DOWN, str(e)
+
         except urllib2.URLError, e:
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
