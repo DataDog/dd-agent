@@ -4,8 +4,8 @@ from checks import Check
 class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
 IGNORED = ('_total',)
-B2MB  = 1048576
-KB2MB = B2KB = 1024
+B2MB  = float(1048576)
+KB2MB = B2KB = float(1024)
 
 class Processes(Check):
     def __init__(self, logger):
@@ -125,8 +125,8 @@ class Disk(Check):
             if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or name in IGNORED:
                 continue
             if device.FreeSpace is not None and device.Size is not None:
-                free = int(device.FreeSpace) / KB2MB
-                total = int(device.Size) / KB2MB
+                free = float(device.FreeSpace) / B2KB
+                total = float(device.Size) / B2KB
                 self.save_sample('system.disk.free', free, device_name=name)
                 self.save_sample('system.disk.total', total, device_name=name)
                 self.save_sample('system.disk.used', total - free,
