@@ -3,7 +3,7 @@ import time
 from Queue import Queue
 from checks.libs.thread_pool import Pool
 
-SOURCE_TYPE_NAME = 'servicecheck'
+
 
 TIMEOUT = 120
 DEFAULT_SIZE_POOL = 6
@@ -18,6 +18,8 @@ class EventType:
 
 
 class ServicesCheck(AgentCheck):
+    SOURCE_TYPE_NAME = 'servicecheck'
+    
     """
     Services checks inherits from this class.
     This class should never be directly instanciated.
@@ -140,52 +142,4 @@ class ServicesCheck(AgentCheck):
                 self.log.critical("Restarting Pool. One check is stuck.")
                 self.restart_pool()
                 
-    def _create_status_event(self, status, msg, instance):
-        msg = msg.replace("<", "")
-        msg = msg.replace(">", "")
-
-
-        custom_message = instance.get('message', None)
-        if custom_message is not None:
-            custom_message = "\n * Message: %s " % custom_message
-        else:
-            custom_message = ""
-
-        self.log.info(msg)
-
-        url = instance.get('url', None)
-        name = instance.get('name', None)
-        notify = instance.get('notify', self.init_config.get('notify', []))
-        notify_message = ""
-        notify_list = []
-        for handle in notify:
-            notify_list.append("@%s" % handle.strip())
-        notify_message = " ".join(notify_list)
-
-        if status == Status.DOWN:
-            title = "Alert: %s is Down" % name
-            alert_type = "error"
-            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s \n * Error: %s %s \n %%%%%%" \
-                    % (notify_message, name, status, url, self.hostname, msg, custom_message)
-            event_type = EventType.DOWN
-
-        else: # Status is UP
-            title = "Alert: %s recovered" % name
-            alert_type = "info"
-            msg = "%s \n %%%%%%\n * %s has just been reported %s \n * URL: %s \n * Reporting agent: %s %s \n %%%%%%" \
-                    % (notify_message, name, status, url, self.hostname, custom_message)
-            event_type = EventType.UP
-
-        return {
-             'timestamp': int(time.time()),
-             'event_type': event_type,
-             'host': self.hostname,
-             'api_key': self.agentConfig['api_key'],
-             'msg_text': msg,
-             'msg_title': title,
-             'alert_type': alert_type,
-             "source_type_name": SOURCE_TYPE_NAME,
-             "event_object": name,
-        }
-
    

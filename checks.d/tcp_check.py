@@ -1,5 +1,6 @@
-from checks.services_checks import ServicesCheck, Status
+from checks.services_checks import ServicesCheck, Status, EventType
 import socket
+import time
 
 class BadConfException(Exception): pass
 
@@ -58,3 +59,43 @@ class TCPCheck(ServicesCheck):
 
         self.log.info("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
+
+
+    def _create_status_event(self, status, msg, instance):
+        custom_message = instance.get('message', "")
+        host = instance.get('host', None)
+        port = instance.get('port', None)
+        name = instance.get('name', None)
+        notify = instance.get('notify', self.init_config.get('notify', []))
+        notify_message = ""
+        notify_list = []
+        
+        for handle in notify:
+            notify_list.append("@%s" % handle.strip())
+        notify_message = " ".join(notify_list)
+
+        if status == Status.DOWN:
+            title = "[Alert] %s is down" % name
+            alert_type = "error"
+            msg = "%s \n %s \n %s reported that %s (%s:%s) failed with %s" % (notify_message,
+                custom_message, self.hostname, name, host, port, msg)
+            event_type = EventType.DOWN
+
+        else: # Status is UP
+            title = "[Recovered] %s is up" % name
+            alert_type = "success"
+            msg = "%s \n %s \n %s reported that %s (%s:%s) recovered" % (notify_message,
+                custom_message, self.hostname, name, host, port)
+            event_type = EventType.UP
+
+        return {
+             'timestamp': int(time.time()),
+             'event_type': event_type,
+             'host': self.hostname,
+             'api_key': self.agentConfig['api_key'],
+             'msg_text': msg,
+             'msg_title': title,
+             'alert_type': alert_type,
+             "source_type_name": ServicesCheck.SOURCE_TYPE_NAME,
+             "event_object": name,
+        }
