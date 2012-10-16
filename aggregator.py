@@ -111,7 +111,7 @@ class Histogram(Metric):
 
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-        avg = sum(self.samples)/length
+        avg = sum(self.samples) / float(length)
 
         metric_aggrs = [
             ('max', max_),
