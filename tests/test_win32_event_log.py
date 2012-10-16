@@ -41,7 +41,7 @@ instances:
 """
 
 @attr('windows')
-class IISTestCase(unittest.TestCase):
+class WinEventLogTest(unittest.TestCase):
     LOG_EVENTS = [
         ('Test 1', win32evtlog.EVENTLOG_WARNING_TYPE),
         ('Test 2', win32evtlog.EVENTLOG_ERROR_TYPE),
@@ -67,6 +67,7 @@ class IISTestCase(unittest.TestCase):
         win32evtlogutil.ReportEvent(applicationName, eventID, eventCategory=category,
             eventType=myType, strings=descr, data=data, sid=my_sid)
 
+    @attr('windows')
     def testIIS(self):
         check, instances = get_check('win32_event_log', CONFIG)
 
