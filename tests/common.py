@@ -15,7 +15,7 @@ def load_check(name, config, agentConfig):
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
     for name, clsmember in classes:
-        if(clsmember==AgentCheck):
+        if clsmember == AgentCheck:
             continue
         if issubclass(clsmember, AgentCheck):
             check_class = clsmember
