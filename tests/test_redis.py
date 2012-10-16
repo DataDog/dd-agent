@@ -109,7 +109,7 @@ class TestRedis(unittest.TestCase):
         # Assert we have values, timestamps and tags for each metric.
         for m in metrics:
             assert isinstance(m[1], int)    # timestamp
-            assert isinstance(m[2], float)  # value
+            assert isinstance(m[2], (int, float, long))  # value
             tags = m[3]["tags"]
             expected_tags = ["redis_host:localhost", "redis_port:%s" % port]
             for e in expected_tags:
