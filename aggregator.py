@@ -259,6 +259,9 @@ class MetricsAggregator(object):
             # We can have colons in tags, so split once.
             name_and_metadata = packet.split(':', 1)
 
+            if not packet.strip():
+                continue
+
             if len(name_and_metadata) != 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
