@@ -1,7 +1,7 @@
 from checks import AgentCheck
 import time
 from Queue import Queue
-from thread_pool import Pool
+from checks.libs.thread_pool import Pool
 
 SOURCE_TYPE_NAME = 'servicecheck'
 
