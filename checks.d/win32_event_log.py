@@ -84,7 +84,7 @@ class EventLogQuery(object):
     def to_wql(self):
         ''' Return this query as a WQL string '''
         wql = """
-        SELECT Message, SourceName, TimeGenerated, Type, User
+        SELECT Message, SourceName, TimeGenerated, Type, User, InsertionStrings
         FROM Win32_NTLogEvent
         WHERE TimeGenerated >= "%s"
         """ % (self._dt_to_wmi(self.start_ts))
@@ -133,7 +133,7 @@ class LogEvent(object):
             'event_type': EVENT_TYPE,
             'api_key': self.api_key,
             'msg_title': self._msg_title(self.event),
-            'msg_text': self.event.Message,
+            'msg_text': self._msg_text(self.event),
             'aggregation_key': self._aggregation_key(self.event),
             'alert_type': self._alert_type(self.event),
             'source_type_name': SOURCE_TYPE_NAME,
@@ -159,16 +159,19 @@ class LogEvent(object):
     def _msg_title(self, event):
         return '%s/%s' % (event.Logfile, event.SourceName)
 
+    def _msg_text(self, event):
+        msg_text = ""
+
+        if event.Message:
+            msg_text += "%s\n" % event.Message
+
+        if event.InsertionStrings:
+            msg_text += ("\n".join(event.InsertionStrings))
+
+        return msg_text
+
     def _alert_type(self, event):
         event_type = event.Type
-        try:
-            # For Server 2003, event type is a number
-            event_type = int(event_type)
-            event_type = LogEventType.from_wmi(event_type)
-        except ValueError:
-            # Not an integer, just treat as a string
-            pass
-
         # Convert to a Datadog alert type
         if event_type == 'Warning':
             return 'warning'
@@ -178,44 +181,6 @@ class LogEvent(object):
 
     def _aggregation_key(self, event):
         return event.SourceName
-
-class LogEventType(object):
-    ''' A basic class for converting between EventTypes number values and
-        strings for <= Windows Server 2003
-    '''
-    ERROR = 1
-    WARN = 2
-    INFO = 3
-    SECURITY_AUDIT_SUCCESS = 4
-    SECURITY_AUDIT_FAILURE = 5
-
-    @classmethod
-    def from_wmi(cls, val):
-        if val == cls.ERROR:
-            return 'Error'
-        elif val == cls.WARNING:
-            return 'Warning'
-        elif val == cls.INFO:
-            return 'Information'
-        elif val == cls.SECURITY_AUDIT_SUCCESS:
-            return 'Security Audit Success'
-        elif val == cls.SECURITY_AUDIT_FAILURE:
-            return 'Security Audit Failure'
-        raise Exception('Invalid WMI EventType: %s' % (val))
-
-    @classmethod
-    def to_wmi(cls, val):
-        if val == 'Error':
-            return cls.ERROR
-        if val == 'Warning':
-            return cls.WARN
-        if val == 'Information':
-            return cls.INFO
-        if val == 'Security Audit Success':
-            return cls.SECURITY_AUDIT_SUCCESS
-        if val == 'Security Audit Failure':
-            return cls.SECURITY_AUDIT_FAILURE
-        raise Exception('Invalid WMI EventType: %s' % (val))
 
 if __name__ == "__main__":
     check, instances = Win32EventLog.from_yaml('conf.d/win32_event_log.yaml')
