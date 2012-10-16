@@ -43,10 +43,10 @@ class ServiceCheckTestCase(unittest.TestCase):
         fail_tcp_port = 65530
 
         for i in range(250):
-            add_tcp_service("fail_tcp_{0}".format(i), fail_tcp_url, fail_tcp_port)
+            add_tcp_service("fail_tcp_%s" % str(i), fail_tcp_url, fail_tcp_port)
 
         for i in range(250):
-            add_tcp_service("work_tcp_{0}".format(i), work_tcp_url, work_tcp_port)
+            add_tcp_service("work_tcp_%s" % str(i), work_tcp_url, work_tcp_port)
 
 
         self.init_check(config, 'tcp_check')
@@ -80,7 +80,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertTrue(handles['@handle3'] == 250)
 
         self.check.stop_pool()
-        
+
         time.sleep(2)
 
     def testHttpHighNumber(self):
@@ -106,10 +106,10 @@ class ServiceCheckTestCase(unittest.TestCase):
         fail_http_url = "http://google.com/sdfsdfsdfsdfsdfsdfsdffsd.html"
 
         for i in range(250):
-            add_http_service("fail_http_{0}".format(i), fail_http_url)
+            add_http_service("fail_http_%s" % str(i), fail_http_url)
 
         for i in range(250):
-            add_http_service("work_http_{0}".format(i), work_http_url)
+            add_http_service("work_http_%s" % str(i), work_http_url)
 
 
         self.init_check(config,'http_check')
