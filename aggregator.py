@@ -252,6 +252,8 @@ class MetricsAggregator(object):
         self.formatter = formatter or self.api_formatter
 
     def submit(self, packets, hostname=None, device_name=None):
+        from util import cast_metric_val
+
         for packet in packets.split("\n"):
             self.count += 1
             # We can have colons in tags, so split once.
@@ -267,7 +269,7 @@ class MetricsAggregator(object):
                 raise Exception('Unparseable packet: %s' % packet)
 
             try:
-                metadata[0] = float(metadata[0])
+                metadata[0] = cast_metric_val(metadata[0])
             except ValueError:
                 raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
