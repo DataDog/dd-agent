@@ -9,7 +9,6 @@ instances:
 #        username: user
 #        password: pass
 #        timeout: 1
-#        message: A short message
 
 #    -   name: My_second_service
 #        url: https://otherurl

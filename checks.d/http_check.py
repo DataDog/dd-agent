@@ -27,6 +27,7 @@ class HTTPCheck(ServicesCheck):
             urllib2.install_opener(opener)
             req = urllib2.Request(addr, None, headers(self.agentConfig))
             try:
+                # This was introduced in python 2.6
                 request = urllib2.urlopen(req, timeout=timeout)
             except TypeError:
                 socket.setdefaulttimeout(timeout)
@@ -59,6 +60,11 @@ class HTTPCheck(ServicesCheck):
         notify = instance.get('notify', self.init_config.get('notify', []))
         notify_message = ""
         notify_list = []
+        instance_source_type_name = instance.get('source_type', None)
+        if instance_source_type_name is None:
+            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, name)
+        else:
+            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, instance_source_type_name)
         
         for handle in notify:
             notify_list.append("@%s" % handle.strip())
@@ -86,7 +92,7 @@ class HTTPCheck(ServicesCheck):
              'msg_text': msg,
              'msg_title': title,
              'alert_type': alert_type,
-             "source_type_name": ServicesCheck.SOURCE_TYPE_NAME,
+             "source_type_name": source_type,
              "event_object": name,
         }
 

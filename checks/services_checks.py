@@ -19,7 +19,7 @@ class EventType:
 
 class ServicesCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
-    
+
     """
     Services checks inherits from this class.
     This class should never be directly instanciated.
@@ -47,7 +47,7 @@ class ServicesCheck(AgentCheck):
 
     def _init_pool(self):
         # The pool size should be the minimum between the number of instances
-        # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'nb_threads'
+        # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'threads_count'
         # parameter in the init_config of the check
         pool_size = int(self.init_config.get('threads_count', 
             min([self.init_config.get('instances_number', DEFAULT_SIZE_POOL), 

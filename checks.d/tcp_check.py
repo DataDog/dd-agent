@@ -66,6 +66,11 @@ class TCPCheck(ServicesCheck):
         host = instance.get('host', None)
         port = instance.get('port', None)
         name = instance.get('name', None)
+        instance_source_type_name = instance.get('source_type', None)
+        if instance_source_type_name is None:
+            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, name)
+        else:
+            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, instance_source_type_name)
         notify = instance.get('notify', self.init_config.get('notify', []))
         notify_message = ""
         notify_list = []
@@ -96,6 +101,6 @@ class TCPCheck(ServicesCheck):
              'msg_text': msg,
              'msg_title': title,
              'alert_type': alert_type,
-             "source_type_name": ServicesCheck.SOURCE_TYPE_NAME,
+             "source_type_name": source_type,
              "event_object": name,
         }
