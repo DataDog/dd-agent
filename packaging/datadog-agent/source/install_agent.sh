@@ -106,6 +106,10 @@ fi
 echo -e "\033[34m\n* Adding your API key to the agent configuration: /etc/dd-agent/datadog.conf\n\033[0m"
 sudo sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 
+if $DDBASE; then
+sudo sh -c "sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+fi
+
 echo -e "\033[34m* Starting the agent...\n\033[0m"
 sudo /etc/init.d/datadog-agent restart
 
