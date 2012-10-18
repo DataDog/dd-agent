@@ -1,7 +1,6 @@
 from checks.services_checks import ServicesCheck, Status, EventType
 import socket
 import time
-import random
 
 class BadConfException(Exception): pass
 
@@ -44,10 +43,6 @@ class TCPCheck(ServicesCheck):
         return addr, port, socket_type, timeout
 
     def _check(self, instance):
-        if instance.get('random_fail', False):
-            random.seed()
-            if random.random() < 0.25:
-                return Status.DOWN, "Random failure triggered"
 
         addr, port, socket_type, timeout = self._load_conf(instance)
         try:    

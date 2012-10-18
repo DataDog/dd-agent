@@ -3,7 +3,6 @@ from util import headers
 import urllib2
 import socket
 import time
-import random
 
 
 class HTTPCheck(ServicesCheck):
@@ -20,11 +19,6 @@ class HTTPCheck(ServicesCheck):
 
     def _check(self, instance):
         addr, username, password, timeout = self._load_conf(instance)
-
-        if instance.get('random_fail', False):
-            random.seed()
-            if random.random() < 0.25:
-                return Status.DOWN, "Random failure triggered"
         try:
             self.log.debug("Connecting to %s" % addr)
             passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
