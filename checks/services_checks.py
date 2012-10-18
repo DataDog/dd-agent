@@ -1,6 +1,6 @@
 from checks import AgentCheck
 import time
-from Queue import Queue
+from Queue import Queue, Empty
 from checks.libs.thread_pool import Pool
 
 
@@ -43,9 +43,9 @@ class ServicesCheck(AgentCheck):
 
         # A dictionnary to keep track of service statuses
         self.statuses = {}
-        self._init_pool()
+        self.start_pool()
 
-    def _init_pool(self):
+    def start_pool(self):
         # The pool size should be the minimum between the number of instances
         # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'threads_count'
         # parameter in the init_config of the check
@@ -62,7 +62,7 @@ class ServicesCheck(AgentCheck):
 
     def restart_pool(self):
         self.stop_pool()
-        self._init_pool()
+        self.start_pool()
 
     def check(self, instance):
         self._process_results()
@@ -99,7 +99,7 @@ class ServicesCheck(AgentCheck):
             try:
                 # We want to fetch the result in a non blocking way
                 status, msg, name, queue_instance = self.resultsq.get_nowait()
-            except Exception:
+            except Empty:
                 break
 
             event = None
