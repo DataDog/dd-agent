@@ -133,7 +133,7 @@ class LogEvent(object):
             'event_type': EVENT_TYPE,
             'api_key': self.api_key,
             'msg_title': self._msg_title(self.event),
-            'msg_text': self._msg_text(self.event),
+            'msg_text': self._msg_text(self.event).strip(),
             'aggregation_key': self._aggregation_key(self.event),
             'alert_type': self._alert_type(self.event),
             'source_type_name': SOURCE_TYPE_NAME,
@@ -165,7 +165,7 @@ class LogEvent(object):
 
         if event.InsertionStrings:
             return "\n".join([i_str for i_str in event.InsertionStrings
-                if i_str.trim()])
+                if i_str.strip()])
 
         return ""
 
