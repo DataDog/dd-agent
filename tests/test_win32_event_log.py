@@ -1,11 +1,6 @@
 import unittest
 import logging
 from nose.plugins.attrib import attr
-import win32api
-import win32con
-import win32evtlog
-import win32security
-import win32evtlogutil
 
 from checks import gethostname
 from tests.common import get_check
@@ -40,19 +35,25 @@ instances:
             - Information
 """
 
-@attr('windows')
 class WinEventLogTest(unittest.TestCase):
-    LOG_EVENTS = [
-        ('Test 1', win32evtlog.EVENTLOG_WARNING_TYPE),
-        ('Test 2', win32evtlog.EVENTLOG_ERROR_TYPE),
-        ('Test 3', win32evtlog.EVENTLOG_INFORMATION_TYPE),
-        ('Test 4', win32evtlog.EVENTLOG_WARNING_TYPE),
-        ('Test 5', win32evtlog.EVENTLOG_WARNING_TYPE),
-        ('Test 6', win32evtlog.EVENTLOG_ERROR_TYPE)
-    ]
+    def setUp(self):
+        import win32evtlog
+        self.LOG_EVENTS = [
+            ('Test 1', win32evtlog.EVENTLOG_WARNING_TYPE),
+            ('Test 2', win32evtlog.EVENTLOG_ERROR_TYPE),
+            ('Test 3', win32evtlog.EVENTLOG_INFORMATION_TYPE),
+            ('Test 4', win32evtlog.EVENTLOG_WARNING_TYPE),
+            ('Test 5', win32evtlog.EVENTLOG_WARNING_TYPE),
+            ('Test 6', win32evtlog.EVENTLOG_ERROR_TYPE)
+        ]
 
     def write_event(self, msg, ev_type, source_name='EVENTLOGTEST'):
         # Thanks to http://rosettacode.org/wiki/Write_to_Windows_event_log
+        import win32api
+        import win32con
+        import win32security
+        import win32evtlogutil
+
         ph = win32api.GetCurrentProcess()
         th = win32security.OpenProcessToken(ph, win32con.TOKEN_READ)
         my_sid = win32security.GetTokenInformation(th, win32security.TokenUser)[0]
@@ -69,6 +70,7 @@ class WinEventLogTest(unittest.TestCase):
 
     @attr('windows')
     def testIIS(self):
+        import win32evtlog
         check, instances = get_check('win32_event_log', CONFIG)
 
         # Run the check against all instances to set the last_ts
@@ -81,7 +83,7 @@ class WinEventLogTest(unittest.TestCase):
             assert len(check.get_metrics()) == 0
 
         # Generate some events for the log
-        for msg, ev_type in IISTestCase.LOG_EVENTS:
+        for msg, ev_type in self.LOG_EVENTS:
             self.write_event(msg, ev_type)
         self.write_event('do not pick me', win32evtlog.EVENTLOG_INFORMATION_TYPE,
             source_name='EVENTLOGTESTBAD')
