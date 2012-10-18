@@ -173,15 +173,15 @@ class Dogstatsd(Daemon):
         self.server.start()
 
 
-def init(config_path=None, use_watchdog=False):
+def init(config_path=None, use_watchdog=False, use_forwarder=False):
     c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
 
     logger.debug("Configuration dogstatsd")
 
     port     = c['dogstatsd_port']
-    target   = c['dogstatsd_target']
     interval = c['dogstatsd_interval']
     api_key  = c['api_key']
+    target   = c['dogstatsd_target'] if use_forwarder else c['dd_url']
 
     hostname = gethostname(c)
 
@@ -201,9 +201,11 @@ def init(config_path=None, use_watchdog=False):
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
     parser = optparse.OptionParser("%prog [start|stop|restart|status]")
+    parser.add_option('-u', '--use-local-forwarder', action='store_true',
+                        dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server = init(config_path, use_watchdog=True)
+    reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
 
     # If no args were passed in, run the server in the foreground.
     if not args:
