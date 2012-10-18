@@ -164,8 +164,8 @@ class LogEvent(object):
             return "%s\n" % event.Message
 
         if event.InsertionStrings:
-            return ("\n".join([is for is in event.InsertionStrings
-                if is.trim()]))
+            return "\n".join([i_str for i_str in event.InsertionStrings
+                if i_str.trim()])
 
         return ""
 
