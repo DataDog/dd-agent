@@ -6,7 +6,7 @@ import time
 
 from checks import AgentCheck
 
-SOURCE_TYPE_NAME = 'api'
+SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
 
 class Win32EventLog(AgentCheck):
