@@ -160,15 +160,14 @@ class LogEvent(object):
         return '%s/%s' % (event.Logfile, event.SourceName)
 
     def _msg_text(self, event):
-        msg_text = ""
-
         if event.Message:
-            msg_text += "%s\n" % event.Message
+            return "%s\n" % event.Message
 
         if event.InsertionStrings:
-            msg_text += ("\n".join(event.InsertionStrings))
+            return ("\n".join([is for is in event.InsertionStrings
+                if is.trim()]))
 
-        return msg_text
+        return ""
 
     def _alert_type(self, event):
         event_type = event.Type
