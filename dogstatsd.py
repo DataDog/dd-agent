@@ -139,7 +139,7 @@ class Server(object):
 
         # Inline variables for quick look-up.
         buffer_size = self.buffer_size
-        aggregator_submit = self.metrics_aggregator.submit
+        aggregator_submit = self.metrics_aggregator.submit_packets
         socket = self.socket
         socket_recv = self.socket.recv
         timeout = UDP_SOCKET_TIMEOUT
