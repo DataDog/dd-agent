@@ -1,27 +1,32 @@
+from common import get_check
+
 import unittest
 import os
-import os.path
-import logging; logger = logging.getLogger()
-from checks.cacti import Cacti
+import logging
 import subprocess
 import shutil
 
+log = logging.getLogger()
+
+CONFIG = """
+init_config:
+
+instances:
+    -   mysql_host: localhost
+        mysql_user: root
+        rrd_path:   /tmp/cacti_test
+        rrd_whitelist: %s
+""" % (os.path.join(os.path.dirname(__file__), "cacti", "whitelist.txt"))
+
 class TestCacti(unittest.TestCase):
     def setUp(self):
-        self.cacti = Cacti(logger)
         self.tmp_dir = '/tmp/cacti_test'
         self.rrd_dir = os.path.join(os.path.dirname(__file__), "cacti")
-        self.config = {
-            'cacti_mysql_server': 'localhost',
-            'cacti_mysql_user': 'root',
-            'cacti_mysql_pass': '',
-            'cacti_rrd_path': self.tmp_dir,
-            'cacti_rrd_whitelist': os.path.join(os.path.dirname(__file__), "cacti", "whitelist.txt")
-        }
 
+        # Create our temporary RRD path, if needed
         try:
             os.mkdir(self.tmp_dir)
-        except:
+        except Exception:
             # Ignore, directory already exists
             pass
 
@@ -39,6 +44,8 @@ class TestCacti(unittest.TestCase):
             return False
 
     def testChecks(self):
+        check, instances = get_check('cacti', CONFIG)
+
         # Restore the RRDs from the XML dumps
         if not self._restore_rrds(self.rrd_dir):
             return
