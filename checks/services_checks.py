@@ -7,6 +7,7 @@ from checks.libs.thread_pool import Pool
 
 TIMEOUT = 120
 DEFAULT_SIZE_POOL = 6
+MAX_LOOP_ITERATIONS = 1000
 
 class Status:
     DOWN = "DOWN"
@@ -95,7 +96,7 @@ class ServicesCheck(AgentCheck):
             self.restart_pool()
 
     def _process_results(self):
-        for i in range(1000):
+        for i in range(MAX_LOOP_ITERATIONS):
             try:
                 # We want to fetch the result in a non blocking way
                 status, msg, name, queue_instance = self.resultsq.get_nowait()
