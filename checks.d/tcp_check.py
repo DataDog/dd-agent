@@ -63,12 +63,15 @@ class TCPCheck(ServicesCheck):
 
 
     def _create_status_event(self, status, msg, instance):
-        custom_message = instance.get('message', "")
-        if custom_message:
-            custom_message+=" \n"
+        # Get the instance settings
         host = instance.get('host', None)
         port = instance.get('port', None)
         name = instance.get('name', None)
+        
+        # Get a custom message that will be displayed in the event
+        custom_message = instance.get('message', "")
+        if custom_message:
+            custom_message += " \n"
         
 
         # Let the possibility to override the source type name
@@ -86,7 +89,7 @@ class TCPCheck(ServicesCheck):
             notify_list = []
             for handle in notify:
                 notify_list.append("@%s" % handle.strip())
-            notify_message = " ".join(notify_list) +" \n"
+            notify_message = " ".join(notify_list) + " \n"
 
 
         if status == Status.DOWN:

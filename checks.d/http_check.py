@@ -59,7 +59,7 @@ class HTTPCheck(ServicesCheck):
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
         if custom_message:
-            custom_message+=" \n"
+            custom_message += " \n"
 
         # Let the possibility to override the source type name
         instance_source_type_name = instance.get('source_type', None)
@@ -76,7 +76,7 @@ class HTTPCheck(ServicesCheck):
             notify_list = []
             for handle in notify:
                 notify_list.append("@%s" % handle.strip())
-            notify_message = " ".join(notify_list) +" \n"
+            notify_message = " ".join(notify_list) + " \n"
 
         if status == Status.DOWN:
             title = "[Alert] %s is down" % name
