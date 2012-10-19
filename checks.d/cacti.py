@@ -81,7 +81,6 @@ class Cacti(AgentCheck):
                     patterns.append(line.strip())
                 wl.close()
             except Exception:
-                wl.close()
                 self.log.exception("There was a problem when reading whitelist file")
                 return False
 
@@ -100,13 +99,14 @@ class Cacti(AgentCheck):
     def _read_rrd(self, rrd_path, hostname, device_name):
         ''' Main metric fetching method '''
         import rrdtool
+        metric_count = 0
 
         try:
             info = rrdtool.info(rrd_path)
         except Exception:
             # Unable to read RRD file, ignore it
             self.log.exception("Unable to read RRD file at %s" % rrd_path)
-            return
+            return metric_count
 
         # Find the consolidation functions for the RRD metrics
         c_funcs = [v for k,v in info.items() if k.endswith('.cf')]
@@ -136,20 +136,20 @@ class Cacti(AgentCheck):
 
                     # Save this metric as a gauge
                     val = self._transform_metric(m_name, p[k])
-                    self.gauge(m_name, ts, val, hostname=hostname,
-                        device_name=device_name)
+                    self.gauge(m_name, val, hostname=hostname,
+                        device_name=device_name, timestamp=ts)
+                    metric_count += 1
                     last_ts = (ts + interval)
 
             # Update the last timestamp based on the last valid metric
             self.last_ts['%s.%s' % (rrd_path, c)] = last_ts
-
-        return metrics
+        return metric_count
 
     def _instance_key(*args):
         ''' return a key unique for this instance '''
         return '|'.join([str(a) for a in args])
 
-    def _fetch_rrd_meta(self, db, rrd_path, whitelist):
+    def _fetch_rrd_meta(self, db, rrd_path_root, whitelist):
         ''' Fetch metadata about each RRD in this Cacti DB, returning a list of
             tuples of (hostname, device_name, rrd_path)
         '''
@@ -183,8 +183,8 @@ class Cacti(AgentCheck):
             if not whitelist or _in_whitelist(rrd_path):
                 if hostname in ('localhost', '127.0.0.1'):
                     hostname = self.hostname
-                rrd_path = rrd_path.replace('<path_rra>', rrd_path)
-                device_name = snmp_device_name or device_name or None
+                rrd_path = rrd_path.replace('<path_rra>', rrd_path_root)
+                device_name = device_name or None
                 res.append((hostname, device_name, rrd_path))
 
         # Collect stats
