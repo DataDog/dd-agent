@@ -161,24 +161,49 @@ class Cacti(AgentCheck):
             return False
 
         c = db.cursor()
-        c.execute("""
+
+        # Check for the existence of the `host_snmp_cache` table
+        res = c.execute("show tables like 'host_snmp_cache'").fetchall()
+        if res:
+            # Fetch the snmp device name
+            rrd_query = """
                 SELECT
                     h.hostname as hostname,
                     dl.snmp_index as device_name,
-                    dt.data_source_path as rrd_path
+                    dt.data_source_path as rrd_path,
+                    hsc.field_value as snmp_device_name
+                FROM data_local dl
+                    JOIN host h on dl.host_id = h.id
+                    JOIN data_template_data dt on dt.local_data_id = dl.id
+                    LEFT JOIN host_snmp_cache hsc on h.id = hsc.host_id
+                        AND dl.snmp_index = hsc.snmp_index
+                WHERE dt.data_source_path IS NOT NULL
+                AND dt.data_source_path != ''
+                AND (hsc.field_name = 'ifName' OR hsc.field_name is NULL)
+            """
+        else:
+            rrd_query = """
+                SELECT
+                    h.hostname as hostname,
+                    dl.snmp_index as device_name,
+                    dt.data_source_path as rrd_path,
+                    NULL as snmp_device_name
                 FROM data_local dl
                     JOIN host h on dl.host_id = h.id
                     JOIN data_template_data dt on dt.local_data_id = dl.id
                 WHERE dt.data_source_path IS NOT NULL
                 AND dt.data_source_path != ''
-            """)
+            """
+
+        c.execute(rrd_query)
         res = []
-        for hostname, device_name, rrd_path in c.fetchall():
+        for hostname, device_name, rrd_path, snmp_device_name in c.fetchall():
             if not whitelist or _in_whitelist(rrd_path):
                 if hostname in ('localhost', '127.0.0.1'):
                     hostname = self.hostname
                 rrd_path = rrd_path.replace('<path_rra>', rrd_path)
-                res.append((hostname, device_name or None, rrd_path))
+                device_name = snmp_device_name or device_name or None
+                res.append((hostname, device_name, rrd_path))
 
         # Collect stats
         num_hosts = len(set([r[0] for r in res]))
