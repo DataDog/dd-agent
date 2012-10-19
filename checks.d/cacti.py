@@ -38,13 +38,13 @@ class Cacti(AgentCheck):
         # Load the instance configuration
         host = instance.get('mysql_host')
         user = instance.get('mysql_user')
-        password = instance.get('mysql_password')
+        password = instance.get('mysql_password', '')
         db = instance.get('mysql_db', 'cacti')
         rrd_path = instance.get('rrd_path')
         whitelist = instance.get('rrd_whitelist')
 
         # Generate an instance key to store state across checks
-        key = _instance_key(instance)
+        key = self._instance_key(instance)
 
         # The rrdtool module is required for the check to work
         try:
@@ -163,41 +163,23 @@ class Cacti(AgentCheck):
         c = db.cursor()
 
         # Check for the existence of the `host_snmp_cache` table
-        res = c.execute("show tables like 'host_snmp_cache'").fetchall()
-        if res:
-            # Fetch the snmp device name
-            rrd_query = """
-                SELECT
-                    h.hostname as hostname,
-                    dl.snmp_index as device_name,
-                    dt.data_source_path as rrd_path,
-                    hsc.field_value as snmp_device_name
-                FROM data_local dl
-                    JOIN host h on dl.host_id = h.id
-                    JOIN data_template_data dt on dt.local_data_id = dl.id
-                    LEFT JOIN host_snmp_cache hsc on h.id = hsc.host_id
-                        AND dl.snmp_index = hsc.snmp_index
-                WHERE dt.data_source_path IS NOT NULL
-                AND dt.data_source_path != ''
-                AND (hsc.field_name = 'ifName' OR hsc.field_name is NULL)
-            """
-        else:
-            rrd_query = """
-                SELECT
-                    h.hostname as hostname,
-                    dl.snmp_index as device_name,
-                    dt.data_source_path as rrd_path,
-                    NULL as snmp_device_name
-                FROM data_local dl
-                    JOIN host h on dl.host_id = h.id
-                    JOIN data_template_data dt on dt.local_data_id = dl.id
-                WHERE dt.data_source_path IS NOT NULL
-                AND dt.data_source_path != ''
-            """
-
+        rrd_query = """
+            SELECT
+                h.hostname as hostname,
+                hsc.field_value as device_name,
+                dt.data_source_path as rrd_path
+            FROM data_local dl
+                JOIN host h on dl.host_id = h.id
+                JOIN data_template_data dt on dt.local_data_id = dl.id
+                LEFT JOIN host_snmp_cache hsc on h.id = hsc.host_id
+                    AND dl.snmp_index = hsc.snmp_index
+            WHERE dt.data_source_path IS NOT NULL
+            AND dt.data_source_path != ''
+            AND (hsc.field_name = 'ifName' OR hsc.field_name = 'dskDevice' OR hsc.field_name is NULL)
+        """
         c.execute(rrd_query)
         res = []
-        for hostname, device_name, rrd_path, snmp_device_name in c.fetchall():
+        for hostname, device_name, rrd_path in c.fetchall():
             if not whitelist or _in_whitelist(rrd_path):
                 if hostname in ('localhost', '127.0.0.1'):
                     hostname = self.hostname

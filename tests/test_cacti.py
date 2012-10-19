@@ -51,17 +51,20 @@ class TestCacti(unittest.TestCase):
             return
 
         # Do a first check
-        results1 = self.cacti.check(self.config)
+        check.check(instances[0])
+        results1 = check.get_metrics()
 
         # Check again and make sure no new metrics are picked up
         # But we will still have the payload stats
-        results2 = self.cacti.check(self.config)
-        last_ts1 = self.cacti.last_ts[self.tmp_dir + '/localhost_hdd_free_10.rrd.AVERAGE']
+        check.check(instances[0])
+        results2 = check.get_metrics()
+        last_ts1 = check.last_ts[self.tmp_dir + '/localhost_hdd_free_10.rrd.AVERAGE']
 
         # Check once more to make sure last_ts ignores None vals when calculating
         # where to start from
-        results3 = self.cacti.check(self.config)
-        last_ts2 = self.cacti.last_ts[self.tmp_dir + '/localhost_hdd_free_10.rrd.AVERAGE']
+        check.check(instances[0])
+        results3 = check.get_metrics()
+        last_ts2 = check.last_ts[self.tmp_dir + '/localhost_hdd_free_10.rrd.AVERAGE']
 
         self.assertEquals(last_ts1, last_ts2)
 
