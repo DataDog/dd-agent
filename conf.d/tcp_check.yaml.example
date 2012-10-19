@@ -1,0 +1,17 @@
+init_config:
+#    notify: 
+#        - user1@myorg
+#        - pagerduty
+
+instances:
+#    -   name: My_first_service
+#        host: datadog.com
+#        port: 8080
+#        timeout: 1
+
+#    -   name: My_second_service
+#        host: 127.0.0.1
+#        port: 80
+#        notify:
+#           - user2@myorg
+#           - pagerduty
