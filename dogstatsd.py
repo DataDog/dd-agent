@@ -181,7 +181,10 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     port     = c['dogstatsd_port']
     interval = c['dogstatsd_interval']
     api_key  = c['api_key']
-    target   = c['dogstatsd_target'] if use_forwarder else c['dd_url']
+
+    target = c['dd_url']
+    if use_forwarder:
+        target = c['dogstatsd_target'] 
 
     hostname = gethostname(c)
 
