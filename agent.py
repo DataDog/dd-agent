@@ -54,7 +54,8 @@ class agent(Daemon):
         checksd = load_check_directory(agentConfig)
 
         # Try to fetch instance Id from EC2 if not hostname has been set
-        # in the config file
+        # in the config file.
+        # DEPRECATED
         if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
             instanceId = EC2.get_instance_id()
             if instanceId is not None:

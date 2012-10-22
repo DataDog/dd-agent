@@ -153,7 +153,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'hostname': None,
         'listen_port': None,
         'tags': None,
-        'use_ec2_instance_id': False,
+        'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
         'watchdog': True,
     }
@@ -229,6 +229,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
+        # DEPRECATED
         if config.has_option('Main', 'use_ec2_instance_id'):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
