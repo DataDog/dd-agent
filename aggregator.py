@@ -293,21 +293,32 @@ class MetricsAggregator(object):
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
       device_name=None, timestamp=None, sample_rate=1):
-        context = (name, tuple(tags), hostname, device_name)
+        context = (name, tuple(tags or []), hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
                 hostname or self.hostname, device_name)
         self.metrics[context].sample(value, sample_rate)
 
-    def _create_packet(self, metric, value, tags, stat_type):
-        packet = '%s:%s|%s' % (metric, value, stat_type)
-        if tags:
-            packet += '|#%s' % ','.join(tags)
-        return packet
+    def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
+        self.submit_metric(metric, value, 'g', tags, hostname, device_name, timestamp)
+
+    def increment(self, name, value=1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(metric, value, 'c', tags, hostname, device_name)
+
+    def decrement(self, name, value=-1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(metric, value, 'c', tags, hostname, device_name)
+
+    def rate(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(metric, value, '_dd-r', tags, hostname, device_name)
+
+    def histogram(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(metric, value, 'h', tags, hostname, device_name)
+
+    def set(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(metric, value, 's', tags, hostname, device_name)
 
     def flush(self):
-
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
 

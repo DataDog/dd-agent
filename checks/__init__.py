@@ -308,8 +308,7 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         :param timestamp: (optional) The timestamp for this metric value
         """
-        self.aggregator.submit_metric(metric, value, 'g', tags=tags,
-            hostname=hostname, device_name=device_name, timestamp=timestamp)
+        self.aggregator.gauge(name, value, tags, hostname, device_name, timestamp)
 
     def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
         """
@@ -321,8 +320,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.submit_metric(metric, value, 'c', tags=tags,
-            hostname=hostname, device_name=device_name)
+        self.aggregator.increment(metric, value, tags, hostname, device_name)
 
     def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
         """
@@ -334,9 +332,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.submit_metric(metric, value, 'c', tags=tags,
-            hostname=hostname, device_name=device_name)
-
+        self.aggregator.decrement(metric, value, tags, hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -350,8 +346,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.submit_metric(metric, value, '_dd-r', tags=tags,
-            hostname=hostname, device_name=device_name)
+        self.aggregator.rate(metric, value, tags, hostname, device_name)
 
     def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -363,8 +358,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.submit_metric(metric, value, '_dd-r', tags=tags,
-            hostname=hostname, device_name=device_name)
+        self.aggregator.histogram(metric, value, tags, hostname, device_name)
 
     def set(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -376,8 +370,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.submit_metric(metric, value, 's', tags=tags,
-            hostname=hostname, device_name=device_name)
+        self.aggregator.set(metric, value, tags, hostname, device_name)
 
     def event(self, event):
         """
