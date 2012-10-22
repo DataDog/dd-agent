@@ -2,6 +2,7 @@ from checks import AgentCheck
 
 from fnmatch import fnmatch
 import os
+import time
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -112,7 +113,12 @@ class Cacti(AgentCheck):
         c_funcs = [v for k,v in info.items() if k.endswith('.cf')]
 
         for c in c_funcs:
-            start = self.last_ts.get('%s.%s' % (rrd_path, c), 0)
+            last_ts_key = '%s.%s' % (rrd_path, c)
+            if last_ts_key not in self.last_ts:
+                self.last_ts[last_ts_key] = int(time.time())
+                continue
+
+            start = self.last_ts[last_ts_key]
             last_ts = start
 
             try:
@@ -142,7 +148,7 @@ class Cacti(AgentCheck):
                     last_ts = (ts + interval)
 
             # Update the last timestamp based on the last valid metric
-            self.last_ts['%s.%s' % (rrd_path, c)] = last_ts
+            self.last_ts[last_ts_key] = last_ts
         return metric_count
 
     def _instance_key(*args):
