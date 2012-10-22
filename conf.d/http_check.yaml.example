@@ -1,17 +1,17 @@
 init_config:
 #    notify: 
-#        - user1@myorg
+#        - user1@example.com
 #        - pagerduty
 
 instances:
 #    -   name: My_first_service
-#        url: http://someurl
+#        url: http://some.url.example.com
 #        username: user
 #        password: pass
 #        timeout: 1
 
 #    -   name: My_second_service
-#        url: https://otherurl
+#        url: https://another.url.example.com
 #        notify:
-#           - user2@myorg
+#           - user2@example.com
 #           - pagerduty

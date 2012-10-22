@@ -5,7 +5,7 @@ init_config:
 
 instances:
 #    -   name: My_first_service
-#        host: datadog.com
+#        host: myhost.example.com
 #        port: 8080
 #        timeout: 1
 
