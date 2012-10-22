@@ -27,8 +27,13 @@ class HTTPCheck(ServicesCheck):
             opener = urllib2.build_opener(authhandler)
             urllib2.install_opener(opener)
             req = urllib2.Request(addr, None, headers(self.agentConfig))
-            socket.setdefaulttimeout(timeout)
-            request = urllib2.urlopen(req)
+            try:
+                # This was introduced in python 2.6
+                request = urllib2.urlopen(req, timeout=timeout)
+            except TypeError:
+                socket.setdefaulttimeout(timeout)
+                request = urllib2.urlopen(req)
+            
 
         except socket.timeout, e:
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
