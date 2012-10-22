@@ -77,8 +77,21 @@ class TestCacti(unittest.TestCase):
 
         self.assertEquals(last_ts1, last_ts2)
 
-        self.assertEquals(results2[2][0], 'cacti.metrics.count')
-        self.assertEquals(results2[2][2], 0)
+        metrics = [r[0] for r in results2]
+
+        # make sure diagnostic metrics are included
+        assert 'cacti.metrics.count' in metrics
+        assert 'cacti.rrd.count' in metrics
+        assert 'cacti.hosts.count' in metrics
+
+        metrics_count = [r for r in results2 if r[0] == 'cacti.metrics.count'][0][2]
+        hosts_count = [r for r in results2 if r[0] == 'cacti.hosts.count'][0][2]
+        rrd_count = [r for r in results2 if r[0] == 'cacti.rrd.count'][0][2]
+
+        assert metrics_count == 0
+        assert hosts_count == 1
+        assert rrd_count == 3
+
         load1 = [m[2] for m in results1 if m[0] == 'system.load.1' and m[2]]
 
         # Make sure some load metrics were returned
