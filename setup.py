@@ -41,6 +41,20 @@ if sys.platform == 'win32':
         'elementtree'
     ])
 
+    # Modules to force-include in the exe
+    include_modules = [
+        # 3p
+        'win32service',
+        'win32serviceutil',
+        'win32event',
+        'simplejson',
+        'adodbapi',
+        'elementtree',
+
+        # agent
+        'checks.services_checks',
+    ]
+
     class Target(object):
         def __init__(self, **kw):
             self.__dict__.update(kw) 
@@ -54,7 +68,7 @@ if sys.platform == 'win32':
     extra_args = {
         'options': {
             'py2exe': {
-                'includes': 'win32service,win32serviceutil,win32event,simplejson,adodbapi',
+                'includes': ','.join(include_modules),
                 'optimize': 2,
                 'compressed': 1,
                 'bundle_files': 1,
