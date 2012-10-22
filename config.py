@@ -153,7 +153,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'hostname': None,
         'listen_port': None,
         'tags': None,
-        'use_ec2_instance_id': False,
+        'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
         'watchdog': True,
     }
@@ -229,6 +229,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
+        # DEPRECATED
         if config.has_option('Main', 'use_ec2_instance_id'):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
@@ -451,9 +452,14 @@ def load_check_directory(agentConfig):
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for name, clsmember in classes:
-            if AgentCheck in clsmember.__bases__:
+            if clsmember == AgentCheck:
+                continue
+            if issubclass(clsmember, AgentCheck):
                 check_class = clsmember
-                break
+                if AgentCheck in clsmember.__bases__:
+                    continue
+                else:
+                    break
 
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
@@ -480,11 +486,6 @@ def load_check_directory(agentConfig):
             log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
-        # Init all of the check's classes with
-        init_config = check_config.get('init_config', None)
-        check_class = check_class(check_name, init_config=init_config or {},
-            agentConfig=agentConfig)
-
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
             log.error("Config %s is missing 'instances'" % conf_path)
@@ -494,6 +495,14 @@ def load_check_directory(agentConfig):
         instances = check_config.get('instances', {})
         if type(instances) != type([]):
             instances = [instances]
+
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config')
+        if init_config is None:
+            init_config = {}
+        init_config['instances_number'] = len(instances)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
 
         log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
