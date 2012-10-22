@@ -301,22 +301,22 @@ class MetricsAggregator(object):
         self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
-        self.submit_metric(metric, value, 'g', tags, hostname, device_name, timestamp)
+        self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
 
     def increment(self, name, value=1, tags=None, hostname=None, device_name=None):
-        self.submit_metric(metric, value, 'c', tags, hostname, device_name)
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
     def decrement(self, name, value=-1, tags=None, hostname=None, device_name=None):
-        self.submit_metric(metric, value, 'c', tags, hostname, device_name)
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
     def rate(self, name, value, tags=None, hostname=None, device_name=None):
-        self.submit_metric(metric, value, '_dd-r', tags, hostname, device_name)
+        self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
 
     def histogram(self, name, value, tags=None, hostname=None, device_name=None):
-        self.submit_metric(metric, value, 'h', tags, hostname, device_name)
+        self.submit_metric(name, value, 'h', tags, hostname, device_name)
 
     def set(self, name, value, tags=None, hostname=None, device_name=None):
-        self.submit_metric(metric, value, 's', tags, hostname, device_name)
+        self.submit_metric(name, value, 's', tags, hostname, device_name)
 
     def flush(self):
         timestamp = time()

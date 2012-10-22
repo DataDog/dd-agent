@@ -308,7 +308,7 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         :param timestamp: (optional) The timestamp for this metric value
         """
-        self.aggregator.gauge(name, value, tags, hostname, device_name, timestamp)
+        self.aggregator.gauge(metric, value, tags, hostname, device_name, timestamp)
 
     def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
         """
