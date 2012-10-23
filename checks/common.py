@@ -40,7 +40,6 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
-from checks.cacti import Cacti
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
@@ -108,7 +107,6 @@ class checks(object):
 
         # Metric Checks
         self._metrics_checks = [
-            Cacti(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             Jvm(self.checksLogger),
