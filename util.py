@@ -7,23 +7,24 @@ import math
 
 NumericTypes = (float, int, long)
 
-# We need to return the data using JSON. As of Python 2.6+, there is a core JSON
-# module. We have a 2.4/2.5 compatible lib included with the agent but if we're
-# on 2.6 or above, we should use the core module which will be faster
-pythonVersion = platform.python_version_tuple()
 
-if int(pythonVersion[1]) >= 6: # Don't bother checking major version since we only support v2 anyway
-    import json
-else:
-    import minjson
-    class json(object):
-        @staticmethod
-        def dumps(data):
-            return minjson.write(data)
+# Import json for the agent. Try simplejson first, then the stdlib version and
+# if all else fails, use minjson which we bundle with the agent.
+try:
+    import simplejson as json
+except ImportError:
+    try:
+        import json
+    except ImportError:
+        import minjson
+        class json(object):
+            @staticmethod
+            def dumps(data):
+                return minjson.write(data)
 
-        @staticmethod
-        def loads(data):
-            return minjson.safeRead(data)
+            @staticmethod
+            def loads(data):
+                return minjson.safeRead(data)
 
 import yaml
 try:
