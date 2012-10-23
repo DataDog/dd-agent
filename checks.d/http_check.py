@@ -1,9 +1,8 @@
 from checks.services_checks import ServicesCheck, Status, EventType
 from util import headers
-import urllib2
 import socket
 import time
-
+import httplib2
 
 class HTTPCheck(ServicesCheck):
 
@@ -21,36 +20,26 @@ class HTTPCheck(ServicesCheck):
         addr, username, password, timeout = self._load_conf(instance)
         try:
             self.log.debug("Connecting to %s" % addr)
-            passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-            passman.add_password(None, addr, username, password)
-            authhandler = urllib2.HTTPBasicAuthHandler(passman)
-            opener = urllib2.build_opener(authhandler)
-            urllib2.install_opener(opener)
-            req = urllib2.Request(addr, None, headers(self.agentConfig))
-            try:
-                # This was introduced in python 2.6
-                request = urllib2.urlopen(req, timeout=timeout)
-            except TypeError:
-                socket.setdefaulttimeout(timeout)
-                request = urllib2.urlopen(req)
-            
+            h = httplib2.Http(timeout=timeout)
+            if username is not None and password is not None:
+                h.add_credentials(username, password)
+            resp, content = h.request(addr, "GET")
 
         except socket.timeout, e:
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
 
-        except urllib2.URLError, e:
+        except httplib2.HttpLib2Error, e:
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
-
-        except  urllib2.HTTPError, e:
-            if int(e.code) >= 400:
-                self.log.info("%s is DOWN, error code: %s" % (addr, str(e.code)))
-                return Status.DOWN, str(e)
 
         except Exception, e:
             self.log.error("Unhandled exception %s" % str(e))
             raise
+
+        if int(resp.status) >= 400:
+            self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
+            return Status.DOWN, str(resp.status)
 
         self.log.info("%s is UP" % addr)
         return Status.UP, "UP"
