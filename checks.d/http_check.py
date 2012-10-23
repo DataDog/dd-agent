@@ -20,7 +20,7 @@ class HTTPCheck(ServicesCheck):
         addr, username, password, timeout = self._load_conf(instance)
         try:
             self.log.debug("Connecting to %s" % addr)
-            h = httplib2.Http(timeout=timeout)
+            h = httplib2.Http(timeout=timeout, disable_ssl_certificate_validation=True)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
             resp, content = h.request(addr, "GET")
