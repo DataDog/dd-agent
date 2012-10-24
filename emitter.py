@@ -14,12 +14,13 @@ def format_body(message):
     payload = json.dumps(message)
     return zlib.compress(payload)
 
-def post_headers(agentConfig):
+def post_headers(agentConfig, payload):
     return {
         'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
         'Content-Type': 'application/json',
         'Content-Encoding': 'deflate',
         'Accept': 'text/html, */*',
+        'Content-MD5': md5(payload).hexdigest()
     }
 
 def http_emitter(message, logger, agentConfig):
@@ -35,7 +36,8 @@ def http_emitter(message, logger, agentConfig):
         apiKey = message.get('apiKey', None)
         if apiKey:
             url = "%s/intake?api_key=%s" % (agentConfig['dd_url'], apiKey)
-            request = urllib2.Request(url, postBackData, post_headers(agentConfig))
+            headers = post_headers(agentConfig, postBackData)
+            request = urllib2.Request(url, postBackData, headers)
             # Do the request, log any errors
             response = urllib2.urlopen(request)
 
