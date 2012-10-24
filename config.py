@@ -18,7 +18,7 @@ DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
 
-class DDConfigNotFound(Exception): pass
+class PathNotFound(Exception): pass
 
 def get_parsed_args():
     parser = OptionParser()
@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.1.5"
+    return "3.2.3"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -52,9 +52,10 @@ def initialize_logging(config_path, os_name=None):
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
-
-def _windows_config_path():
-    # Find the 'common appdata' path
+def _windows_commondata_path():
+    ''' Return the common appdata path, using ctypes 
+    From: http://stackoverflow.com/questions/626796/how-do-i-find-the-windows-common-application-data-folder-using-python
+    '''
     import ctypes
     from ctypes import wintypes, windll
 
@@ -68,18 +69,44 @@ def _windows_config_path():
 
     path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
     result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
-    common_data = path_buf.value
+    return path_buf.value
 
+
+def _windows_config_path():
+    common_data = _windows_commondata_path()
     path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
     if os.path.exists(path):
         return path
-    raise DDConfigNotFound(path)
+    raise PathNotFound(path)
+
+def _windows_confd_path():
+    common_data = _windows_commondata_path()
+    path = os.path.join(common_data, 'Datadog', 'conf.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
+def _windows_checksd_path():
+    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
+        'checks.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
 
 def _unix_config_path():
     path = os.path.join('/etc/dd-agent', DATADOG_CONF)
     if os.path.exists(path):
         return path
-    raise DDConfigNotFound(path)
+    raise PathNotFound(path)
+
+def _unix_confd_path():
+    path = os.path.join('/etc/dd-agent', 'conf.d')
+    if os.path.exists(path):
+        return path
+    raise PathNotFound(path)
+
+def _is_affirmative(s):
+    return s.lower() in ('yes', 'true')
 
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
@@ -91,12 +118,12 @@ def get_config_path(cfg_path=None, os_name=None):
     if os_name == 'windows':
         try:
             return _windows_config_path()
-        except DDConfigNotFound, e:
+        except PathNotFound, e:
             exc = e
     else:
         try:
             return _unix_config_path()
-        except DDConfigNotFound, e:
+        except PathNotFound, e:
             exc = e
 
     # Check if there's a config stored in the current agent directory
@@ -126,7 +153,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'hostname': None,
         'listen_port': None,
         'tags': None,
-        'use_ec2_instance_id': False,
+        'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
         'watchdog': True,
     }
@@ -202,6 +229,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
+        # DEPRECATED
         if config.has_option('Main', 'use_ec2_instance_id'):
             use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
             # translate yes into True, the rest into False
@@ -228,13 +256,19 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         dogstatsd_defaults = {
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : dogstatsd_interval
+            'dogstatsd_interval' : dogstatsd_interval,
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # optionally send dogstatsd data directly to the agent.
+        if config.has_option('Main', 'dogstatsd_use_ddurl'):
+            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
+            if use_ddurl:
+                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
         # FIXME not the prettiest code ever...
@@ -342,31 +376,47 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
-def get_confd_path():
+def get_confd_path(osname):
     log = logging.getLogger('config')
+
+    if osname == 'windows':
+        try:
+            return _windows_confd_path()
+        except PathNotFound, e:
+            exc = e
+    else:
+        try:
+            return _unix_confd_path()
+        except PathNotFound, e:
+            exc = e
+
     cur_path = os.path.dirname(os.path.realpath(__file__))
     cur_path = os.path.join(cur_path, 'conf.d')
 
     if os.path.exists(cur_path):
-        log.debug("Using '%s' as the path to conf.d" % cur_path)
         return cur_path
 
-    # Try /etc/dd-agent/conf.d/
-    # FIXME: Make this work on Windows when it's in the mainline
-    path_check = os.path.join('/etc/dd-agent', 'conf.d')
-    if os.path.exists(path_check):
-        log.debug("Using '%s' as the path to conf.d" % path_check)
-        return path_check
-
-    sys.stderr.write("No conf.d folder found in /etc/dd-agent/ or in the directory where the agent is currently deployed.\n")
+    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
-def get_checksd_path():
+def get_checksd_path(osname):
     log = logging.getLogger('config')
+
+    # Unix only will look up based on the current directory
+    # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     checksd_path = os.path.join(cur_path, 'checks.d')
+    if os.path.exists(checksd_path):
+        return checksd_path
 
-    return checksd_path
+    if osname == 'windows':
+        try:
+            return _windows_checksd_path()
+        except PathNotFound, e:
+            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
+
+    log.error("No checks.d folder at '%s'.\n" % checksd_path)
+    sys.exit(3)
 
 def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
@@ -376,9 +426,10 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('config')
-    checks_path = get_checksd_path()
-    confd_path = get_confd_path()
+    log = logging.getLogger('checks')
+    osname = getOS()
+    checks_path = get_checksd_path(osname)
+    confd_path = get_confd_path(osname)
     check_glob = os.path.join(checks_path, '*.py')
 
     # Update the python path before the import
@@ -395,15 +446,20 @@ def load_check_directory(agentConfig):
         try:
             check_module = __import__(check_name)
         except:
-            log.warn('Unable to import check module %s.py from checks.d' % check_name)
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for name, clsmember in classes:
-            if AgentCheck in clsmember.__bases__:
+            if clsmember == AgentCheck:
+                continue
+            if issubclass(clsmember, AgentCheck):
                 check_class = clsmember
-                break
+                if AgentCheck in clsmember.__bases__:
+                    continue
+                else:
+                    break
 
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
@@ -412,35 +468,43 @@ def load_check_directory(agentConfig):
         # Check if the config exists OR we match the old-style config
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
         if os.path.exists(conf_path):
-            with open(conf_path) as f:
-                try:
-                    check_config = yaml.load(f.read(), Loader=yLoader)
-                except:
-                    log.warn("Unable to parse yaml config in %s" % conf_path)
-                    continue
+            f = open(conf_path)
+            try:
+                check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
+                f.close()
+            except:
+                f.close()
+                log.warn("Unable to parse yaml config in %s" % conf_path)
+                continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
             check_config = check_class.parse_agent_config(agentConfig)
             if not check_config:
                 continue
         else:
+            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
-
-        # Init all of the check's classes with
-        init_config = check_config.get('init_config', None)
-        check_class = check_class(check_name, init_config=init_config,
-            agentConfig=agentConfig)
 
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
-        # Although most instancess will be a list to support multi-instance
-        # checks, accept non-list formatted.
-        if type(check_config['instances']) != type([]):
-            check_config['instances'] = [check_config['instances']]
+        # Accept instances as a list, as a single dict, or as non-existant
+        instances = check_config.get('instances', {})
+        if type(instances) != type([]):
+            instances = [instances]
 
+        # Init all of the check's classes with
+        init_config = check_config.get('init_config')
+        if init_config is None:
+            init_config = {}
+        init_config['instances_number'] = len(instances)
+        check_class = check_class(check_name, init_config=init_config,
+            agentConfig=agentConfig)
+
+        log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
             'name': check_name,
             'instances': check_config['instances'],

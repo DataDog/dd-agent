@@ -16,13 +16,12 @@ import re
 import socket
 import time
 import types
+import os
 
 try:
     from hashlib import md5
 except ImportError:
     import md5
-
-from aggregator import MetricsAggregator
 
 # Konstants
 class CheckException(Exception): pass
@@ -140,12 +139,14 @@ class Check(object):
     def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """Save a simple sample, evict old values if needed
         """
+        from util import cast_metric_val
+
         if timestamp is None:
             timestamp = time.time()
         if metric not in self._sample_store:
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
-            value = float(value)
+            value = cast_metric_val(value)
         except ValueError, ve:
             raise NaN(ve)
 
@@ -284,6 +285,9 @@ class AgentCheck(object):
         :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
         """
+        from aggregator import MetricsAggregator
+
+
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
@@ -421,7 +425,9 @@ class AgentCheck(object):
         @return the list of events saved by this check
         @rtype list of event dictionaries
         """
-        return self.events
+        events = self.events
+        self.events = []
+        return events
 
     def check(self, instance):
         """
@@ -431,6 +437,26 @@ class AgentCheck(object):
         depending on your config structure.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
+        """
+        A method used for testing your check without running the agent.
+        """
+        from util import yaml, yLoader
+        if path_to_yaml:
+            check_name = os.path.basename(path_to_yaml).split('.')[0]
+            try:
+                f = open(path_to_yaml)
+            except IOError:
+                raise Exception('Unable to open yaml config: %s' % path_to_yaml)
+            yaml_text = f.read()
+            f.close()
+
+        config = yaml.load(yaml_text, Loader=yLoader)
+        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
+
+        return check, config.get('instances', [])
 
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:

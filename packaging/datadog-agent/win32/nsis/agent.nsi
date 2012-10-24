@@ -23,8 +23,8 @@
   RequestExecutionLevel admin
 
   ;Icon "agent_install.ico"
-  Caption "Datadog Agent Setup"
-  VIProductVersion "1.3.1.0"
+  Caption "Datadog Agent"
+  VIProductVersion "${Version}"
   VIAddVersionKey ProductName "Datadog Agent"
   VIAddVersionKey Comments "Captures system and application metrics and sends them to your Datadog account."
   VIAddVersionKey CompanyName "Datadog, Inc."
@@ -33,7 +33,7 @@
   VIAddVersionKey FileVersion ${Version}
   VIAddVersionKey ProductVersion ${Version}
   VIAddVersionKey InternalName "Datadog Agent"
-  VIAddVersionKey LegalTrademarks "Copyright 2012 Datadog, Inc. 2012"
+  VIAddVersionKey LegalTrademarks "Copyright 2012 Datadog, Inc."
 
 ;--------------------------------
 ;Interface Settings
@@ -127,7 +127,7 @@
 
 ;--------------------------------
 ;Languages
- 
+
   !insertmacro MUI_LANGUAGE "English"
 
 ;--------------------------------
@@ -142,26 +142,31 @@ Section "Datadog Agent" SecDummy
   SetOutPath "$INSTDIR"
 
   ; Stop the service if it exists so we can overwrite the exe
-  ${If} ${FileExists} "$INSTDIR\ddagent.exe" 
+  ${If} ${FileExists} "$INSTDIR\ddagent.exe"
     Exec "$INSTDIR\ddagent.exe stop"
     Sleep 2000
   ${EndIf}
 
   ; Files to install
-  File "../install_files\license.txt"
+  File "..\install_files\license.txt"
   File /oname=ddagent.exe "..\install_files\agent.exe"
-  FILE "../install_files\ca-certificates.crt"
+  File "..\install_files\shell.exe"
+  File "..\install_files\ca-certificates.crt"
+
+  ; Install all of the checks.d checks
+  File /r "..\install_files\checks.d"
 
   ; Config does in App Data
   ; Only write the config if it doesn't exist yet
   ${IfNot} ${FileExists} "$0\Datadog\datadog.conf"
     SetOutPath "$0\Datadog"
     File /oname=datadog.conf "..\install_files\datadog_win32.conf"
+    File /r "..\install_files\conf.d"
   ${EndIf}
 
   ;Store installation folder
   WriteRegStr HKCU "Software\Datadog Agent" "" $INSTDIR
-  
+
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
@@ -191,6 +196,7 @@ Section "Uninstall"
   Exec "$INSTDIR\ddagent.exe remove"
 
   Delete "$INSTDIR\ddagent.exe"
+  Delete "$INSTDIR\shell.exe"
   Delete "$0\Datadog\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
   Delete "$INSTDIR\license.txt"

@@ -25,6 +25,7 @@ install_requires=[
 ]
 
 if sys.platform == 'win32':
+    from glob import glob
     import py2exe
     install_requires.extend([
         'tornado==2.1',
@@ -34,10 +35,25 @@ if sys.platform == 'win32':
         'mysql-python==1.2.3',
         'pymongo==2.3',
         'psycopg2==2.4.5',
-        'python-memcache==1.48',
+        'python-memcached==1.48',
         'redis==2.6.2',
+        'adodbapi'
         'elementtree'
     ])
+
+    # Modules to force-include in the exe
+    include_modules = [
+        # 3p
+        'win32service',
+        'win32serviceutil',
+        'win32event',
+        'simplejson',
+        'adodbapi',
+        'elementtree',
+
+        # agent
+        'checks.services_checks',
+    ]
 
     class Target(object):
         def __init__(self, **kw):
@@ -52,14 +68,16 @@ if sys.platform == 'win32':
     extra_args = {
         'options': {
             'py2exe': {
-                'includes': 'win32service,win32serviceutil,win32event,simplejson',
+                'includes': ','.join(include_modules),
                 'optimize': 2,
                 'compressed': 1,
                 'bundle_files': 1,
             },
         },
+        'console': ['win32\shell.py'],
         'service': [agent_svc],
-        'zipfile': None
+        'zipfile': None,
+        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))],
     }
 
 setup(

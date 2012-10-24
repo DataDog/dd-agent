@@ -14,12 +14,25 @@ namespace FindReplace
             {
                 Console.Write("Usage: FindReplace.exe path_to_file search_text replace_text\n");
                 return;
-            }
+            }         
 
             // Load in the arguments from the user
             String filePath = args[0];
             String searchText = args[1];
             String replaceText = args[2];
+
+            // Don't overwrite the text with nothing
+            if (replaceText.Trim() == "")
+            {
+                return;
+            }
+
+            // If we are given "key: val" but val doesn't exist, don't do the replacement
+            String[] parts = replaceText.Split(new string[] {":"}, StringSplitOptions.None);
+            if (parts.Length == 2 && parts[1].Trim() == "")
+            {
+                return;    
+            }
 
             // Read the contents of the file
             String contents;

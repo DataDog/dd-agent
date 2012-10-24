@@ -5,6 +5,8 @@ import subprocess
 import time
 import urllib2
 
+from tests.common import kill_subprocess
+
 class JMXTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -15,9 +17,9 @@ class JMXTestCase(unittest.TestCase):
 
     def start_solr(self, params, port):
         try:
-            params = ["java", "-jar", "-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.ssl=false"] + params.split(' ') + ["/tmp/apache-solr-3.6.1/example/start.jar"]
+            params = ["java", "-jar", "-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.ssl=false"] + params.split(' ') + ["/tmp/apache-solr-3/example/start.jar"]
             logging.getLogger('dd.testjmx').info("executing %s" % " ".join(params))
-            process = subprocess.Popen(params, executable="java", cwd="/tmp/apache-solr-3.6.1/example/", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.Popen(params, executable="java", cwd="/tmp/apache-solr-3/example/", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             time.sleep(3)
 
@@ -55,7 +57,7 @@ class JMXTestCase(unittest.TestCase):
         }
 
         # Starting tomcat
-        tomcat6 = '/tmp/apache-tomcat-6.0.35/bin'
+        tomcat6 = '/tmp/apache-tomcat-6/bin'
         self.start_tomcat(tomcat6, 8080)
 
         # Starting solr
@@ -69,7 +71,7 @@ class JMXTestCase(unittest.TestCase):
             metrics_check.jmx._jmx.terminate(force=True)
 
         if first_instance:
-            first_instance.terminate()
+            kill_subprocess(first_instance)
 
         self.stop_tomcat(tomcat6)
 
@@ -87,8 +89,8 @@ class JMXTestCase(unittest.TestCase):
             'api_key': 'toto'
         }
 
-        tomcat6 = '/tmp/apache-tomcat-6.0.35/bin'
-        tomcat7 = '/tmp/apache-tomcat-7.0.29/bin'
+        tomcat6 = '/tmp/apache-tomcat-6/bin'
+        tomcat7 = '/tmp/apache-tomcat-7/bin'
         self.start_tomcat(tomcat6, 8080)
         self.start_tomcat(tomcat7, 7070)
 
@@ -121,7 +123,7 @@ class JMXTestCase(unittest.TestCase):
         second_instance = None
        
         first_instance = "%s.port=3000 %s.authenticate=false -Djetty.port=8980" % (jmx_prefix, jmx_prefix)
-        second_instance = "%s.port=3001 %s.authenticate=true -Djetty.port=8984 %s.password.file=/tmp/apache-solr-3.6.1/example/jmxremote.password %s.access.file=/tmp/apache-solr-3.6.1/example/jmxremote.access" % (jmx_prefix, jmx_prefix, jmx_prefix, jmx_prefix)
+        second_instance = "%s.port=3001 %s.authenticate=true -Djetty.port=8984 %s.password.file=/tmp/apache-solr-3/example/jmxremote.password %s.access.file=/tmp/apache-solr-3/example/jmxremote.access" % (jmx_prefix, jmx_prefix, jmx_prefix, jmx_prefix)
         
         first_instance = self.start_solr(first_instance, 8983)
         second_instance = self.start_solr(second_instance, 8984)
@@ -133,9 +135,9 @@ class JMXTestCase(unittest.TestCase):
             metrics_check.jmx._jmx.terminate(force=True)
         
         if first_instance:
-            first_instance.terminate()
+            kill_subprocess(first_instance)
         if second_instance:
-            second_instance.terminate()
+            kill_subprocess(second_instance)
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, r)

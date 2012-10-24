@@ -40,7 +40,6 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
-from checks.cacti import Cacti
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
@@ -69,6 +68,8 @@ class checks(object):
         self.plugins = None
         self.emitters = emitters            
         self.checksLogger = logging.getLogger('checks')
+        self.metadata_interval = int(agentConfig.get('metadata_interval', 5 * 60 * 60))
+        self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
         
         # Unix System Checks
@@ -106,7 +107,6 @@ class checks(object):
 
         # Metric Checks
         self._metrics_checks = [
-            Cacti(self.checksLogger),
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             Jvm(self.checksLogger),
@@ -161,6 +161,16 @@ class checks(object):
             pass
 
         return metadata
+
+    def should_send_metadata(self):
+        # If the interval has passed, send the metadata again
+        now = time.time()
+        if now - self.metadata_start >= self.metadata_interval:
+            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
+            self.metadata_start = now
+            return True
+
+        return False
 
     def doChecks(self, firstRun=False, systemStats=False, checksd=None):
         """Actual work
@@ -299,9 +309,6 @@ class checks(object):
         # Include system stats on first postback
         if firstRun:
             checksData['systemStats'] = systemStats
-            # Add static tags from the configuration file
-            if self.agentConfig['tags'] is not None:
-                checksData['tags'] = self.agentConfig['tags']
             # Also post an event in the newsfeed
             events['System'] = [{'api_key': self.agentConfig['api_key'],
                                                'host': checksData['internalHostname'],
@@ -310,8 +317,12 @@ class checks(object):
                                                'msg_text': 'Version %s' % get_version()
                                             }]
 
+        if firstRun or self.should_send_metadata():
             # Collect metadata
             checksData['meta'] = self.get_metadata()
+            # Add static tags from the configuration file
+            if self.agentConfig['tags'] is not None:
+                checksData['tags'] = self.agentConfig['tags']
 
         # Resources checks
         if self.os != 'windows':
@@ -344,11 +355,17 @@ class checks(object):
             for check in checksd:
                 check_cls = check['class']
                 for instance in check['instances']:
-                    # Run the check for each configuration
-                    check_cls.check(instance)
-                    metrics.extend(check_cls.get_metrics())
-                    if check_cls.has_events():
-                        events[check['name']] = check_cls.get_events()
+                    try:
+                        # Run the check for each configuration
+                        check_cls.check(instance)
+                        metrics.extend(check_cls.get_metrics())
+                        if check_cls.has_events():
+                            if check['name'] not in events:
+                                events[check['name']] = []
+                            for ev in check_cls.get_events():
+                                events[check['name']].append(ev)
+                    except Exception:
+                        self.checksLogger.exception("Check %s failed" % check_cls.name)
 
 
         # Store the metrics in the payload

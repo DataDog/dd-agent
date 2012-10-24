@@ -15,7 +15,6 @@ from collections import defaultdict
 import sys
 import optparse
 import os
-import json
 import re
 import time
 import logging
@@ -28,6 +27,7 @@ from tornado import websocket
 
 # project
 from config import get_config
+from util import json
 
 
 logger = logging.getLogger('pup')
