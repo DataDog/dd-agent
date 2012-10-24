@@ -46,6 +46,6 @@ if __name__ == "__main__":
           author_email='info@datadoghq.com',
           url='http://datadoghq.com/',
           packages=['checks', 'checks/db', 'checks/system', 'dogstream','pup', 'yaml', 'checks/libs'],
-          package_data={'checks': ['libs/*'], 'pup' : ['static/*', 'pup.html'], 'checks/libs': ['httplib2/*']},
+          package_data={'checks': ['libs/*.*'], 'pup' : ['static/*', 'pup.html'], 'checks/libs': ['httplib2/*']},
           data_files=getDataFiles()
          )
