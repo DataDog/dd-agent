@@ -4,4 +4,3 @@ redis
 pexpect
 python-memcached
 pyyaml
-httplib2
