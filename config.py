@@ -502,6 +502,13 @@ def load_check_directory(agentConfig):
         check_class = check_class(check_name, init_config=init_config,
             agentConfig=agentConfig)
 
+        # Add custom pythonpath(s) if available
+        if 'pythonpath' in check_config:
+            pythonpath = check_config['pythonpath']
+            if not isinstance(pythonpath, list):
+                pythonpath = [pythonpath]
+            sys.path.extend(pythonpath)
+
         log.debug('Loaded check.d/%s.py' % check_name)
         checks.append({
             'name': check_name,
