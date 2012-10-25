@@ -327,13 +327,13 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp)
 
         # Save some stats.
-        logger.info("received %s payloads since last flush" % self.count)
+        logger.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics
