@@ -81,8 +81,9 @@ class MetricTransaction(Transaction):
         except:
             logging.info("Not a Datadog user")
 
-    def __init__(self, data):
+    def __init__(self, data, headers):
         self._data = data
+        self._headers = headers
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -95,20 +96,18 @@ class MetricTransaction(Transaction):
     def __sizeof__(self):
         return sys.getsizeof(self._data)
 
-    def get_data(self):
-        try:
-            return format_body(self._data, logging)
-        except:
-            logging.exception('http_emitter failed')
-
     def get_url(self, endpoint):
-        return self._application._agentConfig[endpoint] + '/intake/'
+        api_key = self._application._agentConfig.get('api_key')
+        if api_key:
+            return self._application._agentConfig[endpoint] + '/intake?api_key=%s' % api_key
+        return self._application._agentConfig[endpoint] + '/intake'
 
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
             logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
-            req = tornado.httpclient.HTTPRequest(url, method="POST", body=self.get_data())
+            req = tornado.httpclient.HTTPRequest(url, method="POST",
+                body=self._data, headers=self._headers)
 
             # Send Transaction to the endpoint
             http = tornado.httpclient.AsyncHTTPClient()
@@ -166,30 +165,16 @@ class StatusHandler(tornado.web.RequestHandler):
 
 class AgentInputHandler(tornado.web.RequestHandler):
 
-    HASH = "hash"
-    PAYLOAD = "payload"
-
-    @staticmethod
-    def parse_message(message, msg_hash):
-
-        c_hash = md5(message).hexdigest()
-        if c_hash != msg_hash:
-            logging.error("Malformed message: %s != %s" % (c_hash, msg_hash))
-            return None
-
-        return json_decode(message)
-
-
     def post(self):
         """Read the message and forward it to the intake"""
 
         # read message
-        msg = AgentInputHandler.parse_message(self.get_argument(self.PAYLOAD),
-            self.get_argument(self.HASH))
+        msg = self.request.body
+        headers = self.request.headers
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = MetricTransaction(msg)
+            tr = MetricTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
 
@@ -202,10 +187,11 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
         # read message
         msg = self.request.body
+        headers = self.request.headers
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = APIMetricTransaction(msg)
+            tr = APIMetricTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
 
@@ -246,7 +232,7 @@ class Application(tornado.web.Application):
             self._metrics['uuid'] = getUuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
-            MetricTransaction(self._metrics)
+            MetricTransaction(self._metrics, {})
             self._metrics = {}
 
     def run(self):
