@@ -497,9 +497,7 @@ def load_check_directory(agentConfig):
             instances = [instances]
 
         # Init all of the check's classes with
-        init_config = check_config.get('init_config')
-        if init_config is None:
-            init_config = {}
+        init_config = check_config.get('init_config', {})
         init_config['instances_number'] = len(instances)
         check_class = check_class(check_name, init_config=init_config,
             agentConfig=agentConfig)
