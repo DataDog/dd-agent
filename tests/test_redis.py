@@ -6,6 +6,7 @@ import os
 import unittest
 import subprocess
 import time
+import pprint
 import redis
 
 from tests.common import load_check
@@ -115,11 +116,16 @@ class TestRedis(unittest.TestCase):
             for e in expected_tags:
                 assert e in tags
 
-        # Assert we have the rest of the keys.
+        def assert_key_present(expected, present, tolerance):
+            "Assert we have the rest of the keys (with some tolerance for missing keys)"
+            e = set(expected)
+            p = set(present)
+            assert len(e - p) < tolerance * len(e), pprint.pformat((p, e - p))
+
+        # gauges collected?
         remaining_keys = [m[0] for m in metrics]
-        expected = ['redis.mem.used', 'redis.net.clients', 'redis.net.slaves']
-        for e in expected:
-            assert e in remaining_keys, e
+        expected = r.GAUGE_KEYS.values()
+        assert_key_present(expected, remaining_keys, 0.2)
 
         # Assert that the keys metrics are tagged by db. just check db0, since
         # it's the only one we can guarantee is there.
@@ -134,13 +140,11 @@ class TestRedis(unittest.TestCase):
         self.assertEquals(3, db_metrics[1][2]) 
 
         # Run one more check and ensure we get total command count
+        # and other rates
         r.check(instance)
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
-        assert 'redis.mem.used' in keys
-        assert 'redis.mem.rss' in keys
-        assert 'redis.cpu.sys' in keys
 
     def _sort_metrics(self, metrics):
         def sort_by(m):
