@@ -138,6 +138,9 @@ class TestRedis(unittest.TestCase):
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
+        assert 'redis.mem.used' in keys
+        assert 'redis.mem.rss' in keys
+        assert 'redis.cpu.sys' in keys
 
     def _sort_metrics(self, metrics):
         def sort_by(m):
