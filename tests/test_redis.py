@@ -17,6 +17,7 @@ MAX_WAIT = 20
 NOAUTH_PORT = 16379
 AUTH_PORT = 26379
 DEFAULT_PORT = 6379
+MISSING_KEY_TOLERANCE= 0.5
 
 class TestRedis(unittest.TestCase):
 
@@ -125,7 +126,7 @@ class TestRedis(unittest.TestCase):
         # gauges collected?
         remaining_keys = [m[0] for m in metrics]
         expected = r.GAUGE_KEYS.values()
-        assert_key_present(expected, remaining_keys, 0.2)
+        assert_key_present(expected, remaining_keys, MISSING_KEY_TOLERANCE)
 
         # Assert that the keys metrics are tagged by db. just check db0, since
         # it's the only one we can guarantee is there.
