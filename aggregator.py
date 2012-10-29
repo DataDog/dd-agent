@@ -1,6 +1,9 @@
 import logging
 from time import time
 
+from util import cast_metric_val
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -252,7 +255,6 @@ class MetricsAggregator(object):
         self.formatter = formatter or self.api_formatter
 
     def submit_packets(self, packets):
-        from util import cast_metric_val
 
         for packet in packets.split("\n"):
             self.count += 1
