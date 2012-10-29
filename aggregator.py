@@ -87,9 +87,6 @@ class Histogram(Metric):
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
         self.name = name
-        self.max = float("-inf")
-        self.min = float("inf")
-        self.sum = 0
         self.count = 0
         self.sample_size = 1000
         self.samples = []
