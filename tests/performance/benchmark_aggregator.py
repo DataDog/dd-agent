@@ -14,7 +14,7 @@ class TestAggregatorPerf(object):
         ma = MetricsAggregator('my.host')
 
         flush_count = 10
-        loops_per_flush = 10000
+        loops_per_flush = 5000
         metric_count = 5
 
         for _ in xrange(flush_count):
