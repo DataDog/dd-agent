@@ -16,6 +16,16 @@ task "test:performance" do
   sh("nosetests --with-xunit --xunit-file=nosetests-performance.xml tests/performance/benchmark*.py")
 end
 
+desc "cProfile unit tests (requires 'nose-cprof')"
+task "test:profile" do
+  sh("nosetests --with-cprofile tests/performance/benchmark*.py")
+end
+
+desc "cProfile tests, then run pstats"
+task "test:profile:pstats" => ["test:profile"] do
+  sh("python -m pstats stats.dat")
+end
+
 desc "Run the agent locally"
 task "run" do
   sh("supervisord -n -c supervisord.dev.conf")

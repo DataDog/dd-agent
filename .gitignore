@@ -18,3 +18,4 @@ dist/*
 *.wixpdb
 *.exe
 nosetests*.xml
+stats.dat

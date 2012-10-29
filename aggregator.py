@@ -1,6 +1,7 @@
 import logging
 from time import time
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,11 +87,7 @@ class Histogram(Metric):
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
         self.name = name
-        self.max = float("-inf")
-        self.min = float("inf")
-        self.sum = 0
         self.count = 0
-        self.sample_size = 1000
         self.samples = []
         self.percentiles = [0.95]
         self.tags = tags
@@ -252,7 +249,6 @@ class MetricsAggregator(object):
         self.formatter = formatter or self.api_formatter
 
     def submit_packets(self, packets):
-        from util import cast_metric_val
 
         for packet in packets.split("\n"):
             self.count += 1
@@ -271,10 +267,15 @@ class MetricsAggregator(object):
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
+            # Try to cast as an int first to avoid precision issues, then as a
+            # float.
             try:
-                value = cast_metric_val(metadata[0])
+                value = int(metadata[0])
             except ValueError:
-                raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
+                try:
+                    value = float(metadata[0])
+                except ValueError:
+                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
@@ -292,7 +293,7 @@ class MetricsAggregator(object):
             self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
-      device_name=None, timestamp=None, sample_rate=1):
+                                device_name=None, timestamp=None, sample_rate=1):
         context = (name, tuple(tags or []), hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
