@@ -24,6 +24,8 @@ class TestAggregatorPerf(object):
                     ma.submit_packets('counter.%s:%s|c' % (j, i))
                     ma.submit_packets('gauge.%s:%s|g' % (j, i))
                     ma.submit_packets('histogram.%s:%s|h' % (j, i))
+                    ma.submit_packets('set.%s:%s|s' % (j, 1.0))
+
             ma.flush()
 
 
