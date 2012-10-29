@@ -88,7 +88,6 @@ class Histogram(Metric):
         self.formatter = formatter
         self.name = name
         self.count = 0
-        self.sample_size = 1000
         self.samples = []
         self.percentiles = [0.95]
         self.tags = tags
