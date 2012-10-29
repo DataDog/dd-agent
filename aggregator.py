@@ -267,7 +267,8 @@ class MetricsAggregator(object):
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
-            # Cast the packet as a
+            # Try to cast as an int first to avoid precision issues, then as a
+            # float.
             try:
                 value = int(metadata[0])
             except ValueError:
