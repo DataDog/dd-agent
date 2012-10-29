@@ -11,6 +11,11 @@ task "test:dogstatsd" do
   sh("nosetests tests/test_dogstatsd.py")
 end
 
+desc "Run performance tests"
+task "test:performance" do
+  sh("nosetests --with-xunit --xunit-file=nosetests-performance.xml tests/performance/benchmark*.py")
+end
+
 desc "Run the agent locally"
 task "run" do
   sh("supervisord -n -c supervisord.dev.conf")
