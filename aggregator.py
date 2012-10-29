@@ -1,8 +1,6 @@
 import logging
 from time import time
 
-from util import cast_metric_val
-
 
 logger = logging.getLogger(__name__)
 
@@ -273,10 +271,14 @@ class MetricsAggregator(object):
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
 
+            # Cast the packet as a
             try:
-                value = cast_metric_val(metadata[0])
+                value = int(metadata[0])
             except ValueError:
-                raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
+                try:
+                    value = float(metadata[0])
+                except ValueError:
+                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
