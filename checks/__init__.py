@@ -213,7 +213,9 @@ class Check(object):
             raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
-            return self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            del self._sample_store[metric][key][:-1]
+            return res
 
         elif self.is_gauge(metric) and len(self._sample_store[metric][key]) >= 1:
             return self._sample_store[metric][key][-1]
