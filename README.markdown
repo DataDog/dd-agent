@@ -21,6 +21,7 @@ in `/etc/dd-agent/datadog.conf`. Per-check configuration files are in
 `/etc/dd-agent/conf.d`. We provide and example in the same directory
 that you can use as a template.
 
-# How to instrument your own applications
+# How to write your own checks
 
-Want to get your own metrics into Datadog. Read our [docs at http://docs.datadoghq.com/](http://docs.datadoghq.com/).
+Writing your own checks is easy using our checks.d interface. Read more about
+how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/agent_checks/).

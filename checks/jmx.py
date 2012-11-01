@@ -474,7 +474,11 @@ class Solr(Jvm):
 
         return self.get_metrics()
 
-def testprofiling():
+def test_tomcat():
     import logging
+    from pprint import pprint as pp
     tomcat = Tomcat(logging)
-    print tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:moncat'})
+    pp(tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:tacmot'}))
+
+if __name__ == "__main__":
+    test_tomcat()

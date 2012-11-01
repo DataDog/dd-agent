@@ -53,6 +53,7 @@ if sys.platform == 'win32':
 
         # agent
         'checks.services_checks',
+        'checks.libs.httplib2',
     ]
 
     class Target(object):

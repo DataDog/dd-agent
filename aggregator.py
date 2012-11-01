@@ -251,7 +251,7 @@ class MetricsAggregator(object):
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or self.api_formatter
 
-    def submit(self, packets, hostname=None, device_name=None):
+    def submit_packets(self, packets):
         from util import cast_metric_val
 
         for packet in packets.split("\n"):
@@ -287,51 +287,38 @@ class MetricsAggregator(object):
                 elif m[0] == '#':
                     tags = tuple(sorted(m[1:].split(',')))
 
-            context = (name, tags, hostname, device_name)
-            if context not in self.metrics:
-                metric_class = self.metric_type_to_class[metadata[1]]
-                self.metrics[context] = metric_class(self.formatter, name, tags,
-                    hostname or self.hostname, device_name)
-            self.metrics[context].sample(value, sample_rate)
+            # Submit the metric
+            mtype = metadata[1]
+            self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
-    def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the gauge metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'g')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def submit_metric(self, name, value, mtype, tags=None, hostname=None,
+      device_name=None, timestamp=None, sample_rate=1):
+        context = (name, tuple(tags or []), hostname, device_name)
+        if context not in self.metrics:
+            metric_class = self.metric_type_to_class[mtype]
+            self.metrics[context] = metric_class(self.formatter, name, tags,
+                hostname or self.hostname, device_name)
+        self.metrics[context].sample(value, sample_rate)
 
-    def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
-        ''' Format the counter metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'c')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
+        self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
 
-    def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
-        ''' Format the counter metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'c')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def increment(self, name, value=1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
-    def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the histogram metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'h')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def decrement(self, name, value=-1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
-    def rate(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the histogram metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, '_dd-r')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def rate(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
 
-    def set(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the histogram metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 's')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def histogram(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'h', tags, hostname, device_name)
 
-    def _create_packet(self, metric, value, tags, stat_type):
-        packet = '%s:%s|%s' % (metric, value, stat_type)
-        if tags:
-            packet += '|#%s' % ','.join(tags)
-        return packet
+    def set(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 's', tags, hostname, device_name)
 
     def flush(self):
-
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
 
@@ -340,19 +327,19 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp)
 
         # Save some stats.
-        logger.info("received %s payloads since last flush" % self.count)
+        logger.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics
 
     def send_packet_count(self, metric_name):
-        self.gauge(metric_name, self.count)
+        self.submit_metric(metric_name, self.count, 'g')
 
     def api_formatter(self, metric, value, timestamp, tags, hostname, device_name=None):
         return {

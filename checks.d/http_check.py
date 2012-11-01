@@ -2,7 +2,7 @@ from checks.services_checks import ServicesCheck, Status, EventType
 from util import headers
 import socket
 import time
-import httplib2
+from checks.libs.httplib2 import Http, HttpLib2Error
 
 class HTTPCheck(ServicesCheck):
 
@@ -20,7 +20,7 @@ class HTTPCheck(ServicesCheck):
         addr, username, password, timeout = self._load_conf(instance)
         try:
             self.log.debug("Connecting to %s" % addr)
-            h = httplib2.Http(timeout=timeout, disable_ssl_certificate_validation=True)
+            h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
             resp, content = h.request(addr, "GET")
@@ -29,7 +29,7 @@ class HTTPCheck(ServicesCheck):
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
 
-        except httplib2.HttpLib2Error, e:
+        except HttpLib2Error, e:
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
 

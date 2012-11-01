@@ -351,21 +351,21 @@ class checks(object):
                 metrics.extend(res)
 
         # checks.d checks
-        if checksd:
-            for check in checksd:
-                check_cls = check['class']
-                for instance in check['instances']:
-                    try:
-                        # Run the check for each configuration
-                        check_cls.check(instance)
-                        metrics.extend(check_cls.get_metrics())
-                        if check_cls.has_events():
-                            if check['name'] not in events:
-                                events[check['name']] = []
-                            for ev in check_cls.get_events():
-                                events[check['name']].append(ev)
-                    except Exception:
-                        self.checksLogger.exception("Check %s failed" % check_cls.name)
+        checksd = checksd or []
+        for check in checksd:
+            check_cls = check['class']
+            for instance in check['instances']:
+                try:
+                    # Run the check for each configuration
+                    check_cls.check(instance)
+                    metrics.extend(check_cls.get_metrics())
+                    if check_cls.has_events():
+                        if check['name'] not in events:
+                            events[check['name']] = []
+                        for ev in check_cls.get_events():
+                            events[check['name']].append(ev)
+                except Exception:
+                    self.checksLogger.exception("Check %s failed" % check_cls.name)
 
 
         # Store the metrics in the payload

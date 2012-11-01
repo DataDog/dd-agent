@@ -1,7 +1,7 @@
+nose
 pymongo
 tornado
 redis
 pexpect
 python-memcached
 pyyaml
-httplib2

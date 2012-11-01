@@ -7,6 +7,62 @@ from checks import AgentCheck
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     subkeys = ['keys', 'expires']
+    GAUGE_KEYS = {
+        # Append-only metrics
+        'aof_last_rewrite_time_sec':    'redis.aof.last_rewrite_time',
+        'aof_rewrite_in_progress':      'redis.aof.rewrite',
+        'aof_current_size':             'redis.aof.size',
+        'aof_buffer_length':            'redis.aof.buffer_length',
+
+        # Network
+        'connected_clients':            'redis.net.clients',
+        'connected_slaves':             'redis.net.slaves',
+        'rejected_connections':         'redis.net.rejected',
+
+        # clients
+        'blocked_clients':              'redis.clients.blocked',
+        'client_biggest_input_buf':     'redis.clients.biggest_input_buf',
+        'client_longest_output_list':   'redis.clients.longest_output_list',
+
+        # Keys
+        'evicted_keys':                 'redis.keys.evicted',
+        'expired_keys':                 'redis.keys.expired',
+
+        # stats
+        'keyspace_hits':                'redis.stats.keyspace_hits',
+        'keyspace_misses':              'redis.stats.keyspace_misses',
+        'latest_fork_usec':             'redis.perf.latest_fork_usec',
+
+        # pubsub
+        'pubsub_channels':              'redis.pubsub.channels',
+        'pubsub_patterns':              'redis.pubsub.patterns',
+
+        # rdb
+        'rdb_bgsave_in_progress':       'redis.rdb.bgsave',
+        'rdb_changes_since_last_save':  'redis.rdb.changes_since_last',
+        'rdb_last_bgsave_time_sec':     'redis.rdb.last_bgsave_time',
+
+        # memory
+        'mem_fragmentation_ratio':      'redis.mem.fragmentation_ratio',
+        'used_memory':                  'redis.mem.used',
+        'used_memory_lua':              'redis.mem.lua',
+        'used_memory_peak':             'redis.mem.peak',
+        'used_memory_rss':              'redis.mem.rss',
+
+        # replication
+        'master_last_io_seconds_ago':   'redis.replication.last_io_seconds_ago',
+        'master_sync_in_progress':      'redis.replication.sync',
+        'master_sync_left_bytes':       'redis.replication.sync_left_bytes',
+
+    }
+
+    RATE_KEYS = {
+        # cpu
+        'used_cpu_sys':                 'redis.cpu.sys',
+        'used_cpu_sys_children':        'redis.cpu.sys_children',
+        'used_cpu_user':                'redis.cpu.user',
+        'used_cpu_user_children':       'redis.cpu.user_children',
+    }
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -73,9 +129,9 @@ class Redis(AgentCheck):
                     metric = '.'.join(['redis', subkey])
                     self.gauge(metric, val, tags=db_tags)
 
-        self.gauge('redis.net.clients', info['connected_clients'], tags=tags)
-        self.gauge('redis.net.slaves', info['connected_slaves'], tags=tags)
-        self.gauge('redis.mem.used', info['used_memory'], tags=tags)
+        # Save a subset of db-wide statistics
+        [self.gauge(self.GAUGE_KEYS[k], info[k], tags=tags) for k in self.GAUGE_KEYS if k in info]
+        [self.rate (self.RATE_KEYS[k],  info[k], tags=tags) for k in self.RATE_KEYS  if k in info]
 
         # Save the number of commands.
         total_commands = info['total_commands_processed'] - 1
@@ -84,12 +140,6 @@ class Redis(AgentCheck):
             count = total_commands - self.previous_total_commands[tuple_tags]
             self.gauge('redis.net.commands', count, tags=tags)
         self.previous_total_commands[tuple_tags] = total_commands
-
-        try:
-            self.gauge('redis.net.blocked', info['blocked_clients'], tags=tags)
-        except KeyError:
-            # Redis 1.2 does not export this
-            pass
 
     def check(self, instance):
         if not self.enabled:
