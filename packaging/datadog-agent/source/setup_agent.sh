@@ -78,19 +78,19 @@ trap "{ kill $agent_pid; exit; }" EXIT
 if [ $apikey ]; then
 
     # wait for metrics to be submitted
-    echo "\033[32m
+    printf "\033[32m
 Your agent has started up for the first time. We're currently
 verifying that data is being submitted. You should see your agent show
 up in Datadog within a few seconds at:
 
     https://app.datadoghq.com/account/settings#agent\033[0m
 
-Waiting for metrics...\c"
+Waiting for metrics..."
 
     c=0
     while [ "$c" -lt "30" ]; do
         sleep 1
-        echo ".\c"
+        echo -n "."
         c=$(($c+1))
     done
 
@@ -98,13 +98,13 @@ Waiting for metrics...\c"
     success=$?
     while [ "$success" -gt "0" ]; do
         sleep 1
-        echo ".\c"
+        echo -n "."
         curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
         success=$?
     done
 
     # print instructions
-    echo "\033[32m
+    printf "\033[32m
 
 Success! Your agent is functioning properly, and will continue to run
 in the foreground. To stop it, simply press CTRL-C. To start it back
@@ -124,13 +124,13 @@ while you're logged in, run:
 "
     fi
 
-    echo "\033[0m\c"
+    printf "\033[0m"
 
 # pup install
 else
 
     # print instructions
-    echo "\033[32m
+    printf "\033[32m
 
 Success! Pup is installed and functioning properly, and will continue to
 run in the foreground. To stop it, simply press CTRL-C. To start it back
@@ -150,7 +150,7 @@ while you're logged in, run:
 "
     fi
 
-    echo "\033[0m\c"
+    printf "\033[0m"
 fi
 
 wait $agent_pid

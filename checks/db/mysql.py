@@ -103,7 +103,7 @@ class MySql(Check):
                 if len(pslines) > 1 and pslines[1] != '':
                     return int(pslines[1])
 
-            elif sys.platform.startswith("darwin"):
+            elif sys.platform.startswith("darwin") or sys.platform.startswith("freebsd"):
                 # Get all processes, filter in python then
                 procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE, 
                                          close_fds=True).communicate()[0]
