@@ -348,6 +348,9 @@ def get_system_stats():
     if sys.platform == 'darwin':
         systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
 
+    if sys.platform.find('freebsd') != -1:
+        systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
+
     if sys.platform == 'linux2':
         systemStats['nixV'] = platform.dist()
 
