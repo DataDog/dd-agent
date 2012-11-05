@@ -79,6 +79,15 @@ class Disk(Check):
                         parts[2] = int(parts[5])
                         # Available
                         parts[3] = int(parts[6])
+                    elif sys.platform.startswith("freebsd"):
+                        # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
+                        # Inodes are in position 5, 6 and we need to compute the total
+                        # Total
+                        parts[1] = int(parts[5]) + int(parts[6])
+                        # Used
+                        parts[2] = int(parts[5])
+                        # Available
+                        parts[3] = int(parts[6])
                     else:
                         # Total
                         parts[1] = int(parts[1])
@@ -201,7 +210,7 @@ class Load(Check):
             
             uptime = uptime[0] # readlines() provides a list but we want a string
         
-        elif sys.platform == 'darwin':
+        elif sys.platform == 'darwin' or sys.platform.startswith("freebsd"):
             # Get output from uptime
             try:
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
@@ -336,6 +345,53 @@ class Memory(Check):
             swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
             
             return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
+            
+        elif sys.platform.startswith("freebsd"):
+            try:
+                sysctl = subprocess.Popen(['sysctl', 'vm.stats.vm'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            except:
+                self.logger.exception('getMemoryUsage')
+                return False
+
+            lines = sysctl.split('\n')
+
+            # ...
+            # vm.stats.vm.v_page_size: 4096
+            # vm.stats.vm.v_page_count: 759884
+            # vm.stats.vm.v_wire_count: 122726
+            # vm.stats.vm.v_active_count: 109350
+            # vm.stats.vm.v_cache_count: 17437
+            # vm.stats.vm.v_inactive_count: 479673
+            # vm.stats.vm.v_free_count: 30542
+            # ...
+
+            regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)') # We run this several times so one-time compile now
+            meminfo = {}
+
+            for line in lines:
+                try:
+                    match = re.search(regexp, line)
+                    if match is not None:
+                        meminfo[match.group(1)] = match.group(2)
+                except:
+                    self.logger.exception("Cannot parse sysctl vm.stats.vm output")
+
+            memData = {}
+
+            # Physical memory
+            try:
+                pageSize = int(meminfo.get('v_page_size'))
+
+                memData['physTotal'] = (int(meminfo.get('v_page_count', 0)) * pageSize) / 1048576
+                memData['physFree'] = (int(meminfo.get('v_free_count', 0)) * pageSize) / 1048576
+                memData['physCached'] = (int(meminfo.get('v_cache_count', 0)) * pageSize) / 1048576
+                memData['physUsed'] = ((int(meminfo.get('v_active_count'), 0) + int(meminfo.get('v_wire_count', 0))) * pageSize) / 1048576
+                memData['physUsable'] = ((int(meminfo.get('v_free_count'), 0) + int(meminfo.get('v_cache_count', 0)) + int(meminfo.get('v_inactive_count', 0))) * pageSize) / 1048576
+            except:
+                self.logger.exception('Cannot compute stats from /proc/meminfo')
+            
+            return memData;
+            
         else:
             return False
     
@@ -423,7 +479,7 @@ class Network(Check):
         
             return interfaces
             
-        elif sys.platform == "darwin":
+        elif sys.platform == "darwin" or sys.platform.startswith("freebsd"):
             try:
                 netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                            stdout=subprocess.PIPE,
@@ -628,6 +684,32 @@ class Cpu(object):
             else:
                 logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
                 return False
+
+        elif sys.platform.startswith("freebsd"):
+            # generate 3 seconds of data
+            # tty            ada0              cd0            pass0             cpu
+            # tin  tout  KB/t tps  MB/s   KB/t tps  MB/s   KB/t tps  MB/s  us ni sy in id
+            # 0    69 26.71   0  0.01   0.00   0  0.00   0.00   0  0.00   2  0  0  1 97
+            # 0    78  0.00   0  0.00   0.00   0  0.00   0.00   0  0.00   0  0  0  0 100
+            iostats = subprocess.Popen(['iostat', '-w', '3', '-c', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            lines = [l for l in iostats.split("\n") if len(l) > 0]
+            legend = [l for l in lines if "us" in l]
+            if len(legend) == 1:
+                headers = legend[0].split()
+                data = lines[-1].split()
+                cpu_user = get_value(headers, data, "us")
+                cpu_nice = get_value(headers, data, "ni")
+                cpu_sys  = get_value(headers, data, "sy")
+                cpu_intr = get_value(headers, data, "in")
+                cpu_wait = 0
+                cpu_idle = get_value(headers, data, "id")
+                cpu_stol = 0
+                return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
+
+            else:
+                logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+                return False
+
         else:
             logger.warn("CPUStats: unsupported platform")
             return False

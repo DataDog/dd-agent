@@ -17,3 +17,5 @@ dist/*
 *.wixobj
 *.wixpdb
 *.exe
+nosetests*.xml
+stats.dat

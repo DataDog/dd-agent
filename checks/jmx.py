@@ -8,7 +8,9 @@ import os
 from checks import Check
 
 class JmxConnector:
-
+    """Persistent connection to JMX endpoint.
+    Uses jmxterm to read from JMX
+    """
     attr_re = re.compile(r"(.*)=(.*);")
 
     def __init__(self, logger):
@@ -56,9 +58,8 @@ class JmxConnector:
         self._wait_prompt()
         return self._jmx.before.replace('\r','').split('\n')
 
-
-    def set_bean(self,bean):
-        # Fix when you want to set a bean fetched by the list_beans() function
+    def set_bean(self, bean):
+        "Set when you want to set a bean fetched by the list_beans() function"
         if ":" in bean:
             bean = bean.split(":")[1]
         self._jmx.sendline("bean " + bean)
@@ -69,9 +70,9 @@ class JmxConnector:
         self._wait_prompt()
         return self._jmx.before.replace('\r','').split('\n')
 
-    def get_attribute(self,attribute,**keywords):
+    def get_attribute(self, attribute, **keywords):
         cmd = None
-        domain = keywords.get("domain",None)
+        domain = keywords.get("domain", None)
         for key in keywords:
             if key != "domain":
                 val = key + "=" + keywords[key]
@@ -94,9 +95,9 @@ class JmxConnector:
         values = self._jmx.match.group(1)
         self._wait_prompt()
 
-        #Check for composite values
+        # Check for composite values
         if values is not None:
-            v = values.replace('\r','').split('\n')
+            v = values.replace('\r', '').split('\n')
             if len(v) == 1:
                 return values
             else:
@@ -117,14 +118,13 @@ class JmxConnector:
         for bean in beans:
             if bean.find(string) != -1:
                 matching_beans.append(bean) 
-
         return matching_beans
 
-    # High level JVM memory/thread status
     def get_jvm_status(self):
+        """High level JVM memory/thread/gc status"""
         ret = {}
 
-        def _append_to_metric(mname,value):
+        def _append_to_metric(mname, value):
             if type(value) == type(dict()):
                 for key in value:
                     ret[mname + '.' + key] = value[key]
@@ -132,10 +132,18 @@ class JmxConnector:
                 ret[mname] = value
 
         self.set_domain("java.lang")
-        _append_to_metric('jvm.thread_count',self.get_attribute("ThreadCount",type="Threading"))
-        _append_to_metric('jvm.heap_memory',self.get_attribute("HeapMemoryUsage",type="Memory"))
-        _append_to_metric('jvm.non_heap_memory',self.get_attribute("NonHeapMemoryUsage",
-            type="Memory"))
+        _append_to_metric('jvm.thread_count', self.get_attribute("ThreadCount", type="Threading"))
+        _append_to_metric('jvm.heap_memory', self.get_attribute("HeapMemoryUsage", type="Memory"))
+        _append_to_metric('jvm.non_heap_memory', self.get_attribute("NonHeapMemoryUsage", type="Memory"))
+
+        # Gather GC metrics
+        self.set_bean("java.lang:name=ParNew,type=GarbageCollector")
+        _append_to_metric("jvm.gc.parnew.count", self.get_attribute("CollectionCount"))
+        _append_to_metric("jvm.gc.parnew.time", self.get_attribute("CollectionTime"))
+
+        self.set_bean("java.lang:name=ConcurrentMarkSweep,type=GarbageCollector")
+        _append_to_metric("jvm.gc.cms.count", self.get_attribute("CollectionCount"))
+        _append_to_metric("jvm.gc.cms.time", self.get_attribute("CollectionTime"))
 
         return ret
 
@@ -188,7 +196,7 @@ class Jvm(Check):
         from pexpect import ExceptionPexpect
         
         try:
-            self.logger.info("JMX Connection with %s %s %s" % (connection,user,passwd))
+            self.logger.info("JMX Connection with %s %s %s" % (connection, user, passwd))
             self.jmx.connect(connection,user,passwd)
             self.logger.info((self.jmx._jmx.isalive()))
             if self.jmx.connected():
@@ -197,7 +205,7 @@ class Jvm(Check):
             else:
                 raise Exception("The JMX connection failed")
         except:
-            if(self.jmx._jmx):
+            if self.jmx._jmx:
                 try:
                     self.jmx._jmx.terminate(force=True)
                 except ExceptionPexpect:
@@ -206,11 +214,10 @@ class Jvm(Check):
             self.logger.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
             return False
 
-
     def _get_jmx_metrics(self, jvm_name, tags):
         values = self.jmx.get_jvm_status()
         for key in values:
-            self._store_metric("gauge",key,jvm_name,values[key], tags=tags) 
+            self._store_metric("gauge", key, jvm_name, values[key], tags=tags)
         try:
             self.get_stats(tags)
         except:
@@ -221,7 +228,7 @@ class Jvm(Check):
 
 
     def _check_jvm(self, jvm_name, agentConfig, config_key):
-        """ It allows multiple instances of a same check.
+        """Allows multiple instances of a same check.
         The datadog.conf file should follow the syntax below:
         The "tag" field is optional
         'config_key'_jmx_instance_1: user1:password1@server_address1:server_port1:tag1
@@ -231,7 +238,9 @@ class Jvm(Check):
         Where config_key is the name of the service, (tomcat, activemq, solr, ...)
         """
 
-        (connections, users, passwords) = self._load_config(agentConfig, config_key)
+        connections, users, passwords = self._load_config(agentConfig, config_key)
+
+        # FIXME replace arg parsing with regex
         if connections and jvm_name:
             for i in range(len(connections)):
                 user = None
@@ -252,8 +261,7 @@ class Jvm(Check):
                         self._get_jmx_metrics(jvm_name, tags)
                         
     def get_stats(self, tags=None):
-        #Should be overwritten by inherited classes, should do nothing for the basic java check
-        pass
+        "Should be overwritten by inherited classes, should do nothing for the basic java check"
 
     def check(self, agentConfig):
         try:
@@ -263,7 +271,8 @@ class Jvm(Check):
         return self.get_metrics()
 
 class Tomcat(Jvm):
-
+    """Monitor Tomcat threads and throughput
+    """
     thread_pool_re = re.compile(r".*name=(.*),.*")
     cache_re = re.compile(r".*host=(.*),path=(.*),type=Cache")
     jsp_re = re.compile(r".*J2EEApplication=(.*),J2EEServer=(.*),WebModule=(.*),name=jsp,type=JspMonitor")
@@ -271,20 +280,20 @@ class Tomcat(Jvm):
 
     def _get_service_stat(self, name, tags=None):
 
-        #Thread pool
+        # Thread pool
         self.jmx.set_bean("name=%s,type=ThreadPool" % name)
-        self.store_attribute("gauge","tomcat.threads.max",name,"maxThreads", tags=tags)
-        self.store_attribute("gauge","tomcat.threads.count",name,"currentThreadCount", tags=tags)
-        self.store_attribute("gauge","tomcat.threads.busy",name,"currentThreadsBusy", tags=tags)
+        self.store_attribute("gauge","tomcat.threads.max", name, "maxThreads", tags=tags)
+        self.store_attribute("gauge","tomcat.threads.count", name, "currentThreadCount", tags=tags)
+        self.store_attribute("gauge","tomcat.threads.busy", name, "currentThreadsBusy", tags=tags)
 
         # Global request processor
         self.jmx.set_bean("name=%s,type=GlobalRequestProcessor" % name)
-        self.store_attribute("counter","tomcat.bytes_sent",name,"bytesSent", tags=tags)
-        self.store_attribute("counter","tomcat.bytes_rcvd",name,"bytesReceived", tags=tags)
-        self.store_attribute("counter","tomcat.processing_time",name,"processingTime", tags=tags)
-        self.store_attribute("counter","tomcat.error_count",name,"errorCount", tags=tags)
-        self.store_attribute("counter","tomcat.request_count",name,"requestCount", tags=tags)
-        self.store_attribute("gauge","tomcat.max_time",name,"maxTime", tags=tags)
+        self.store_attribute("counter","tomcat.bytes_sent", name, "bytesSent", tags=tags)
+        self.store_attribute("counter","tomcat.bytes_rcvd", name, "bytesReceived", tags=tags)
+        self.store_attribute("counter","tomcat.processing_time", name, "processingTime", tags=tags)
+        self.store_attribute("counter","tomcat.error_count", name, "errorCount", tags=tags)
+        self.store_attribute("counter","tomcat.request_count", name, "requestCount", tags=tags)
+        self.store_attribute("gauge","tomcat.max_time", name, "maxTime", tags=tags)
 
     def _get_cache_data(self, tags=None):
 
@@ -295,8 +304,8 @@ class Tomcat(Jvm):
                 self.jmx.set_bean(bean)
                 host, path = m.groups()
                 name = host + ":" + path
-                self.store_attribute("counter","tomcat.cache.access_count",name,"accessCount", tags=tags)
-                self.store_attribute("counter","tomcat.cache.hits_count",name,"hitsCount", tags=tags)
+                self.store_attribute("counter","tomcat.cache.access_count", name, "accessCount", tags=tags)
+                self.store_attribute("counter","tomcat.cache.hits_count", name, "hitsCount", tags=tags)
 
     def _get_jsp_data(self, tags=None):
 
@@ -307,8 +316,8 @@ class Tomcat(Jvm):
                 self.jmx.set_bean(bean)
                 module, app, server = m.groups()
                 name = app + ":" + server + ":" + module
-                self.store_attribute("counter","tomcat.jsp.count",name,"jspCount", tags=tags)
-                self.store_attribute("counter","tomcat.jsp.reload_count",name,"jspReloadCount", tags=tags)
+                self.store_attribute("counter","tomcat.jsp.count", name, "jspCount", tags=tags)
+                self.store_attribute("counter","tomcat.jsp.reload_count", name, "jspReloadCount", tags=tags)
 
     def _get_servlet_data(self, tags=None):
 
@@ -319,9 +328,9 @@ class Tomcat(Jvm):
                 self.jmx.set_bean(bean)
                 app, server, module, app_name = m.groups()
                 name = app + ":" + server + ":" + module + ":" + app_name
-                self.store_attribute("counter","tomcat.servlet.error_count",name,"errorCount", tags=tags)
-                self.store_attribute("counter","tomcat.servlet.processing_time",name,"processingTime", tags=tags)
-                self.store_attribute("counter","tomcat.servlet.request_count",name,"requestCount", tags=tags)
+                self.store_attribute("counter","tomcat.servlet.error_count", name, "errorCount", tags=tags)
+                self.store_attribute("counter","tomcat.servlet.processing_time", name, "processingTime", tags=tags)
+                self.store_attribute("counter","tomcat.servlet.request_count", name, "requestCount", tags=tags)
 
     def get_stats(self, tags=None):        
         self.jmx.set_domain("Catalina")
@@ -355,28 +364,28 @@ class ActiveMQ(Jvm):
         self.jmx.set_bean(bean)
         name = "%s:%s" % (broker, queue)
         #gauge
-        self.store_attribute("gauge","activemq.queue.avg_enqueue_time",name,"AverageEnqueueTime", tags=tags)
-        self.store_attribute("gauge","activemq.queue.consumer_count",name,"ConsumerCount", tags=tags)
-        self.store_attribute("gauge","activemq.queue.producer_count",name,"ProducerCount", tags=tags)
-        self.store_attribute("gauge","activemq.queue.max_enqueue_time",name,"MaxEnqueueTime", tags=tags)
-        self.store_attribute("gauge","activemq.queue.min_enqueue_time",name,"MinEnqueueTime", tags=tags)
-        self.store_attribute("gauge","activemq.queue.memory_pct",name,"MemoryPercentUsage", tags=tags)
-        self.store_attribute("gauge","activemq.queue.size",name,"QueueSize", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.avg_enqueue_time", name, "AverageEnqueueTime", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.consumer_count", name, "ConsumerCount", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.producer_count", name, "ProducerCount", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.max_enqueue_time", name, "MaxEnqueueTime", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.min_enqueue_time", name, "MinEnqueueTime", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.memory_pct", name, "MemoryPercentUsage", tags=tags)
+        self.store_attribute("gauge", "activemq.queue.size", name, "QueueSize", tags=tags)
 
         #counter
-        self.store_attribute("counter","activemq.queue.dequeue_count",name,"DequeueCount", tags=tags)
-        self.store_attribute("counter","activemq.queue.dispatch_count",name,"DispatchCount", tags=tags)
-        self.store_attribute("counter","activemq.queue.enqueue_count",name,"EnqueueCount", tags=tags)
-        self.store_attribute("counter","activemq.queue.expired_count",name,"ExpiredCount", tags=tags)
-        self.store_attribute("counter","activemq.queue.in_flight_count",name,"InFlightCount", tags=tags)
+        self.store_attribute("counter", "activemq.queue.dequeue_count", name, "DequeueCount", tags=tags)
+        self.store_attribute("counter", "activemq.queue.dispatch_count", name, "DispatchCount", tags=tags)
+        self.store_attribute("counter", "activemq.queue.enqueue_count", name, "EnqueueCount", tags=tags)
+        self.store_attribute("counter", "activemq.queue.expired_count", name, "ExpiredCount", tags=tags)
+        self.store_attribute("counter", "activemq.queue.in_flight_count", name, "InFlightCount", tags=tags)
 
     def _get_broker_stats(self ,bean, broker, tags=None):
         
         self.jmx.set_bean(bean)
 
-        self.store_attribute("gauge","activemq.broker.store_pct",broker,"StorePercentUsage", tags=tags)
-        self.store_attribute("gauge","activemq.broker.memory_pct",broker,"MemoryPercentUsage", tags=tags)
-        self.store_attribute("gauge","activemq.broker.temp_pct",broker,"TempPercentUsage", tags=tags)
+        self.store_attribute("gauge", "activemq.broker.store_pct", broker, "StorePercentUsage", tags=tags)
+        self.store_attribute("gauge", "activemq.broker.memory_pct", broker, "MemoryPercentUsage", tags=tags)
+        self.store_attribute("gauge", "activemq.broker.temp_pct", broker, "TempPercentUsage", tags=tags)
 
     def get_stats(self, tags=None):
         self.jmx.set_domain("org.apache.activemq")
@@ -414,31 +423,31 @@ class Solr(Jvm):
         if m is not None:
             name = m.group(1)
             self.jmx.set_bean(bean)
-            self.store_attribute("counter","solr.cache.lookups",name,"cumulative_lookups", tags=tags)
-            self.store_attribute("counter","solr.cache.hits",name,"cumulative_hits", tags=tags)
-            self.store_attribute("counter","solr.cache.inserts",name,"cumulative_inserts", tags=tags)
-            self.store_attribute("counter","solr.cache.evictions",name,"cumulative_evictions", tags=tags)
+            self.store_attribute("counter", "solr.cache.lookups", name, "cumulative_lookups", tags=tags)
+            self.store_attribute("counter", "solr.cache.hits", name, "cumulative_hits", tags=tags)
+            self.store_attribute("counter", "solr.cache.inserts", name, "cumulative_inserts", tags=tags)
+            self.store_attribute("counter", "solr.cache.evictions", name, "cumulative_evictions", tags=tags)
  
     def _searcher_stat(self,bean, tags=None):
         self.jmx.set_bean(bean)
-        self.store_attribute("gauge","solr.searcher.maxdoc",None,"maxDoc", tags=tags)
-        self.store_attribute("gauge","solr.searcher.numdocs",None,"numDocs", tags=tags)
-        self.store_attribute("gauge","solr.searcher.warmup",None,"warmupTime", tags=tags)
+        self.store_attribute("gauge", "solr.searcher.maxdoc",None,"maxDoc", tags=tags)
+        self.store_attribute("gauge", "solr.searcher.numdocs",None,"numDocs", tags=tags)
+        self.store_attribute("gauge", "solr.searcher.warmup",None,"warmupTime", tags=tags)
 
     def _get_search_handler_stats(self, bean, tags=None):
         m = self._name_re.match(bean)
         if m is not None:
             name = m.group(1)
             self.jmx.set_bean(bean)
-            self.store_attribute("gauge","solr.search_handler.avg_requests_per_sec",
-                    name,"avgRequestsPerSecond", tags=tags)
-            self.store_attribute("gauge","solr.search_handler.avg_time_per_req",
-                    name,"avgTimePerRequest", tags=tags)
+            self.store_attribute("gauge", "solr.search_handler.avg_requests_per_sec",
+                    name, "avgRequestsPerSecond", tags=tags)
+            self.store_attribute("gauge", "solr.search_handler.avg_time_per_req",
+                    name, "avgTimePerRequest", tags=tags)
 
-            self.store_attribute("counter","solr.search_handler.errors",name,"errors", tags=tags)
-            self.store_attribute("counter","solr.search_handler.requests",name,"requests", tags=tags)
-            self.store_attribute("counter","solr.search_handler.timeouts",name,"timeouts", tags=tags)
-            self.store_attribute("counter","solr.search_handler.time",name,"totalTime", tags=tags)
+            self.store_attribute("counter", "solr.search_handler.errors", name, "errors", tags=tags)
+            self.store_attribute("counter", "solr.search_handler.requests", name, "requests", tags=tags)
+            self.store_attribute("counter", "solr.search_handler.timeouts", name, "timeouts", tags=tags)
+            self.store_attribute("counter", "solr.search_handler.time", name, "totalTime", tags=tags)
 
     def get_stats(self, tags=None):
         
@@ -466,15 +475,26 @@ class Solr(Jvm):
                     self._get_search_handler_stats(bean, tags=tags)
 
     def check(self, agentConfig):
-
         try:
-            self._check_jvm('solr',agentConfig,'solr')
+            self._check_jvm('solr', agentConfig, 'solr')
         except:
             self.logger.exception('Error while fetching Solr metrics')
 
         return self.get_metrics()
 
-def testprofiling():
+def test_tomcat():
     import logging
+    logging.basicConfig(level=logging.DEBUG)
+    from pprint import pprint as pp
     tomcat = Tomcat(logging)
-    print tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:moncat'})
+    pp(tomcat.check({'tomcat_jmx_instance_1': 'localhost:8090:tacmot'}))
+
+def test_jvm():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    from pprint import pprint as pp
+    jvm = Jvm(logging)
+    pp(jvm.check({'java_jmx_instance_1': 'localhost:7199:mvj'}))
+
+if __name__ == "__main__":
+    test_jvm()
