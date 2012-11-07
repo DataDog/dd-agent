@@ -195,7 +195,7 @@ class Check(object):
         except Exception, e:
             raise NaN(e)
 
-    def get_sample_with_timestamp(self, metric, tags=None, device_name=None):
+    def get_sample_with_timestamp(self, metric, tags=None, device_name=None, expire=True):
         "Get (timestamp-epoch-style, value)"
 
         # Get the proper tags
@@ -210,10 +210,13 @@ class Check(object):
 
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) < 2:
-            raise UnknownValue()
+           raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
-            return self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            if expire:
+                del self._sample_store[metric][key][:-1]
+            return res
 
         elif self.is_gauge(metric) and len(self._sample_store[metric][key]) >= 1:
             return self._sample_store[metric][key][-1]
@@ -221,34 +224,34 @@ class Check(object):
         else:
             raise UnknownValue()
 
-    def get_sample(self, metric, tags=None, device_name=None):
+    def get_sample(self, metric, tags=None, device_name=None, expire=True):
         "Return the last value for that metric"
-        x = self.get_sample_with_timestamp(metric, tags, device_name)
+        x = self.get_sample_with_timestamp(metric, tags, device_name, expire)
         assert type(x) == types.TupleType and len(x) == 4, x
         return x[1]
 
-    def get_samples_with_timestamps(self):
+    def get_samples_with_timestamps(self, expire=True):
         "Return all values {metric: (ts, value)} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
-                values[m] = self.get_sample_with_timestamp(m)
+                values[m] = self.get_sample_with_timestamp(m, expire=expire)
             except:
                 pass
         return values
 
-    def get_samples(self):
+    def get_samples(self, expire=True):
         "Return all values {metric: value} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
                 # Discard the timestamp
-                values[m] = self.get_sample_with_timestamp(m)[1]
+                values[m] = self.get_sample_with_timestamp(m, expire=expire)[1]
             except:
                 pass
         return values
 
-    def get_metrics(self):
+    def get_metrics(self, expire=True):
         """Get all metrics, including the ones that are tagged.
         This is the preferred method to retrieve metrics
 
@@ -261,7 +264,7 @@ class Check(object):
                 for key in self._sample_store[m]:
                     tags, device_name = key
                     try:
-                        ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name)
+                        ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name, expire)
                     except UnknownValue:
                         continue
                     attributes = {}
