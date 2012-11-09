@@ -147,7 +147,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'debug_mode': False,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
-        'dogstatsd_normalize': 'no',
+        'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -258,7 +258,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
             'dogstatsd_interval' : dogstatsd_interval,
-            'dogstatsd_normalize' : 'no',
+            'dogstatsd_normalize' : 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
