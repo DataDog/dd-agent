@@ -68,7 +68,7 @@ class checks(object):
         self.plugins = None
         self.emitters = emitters            
         self.checksLogger = logging.getLogger('checks')
-        self.metadata_interval = int(agentConfig.get('metadata_interval', 5 * 60 * 60))
+        self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
         
