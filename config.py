@@ -147,6 +147,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'debug_mode': False,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
+        'dogstatsd_normalize': 'no',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -257,12 +258,16 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
             'dogstatsd_interval' : dogstatsd_interval,
+            'dogstatsd_normalize' : 'no',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # normalize 'yes'/'no' to boolean
+        dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
