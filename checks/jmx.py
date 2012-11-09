@@ -137,13 +137,16 @@ class JmxConnector:
         _append_to_metric('jvm.non_heap_memory', self.get_attribute("NonHeapMemoryUsage", type="Memory"))
 
         # Gather GC metrics
-        self.set_bean("java.lang:name=ParNew,type=GarbageCollector")
-        _append_to_metric("jvm.gc.parnew.count", self.get_attribute("CollectionCount"))
-        _append_to_metric("jvm.gc.parnew.time", self.get_attribute("CollectionTime"))
-
-        self.set_bean("java.lang:name=ConcurrentMarkSweep,type=GarbageCollector")
-        _append_to_metric("jvm.gc.cms.count", self.get_attribute("CollectionCount"))
-        _append_to_metric("jvm.gc.cms.time", self.get_attribute("CollectionTime"))
+        try:
+            self.set_bean("java.lang:name=ParNew,type=GarbageCollector")
+            _append_to_metric("jvm.gc.parnew.count", self.get_attribute("CollectionCount"))
+            _append_to_metric("jvm.gc.parnew.time", self.get_attribute("CollectionTime"))
+            
+            self.set_bean("java.lang:name=ConcurrentMarkSweep,type=GarbageCollector")
+            _append_to_metric("jvm.gc.cms.count", self.get_attribute("CollectionCount"))
+            _append_to_metric("jvm.gc.cms.time", self.get_attribute("CollectionTime"))
+        except:
+            self.logger.exception("Cannot gather JVM GC stats. Skipping...")
 
         return ret
 

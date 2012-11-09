@@ -501,6 +501,11 @@ def load_check_directory(agentConfig):
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', {})
+        # init_config: in the configuration triggers init_config to be defined
+        # to None.
+        if init_config is None:
+            init_config = {}
+
         init_config['instances_number'] = len(instances)
         check_class = check_class(check_name, init_config=init_config,
             agentConfig=agentConfig)

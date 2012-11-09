@@ -40,11 +40,11 @@ class TestCore(unittest.TestCase):
 
     def test_counter(self):
         self.c.save_sample("test-counter", 1.0, 1.0)
-        self.assertRaises(UnknownValue, self.c.get_sample, "test-counter")
+        self.assertRaises(UnknownValue, self.c.get_sample, "test-counter", expire=False)
         self.c.save_sample("test-counter", 2.0, 2.0)
-        self.assertEquals(self.c.get_sample("test-counter"), 1.0)
-        self.assertEquals(self.c.get_sample_with_timestamp("test-counter"), (2.0, 1.0, None, None))
-        self.assertEquals(self.c.get_samples(), {"test-counter": 1.0})
+        self.assertEquals(self.c.get_sample("test-counter", expire=False), 1.0)
+        self.assertEquals(self.c.get_sample_with_timestamp("test-counter", expire=False), (2.0, 1.0, None, None))
+        self.assertEquals(self.c.get_samples(expire=False), {"test-counter": 1.0})
         self.c.save_sample("test-counter", -2.0, 3.0)
         self.assertRaises(UnknownValue, self.c.get_sample_with_timestamp, "test-counter")
 
@@ -76,10 +76,10 @@ class TestCore(unittest.TestCase):
         self.c.save_sample("test-metric", 1.0, 0.0)  # value, ts
         self.c.save_sample("test-counter", 1.0, 1.0) # value, ts
         self.c.save_sample("test-counter", 4.0, 2.0) # value, ts
-        assert "test-metric"  in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
-        self.assertEquals(self.c.get_samples_with_timestamps()["test-metric"], (0.0, 1.0, None, None))
-        assert "test-counter" in self.c.get_samples_with_timestamps(), self.c.get_samples_with_timestamps()
-        self.assertEquals(self.c.get_samples_with_timestamps()["test-counter"], (2.0, 3.0, None, None))
+        assert "test-metric"  in self.c.get_samples_with_timestamps(expire=False), self.c.get_samples_with_timestamps(expire=False)
+        self.assertEquals(self.c.get_samples_with_timestamps(expire=False)["test-metric"], (0.0, 1.0, None, None))
+        assert "test-counter" in self.c.get_samples_with_timestamps(expire=False), self.c.get_samples_with_timestamps(expire=False)
+        self.assertEquals(self.c.get_samples_with_timestamps(expire=False)["test-counter"], (2.0, 3.0, None, None))
 
     def test_name(self):
         self.assertEquals(self.c.normalize("metric"), "metric")

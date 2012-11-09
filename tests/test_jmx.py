@@ -4,11 +4,11 @@ import logging
 import subprocess
 import time
 import urllib2
+from nose.plugins.skip import SkipTest
 
 from tests.common import kill_subprocess
 
 class JMXTestCase(unittest.TestCase):
-
     def setUp(self):
         pass
 
@@ -37,7 +37,6 @@ class JMXTestCase(unittest.TestCase):
         path = "%s/shutdown.sh" % path
         self.manage_tomcat(path)
 
-
     def manage_tomcat(self, path, port = None):
         try:
             self.process = None
@@ -47,6 +46,7 @@ class JMXTestCase(unittest.TestCase):
             logging.getLogger().exception("Cannot instantiate Tomcat")
 
     def testJavaMetric(self):
+        raise SkipTest("Test is not working properly on travis")
         metrics_check = Jvm(logging.getLogger())
         agentConfig = {
             'java_jmx_instance_1': 'localhost:8090',
@@ -80,6 +80,7 @@ class JMXTestCase(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "jvm.thread_count"]), 2, r)
 
     def testTomcatMetrics(self):
+        raise SkipTest("Test is not working properly on travis")
         metrics_check = Tomcat(logging.getLogger())
         agentConfig = {
             'tomcat_jmx_instance_1': 'localhost:8090:first_instance',
@@ -107,6 +108,7 @@ class JMXTestCase(unittest.TestCase):
 
     
     def testSolrMetrics(self):
+        raise SkipTest("Test is not working properly on travis")
         metrics_check = Solr(logging.getLogger())
         agentConfig = {
             'solr_jmx_instance_1': 'localhost:3000:first_instance',
@@ -141,3 +143,6 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, r)
+
+if __name__ == "__main__":
+    unittest.main()
