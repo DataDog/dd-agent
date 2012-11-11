@@ -60,4 +60,10 @@ def get_check(name, config_str):
     if check_class is None:
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 
-    return check_class.from_yaml(yaml_text=config_str, check_name=name)
+    agentConfig = {
+        'version': '0.1',
+        'api_key': 'tota'
+    }
+
+    return check_class.from_yaml(yaml_text=config_str, check_name=name,
+        agentConfig=agentConfig)

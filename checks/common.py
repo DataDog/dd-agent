@@ -34,7 +34,7 @@ from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
-from checks.web import Apache, Nginx
+from checks.web import Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
@@ -93,7 +93,6 @@ class checks(object):
         }
 
         # Old-style metric checks
-        self._apache = Apache(self.checksLogger)
         self._couchdb = CouchDb(self.checksLogger)
         self._mongodb = MongoDb(self.checksLogger)
         self._mysql = MySql(self.checksLogger)
@@ -240,7 +239,6 @@ class checks(object):
                 checksData.update(cpuStats)
 
         # Run old-style checks
-        apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
@@ -255,10 +253,7 @@ class checks(object):
            
         if cassandraData is not False and cassandraData is not None:
             checksData['cassandra'] = cassandraData
- 
-        # Apache Status
-        if apacheStatus: 
-            checksData.update(apacheStatus)
+
             
         # MySQL Status
         if mysqlStatus:
