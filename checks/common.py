@@ -40,7 +40,6 @@ from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
-from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 
@@ -83,7 +82,7 @@ class checks(object):
             'cpu': u.Cpu()
         }
 
-        # Win32 System Checks
+        # Win32 System `Checks
         self._win32_system_checks = {
             'disk': w32.Disk(self.checksLogger),
             'io': w32.IO(self.checksLogger),
@@ -107,7 +106,6 @@ class checks(object):
 
         # Metric Checks
         self._metrics_checks = [
-            Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
             Jvm(self.checksLogger),
             Tomcat(self.checksLogger),
