@@ -5,62 +5,6 @@ import urllib2
 from util import headers
 from checks import *
 
-class Apache(Check):
-    """Tracks basic connection/requests/workers metrics
-
-    See http://httpd.apache.org/docs/2.2/mod/mod_status.html for more details
-    """
-    def __init__(self, logger):
-        Check.__init__(self, logger)
-        self.gauge("apacheConnections")
-        self.gauge("apacheReqPerSec")
-        self.gauge("apacheBusyWorkers")
-        self.gauge("apacheIdleWorkers")
-        self.gauge("apacheBytesPerSec")
-        self.gauge("apacheUptime")
-        # don't make counters of these, they already exist
-        self.gauge("apacheTotalBytes")
-        self.gauge("apacheTotalAccesses")
-        self.gauge("apacheCPULoad")
-
-    def check(self, agentConfig):
-        if 'apache_status_url' in agentConfig and agentConfig['apache_status_url'] != 'http://www.example.com/server-status/?auto': # Don't do it if the status URL hasn't been provided
-            try: 
-                req = urllib2.Request(agentConfig['apache_status_url'], None, headers(agentConfig))
-                request = urllib2.urlopen(req)
-                response = request.read()
-                sample_time = time.time()
-                
-                # Split out each line
-                lines = response.split('\n')
-            
-                # Loop over each line and get the values
-                apacheStatus = {}
-
-                # Loop through and extract the numerical values
-                for line in lines:
-                    values = line.split(': ')
-                    if len(values) == 2: # match
-                        try:
-                            metric, value = values
-                            # prefix metric name with apache
-                            if metric == "Total kBytes":
-                                self.save_sample("apacheTotalBytes", float(value) * 1024, sample_time)
-                            elif metric == "Total Accesses":
-                                self.save_sample("apacheTotalAccesses", float(value), sample_time)
-                            else:
-                                self.save_sample("apache"+values[0], float(values[1]), sample_time)
-                        except CheckException:
-                            continue
-                        except ValueError:
-                            continue
-
-                return self.get_samples()
-            except:
-                self.logger.exception('Unable to get Apache status')
-
-        return False        
-            
 class Nginx(Check):
     """Tracks basic nginx metrics via the status module
     * number of connections
