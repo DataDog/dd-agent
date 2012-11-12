@@ -205,7 +205,7 @@ class Load(Check):
                 uptime = loadAvrgProc.readlines()
                 loadAvrgProc.close()
             except:
-                self.logger.exception('getLoadAvrgs')
+                self.logger.exception('Cannot extract load')
                 return False
             
             uptime = uptime[0] # readlines() provides a list but we want a string
@@ -215,12 +215,29 @@ class Load(Check):
             try:
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
             except:
-                self.logger.exception('getLoadAvrgs')
+                self.logger.exception('Cannot extract load')
                 return False
                 
         # Split out the 3 load average values
-        loadAvrgs = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
-        return {'1': float(loadAvrgs[0]), '5': float(loadAvrgs[1]), '15': float(loadAvrgs[2])}
+        load = [res.replace(',', '.') for res in re.findall(r'([0-9]+[\.,]\d+)', uptime)]
+        # Normalize load by number of cores
+        try:
+            cores = int(agentConfig.get('system_stats').get('cpuCores'))
+            assert cores >= 1, "Cannot determine number of cores"
+            # Compute a normalized load, named .load.norm to make it easy to find next to .load
+            return {'system.load.1': float(load[0]),
+                    'system.load.5': float(load[1]),
+                    'system.load.15': float(load[2]),
+                    'system.load.norm.1': float(load[0])/cores,
+                    'system.load.norm.5': float(load[1])/cores,
+                    'system.load.norm.15': float(load[2])/cores,
+                    }
+        except:
+            self.logger.exception("Cannot normalize load")
+            # No normalized load available
+            return {'system.load.1': float(load[0]),
+                    'system.load.5': float(load[1]),
+                    'system.load.15': float(load[2])}
 
 class Memory(Check):
     def __init__(self, logger):
@@ -595,12 +612,14 @@ class Processes(object):
                  'apiKey':      agentConfig['api_key'],
                  'host':        gethostname(agentConfig) }
             
-class Cpu(object):
-    def check(self, logger, agentConfig):
+class Cpu(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+
+    def check(self, agentConfig):
         """Return an aggregate of CPU stats across all CPUs
         When figures are not available, False is sent back.
         """
-        logger.debug('getCPUStats: start')
         def format_results(us, sy, wa, idle, st):
             return { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
                     
@@ -610,7 +629,7 @@ class Cpu(object):
                 return float(data[legend.index(name)])
             else:
                 # FIXME return a float or False, would trigger type error if not python
-                logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
+                self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
                 return 0
 
         if sys.platform == 'linux2':
@@ -682,7 +701,7 @@ class Cpu(object):
                 cpu_st   = 0
                 return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
             else:
-                logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+                self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
                 return False
 
         elif sys.platform.startswith("freebsd"):
@@ -707,9 +726,9 @@ class Cpu(object):
                 return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
 
             else:
-                logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+                self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
                 return False
 
         else:
-            logger.warn("CPUStats: unsupported platform")
+            self.logger.warn("CPUStats: unsupported platform")
             return False

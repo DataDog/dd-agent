@@ -2,17 +2,32 @@ import unittest
 import logging
 import sys
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 from checks.system.unix import *
+from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
     def testCPU(self):
         global logger
-        cpu = Cpu()
-        res = cpu.check(logger, {})
+        cpu = Cpu(logger)
+        res = cpu.check({})
         # Make sure we sum up to 100% (or 99% in the case of macs)
         assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 1, res
+
+    def testLoad(self):
+        global logger
+        load = Load(logger)
+        res = load.check({'system_stats': get_system_stats()})
+        assert 'system.load.1' in res
+        assert 'system.load.norm.1' in res
+        assert abs(res['system.load.1'] - 4 * res['system.load.norm.1']) <= 0.01, (res['system.load.1'], 4 * res['system.load.norm.1'])
+
+        # same test but without cpu count, no normalized load sent.
+        res = load.check({})
+        assert 'system.load.1' in res
+        assert 'system.load.norm.1' not in res
 
     def testDisk(self):
         """Testing disk stats gathering"""
