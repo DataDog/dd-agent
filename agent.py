@@ -45,7 +45,6 @@ class agent(Daemon):
         """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
         systemStats = get_system_stats()
-        agentLogger.debug('System Properties: ' + str(systemStats))
 
         if agentConfig is None:
             agentConfig = get_config()
@@ -72,7 +71,7 @@ class agent(Daemon):
         check_freq = int(agentConfig['check_freq'])
 
         # Checks instance
-        c = checks(agentConfig, emitters)
+        c = checks(agentConfig, emitters, systemStats)
 
         # Watchdog
         watchdog = None
@@ -81,7 +80,7 @@ class agent(Daemon):
             watchdog.reset()
 
         # Run checks once, to get once-in-a-run data
-        c.doChecks(True, systemStats, checksd)
+        c.doChecks(True, checksd)
 
         # Main loop
         while run_forever:
