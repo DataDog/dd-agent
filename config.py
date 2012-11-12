@@ -338,7 +338,7 @@ def get_system_stats():
         'machine': platform.machine(),
         'platform': sys.platform,
         'processor': platform.processor(),
-        'pythonV': platform.python_version()
+        'pythonV': platform.python_version(),
     }
 
     if sys.platform == 'linux2':
