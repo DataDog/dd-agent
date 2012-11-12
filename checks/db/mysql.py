@@ -187,11 +187,18 @@ class MySql(Check):
                 and 'mysql_user'   in agentConfig\
                 and agentConfig['mysql_server'] != ''\
                 and agentConfig['mysql_user'] != '':
-    
+
                 # Connect
                 try:
                     import MySQLdb
-                    self.db = MySQLdb.connect(agentConfig['mysql_server'], agentConfig['mysql_user'], agentConfig['mysql_pass'])
+                    if 'mysql_sock' in agentConfig:
+                        self.db = MySQLdb.connect(unix_socket=agentConfig['mysql_sock'],
+                                                  user=agentConfig['mysql_user'],
+                                                  passwd=agentConfig['mysql_pass'])
+                    else:
+                        self.db = MySQLdb.connect(host=agentConfig['mysql_server'],
+                                                  user=agentConfig['mysql_user'],
+                                                  passwd=agentConfig['mysql_pass'])
                     self.getVersion()
     
                 except ImportError, e:

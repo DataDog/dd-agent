@@ -89,6 +89,9 @@ use_mount: no
 # MySQL host
 #mysql_server:
 
+# (Alternative connection via unix sockets)
+#mysql_sock:
+
 # MySQL user. It runs "SHOW STATUS" and "SHOW SLAVE STATUS" queries.
 # You should consider creating a separate user, e.g. datadog.
 # CREATE USER 'datadog'@'localhost' identified by 'my_password';
