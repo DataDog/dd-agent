@@ -24,7 +24,7 @@ class TestSystem(unittest.TestCase):
         assert 'system.load.norm.1' in res
         assert abs(res['system.load.1'] - 4 * res['system.load.norm.1']) <= 0.01, (res['system.load.1'], 4 * res['system.load.norm.1'])
 
-        # same test but without cpu count, assuming 1 core
+        # same test but without cpu count, no normalized load sent.
         res = load.check({})
         assert 'system.load.1' in res
         assert 'system.load.norm.1' not in res
