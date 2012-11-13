@@ -46,3 +46,12 @@ class Apache(AgentCheck):
                         continue
         except:
             self.log.exception('Unable to get Apache status')
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+        if not agentConfig.get('apache_status_url'):
+            return False
+
+        return {
+            'instances': [{'apache_status_url': agentConfig.get('apache_status_url')}]
+        }
