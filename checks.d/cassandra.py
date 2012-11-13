@@ -1,10 +1,4 @@
-import sys
-import time
-import time
-import simplejson as json
-from checks import AgentCheck, gethostname
 from checks.jmx_connector import JmxConnector, JmxCheck, JMXMetric
-
 
 class CassandraMetric(JMXMetric):
     BLACKLIST = ['pendingTasks', 
@@ -47,7 +41,6 @@ class Cassandra(JmxCheck):
 
 
     def check(self, instance):
-        start = time.time()
         (host, port, user, password, jmx) = self._load_config(instance)
         dump = jmx.dump()
 
