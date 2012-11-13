@@ -20,9 +20,10 @@ class TestSystem(unittest.TestCase):
         global logger
         load = Load(logger)
         res = load.check({'system_stats': get_system_stats()})
+        cores = int(get_system_stats().get('cpuCores'))
         assert 'system.load.1' in res
         assert 'system.load.norm.1' in res
-        assert abs(res['system.load.1'] - 4 * res['system.load.norm.1']) <= 0.01, (res['system.load.1'], 4 * res['system.load.norm.1'])
+        assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
 
         # same test but without cpu count, no normalized load sent.
         res = load.check({})
