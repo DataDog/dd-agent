@@ -58,10 +58,8 @@ use_mount: no
 # dogstatsd_interval : 10
 
 ## If 'yes', counters and rates will be normalized to 1 second (that is divided
-## by the dogstatsd_interval) before being sent to the server. Defaults to 'no'
-## for backwards compatibility
-# dogstatsd_normalize : no
-
+## by the dogstatsd_interval) before being sent to the server. Defaults to 'yes'
+# dogstatsd_normalize : yes
 
 # ========================================================================== #
 # Service-specific configuration                                             #
