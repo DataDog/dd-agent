@@ -134,8 +134,8 @@ class JMXMetric:
                     del self.tags[key]
 
     def __str__(self):
-        return "Domain:{0}, type={5} , bean_name:{1}, {2}={3} tags={4}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags, self.type)
+        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}".format(self.domain,
+            self.bean_name, self.attribute_name, self.value, self.tags)
 
 class JmxCheck(AgentCheck):
 
@@ -149,7 +149,7 @@ class JmxCheck(AgentCheck):
         port = instance.get('port')
         user = instance.get('user', None)
         password = instance.get('password', None)
-        instance_name = instance.get('name', None)
+        instance_name = instance.get('name', "%s-%s-%s" % (self.name, host, port))
 
         key = (host,port)
 
@@ -175,17 +175,25 @@ class JmxCheck(AgentCheck):
 
 
     def create_metrics(self, beans, metric_class, tags={}):
-
         def create_metric(val):
             if type(val) == type(1) or type(val) == type(1.1):
                 metric = metric_class(bean_name, attr, val, tags=tags)
                 if metric.send_metric:
                     self.jmx_metrics.append(metric)
                     
-            if type(val) == type({}):
+            elif type(val) == type({}):
                 for subattr in val.keys():
                     subval = val[subattr]
                     create_metric(subval)
+
+            elif type(val) == type("") and val != "NaN":
+                # This is a workaround for solr as every attribute is a string...
+                try:
+                    val = float(val)
+                    create_metric(val)
+                except ValueError:
+                    pass
+
 
         for bean_name in beans.keys():
             bean = beans[bean_name]
@@ -211,9 +219,21 @@ class JmxCheck(AgentCheck):
                 self.rate(metric.metric_name, metric.value, metric.tags_list, 
                     device_name=metric.device)
 
-    def get_beans(self, dump, domains=None):
+    def get_beans(self, dump, domains=None, approx=False):
+
+        def in_domains(domain):
+            if domain in domains:
+                return True
+            if approx:
+                for d in domains:
+                    regex = re.compile(r"(.*)%s(\.*)" % d)
+                    m = regex.match(domain)
+                    if m is not None:
+                        return True
+            return False
+
         if domains is None:
             return dump
         else:
-            return dict((k,dump[k]) for k in [ke for ke in dump.keys() if ke.split(':')[0] in domains] if k in dump)
+            return dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
 

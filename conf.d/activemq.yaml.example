@@ -5,4 +5,4 @@ instances:
 #        port: 7199
 #        user: username
 #        password: password
-#        name: tomcat_instance
+#        name: activemq_instance
