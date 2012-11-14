@@ -1,4 +1,15 @@
 from checks.jmx_connector import JmxConnector, JmxCheck, JMXMetric
+import re
+
+
+first_cap_re = re.compile('(.)([A-Z][a-z]+)')
+all_cap_re = re.compile('([a-z0-9])([A-Z])')
+
+def convert(name):
+    """Convert from CamelCase to camel_case"""
+
+    s1 = first_cap_re.sub(r'\1_\2', name)
+    return all_cap_re.sub(r'\1_\2', s1).lower()
 
 class CassandraMetric(JMXMetric):
     BLACKLIST = ['pendingTasks', 
@@ -19,16 +30,13 @@ class CassandraMetric(JMXMetric):
 
         return True
 
-    def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
-        for k in keys_to_remove:
-            if self.tags.has_key(k):
-                del self.tags[k]
+    @property
+    def metric_name(self):
+        return ".".join(self.domain.split('.')[2:]+[convert(self.attribute_name)])
 
-        for v in values_to_remove:
-            for (key, value) in self.tags.items():
-                if v == value:
-                    del self.tags[key]
-
+    @property
+    def type(self):
+        return "gauge"
 
 
 class Cassandra(JmxCheck):
@@ -41,19 +49,23 @@ class Cassandra(JmxCheck):
 
 
     def check(self, instance):
-        (host, port, user, password, jmx) = self._load_config(instance)
+        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        tags = {}
+        if instance_name is not None:
+            tags['instance'] = instance_name
         dump = jmx.dump()
 
-        self.get_jvm_metrics(dump)
+        self.get_jvm_metrics(dump, tags)
 
-        for bean_name in self.get_beans(dump, Cassandra.CASSANDRA_DOMAINS).keys():
-            bean = dump[bean_name]
-            for attr in bean:
-                val = bean[attr]
-                if type(val) == type(1) or type(val) == type(1.1):
-                    metric = CassandraMetric(bean_name, attr, val)
-                    metric.filter_tags(keys_to_remove=['columnfamily'],
+        self.create_metrics(self.get_beans(dump, Cassandra.CASSANDRA_DOMAINS), CassandraMetric, tags=tags)
+
+        metrics = []
+        for m in self.get_jmx_metrics():
+            m.filter_tags(keys_to_remove=['columnfamily'],
                         values_to_remove=['ColumnFamilies'])
-                    if metric.send_metric:
-                        metric.convert_name()
-                        self.gauge(metric.metric_name, metric.value, metric.tagslist)
+            metrics.append(m)
+
+        self.set_jmx_metrics(metrics)
+
+        self.send_jmx_metrics()
+        self.clear_jmx_metrics()

@@ -4,14 +4,6 @@ import re
 
 from checks import AgentCheck
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
-
-def convert(name):
-    """Convert from CamelCase to camel_case"""
-
-    s1 = first_cap_re.sub(r'\1_\2', name)
-    return all_cap_re.sub(r'\1_\2', s1).lower()
 
 class JmxConnector:
     """Persistent connection to JMX endpoint.
@@ -56,8 +48,27 @@ class JmxConnector:
         return jsonvar
 
 class JMXMetric:
-    def __init__(self, bean_name, attribute_name, attribute_value):
+    WHITELIST = {
+        'CollectionCount' : {
+            'java.lang:name=ConcurrentMarkSweep,type=GarbageCollector' : ('jvm.gc.cms.count', 'gauge'),
+            'java.lang:name=ParNew,type=GarbageCollector' : ('jvm.gc.parnew.count', 'gauge')
+            },
+        'CollectionTime' : {
+            "java.lang:name=ParNew,type=GarbageCollector" : ("jvm.gc.parnew.time", "gauge"),
+            "java.lang:name=ConcurrentMarkSweep,type=GarbageCollector" : ("jvm.gc.cms.time", "gauge")
+            },
+
+        'ThreadCount' : ('jvm.thread_count', 'gauge'),
+        'HeapMemoryUsage.used' : ("jvm.heap_memory", 'gauge'),
+        'NonHeapMemoryUsage.used' : ("jvm.non_heap_memory", 'gauge')
+
+    }
+
+
+    
+    def __init__(self, bean_name, attribute_name, attribute_value, tags={}, device = None):
         split = bean_name.split(":")
+        self.device = None
 
         self.domain = split[0]
         attr_split = split[1].split(',')
@@ -68,94 +79,77 @@ class JMXMetric:
             split = attr.split("=")
             tag_name = split[0].strip()
             tag_value = split[1].strip()
-
-            
             self.tags[tag_name] = tag_value
 
-
+        self.tags.update(tags)
         self.value = attribute_value
         self.attribute_name = attribute_name
 
     @property
-    def metric_name(self):
-        return ".".join(self.domain.split('.')[2:]+[self.attribute_name])
+    def send_metric(self):
+        if JMXMetric.WHITELIST.has_key(self.attribute_name):
+            params = JMXMetric.WHITELIST[self.attribute_name]
+            if type(params) == type({}):
+                if params.has_key(self.bean_name):
+                    return True
+            if type(params) == type(()):
+                return True
+        return False
 
     @property
-    def tagslist(self):
+    def metric_name(self):
+        params = JMXMetric.WHITELIST[self.attribute_name]
+        if type(params) == type({}):
+            return params[self.bean_name][0]
+        else:
+            return params[0]
+
+    @property
+    def type(self):
+        params = JMXMetric.WHITELIST[self.attribute_name]
+        if type(params) == type({}):
+            return params[self.bean_name][1]
+        else:
+            return params[1]
+
+
+
+    @property
+    def tags_list(self):
         tags = []
         for tag in self.tags.keys():
             tags.append("%s:%s" % (tag, self.tags[tag]))
 
         return tags
 
-    def convert_name(self):
-        self.attribute_name = convert(self.attribute_name)
+
+    def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
+        for k in keys_to_remove:
+            if self.tags.has_key(k):
+                del self.tags[k]
+
+        for v in values_to_remove:
+            for (key, value) in self.tags.items():
+                if v == value:
+                    del self.tags[key]
 
     def __str__(self):
-        return "Domain:{0}, bean_name:{1}, {2}={3} tags={4}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags)
-
-
-
-class MetricList:
-
-    def __init__(self, dump=[], metric_object=JMXMetric):
-        self.mlist = []
-
-        for bean_name in dump.keys():
-            bean = dump[bean_name]
-            for attr in bean:
-                val = bean[attr]
-                if type(val) == type(1) or type(val) == type(1.1):
-                    metric = metric_object(bean_name, attr, val)
-                    self.append(metric)
-
-                if type(val) == type({}):
-                    for subattr in val.keys():
-                        subval = val[subattr]
-                        if type(subval) == type(1) or type(subval) == type(1.1):
-                            metric = metric_object(bean_name, "%s.%s" % (attr, subattr), subval)
-                            self.append(metric)
-
-
-    def append(self, metric):
-        self.mlist.append(metric)
-
-    def get(self, domain=None, attribute_name=None, bean_name=None, tags=None):
-
-        return_list = self.mlist
-        if domain is not None:
-            return_list = [m for m in return_list if m.domain == domain]
-
-        if attribute_name is not None:
-            return_list = [m for m in return_list if m.attribute_name == attribute_name]
-
-        if bean_name is not None:
-            return_list = [m for m in return_list if m.bean_name == bean_name]
-
-        if tags is not None:
-            for key in tags.keys():
-                return_list = [m for m in return_list if m.tags.get(key, None) == tags[key]]
-
-        return return_list
-
-    def __str__(self):
-        return [m.__str__() for m in self.mlist].__str__()
-
-    
-
+        return "Domain:{0}, type={5} , bean_name:{1}, {2}={3} tags={4}".format(self.domain,
+            self.bean_name, self.attribute_name, self.value, self.tags, self.type)
 
 class JmxCheck(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.jmxs = {}
+        self.jmx_metrics = []
 
     def _load_config(self, instance):
         host = instance.get('host')
         port = instance.get('port')
         user = instance.get('user', None)
         password = instance.get('password', None)
+        instance_name = instance.get('name', None)
 
         key = (host,port)
 
@@ -174,37 +168,48 @@ class JmxCheck(AgentCheck):
         if not jmx.connected():
             jmx = connect()
 
-        return (host, port, user, password, jmx)
+        return (host, port, user, password, jmx, instance_name)
 
     def get_jvm_metrics(self, dump, tags=[]):
-        metric_list = MetricList(dump=self.get_beans(dump, domains=["java.lang"]))
-
-        m = metric_list.get(bean_name="java.lang:name=ParNew,type=GarbageCollector",
-            attribute_name="CollectionCount")[0]
-        self.gauge("jvm.gc.parnew.count", m.value, tags+m.tagslist)
-
-        m = metric_list.get(bean_name="java.lang:name=ParNew,type=GarbageCollector",
-            attribute_name="CollectionTime")[0]
-        self.gauge("jvm.gc.parnew.time", m.value, tags+m.tagslist)
-
-        m = metric_list.get(bean_name="java.lang:name=ConcurrentMarkSweep,type=GarbageCollector",
-            attribute_name="CollectionCount")[0]
-        self.gauge("jvm.gc.cms.count", m.value, tags+m.tagslist)
-
-        m = metric_list.get(bean_name="java.lang:name=ConcurrentMarkSweep,type=GarbageCollector",
-            attribute_name="CollectionTime")[0]
-        self.gauge("jvm.gc.cms.time", m.value, tags+m.tagslist)
-
-        m = metric_list.get(attribute_name="ThreadCount", tags={'type':'Threading'})[0]
-        self.gauge("jvm.thread_count", m.value, tags+m.tagslist)
-
-        m = metric_list.get(attribute_name="HeapMemoryUsage.used", tags={'type':'Memory'})[0]
-        self.gauge("jvm.heap_memory", m.value, tags+m.tagslist)
-
-        m = metric_list.get(attribute_name="NonHeapMemoryUsage.used", tags={'type':'Memory'})[0]
-        self.gauge("jvm.non_heap_memory", m.value, tags+m.tagslist)
+        self.create_metrics(self.get_beans(dump, domains=["java.lang"]), JMXMetric, tags=tags)
 
 
+    def create_metrics(self, beans, metric_class, tags={}):
+
+        def create_metric(val):
+            if type(val) == type(1) or type(val) == type(1.1):
+                metric = metric_class(bean_name, attr, val, tags=tags)
+                if metric.send_metric:
+                    self.jmx_metrics.append(metric)
+                    
+            if type(val) == type({}):
+                for subattr in val.keys():
+                    subval = val[subattr]
+                    create_metric(subval)
+
+        for bean_name in beans.keys():
+            bean = beans[bean_name]
+            for attr in bean:
+                val = bean[attr]
+                create_metric(val)
+
+    def get_jmx_metrics(self):
+        return self.jmx_metrics
+
+    def set_jmx_metrics(self, metrics):
+        self.jmx_metrics = metrics
+
+    def clear_jmx_metrics(self):
+        self.jmx_metrics = []
+
+    def send_jmx_metrics(self):
+        for metric in self.jmx_metrics:
+            if metric.type == "gauge":
+                self.gauge(metric.metric_name, metric.value, metric.tags_list, 
+                    device_name=metric.device)
+            else:
+                self.rate(metric.metric_name, metric.value, metric.tags_list, 
+                    device_name=metric.device)
 
     def get_beans(self, dump, domains=None):
         if domains is None:
