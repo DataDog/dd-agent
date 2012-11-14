@@ -1,0 +1,13 @@
+init_config:
+
+instances:
+    # For every instance, you have an `apache_status_url` and (optionally)
+    # a list of tags.
+
+    -   apache_status_url: http://example.com/server-status/
+        tags:
+            -   instance:foo
+
+    -   nginx_status_url: http://example2.com:1234/server-status/
+        tags:
+            -   instance:bar
