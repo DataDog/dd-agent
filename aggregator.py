@@ -1,6 +1,7 @@
 import logging
 from time import time
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +18,7 @@ class Metric(object):
         """ Add a point to the given metric. """
         raise NotImplementedError()
 
-    def flush(self, timestamp):
+    def flush(self, timestamp, normalization_factor):
         """ Flush all metrics up to the given timestamp. """
         raise NotImplementedError()
 
@@ -37,17 +38,19 @@ class Gauge(Metric):
         self.value = value
         self.last_sample_time = time()
 
-    def flush(self, timestamp):
-        # Gauges don't reset. Continue to send the same value.
-        return [self.formatter(
-            metric=self.name,
-            timestamp=timestamp,
-            value=self.value,
-            tags=self.tags,
-            hostname=self.hostname,
-            device_name=self.device_name
-        )]
+    def flush(self, timestamp, normalization_factor):
+        if self.value is not None:
+            return [self.formatter(
+                metric=self.name,
+                timestamp=timestamp,
+                value=self.value,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name
+            )]
+            self.value = None
 
+        return []
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -64,11 +67,12 @@ class Counter(Metric):
         self.value += value * int(1 / sample_rate)
         self.last_sample_time = time()
 
-    def flush(self, timestamp):
+    def flush(self, timestamp, normalization_factor):
         try:
+            value = int(round(self.value * normalization_factor))
             return [self.formatter(
                 metric=self.name,
-                value=self.value,
+                value=value,
                 timestamp=timestamp,
                 tags=self.tags,
                 hostname=self.hostname,
@@ -84,11 +88,7 @@ class Histogram(Metric):
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
         self.name = name
-        self.max = float("-inf")
-        self.min = float("inf")
-        self.sum = 0
         self.count = 0
-        self.sample_size = 1000
         self.samples = []
         self.percentiles = [0.95]
         self.tags = tags
@@ -100,7 +100,7 @@ class Histogram(Metric):
         self.samples.append(value)
         self.last_sample_time = time()
 
-    def flush(self, ts):
+    def flush(self, ts, normalization_factor):
         if not self.count:
             return []
 
@@ -109,7 +109,7 @@ class Histogram(Metric):
 
         max_ = self.samples[-1]
         med = self.samples[int(round(length/2 - 1))]
-        avg = sum(self.samples)/length
+        avg = sum(self.samples) / float(length)
 
         metric_aggrs = [
             ('max', max_),
@@ -161,7 +161,7 @@ class Set(Metric):
         self.values.add(value)
         self.last_sample_time = time()
 
-    def flush(self, timestamp):
+    def flush(self, timestamp, normalization_factor):
         if not self.values:
             return []
         try:
@@ -206,12 +206,13 @@ class Rate(Metric):
 
         return (delta / interval)
 
-    def flush(self, timestamp):
+    def flush(self, timestamp, normalization_factor):
         if len(self.samples) < 2:
             return []
         try:
             try:
                 val = self._rate(self.samples[-2], self.samples[-1])
+                val = val * normalization_factor
             except:
                 return []
 
@@ -233,7 +234,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname, expiry_seconds=300, formatter=None):
+    def __init__(self, hostname, normalization_factor=1.0, expiry_seconds=300, formatter=None):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -248,12 +249,17 @@ class MetricsAggregator(object):
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or self.api_formatter
+        self.normalization_factor = normalization_factor
 
-    def submit(self, packets, hostname=None, device_name=None):
+    def submit_packets(self, packets):
+
         for packet in packets.split("\n"):
             self.count += 1
             # We can have colons in tags, so split once.
             name_and_metadata = packet.split(':', 1)
+
+            if not packet.strip():
+                continue
 
             if len(name_and_metadata) != 2:
                 raise Exception('Unparseable packet: %s' % packet)
@@ -263,6 +269,16 @@ class MetricsAggregator(object):
 
             if len(metadata) < 2:
                 raise Exception('Unparseable packet: %s' % packet)
+
+            # Try to cast as an int first to avoid precision issues, then as a
+            # float.
+            try:
+                value = int(metadata[0])
+            except ValueError:
+                try:
+                    value = float(metadata[0])
+                except ValueError:
+                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
@@ -275,41 +291,38 @@ class MetricsAggregator(object):
                 elif m[0] == '#':
                     tags = tuple(sorted(m[1:].split(',')))
 
-            context = (name, tags, hostname, device_name)
-            if context not in self.metrics:
-                metric_class = self.metric_type_to_class[metadata[1]]
-                self.metrics[context] = metric_class(self.formatter, name, tags,
-                    hostname or self.hostname, device_name)
-            self.metrics[context].sample(float(metadata[0]), sample_rate)
+            # Submit the metric
+            mtype = metadata[1]
+            self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
-    def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the gague metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'g')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def submit_metric(self, name, value, mtype, tags=None, hostname=None,
+                                device_name=None, timestamp=None, sample_rate=1):
+        context = (name, tuple(tags or []), hostname, device_name)
+        if context not in self.metrics:
+            metric_class = self.metric_type_to_class[mtype]
+            self.metrics[context] = metric_class(self.formatter, name, tags,
+                hostname or self.hostname, device_name)
+        self.metrics[context].sample(value, sample_rate)
 
-    def increment(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the counter metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'c')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
+        self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
 
-    def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the histogram metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, 'h')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def increment(self, name, value=1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
-    def rate(self, metric, value, tags=None, hostname=None, device_name=None):
-        ''' Format the histogram metric into a StatsD packet format and submit'''
-        packet = self._create_packet(metric, value, tags, '_dd-r')
-        self.submit(packet, hostname=hostname, device_name=device_name)
+    def decrement(self, name, value=-1, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
-    def _create_packet(self, metric, value, tags, stat_type):
-        packet = '%s:%s|%s' % (metric, value, stat_type)
-        if tags:
-            packet += '|#%s' % ','.join(tags)
-        return packet
+    def rate(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
+
+    def histogram(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'h', tags, hostname, device_name)
+
+    def set(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 's', tags, hostname, device_name)
 
     def flush(self):
-
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
 
@@ -318,19 +331,19 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.info("%s hasnt been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
-                metrics += metric.flush(timestamp)
+                metrics += metric.flush(timestamp, self.normalization_factor)
 
         # Save some stats.
-        logger.info("received %s payloads since last flush" % self.count)
+        logger.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics
 
     def send_packet_count(self, metric_name):
-        self.gauge(metric_name, self.count)
+        self.submit_metric(metric_name, self.count, 'g')
 
     def api_formatter(self, metric, value, timestamp, tags, hostname, device_name=None):
         return {

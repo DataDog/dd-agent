@@ -16,13 +16,12 @@ import re
 import socket
 import time
 import types
+import os
 
 try:
     from hashlib import md5
 except ImportError:
     import md5
-
-from aggregator import MetricsAggregator
 
 # Konstants
 class CheckException(Exception): pass
@@ -140,12 +139,14 @@ class Check(object):
     def save_sample(self, metric, value, timestamp=None, tags=None, hostname=None, device_name=None):
         """Save a simple sample, evict old values if needed
         """
+        from util import cast_metric_val
+
         if timestamp is None:
             timestamp = time.time()
         if metric not in self._sample_store:
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
-            value = float(value)
+            value = cast_metric_val(value)
         except ValueError, ve:
             raise NaN(ve)
 
@@ -194,7 +195,7 @@ class Check(object):
         except Exception, e:
             raise NaN(e)
 
-    def get_sample_with_timestamp(self, metric, tags=None, device_name=None):
+    def get_sample_with_timestamp(self, metric, tags=None, device_name=None, expire=True):
         "Get (timestamp-epoch-style, value)"
 
         # Get the proper tags
@@ -209,10 +210,13 @@ class Check(object):
 
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) < 2:
-            raise UnknownValue()
+           raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
-            return self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
+            if expire:
+                del self._sample_store[metric][key][:-1]
+            return res
 
         elif self.is_gauge(metric) and len(self._sample_store[metric][key]) >= 1:
             return self._sample_store[metric][key][-1]
@@ -220,34 +224,34 @@ class Check(object):
         else:
             raise UnknownValue()
 
-    def get_sample(self, metric, tags=None, device_name=None):
+    def get_sample(self, metric, tags=None, device_name=None, expire=True):
         "Return the last value for that metric"
-        x = self.get_sample_with_timestamp(metric, tags, device_name)
+        x = self.get_sample_with_timestamp(metric, tags, device_name, expire)
         assert type(x) == types.TupleType and len(x) == 4, x
         return x[1]
 
-    def get_samples_with_timestamps(self):
+    def get_samples_with_timestamps(self, expire=True):
         "Return all values {metric: (ts, value)} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
-                values[m] = self.get_sample_with_timestamp(m)
+                values[m] = self.get_sample_with_timestamp(m, expire=expire)
             except:
                 pass
         return values
 
-    def get_samples(self):
+    def get_samples(self, expire=True):
         "Return all values {metric: value} for non-tagged metrics"
         values = {}
         for m in self._sample_store:
             try:
                 # Discard the timestamp
-                values[m] = self.get_sample_with_timestamp(m)[1]
+                values[m] = self.get_sample_with_timestamp(m, expire=expire)[1]
             except:
                 pass
         return values
 
-    def get_metrics(self):
+    def get_metrics(self, expire=True):
         """Get all metrics, including the ones that are tagged.
         This is the preferred method to retrieve metrics
 
@@ -260,7 +264,7 @@ class Check(object):
                 for key in self._sample_store[m]:
                     tags, device_name = key
                     try:
-                        ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name)
+                        ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name, expire)
                     except UnknownValue:
                         continue
                     attributes = {}
@@ -284,6 +288,9 @@ class AgentCheck(object):
         :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
         """
+        from aggregator import MetricsAggregator
+
+
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
@@ -292,7 +299,7 @@ class AgentCheck(object):
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
 
-    def gauge(self, metric, value, tags=None, hostname=None, device_name=None):
+    def gauge(self, metric, value, tags=None, hostname=None, device_name=None, timestamp=None):
         """
         Record the value of a gauge, with optional tags, hostname and device
         name.
@@ -302,22 +309,33 @@ class AgentCheck(object):
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
+        :param timestamp: (optional) The timestamp for this metric value
         """
-        self.aggregator.gauge(metric, value, tags=tags, hostname=hostname,
-            device_name=device_name)
+        self.aggregator.gauge(metric, value, tags, hostname, device_name, timestamp)
 
-    def increment(self, metric, value, tags=None, hostname=None, device_name=None):
+    def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
         """
         Increment a counter with optional tags, hostname and device name.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value to increment by
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.increment(metric, value, tags=tags, hostname=hostname,
-            device_name=device_name)
+        self.aggregator.increment(metric, value, tags, hostname, device_name)
+
+    def decrement(self, metric, value=-1, tags=None, hostname=None, device_name=None):
+        """
+        Increment a counter with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value to decrement by
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.decrement(metric, value, tags, hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -326,26 +344,36 @@ class AgentCheck(object):
         point to generate a rate on the flush.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value of the rate
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.rate(metric, value, tags=tags, hostname=hostname,
-            device_name=device_name)
+        self.aggregator.rate(metric, value, tags, hostname, device_name)
 
     def histogram(self, metric, value, tags=None, hostname=None, device_name=None):
         """
         Sample a histogram value, with optional tags, hostname and device name.
 
         :param metric: The name of the metric
-        :param value: The value of the gauge
+        :param value: The value to sample for the histogram
         :param tags: (optional) A list of tags for this metric
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.histogram(metric, value, tags=tags, hostname=hostname,
-            device_name=device_name)
+        self.aggregator.histogram(metric, value, tags, hostname, device_name)
+
+    def set(self, metric, value, tags=None, hostname=None, device_name=None):
+        """
+        Sample a set value, with optional tags, hostname and device name.
+
+        :param metric: The name of the metric
+        :param value: The value for the set
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.set(metric, value, tags, hostname, device_name)
 
     def event(self, event):
         """
@@ -394,7 +422,9 @@ class AgentCheck(object):
         @return the list of events saved by this check
         @rtype list of event dictionaries
         """
-        return self.events
+        events = self.events
+        self.events = []
+        return events
 
     def check(self, instance):
         """
@@ -404,6 +434,26 @@ class AgentCheck(object):
         depending on your config structure.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
+        """
+        A method used for testing your check without running the agent.
+        """
+        from util import yaml, yLoader
+        if path_to_yaml:
+            check_name = os.path.basename(path_to_yaml).split('.')[0]
+            try:
+                f = open(path_to_yaml)
+            except IOError:
+                raise Exception('Unable to open yaml config: %s' % path_to_yaml)
+            yaml_text = f.read()
+            f.close()
+
+        config = yaml.load(yaml_text, Loader=yLoader)
+        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
+
+        return check, config.get('instances', [])
 
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
@@ -426,5 +476,5 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     if device_name:
         attributes['device_name'] = device_name
     if attributes:
-        return (metric, timestamp, value, attributes)
-    return (metric, timestamp, value)
+        return (metric, int(timestamp), value, attributes)
+    return (metric, int(timestamp), value)

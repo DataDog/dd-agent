@@ -1,0 +1,37 @@
+init_config:
+
+instances:
+    # Each Event Log instance lets you define the type of events you want to
+    # match and how to tag those events. You can use the following filters:
+    #
+    # - type: Warning, Error, Information
+    #
+    # - log_file: Application, System, Setup, Security
+    #
+    # - source_name: Any available source name
+    #
+    # - user: Any valid user name
+    #
+    # Here are a couple basic examples:
+    #
+    # The following will capture errors and warnings from SQL Server which
+    # puts all events under the MSSQLSERVER source and tag them with #sqlserver.
+    #
+    #-   tags:
+    #        - sqlserver
+    #    type:
+    #        - Warning
+    #        - Error
+    #    log_file:
+    #        - Application
+    #    source_name:
+    #        - MSSQLSERVER
+    #
+    # This instance will capture all system errors and tag them with #system.
+    #
+    #-   tags:
+    #        - system
+    #    type:
+    #        - Error
+    #    log_file:
+    #        - System

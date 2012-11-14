@@ -18,10 +18,6 @@ debug_mode: no
 # Set the host's tags
 #tags: mytag0, mytag1
 
-# Use the amazon EC2 instance-id instead of hostname (unless hostname is
-# explicitly set)
-use_ec2_instance_id: yes
-
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
@@ -61,6 +57,9 @@ use_mount: no
 ## The dogstatsd flush period.
 # dogstatsd_interval : 10
 
+## If 'yes', counters and rates will be normalized to 1 second (that is divided
+## by the dogstatsd_interval) before being sent to the server. Defaults to 'yes'
+# dogstatsd_normalize : yes
 
 # ========================================================================== #
 # Service-specific configuration                                             #
@@ -92,6 +91,9 @@ use_mount: no
 
 # MySQL host
 #mysql_server:
+
+# (Alternative connection via unix sockets)
+#mysql_sock:
 
 # MySQL user. It runs "SHOW STATUS" and "SHOW SLAVE STATUS" queries.
 # You should consider creating a separate user, e.g. datadog.
@@ -168,8 +170,11 @@ use_mount: no
 #   Cassandra                                                                #
 # -------------------------------------------------------------------------- #
 #cassandra_host: localhost
-#cassandra_port: 8080
 #cassandra_nodetool: /usr/bin/nodetool
+## If you're using Cassandra 0.8 or higher:
+# cassandra_port: 7199
+## If you're using Cassandra 0.7 or lower:
+#cassandra_port: 8080
 
 # -------------------------------------------------------------------------- #
 #   Hudson                                                                   #
@@ -424,10 +429,10 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 [loggers]
-keys:root,dogstatsd
+keys:root,dogstatsd,checks
 
 [handlers]
-keys:dogstatsd
+keys:dogstatsd,checks
 
 [formatters]
 keys:ddagent
@@ -446,11 +451,23 @@ handlers:dogstatsd
 propagate:0
 qualname:dogstatsd
 
+[logger_checks]
+level:WARN
+handlers:checks
+propagate:0
+qualname:checks
+
 [handler_dogstatsd]
 class:FileHandler
 level:INFO
 formatter:ddagent
-args:('/tmp/dogstatsd.log', 'a')
+args:('/var/log/datadog/dogstatsd.log', 'a')
+
+[handler_checks]
+class:FileHandler
+level:WARN
+formatter:ddagent
+args:('/var/log/datadog/checks.log', 'a')
 
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s

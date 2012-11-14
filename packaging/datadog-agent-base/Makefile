@@ -36,6 +36,7 @@ links:
 	ln -sf ../../modules.py  .
 	ln -sf ../../aggregator.py .
 	ln -sf ../../conf.d .
+	ln -sf ../../dogstatsd.py .
 
 dirs:
 	mkdir -p $(BUILD)
@@ -55,6 +56,7 @@ install: dirs links
 	chmod 644 $(BUILD)/usr/share/datadog/agent/modules.py
 	chmod 644 $(BUILD)/usr/share/datadog/agent/aggregator.py
 	ln -sf ../share/datadog/agent/agent.py $(BUILD)/usr/bin/dd-agent
+	ln -sf ../share/datadog/agent/dogstatsd.py $(BUILD)/usr/bin/dogstatsd
 
 install_deb: install
 	cp deb/datadog-agent.init $(BUILD)/etc/init.d/datadog-agent
@@ -65,7 +67,7 @@ install_rpm: install
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
 
 deb: clean install_deb
-	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0)' >>" \
+	FPM_EDITOR="echo 'Replaces: datadog-agent (<= 3.2.3)' >>" \
 $(FPM_BUILD) -t deb \
 -d "python >= 2.4" \
 -d "adduser" \
@@ -88,5 +90,6 @@ $(FPM_BUILD) -t rpm \
 --pre-uninstall rpm/pre_uninstall \
 etc/init.d/datadog-agent \
 etc/dd-agent/datadog.conf.example \
+etc/dd-agent/conf.d \
 usr/share/datadog \
 usr/bin

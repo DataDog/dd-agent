@@ -1,0 +1,20 @@
+init_config:
+
+instances:
+    # The Cacti checks requires access to the Cacti DB in MySQL and to the RRD
+    # files that contain the metrics tracked in Cacti.
+    # In almost all cases, you'll only need one instance pointing to the Cacti
+    # database.
+    #
+    # The `rrd_path` will probably be '/var/lib/cacti/rra' on Ubuntu
+    # or '/var/www/html/cacti/rra' on any other machines.
+    #
+    # The `rrd_whitelist` is a path to a text file that has a list of patterns,
+    # one per line, that should be fetched. If no whitelist is specified, all
+    # metrics will be fetched.
+    #
+    -   mysql_host: localhost
+        mysql_user: MYSQL_USER
+        mysql_password: MYSQL_PASSWORD
+        rrd_path: /path/to/cacti/rra
+        #rrd_whitelist: /path/to/rrd_whitelist.txt

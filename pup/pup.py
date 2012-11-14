@@ -15,10 +15,10 @@ from collections import defaultdict
 import sys
 import optparse
 import os
-import json
 import re
 import time
 import logging
+import zlib
 
 # 3p
 import tornado
@@ -28,6 +28,7 @@ from tornado import websocket
 
 # project
 from config import get_config
+from util import json
 
 
 logger = logging.getLogger('pup')
@@ -186,7 +187,7 @@ class PostHandler(tornado.web.RequestHandler):
 class AgentPostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
-            payload = json.loads(self.get_argument('payload'))
+            payload = json.loads(zlib.decompress(self.request.body))
         except:
             #log.exception("Error parsing the agent's POST request body")
             return
@@ -215,7 +216,7 @@ application = tornado.web.Application([
      dict(path=settings['static_path'])),
     (r"/pupsocket", PupSocket),
     (r"/api/v1/series?", PostHandler),
-    (r"/intake/", AgentPostHandler),
+    (r"/intake", AgentPostHandler),
 ])
 
 def run_pup(config):

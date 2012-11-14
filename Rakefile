@@ -1,12 +1,29 @@
 
 desc "Run tests"
-task "test" do
-  sh("nosetests")
+task :test, [:attrs] do |t, args|
+  attrs = args.attrs ? "-a #{args.attrs}" : ""
+  cmd = "nosetests #{attrs}"
+  sh cmd
 end
 
 desc "Run dogstatsd tests"
 task "test:dogstatsd" do
   sh("nosetests tests/test_dogstatsd.py")
+end
+
+desc "Run performance tests"
+task "test:performance" do
+  sh("nosetests --with-xunit --xunit-file=nosetests-performance.xml tests/performance/benchmark*.py")
+end
+
+desc "cProfile unit tests (requires 'nose-cprof')"
+task "test:profile" do
+  sh("nosetests --with-cprofile tests/performance/benchmark*.py")
+end
+
+desc "cProfile tests, then run pstats"
+task "test:profile:pstats" => ["test:profile"] do
+  sh("python -m pstats stats.dat")
 end
 
 desc "Run the agent locally"

@@ -7,8 +7,6 @@ from util import json, headers
 
 import time
 
-CHECK = 'HAProxy'
-
 STATS_URL = ";csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
@@ -38,6 +36,7 @@ class HAProxy(AgentCheck):
         "eresp": ("rate", "errors.resp_rate"),
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
+        "req_rate": ("gauge", "requests.rate"),
     }
 
     def check(self, instance):
@@ -236,21 +235,19 @@ class HAProxy(AgentCheck):
     def _create_event(self, api_key, status, hostname, lastchg, service_name):
         if status == "DOWN":
             alert_type = "error"
-            title = "HAProxy reported a failure"
-            msg = "%%%%%%\n * %s has just been reported %s \n * Frontend: %s \n%%%%%%" \
-                % (hostname, status, service_name)
+            title = "HAProxy %s front-end reported %s %s" % (service_name, hostname, status)
         else:
-            alert_type = "info"
-            title = "HAProxy status update"
-            msg = "%%%%%%\n * %s is back and  %s \n * Frontend: %s \n%%%%%%" \
-                % (hostname, status, service_name)
+            if status == "UP":
+                alert_type = "success"
+            else:
+                alert_type = "info"
+            title = "HAProxy %s front-end reported %s back and %s" % (service_name, hostname, status)
 
         return {
              'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
              'host': hostname,
              'api_key': api_key,
-             'msg_text': msg,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,

@@ -103,7 +103,7 @@ class MySql(Check):
                 if len(pslines) > 1 and pslines[1] != '':
                     return int(pslines[1])
 
-            elif sys.platform.startswith("darwin"):
+            elif sys.platform.startswith("darwin") or sys.platform.startswith("freebsd"):
                 # Get all processes, filter in python then
                 procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE, 
                                          close_fds=True).communicate()[0]
@@ -187,11 +187,18 @@ class MySql(Check):
                 and 'mysql_user'   in agentConfig\
                 and agentConfig['mysql_server'] != ''\
                 and agentConfig['mysql_user'] != '':
-    
+
                 # Connect
                 try:
                     import MySQLdb
-                    self.db = MySQLdb.connect(agentConfig['mysql_server'], agentConfig['mysql_user'], agentConfig['mysql_pass'])
+                    if 'mysql_sock' in agentConfig:
+                        self.db = MySQLdb.connect(unix_socket=agentConfig['mysql_sock'],
+                                                  user=agentConfig['mysql_user'],
+                                                  passwd=agentConfig['mysql_pass'])
+                    else:
+                        self.db = MySQLdb.connect(host=agentConfig['mysql_server'],
+                                                  user=agentConfig['mysql_user'],
+                                                  passwd=agentConfig['mysql_pass'])
                     self.getVersion()
     
                 except ImportError, e:

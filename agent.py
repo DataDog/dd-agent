@@ -21,8 +21,7 @@ import time
 import urllib
 
 # Constants
-PID_DIR="/var/run/dd-agent"
-PID_FILE="dd-agent.pid"
+PID_NAME="dd-agent"
 
 WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * check_freq, 150s by default
 
@@ -38,7 +37,7 @@ from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
-from util import Watchdog
+from util import Watchdog, PidFile
 
 # Override the generic daemon class to run our checks
 class agent(Daemon):
@@ -46,7 +45,6 @@ class agent(Daemon):
         """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
         systemStats = get_system_stats()
-        agentLogger.debug('System Properties: ' + str(systemStats))
 
         if agentConfig is None:
             agentConfig = get_config()
@@ -55,7 +53,8 @@ class agent(Daemon):
         checksd = load_check_directory(agentConfig)
 
         # Try to fetch instance Id from EC2 if not hostname has been set
-        # in the config file
+        # in the config file.
+        # DEPRECATED
         if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
             instanceId = EC2.get_instance_id()
             if instanceId is not None:
@@ -72,7 +71,7 @@ class agent(Daemon):
         check_freq = int(agentConfig['check_freq'])
 
         # Checks instance
-        c = checks(agentConfig, emitters)
+        c = checks(agentConfig, emitters, systemStats)
 
         # Watchdog
         watchdog = None
@@ -81,7 +80,7 @@ class agent(Daemon):
             watchdog.reset()
 
         # Run checks once, to get once-in-a-run data
-        c.doChecks(True, systemStats, checksd)
+        c.doChecks(True, checksd)
 
         # Main loop
         while run_forever:
@@ -118,49 +117,6 @@ def setupLogging(agentConfig):
             sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
             logging.disable(logging.ERROR)
 
-def getPidFile(pid_dir=PID_DIR):
-    """Find a good spot for the pid file.
-    By default PID_DIR/PID_FILE
-    """
-    try:
-        # Can we write to the directory
-        if os.access(pid_dir, os.W_OK):
-            pidfile = os.path.join(pid_dir, PID_FILE)
-            logging.info("Pid file is: %s" % pidfile)
-            return pidfile
-    except:
-        logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
-        # continue
-
-    # if all else fails
-    if os.access("/tmp", os.W_OK):
-        logging.warn("Pid file: /tmp/%s" % PID_FILE)
-        return os.path.join("/tmp", PID_FILE)
-    else:
-        # Can't save pid file, bail out
-        logging.error("Cannot save pid file anywhere")
-        sys.exit(-2)
-
-def cleanPidFile(pid_dir=PID_DIR):
-    try:
-        logging.debug("Cleaning up pid file %s" % getPidFile(pid_dir))
-        os.remove(getPidFile(pid_dir))
-        return True
-    except:
-        logging.exception("Could not clean up pid file")
-        return False
-
-def getPid(pid_dir=PID_DIR):
-    "Retrieve the actual pid"
-    try:
-        pf = open(getPidFile(pid_dir))
-        pid_s = pf.read()
-        pf.close()
-
-        return int(pid_s.strip())
-    except:
-        logging.exception("Cannot read pid")
-        return None
 
 # Control of daemon
 if __name__ == '__main__':
@@ -170,16 +126,15 @@ if __name__ == '__main__':
     # Logging
     setupLogging(agentConfig)
 
-    argLen = len(sys.argv)
-
     if len(args) > 0:
         command = args[0]
 
-        if options.clean:
-            cleanPidFile()
+        pid_file = PidFile('dd-agent')
 
-        pidFile = getPidFile()
-        daemon = agent(pidFile)
+        if options.clean:
+            pid_file.clean()
+
+        daemon = agent(pid_file.get_path())
 
         if 'start' == command:
             logging.info('Start daemon')
@@ -198,7 +153,7 @@ if __name__ == '__main__':
             daemon.run()
 
         elif 'status' == command:
-            pid = getPid()
+            pid = pid_file.get_pid()
             if pid is not None:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
                 logging.info("dd-agent is running as pid %s." % pid)
