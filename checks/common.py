@@ -34,7 +34,6 @@ from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
 
 from checks.queue import RabbitMq
-from checks.web import Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
@@ -111,7 +110,6 @@ class checks(object):
             ActiveMQ(self.checksLogger),
             Solr(self.checksLogger),
             WMICheck(self.checksLogger),
-            Nginx(self.checksLogger),
             Memcache(self.checksLogger),
         ]
 
