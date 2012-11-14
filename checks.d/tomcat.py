@@ -1,4 +1,4 @@
-from checks.jmx_connector import JmxConnector, JmxCheck, JMXMetric
+from checks.jmx_connector import JmxCheck, JMXMetric
 
 
 class TomcatMetric(JMXMetric):
@@ -8,7 +8,7 @@ class TomcatMetric(JMXMetric):
         'type' : 'ThreadPool',
         'params' : ("tomcat.threads.max", "gauge")
     }],
-    "currentThreadsCount" : [{
+    "currentThreadCount" : [{
         'type': 'ThreadPool',
         'params' : ("tomcat.threads.count", "gauge")
     }],

@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+#    -   host: localhost
+#        port: 7199
+#        user: username
+#        password: password
+#        name: jmx_instance

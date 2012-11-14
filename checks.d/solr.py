@@ -1,8 +1,4 @@
-from checks.jmx_connector import JmxConnector, JmxCheck, JMXMetric
-
-import logging
-
-lg = logging.getLogger('solr')
+from checks.jmx_connector import JmxCheck, JMXMetric
 
 class SolrMetric(JMXMetric):
 

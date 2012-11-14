@@ -1,4 +1,4 @@
-from checks.jmx_connector import JmxConnector, JmxCheck, JMXMetric
+from checks.jmx_connector import JmxCheck, JMXMetric
 import re
 
 
