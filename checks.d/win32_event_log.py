@@ -67,7 +67,10 @@ class Win32EventLog(AgentCheck):
     def _get_tz_offset(self):
         ''' Return the timezone offset for the current local time
         '''
-        offset = time.timezone if (time.daylight == 0) else time.altzone
+        if time.daylight == 0:
+            offest = time.timezone
+        else:
+            offset = time.altzone
         return offset / 60 / 60 * -1
 
 class EventLogQuery(object):
