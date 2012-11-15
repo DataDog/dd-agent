@@ -27,7 +27,7 @@ before_script:
   - curl -L https://raw.github.com/DataDog/dd-agent/multiple_instances/tests/nginx.conf > /tmp/default.conf
   - sudo cp /tmp/default.conf /etc/nginx/conf.d/default.conf
   - sudo /etc/init.d/nginx restart
-  - sudo apt-get install agache
+  - sudo apt-get install apache2
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/checks_to_checksd/tests/apache/ports.conf > /etc/apache2/ports.conf"
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/checks_to_checksd/tests/apache/apache.conf > /etc/apache2/apache.conf"
   - sudo /etc/init.d/apache2 restart
