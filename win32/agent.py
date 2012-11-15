@@ -126,7 +126,7 @@ class DDForwarder(threading.Thread):
 class DogstatsdThread(threading.Thread):
     def __init__(self, agentConfig):
         threading.Thread.__init__(self)
-        self.reporter, self.server = dogstatsd.init()
+        self.reporter, self.server = dogstatsd.init(use_forwarder=True)
 
     def run(self):
         self.reporter.start()
