@@ -44,7 +44,7 @@ MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
 
-logger = logger.getLogger('ddforwarder')
+logger = logging.getLogger('ddforwarder')
 
 class MetricTransaction(Transaction):
 
