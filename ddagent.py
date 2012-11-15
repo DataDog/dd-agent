@@ -44,8 +44,6 @@ MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
 
-logger = logging.getLogger('ddforwarder')
-
 class MetricTransaction(Transaction):
 
     _application = None
@@ -78,10 +76,10 @@ class MetricTransaction(Transaction):
                 and cls._application._agentConfig.get('api_key') is not None\
                 and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
             if is_dd_user:
-                logger.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
+                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
         except:
-            logger.info("Not a Datadog user")
+            logging.info("Not a Datadog user")
 
     def __init__(self, data, headers):
         self._data = data
@@ -92,7 +90,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        logger.debug("Created transaction %d" % self.get_id())
+        logging.debug("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -107,7 +105,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            logger.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers)
 
@@ -125,7 +123,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error:
-            logger.error("Response: %s" % response.error)
+            logging.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -254,7 +252,7 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
         http_server.listen(self._port)
-        logger.info("Listening on port %d" % self._port)
+        logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
@@ -271,7 +269,7 @@ class Application(tornado.web.Application):
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
-            logger.info("Starting graphite listener on port %s" % gport)
+            logging.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
             gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
             gs.listen(gport)
