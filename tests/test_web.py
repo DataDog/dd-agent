@@ -12,6 +12,11 @@ init_config:
 
 instances:
     -   apache_status_url: http://localhost:9444/server-status?auto
+        tags:
+            - instance:first
+    -   apache_status_url: http://localhost:9444/server-status?auto
+        tags:
+            - instance:second
 """
 
         self.nginx_config = """
@@ -32,12 +37,14 @@ instances:
 
     def testApache(self):
         a, instances = get_check('apache', self.apache_config)
+
         a.check(instances[0])
         metrics = a.get_metrics()
-        metric_names = [m[0] for m in metrics]
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:first'])
 
-        for name in a.METRIC_TRANSLATION.values():
-            assert name in metric_names, '%s not found' % (name)
+        a.check(instances[1])
+        metrics = a.get_metrics()
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
 
 
     def testApacheOldConfig(self):
