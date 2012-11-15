@@ -118,10 +118,15 @@ class Tomcat(JmxCheck):
             tags['instance'] = instance_name
         dump = jmx.dump()
 
-        self.get_jvm_metrics(dump, tags)
-        self.create_metrics(self.get_beans(dump, Tomcat.TOMCAT_DOMAINS), TomcatMetric, tags=tags)
+        self.get_and_send_jvm_metrics(instance, dump, tags)
+        self.create_metrics(instance, self.get_beans(dump, Tomcat.TOMCAT_DOMAINS), TomcatMetric, tags=tags)
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+
+        return JmxCheck.parse_agent_config(agentConfig, 'tomcat')
 
 
 

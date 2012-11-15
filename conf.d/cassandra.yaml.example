@@ -5,3 +5,4 @@ instances:
 #        port: 7199
 #        user: username
 #        password: password
+#        name: cassandra_instance

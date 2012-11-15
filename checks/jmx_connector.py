@@ -66,24 +66,31 @@ class JMXMetric:
 
 
     
-    def __init__(self, bean_name, attribute_name, attribute_value, tags={}, device = None):
-        split = bean_name.split(":")
+    def __init__(self, instance, bean_name, attribute_name, attribute_value, 
+        tags={}, device = None):
+
+        (self.domain, self.tags) = self.get_bean_attr(bean_name) 
+        self.tags.update(tags)
+        self.value = attribute_value
+        self.attribute_name = attribute_name
+        self.instance = instance
+        self.bean_name = bean_name
         self.device = None
 
-        self.domain = split[0]
+    def get_bean_attr(self, bean_name):
+        split = bean_name.split(":")
+        domain = split[0]
         attr_split = split[1].split(',')
-        self.tags = {}
-        self.bean_name = bean_name
+        tags = {}
 
         for attr in attr_split:
             split = attr.split("=")
             tag_name = split[0].strip()
             tag_value = split[1].strip()
-            self.tags[tag_name] = tag_value
+            tags[tag_name] = tag_value
 
-        self.tags.update(tags)
-        self.value = attribute_value
-        self.attribute_name = attribute_name
+        return (domain, tags)
+
 
     @property
     def send_metric(self):
@@ -170,14 +177,19 @@ class JmxCheck(AgentCheck):
 
         return (host, port, user, password, jmx, instance_name)
 
-    def get_jvm_metrics(self, dump, tags=[]):
-        self.create_metrics(self.get_beans(dump, domains=["java.lang"]), JMXMetric, tags=tags)
+    def get_and_send_jvm_metrics(self, instance, dump, tags=[]):
+        self.create_metrics(instance, 
+            self.get_beans(dump, domains=["java.lang"]), JMXMetric, tags=tags)
+        
+        self.send_jmx_metrics()
+        self.clear_jmx_metrics()
 
 
-    def create_metrics(self, beans, metric_class, tags={}):
+
+    def create_metrics(self, instance, beans, metric_class, tags={}):
         def create_metric(val):
             if type(val) == type(1) or type(val) == type(1.1):
-                metric = metric_class(bean_name, attr, val, tags=tags)
+                metric = metric_class(instance, bean_name, attr, val, tags=tags)
                 if metric.send_metric:
                     self.jmx_metrics.append(metric)
                     
@@ -193,6 +205,7 @@ class JmxCheck(AgentCheck):
                     create_metric(val)
                 except ValueError:
                     pass
+
 
 
         for bean_name in beans.keys():
@@ -236,4 +249,59 @@ class JmxCheck(AgentCheck):
             return dump
         else:
             return dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
+
+    @staticmethod
+    def _load_old_config(agentConfig, config_key):
+        connections = []
+        users = []
+        passwords = []
+        # We load the configuration according to the previous config schema
+        server = agentConfig.get("%s_jmx_server" % config_key, None)
+        user = agentConfig.get("%s_jmx_user" % config_key, None)
+        passw = agentConfig.get("%s_jmx_pass" % config_key, None)
+
+        if server is not None:
+            connections.append(server)
+            users.append(user)
+            passwords.append(passw)
+
+        # We load the configuration according to the current schema
+        def load_conf(index=1):
+            instance = agentConfig.get("%s_jmx_instance_%s" % (config_key, index), None)
+            if instance:
+                if '@' in instance:
+                    instance = instance.split('@')
+                    auth = "@".join(instance[0:-1]).split(':')
+                    users.append(auth[0])
+                    passwords.append(auth[1])
+                    connections.append(instance[-1])
+                else:
+                    users.append(None)
+                    passwords.append(None)
+                    connections.append(instance)
+                load_conf(index+1)
+
+        load_conf()
+        return (connections, users, passwords)
+
+    @staticmethod
+    def parse_agent_config(agentConfig, config_key):
+
+        (connections, users, passwords) = JmxCheck._load_old_config(agentConfig, config_key)
+        config = {}
+        instances = []
+        for i in range(len(connections)):
+            instance = {
+                'host':connections[i][0],
+                'port':connections[i][1],
+                'user':users[i],
+                'password':passwords[i]
+            }
+            if len(connections[i]) == 3:
+                instance['name'] = connections[i][2]
+            instances.append(instance)
+        config['instances'] = instances
+        return config
+
+
 

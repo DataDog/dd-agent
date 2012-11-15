@@ -482,7 +482,10 @@ def load_check_directory(agentConfig):
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
-            check_config = check_class.parse_agent_config(agentConfig)
+            try:
+                check_config = check_class.parse_agent_config(agentConfig)
+            except Exception, e:
+                continue
             if not check_config:
                 continue
         else:

@@ -55,9 +55,9 @@ class Cassandra(JmxCheck):
             tags['instance'] = instance_name
         dump = jmx.dump()
 
-        self.get_jvm_metrics(dump, tags)
+        self.get_and_send_jvm_metrics(instance, dump, tags)
 
-        self.create_metrics(self.get_beans(dump, Cassandra.CASSANDRA_DOMAINS), CassandraMetric, tags=tags)
+        self.create_metrics(instance, self.get_beans(dump, Cassandra.CASSANDRA_DOMAINS), CassandraMetric, tags=tags)
 
         metrics = []
         for m in self.get_jmx_metrics():
