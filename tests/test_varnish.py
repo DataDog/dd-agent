@@ -3,8 +3,6 @@ import os
 import time
 import unittest
 
-from checks import UnknownValue
-from checks.varnish import Varnish
 from tests.common import get_check
 
 

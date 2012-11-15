@@ -3,8 +3,6 @@ import logging
 logger = logging.getLogger(__file__)
 
 from tests.common import get_check
-from checks.web import *
-
 
 class TestWeb(unittest.TestCase):
 
