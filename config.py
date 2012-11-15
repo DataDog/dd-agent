@@ -87,8 +87,13 @@ def _windows_confd_path():
     raise PathNotFound(path)
 
 def _windows_checksd_path():
-    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
-        'checks.d')
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        path = os.path.join(prog_path, 'Datadog', 'Datadog Agent', 'checks.d')
+    else:
+        cur_path = os.path.dirname(__file__)
+        path = os.path.join(cur_path, 'checks.d')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
