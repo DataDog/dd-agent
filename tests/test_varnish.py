@@ -1881,5 +1881,14 @@ instances:
         except:
             pass
 
+    def testOldConfig(self):
+        v, instances = get_check('varnish', self.config)
+        config = {
+            'varnishstat': '/usr/bin/varnishstat'
+        }
+
+        instances = v.parse_agent_config(config)['instances']
+        assert instances[0]['varnishstat'] == config['varnishstat']
+
 if __name__ == '__main__':
     unittest.main()
