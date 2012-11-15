@@ -52,10 +52,11 @@ instances:
         nginx, instances = get_check('nginx', self.nginx_config)
         nginx.check(instances[0])
         r = nginx.get_metrics()
+        self.assertEquals(len([t for t in r if t[0] == "nginx.net.connections"]), 1, r)
 
-        self.assertEquals(len([t for t in r if t[0] == "nginx.net.connections"]), 3, r)
-        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:second"]]), 5, r)
-
+        nginx.check(instances[1])
+        r = nginx.get_metrics()
+        self.assertEquals(r[0][3].get('tags'), ['first_one'])
 
     def testNginxOldConfig(self):
         nginx, _ = get_check('nginx', self.nginx_config)
