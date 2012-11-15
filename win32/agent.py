@@ -76,14 +76,14 @@ class DDAgent(threading.Thread):
         self.running = True
 
     def run(self):
-        emitters = self.get_emitters();
+        emitters = self.get_emitters()
+        systemStats = get_system_stats()
         chk = checks(self.config, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(self.config)
 
         # Main agent loop will run until interrupted
-        systemStats = get_system_stats()
         chk.doChecks(True, checksd)
 
         while self.running:
