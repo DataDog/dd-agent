@@ -426,7 +426,7 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
+            log.error("No checks.d folder found in '%s'.\n" % e.message)
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
