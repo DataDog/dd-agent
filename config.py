@@ -90,7 +90,7 @@ def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        path = os.path.join(prog_path, 'Datadog', 'Datadog Agent', 'checks.d')
+        path = os.path.join(prog_path, 'checks.d')
     else:
         cur_path = os.path.dirname(__file__)
         path = os.path.join(cur_path, 'checks.d')
