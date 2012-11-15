@@ -40,7 +40,7 @@ class Gauge(Metric):
 
     def flush(self, timestamp):
         if self.value is not None:
-            return [self.formatter(
+            res = [self.formatter(
                 metric=self.name,
                 timestamp=timestamp,
                 value=self.value,
@@ -49,6 +49,7 @@ class Gauge(Metric):
                 device_name=self.device_name
             )]
             self.value = None
+            return res
 
         return []
 
