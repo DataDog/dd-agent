@@ -387,10 +387,10 @@ def set_win32_cert_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        path = os.path.join(prog_path, 'ca-certificates.crt')
+        crt_path = os.path.join(prog_path, 'ca-certificates.crt')
     else:
         cur_path = os.path.dirname(__file__)
-        path = os.path.join(cur_path, 'ca-certificates.crt')
+        crt_path = os.path.join(cur_path, 'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
