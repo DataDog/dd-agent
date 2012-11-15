@@ -7,7 +7,6 @@ from tests.common import get_check
 class TestWeb(unittest.TestCase):
 
     def setUp(self):
-        self.nginx = Nginx(logger)
         self.apache_config = """
 init_config:
 
