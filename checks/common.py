@@ -61,6 +61,7 @@ class Collector(object):
         self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
+        self.run_count = 0
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -162,12 +163,14 @@ class Collector(object):
 
         return False
 
-    def run(self, firstRun=False, checksd=None):
+    def run(self, checksd=None):
         """
         Collect data from each check and submit their data.
         """
+        self.run_count += 1
+        self.checksLogger.info("Running collector loop %s" % self.run_count)
+        is_first_run = self.run_count <= 0
 
-        self.checksLogger.info("Starting checks")
         checksData = {
             'collection_timestamp': time.time(),
             'os' : self.os,
@@ -294,7 +297,7 @@ class Collector(object):
                 events[event_check.key] = event_data
        
         # Include system stats on first postback
-        if firstRun:
+        if is_first_run:
             checksData['systemStats'] = self.agentConfig.get('systemStats', {})
             # Also post an event in the newsfeed
             events['System'] = [{'api_key': self.agentConfig['api_key'],
@@ -304,7 +307,7 @@ class Collector(object):
                                  'msg_text': 'Version %s' % get_version()
                                  }]
 
-        if firstRun or self.should_send_metadata():
+        if is_first_run or self.should_send_metadata():
             # Collect metadata
             checksData['meta'] = self.get_metadata()
             # Add static tags from the configuration file
