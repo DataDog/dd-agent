@@ -39,8 +39,12 @@ from daemon import Daemon
 from emitter import http_emitter
 from util import Watchdog, PidFile
 
-# Override the generic daemon class to run our checks
-class agent(Daemon):
+
+class Agent(Daemon):
+    """
+    The agent class is a daemont that runs the agent in a background process.
+    """
+
     def run(self, agentConfig=None, run_forever=True):
         """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
@@ -134,7 +138,7 @@ if __name__ == '__main__':
         if options.clean:
             pid_file.clean()
 
-        daemon = agent(pid_file.get_path())
+        daemon = Agent(pid_file.get_path())
 
         if 'start' == command:
             logging.info('Start daemon')
