@@ -5,3 +5,4 @@ redis
 pexpect
 python-memcached
 pyyaml
+simplejson
