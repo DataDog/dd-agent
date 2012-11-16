@@ -288,10 +288,8 @@ class Collector(object):
                 except Exception:
                     self.checksLogger.exception("Check %s failed" % check_cls.name)
 
-        # Store the metrics in the payload
+        # Store the metrics and events in the payload
         payload['metrics'] = metrics
-
-        # Store the events in the payload
         payload['events'] = events
 
         # Send back data
