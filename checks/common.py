@@ -366,7 +366,6 @@ class checks(object):
 
         # Store the metrics in the payload
         checksData['metrics'] = metrics
-        self.checksLogger.info(metrics)
 
         # Store the events in the payload
         checksData['events'] = events
