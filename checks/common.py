@@ -357,7 +357,6 @@ class Collector(object):
         checksData['events'] = events
 
         # Send back data
-        self.checksLogger.debug("checksData: %s" % checksData)
         for emitter in self.emitters:
             emitter(checksData, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")
