@@ -16,30 +16,22 @@ from checks import gethostname
 
 import checks.system.unix as u
 import checks.system.win32 as w32
-
 from checks.nagios import Nagios
 from checks.build import Hudson
-
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
 from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
-
 from checks.queue import RabbitMq
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.varnish import Varnish
-
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
-
 from checks.wmi_check import WMICheck
-
 from checks.ec2 import EC2
-
 from resources.processes import Processes as ResProcesses
 
 
@@ -61,6 +53,7 @@ class Collector(object):
         self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
+        self.run_count = 0
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -128,57 +121,17 @@ class Collector(object):
             ResProcesses(self.checksLogger,self.agentConfig)
         ]
     
-    def get_metadata(self):
-        metadata = self._ec2.get_metadata()
-        if metadata.get('hostname'):
-            metadata['ec2-hostname'] = metadata.get('hostname')
-
-        # if hostname is set in the configuration file
-        # use that instead of gethostname
-        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
-        # will cause both to be aliased (see #157)
-        if self.agentConfig.get('hostname'):
-            metadata['agent-hostname'] = self.agentConfig.get('hostname')
-            metadata['hostname'] = metadata['agent-hostname']
-        else:
-            try:
-                metadata["hostname"] = socket.gethostname()
-            except:
-                pass
-        try:
-            metadata["fqdn"] = socket.getfqdn()
-        except:
-            pass
-
-        return metadata
-
-    def should_send_metadata(self):
-        # If the interval has passed, send the metadata again
-        now = time.time()
-        if now - self.metadata_start >= self.metadata_interval:
-            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
-            self.metadata_start = now
-            return True
-
-        return False
-
-    def run(self, firstRun=False, checksd=None):
-        """Actual work
+    def run(self, checksd=None):
         """
-        self.checksLogger.info("Starting checks")
-        checksData = {
-            'collection_timestamp': time.time(),
-            'os' : self.os,
-            'python': sys.version,
-            'agentVersion' : self.agentConfig['version'],             
-            'apiKey': self.agentConfig['api_key'],
-            'events': {},
-            'resources': {},
-            'internalHostname' : gethostname(self.agentConfig),
-            'uuid' : get_uuid(),
-        }
-        metrics = []
-        events = {}
+        Collect data from each check and submit their data.
+        """
+        self.run_count += 1
+        self.checksLogger.info("Running collector loop %s" % self.run_count)
+
+        payload = self._build_payload()
+
+        metrics = payload['metrics']
+        events = payload['events']
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
@@ -195,14 +148,14 @@ class Collector(object):
 
             diskUsage = sys_checks['disk'].check(self.agentConfig)
             if diskUsage and len(diskUsage) == 2:
-                checksData["diskUsage"] = diskUsage[0]
-                checksData["inodes"] = diskUsage[1]
+                payload["diskUsage"] = diskUsage[0]
+                payload["inodes"] = diskUsage[1]
 
             load = sys_checks['load'].check(self.agentConfig)
-            checksData.update(load)
+            payload.update(load)
                 
             memory = sys_checks['memory'].check(self.agentConfig)
-            checksData.update({
+            payload.update({
                 'memPhysUsed' : memory.get('physUsed'), 
                 'memPhysFree' : memory.get('physFree'), 
                 'memPhysTotal' : memory.get('physTotal'), 
@@ -217,17 +170,17 @@ class Collector(object):
 
             ioStats = sys_checks['io'].check(self.checksLogger, self.agentConfig)
             if ioStats:
-                checksData['ioStats'] = ioStats
+                payload['ioStats'] = ioStats
 
             processes = sys_checks['processes'].check(self.checksLogger, self.agentConfig)
-            checksData.update({'processes': processes})
+            payload.update({'processes': processes})
 
             networkTraffic = sys_checks['network'].check(self.agentConfig)
-            checksData.update({'networkTraffic': networkTraffic})
+            payload.update({'networkTraffic': networkTraffic})
 
             cpuStats = sys_checks['cpu'].check(self.agentConfig)
             if cpuStats:
-                checksData.update(cpuStats)
+                payload.update(cpuStats)
 
         # Run old-style checks
         apacheStatus = self._apache.check(self.agentConfig)
@@ -241,73 +194,55 @@ class Collector(object):
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
         if gangliaData is not False and gangliaData is not None:
-            checksData['ganglia'] = gangliaData
+            payload['ganglia'] = gangliaData
            
         if cassandraData is not False and cassandraData is not None:
-            checksData['cassandra'] = cassandraData
+            payload['cassandra'] = cassandraData
  
         # Apache Status
         if apacheStatus: 
-            checksData.update(apacheStatus)
+            payload.update(apacheStatus)
             
         # MySQL Status
         if mysqlStatus:
-            checksData.update(mysqlStatus)
+            payload.update(mysqlStatus)
        
         # RabbitMQ
         if rabbitmq:
-            checksData['rabbitMQ'] = rabbitmq
+            payload['rabbitMQ'] = rabbitmq
         
         # MongoDB
         if mongodb:
             if mongodb.has_key('events'):
                 events['Mongo'] = mongodb['events']['Mongo']
                 del mongodb['events']
-            checksData['mongoDB'] = mongodb
+            payload['mongoDB'] = mongodb
             
         # CouchDB
         if couchdb:
-            checksData['couchDB'] = couchdb
+            payload['couchDB'] = couchdb
         
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
             if dogstreamEvents:
-                if 'dogstream' in checksData['events']:
+                if 'dogstream' in payload['events']:
                     events['dogstream'].extend(dogstreamEvents)
                 else:
                     events['dogstream'] = dogstreamEvents
                 del dogstreamData['dogstreamEvents']
 
-            checksData.update(dogstreamData)
+            payload.update(dogstreamData)
 
         # metrics about the forwarder
         if ddforwarderData:
-            checksData['datadog'] = ddforwarderData
+            payload['datadog'] = ddforwarderData
  
         # Process the event checks. 
         for event_check in self._event_checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
                 events[event_check.key] = event_data
-       
-        # Include system stats on first postback
-        if firstRun:
-            checksData['systemStats'] = self.agentConfig.get('systemStats', {})
-            # Also post an event in the newsfeed
-            events['System'] = [{'api_key': self.agentConfig['api_key'],
-                                 'host': checksData['internalHostname'],
-                                 'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
-                                 'event_type':'Agent Startup',
-                                 'msg_text': 'Version %s' % get_version()
-                                 }]
-
-        if firstRun or self.should_send_metadata():
-            # Collect metadata
-            checksData['meta'] = self.get_metadata()
-            # Add static tags from the configuration file
-            if self.agentConfig['tags'] is not None:
-                checksData['tags'] = self.agentConfig['tags']
 
         # Resources checks
         if self.os != 'windows':
@@ -322,12 +257,12 @@ class Collector(object):
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format
-                    checksData['resources'][resources_check.RESOURCE_KEY] = res_value
+                    payload['resources'][resources_check.RESOURCE_KEY] = res_value
      
             if has_resource:
-                checksData['resources']['meta'] = {
+                payload['resources']['meta'] = {
                             'api_key': self.agentConfig['api_key'],
-                            'host': checksData['internalHostname'],
+                            'host': payload['internalHostname'],
                         }
 
         # newer-style checks (not checks.d style)
@@ -354,13 +289,89 @@ class Collector(object):
                     self.checksLogger.exception("Check %s failed" % check_cls.name)
 
         # Store the metrics in the payload
-        checksData['metrics'] = metrics
+        payload['metrics'] = metrics
 
         # Store the events in the payload
-        checksData['events'] = events
+        payload['events'] = events
 
         # Send back data
-        self.checksLogger.debug("checksData: %s" % checksData)
         for emitter in self.emitters:
-            emitter(checksData, self.checksLogger, self.agentConfig)
+            emitter(payload, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")
+
+    def _is_first_run(self):
+        return self.run_count <= 1
+
+    def _build_payload(self):
+        """
+        Return an dictionary that contains all of the generic payload data.
+        """
+
+        payload = {
+            'collection_timestamp': time.time(),
+            'os' : self.os,
+            'python': sys.version,
+            'agentVersion' : self.agentConfig['version'],
+            'apiKey': self.agentConfig['api_key'],
+            'events': {},
+            'metrics': [],
+            'resources': {},
+            'internalHostname' : gethostname(self.agentConfig),
+            'uuid' : get_uuid(),
+        }
+
+        # Include system stats on first postback
+        if self._is_first_run():
+            payload['systemStats'] = self.agentConfig.get('systemStats', {})
+            # Also post an event in the newsfeed
+            payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
+                                 'host': payload['internalHostname'],
+                                 'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
+                                 'event_type':'Agent Startup',
+                                 'msg_text': 'Version %s' % get_version()
+                                 }]
+
+        # Periodically send the host metadata.
+        if self._is_first_run() or self._should_send_metadata():
+            payload['meta'] = self._get_metadata()
+            # Add static tags from the configuration file
+            if self.agentConfig['tags'] is not None:
+                payload['tags'] = self.agentConfig['tags']
+
+        return payload
+
+    def _get_metadata(self):
+        metadata = self._ec2.get_metadata()
+        if metadata.get('hostname'):
+            metadata['ec2-hostname'] = metadata.get('hostname')
+
+        # if hostname is set in the configuration file
+        # use that instead of gethostname
+        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
+        # will cause both to be aliased (see #157)
+        if self.agentConfig.get('hostname'):
+            metadata['agent-hostname'] = self.agentConfig.get('hostname')
+            metadata['hostname'] = metadata['agent-hostname']
+        else:
+            try:
+                metadata["hostname"] = socket.gethostname()
+            except:
+                pass
+        try:
+            metadata["fqdn"] = socket.getfqdn()
+        except:
+            pass
+
+        return metadata
+
+    def _should_send_metadata(self):
+        # If the interval has passed, send the metadata again
+        now = time.time()
+        if now - self.metadata_start >= self.metadata_interval:
+            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
+            self.metadata_start = now
+            return True
+
+        return False
+
+
