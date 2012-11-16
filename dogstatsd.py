@@ -179,7 +179,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     logger.debug("Configuration dogstatsd")
 
     port      = c['dogstatsd_port']
-    interval  = c['dogstatsd_interval']
+    interval  = int(c['dogstatsd_interval'])
     normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
 
