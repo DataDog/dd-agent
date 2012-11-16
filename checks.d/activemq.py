@@ -86,6 +86,17 @@ class ActiveMQMetric(JMXMetric):
     def type(self):
         return self.get_params()[1]
 
+    @property
+    def device(self):
+        type_tag = self.tags.get('Type')
+        if type_tag == "Broker":
+            return self.tags.get('BrokerName')
+
+        if type_tag == "Queue":
+            return "%s:%s" % (self.tags.get('BrokerName'), self.tags.get('Destination'))
+
+        return None
+
 
 class ActiveMQ(JmxCheck):
 
@@ -99,7 +110,7 @@ class ActiveMQ(JmxCheck):
         dump = jmx.dump()
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
-        self.create_metrics(self.get_beans(instance, dump, ActiveMQ.ACTIVEMQ_DOMAINS), ActiveMQMetric, tags=tags)
+        self.create_metrics(instance, self.get_beans(dump, ActiveMQ.ACTIVEMQ_DOMAINS), ActiveMQMetric, tags=tags)
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 

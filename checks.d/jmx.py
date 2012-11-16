@@ -1,6 +1,5 @@
 from checks.jmx_connector import JmxCheck, JMXMetric
 import re
-import pdb
 metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
 
 class JMXCustomMetric(JMXMetric):
@@ -25,7 +24,6 @@ class JMXCustomMetric(JMXMetric):
 
     def get_params(self):
         domains = self.instance.get('domains', None)
-        #pdb.set_trace()
         if domains is not None and type(domains) == type([]) and len(domains) > 0:
             for d in domains:
                 if self.domain != d.get('name', None):
@@ -56,7 +54,7 @@ class JMXCustomMetric(JMXMetric):
                             if self.attribute_name != a.get('name', None):
                                 continue
 
-                            return (a.get('type', "default"), a.get('metric_name', "default")) 
+                            return (a.get('type', "default"), a.get('alias', "default")) 
 
 
 

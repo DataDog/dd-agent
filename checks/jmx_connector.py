@@ -20,7 +20,7 @@ class JmxConnector:
         return self._jmx is not None and self._jmx.isalive()
 
 
-    def connect(self, connection, user=None, passwd=None, timeout=10):
+    def connect(self, connection, user=None, passwd=None, timeout=20):
         # third party 
         import pexpect
         if self._jmx is not None:
@@ -67,7 +67,7 @@ class JMXMetric:
 
     
     def __init__(self, instance, bean_name, attribute_name, attribute_value, 
-        tags={}, device = None):
+        tags={}):
 
         (self.domain, self.tags) = self.get_bean_attr(bean_name) 
         self.tags.update(tags)
@@ -75,7 +75,6 @@ class JMXMetric:
         self.attribute_name = attribute_name
         self.instance = instance
         self.bean_name = bean_name
-        self.device = None
 
     def get_bean_attr(self, bean_name):
         split = bean_name.split(":")
@@ -118,6 +117,10 @@ class JMXMetric:
             return params[self.bean_name][1]
         else:
             return params[1]
+
+    @property
+    def device(self):
+        return None
 
 
 
@@ -225,12 +228,13 @@ class JmxCheck(AgentCheck):
 
     def send_jmx_metrics(self):
         for metric in self.jmx_metrics:
+            device_name = metric.device or self.name
             if metric.type == "gauge":
                 self.gauge(metric.metric_name, metric.value, metric.tags_list, 
-                    device_name=metric.device)
+                    device_name=device_name)
             else:
                 self.rate(metric.metric_name, metric.value, metric.tags_list, 
-                    device_name=metric.device)
+                    device_name=device_name)
 
     def get_beans(self, dump, domains=None, approx=False):
 

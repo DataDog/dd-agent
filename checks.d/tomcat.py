@@ -93,6 +93,29 @@ class TomcatMetric(JMXMetric):
 
         return None
 
+    @property
+    def device(self):
+        type_tag = self.tags.get('type')
+
+        if type_tag == "ThreadPool" or type_tag == "GlobalRequestProcessor":
+            return self.tags.get('name')
+
+        if type_tag == "Cache":
+            device = "%s:%s" % (self.tags.get('host'), self.tags.get('context'))
+            return device
+
+        if type_tag == "JspMonitor":
+            device = "%s:%s:%s" % (self.tags.get('J2EEApplication'),
+                self.tags.get('J2EEServer'), self.tags.get('WebModule'))
+            return device
+
+        if self.tags.get('j2eeType') == "Servlet":
+            device = "%s:%s:%s:%s" % (self.tags.get('J2EEApplication'),
+                self.tags.get('J2EEServer'), self.tags.get('WebModule'),
+                    self.tags.get('name'))
+
+        return None
+
 
     @property
     def send_metric(self):

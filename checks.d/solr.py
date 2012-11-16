@@ -91,6 +91,14 @@ class SolrMetric(JMXMetric):
     def type(self):
         return self.get_params()[1]
 
+    @property
+    def device(self):
+        type_tag = self.tags.get('type')
+        if type_tag == "searcher":
+            return None
+            
+        return self.tags.get('type')
+
 
 class Solr(JmxCheck):
 

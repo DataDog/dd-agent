@@ -3,36 +3,32 @@ init_config:
 instances:
 #    -   host: localhost
 #        port: 7199
-#        user: usernames
-#        password: password
 #        name: jmx_instance
-
-
-init_config:
-
-instances:
-    -   host: localhost
-        port: 7199
-        name: jmx_instance
-        user: username
-        password: password
-        domains:
-            - name: first_domain
-              beans:
-                - name: first_bean
-                  attributes:
-                    - name: attribute1
-                      type: counter
-                    - name: attribute2
-                      type: gauge
-                - name: second_bean
-                  attributes: all             
-                  # In this case attributes will be considered as gauges
-
-            - name: second_domain
-              beans: all
-
-    -   host: localhost
-        port: 7200
-        name: second_jmx_instance
-        domains: all
+#        user: username
+#        password: password
+#        domains:
+#            - name: first_domain
+#              beans:
+#                - name: first_bean
+#                  attributes:
+#                    - name: attribute1
+#                      type: counter
+#                      alias : jmx.my_metric_name
+#                    - name: attribute2
+#                      type: gauge
+#                - name: second_bean
+#                  attributes: all             
+#                 # In this case attributes will be considered as gauges
+#
+#            - name: second_domain
+#              beans: all
+#
+#    -   host: localhost
+#        port: 7200
+#        name: second_jmx_instance
+#        domains: all
+#
+#    -   host: localhost
+#        port: 7201
+#        #In this case the check will only fetch JVM metrics
+#
