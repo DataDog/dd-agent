@@ -121,40 +121,6 @@ class Collector(object):
             ResProcesses(self.checksLogger,self.agentConfig)
         ]
     
-    def get_metadata(self):
-        metadata = self._ec2.get_metadata()
-        if metadata.get('hostname'):
-            metadata['ec2-hostname'] = metadata.get('hostname')
-
-        # if hostname is set in the configuration file
-        # use that instead of gethostname
-        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
-        # will cause both to be aliased (see #157)
-        if self.agentConfig.get('hostname'):
-            metadata['agent-hostname'] = self.agentConfig.get('hostname')
-            metadata['hostname'] = metadata['agent-hostname']
-        else:
-            try:
-                metadata["hostname"] = socket.gethostname()
-            except:
-                pass
-        try:
-            metadata["fqdn"] = socket.getfqdn()
-        except:
-            pass
-
-        return metadata
-
-    def should_send_metadata(self):
-        # If the interval has passed, send the metadata again
-        now = time.time()
-        if now - self.metadata_start >= self.metadata_interval:
-            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
-            self.metadata_start = now
-            return True
-
-        return False
-
     def run(self, checksd=None):
         """
         Collect data from each check and submit their data.
@@ -299,9 +265,9 @@ class Collector(object):
                                  'msg_text': 'Version %s' % get_version()
                                  }]
 
-        if is_first_run or self.should_send_metadata():
+        if is_first_run or self._should_send_metadata():
             # Collect metadata
-            checksData['meta'] = self.get_metadata()
+            checksData['meta'] = self._get_metadata()
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 checksData['tags'] = self.agentConfig['tags']
@@ -360,3 +326,39 @@ class Collector(object):
         for emitter in self.emitters:
             emitter(checksData, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")
+
+    def _get_metadata(self):
+        metadata = self._ec2.get_metadata()
+        if metadata.get('hostname'):
+            metadata['ec2-hostname'] = metadata.get('hostname')
+
+        # if hostname is set in the configuration file
+        # use that instead of gethostname
+        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
+        # will cause both to be aliased (see #157)
+        if self.agentConfig.get('hostname'):
+            metadata['agent-hostname'] = self.agentConfig.get('hostname')
+            metadata['hostname'] = metadata['agent-hostname']
+        else:
+            try:
+                metadata["hostname"] = socket.gethostname()
+            except:
+                pass
+        try:
+            metadata["fqdn"] = socket.getfqdn()
+        except:
+            pass
+
+        return metadata
+
+    def _should_send_metadata(self):
+        # If the interval has passed, send the metadata again
+        now = time.time()
+        if now - self.metadata_start >= self.metadata_interval:
+            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
+            self.metadata_start = now
+            return True
+
+        return False
+
+
