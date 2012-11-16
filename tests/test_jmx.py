@@ -100,7 +100,7 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
         self.assertEquals(len([t for t in metrics if t[0] == "my.metric.buf"]), 1, metrics)
         self.assertEquals(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool']), 10, metrics)
-        self.assertEquals(len([t for t in metrics if "jmx.java.lang" in t[0]]), 61, metrics)
+        self.assertTrue(len([t for t in metrics if "jmx.java.lang" in t[0]]) > 50)
 
 
 
