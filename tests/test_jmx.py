@@ -1,6 +1,5 @@
 import unittest
 from checks.jmx_connector import JmxCheck
-from checks.jmx import Tomcat, Solr, Jvm
 import logging
 import subprocess
 import time
@@ -187,7 +186,6 @@ class JMXTestCase(unittest.TestCase):
 
     
     def testSolrMetrics(self):
-        metrics_check = Solr(logging.getLogger())
         agentConfig = {
             'solr_jmx_instance_1': 'localhost:3000:first_instance',
             'solr_jmx_instance_2': 'dummyurl:4444:fake_url',
