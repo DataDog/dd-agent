@@ -16,30 +16,22 @@ from checks import gethostname
 
 import checks.system.unix as u
 import checks.system.win32 as w32
-
 from checks.nagios import Nagios
 from checks.build import Hudson
-
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
 from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
-
 from checks.queue import RabbitMq
 from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.varnish import Varnish
-
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
-
 from checks.wmi_check import WMICheck
-
 from checks.ec2 import EC2
-
 from resources.processes import Processes as ResProcesses
 
 
