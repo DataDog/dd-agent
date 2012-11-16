@@ -79,6 +79,9 @@ class TomcatMetric(JMXMetric):
     }
 
     def get_params(self):
+        if hasattr(self, 'params'):
+            return self.params
+
         if TomcatMetric.WHITELIST.has_key(self.attribute_name):
             for dic in TomcatMetric.WHITELIST[self.attribute_name]:
                 invalid = False
@@ -89,8 +92,10 @@ class TomcatMetric(JMXMetric):
                         invalid = True
                         break
                 if not invalid:
-                    return dic['params']
+                    self.params = dic['params']
+                    return self.params
 
+        self.params = None
         return None
 
     @property

@@ -64,6 +64,9 @@ class SolrMetric(JMXMetric):
  
 
     def get_params(self):
+        if hasattr(self, params):
+            return self.params
+
         if SolrMetric.WHITELIST.has_key(self.attribute_name):
             for dic in SolrMetric.WHITELIST[self.attribute_name]:
                 invalid = False
@@ -74,8 +77,10 @@ class SolrMetric(JMXMetric):
                         invalid = True
                         break
                 if not invalid:
+                    self.params = dic['params']
                     return dic['params']
 
+        self.params = None
         return None
 
 
