@@ -163,8 +163,10 @@ class Collector(object):
         return False
 
     def run(self, firstRun=False, checksd=None):
-        """Actual work
         """
+        Collect data from each check and submit their data.
+        """
+
         self.checksLogger.info("Starting checks")
         checksData = {
             'collection_timestamp': time.time(),
