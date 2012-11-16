@@ -173,7 +173,9 @@ class checks(object):
             'agentVersion' : self.agentConfig['version'],             
             'apiKey': self.agentConfig['api_key'],
             'events': {},
-            'resources': {}
+            'resources': {},
+            'internalHostname' : gethostname(self.agentConfig),
+            'uuid' : get_uuid(),
         }
         metrics = []
         events = {}
@@ -283,11 +285,6 @@ class checks(object):
         if ddforwarderData:
             checksData['datadog'] = ddforwarderData
  
-        # Include server indentifiers
-        checksData['internalHostname'] = gethostname(self.agentConfig)
-        checksData['uuid'] = get_uuid()
-        self.checksLogger.debug('doChecks: added uuid %s' % checksData['uuid'])
-        
         # Process the event checks. 
         for event_check in self._event_checks:
             event_data = event_check.check(self.checksLogger, self.agentConfig)
