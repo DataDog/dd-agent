@@ -2,6 +2,18 @@ from checks.jmx_connector import JmxCheck, JMXMetric
 
 
 class TomcatMetric(JMXMetric):
+    """
+    Format of the whitelist:
+    {
+    attribute name : [{
+        bean attribute to filter: value of the attribute
+        'params': (metric_name, metric type (gauge or counter))
+    }]
+
+    }
+    """
+    
+    
 
     WHITELIST = {
     "maxThreads" : [{
