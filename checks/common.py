@@ -10,7 +10,7 @@ import socket
 
 import modules
 
-from util import getOS, get_uuid, md5
+from util import getOS, get_uuid, md5, Timer
 from config import get_version
 from checks import gethostname
 
@@ -125,8 +125,9 @@ class Collector(object):
         """
         Collect data from each check and submit their data.
         """
+        timer = Timer()
         self.run_count += 1
-        self.checksLogger.info("Running collector loop %s" % self.run_count)
+        self.checksLogger.info("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
 
@@ -288,14 +289,18 @@ class Collector(object):
                 except Exception:
                     self.checksLogger.exception("Check %s failed" % check_cls.name)
 
-        # Store the metrics and events in the payload
+        # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
+        collect_duration = timer.step()
 
-        # Send back data
+        # Pass the payload along to the emitters.
         for emitter in self.emitters:
             emitter(payload, self.checksLogger, self.agentConfig)
-        self.checksLogger.info("Checks done")
+        emit_duration = timer.step()
+
+        self.checksLogger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+                    (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _is_first_run(self):
         return self.run_count <= 1
