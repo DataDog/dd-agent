@@ -8,14 +8,9 @@ import time
 import datetime
 import socket
 
-try:
-    from hashlib import md5
-except ImportError: # Python < 2.5
-    from md5 import new as md5
-
 import modules
 
-from util import getOS, get_uuid
+from util import getOS, get_uuid, md5
 from config import get_version
 from checks import gethostname
 
