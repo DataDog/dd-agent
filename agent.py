@@ -83,15 +83,12 @@ class Agent(Daemon):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
 
-        # Run checks once, to get once-in-a-run data
-        collector.run(True, checksd)
-
         # Main loop
         while run_forever:
+            collector.run(checksd=checksd)
             if watchdog is not None:
                 watchdog.reset()
             time.sleep(check_freq)
-            collector.run(checksd=checksd)
 
 def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.

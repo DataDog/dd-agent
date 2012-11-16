@@ -84,8 +84,6 @@ class DDAgent(threading.Thread):
         checksd = load_check_directory(self.config)
 
         # Main agent loop will run until interrupted
-        collector.run(True, checksd)
-
         while self.running:
             collector.run(checksd=checksd)
             time.sleep(self.config['check_freq'])
