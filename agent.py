@@ -42,7 +42,7 @@ from util import Watchdog, PidFile
 
 class Agent(Daemon):
     """
-    The agent class is a daemont that runs the agent in a background process.
+    The agent class is a daemon that runs the agent in a background process.
     """
 
     def run(self, agentConfig=None, run_forever=True):
