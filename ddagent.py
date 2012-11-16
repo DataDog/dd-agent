@@ -26,10 +26,9 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, getOS
+from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
 from config import get_config
-from checks.common import getUuid
 from checks import gethostname
 from transaction import Transaction, TransactionManager
 
@@ -229,7 +228,7 @@ class Application(tornado.web.Application):
     def _postMetrics(self):
 
         if len(self._metrics) > 0:
-            self._metrics['uuid'] = getUuid()
+            self._metrics['uuid'] = get_uuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics, {})
