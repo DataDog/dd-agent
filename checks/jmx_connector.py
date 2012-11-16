@@ -1,6 +1,7 @@
 import simplejson as json
 import os
 import re
+import sys
 
 from checks import AgentCheck
 
@@ -19,26 +20,43 @@ class JmxConnector:
     def connected(self):
         return self._jmx is not None and self._jmx.isalive()
 
+    def terminate(self):
+        self._jmx.sendline("bye")
+        self._jmx.terminate(force=True)
+
+
 
     def connect(self, connection, user=None, passwd=None, timeout=20):
         # third party 
         import pexpect
-        if self._jmx is not None:
-            if self._jmx.isalive():
-                self._wait_prompt()
-                self._jmx.sendline("close")
-                self._wait_prompt()
+        from pexpect import ExceptionPexpect
 
-        if self._jmx is None or not self._jmx.isalive():
-            # Figure out which path to the jar, __file__ is jmx.pyc
-            pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
-            cmd = "java -jar %s -l %s" % (pth, connection)
-            if user is not None and passwd is not None:
-                cmd += " -u %s -p %s" % (user, passwd)
-            self.log.debug("PATH=%s" % cmd)
-            self._jmx = pexpect.spawn(cmd, timeout = timeout)
-            self._jmx.delaybeforesend = 0
-            self._wait_prompt()
+        try:
+            if self._jmx is not None:
+                if self._jmx.isalive():
+                    self._wait_prompt()
+                    self._jmx.sendline("close")
+                    self._wait_prompt()
+
+            if self._jmx is None or not self._jmx.isalive():
+                # Figure out which path to the jar, __file__ is jmx.pyc
+                pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
+                cmd = "java -jar %s -l %s" % (pth, connection)
+                if user is not None and passwd is not None:
+                    cmd += " -u %s -p %s" % (user, passwd)
+                self.log.debug("PATH=%s" % cmd)
+                self._jmx = pexpect.spawn(cmd, timeout = timeout)
+                self._jmx.delaybeforesend = 0
+                self._wait_prompt()
+        except:
+            if self._jmx:
+                try:
+                    self._jmx.terminate(force=True)
+                except ExceptionPexpect:
+                    self.log.error("Cannot terminate process %s" % self._jmx)
+            self._jmx = None
+            self.log.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
+            raise Exception('Error while fetching JVM metrics at attdress: %s:%s' % (connection, passwd))
 
     def dump(self):
         self._jmx.sendline("dump")
@@ -154,6 +172,10 @@ class JmxCheck(AgentCheck):
         self.jmxs = {}
         self.jmx_metrics = []
 
+    def kill_jmx_connectors(self):
+        for key in self.jmxs.keys():
+            self.jmxs[key].terminate()
+
     def _load_config(self, instance):
         host = instance.get('host')
         port = instance.get('port')
@@ -228,7 +250,7 @@ class JmxCheck(AgentCheck):
 
     def send_jmx_metrics(self):
         for metric in self.jmx_metrics:
-            device_name = metric.device or self.name
+            device_name = metric.device or self.name.lower()
             if metric.type == "gauge":
                 self.gauge(metric.metric_name, metric.value, metric.tags_list, 
                     device_name=device_name)
@@ -295,14 +317,15 @@ class JmxCheck(AgentCheck):
         config = {}
         instances = []
         for i in range(len(connections)):
+            connect = connections[i].split(':')
             instance = {
-                'host':connections[i][0],
-                'port':connections[i][1],
+                'host':connect[0],
+                'port':connect[1],
                 'user':users[i],
                 'password':passwords[i]
             }
-            if len(connections[i]) == 3:
-                instance['name'] = connections[i][2]
+            if len(connect) == 3:
+                instance['name'] = connect[2]
             instances.append(instance)
         config['instances'] = instances
         return config

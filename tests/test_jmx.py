@@ -1,4 +1,5 @@
 import unittest
+from checks.jmx_connector import JmxCheck
 from checks.jmx import Tomcat, Solr, Jvm
 import logging
 import subprocess
@@ -6,7 +7,7 @@ import time
 import urllib2
 from nose.plugins.skip import SkipTest
 
-from tests.common import kill_subprocess
+from tests.common import kill_subprocess, load_check
 
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
@@ -41,13 +42,72 @@ class JMXTestCase(unittest.TestCase):
         try:
             self.process = None
             self.process = subprocess.Popen(["sh", path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+            print "TOMCAT STARTED"
         except Exception:
             logging.getLogger().exception("Cannot instantiate Tomcat")
 
+    def testCustomJMXMetric(self):
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+        config = {}
+        config['instances'] = [
+            {
+            'host': 'localhost',
+            'port': 8090,
+            'domains': [
+                {
+                'name': 'Catalina',
+                'beans': [
+                    {
+                    'name': 'Catalina:type=Connector,port=8009',
+                    'attributes': [{
+                        'name': 'bufferSize',
+                        'type': 'gauge',
+                        'alias': 'my.metric.buf'
+                        }]
+                    },{
+                    'name': 'Catalina:type=ThreadPool,name=http-8080',
+                    'attributes': 'all'}
+                    ]
+                },{
+                'name': 'java.lang',
+                'beans': 'all'}]
+            }]
+
+        tomcat6 = '/tmp/apache-tomcat-6/bin'
+        self.start_tomcat(tomcat6, 8080)
+
+        metrics_check = load_check('jmx', config, agentConfig)
+
+        for instance in config['instances']:
+            print "processing instance %s" % instance
+            try:
+                metrics_check.check(instance)
+            except Exception,e:
+                print "Check failed for instance %s" % instance
+                continue
+
+        metrics = metrics_check.get_metrics()
+        metrics_check.kill_jmx_connectors()
+
+        self.stop_tomcat(tomcat6)
+        time.sleep(2)
+
+
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+        self.assertEquals(len([t for t in metrics if t[0] == "my.metric.buf"]), 1, metrics)
+        self.assertEquals(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool']), 10, metrics)
+        self.assertEquals(len([t for t in metrics if "jmx.java.lang" in t[0]]), 61, metrics)
+
+
+
+
+
+
     def testJavaMetric(self):
-        raise SkipTest("Test is not working properly on travis")
-        metrics_check = Jvm(logging.getLogger())
         agentConfig = {
             'java_jmx_instance_1': 'localhost:8090',
             'java_jmx_instance_2': 'dummyhost:9999:dummy',
@@ -55,6 +115,10 @@ class JMXTestCase(unittest.TestCase):
             'version': '0.1',
             'api_key': 'toto'
         }
+
+        config = JmxCheck.parse_agent_config(agentConfig, 'java')
+
+        metrics_check = load_check('jmx', config, agentConfig)
 
         # Starting tomcat
         tomcat6 = '/tmp/apache-tomcat-6/bin'
@@ -65,23 +129,27 @@ class JMXTestCase(unittest.TestCase):
         first_instance = "%s.port=2222 %s.authenticate=false -Djetty.port=8380" % (jmx_prefix, jmx_prefix)
         first_instance = self.start_solr(first_instance, 8983)
 
-        r = metrics_check.check(agentConfig)
+        for instance in config['instances']:
+            print "processing instance %s" % instance
+            try:
+                metrics_check.check(instance)
+            except Exception,e:
+                print "Check failed for instance %s" % instance
+                continue
 
-        if metrics_check.jmx._jmx is not None:
-            metrics_check.jmx._jmx.terminate(force=True)
+        metrics = metrics_check.get_metrics()
+        metrics_check.kill_jmx_connectors()
 
         if first_instance:
             kill_subprocess(first_instance)
 
         self.stop_tomcat(tomcat6)
 
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[0] == "jvm.thread_count"]), 2, r)
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+        self.assertEquals(len([t for t in metrics if t[0] == "jvm.thread_count"]), 2, metrics)
 
     def testTomcatMetrics(self):
-        raise SkipTest("Test is not working properly on travis")
-        metrics_check = Tomcat(logging.getLogger())
         agentConfig = {
             'tomcat_jmx_instance_1': 'localhost:8090:first_instance',
             'tomcat_jmx_instance_2': 'dummyurl:4444:fake_url',
@@ -90,25 +158,35 @@ class JMXTestCase(unittest.TestCase):
             'api_key': 'toto'
         }
 
+        config = JmxCheck.parse_agent_config(agentConfig, 'tomcat')
+
+        metrics_check = load_check('tomcat', config, agentConfig)
+        
+
         tomcat6 = '/tmp/apache-tomcat-6/bin'
         tomcat7 = '/tmp/apache-tomcat-7/bin'
         self.start_tomcat(tomcat6, 8080)
         self.start_tomcat(tomcat7, 7070)
 
-        r = metrics_check.check(agentConfig)
+        for instance in config['instances']:
+            print "processing instance %s" % instance
+            try:
+                metrics_check.check(instance)
+            except Exception,e:
+                print "Check failed for instance %s" % instance
+                continue
 
-        if metrics_check.jmx._jmx is not None:
-            metrics_check.jmx._jmx.terminate(force=True)
+        metrics = metrics_check.get_metrics()
+        metrics_check.kill_jmx_connectors()
 
         self.stop_tomcat(tomcat6)
         self.stop_tomcat(tomcat7)
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[0] == "tomcat.threads.busy"]), 4, r)
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+        self.assertEquals(len([t for t in metrics if t[0] == "tomcat.threads.busy"]), 4, metrics)
 
     
     def testSolrMetrics(self):
-        raise SkipTest("Test is not working properly on travis")
         metrics_check = Solr(logging.getLogger())
         agentConfig = {
             'solr_jmx_instance_1': 'localhost:3000:first_instance',
@@ -129,20 +207,31 @@ class JMXTestCase(unittest.TestCase):
         
         first_instance = self.start_solr(first_instance, 8983)
         second_instance = self.start_solr(second_instance, 8984)
-        
-        
-        r = metrics_check.check(agentConfig)
 
-        if metrics_check.jmx._jmx is not None:
-            metrics_check.jmx._jmx.terminate(force=True)
+        config = JmxCheck.parse_agent_config(agentConfig, 'solr')
+
+        metrics_check = load_check('solr', config, agentConfig)
+
+        for instance in config['instances']:
+            print "processing instance %s" % instance
+            try:
+                metrics_check.check(instance)
+            except Exception,e:
+                print "Check failed for instance %s" % instance
+                continue
         
+        
+        metrics = metrics_check.get_metrics()
+        metrics_check.kill_jmx_connectors()
+
         if first_instance:
             kill_subprocess(first_instance)
         if second_instance:
             kill_subprocess(second_instance)
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([t for t in r if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, r)
+
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+        self.assertEquals(len([t for t in metrics if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, metrics)
 
 if __name__ == "__main__":
     unittest.main()
