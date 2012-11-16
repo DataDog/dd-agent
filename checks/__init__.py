@@ -455,6 +455,7 @@ class AgentCheck(object):
 
         return check, config.get('instances', [])
 
+
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
         return agentConfig["hostname"]
