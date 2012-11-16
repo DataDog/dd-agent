@@ -35,6 +35,10 @@ from checks.ec2 import EC2
 from resources.processes import Processes as ResProcesses
 
 
+logger = logging.getLogger('collector')
+checks_logger = logging.getLogger('checks')
+
+
 class Collector(object):
     """
     The collector is responsible for collecting data from each check and
@@ -49,7 +53,7 @@ class Collector(object):
         self.os = getOS()
         self.plugins = None
         self.emitters = emitters            
-        self.checksLogger = logging.getLogger('checks')
+        checks_logger = logging.getLogger('checks')
         self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
@@ -57,68 +61,68 @@ class Collector(object):
         
         # Unix System Checks
         self._unix_system_checks = {
-            'disk': u.Disk(self.checksLogger),
+            'disk': u.Disk(checks_logger),
             'io': u.IO(),
-            'load': u.Load(self.checksLogger),
-            'memory': u.Memory(self.checksLogger),
-            'network': u.Network(self.checksLogger),
+            'load': u.Load(checks_logger),
+            'memory': u.Memory(checks_logger),
+            'network': u.Network(checks_logger),
             'processes': u.Processes(),
-            'cpu': u.Cpu(self.checksLogger)
+            'cpu': u.Cpu(checks_logger)
         }
 
         # Win32 System Checks
         self._win32_system_checks = {
-            'disk': w32.Disk(self.checksLogger),
-            'io': w32.IO(self.checksLogger),
-            'proc': w32.Processes(self.checksLogger),
-            'memory': w32.Memory(self.checksLogger),
-            'network': w32.Network(self.checksLogger),
-            'cpu': w32.Cpu(self.checksLogger)
+            'disk': w32.Disk(checks_logger),
+            'io': w32.IO(checks_logger),
+            'proc': w32.Processes(checks_logger),
+            'memory': w32.Memory(checks_logger),
+            'network': w32.Network(checks_logger),
+            'cpu': w32.Cpu(checks_logger)
         }
 
         # Old-style metric checks
-        self._apache = Apache(self.checksLogger)
-        self._couchdb = CouchDb(self.checksLogger)
-        self._mongodb = MongoDb(self.checksLogger)
-        self._mysql = MySql(self.checksLogger)
+        self._apache = Apache(checks_logger)
+        self._couchdb = CouchDb(checks_logger)
+        self._mongodb = MongoDb(checks_logger)
+        self._mysql = MySql(checks_logger)
         self._rabbitmq = RabbitMq()
-        self._ganglia = Ganglia(self.checksLogger)
+        self._ganglia = Ganglia(checks_logger)
         self._cassandra = Cassandra()
-        self._dogstream = Dogstreams.init(self.checksLogger, self.agentConfig)
-        self._ddforwarder = DdForwarder(self.checksLogger, self.agentConfig)
-        self._ec2 = EC2(self.checksLogger)
+        self._dogstream = Dogstreams.init(checks_logger, self.agentConfig)
+        self._ddforwarder = DdForwarder(checks_logger, self.agentConfig)
+        self._ec2 = EC2(checks_logger)
 
         # Metric Checks
         self._metrics_checks = [
-            Varnish(self.checksLogger),
-            ElasticSearch(self.checksLogger),
-            Jvm(self.checksLogger),
-            Tomcat(self.checksLogger),
-            ActiveMQ(self.checksLogger),
-            Solr(self.checksLogger),
-            WMICheck(self.checksLogger),
-            Nginx(self.checksLogger),
-            Memcache(self.checksLogger),
+            Varnish(checks_logger),
+            ElasticSearch(checks_logger),
+            Jvm(checks_logger),
+            Tomcat(checks_logger),
+            ActiveMQ(checks_logger),
+            Solr(checks_logger),
+            WMICheck(checks_logger),
+            Nginx(checks_logger),
+            Memcache(checks_logger),
         ]
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
             try:
-                self._metrics_checks.append(modules.load(module_spec, 'Check')(self.checksLogger))
-                self.checksLogger.info("Registered custom check %s" % module_spec)
+                self._metrics_checks.append(modules.load(module_spec, 'Check')(checks_logger))
+                logger.info("Registered custom check %s" % module_spec)
             except Exception, e:
-                self.checksLogger.exception('Unable to load custom check module %s' % module_spec)
+                logger.exception('Unable to load custom check module %s' % module_spec)
 
         # Event Checks
         self._event_checks = [
-            ElasticSearchClusterStatus(self.checksLogger),
+            ElasticSearchClusterStatus(checks_logger),
             Nagios(socket.gethostname())
         ]
 
         # Resource Checks
         self._resources_checks = [
-            ResProcesses(self.checksLogger,self.agentConfig)
+            ResProcesses(checks_logger,self.agentConfig)
         ]
     
     def run(self, checksd=None):
@@ -127,10 +131,9 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        self.checksLogger.info("Starting collection run #%s" % self.run_count)
+        logger.info("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
-
         metrics = payload['metrics']
         events = payload['events']
 
@@ -169,11 +172,11 @@ class Collector(object):
                 'memShared': memory.get('physShared')
             })
 
-            ioStats = sys_checks['io'].check(self.checksLogger, self.agentConfig)
+            ioStats = sys_checks['io'].check(checks_logger, self.agentConfig)
             if ioStats:
                 payload['ioStats'] = ioStats
 
-            processes = sys_checks['processes'].check(self.checksLogger, self.agentConfig)
+            processes = sys_checks['processes'].check(checks_logger, self.agentConfig)
             payload.update({'processes': processes})
 
             networkTraffic = sys_checks['network'].check(self.agentConfig)
@@ -186,11 +189,11 @@ class Collector(object):
         # Run old-style checks
         apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
-        rabbitmq = self._rabbitmq.check(self.checksLogger, self.agentConfig)
+        rabbitmq = self._rabbitmq.check(checks_logger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(self.checksLogger, self.agentConfig)
+        cassandraData = self._cassandra.check(checks_logger, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
@@ -241,7 +244,7 @@ class Collector(object):
  
         # Process the event checks. 
         for event_check in self._event_checks:
-            event_data = event_check.check(self.checksLogger, self.agentConfig)
+            event_data = event_check.check(checks_logger, self.agentConfig)
             if event_data:
                 events[event_check.key] = event_data
 
@@ -287,7 +290,7 @@ class Collector(object):
                         for ev in check_cls.get_events():
                             events[check['name']].append(ev)
                 except Exception:
-                    self.checksLogger.exception("Check %s failed" % check_cls.name)
+                    logger.exception("Check %s failed" % check_cls.name)
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
@@ -296,10 +299,10 @@ class Collector(object):
 
         # Pass the payload along to the emitters.
         for emitter in self.emitters:
-            emitter(payload, self.checksLogger, self.agentConfig)
+            emitter(payload, checks_logger, self.agentConfig)
         emit_duration = timer.step()
 
-        self.checksLogger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+        logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _is_first_run(self):
@@ -371,7 +374,7 @@ class Collector(object):
         # If the interval has passed, send the metadata again
         now = time.time()
         if now - self.metadata_start >= self.metadata_interval:
-            self.checksLogger.debug('Metadata interval has passed. Sending metadata.')
+            checks_logger.debug('Metadata interval has passed. Sending metadata.')
             self.metadata_start = now
             return True
 
