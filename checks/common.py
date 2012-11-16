@@ -39,7 +39,6 @@ from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 
-from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.varnish import Varnish
 
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
@@ -112,10 +111,6 @@ class checks(object):
         self._metrics_checks = [
             Varnish(self.checksLogger),
             ElasticSearch(self.checksLogger),
-            Jvm(self.checksLogger),
-            Tomcat(self.checksLogger),
-            ActiveMQ(self.checksLogger),
-            Solr(self.checksLogger),
             WMICheck(self.checksLogger),
             Nginx(self.checksLogger),
             Memcache(self.checksLogger),
