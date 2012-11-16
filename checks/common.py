@@ -127,21 +127,11 @@ class Collector(object):
         """
         self.run_count += 1
         self.checksLogger.info("Running collector loop %s" % self.run_count)
-        is_first_run = self.run_count <= 0
 
-        payload = {
-            'collection_timestamp': time.time(),
-            'os' : self.os,
-            'python': sys.version,
-            'agentVersion' : self.agentConfig['version'],             
-            'apiKey': self.agentConfig['api_key'],
-            'events': {},
-            'resources': {},
-            'internalHostname' : gethostname(self.agentConfig),
-            'uuid' : get_uuid(),
-        }
-        metrics = []
-        events = {}
+        payload = self._build_payload()
+
+        metrics = payload['metrics']
+        events = payload['events']
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
@@ -253,24 +243,6 @@ class Collector(object):
             event_data = event_check.check(self.checksLogger, self.agentConfig)
             if event_data:
                 events[event_check.key] = event_data
-       
-        # Include system stats on first postback
-        if is_first_run:
-            payload['systemStats'] = self.agentConfig.get('systemStats', {})
-            # Also post an event in the newsfeed
-            events['System'] = [{'api_key': self.agentConfig['api_key'],
-                                 'host': payload['internalHostname'],
-                                 'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
-                                 'event_type':'Agent Startup',
-                                 'msg_text': 'Version %s' % get_version()
-                                 }]
-
-        if is_first_run or self._should_send_metadata():
-            # Collect metadata
-            payload['meta'] = self._get_metadata()
-            # Add static tags from the configuration file
-            if self.agentConfig['tags'] is not None:
-                payload['tags'] = self.agentConfig['tags']
 
         # Resources checks
         if self.os != 'windows':
@@ -326,6 +298,47 @@ class Collector(object):
         for emitter in self.emitters:
             emitter(payload, self.checksLogger, self.agentConfig)
         self.checksLogger.info("Checks done")
+
+    def _is_first_run(self):
+        return self.run_count <= 1
+
+    def _build_payload(self):
+        """
+        Return an dictionary that contains all of the generic payload data.
+        """
+
+        payload = {
+            'collection_timestamp': time.time(),
+            'os' : self.os,
+            'python': sys.version,
+            'agentVersion' : self.agentConfig['version'],
+            'apiKey': self.agentConfig['api_key'],
+            'events': {},
+            'metrics': [],
+            'resources': {},
+            'internalHostname' : gethostname(self.agentConfig),
+            'uuid' : get_uuid(),
+        }
+
+        # Include system stats on first postback
+        if self._is_first_run():
+            payload['systemStats'] = self.agentConfig.get('systemStats', {})
+            # Also post an event in the newsfeed
+            payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
+                                 'host': payload['internalHostname'],
+                                 'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
+                                 'event_type':'Agent Startup',
+                                 'msg_text': 'Version %s' % get_version()
+                                 }]
+
+        # Periodically send the host metadata.
+        if self._is_first_run() or self._should_send_metadata():
+            payload['meta'] = self._get_metadata()
+            # Add static tags from the configuration file
+            if self.agentConfig['tags'] is not None:
+                payload['tags'] = self.agentConfig['tags']
+
+        return payload
 
     def _get_metadata(self):
         metadata = self._ec2.get_metadata()
