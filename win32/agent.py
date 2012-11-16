@@ -10,7 +10,7 @@ import modules
 import time
 
 from optparse import Values
-from checks.common import checks
+from checks.common import Collector
 from emitter import http_emitter
 from win32.common import handle_exe_click
 import dogstatsd
@@ -78,16 +78,16 @@ class DDAgent(threading.Thread):
     def run(self):
         emitters = self.get_emitters()
         systemStats = get_system_stats()
-        chk = checks(self.config, emitters, systemStats)
+        collector = Collector(self.config, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(self.config)
 
         # Main agent loop will run until interrupted
-        chk.doChecks(True, checksd)
+        collector.run(True, checksd)
 
         while self.running:
-            chk.doChecks(checksd=checksd)
+            collector.run(checksd=checksd)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
