@@ -6,8 +6,10 @@ import sys
 import math
 import uuid
 
-NumericTypes = (float, int, long)
-
+try:
+    from hashlib import md5
+except ImportError:
+    import md5
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
@@ -32,6 +34,9 @@ try:
     from yaml import CLoader as yLoader
 except ImportError:
     from yaml import Loader as yLoader
+
+
+NumericTypes = (float, int, long)
 
 
 def get_uuid():
@@ -177,4 +182,31 @@ class PidFile(object):
         except:
             return None
 
+
+class LaconicFilter(logging.Filter):
+    """
+    Filters messages, only print them once while keeping memory under control
+    """
+    LACONIC_MEM_LIMIT = 1024
+
+    def __init__(self, name=""):
+        logging.Filter.__init__(self, name)
+        self.hashed_messages = {}
+
+    def hash(self, msg):
+        return md5(msg).hexdigest()
+
+    def filter(self, record):
+        try:
+            h = self.hash(record.getMessage())
+            if h in self.hashed_messages:
+                return 0
+            else:
+                # Don't blow up our memory
+                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
+                    self.hashed_messages.clear()
+                self.hashed_messages[h] = True
+                return 1
+        except:
+            return 1
     
