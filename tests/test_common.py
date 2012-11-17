@@ -90,8 +90,8 @@ class TestCore(unittest.TestCase):
 
     def test_metadata(self):
         c = Collector({}, None, {})
-        assert "hostname" in c.get_metadata(), c.get_metadata()
-        assert "fqdn" in c.get_metadata(), c.get_metadata()
+        assert "hostname" in c._get_metadata(), c.get_metadata()
+        assert "fqdn" in c._get_metadata(), c.get_metadata()
 
 if __name__ == '__main__':
     unittest.main()
