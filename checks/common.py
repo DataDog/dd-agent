@@ -23,12 +23,10 @@ from checks.db.mongo import MongoDb
 from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
 from checks.queue import RabbitMq
-from checks.web import Apache, Nginx
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
-from checks.varnish import Varnish
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
@@ -70,7 +68,7 @@ class Collector(object):
             'cpu': u.Cpu(checks_logger)
         }
 
-        # Win32 System Checks
+        # Win32 System `Checks
         self._win32_system_checks = {
             'disk': w32.Disk(checks_logger),
             'io': w32.IO(checks_logger),
@@ -81,7 +79,6 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._apache = Apache(checks_logger)
         self._couchdb = CouchDb(checks_logger)
         self._mongodb = MongoDb(checks_logger)
         self._mysql = MySql(checks_logger)
@@ -94,14 +91,12 @@ class Collector(object):
 
         # Metric Checks
         self._metrics_checks = [
-            Varnish(checks_logger),
             ElasticSearch(checks_logger),
             Jvm(checks_logger),
             Tomcat(checks_logger),
             ActiveMQ(checks_logger),
             Solr(checks_logger),
             WMICheck(checks_logger),
-            Nginx(checks_logger),
             Memcache(checks_logger),
         ]
 
@@ -187,7 +182,6 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        apacheStatus = self._apache.check(self.agentConfig)
         mysqlStatus = self._mysql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(checks_logger, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
@@ -202,10 +196,6 @@ class Collector(object):
            
         if cassandraData is not False and cassandraData is not None:
             payload['cassandra'] = cassandraData
- 
-        # Apache Status
-        if apacheStatus: 
-            payload.update(apacheStatus)
             
         # MySQL Status
         if mysqlStatus:
