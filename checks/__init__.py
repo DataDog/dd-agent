@@ -425,6 +425,28 @@ class AgentCheck(object):
 
         return check, config.get('instances', [])
 
+    def normalize(self, metric, prefix=None):
+        """
+        Turn a metric into a well-formed metric name
+        prefix.b.c
+
+        :param metric The metric name to normalize
+        :param prefix A prefix to to add to the normalized name, default None
+        """
+        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        # Eliminate multiple _
+        name = re.sub(r"__+", "_", name)
+        # Don't start/end with _
+        name = re.sub(r"^_", "", name)
+        name = re.sub(r"_$", "", name)
+        # Drop ._ and _.
+        name = re.sub(r"\._", ".", name)
+        name = re.sub(r"_\.", ".", name)
+
+        if prefix is not None:
+            return prefix + "." + name
+        else:
+            return name
 
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:
