@@ -1,13 +1,9 @@
 import urllib, urllib2
 import httplib
 import zlib
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import md5
 
 from pprint import pformat as pp
-from util import json
+from util import json, md5
 
 
 def format_body(message):

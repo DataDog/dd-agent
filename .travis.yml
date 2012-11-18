@@ -2,7 +2,11 @@
 branches:
   except:
     - check-haproxy
-    
+services:
+  - mysql
+  - elasticsearch
+before_script:
+  - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
 language: python
 python:
   - "2.5"
@@ -15,10 +19,8 @@ script: nosetests -A 'not windows' tests
 before_script:
   - sudo apt-get install sysstat
   - sudo apt-get install haproxy
+  - sudo apt-get install python-mysqldb
   - curl -L https://raw.github.com/DataDog/dd-agent/check-haproxy/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl -L https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.19.11.deb > /tmp/es.deb
-  - sudo dpkg -i /tmp/es.deb
-  - sudo service elasticsearch start
   # - curl -L http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.35/bin/apache-tomcat-6.0.35.tar.gz > /tmp/tomcat6.tar.gz && tar -C /tmp -xzf /tmp/tomcat6.tar.gz && mv /tmp/apache-tomcat-6.0.35 /tmp/apache-tomcat-6 && echo 'export CATALINA_OPTS="-Dcom.sun.management.jmxremote.port=8090 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false" export CATALINA_OUT="/tmp/apache-tomcat-6/catalina.out"' > /tmp/apache-tomcat-6/bin/setenv.sh
   # - curl -L http://www.reverse.net/pub/apache/tomcat/tomcat-7/v7.0.32/bin/apache-tomcat-7.0.32.tar.gz > /tmp/tomcat7.tar.gz && tar -C /tmp -xzf /tmp/tomcat7.tar.gz && mv /tmp/apache-tomcat-7.0.32/ /tmp/apache-tomcat-7 && echo 'export CATALINA_OPTS="-Dcom.sun.management.jmxremote.port=8091 -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/tmp/apache-tomcat-7/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/tmp/apache-tomcat-7/conf/jmxremote.access -Dcom.sun.management.jmxremote.ssl=false" export CATALINA_OUT="/tmp/apache-tomcat-7/catalina.out"' > /tmp/apache-tomcat-7/bin/setenv.sh && echo 'monitorRole readonly' > /tmp/apache-tomcat-7/conf/jmxremote.access && echo 'monitorRole tomcat' > /tmp/apache-tomcat-7/conf/jmxremote.password && chmod 400 /tmp/apache-tomcat-7/conf/jmxremote.password
   # - curl -L https://raw.github.com/DataDog/dd-agent/jmx_multiple_checks/tests/tomcat_cfg.xml > /tmp/apache-tomcat-6/conf/server.xml

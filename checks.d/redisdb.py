@@ -2,6 +2,7 @@
 Redis checks
 '''
 import re
+import time
 from checks import AgentCheck
 
 class Redis(AgentCheck):
@@ -111,7 +112,12 @@ class Redis(AgentCheck):
         conn = self._get_conn(host, port, password)
         tags = custom_tags or []
         tags += ["redis_host:%s" % host, "redis_port:%s" % port]
+      
+        # Ping the database for info, and track the latency.
+        start = time.time()
         info = conn.info()
+        latency_ms = round((time.time() - start) * 1000, 2)
+        self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
 
         # Save the database statistics.
         for key in info.keys():

@@ -19,3 +19,4 @@ dist/*
 *.exe
 nosetests*.xml
 stats.dat
+conf.d/*.yaml

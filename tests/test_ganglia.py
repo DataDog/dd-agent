@@ -7,8 +7,7 @@ except ImportError:
     import profile
 import pstats
 import tempfile
-from hashlib import md5
-from util import json
+from util import json, md5
 import time
 
 from checks.ganglia import Ganglia

@@ -32,20 +32,23 @@ if int(sys.version_info[1]) <= 3:
     sys.exit(2)
 
 # Custom modules
-from checks.common import checks
+from checks.common import Collector
 from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
 from util import Watchdog, PidFile
 
-# Override the generic daemon class to run our checks
-class agent(Daemon):
+
+class Agent(Daemon):
+    """
+    The agent class is a daemon that runs the agent in a background process.
+    """
+
     def run(self, agentConfig=None, run_forever=True):
         """Main loop of the collector"""
         agentLogger = logging.getLogger('agent')
         systemStats = get_system_stats()
-        agentLogger.debug('System Properties: ' + str(systemStats))
 
         if agentConfig is None:
             agentConfig = get_config()
@@ -72,7 +75,7 @@ class agent(Daemon):
         check_freq = int(agentConfig['check_freq'])
 
         # Checks instance
-        c = checks(agentConfig, emitters)
+        collector = Collector(agentConfig, emitters, systemStats)
 
         # Watchdog
         watchdog = None
@@ -80,15 +83,12 @@ class agent(Daemon):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
 
-        # Run checks once, to get once-in-a-run data
-        c.doChecks(True, systemStats, checksd)
-
         # Main loop
         while run_forever:
+            collector.run(checksd=checksd)
             if watchdog is not None:
                 watchdog.reset()
             time.sleep(check_freq)
-            c.doChecks(checksd=checksd)
 
 def setupLogging(agentConfig):
     """Configure logging to use syslog whenever possible.
@@ -135,7 +135,7 @@ if __name__ == '__main__':
         if options.clean:
             pid_file.clean()
 
-        daemon = agent(pid_file.get_path())
+        daemon = Agent(pid_file.get_path())
 
         if 'start' == command:
             logging.info('Start daemon')

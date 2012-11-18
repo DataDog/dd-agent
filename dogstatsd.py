@@ -178,9 +178,10 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     logger.debug("Configuration dogstatsd")
 
-    port     = c['dogstatsd_port']
-    interval = c['dogstatsd_interval']
-    api_key  = c['api_key']
+    port      = c['dogstatsd_port']
+    interval  = int(c['dogstatsd_interval'])
+    normalize = c['dogstatsd_normalize']
+    api_key   = c['api_key']
 
     target = c['dd_url']
     if use_forwarder:
@@ -190,7 +191,10 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
-    aggregator = MetricsAggregator(hostname)
+    normalization_factor = 1.0
+    if normalize:
+        normalization_factor = 1.0 / interval
+    aggregator = MetricsAggregator(hostname, normalization_factor)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)

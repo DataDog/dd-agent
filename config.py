@@ -87,8 +87,13 @@ def _windows_confd_path():
     raise PathNotFound(path)
 
 def _windows_checksd_path():
-    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
-        'checks.d')
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        path = os.path.join(prog_path, 'checks.d')
+    else:
+        cur_path = os.path.dirname(__file__)
+        path = os.path.join(cur_path, 'checks.d')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -147,6 +152,7 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'debug_mode': False,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
+        'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -257,12 +263,16 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
             'dogstatsd_port' : 8125,
             'dogstatsd_target' : 'http://localhost:17123',
             'dogstatsd_interval' : dogstatsd_interval,
+            'dogstatsd_normalize' : 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        # normalize 'yes'/'no' to boolean
+        dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
@@ -338,7 +348,7 @@ def get_system_stats():
         'machine': platform.machine(),
         'platform': sys.platform,
         'processor': platform.processor(),
-        'pythonV': platform.python_version()
+        'pythonV': platform.python_version(),
     }
 
     if sys.platform == 'linux2':
@@ -374,8 +384,13 @@ def set_win32_cert_path():
     will be able to override this in a clean way. For now, we have to monkey patch
     tornado.httpclient._DEFAULT_CA_CERTS
     '''
-    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
-        'ca-certificates.crt')
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        crt_path = os.path.join(prog_path, 'ca-certificates.crt')
+    else:
+        cur_path = os.path.dirname(__file__)
+        crt_path = os.path.join(cur_path, 'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
@@ -416,7 +431,7 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
+            log.error("No checks.d folder found in '%s'.\n" % e.message)
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
