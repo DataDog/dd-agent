@@ -51,7 +51,6 @@ class Collector(object):
         self.os = getOS()
         self.plugins = None
         self.emitters = emitters            
-        checks_logger = logging.getLogger('checks')
         self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
