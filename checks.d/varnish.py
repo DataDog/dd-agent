@@ -80,6 +80,7 @@ class Varnish(AgentCheck):
             # Not configured? Not a problem.
             if instance.get("varnishstat", None) is None:
                 return
+            tags = instance.get('tags', [])
 
             # Get the varnish version from varnishstat
             output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
@@ -115,12 +116,12 @@ class Varnish(AgentCheck):
                                              stderr=subprocess.PIPE).communicate()
             if error and len(error) > 0:
                 self.log.error(error)
-            self._parse_varnishstat(output, use_xml)
+            self._parse_varnishstat(output, use_xml, tags)
         except:
             self.log.exception("Cannot get varnish stats")
             return
 
-    def _parse_varnishstat(self, output, use_xml):
+    def _parse_varnishstat(self, output, use_xml, tags):
         if use_xml:
             p = xml.parsers.expat.ParserCreate()
             p.StartElementHandler = self._start_element
@@ -143,11 +144,11 @@ class Varnish(AgentCheck):
                     if rate_val.lower() in ("nan", "."):
                         # col 2 matters
                         self.log.debug("Varnish (gauge) %s %d" % (metric_name, int(gauge_val)))
-                        self.gauge(metric_name, int(gauge_val))
+                        self.gauge(metric_name, int(gauge_val), tags=tags)
                     else:
                         # col 3 has a rate (since restart)
                         self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
-                        self.rate(metric_name, float(gauge_val))
+                        self.rate(metric_name, float(gauge_val), tags=tags)
                 except TypeError:
                     self.log.exception("Cannot convert varnish value")
 
