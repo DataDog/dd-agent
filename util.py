@@ -36,6 +36,11 @@ try:
 except ImportError:
     from yaml import Loader as yLoader
 
+try:
+    from collections import namedtuple
+except ImportError:
+    from compat.namedtuple import namedtuple
+
 
 NumericTypes = (float, int, long)
 

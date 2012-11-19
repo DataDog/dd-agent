@@ -1,10 +1,6 @@
 import time
 import re
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
-
+from util import namedtuple
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser
