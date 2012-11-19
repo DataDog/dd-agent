@@ -76,50 +76,46 @@ class Varnish(AgentCheck):
             </stat>
         </varnishstat>
         """
-        try:
-            # Not configured? Not a problem.
-            if instance.get("varnishstat", None) is None:
-                return
-            tags = instance.get('tags', [])
-
-            # Get the varnish version from varnishstat
-            output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
-                                             stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE).communicate()
-
-            # Assumptions regarding varnish's version
-            use_xml = True
-            arg = "-x" # varnishstat argument
-            version = 3
-
-            m1 = re.search(r"varnish-(\d+)", output, re.MULTILINE)
-            # v2 prints the version on stderr, v3 on stdout
-            m2 = re.search(r"varnish-(\d+)", error, re.MULTILINE)
-
-            if m1 is None and m2 is None:
-                self.log.warn("Cannot determine the version of varnishstat, assuming 3 or greater")
-            else:
-                if m1 is not None:
-                    version = int(m1.group(1))
-                elif m2 is not None:
-                    version = int(m2.group(1))
-
-            self.log.debug("Varnish version: %d" % version)
-
-            # Location of varnishstat
-            if version <= 2:
-                use_xml = False
-                arg = "-1"
-
-            output, error = subprocess.Popen([instance.get("varnishstat"), arg],
-                                             stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE).communicate()
-            if error and len(error) > 0:
-                self.log.error(error)
-            self._parse_varnishstat(output, use_xml, tags)
-        except:
-            self.log.exception("Cannot get varnish stats")
+        # Not configured? Not a problem.
+        if instance.get("varnishstat", None) is None:
             return
+        tags = instance.get('tags', [])
+
+        # Get the varnish version from varnishstat
+        output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE).communicate()
+
+        # Assumptions regarding varnish's version
+        use_xml = True
+        arg = "-x" # varnishstat argument
+        version = 3
+
+        m1 = re.search(r"varnish-(\d+)", output, re.MULTILINE)
+        # v2 prints the version on stderr, v3 on stdout
+        m2 = re.search(r"varnish-(\d+)", error, re.MULTILINE)
+
+        if m1 is None and m2 is None:
+            self.log.warn("Cannot determine the version of varnishstat, assuming 3 or greater")
+        else:
+            if m1 is not None:
+                version = int(m1.group(1))
+            elif m2 is not None:
+                version = int(m2.group(1))
+
+        self.log.debug("Varnish version: %d" % version)
+
+        # Location of varnishstat
+        if version <= 2:
+            use_xml = False
+            arg = "-1"
+
+        output, error = subprocess.Popen([instance.get("varnishstat"), arg],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE).communicate()
+        if error and len(error) > 0:
+            self.log.error(error)
+        self._parse_varnishstat(output, use_xml, tags)
 
     def _parse_varnishstat(self, output, use_xml, tags):
         if use_xml:
