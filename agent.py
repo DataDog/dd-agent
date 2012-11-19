@@ -32,7 +32,7 @@ if int(sys.version_info[1]) <= 3:
     sys.exit(2)
 
 # Custom modules
-from checks.common import Collector
+from checks.collector import Collector
 from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon

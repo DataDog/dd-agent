@@ -10,7 +10,7 @@ import modules
 import time
 
 from optparse import Values
-from checks.common import Collector
+from checks.collector import Collector
 from emitter import http_emitter
 from win32.common import handle_exe_click
 import dogstatsd

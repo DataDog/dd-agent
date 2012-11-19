@@ -2,8 +2,8 @@ import time
 import unittest
 import logging
 logger = logging.getLogger()
-from checks import *
-from checks.common import Collector
+from checks import Check, CheckException, UnknownValue, CheckException, Infinity
+from checks.collector import Collector
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
