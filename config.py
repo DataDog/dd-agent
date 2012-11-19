@@ -521,9 +521,19 @@ def load_check_directory(agentConfig):
         if init_config is None:
             init_config = {}
 
-        init_config['instances_number'] = len(instances)
-        check_class = check_class(check_name, init_config=init_config,
-            agentConfig=agentConfig)
+
+        instances = check_config['instances']
+        try:
+            c = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig, instances=instances)
+        except TypeError, e:
+            # Backwards compatibility for checks which don't support the
+            # instances argument in the constructor.
+            c = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig)
+            c.instances = instances
+
+        checks.append(c)
 
         # Add custom pythonpath(s) if available
         if 'pythonpath' in check_config:
@@ -533,10 +543,5 @@ def load_check_directory(agentConfig):
             sys.path.extend(pythonpath)
 
         log.debug('Loaded check.d/%s.py' % check_name)
-        checks.append({
-            'name': check_name,
-            'instances': check_config['instances'],
-            'class': check_class
-        })
 
     return checks

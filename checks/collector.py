@@ -267,19 +267,21 @@ class Collector(object):
         # checks.d checks
         checksd = checksd or []
         for check in checksd:
-            check_cls = check['class']
-            for instance in check['instances']:
+            logger.debug("Running check %s" % check.name)
+            for instance in check.instances:
                 try:
                     # Run the check for each configuration
-                    check_cls.check(instance)
-                    metrics.extend(check_cls.get_metrics())
-                    if check_cls.has_events():
-                        if check['name'] not in events:
-                            events[check['name']] = []
-                        for ev in check_cls.get_events():
-                            events[check['name']].append(ev)
+                    check.check(instance)
+                        
+                    # Collect it's metrics and events.
+                    metrics.extend(check.get_metrics())
+                    if check.has_events():
+                        if check.name not in events:
+                            events[check.name] = []
+                        events[check.name] += check.get_events()
+
                 except Exception:
-                    logger.exception("Check %s failed" % check_cls.name)
+                    logger.exception("Check %s failed" % check.name)
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics

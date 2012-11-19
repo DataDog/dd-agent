@@ -39,20 +39,20 @@ class ServicesCheck(AgentCheck):
             when the service turns down.
 
     """
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-        # A dictionnary to keep track of service statuses
+        # A dictionary to keep track of service statuses
         self.statuses = {}
         self.start_pool()
 
     def start_pool(self):
         # The pool size should be the minimum between the number of instances
-        # and the DEFAULT_SIZE_POOL. It can also be overriden by the 'threads_count'
+        # and the DEFAULT_SIZE_POOL. It can also be overridden by the 'threads_count'
         # parameter in the init_config of the check
-        pool_size = int(self.init_config.get('threads_count', 
-            min([self.init_config.get('instances_number', DEFAULT_SIZE_POOL), 
-                DEFAULT_SIZE_POOL])))
+        default_size = min(self.instance_count(), DEFAULT_SIZE_POOL)
+        pool_size = int(self.init_config.get('threads_count', default_size))
+
         self.pool = Pool(pool_size)
 
         self.resultsq = Queue()

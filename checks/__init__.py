@@ -250,13 +250,15 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
-    def __init__(self, name, init_config, agentConfig):
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
 
         :param name: The name of the check
         :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
+        :param instances: A list of configuration objects for each instance.
         """
         from aggregator import MetricsAggregator
 
@@ -268,6 +270,11 @@ class AgentCheck(object):
         self.log = logging.getLogger('checks.%s' % name)
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
+        self.instances = instances or []
+
+    def instance_count(self):
+        """ Return the number of instances that are configured for this check. """
+        return len(self.instances)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None, timestamp=None):
         """
@@ -395,6 +402,11 @@ class AgentCheck(object):
         events = self.events
         self.events = []
         return events
+
+    def run(self):
+        """ Run all instances. """
+        for instance in self.instances:
+            self.check(instance)
 
     def check(self, instance):
         """

@@ -2,7 +2,7 @@ import unittest
 import time
 from tests.common import load_check
 import logging
-from nose.tools import set_trace
+import nose.tools as nt
 
 class ServiceCheckTestCase(unittest.TestCase):
 
@@ -21,11 +21,9 @@ class ServiceCheckTestCase(unittest.TestCase):
     def testHTTP(self):
         # No passwords this time
         config = {
-            'init_config': {
-                'instances_number': 2
-            },
+            'init_config': {},
             'instances': [{
-                'url': 'http://fsdfdsfsdfsdfsdfsdfsdfsdfsdfsd.com/fake',
+                'url': 'http://127.0.0.1:66666',
                 'name': 'DownService'
             },{
                 'url': 'http://google.com',
@@ -37,14 +35,13 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         self.init_check(config, 'http_check')
 
-        self.assertTrue(self.check.pool.get_nworkers() == 2, self.check.pool.get_nworkers())
+        nt.assert_equals(self.check.pool.get_nworkers(), 2)
 
         # We launch each instance twice to be sure to get the results
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
-        time.sleep(2)
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
+        self.check.run()
+        time.sleep(1)
+        self.check.run()
+        time.sleep(1)
 
         events = self.check.get_events()
 
@@ -102,16 +99,12 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         self.init_check(config, 'tcp_check')
 
-        self.assertTrue(self.check.pool.get_nworkers() == 6, self.check.pool.get_nworkers())
+        nt.assert_equals(self.check.pool.get_nworkers(), 3)
 
         # We launch each instance twice to be sure to get the results
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
-        self.check.check(config['instances'][2])
+        self.check.run()
         time.sleep(2)
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
-        self.check.check(config['instances'][2])
+        self.check.run()
 
         events = self.check.get_events()
 
@@ -128,11 +121,9 @@ class ServiceCheckTestCase(unittest.TestCase):
         # We change the stored status, so next check should trigger an event
         self.check.statuses['UpService'] = "DOWN"
 
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
+        self.check.run()
         time.sleep(5)
-        self.check.check(config['instances'][0])
-        self.check.check(config['instances'][1])
+        self.check.run()
 
         events = self.check.get_events()
 
