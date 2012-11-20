@@ -63,23 +63,16 @@ class PostgreSql(AgentCheck):
         if key in self.dbs:
             db = self.dbs[key]
         elif host != '' and user != '':
-            try:
-                import psycopg2 as pg
-                if host == 'localhost' and passwd == '':
-                    # Use ident method
-                    db = pg.connect("user=%s dbname=postgres" % user)
-                elif port != '':
-                    db = pg.connect(host=host, port=port, user=user,
-                        password=passwd, database='postgres')
-                else:
-                    db = pg.connect(host=host, user=user, password=passwd,
-                        database='postgres')
-            except ImportError, e:
-                self.log.exception("Cannot import psypg2")
-                return
-            except Exception, e: #Fixme: catch only pg errors
-                self.log.exception('PostgreSql connection error')
-                return
+            import psycopg2 as pg
+            if host == 'localhost' and passwd == '':
+                # Use ident method
+                db = pg.connect("user=%s dbname=postgres" % user)
+            elif port != '':
+                db = pg.connect(host=host, port=port, user=user,
+                    password=passwd, database='postgres')
+            else:
+                db = pg.connect(host=host, user=user, password=passwd,
+                    database='postgres')
 
         # Check version
         version = self._get_version(key, db)
