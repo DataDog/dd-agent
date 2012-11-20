@@ -55,7 +55,7 @@ class Agent(Daemon):
         self.run_forever = True
 
     def _handle_sigterm(self, signum, frame):
-        agent_logger.info("Caught sigterm. Exiting")
+        agent_logger.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
 
     def run(self):
@@ -99,6 +99,7 @@ class Agent(Daemon):
 
         # Explicitly kill the process, because it might be running
         # as a daemon.
+        agent_logger.info("Exiting. Bye bye.")
         sys.exit(0)
 
     def _get_emitters(self, agentConfig):
