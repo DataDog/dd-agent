@@ -45,13 +45,17 @@ def test_persistence():
     c1 = CollectorStatus([chk1])
     c1.persist()
 
-    c2 = CollectorStatus.load()
+    c2 = CollectorStatus.load_latest_status()
     nt.assert_equal(1, len(c2.check_statuses))
     chk2 = c2.check_statuses[0]
     assert chk2.name == chk1.name
     assert chk2.status == chk2.status
 
 def test_persistence_fail():
-    import os
-    os.remove(CollectorStatus._get_pickle_path())
-    nt.assert_raises(Exception, CollectorStatus.load)
+
+    # Assert remove doesn't crap out if a file doesn't exist.
+    CollectorStatus.remove_latest_status()
+    CollectorStatus.remove_latest_status()
+
+    status = CollectorStatus.load_latest_status()
+    assert not status

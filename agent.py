@@ -16,14 +16,10 @@ import modules
 import os
 import os.path
 import re
+import signal
 import sys
 import time
 import urllib
-
-# Constants
-PID_NAME="dd-agent"
-
-WATCHDOG_MULTIPLIER = 10 # will fire if no checks have been collected in N * check_freq, 150s by default
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -33,6 +29,7 @@ if int(sys.version_info[1]) <= 3:
 
 # Custom modules
 from checks.collector import Collector
+from checks.check_status import CollectorStatus
 from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
@@ -40,33 +37,47 @@ from emitter import http_emitter
 from util import Watchdog, PidFile
 
 
+# Constants
+PID_NAME = "dd-agent"
+WATCHDOG_MULTIPLIER = 10
+
+# Globals
+agent_logger = logging.getLogger('agent')
+
+
 class Agent(Daemon):
     """
-    The agent class is a daemon that runs the agent in a background process.
+    The agent class is a daemon that runs the collector in a background process.
     """
+
+    def __init__(self, pidfile):
+        Daemon.__init__(self, pidfile)
+        self.run_forever = True
+
+    def _handle_sigterm(self, signum, frame):
+        agent_logger.info("Caught sigterm. Exiting")
+        self.run_forever = False
 
     def run(self, agentConfig=None, run_forever=True):
         """Main loop of the collector"""
-        agentLogger = logging.getLogger('agent')
+
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
+
+        # Save a start-up status message and delete whatever status message we
+        # have on exit.
+        CollectorStatus(start_up=True).persist()
+
         systemStats = get_system_stats()
 
         if agentConfig is None:
             agentConfig = get_config()
 
+        agentConfig = self._set_agent_config_hostname(agentConfig)
+
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
 
-        # Try to fetch instance Id from EC2 if not hostname has been set
-        # in the config file.
-        # DEPRECATED
-        if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
-            instanceId = EC2.get_instance_id()
-            if instanceId is not None:
-                agentLogger.info("Running on EC2, instanceId: %s" % instanceId)
-                agentConfig['hostname'] = instanceId
-            else:
-                agentLogger.info('Not running on EC2, using hostname to identify this server')
-
+    
         emitters = [http_emitter]
         for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
             if len(emitter_spec) == 0: continue
@@ -83,14 +94,34 @@ class Agent(Daemon):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
 
-        # Main loop
-        while run_forever:
+        while self.run_forever:
             collector.run(checksd=checksd)
             if watchdog is not None:
                 watchdog.reset()
-            time.sleep(check_freq)
+            
+            # Only sleep if we'll continue.
+            if self.run_forever:
+                time.sleep(check_freq)
 
-def setupLogging(agentConfig):
+        CollectorStatus.remove_latest_status()
+        sys.exit(0)
+
+
+    def _set_agent_config_hostname(self, agentConfig):
+        # Try to fetch instance Id from EC2 if not hostname has been set
+        # in the config file.
+        # DEPRECATED
+        if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
+            instanceId = EC2.get_instance_id()
+            if instanceId is not None:
+                agent_logger.info("Running on EC2, instanceId: %s" % instanceId)
+                agentConfig['hostname'] = instanceId
+            else:
+                agent_logger.info('Not running on EC2, using hostname to identify this server')
+        return agentConfig
+
+
+def setup_logging(agentConfig):
     """Configure logging to use syslog whenever possible.
     Also controls debug_mode."""
     if agentConfig['debug_mode']:
@@ -125,7 +156,7 @@ if __name__ == '__main__':
     agentConfig = get_config()
 
     # Logging
-    setupLogging(agentConfig)
+    setup_logging(agentConfig)
 
     if len(args) > 0:
         command = args[0]
@@ -161,6 +192,9 @@ if __name__ == '__main__':
             else:
                 sys.stdout.write('dd-agent is not running.\n')
                 logging.info("dd-agent is not running.")
+
+        elif 'check_status' == command:
+            CollectorStatus.print_latest_status()
 
         else:
             sys.stderr.write('Unknown command: %s.\n' % sys.argv[1])

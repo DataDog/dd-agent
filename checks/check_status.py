@@ -41,38 +41,64 @@ class CheckStatus(object):
 
 class CollectorStatus(object):
 
-    def __init__(self, check_statuses):
-        self.check_statuses = check_statuses
+    def __init__(self, check_statuses=None, start_up=False):
+        self.check_statuses = check_statuses or []
+        self.start_up = start_up
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
 
     def persist(self):
         path = self._get_pickle_path()
         log.debug("Persisting status to %s" % path)
-        f = open(path, 'w')
         try:
-            pickle.dump(self, f)
-        finally:
-            f.close()
+            f = open(path, 'w')
+            try:
+                pickle.dump(self, f)
+            finally:
+                f.close()
+        except Exception:
+            log.exception("Error persisting collector status")
 
     def print_status(self):
         print "created at %s by pid %s" % (self.created_at, self.created_by_pid)
-        for check_status in self.check_statuses:
-            print "check %s: %s" % (check_status.name, check_status.status)
-            for instance_status in check_status.instance_statuses:
-                print "\tinstance #%s: %s" % (instance_status.instance_id, instance_status.status)
-            print "\n"
+        if self.start_up and not self.check_statuses:
+            print "Agent just started."
+        else:
+            for check_status in self.check_statuses:
+                print "check %s: %s" % (check_status.name, check_status.status)
+                for instance_status in check_status.instance_statuses:
+                    print "\tinstance #%s: %s" % (instance_status.instance_id, instance_status.status)
+                print "\n"
 
     @classmethod
-    def load(cls):
-        f = open(cls._get_pickle_path())
+    def print_latest_status(cls):
+        collector_status = cls.load_latest_status()
+        if not collector_status:
+            print "No status message"
+        else:
+            collector_status.print_status()
+
+    @classmethod
+    def remove_latest_status(cls):
+        log.debug("Removing latest collector status")
         try:
-            return pickle.load(f)
-        finally:
-            f.close()
+            os.remove(cls._get_pickle_path())
+        except OSError:
+            pass
+
+    @classmethod
+    def load_latest_status(cls):
+        try:
+            f = open(cls._get_pickle_path())
+            try:
+                return pickle.load(f)
+            finally:
+                f.close()
+        except IOError:
+            log.info("Couldn't load latest status")
+            return None
 
     @classmethod
     def _get_pickle_path(cls):
         return os.path.join(tempfile.gettempdir(), 'collector_status.pickle')
-
 
