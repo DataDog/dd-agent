@@ -135,7 +135,8 @@ def setup_logging(agentConfig):
     Also controls debug_mode."""
     if agentConfig['debug_mode']:
         logFile = "/tmp/dd-agent.log"
-        logging.basicConfig(filename=logFile, filemode='w', level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        logging.basicConfig(filename=logFile, filemode='w',
+        level=logging.DEBUG, format='%(asctime)s - %(process)d %(name)s - %(levelname)s - %(message)s')
         logging.info("Logging to %s" % logFile)
     else:
         try:
@@ -166,58 +167,70 @@ def main():
     # Logging
     setup_logging(agentConfig)
 
-    if len(args) > 0:
-        command = args[0]
 
-        pid_file = PidFile('dd-agent')
+    COMMANDS = [
+        'start',
+        'stop',
+        'restart',
+        'foreground',
+        'status',
+        'info',
+    ]
+
+    if len(args) < 1:
+        sys.stderr.write("Usage: %s %s\n" % (sys.argv[0], "|".join(COMMANDS)))
+        return 2
+
+    command = args[0]
+
+    if command not in COMMANDS:
+        sys.stderr.write("Unknown command: %s\n" % command)
+        return 3
+
+    pid_file = PidFile('dd-agent')
+ 
+    # Only initialize the Agent if we're starting or stopping it.
+    if command in ['start', 'stop', 'restart', 'foreground']:
 
         if options.clean:
             pid_file.clean()
 
-        daemon = Agent(pid_file.get_path())
+        agent = Agent(pid_file.get_path())
 
         if 'start' == command:
             logging.info('Start daemon')
-            daemon.start()
+            agent.start()
 
         elif 'stop' == command:
             logging.info('Stop daemon')
-            daemon.stop()
+            agent.stop()
 
         elif 'restart' == command:
             logging.info('Restart daemon')
-            daemon.restart()
+            agent.restart()
 
         elif 'foreground' == command:
             logging.info('Running in foreground')
-            daemon.run()
+            agent.run()
 
-        elif 'status' == command:
+    # Commands that don't need the agent to be initialized.
+    else:
+        if 'status' == command:
             pid = pid_file.get_pid()
             if pid is not None:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
-                logging.info("dd-agent is running as pid %s." % pid)
             else:
                 sys.stdout.write('dd-agent is not running.\n')
-                logging.info("dd-agent is not running.")
 
-        elif 'check_status' == command:
+        elif 'info' == command:
             CollectorStatus.print_latest_status()
 
-        else:
-            sys.stderr.write('Unknown command: %s.\n' % sys.argv[1])
-            sys.exit(2)
-
-        sys.exit(0)
-
-    else:
-        sys.stderr.write('Usage: %s start|stop|restart|foreground|status' % sys.argv[0])
-        sys.exit(2)
+    return 0
 
 
 if __name__ == '__main__':
     try:
-        main()
+        sys.exit(main())
     except SystemExit, KeyboardInterrupt:
         pass
     except:
