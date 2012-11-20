@@ -58,54 +58,62 @@ class Agent(Daemon):
         agent_logger.info("Caught sigterm. Exiting")
         self.run_forever = False
 
-    def run(self, agentConfig=None, run_forever=True):
+    def run(self):
         """Main loop of the collector"""
 
+        # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
-        # Save a start-up status message and delete whatever status message we
-        # have on exit.
+        # Save the agent start-up stats.
         CollectorStatus(start_up=True).persist()
 
+        # Intialize the collector.
+        agentConfig = self._set_agent_config_hostname(get_config())
         systemStats = get_system_stats()
-
-        if agentConfig is None:
-            agentConfig = get_config()
-
-        agentConfig = self._set_agent_config_hostname(agentConfig)
+        emitters = self._get_emitters(agentConfig)
+        collector = Collector(agentConfig, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
 
-    
+        # Configure the watchdog.
+        check_frequency = int(agentConfig['check_freq'])
+        watchdog = self._get_watchdog(check_frequency, agentConfig)
+       
+        # Run the main loop.
+        while self.run_forever:
+            collector.run(checksd=checksd)
+            if watchdog:
+                watchdog.reset()
+           
+            if self.run_forever:
+                # Only sleep if we're going to continue, otherwise
+                # exit quickly.
+                time.sleep(check_frequency)
+
+        # Now clean-up.
+        try:
+            CollectorStatus.remove_latest_status()
+        except:
+            pass
+
+        # Explicitly kill the process, because it might be running
+        # as a daemon.
+        sys.exit(0)
+
+    def _get_emitters(self, agentConfig):
         emitters = [http_emitter]
         for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
             if len(emitter_spec) == 0: continue
             emitters.append(modules.load(emitter_spec, 'emitter'))
+        return emitters
 
-        check_freq = int(agentConfig['check_freq'])
-
-        # Checks instance
-        collector = Collector(agentConfig, emitters, systemStats)
-
-        # Watchdog
+    def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
             watchdog.reset()
-
-        while self.run_forever:
-            collector.run(checksd=checksd)
-            if watchdog is not None:
-                watchdog.reset()
-            
-            # Only sleep if we'll continue.
-            if self.run_forever:
-                time.sleep(check_freq)
-
-        CollectorStatus.remove_latest_status()
-        sys.exit(0)
-
+        return watchdog
 
     def _set_agent_config_hostname(self, agentConfig):
         # Try to fetch instance Id from EC2 if not hostname has been set
