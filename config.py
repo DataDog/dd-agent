@@ -493,7 +493,7 @@ def load_check_directory(agentConfig):
                 f.close()
             except:
                 f.close()
-                log.warn("Unable to parse yaml config in %s" % conf_path)
+                log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
