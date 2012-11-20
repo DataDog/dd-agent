@@ -74,7 +74,7 @@ class CollectorStatus(object):
     def print_latest_status(cls):
         collector_status = cls.load_latest_status()
         if not collector_status:
-            print "No status message"
+            print "The agent is not running."
         else:
             collector_status.print_status()
 
