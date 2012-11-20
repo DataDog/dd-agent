@@ -56,6 +56,9 @@ class Agent(Daemon):
 
     def _handle_sigterm(self, signum, frame):
         agent_logger.debug("Caught sigterm. Stopping run loop.")
+        # FIXME mattp: once the collector is using only checksd, we
+        # also tell the collector to stop running checks + sending
+        # to emitters as well.
         self.run_forever = False
 
     def run(self):
