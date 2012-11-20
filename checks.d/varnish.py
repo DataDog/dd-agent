@@ -117,7 +117,8 @@ class Varnish(AgentCheck):
             self.log.error(error)
         self._parse_varnishstat(output, use_xml, tags)
 
-    def _parse_varnishstat(self, output, use_xml, tags):
+    def _parse_varnishstat(self, output, use_xml, tags=None):
+        tags = tags or []
         if use_xml:
             p = xml.parsers.expat.ParserCreate()
             p.StartElementHandler = self._start_element
