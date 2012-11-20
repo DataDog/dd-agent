@@ -480,7 +480,7 @@ def load_check_directory(agentConfig):
                     break
 
         if not check_class:
-            log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
+            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config
