@@ -276,13 +276,19 @@ class Collector(object):
                 instance_statuses = check.run()
 
                 # Collect the metrics and events.
-                metrics.extend(check.get_metrics())
-                if check.has_events():
+                current_check_metrics = check.get_metrics()
+                current_check_events = check.get_events()
+
+                # Save them for the payload.
+                metrics.extend(current_check_metrics)
+                if current_check_events:
                     if check.name not in events:
                         events[check.name] = []
                     events[check.name] += check.get_events()
-    
-                check_status = CheckStatus(check.name, instance_statuses)
+
+                # Save the status of the check.
+                has_data = current_check_events or current_check_metrics
+                check_status = CheckStatus(check.name, instance_statuses, has_data)
             except Exception, e:
                 logger.exception("Error running check %s" % check.name)
                 check_status = CheckStatus(check.name, instance_statuses, e)

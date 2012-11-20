@@ -10,8 +10,9 @@ import tempfile
 import datetime
 
 
-STATUS_OK = 'Ok'
-STATUS_ERROR = 'Error'
+STATUS_OK = 'OK'
+STATUS_ERROR = 'ERROR'
+STATUS_NO_DATA = 'NO DATA'
 
 
 log = logging.getLogger(__name__)
@@ -27,12 +28,15 @@ class InstanceStatus(object):
 
 class CheckStatus(object):
     
-    def __init__(self, check_name, instance_statuses):
+    def __init__(self, check_name, instance_statuses, has_data=False):
         self.name = check_name
         self.instance_statuses = instance_statuses
+        self.has_data = has_data
 
     @property
     def status(self):
+        if not self.has_data:
+            return STATUS_NO_DATA
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
                 return STATUS_ERROR
@@ -60,15 +64,26 @@ class CollectorStatus(object):
             log.exception("Error persisting collector status")
 
     def print_status(self):
-        print "created at %s by pid %s" % (self.created_at, self.created_by_pid)
+        lines = [
+            "Collector",
+            "---------",
+            "Pid: %s" % self.created_by_pid,
+            "Date: %s" % self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ""
+        ]
+
         if self.start_up and not self.check_statuses:
-            print "Agent just started."
+            lines.append("No checks have run yet.")
         else:
             for check_status in self.check_statuses:
-                print "check %s: %s" % (check_status.name, check_status.status)
+                check_lines = [
+                    "Check %10s: %s" % (check_status.name, check_status.status)
+                ]
                 for instance_status in check_status.instance_statuses:
-                    print "\tinstance #%s: %s" % (instance_status.instance_id, instance_status.status)
-                print "\n"
+                    check_lines.append("   instance #%2s: %s" %
+                    (instance_status.instance_id, instance_status.status))
+                lines += check_lines
+        print "\n".join(lines)
 
     @classmethod
     def print_latest_status(cls):
