@@ -150,8 +150,7 @@ def setup_logging(agentConfig):
             logging.disable(logging.ERROR)
 
 
-# Control of daemon
-if __name__ == '__main__':
+def main():
     options, args = get_parsed_args()
     agentConfig = get_config()
 
@@ -205,3 +204,16 @@ if __name__ == '__main__':
     else:
         sys.stderr.write('Usage: %s start|stop|restart|foreground|status' % sys.argv[0])
         sys.exit(2)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except SystemExit, KeyboardInterrupt:
+        pass
+    except:
+        # Try our best to log the error.
+        try:
+            agent_logger.exception("Uncaught error running the agent")
+        except:
+            pass
