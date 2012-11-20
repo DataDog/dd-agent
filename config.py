@@ -539,4 +539,5 @@ def load_check_directory(agentConfig):
             'class': check_class
         })
 
+    log.info('checks.d checks: %s' % [c['name'] for c in checks])
     return checks
