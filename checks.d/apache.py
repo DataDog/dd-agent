@@ -25,27 +25,24 @@ class Apache(AgentCheck):
             return
         tags = instance.get('tags', [])
 
-        try:
-            req = urllib2.Request(instance['apache_status_url'], None,
-                headers(self.agentConfig))
-            request = urllib2.urlopen(req)
-            response = request.read()
+        req = urllib2.Request(instance['apache_status_url'], None,
+            headers(self.agentConfig))
+        request = urllib2.urlopen(req)
+        response = request.read()
 
-            # Loop through and extract the numerical values
-            for line in response.split('\n'):
-                values = line.split(': ')
-                if len(values) == 2: # match
-                    metric, value = values
-                    metric_name = self.METRIC_TRANSLATION.get(metric, metric)
-                    try:
-                        if metric_name == 'apache.net.bytes':
-                            self.gauge(metric_name, float(value) * 1024, tags=tags)
-                        else:
-                            self.gauge(metric_name, float(value), tags=tags)
-                    except ValueError:
-                        continue
-        except:
-            self.log.exception('Unable to get Apache status')
+        # Loop through and extract the numerical values
+        for line in response.split('\n'):
+            values = line.split(': ')
+            if len(values) == 2: # match
+                metric, value = values
+                metric_name = self.METRIC_TRANSLATION.get(metric, metric)
+                try:
+                    if metric_name == 'apache.net.bytes':
+                        self.gauge(metric_name, float(value) * 1024, tags=tags)
+                    else:
+                        self.gauge(metric_name, float(value), tags=tags)
+                except ValueError:
+                    continue
 
     @staticmethod
     def parse_agent_config(agentConfig):
