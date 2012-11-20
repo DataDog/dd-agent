@@ -19,6 +19,7 @@ import types
 import os
 
 from util import LaconicFilter
+from checks import check_status
 
 # Konstants
 class CheckException(Exception): pass
@@ -405,8 +406,16 @@ class AgentCheck(object):
 
     def run(self):
         """ Run all instances. """
-        for instance in self.instances:
-            self.check(instance)
+        instance_statuses = []
+        for i, instance in enumerate(self.instances):
+            try:
+                self.check(instance)
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+            except Exception, e:
+                self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR)
+            instance_statuses.append(instance_status)
+        return instance_statuses
 
     def check(self, instance):
         """

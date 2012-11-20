@@ -30,6 +30,7 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
+from checks.check_status import CheckStatus, CollectorStatus
 from resources.processes import Processes as ResProcesses
 
 
@@ -265,23 +266,33 @@ class Collector(object):
                 metrics.extend(res)
 
         # checks.d checks
+        check_statuses = []
         checksd = checksd or []
         for check in checksd:
             logger.debug("Running check %s" % check.name)
-            for instance in check.instances:
-                try:
-                    # Run the check for each configuration
-                    check.check(instance)
-                        
-                    # Collect it's metrics and events.
-                    metrics.extend(check.get_metrics())
-                    if check.has_events():
-                        if check.name not in events:
-                            events[check.name] = []
-                        events[check.name] += check.get_events()
+            instance_statuses = [] 
+            try:
+                # Run the check.
+                instance_statuses = check.run()
 
-                except Exception:
-                    logger.exception("Check %s failed" % check.name)
+                # Collect the metrics and events.
+                metrics.extend(check.get_metrics())
+                if check.has_events():
+                    if check.name not in events:
+                        events[check.name] = []
+                    events[check.name] += check.get_events()
+    
+                check_status = CheckStatus(check.name, instance_statuses)
+            except Exception, e:
+                logger.exception("Error running check %s" % check.name)
+                check_status = CheckStatus(check.name, instance_statuses, e)
+            check_statuses.append(check_status)
+
+        # Persist the status of the collection run.
+        try:
+            CollectorStatus(check_statuses).persist()
+        except Exception:
+            logger.exception("Error persisting collector status")
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
