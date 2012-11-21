@@ -27,7 +27,7 @@ class InstanceStatus(object):
     def __init__(self, instance_id, status, error=None):
         self.instance_id = instance_id
         self.status = status
-        self.error = error
+        self.error = repr(error)
 
 
 class CheckStatus(object):
@@ -80,18 +80,21 @@ class CollectorStatus(object):
             ""
         ]
 
-        if self.start_up and not self.check_statuses:
+        lines.append("Checks")
+        lines.append("------")
+        if not self.check_statuses:
             lines.append("No checks have run yet.")
         else:
-            lines.append("Checks")
-            lines.append("------")
             for check_status in self.check_statuses:
                 check_lines = [
                     check_status.name
                 ]
                 for instance_status in check_status.instance_statuses:
-                    check_lines.append("  instance #%s [%s]" %
-                    (instance_status.instance_id, instance_status.status))
+                    line =  "  instance #%s [%s]" % (
+                             instance_status.instance_id, instance_status.status)
+                    if instance_status.status != STATUS_OK:
+                        line += u": %s" % instance_status.error
+                    check_lines.append(line)
                 lines += check_lines
         print "\n".join(lines)
 

@@ -413,7 +413,7 @@ class AgentCheck(object):
                 instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR)
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
             instance_statuses.append(instance_status)
         return instance_statuses
 
