@@ -286,6 +286,8 @@ class Collector(object):
                 return
             logger.debug("Running check %s" % check.name)
             instance_statuses = [] 
+            metric_count = 0
+            event_count = 0
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -302,11 +304,11 @@ class Collector(object):
                     events[check.name] += check.get_events()
 
                 # Save the status of the check.
-                has_data = current_check_events or current_check_metrics
-                check_status = CheckStatus(check.name, instance_statuses, has_data)
+                metric_count = len(current_check_metrics)
+                event_count = len(current_check_events)
             except Exception, e:
                 logger.exception("Error running check %s" % check.name)
-                check_status = CheckStatus(check.name, instance_statuses, e)
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
 
         # Persist the status of the collection run.

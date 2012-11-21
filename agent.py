@@ -68,7 +68,7 @@ class Agent(Daemon):
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
         # Save the agent start-up stats.
-        CollectorStatus(start_up=True).persist()
+        CollectorStatus().persist()
 
         # Intialize the collector.
         agentConfig = self._set_agent_config_hostname(get_config())

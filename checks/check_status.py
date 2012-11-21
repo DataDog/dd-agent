@@ -16,7 +16,6 @@ import config
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
-STATUS_NO_DATA = 'NO DATA'
 
 
 log = logging.getLogger(__name__)
@@ -32,15 +31,14 @@ class InstanceStatus(object):
 
 class CheckStatus(object):
     
-    def __init__(self, check_name, instance_statuses, has_data=False):
+    def __init__(self, check_name, instance_statuses, metric_count, event_count):
         self.name = check_name
         self.instance_statuses = instance_statuses
-        self.has_data = has_data
+        self.metric_count = metric_count
+        self.event_count = event_count
 
     @property
     def status(self):
-        if not self.has_data:
-            return STATUS_NO_DATA
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
                 return STATUS_ERROR
@@ -49,9 +47,8 @@ class CheckStatus(object):
 
 class CollectorStatus(object):
 
-    def __init__(self, check_statuses=None, start_up=False):
+    def __init__(self, check_statuses=None):
         self.check_statuses = check_statuses or []
-        self.start_up = start_up
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
 
@@ -85,16 +82,19 @@ class CollectorStatus(object):
         if not self.check_statuses:
             lines.append("No checks have run yet.")
         else:
-            for check_status in self.check_statuses:
+            for cs in self.check_statuses:
                 check_lines = [
-                    check_status.name
+                    cs.name
                 ]
-                for instance_status in check_status.instance_statuses:
-                    line =  "  instance #%s [%s]" % (
+                for instance_status in cs.instance_statuses:
+                    line =  "  - instance #%s [%s]" % (
                              instance_status.instance_id, instance_status.status)
                     if instance_status.status != STATUS_OK:
                         line += u": %s" % instance_status.error
                     check_lines.append(line)
+                check_lines += [
+                    "  - Sent %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                ]
                 lines += check_lines
         print "\n".join(lines)
 
