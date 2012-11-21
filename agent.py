@@ -235,11 +235,10 @@ def main():
 if __name__ == '__main__':
     try:
         sys.exit(main())
-    except SystemExit, KeyboardInterrupt:
-        pass
-    except:
+    except Exception:
         # Try our best to log the error.
         try:
             agent_logger.exception("Uncaught error running the agent")
         except:
             pass
+        raise
