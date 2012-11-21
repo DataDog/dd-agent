@@ -40,7 +40,8 @@ def http_emitter(message, logger, agentConfig):
             logger.debug('http_emitter: postback response: ' + str(response.read()))
         else:
             logger.error("No api key, not sending payload")
-
+    except SystemExit, KeyboardInterrupt:
+        raise
     except urllib2.HTTPError, e:
         if e.code != 202:
             logger.exception('http_emitter: HTTPError = ' + str(e))
