@@ -300,8 +300,9 @@ class Collector(object):
                 metrics.extend(current_check_metrics)
                 if current_check_events:
                     if check.name not in events:
-                        events[check.name] = []
-                    events[check.name] += check.get_events()
+                        events[check.name] = current_check_events
+                    else:
+                        events[check.name] += current_check_events
 
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
