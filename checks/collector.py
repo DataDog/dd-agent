@@ -304,8 +304,6 @@ class Collector(object):
                 # Save the status of the check.
                 has_data = current_check_events or current_check_metrics
                 check_status = CheckStatus(check.name, instance_statuses, has_data)
-            except SystemExit, KeyboardInterrupt:
-                raise
             except Exception, e:
                 logger.exception("Error running check %s" % check.name)
                 check_status = CheckStatus(check.name, instance_statuses, e)
@@ -314,8 +312,6 @@ class Collector(object):
         # Persist the status of the collection run.
         try:
             CollectorStatus(check_statuses).persist()
-        except SystemExit, KeyboardInterrupt:
-            raise
         except Exception:
             logger.exception("Error persisting collector status")
 
