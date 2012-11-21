@@ -140,7 +140,7 @@ def setup_logging(agentConfig):
     if agentConfig['debug_mode']:
         logFile = "/tmp/dd-agent.log"
         logging.basicConfig(filename=logFile, filemode='w',
-        level=logging.DEBUG, format='%(asctime)s - %(process)d %(name)s - %(levelname)s - %(message)s')
+        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logging.info("Logging to %s" % logFile)
     else:
         try:
