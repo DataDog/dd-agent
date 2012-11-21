@@ -50,4 +50,5 @@ def http_emitter(message, logger, agentConfig):
     except httplib.HTTPException, e:
         logger.exception('http_emitter: HTTPException = ' + str(e))
     except:
+        #FIXME mattp: can we limit this to Exception?
         logger.exception('http_emitter')
