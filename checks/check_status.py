@@ -21,6 +21,60 @@ STATUS_ERROR = 'ERROR'
 log = logging.getLogger(__name__)
 
 
+class AgentStatus(object):
+    """ 
+    A small class used to load and save status messages to the filesystem.
+    """
+
+    def __init__(self):
+        self.created_at = datetime.datetime.now()
+        self.created_by_pid = os.getpid()
+
+    def persist(self):
+        path = self._get_pickle_path()
+        log.debug("Persisting status to %s" % path)
+        try:
+            f = open(path, 'w')
+            try:
+                pickle.dump(self, f)
+            finally:
+                f.close()
+        except Exception:
+            log.exception("Error persisting status")
+
+    def created_seconds_ago(self):
+        td = datetime.datetime.now() - self.created_at
+        return td.seconds
+
+    @classmethod
+    def remove_latest_status(cls):
+        log.debug("Removing latest collector status")
+        try:
+            os.remove(cls._get_pickle_path())
+        except OSError:
+            pass
+
+    @classmethod
+    def load_latest_status(cls):
+        try:
+            f = open(cls._get_pickle_path())
+            try:
+                return pickle.load(f)
+            finally:
+                f.close()
+        except IOError:
+            log.info("Couldn't load latest status")
+            return None
+
+    @classmethod
+    def _get_pickle_path(cls):
+        return os.path.join(tempfile.gettempdir(), cls._get_filename())
+
+    @classmethod
+    def _get_filename(cls):
+        raise NotImplementedError
+
+
 class InstanceStatus(object):
 
     def __init__(self, instance_id, status, error=None):
@@ -59,34 +113,25 @@ class EmitterStatus(object):
         else:
             return STATUS_OK
 
-class CollectorStatus(object):
+
+class CollectorStatus(AgentStatus):
 
     def __init__(self, check_statuses=None, emitter_statuses=None):
+        AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
-        self.created_at = datetime.datetime.now()
-        self.created_by_pid = os.getpid()
 
-    def persist(self):
-        path = self._get_pickle_path()
-        log.debug("Persisting status to %s" % path)
-        try:
-            f = open(path, 'w')
-            try:
-                pickle.dump(self, f)
-            finally:
-                f.close()
-        except Exception:
-            log.exception("Error persisting collector status")
+    @classmethod
+    def _get_filename(cls):
+        return 'collector_status.pickle'
 
     def print_status(self):
-        td = datetime.datetime.now() - self.created_at
         lines = [
             "",
             "Collector",
             "=========",
             "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                            td.seconds),
+                                            self.created_seconds_ago()),
             "Version: %s" % config.get_version(),
             "Pid: %s" % self.created_by_pid,
             "Platform: %s" % sys.platform,
@@ -136,27 +181,4 @@ class CollectorStatus(object):
         else:
             collector_status.print_status()
 
-    @classmethod
-    def remove_latest_status(cls):
-        log.debug("Removing latest collector status")
-        try:
-            os.remove(cls._get_pickle_path())
-        except OSError:
-            pass
-
-    @classmethod
-    def load_latest_status(cls):
-        try:
-            f = open(cls._get_pickle_path())
-            try:
-                return pickle.load(f)
-            finally:
-                f.close()
-        except IOError:
-            log.info("Couldn't load latest status")
-            return None
-
-    @classmethod
-    def _get_pickle_path(cls):
-        return os.path.join(tempfile.gettempdir(), 'collector_status.pickle')
 
