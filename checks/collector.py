@@ -323,15 +323,22 @@ class Collector(object):
         payload['events'] = events
         collect_duration = timer.step()
 
-        # Pass the payload along to the emitters.
-        for emitter in self.emitters:
-            if not self.continue_running:
-                return 
-            emitter(payload, checks_logger, self.agentConfig)
+        self._emit(payload)
         emit_duration = timer.step()
 
         logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
+
+    def _emit(self, payload):
+        """ Send the payload via the emitters. """
+        for emitter in self.emitters:
+            # Don't try to send to an emitter if we're stopping/
+            if not self.continue_running:
+                return 
+            try:
+                emitter(payload, checks_logger, self.agentConfig)
+            except Exception:
+                logger.exception("Error running emitter: %s" % emitter.__name__)
 
     def _is_first_run(self):
         return self.run_count <= 1
