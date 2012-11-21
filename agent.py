@@ -68,9 +68,6 @@ class Agent(Daemon):
                 agentLogger.info('Not running on EC2, using hostname to identify this server')
 
         emitters = [http_emitter]
-        for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
-            if len(emitter_spec) == 0: continue
-            emitters.append(modules.load(emitter_spec, 'emitter'))
 
         check_freq = int(agentConfig['check_freq'])
 
