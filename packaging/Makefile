@@ -1,6 +1,9 @@
 .PHONY: clean deb rpm archivedeb archiverpm archive all installdeb installrpm deb_repo incbuild resetbuild
 
-VERSION=`cd .. && python -c "from config import get_version; print get_version()"`
+PYTHON=python
+INSTALL_LAYOUT_ARG=--install-layout=deb
+
+VERSION=`cd .. && $(PYTHON) -c "from config import get_version; print get_version()"`
 
 clean:
 	rm -rf *.deb
@@ -10,19 +13,19 @@ clean:
 	make -C datadog-agent clean
 
 deb:	ensurebuild
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent-lib deb
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent-lib deb
 	cp datadog-agent-lib/*.deb .
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent-base deb
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent-base deb
 	cp datadog-agent-base/*.deb .
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent deb
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent deb
 	cp datadog-agent/*.deb .
 
 rpm:	ensurebuild
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent-lib rpm
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent-lib rpm
 	cp datadog-agent-lib/*.rpm .
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent-base rpm
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent-base rpm
 	cp datadog-agent-base/*.rpm .
-	VERSION=$(VERSION) BUILDNUMBER=`cat build.number` make -C datadog-agent rpm
+	VERSION=$(VERSION) PYTHON=$(PYTHON) INSTALL_LAYOUT_ARG=$(INSTALL_LAYOUT_ARG) BUILDNUMBER=`cat build.number` make -C datadog-agent rpm
 	cp datadog-agent/*.rpm .
 
 archivedeb:
