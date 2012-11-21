@@ -56,6 +56,7 @@ class Collector(object):
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
         self.run_count = 0
+        self.continue_running = True
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -119,6 +120,18 @@ class Collector(object):
         self._resources_checks = [
             ResProcesses(checks_logger,self.agentConfig)
         ]
+
+    def stop(self):
+        """
+        Tell the collector to stop at the next logical point.
+        """
+        # This is called when the process is being killed, so 
+        # try to stop the collector as soon as possible.
+        # Most importantly, don't try to submit to the emitters
+        # because the forwarder is quite possibly already killed
+        # in which case we'll get a misleading error in the logs.
+        # Best to not even try.
+        self.continue_running = False
     
     def run(self, checksd=None):
         """
@@ -269,6 +282,8 @@ class Collector(object):
         check_statuses = []
         checksd = checksd or []
         for check in checksd:
+            if not self.continue_running:
+                return
             logger.debug("Running check %s" % check.name)
             instance_statuses = [] 
             try:
@@ -311,6 +326,8 @@ class Collector(object):
 
         # Pass the payload along to the emitters.
         for emitter in self.emitters:
+            if not self.continue_running:
+                return 
             emitter(payload, checks_logger, self.agentConfig)
         emit_duration = timer.step()
 

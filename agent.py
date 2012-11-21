@@ -53,13 +53,13 @@ class Agent(Daemon):
     def __init__(self, pidfile):
         Daemon.__init__(self, pidfile)
         self.run_forever = True
+        self.collector = None
 
     def _handle_sigterm(self, signum, frame):
         agent_logger.debug("Caught sigterm. Stopping run loop.")
-        # FIXME mattp: once the collector is using only checksd, we
-        # also tell the collector to stop running checks + sending
-        # to emitters as well.
         self.run_forever = False
+        if self.collector:
+            self.collector.stop()
 
     def run(self):
         """Main loop of the collector"""
@@ -74,7 +74,7 @@ class Agent(Daemon):
         agentConfig = self._set_agent_config_hostname(get_config())
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
-        collector = Collector(agentConfig, emitters, systemStats)
+        self.collector = Collector(agentConfig, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
@@ -86,7 +86,7 @@ class Agent(Daemon):
         # Run the main loop.
         while self.run_forever:
             # Do the work.
-            collector.run(checksd=checksd)
+            self.collector.run(checksd=checksd)
 
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.
