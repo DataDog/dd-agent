@@ -44,11 +44,26 @@ class CheckStatus(object):
                 return STATUS_ERROR
         return STATUS_OK
 
+class EmitterStatus(object):
+
+    def __init__(self, name, error=None):
+        self.name = name
+        self.error = None
+        if error:
+            self.error = repr(error)
+
+    @property
+    def status(self):
+        if self.error:
+            return STATUS_ERROR
+        else:
+            return STATUS_OK
 
 class CollectorStatus(object):
 
-    def __init__(self, check_statuses=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None):
         self.check_statuses = check_statuses or []
+        self.emitter_statuses = emitter_statuses or []
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
 
@@ -98,6 +113,19 @@ class CollectorStatus(object):
                     "  - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
                 ]
                 lines += check_lines
+
+        lines.append("")
+        lines.append("Emitters")
+        lines.append("------")
+        if not self.emitter_statuses:
+            lines.append("No emitters have run yet.")
+        else:
+            for es in self.emitter_statuses:
+                line = "  - %s [%s]" % (es.name, es.status)
+                if es.status != STATUS_OK:
+                    line += ": %s" % es.error
+                lines.append(line)
+
         print "\n".join(lines)
 
     @classmethod

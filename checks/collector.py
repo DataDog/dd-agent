@@ -30,7 +30,7 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
-from checks.check_status import CheckStatus, CollectorStatus
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
@@ -312,33 +312,39 @@ class Collector(object):
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
 
-        # Persist the status of the collection run.
-        try:
-            CollectorStatus(check_statuses).persist()
-        except Exception:
-            logger.exception("Error persisting collector status")
-
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
         collect_duration = timer.step()
 
-        self._emit(payload)
+        emitter_statuses = self._emit(payload)
         emit_duration = timer.step()
+
+        # Persist the status of the collection run.
+        try:
+            CollectorStatus(check_statuses, emitter_statuses).persist()
+        except Exception:
+            logger.exception("Error persisting collector status")
 
         logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """
+        statuses = []
         for emitter in self.emitters:
             # Don't try to send to an emitter if we're stopping/
             if not self.continue_running:
-                return 
+                return statuses
+            name = emitter.__name__
+            emitter_status = EmitterStatus(name)
             try:
                 emitter(payload, checks_logger, self.agentConfig)
-            except Exception:
+            except Exception, e:
                 logger.exception("Error running emitter: %s" % emitter.__name__)
+                emitter_status = EmitterStatus(name, e)
+            statuses.append(emitter_status)
+        return statuses
 
     def _is_first_run(self):
         return self.run_count <= 1
