@@ -3,11 +3,15 @@ This module contains classes which are used to occasionally persist the status
 of checks.
 """
 
+import datetime
 import logging
 import os
 import pickle
+import platform
+import sys
 import tempfile
-import datetime
+
+import config
 
 
 STATUS_OK = 'OK'
@@ -65,22 +69,28 @@ class CollectorStatus(object):
 
     def print_status(self):
         lines = [
+            "",
             "Collector",
-            "---------",
+            "=========",
+            "Status date: %s" % self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "Version: %s" % config.get_version(),
             "Pid: %s" % self.created_by_pid,
-            "Date: %s" % self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "Platform: %s" % sys.platform,
+            "Python Version: %s" % platform.python_version(),
             ""
         ]
 
         if self.start_up and not self.check_statuses:
             lines.append("No checks have run yet.")
         else:
+            lines.append("Checks")
+            lines.append("------")
             for check_status in self.check_statuses:
                 check_lines = [
-                    "Check %10s: %s" % (check_status.name, check_status.status)
+                    check_status.name
                 ]
                 for instance_status in check_status.instance_statuses:
-                    check_lines.append("   instance #%2s: %s" %
+                    check_lines.append("  instance #%s [%s]" %
                     (instance_status.instance_id, instance_status.status))
                 lines += check_lines
         print "\n".join(lines)
