@@ -85,13 +85,14 @@ class Agent(Daemon):
        
         # Run the main loop.
         while self.run_forever:
+            # Do the work.
             collector.run(checksd=checksd)
-            if watchdog:
-                watchdog.reset()
-           
+
+            # Only plan for the next loop if we will continue,
+            # otherwise just exit quickly.
             if self.run_forever:
-                # Only sleep if we're going to continue, otherwise
-                # exit quickly.
+                if watchdog:
+                    watchdog.reset()
                 time.sleep(check_frequency)
 
         # Now clean-up.
