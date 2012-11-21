@@ -1,0 +1,119 @@
+datadog-agent (2.1.0-1) unstable; urgency=medium
+
+  * Adds support for dogstream log parsing (merged from 1.9.13)
+
+ -- Carlo <carlo@datadoghq.com>  Thu, 25 Aug 2011 11:14:00 -0400
+
+datadog-agent (2.0.0-1) unstable; urgency=medium
+
+  * New forwarding agent is now the default
+  * Split into two packages
+
+ -- Fabrice <fabrice@datadoghq.com>  Sun, 14 Aug 2011 23:56:00 +0200
+
+datadog-agent (1.9.12-2) unstable; urgency=medium
+
+  * Adds support for redis-server 1.2
+
+ -- Alexis <alq@datadoghq.com>  Wed, 3 Aug 2011 15:06:00 -0400
+
+datadog-agent (1.9.12-1) unstable; urgency=medium
+
+  * Adds support for older python-redis module (v0.6.1).
+
+ -- Alexis <alq@datadoghq.com>  Wed, 3 Aug 2011 15:06:00 -0400
+
+datadog-agent (1.9.11-1) unstable; urgency=low
+
+  * Added support for overriding a hostname from the config file
+
+ -- Alexis <alq@datadoghq.com>  Mon, 11 Jul 2011 15:06:00 -0400
+
+datadog-agent (1.9.10-1) unstable; urgency=high
+
+  * Fixed regression of nagios plugin that would read the log line-by-line
+
+ -- Alexis <alq@datadoghq.com>  Fri, 8 Jul 2011 15:06:00 -0400
+
+datadog-agent (1.9.9-2) unstable; urgency=low
+
+  * Encode dependency with sysstat
+  * Fixes connection leak in memcache module
+
+ -- Alexis <alq@datadoghq.com>  Thu, 23 Jun 2011 23:06:00 -0400
+
+datadog-agent (1.9.8-2) unstable; urgency=high
+
+  * Fixes verbose logging in memcache module.
+
+ -- Alexis <alq@datadoghq.com>  Sat, 28 May 2011 23:43:00 -0400
+
+datadog-agent (1.9.8-1) unstable; urgency=high
+
+  * Supports memcache stats
+
+ -- Alexis <alq@datadoghq.com>  Thu, 26 May 2011 16:43:00 -0400
+
+datadog-agent (1.9.7-1) unstable; urgency=low
+
+  * Supports more nagios events (notifications, downtime, acks)
+
+ -- Alexis <alq@datadoghq.com>  Fri, 20 May 2011 17:44:00 -0400
+
+datadog-agent (1.9.6-1) unstable; urgency=low
+
+  * Added 'postgresql_port' option to the agent config.
+
+ -- Matt <matt@datadoghq.com>  Fri, 13 May 2011 11:25:00 -0400
+
+datadog-agent (1.9.5-1) unstable; urgency=low
+
+  * Rendered the syslog logger a lot more laconic. It won't complain endlessly now.
+
+ -- Alexis <alq@datadoghq.com>  Wed, 19 Apr 2011 16:25:00 -0400
+
+datadog-agent (1.9.4-2) unstable; urgency=high
+
+  * Fixed path issues with JMX
+
+ -- Alexis <alq@datadoghq.com>  Wed, 13 Apr 2011 15:07:00 -0400
+
+datadog-agent (1.9.4-1) unstable; urgency=medium
+
+  * Support for Tomcat, ActiveMQ and Solr via JMX
+
+ -- Alexis <alq@datadoghq.com>  Wed, 13 Apr 2011 15:07:00 -0400
+
+datadog-agent (1.9.3-1) unstable; urgency=high
+
+  * Numerous fixes in data collection
+
+ -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2011 09:42:25 -0500
+
+
+datadog-agent (1.9.2-2) unstable; urgency=low
+
+  * Do not attempt to start the agent upon install if the conf file is missing
+
+ -- Alexis <alq@datadoghq.com>  Wed, 15 Feb 2011 09:42:25 -0500
+
+datadog-agent (1.9.2-1) unstable; urgency=low
+
+  * Uses collection timestamp to accurately pinpoint data points
+
+ -- Alexis <alq@datadoghq.com>  Sun, 6 Feb 2011 23:42:25 -0500
+
+datadog-agent (1.9.1-1) unstable; urgency=medium
+
+  * RPM support
+  * Initial cassandra support
+  * Can be packaged as an RPM
+  * Plenty of fixes
+
+ -- Alexis <alq@datadoghq.com>  Mon, 31 Jan 2011 19:02:12 -0500
+
+datadog-agent (1.9.0-1) unstable; urgency=low
+
+  * source package automatically created by stdeb 0.6.0
+
+ -- Datadog <datadog@datadoghq.com>  Mon, 27 Dec 2010 16:29:29 +0100
