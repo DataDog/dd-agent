@@ -1,6 +1,8 @@
 .PHONY: clean links dirs deb rpm install_deb install_rpm install
 
 BUILD=build/package
+PYTHON=python
+INSTALL_LAYOUT_ARG=--install-layout=deb
 CWD=$(shell pwd)
 
 FPM_BUILD=fpm -s dir -C $(BUILD) -e -n "datadog-agent-base" \
@@ -42,7 +44,7 @@ dirs:
 	mkdir -p $(BUILD)
 
 install: dirs links
-	PYTHONPATH=$(BUILD) python setup.py install --root=$(BUILD) --install-layout=deb --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent --no-compile
+	PYTHONPATH=$(BUILD) $(PYTHON) setup.py install --root=$(BUILD) $(INSTALL_LAYOUT_ARG) --install-lib=/usr/share/datadog/agent --install-scripts=/usr/share/datadog/agent --no-compile
 	mkdir -p $(BUILD)/usr/bin
 	mkdir -p $(BUILD)/etc/init.d
 	rm -rf $(BUILD)/home
