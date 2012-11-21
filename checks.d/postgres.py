@@ -29,28 +29,25 @@ class PostgreSql(AgentCheck):
             where datname not ilike 'template%' and
                 datname not ilike 'postgres';
         """
-        try:
-            cursor = db.cursor()
-            cursor.execute(query)
+        cursor = db.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
+        while result is not None:
+            (dbname, backends, commits, rollbacks, read, hit,
+             ret, fetch, ins, upd, deleted) = result
+            tags = ['db:%s' % dbname] + tags
+            self.gauge('postgresql.connections', backends, tags=tags)
+            self.rate('postgresql.commits', commits, tags=tags)
+            self.rate('postgresql.rollbacks', backends, tags=tags)
+            self.rate('postgresql.disk_read', read, tags=tags)
+            self.rate('postgresql.buffer_hit', hit, tags=tags)
+            self.rate('postgresql.rows_returned', ret, tags=tags)
+            self.rate('postgresql.rows_fetched', fetch, tags=tags)
+            self.rate('postgresql.rows_inserted', ins, tags=tags)
+            self.rate('postgresql.rows_updated', upd, tags=tags)
+            self.rate('postgresql.rows_deleted', deleted, tags=tags)
             result = cursor.fetchone()
-            while result is not None:
-                (dbname, backends, commits, rollbacks, read, hit,
-                 ret, fetch, ins, upd, deleted) = result
-                tags = ['db:%s' % dbname] + tags
-                self.gauge('postgresql.connections', backends, tags=tags)
-                self.rate('postgresql.commits', commits, tags=tags)
-                self.rate('postgresql.rollbacks', backends, tags=tags)
-                self.rate('postgresql.disk_read', read, tags=tags)
-                self.rate('postgresql.buffer_hit', hit, tags=tags)
-                self.rate('postgresql.rows_returned', ret, tags=tags)
-                self.rate('postgresql.rows_fetched', fetch, tags=tags)
-                self.rate('postgresql.rows_inserted', ins, tags=tags)
-                self.rate('postgresql.rows_updated', upd, tags=tags)
-                self.rate('postgresql.rows_deleted', deleted, tags=tags)
-                result = cursor.fetchone()
-            del cursor
-        except Exception, e:
-            self.log.exception("Error while gathering pg stats: %s" % e)
+        del cursor
 
     def check(self, instance):
         host = instance.get('host', '')

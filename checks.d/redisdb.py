@@ -100,6 +100,7 @@ class Redis(AgentCheck):
                     self.connections[key] = redis.Redis(host=host, port=port, password=password)
                 except TypeError:
                     self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
+                    raise
             else:
                 self.connections[key] = redis.Redis(host=host, port=port)
 

@@ -26,10 +26,7 @@ class Nginx(AgentCheck):
             return
         tags = instance.get('tags', [])
 
-        try:
-            self._get_metrics(instance['nginx_status_url'], tags)
-        except:
-            self.log.exception('Unable to get Nginx status')
+        self._get_metrics(instance['nginx_status_url'], tags)
 
     def _get_metrics(self, url, tags):
         req = urllib2.Request(url, None, headers(self.agentConfig))
