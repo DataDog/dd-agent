@@ -65,11 +65,13 @@ class CollectorStatus(object):
             log.exception("Error persisting collector status")
 
     def print_status(self):
+        td = datetime.datetime.now() - self.created_at
         lines = [
             "",
             "Collector",
             "=========",
-            "Status date: %s" % self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                            td.seconds),
             "Version: %s" % config.get_version(),
             "Pid: %s" % self.created_by_pid,
             "Platform: %s" % sys.platform,
@@ -93,7 +95,7 @@ class CollectorStatus(object):
                         line += u": %s" % instance_status.error
                     check_lines.append(line)
                 check_lines += [
-                    "  - Sent %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                    "  - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
                 ]
                 lines += check_lines
         print "\n".join(lines)
