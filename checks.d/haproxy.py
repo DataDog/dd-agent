@@ -45,11 +45,8 @@ class HAProxy(AgentCheck):
         password = instance.get('password')
 
         self.log.debug('Processing HAProxy data for %s' % url)
-        try:
-            data = self._fetch_data(url, username, password)
-        except:
-            self.log.exception('Unable to get haproxy statistics for %s' % url)
-            return
+       
+        data = self._fetch_data(url, username, password)
 
         self._process_data(data, self.hostname, self._process_metrics,
             self._process_events)
