@@ -41,7 +41,7 @@ def test_check_status_pass():
 
 def test_persistence():
     i1 = InstanceStatus(1, STATUS_OK)
-    chk1 = CheckStatus("dummy", [i1])
+    chk1 = CheckStatus("dummy", [i1], 1, 2)
     c1 = CollectorStatus([chk1])
     c1.persist()
 
@@ -50,6 +50,8 @@ def test_persistence():
     chk2 = c2.check_statuses[0]
     assert chk2.name == chk1.name
     assert chk2.status == chk2.status
+    assert chk2.metric_count == 1
+    assert chk2.event_count == 2
 
 def test_persistence_fail():
 
