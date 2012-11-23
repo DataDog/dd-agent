@@ -3,6 +3,7 @@ This module contains classes which are used to occasionally persist the status
 of checks.
 """
 
+# stdlib
 import datetime
 import logging
 import os
@@ -11,6 +12,7 @@ import platform
 import sys
 import tempfile
 
+# project
 import config
 
 
@@ -31,9 +33,9 @@ class AgentStatus(object):
         self.created_by_pid = os.getpid()
 
     def persist(self):
-        path = self._get_pickle_path()
-        log.debug("Persisting status to %s" % path)
         try:
+            path = self._get_pickle_path()
+            log.debug("Persisting status to %s" % path)
             f = open(path, 'w')
             try:
                 pickle.dump(self, f)
@@ -48,7 +50,7 @@ class AgentStatus(object):
 
     @classmethod
     def remove_latest_status(cls):
-        log.debug("Removing latest collector status")
+        log.debug("Removing latest status")
         try:
             os.remove(cls._get_pickle_path())
         except OSError:
@@ -68,11 +70,7 @@ class AgentStatus(object):
 
     @classmethod
     def _get_pickle_path(cls):
-        return os.path.join(tempfile.gettempdir(), cls._get_filename())
-
-    @classmethod
-    def _get_filename(cls):
-        raise NotImplementedError
+        return os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
 
 
 class InstanceStatus(object):
@@ -120,10 +118,6 @@ class CollectorStatus(AgentStatus):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
-
-    @classmethod
-    def _get_filename(cls):
-        return 'collector_status.pickle'
 
     def print_status(self):
         lines = [
@@ -180,5 +174,44 @@ class CollectorStatus(AgentStatus):
             print "The agent is not running."
         else:
             collector_status.print_status()
+
+
+class DogstatsdStatus(AgentStatus):
+    
+    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
+        AgentStatus.__init__(self)
+        self.flush_count = flush_count
+        self.packet_count = packet_count
+        self.packets_per_second = packets_per_second
+        self.metric_count = metric_count
+
+
+    def print_status(self):
+        lines = [
+            "",
+            "Dogstatsd",
+            "=========",
+            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                            self.created_seconds_ago()),
+            "Version: %s" % config.get_version(),
+            "Pid: %s" % self.created_by_pid,
+            "Platform: %s" % sys.platform,
+            "Python Version: %s" % platform.python_version(),
+            "",
+            "Flush count %s" % self.flush_count,
+            "Packet Count: %s" % self.packet_count,
+            "Packets per second: %s" % self.packets_per_second,
+            "Metric count: %s" % self.metric_count,
+        ]
+        print "\n".join(lines)
+
+    @classmethod
+    def print_latest_status(cls):
+        collector_status = cls.load_latest_status()
+        if not collector_status:
+            print "Dogstatsd is not running."
+        else:
+            collector_status.print_status()
+
 
 

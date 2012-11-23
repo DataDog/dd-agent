@@ -9,8 +9,9 @@ import logging
 import optparse
 from random import randrange
 import re
-import socket
 import select
+import signal
+import socket
 import sys
 from time import time
 import threading
@@ -19,6 +20,7 @@ from urllib import urlencode
 # project
 from aggregator import MetricsAggregator
 from checks import gethostname
+from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon
 from util import json, PidFile
@@ -39,7 +41,6 @@ class Reporter(threading.Thread):
 
     def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False):
         threading.Thread.__init__(self)
-        self.daemon = True
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
@@ -63,30 +64,50 @@ class Reporter(threading.Thread):
                 self.http_conn_cls = http_client.HTTPConnection
 
     def stop(self):
+        logger.info("Stopping reporter")
         self.finished.set()
 
     def run(self):
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         logger.debug("Watchdog enabled: %s" % bool(self.watchdog))
-        while True:
-            if self.finished.isSet(): # Use camel case version for 2.4 support.
-                break
+
+        # Persist a start-up message.
+        DogstatsdStatus().persist()
+
+        while not self.finished.isSet(): # Use camel case isSet for 2.4 support.
             self.finished.wait(self.interval)
             self.metrics_aggregator.send_packet_count('datadog.dogstatsd.packet.count')
             self.flush()
             if self.watchdog:
                 self.watchdog.reset()
 
+        # Clean up the status messages.
+        logger.debug("Stopped reporter")
+        DogstatsdStatus.remove_latest_status()
+
     def flush(self):
         try:
             self.flush_count += 1
+            packets_per_second = self.metrics_aggregator.packets_per_second(self.interval)
+            packet_count = self.metrics_aggregator.total_count
+
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
             if not count:
                 logger.info("Flush #%s: No metrics to flush." % self.flush_count)
-                return
-            logger.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
-            self.submit(metrics)
+            else:
+                logger.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
+                self.submit(metrics)
+
+            # Persist a status message.
+            packet_count = self.metrics_aggregator.total_count
+            DogstatsdStatus(
+                flush_count=self.flush_count,
+                packet_count=packet_count,
+                packets_per_second=packets_per_second,
+                metric_count=count
+            ).persist()
+
         except:
             logger.exception("Error flushing metrics")
 
@@ -113,6 +134,7 @@ class Reporter(threading.Thread):
         duration = round((time() - start_time) * 1000.0, 4)
         logger.info("%s %s %s%s (%sms)" % (
                         response.status, method, self.api_host, url, duration))
+        return duration
 
 class Server(object):
     """
@@ -140,20 +162,26 @@ class Server(object):
         # Inline variables for quick look-up.
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit_packets
-        socket = self.socket
+        sock = [self.socket]
         socket_recv = self.socket.recv
+        select_select = select.select
+        select_error = select.error
         timeout = UDP_SOCKET_TIMEOUT
 
         # Run our select loop.
         self.running = True
         while self.running:
             try:
-                ready = select.select([socket], [], [], timeout)
+                ready = select_select(sock, [], [], timeout)
                 if ready[0]:
                     aggregator_submit(socket_recv(buffer_size))
+            except select_error as (errno, msg):
+                # Ignore interrupted system calls from sigterm.
+                if errno != 4:
+                    raise
             except (KeyboardInterrupt, SystemExit):
                 break
-            except:
+            except Exception, e:
                 logger.exception('Error receiving datagram')
 
     def stop(self):
@@ -169,8 +197,22 @@ class Dogstatsd(Daemon):
         self.reporter = reporter
 
     def run(self):
+        # Gracefully exit on sigterm.
+        logger.info("Adding sig handler")
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
         self.reporter.start()
-        self.server.start()
+        try:
+            self.server.start()
+        finally:
+            # The server will block until it's done. Once we're here, shutdown
+            # the reporting thread.
+            self.reporter.stop()
+            self.reporter.join()
+            logger.info("Stopped")
+
+    def _handle_sigterm(self, signum, frame):
+        logger.info("Caught sigterm. Stopping run loop.")
+        self.server.stop()
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False):
@@ -213,21 +255,20 @@ def main(config_path=None):
     opts, args = parser.parse_args()
 
     reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
+    pid_file = PidFile('dogstatsd')
+    daemon = Dogstatsd(pid_file.get_path(), server, reporter)
 
     # If no args were passed in, run the server in the foreground.
     if not args:
-        reporter.start()
-        server.start()
-
-        # If we're here, we're done.
-        logger.info("Shutting down ...")
+        daemon.run()
         return 0
 
     # Otherwise, we're process the deamon command.
     else:
         command = args[0]
-        pid_file = PidFile('dogstatsd')
-        daemon = Dogstatsd(pid_file.get_path(), server, reporter)
+        if command == 'info':
+            DogstatsdStatus.print_latest_status()
+            return 0
 
         if command == 'start':
             daemon.start()
