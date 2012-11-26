@@ -27,39 +27,34 @@ class Apache(AgentCheck):
             self.log.warn("Missing 'apache_status_url' in Apache config")
             return
         tags = instance.get('tags', [])
+        req = urllib2.Request(instance['apache_status_url'], None,
+            headers(self.agentConfig))
+        request = urllib2.urlopen(req)
+        response = request.read()
 
-        try:
-            req = urllib2.Request(instance['apache_status_url'], None,
-                headers(self.agentConfig))
-            request = urllib2.urlopen(req)
-            response = request.read()
+        # Loop through and extract the numerical values
+        for line in response.split('\n'):
+            values = line.split(': ')
+            if len(values) == 2: # match
+                metric, value = values
+                try:
+                    value = float(value)
+                except ValueError:
+                    continue
 
-            # Loop through and extract the numerical values
-            for line in response.split('\n'):
-                values = line.split(': ')
-                if len(values) == 2: # match
-                    metric, value = values
-                    try:
-                        value = float(value)
-                    except ValueError:
-                        continue
+                # Special case: kBytes => bytes
+                if metric == 'Total kBytes':
+                    value = value * 1024
 
-                    # Special case: kBytes => bytes
-                    if metric == 'Total kBytes':
-                        value = value * 1024
+                # Send metric as a gauge, if applicable
+                if metric in self.GAUGES:
+                    metric_name = self.GAUGES[metric]
+                    self.gauge(metric_name, value, tags=tags)
 
-                    # Send metric as a gauge, if applicable
-                    if metric in GAGUES:
-                        metric_name = self.GAUGES[metric]
-                        self.gauge(metric_name, value, tags=tags)
-
-                    # Send metric as a rate, if applicable
-                    if metric in RATES:
-                        metric_name = self.RATES[metric]
-                        self.rate(metric_name, value, tags=tags)
-
-        except:
-            self.log.exception('Unable to get Apache status')
+                # Send metric as a rate, if applicable
+                if metric in self.RATES:
+                    metric_name = self.RATES[metric]
+                    self.rate(metric_name, value, tags=tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
