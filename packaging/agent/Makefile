@@ -1,9 +1,9 @@
 # Builds the datadog agent distributions using fpm.
 
 
-#
+#============
 # Constants
-#
+#============
 
 BUILD=build/package
 SRC=../..
@@ -19,9 +19,9 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) \
 --iteration $(BUILDNUMBER)
 
 
-#
-# Targets
-#
+#=============
+# COMMON
+#=============
 
 clean:
 	rm -rf $(ROOT)
@@ -59,6 +59,60 @@ install_base: source
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
 
+install_full: source
+	# Install the forwarder.
+	mkdir -p $(BUILD)/usr/bin
+	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
+	chmod 755 $(BUILD)/usr/bin/dd-forwarder
+
+# =====================
+# RPM
+# =====================
+
+install_base_rpm: install_base
+	mkdir -p $(BUILD)/etc/init.d
+	cp datadog-agent-base-rpm/datadog-agent-redhat $(BUILD)/etc/init.d/datadog-agent
+	chmod 755 $(BUILD)/etc/init.d/datadog-agent
+
+
+install_full_rpm: install_base_rpm install_full
+	mkdir -p $(BUILD)/etc/dd-agent
+	mkdir -p $(BUILD)/usr/share/datadog/agent
+	cp datadog-agent-rpm/supervisor.conf $(BUILD)/etc/dd-agent/supervisor.conf
+	cp datadog-agent-rpm/setup-supervisor.py $(BUILD)/usr/share/datadog/agent
+
+datadog_agent_base_rpm: clean install_base_rpm
+	FPM_EDITOR="echo '' >>" \
+$(FPM_BUILD) -t rpm \
+-n datadog-agent-base \
+-d "python(abi) >= 2.4" \
+-d "python-uuid" \
+-d "sysstat" \
+-d "pexpect" \
+--pre-install datadog-agent-base-rpm/pre_install \
+--post-install datadog-agent-base-rpm/post_install \
+--pre-uninstall datadog-agent-base-rpm/pre_uninstall \
+.
+
+datadog_agent_rpm: clean install_full_rpm
+	FPM_EDITOR="echo '' >>" \
+$(FPM_BUILD) -t rpm \
+-n "datadog-agent" \
+-d "python(abi) >= 2.6" \
+-d "python-tornado >= 2.3" \
+-d "datadog-agent-base >= $(VERSION)" \
+-d "supervisor >= 3.0" \
+--conflicts "datadog-agent < $(VERSION)" \
+--pre-install	    datadog-agent-rpm/preinst \
+--post-install	    datadog-agent-rpm/postinst \
+--pre-uninstall	    datadog-agent-rpm/prerm \
+--config-files "/etc/dd-agent/supervisor.conf" \
+.
+
+
+# =====================
+# DEBIAN
+# =====================
 
 install_base_deb: install_base
 	mkdir -p $(BUILD)/etc/init.d
@@ -67,10 +121,7 @@ install_base_deb: install_base
 
 
 # Install the forwarder and supervisor on debian.
-install_full_deb: install_base_deb
-	# Install the forwarder.
-	mkdir -p $(BUILD)/usr/bin
-	ln -sf ../share/datadog/agent/ddagent.py $(BUILD)/usr/bin/dd-forwarder
+install_full_deb: install_base_deb install_full
 	# Install supervisor config.
 	#   FIXME mattp: why do we need both of these?
 	mkdir -p $(BUILD)/etc/supervisor/conf.d
@@ -89,9 +140,8 @@ $(FPM_BUILD) -t deb \
 -d "python-tornado (>= 2.3)" \
 -d "supervisor (>= 3.0)" \
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
---post-install   datadog-agent-deb/postinst \
+--post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
---pre-install    datadog-agent-deb/preinst \
 --pre-uninstall  datadog-agent-deb/prerm \
 .
 
@@ -110,14 +160,3 @@ $(FPM_BUILD) -t deb \
 --pre-uninstall  datadog-agent-base-deb/prerm \
 .
 
-#deb: clean install
-#	FPM_EDITOR="echo 'Replaces: datadog-agent (<< 2.0), datadog-agent-base (<< $(VERSION))' >>" \
-#$(FPM_BUILD) -t deb \
-#-d "python (>= 2.4)" \
-#.
-#
-#rpm: clean install
-#	FPM_EDITOR="$(CWD)/rpm/inject.sh" \
-#$(FPM_BUILD) -t rpm \
-#-d "python" \
-#.
