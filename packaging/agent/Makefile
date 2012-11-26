@@ -100,7 +100,6 @@ $(FPM_BUILD) -t rpm \
 -n "datadog-agent" \
 -d "python(abi) >= 2.6" \
 -d "python-tornado >= 2.3" \
--d "datadog-agent-base >= $(VERSION)" \
 -d "supervisor >= 3.0" \
 --conflicts "datadog-agent < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
