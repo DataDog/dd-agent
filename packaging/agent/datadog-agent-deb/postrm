@@ -4,10 +4,4 @@ set -e
 supervisorctl reread
 supervisorctl update
 
-if which invoke-rc.d >/dev/null 2>&1; then
-    invoke-rc.d datadog-agent start
-else
-    /etc/init.d/datadog-agent start
-fi
-
 exit 0
