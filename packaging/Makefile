@@ -7,13 +7,13 @@ clean:
 	rm -rf *.rpm
 	make -C agent clean
 
-deb:	ensurebuild
+deb:
 	VERSION=$(VERSION) make -C agent datadog_agent_deb
 	cp agent/*.deb .
 	VERSION=$(VERSION) make -C agent datadog_agent_base_deb
 	cp agent/*.deb .
 
-rpm:	ensurebuild
+rpm:
 	VERSION=$(VERSION) make -C agent datadog_agent_rpm
 	cp agent/*.rpm .
 	VERSION=$(VERSION) make -C agent datadog_agent_base_rpm
