@@ -8,15 +8,18 @@ class Apache(AgentCheck):
 
     See http://httpd.apache.org/docs/2.2/mod/mod_status.html for more details
     """
-    METRIC_TRANSLATION = {
-        'ReqPerSec': 'apache.net.request_per_s',
+    GAUGES = {
         'IdleWorkers': 'apache.performance.idle_workers',
         'BusyWorkers': 'apache.performance.busy_workers',
         'CPULoad': 'apache.performance.cpu_load',
         'Uptime': 'apache.performance.uptime',
         'Total kBytes': 'apache.net.bytes',
         'Total Accesses': 'apache.net.hits',
-        'BytesPerSec': 'apache.net.bytes_per_s',
+    }
+
+    RATES = {
+        'Total kBytes': 'apache.net.request_per_s',
+        'Total Accesses': 'apache.net.bytes_per_s',
     }
 
     def check(self, instance):
@@ -36,14 +39,25 @@ class Apache(AgentCheck):
                 values = line.split(': ')
                 if len(values) == 2: # match
                     metric, value = values
-                    metric_name = self.METRIC_TRANSLATION.get(metric, metric)
                     try:
-                        if metric_name == 'apache.net.bytes':
-                            self.gauge(metric_name, float(value) * 1024, tags=tags)
-                        else:
-                            self.gauge(metric_name, float(value), tags=tags)
+                        value = float(value)
                     except ValueError:
                         continue
+
+                    # Special case: kBytes => bytes
+                    if metric == 'Total kBytes':
+                        value = value * 1024
+
+                    # Send metric as a gauge, if applicable
+                    if metric in GAGUES:
+                        metric_name = self.GAUGES[metric]
+                        self.gauge(metric_name, value, tags=tags)
+
+                    # Send metric as a rate, if applicable
+                    if metric in RATES:
+                        metric_name = self.RATES[metric]
+                        self.rate(metric_name, value, tags=tags)
+
         except:
             self.log.exception('Unable to get Apache status')
 
