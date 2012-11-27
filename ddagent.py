@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -296,14 +296,18 @@ def init():
 
 def main():
     define("pycurl", default=1, help="Use pycurl")
-    parse_command_line()
+    args = parse_command_line()
 
     if options.pycurl == 0 or options.pycurl == "0":
         os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
 
-    import tornado.httpclient
-    app = init()
-    app.run()
+    # If we don't have any arguments, run the server.
+    if not args:
+        import tornado.httpclient
+        app = init()
+        app.run()
+    else:
+        print args
 
 if __name__ == "__main__":
     main()
