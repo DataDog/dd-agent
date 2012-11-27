@@ -1,5 +1,0 @@
-getent group dd-agent >/dev/null || groupadd -r dd-agent
-getent passwd dd-agent >/dev/null || \
-    useradd -r -M -g dd-agent -d /tmp -s /bin/sh \
-    -c "Datadog Agent" dd-agent
-exit 0

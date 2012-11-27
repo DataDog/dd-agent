@@ -20,3 +20,5 @@ dist/*
 nosetests*.xml
 stats.dat
 conf.d/*.yaml
+packaging/build/
+packaging/root/
