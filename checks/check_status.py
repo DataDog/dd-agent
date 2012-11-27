@@ -28,6 +28,8 @@ class AgentStatus(object):
     A small class used to load and save status messages to the filesystem.
     """
 
+    NAME = None
+
     def __init__(self):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
@@ -67,6 +69,15 @@ class AgentStatus(object):
         except IOError:
             log.info("Couldn't load latest status")
             return None
+
+    @classmethod
+    def print_latest_status(cls):
+        collector_status = cls.load_latest_status()
+        if not collector_status:
+            print "%s is not running." % cls.NAME
+        else:
+            collector_status.print_status()
+
 
     @classmethod
     def _get_pickle_path(cls):
@@ -113,6 +124,8 @@ class EmitterStatus(object):
 
 
 class CollectorStatus(AgentStatus):
+
+    NAME = 'Collector'
 
     def __init__(self, check_statuses=None, emitter_statuses=None):
         AgentStatus.__init__(self)
@@ -167,16 +180,10 @@ class CollectorStatus(AgentStatus):
 
         print "\n".join(lines)
 
-    @classmethod
-    def print_latest_status(cls):
-        collector_status = cls.load_latest_status()
-        if not collector_status:
-            print "The agent is not running."
-        else:
-            collector_status.print_status()
-
 
 class DogstatsdStatus(AgentStatus):
+
+    NAME = 'Dogstatsd'
     
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
         AgentStatus.__init__(self)
@@ -204,14 +211,5 @@ class DogstatsdStatus(AgentStatus):
             "Metric count: %s" % self.metric_count,
         ]
         print "\n".join(lines)
-
-    @classmethod
-    def print_latest_status(cls):
-        collector_status = cls.load_latest_status()
-        if not collector_status:
-            print "Dogstatsd is not running."
-        else:
-            collector_status.print_status()
-
 
 
