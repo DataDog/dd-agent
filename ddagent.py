@@ -29,7 +29,8 @@ from tornado.options import define, parse_command_line, options
 from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
 from config import get_config
-from checks import gethostname, check_status
+from checks import gethostname
+from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
@@ -277,7 +278,9 @@ class Application(tornado.web.Application):
         if self._watchdog:
             self._watchdog.reset()
         tr_sched.start()
+
         self.mloop.start()
+        logging.info("Stopped")
 
     def stop(self):
         self.mloop.stop()
@@ -292,6 +295,14 @@ def init():
         port = int(port)
 
     app = Application(port, agentConfig)
+
+    def sigterm_handler(signum, frame):
+        logging.info("caught sigterm. stopping")
+        app.stop()
+
+    import signal
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     return app
 
 def main():
@@ -305,13 +316,17 @@ def main():
     if not args:
         import tornado.httpclient
         app = init()
-        app.run()
+        try:
+            app.run()
+        finally:
+            ForwarderStatus.remove_latest_status()
+            
     else:
         usage = "%s [help|info]. Run with no commands to start the server" % (
                                         sys.argv[0])
         command = args[0]
         if command == 'info':
-            check_status.ForwarderStatus.print_latest_status()
+            ForwarderStatus.print_latest_status()
         elif command == 'help':
             print usage
         else:
