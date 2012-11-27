@@ -1,0 +1,7 @@
+#! /bin/bash
+set -e
+
+supervisorctl reread
+supervisorctl update
+
+exit 0
