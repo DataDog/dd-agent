@@ -82,6 +82,9 @@ class Nginx(AgentCheck):
 
         load_conf()
 
+        if not instances:
+            return False
+
         return {
             'instances': instances
         }

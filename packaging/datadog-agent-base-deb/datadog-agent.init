@@ -15,6 +15,7 @@ set -e
 . /lib/lsb/init-functions
 
 AGENTPATH="/usr/bin/dd-agent"
+DOGSTATSDPATH="/usr/bin/dogstatsd"
 AGENTUSER="dd-agent"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
@@ -43,6 +44,7 @@ case "$1" in
             fi
             chown $AGENTUSER $PIDPATH
             su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean"
+            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start"
         fi
         echo "$NAME."
     ;;
@@ -65,6 +67,7 @@ case "$1" in
             fi
         else
             su $AGENTUSER -c "$AGENTPATH stop init"
+            su $AGENTUSER -c "$DOGSTATSDPATH stop"
         fi
 
         echo "$NAME."

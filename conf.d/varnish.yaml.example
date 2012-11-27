@@ -2,3 +2,5 @@ init_config:
 
 instances:
     -   varnishstat: /usr/bin/varnishstat
+#        tags:
+#            -   instance:production

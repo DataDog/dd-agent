@@ -79,6 +79,17 @@ class Varnish(AgentCheck):
         # Not configured? Not a problem.
         if instance.get("varnishstat", None) is None:
             return
+        tags = instance.get('tags', [])
+
+        # Get the varnish version from varnishstat
+        output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE).communicate()
+
+        # Assumptions regarding varnish's version
+        use_xml = True
+        arg = "-x" # varnishstat argument
+        version = 3
 
         # Get the varnish version from varnishstat
         output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
@@ -114,9 +125,10 @@ class Varnish(AgentCheck):
                                          stderr=subprocess.PIPE).communicate()
         if error and len(error) > 0:
             self.log.error(error)
-        self._parse_varnishstat(output, use_xml)
+        self._parse_varnishstat(output, use_xml, tags)
 
-    def _parse_varnishstat(self, output, use_xml):
+    def _parse_varnishstat(self, output, use_xml, tags=None):
+        tags = tags or []
         if use_xml:
             p = xml.parsers.expat.ParserCreate()
             p.StartElementHandler = self._start_element

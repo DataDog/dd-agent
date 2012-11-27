@@ -463,13 +463,13 @@ qualname:checks
 class:FileHandler
 level:INFO
 formatter:ddagent
-args:('/var/log/datadog/dogstatsd.log', 'a')
+args:('/tmp/dogstatsd.log', 'a')
 
 [handler_checks]
 class:FileHandler
 level:WARN
 formatter:ddagent
-args:('/var/log/datadog/checks.log', 'a')
+args:('/tmp/dd-agent.log', 'a')
 
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s

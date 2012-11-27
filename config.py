@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.3.0"
+    return "3.4.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -480,7 +480,7 @@ def load_check_directory(agentConfig):
                     break
 
         if not check_class:
-            log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
+            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config
@@ -493,7 +493,7 @@ def load_check_directory(agentConfig):
                 f.close()
             except:
                 f.close()
-                log.warn("Unable to parse yaml config in %s" % conf_path)
+                log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
@@ -544,4 +544,5 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
+    log.info('checks.d checks: %s' % [c['name'] for c in checks])
     return checks
