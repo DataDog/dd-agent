@@ -205,7 +205,7 @@ class DogstatsdStatus(AgentStatus):
             "Platform: %s" % sys.platform,
             "Python Version: %s" % platform.python_version(),
             "",
-            "Flush count %s" % self.flush_count,
+            "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
