@@ -152,8 +152,8 @@ class TestDogstream(TailTestCase):
         
         expected_output = {
             "dogstream": [
-                ('test.metric.a', 1000000000, 5, self.counter),
-                ('test.metric.a', 1000000005, 8, self.counter),
+                ('test.metric.a', 1000000000, 42, self.counter),
+                ('test.metric.a', 1000000005, 27, self.counter),
             ]
         }
         
