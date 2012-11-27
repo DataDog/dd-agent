@@ -161,6 +161,15 @@ restart() {
     start
 }
 
+info() {
+    su $AGENTUSER -c "$AGENTPATH info"
+    su $AGENTUSER -c "$DOGSTATSDPATH info"
+    if [ -f $USE_SUPERVISOR ]; then
+        su $AGENTUSER -c "$USE_SUPERVISOR info"
+    fi
+}
+
+
 case "$1" in
     start)
         start
@@ -174,8 +183,11 @@ case "$1" in
     status)
         check_status
         ;;
+    info)
+        info
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart}"
+        echo "Usage: $0 {start|stop|restart|info}"
         exit 2
 esac
 exit $?
