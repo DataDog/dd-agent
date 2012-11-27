@@ -544,5 +544,5 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
-    log.info('checks.d checks: %s' % [c['name'] for c in checks])
+    log.info('checks.d checks: %s' % [c.name for c in checks])
     return checks
