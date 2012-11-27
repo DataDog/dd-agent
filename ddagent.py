@@ -29,7 +29,7 @@ from tornado.options import define, parse_command_line, options
 from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
 from config import get_config
-from checks import gethostname
+from checks import gethostname, check_status
 from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
@@ -307,7 +307,18 @@ def main():
         app = init()
         app.run()
     else:
-        print args
+        usage = "%s [help|info]. Run with no commands to start the server" % (
+                                        sys.argv[0])
+        command = args[0]
+        if command == 'info':
+            check_status.ForwarderStatus.print_latest_status()
+        elif command == 'help':
+            print usage
+        else:
+            print "Unknown command: %s" % command
+            print usage
+            return -1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -213,3 +213,33 @@ class DogstatsdStatus(AgentStatus):
         print "\n".join(lines)
 
 
+class ForwarderStatus(AgentStatus):
+
+    NAME = 'Forwarder'
+
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
+        AgentStatus.__init__(self)
+        self.queue_length = queue_length
+        self.queue_size = queue_size
+        self.flush_count = flush_count
+
+    def print_status(self):
+        lines = [
+            "",
+            self.NAME,
+            "===========",
+            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                            self.created_seconds_ago()),
+            "Version: %s" % config.get_version(),
+            "Pid: %s" % self.created_by_pid,
+            "Platform: %s" % sys.platform,
+            "Python Version: %s" % platform.python_version(),
+            "",
+            "Queue Size: %s" % self.queue_size,
+            "Queue Length: %s" % self.queue_length,
+            "Flush Count: %s" % self.flush_count,
+        ]
+        print "\n".join(lines)
+        
+
+
