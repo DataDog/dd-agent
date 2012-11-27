@@ -8,6 +8,7 @@
 BUILD=build/package
 SRC=../
 ROOT=root
+BUILD_NUMBER ?= 0
 
 VERSION=`PYTHONPATH=$(SRC) python -c "from config import get_version; print get_version()"`
 
