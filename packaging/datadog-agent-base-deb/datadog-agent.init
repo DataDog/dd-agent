@@ -72,13 +72,20 @@ case "$1" in
 
         echo "$NAME."
     ;;
+  info)
+        su $AGENTUSER -c "$AGENTPATH info"
+        su $AGENTUSER -c "$DOGSTATSDPATH info"
+        if [ -f $USE_SUPERVISOR ]; then
+            su $AGENTUSER -c "$USE_SUPERVISOR info"
+        fi
+    ;;
   restart|force-reload)
         $0 stop
         $0 start
     ;;
   *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart}"
+        echo "Usage: $N {start|stop|restart|info}"
         exit 1
     ;;
 esac

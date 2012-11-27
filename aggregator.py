@@ -252,6 +252,9 @@ class MetricsAggregator(object):
         self.formatter = formatter or self.api_formatter
         self.normalization_factor = normalization_factor
 
+    def packets_per_second(self, interval):
+        return round(float(self.count)/interval, 2)
+
     def submit_packets(self, packets):
 
         for packet in packets.split("\n"):

@@ -68,12 +68,9 @@ class Redis(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
-        # If we can't import the redis module, we should always skip this check
         try:
             import redis
-            self.enabled = True
         except ImportError:
-            self.enabled = False
             self.log.error('redisdb.yaml exists but redis module can not be imported. Skipping check.')
 
         self.previous_total_commands = {}
@@ -103,6 +100,7 @@ class Redis(AgentCheck):
                     self.connections[key] = redis.Redis(host=host, port=port, password=password)
                 except TypeError:
                     self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
+                    raise
             else:
                 self.connections[key] = redis.Redis(host=host, port=port)
 
@@ -148,19 +146,13 @@ class Redis(AgentCheck):
         self.previous_total_commands[tuple_tags] = total_commands
 
     def check(self, instance):
-        if not self.enabled:
-            self.log.debug("Redis check is marked as disabled. Skipping")
-
         # Allow the default redis database to be overridden.
         host = instance.get('host', 'localhost')
         port = instance.get('port', 6379)
         password = instance.get('password', None)
         custom_tags = instance.get('tags', [])
 
-        try:
-            self._check_db(host, int(port), password, custom_tags)
-        except:
-            self.log.exception("Error checking redis at %s:%s" % (host, port))
+        self._check_db(host, int(port), password, custom_tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):

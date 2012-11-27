@@ -91,6 +91,16 @@ class Varnish(AgentCheck):
         arg = "-x" # varnishstat argument
         version = 3
 
+        # Get the varnish version from varnishstat
+        output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE).communicate()
+
+        # Assumptions regarding varnish's version
+        use_xml = True
+        arg = "-x" # varnishstat argument
+        version = 3
+
         m1 = re.search(r"varnish-(\d+)", output, re.MULTILINE)
         # v2 prints the version on stderr, v3 on stdout
         m2 = re.search(r"varnish-(\d+)", error, re.MULTILINE)
@@ -135,19 +145,15 @@ class Varnish(AgentCheck):
                 name, gauge_val, rate_val = fields[0], fields[1], fields[2]
                 metric_name = self.normalize(name, prefix="varnish")
 
-
                 # Now figure out which value to pick
-                try:
-                    if rate_val.lower() in ("nan", "."):
-                        # col 2 matters
-                        self.log.debug("Varnish (gauge) %s %d" % (metric_name, int(gauge_val)))
-                        self.gauge(metric_name, int(gauge_val), tags=tags)
-                    else:
-                        # col 3 has a rate (since restart)
-                        self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
-                        self.rate(metric_name, float(gauge_val), tags=tags)
-                except TypeError:
-                    self.log.exception("Cannot convert varnish value")
+                if rate_val.lower() in ("nan", "."):
+                    # col 2 matters
+                    self.log.debug("Varnish (gauge) %s %d" % (metric_name, int(gauge_val)))
+                    self.gauge(metric_name, int(gauge_val))
+                else:
+                    # col 3 has a rate (since restart)
+                    self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
+                    self.rate(metric_name, float(gauge_val))
 
     @staticmethod
     def parse_agent_config(agentConfig):
