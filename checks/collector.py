@@ -30,6 +30,7 @@ from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
@@ -55,6 +56,7 @@ class Collector(object):
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
         self.run_count = 0
+        self.continue_running = True
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -118,6 +120,18 @@ class Collector(object):
         self._resources_checks = [
             ResProcesses(checks_logger,self.agentConfig)
         ]
+
+    def stop(self):
+        """
+        Tell the collector to stop at the next logical point.
+        """
+        # This is called when the process is being killed, so 
+        # try to stop the collector as soon as possible.
+        # Most importantly, don't try to submit to the emitters
+        # because the forwarder is quite possibly already killed
+        # in which case we'll get a misleading error in the logs.
+        # Best to not even try.
+        self.continue_running = False
     
     def run(self, checksd=None):
         """
@@ -265,34 +279,72 @@ class Collector(object):
                 metrics.extend(res)
 
         # checks.d checks
+        check_statuses = []
         checksd = checksd or []
         for check in checksd:
-            check_cls = check['class']
-            for instance in check['instances']:
-                try:
-                    # Run the check for each configuration
-                    check_cls.check(instance)
-                    metrics.extend(check_cls.get_metrics())
-                    if check_cls.has_events():
-                        if check['name'] not in events:
-                            events[check['name']] = []
-                        for ev in check_cls.get_events():
-                            events[check['name']].append(ev)
-                except Exception:
-                    logger.exception("Check %s failed" % check_cls.name)
+            if not self.continue_running:
+                return
+            logger.debug("Running check %s" % check.name)
+            instance_statuses = [] 
+            metric_count = 0
+            event_count = 0
+            try:
+                # Run the check.
+                instance_statuses = check.run()
+
+                # Collect the metrics and events.
+                current_check_metrics = check.get_metrics()
+                current_check_events = check.get_events()
+
+                # Save them for the payload.
+                metrics.extend(current_check_metrics)
+                if current_check_events:
+                    if check.name not in events:
+                        events[check.name] = current_check_events
+                    else:
+                        events[check.name] += current_check_events
+
+                # Save the status of the check.
+                metric_count = len(current_check_metrics)
+                event_count = len(current_check_events)
+            except Exception, e:
+                logger.exception("Error running check %s" % check.name)
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
+            check_statuses.append(check_status)
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
         collect_duration = timer.step()
 
-        # Pass the payload along to the emitters.
-        for emitter in self.emitters:
-            emitter(payload, checks_logger, self.agentConfig)
+        emitter_statuses = self._emit(payload)
         emit_duration = timer.step()
+
+        # Persist the status of the collection run.
+        try:
+            CollectorStatus(check_statuses, emitter_statuses).persist()
+        except Exception:
+            logger.exception("Error persisting collector status")
 
         logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
+
+    def _emit(self, payload):
+        """ Send the payload via the emitters. """
+        statuses = []
+        for emitter in self.emitters:
+            # Don't try to send to an emitter if we're stopping/
+            if not self.continue_running:
+                return statuses
+            name = emitter.__name__
+            emitter_status = EmitterStatus(name)
+            try:
+                emitter(payload, checks_logger, self.agentConfig)
+            except Exception, e:
+                logger.exception("Error running emitter: %s" % emitter.__name__)
+                emitter_status = EmitterStatus(name, e)
+            statuses.append(emitter_status)
+        return statuses
 
     def _is_first_run(self):
         return self.run_count <= 1

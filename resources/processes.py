@@ -1,12 +1,11 @@
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
+
 
 import subprocess
 import sys
 import traceback
+
 from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField, agg
+from util import namedtuple
 
 class Processes(ResourcePlugin):
 
