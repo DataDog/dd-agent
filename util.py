@@ -160,7 +160,7 @@ class PidFile(object):
         # if all else fails
         if os.access("/tmp", os.W_OK):
             tmp_path = os.path.join('/tmp', self.pid_file)
-            logging.warn("Using temporary pid file: %s" % tmp_path)
+            logging.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
             # Can't save pid file, bail out
