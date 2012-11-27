@@ -23,6 +23,7 @@
 ### END INIT INFO
 
 AGENTPATH="/usr/share/datadog/agent/agent.py"
+DOGSTATSDPATH="/usr/share/datadog/agent/dogstatsd.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
@@ -121,7 +122,7 @@ start() {
         install -d -o $AGENTUSER $PIDPATH
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX /usr/bin/dogstatsd start > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null"
         RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
@@ -148,7 +149,7 @@ stop() {
         echo -n 'Stopping Datadog agent: '
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop >/dev/null"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX /usr/bin/dogstatsd stop > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null"
         RETURNVALUE=$(($RETURNVALUE || $?))
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi
