@@ -23,16 +23,66 @@ STATUS_ERROR = 'ERROR'
 log = logging.getLogger(__name__)
 
 
+class Stylizer(object):
+
+    STYLES = {
+        'bold'    : 1,
+        'grey'    : 30, 
+        'red'     : 31,
+        'green'   : 32,
+        'yellow'  : 33,
+        'blue'    : 34,
+        'magenta' : 35,
+        'cyan'    : 36,
+        'white'   : 37,
+    }
+
+    HEADER = '\033[1m'
+    UNDERLINE = '\033[2m'
+
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    RESET = '\033[0m'
+
+
+    def __init__(self):
+        self.enabled = True
+
+    def stylize(self, text, *styles):
+        """ stylize the text. """
+        if not self.enabled:
+            return text
+        # don't bother about escaping, not that complicated.
+        fmt = '\033[%dm%s'
+
+        for style in styles or []:
+            text = fmt % (self.STYLES[style], text)
+
+        return text + fmt % (0, '') # reset
+
+    def disabled(self):
+        self.enabled = False
+
+    def bold(self, text):
+        return self.s(text, 'bold')
+
+
 class AgentStatus(object):
     """ 
     A small class used to load and save status messages to the filesystem.
     """
 
     NAME = None
-
+    STYLIZER = Stylizer()
+    
     def __init__(self):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
+
+    def style(self, text, *args):
+        return self.STYLIZER.stylize(text, *args)
 
     def persist(self):
         try:
@@ -49,6 +99,29 @@ class AgentStatus(object):
     def created_seconds_ago(self):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
+
+    def _header_lines(self):
+        name_line = "%s (v %s)" % (self.NAME, config.get_version())
+        lines = [
+            "",
+            "=" * len(name_line),
+            "%s" % name_line,
+            "=" * len(name_line),
+        ]
+
+        fields = [
+            ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                            self.created_seconds_ago())),
+            ("Pid", self.created_by_pid),
+            ("Platform", sys.platform),
+            ("Python Version", platform.python_version()),
+        ]
+
+        for key, value in fields:
+            l = "%s: %s" % (key, value)
+            lines.append(l)
+        return lines + ["\n"]
+
 
     @classmethod
     def remove_latest_status(cls):
@@ -76,7 +149,8 @@ class AgentStatus(object):
         if not collector_status:
             print "%s is not running." % cls.NAME
         else:
-            collector_status.print_status()
+            collector_status.print_status() 
+            print "\n"
 
 
     @classmethod
@@ -90,6 +164,9 @@ class InstanceStatus(object):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
+
+    def has_error(self):
+        return self.status != STATUS_OK
 
 
 class CheckStatus(object):
@@ -122,6 +199,9 @@ class EmitterStatus(object):
         else:
             return STATUS_OK
 
+    def has_error(self):
+        return self.status != STATUS_OK
+
 
 class CollectorStatus(AgentStatus):
 
@@ -133,18 +213,7 @@ class CollectorStatus(AgentStatus):
         self.emitter_statuses = emitter_statuses or []
 
     def print_status(self):
-        lines = [
-            "",
-            "Collector",
-            "=========",
-            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                            self.created_seconds_ago()),
-            "Version: %s" % config.get_version(),
-            "Pid: %s" % self.created_by_pid,
-            "Platform: %s" % sys.platform,
-            "Python Version: %s" % platform.python_version(),
-            ""
-        ]
+        lines = self._header_lines()
 
         lines.append("Checks")
         lines.append("------")
@@ -155,11 +224,14 @@ class CollectorStatus(AgentStatus):
                 check_lines = [
                     cs.name
                 ]
-                for instance_status in cs.instance_statuses:
+                for s in cs.instance_statuses:
+                    c = 'green'
+                    if s.has_error():
+                        c = 'red'
                     line =  "  - instance #%s [%s]" % (
-                             instance_status.instance_id, instance_status.status)
-                    if instance_status.status != STATUS_OK:
-                        line += u": %s" % instance_status.error
+                             s.instance_id, self.style(s.status, c))
+                    if s.has_error():
+                        line += u": %s" % s.error
                     check_lines.append(line)
                 check_lines += [
                     "  - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
@@ -173,7 +245,10 @@ class CollectorStatus(AgentStatus):
             lines.append("No emitters have run yet.")
         else:
             for es in self.emitter_statuses:
-                line = "  - %s [%s]" % (es.name, es.status)
+                c = 'green'
+                if es.has_error():
+                    c = 'red'
+                line = "  - %s [%s]" % (es.name, self.style(es.status,c))
                 if es.status != STATUS_OK:
                     line += ": %s" % es.error
                 lines.append(line)
@@ -194,17 +269,7 @@ class DogstatsdStatus(AgentStatus):
 
 
     def print_status(self):
-        lines = [
-            "",
-            "Dogstatsd",
-            "=========",
-            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                            self.created_seconds_ago()),
-            "Version: %s" % config.get_version(),
-            "Pid: %s" % self.created_by_pid,
-            "Platform: %s" % sys.platform,
-            "Python Version: %s" % platform.python_version(),
-            "",
+        lines = self._header_lines() + [
             "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
@@ -224,17 +289,7 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
 
     def print_status(self):
-        lines = [
-            "",
-            self.NAME,
-            "===========",
-            "Status date: %s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                            self.created_seconds_ago()),
-            "Version: %s" % config.get_version(),
-            "Pid: %s" % self.created_by_pid,
-            "Platform: %s" % sys.platform,
-            "Python Version: %s" % platform.python_version(),
-            "",
+        lines = self._header_lines() + [
             "Queue Size: %s" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
