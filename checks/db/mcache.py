@@ -125,7 +125,7 @@ class Memcache(Check):
     def _get_metrics(self, server, port, tags, memcache):
         mc = None # client
         try:
-            self.logger.debug("Connecting to %s:%s tags:%s" % (server, port, tags))
+            self.logger.debug("Connecting to %s:%s tags:%s", server, port, tags)
             mc = memcache.Client(["%s:%d" % (server, port)])
             raw_stats = mc.get_stats()
 
@@ -133,7 +133,7 @@ class Memcache(Check):
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
-                self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
+                self.logger.debug("Processing %s: %s", metric, stats[metric])
 
                 our_metric = "memcache." + metric
                 # Tweak the name if it's a counter so that we don't use the exact
@@ -143,12 +143,12 @@ class Memcache(Check):
 
                 if self.is_metric(our_metric):
                     self.save_sample(our_metric, float(stats[metric]), tags=tags)
-                    self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+                    self.logger.debug("Saved %s: %s", our_metric, stats[metric])
         except ValueError:
             self.logger.exception("Cannot convert port value; check your configuration")
         except CheckException:
             self.logger.exception("Cannot save sampled data")
-        except:
+        except Exception:
             self.logger.exception("Cannot get data from memcache")
 
         if mc is not None:
@@ -158,35 +158,35 @@ class Memcache(Check):
             try:
                 self.save_sample(
                     "memcache.get_hit_percent",
-                    float(
-                        float(stats["get_hits"]) / float(stats["cmd_get"]) * 100
-                    ),
-                    tags=tags
+                    100.0 * float(stats["get_hits"]) / float(stats["cmd_get"]),
+                    tags=tags,
                 )
-            except: 
-                self.logger.exception("Cannot calculate memcache.get_hit_percent for tags: %s" % tags)
+            except ZeroDivisionError:
+                pass
+            except Exception: 
+                self.logger.exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
 
             try:
                 self.save_sample(
                     "memcache.fill_percent",
-                    float(
-                        float(stats["bytes"]) / float(stats["limit_maxbytes"]) * 100
-                    ),
-                    tags=tags
+                    100.0 * float(stats["bytes"]) / float(stats["limit_maxbytes"]),
+                    tags=tags,
                 )
-            except:
-                self.logger.exception("Cannot calculate memcache.fill_percent for tags: %s" % tags)
+            except ZeroDivisionError:
+                pass
+            except Exception:
+                self.logger.exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
             
             try:
                 self.save_sample(
                     "memcache.avg_item_size",
-                    float(
-                        float(stats["bytes"]) / float(stats["curr_items"])
-                    ),
-                    tags=tags
+                    float(stats["bytes"]) / float(stats["curr_items"]),
+                    tags=tags,
                 )
-            except:     
-                self.logger.exception("Cannot calculate memcache.avg_item_size for tags: %s" % tags)
+            except ZeroDivisionError:
+                pass
+            except Exception:
+                self.logger.exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
             
             mc.disconnect_all()
             self.logger.debug("Disconnected from memcached")
@@ -218,7 +218,7 @@ class Memcache(Check):
             self._get_metrics(server, port, tag, memcache)
                 
         metrics = self.get_metrics()
-        self.logger.debug("Memcache samples: %s" % metrics)
+        self.logger.debug("Memcache samples: %s", metrics)
         return metrics
 
  
