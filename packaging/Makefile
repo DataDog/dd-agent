@@ -43,6 +43,7 @@ source:
 	cp -r $(SRC)/resources $(ROOT)/
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
+	cp -r $(SRC)/datadog.conf.example $(ROOT)/
 
 
 # Layout all of the files common to both versions of the agent in
@@ -52,8 +53,9 @@ install_base: source
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/usr/bin
-	# Install the common source.
+	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
+	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
