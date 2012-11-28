@@ -8,8 +8,8 @@ case "$1" in
         adduser --system dd-agent --shell /bin/sh --no-create-home --quiet
         chown -R dd-agent /etc/dd-agent
 
-        supervisorctl reread
-        supervisorctl update
+        #supervisorctl reread
+        #supervisorctl update
 
         if which invoke-rc.d >/dev/null 2>&1; then
             invoke-rc.d datadog-agent restart
