@@ -102,6 +102,8 @@ $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.6" \
 -d "python-tornado >= 2.3" \
 -d "supervisor >= 3.0" \
+-d "sysstat" \
+-d "pexpect" \
 --conflicts "datadog-agent < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
@@ -139,6 +141,9 @@ $(FPM_BUILD) -t deb \
 -d "python (>= 2.6)" \
 -d "python-tornado (>= 2.3)" \
 -d "supervisor (>= 3.0)" \
+-d "adduser" \
+-d "sysstat" \
+-d "python-pexpect" \
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
