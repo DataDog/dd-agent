@@ -17,6 +17,9 @@ case "$1" in
             /etc/init.d/datadog-agent restart
         fi
     ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
     *)
     ;;
 esac
