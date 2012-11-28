@@ -1,6 +1,11 @@
 # Just in case there are leftovers from previous installation (we are now using our own
 # supervisord)
 
+getent group dd-agent >/dev/null || groupadd -r dd-agent
+getent passwd dd-agent >/dev/null || \
+    useradd -r -M -g dd-agent -d /tmp -s /bin/sh \
+    -c "Datadog Agent" dd-agent
+
 grep -q "datadog" /etc/supervisord.conf
 if [ $? -eq 0 ]
   then
