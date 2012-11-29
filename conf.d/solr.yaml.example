@@ -8,7 +8,7 @@ instances:
 
 init_config:
   conf:
-    - white:
+    - include:
         type: searcher
         attribute:
           maxDoc:
@@ -20,7 +20,7 @@ init_config:
           warmupTime:
             alias: solr.searcher.warmup
             metric_type: gauge
-    - white:
+    - include:
         id: org.apache.solr.search.FastLRUCache
         attribute:
           cumulative_lookups:
@@ -35,7 +35,7 @@ init_config:
           cumulative_evictions:
             alias: solr.cache.evictions
             metric_type: counter
-    - white:
+    - include:
         id: org.apache.solr.search.LRUCache
         attribute:
           cumulative_lookups:
@@ -50,7 +50,7 @@ init_config:
           cumulative_evictions:
             alias: solr.cache.evictions
             metric_type: counter
-    - white:
+    - include:
         id: org.apache.solr.handler.component.SearchHandler
         attribute:
           errors:

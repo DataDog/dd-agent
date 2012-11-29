@@ -26,7 +26,7 @@ from checks import AgentCheck
 import logging
 log = logging.getLogger('jmx')
 
-JAVA_CONF = [{'white':
+JAVA_CONF = [{'include':
                 {'attribute': 
                     {'CollectionCount': 
                         {'alias': 'jvm.gc.cms.count',
@@ -37,7 +37,7 @@ JAVA_CONF = [{'white':
                 'domain': 'java.lang',
                 'type': 'GarbageCollector'}
                 },
-               {'white':
+               {'include':
                    {'attribute': 
                     {'HeapMemoryUsage.used':
                         {'alias': 'jvm.heap_memory',
@@ -198,21 +198,21 @@ class JMXMetric:
 
         return tags
 
-    def check_conf(self, white_fields={}, black_fields={}):
-        white_fields = white_fields.copy()
+    def check_conf(self, include_fields={}, exclude_fields={}):
+        include_fields = include_fields.copy()
         attributes = None
-        if "attribute" in white_fields.keys():
-            attributes = white_fields['attribute']
-            del white_fields['attribute']
+        if "attribute" in include_fields.keys():
+            attributes = include_fields['attribute']
+            del include_fields['attribute']
         attributes_ok = False
 
-        white_fields_ok = {}
-        for k in white_fields.keys():
-            white_fields_ok[k] = False
+        include_fields_ok = {}
+        for k in include_fields.keys():
+            include_fields_ok[k] = False
 
-        black_fields_ok = {}
-        for k in black_fields.keys():
-            black_fields_ok[k] = True
+        exclude_fields_ok = {}
+        for k in exclude_fields.keys():
+            exclude_fields_ok[k] = True
 
         if attributes is not None:        
             for attr in attributes:
@@ -226,33 +226,33 @@ class JMXMetric:
                     attributes_ok = True
                     break
 
-        for k in white_fields.keys():
+        for k in include_fields.keys():
             field = self.fields.get(k, None)
             if field is None:
-                white_fields_ok[k] = False
+                include_fields_ok[k] = False
 
             else:
-                if type(white_fields[k]) != type([]):
-                    white_fields[k] = [white_fields[k]]
-                for value in white_fields[k]:
+                if type(include_fields[k]) != type([]):
+                    include_fields[k] = [include_fields[k]]
+                for value in include_fields[k]:
                     regex = re.compile(r"%s" % value.replace('*', '(.*)'))
                     if regex.match(field) is not None:
-                        white_fields_ok[k] = True
+                        include_fields_ok[k] = True
                         break
 
-        for k in black_fields.keys():
+        for k in exclude_fields.keys():
             field = self.fields.get(k, None)
             if field is not None:
-                if type(black_fields[k]) != type([]):
-                    black_fields[k] = [black_fields[k]]
-                for value in black_fields[k]:
+                if type(exclude_fields[k]) != type([]):
+                    exclude_fields[k] = [exclude_fields[k]]
+                for value in exclude_fields[k]:
                     regex = re.compile(r"%s" % value.replace('*', '(.*)'))
                     if regex.match(field) is not None:
-                        black_fields_ok[k] = False
+                        exclude_fields_ok[k] = False
                         break
 
-        return attributes_ok and False not in black_fields_ok.values() and \
-            False not in white_fields_ok.values()
+        return attributes_ok and False not in exclude_fields_ok.values() and \
+            False not in include_fields_ok.values()
 
     def send_metric(self, conf=None):
         if conf is None:
@@ -260,7 +260,7 @@ class JMXMetric:
             conf = self.instance.get('conf', default_conf)
 
         for c in conf:
-            if self.check_conf(white_fields=c.get('white', {}), black_fields=c.get('black', {})):
+            if self.check_conf(include_fields=c.get('include', {}), exclude_fields=c.get('exclude', {})):
                 return True
         return False
         

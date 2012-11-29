@@ -8,9 +8,9 @@ instances:
 
 init_config:
     conf:
-      - white:
+      - include:
           domain: org.apache.cassandra.db
-        black:
+        exclude:
           keyspace: system
           attribute: 
             - MinimumCompactionThreshold
@@ -19,13 +19,13 @@ init_config:
             - KeyCacheSavePeriodInSeconds
             - RowCacheSavePeriodInSeconds
             - PendingTasks
-      - white:
+      - include:
           domain: org.apache.cassandra.internal
-        black:
+        exclude:
           attribute:
            - PendingTasks
-      - white:
+      - include:
           domain: org.apache.cassandra.net
-      - white:
-          ddomain: org.apache.cassandra.request
+      - include:
+          domain: org.apache.cassandra.request
 

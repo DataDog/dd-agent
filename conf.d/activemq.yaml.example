@@ -8,7 +8,7 @@ instances:
 
 init_config:
     conf:
-      - white:
+      - include:
           Type: Queue
           attribute:
             AverageEnqueueTime:
@@ -48,7 +48,7 @@ init_config:
               alias: activemq.queue.in_flight_count
               metric_type: counter
 
-      - white:
+      - include:
           Type: Broker
           attribute:
             StorePercentUsage:
