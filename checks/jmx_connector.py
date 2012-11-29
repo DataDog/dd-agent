@@ -57,7 +57,9 @@ metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
 metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
 def convert(name):
-    """Convert from CamelCase to camel_case"""
+    """Convert from CamelCase to camel_case
+    And substiture illegal metric characters
+    """
 
     metric_name = first_cap_re.sub(r'\1_\2', name)
     metric_name = all_cap_re.sub(r'\1_\2', metric_name).lower()
@@ -160,7 +162,6 @@ class JMXMetric:
         self.attribute_name = attribute_name
         self.instance = instance
         self.init_config = init_config or {}
-        self.white_or_black_list = self.init_config.get('list', {})
         self.bean_name = bean_name
 
         self.fields = {
@@ -213,11 +214,7 @@ class JMXMetric:
         for k in black_fields.keys():
             black_fields_ok[k] = True
 
-        
-        if attributes is None:
-            if self.attribute_name not in self.white_or_black_list:
-                attributes_ok = True
-        else:
+        if attributes is not None:        
             for attr in attributes:
                 if self.attribute_name == attr:
                     if type(attributes) == type({}) and type(attributes[attr]) == type({}):
@@ -233,7 +230,6 @@ class JMXMetric:
             field = self.fields.get(k, None)
             if field is None:
                 white_fields_ok[k] = False
-                #white_fields_ok[k] = not self.instance.get('exact_conf', self.init_config('exact_conf', False))
 
             else:
                 if type(white_fields[k]) != type([]):
@@ -297,10 +293,6 @@ class JMXMetric:
             for (key, value) in self.tags.items():
                 if v == value:
                     del self.tags[key]
-
-    def __str__(self):
-        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}, fields={5}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags, self.fields)
 
 class JmxCheck(AgentCheck):
 
