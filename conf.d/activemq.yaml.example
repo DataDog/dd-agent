@@ -7,8 +7,6 @@ instances:
 
 
 init_config:
-    # Do not edit if you don't know what you are doing
-    exact_conf: True
     conf:
       - white:
           Type: Queue

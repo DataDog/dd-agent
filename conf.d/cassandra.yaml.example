@@ -1,22 +1,31 @@
-#init_config:
-#  list:
-#  - pendingTasks
-#  - MinimumCompactionThreshold
-#  - RowCacheKeysToSave
-#  - MaximumCompactionThreshold
-#  - KeyCacheSavePeriodInSeconds
-#  - RowCacheSavePeriodInSeconds
-
 instances:
-   -   host: localhost
-       port: 7199
-#        user: username
-#        password: password
-       name: cassandra_instance
+#   -   host: localhost
+#       port: 7199
+#       user: username
+#       password: password
+#       name: cassandra_instance
 
 
 init_config:
+    conf:
+      - white:
+          domain: org.apache.cassandra.db
+        black:
+          keyspace: system
+          attribute: 
+            - MinimumCompactionThreshold
+            - MaximumCompactionThreshold
+            - RowCacheKeysToSave
+            - KeyCacheSavePeriodInSeconds
+            - RowCacheSavePeriodInSeconds
+            - PendingTasks
+      - white:
+          domain: org.apache.cassandra.internal
+        black:
+          attribute:
+           - PendingTasks
+      - white:
+          domain: org.apache.cassandra.net
+      - white:
+          ddomain: org.apache.cassandra.request
 
-  conf:
-    - attribute: 
-        - *

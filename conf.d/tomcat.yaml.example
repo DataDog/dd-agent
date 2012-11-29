@@ -6,7 +6,6 @@ instances:
 #        name: tomcat_instance
 
 init_config:
-  # Do not edit if you don't know what you are doing
   conf:
     - white:
         type: ThreadPool
