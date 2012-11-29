@@ -58,7 +58,44 @@ class Tomcat(JmxCheck):
     @staticmethod
     def parse_agent_config(agentConfig):
 
-        return JmxCheck.parse_agent_config(agentConfig, 'tomcat')
+        return JmxCheck.parse_agent_config(agentConfig, 'tomcat', INIT_CONFIG)
 
 
 
+INIT_CONFIG = {'conf': [{'include': {'attribute': {'currentThreadCount': {'alias': 'tomcat.threads.count',
+        'metric_type': 'gauge'},
+        'currentThreadsBusy': {'alias': 'tomcat.threads.busy',
+        'metric_type': 'gauge'},
+        'maxThreads': {'alias': 'tomcat.threads.max',
+        'metric_type': 'gauge'}},
+        'type': 'ThreadPool'}},
+        {'include': {'attribute': {'bytesReceived': {'alias': 'tomcat.bytes_rcvd',
+        'metric_type': 'counter'},
+        'bytesSent': {'alias': 'tomcat.bytes_sent',
+        'metric_type': 'counter'},
+        'errorCount': {'alias': 'tomcat.error_count',
+        'metric_type': 'counter'},
+        'maxTime': {'alias': 'tomcat.max_time',
+        'metric_type': 'gauge'},
+        'processingTime': {'alias': 'tomcat.processing_time',
+        'metric_type': 'counter'},
+        'requestCount': {'alias': 'tomcat.request_count',
+        'metric_type': 'counter'}},
+        'type': 'GlobalRequestProcessor'}},
+        {'include': {'attribute': {'errorCount': {'alias': 'tomcat.servlet.error_count',
+        'metric_type': 'counter'},
+        'processingTime': {'alias': 'tomcat.servlet.processing_time',
+        'metric_type': 'counter'},
+        'requestCount': {'alias': 'tomcat.servlet.request_count',
+        'metric_type': 'counter'}},
+        'j2eeType': 'Servlet'}},
+        {'include': {'accessCount': {'alias': 'tomcat.cache.access_count',
+        'metric_type': 'counter'},
+        'hitsCounts': {'alias': 'tomcat.cache.hits_count',
+        'metric_type': 'counter'},
+        'type': 'Cache'}},
+        {'include': {'jspCount': {'alias': 'tomcat.jsp.count',
+        'metric_type': 'counter'},
+        'jspReloadCount': {'alias': 'tomcat.jsp.reload_count',
+        'metric_type': 'counter'},
+        'type': 'JspMonitor'}}]}

@@ -44,7 +44,44 @@ class ActiveMQ(JmxCheck):
     @staticmethod
     def parse_agent_config(agentConfig):
 
-        return JmxCheck.parse_agent_config(agentConfig, 'activemq')
+        return JmxCheck.parse_agent_config(agentConfig, 'activemq', INIT_CONFIG)
+
+
+INIT_CONFIG = {
+'conf': [{'include': {'Type': 'Queue',
+'attribute': {'AverageEnqueueTime': {'alias': 'activemq.queue.avg_enqueue_time',
+'metric_type': 'gauge'},
+'ConsumerCount': {'alias': 'activemq.queue.consumer_count',
+'metric_type': 'gauge'},
+'DequeueCount': {'alias': 'activemq.queue.dequeue_count',
+'metric_type': 'counter'},
+'DispatchCount': {'alias': 'activemq.queue.dispatch_count',
+'metric_type': 'counter'},
+'EnqueueCount': {'alias': 'activemq.queue.enqueue_count',
+'metric_type': 'counter'},
+'ExpiredCount': {'alias': 'activemq.queue.expired_count',
+'type': 'counter'},
+'InFlightCount': {'alias': 'activemq.queue.in_flight_count',
+'metric_type': 'counter'},
+'MaxEnqueueTime': {'alias': 'activemq.queue.max_enqueue_time',
+'metric_type': 'gauge'},
+'MemoryPercentUsage': {'alias': 'activemq.queue.memory_pct',
+'metric_type': 'gauge'},
+'MinEnqueueTime': {'alias': 'activemq.queue.min_enqueue_time',
+'metric_type': 'gauge'},
+'ProducerCount': {'alias': 'activemq.queue.producer_count',
+'metric_type': 'gauge'},
+'QueueSize': {'alias': 'activemq.queue.size',
+'metric_type': 'gauge'}}}},
+{'include': {'Type': 'Broker',
+'attribute': {'MemoryPercentUsage': {'alias': 'activemq.broker.memory_pct',
+'metric_type': 'gauge'},
+'StorePercentUsage': {'alias': 'activemq.broker.store_pct',
+'metric_type': 'gauge'},
+'TempPercentUsage': {'alias': 'activemq.broker.temp_pct',
+'metric_type': 'gauge'}}}}]}
+
+
 
 
 

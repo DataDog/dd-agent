@@ -14,8 +14,6 @@ class JMXCustomMetric(JMXMetric):
         if hasattr(self, '_metric_name'):
             return self._metric_name
         name = ['jmx', self.domain, self.attribute_name]
-        if self.name_suffix is not None:
-            name.insert(2, self.name_suffix)
         return convert(".".join(name))
 
 
