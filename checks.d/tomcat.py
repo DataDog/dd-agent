@@ -1,114 +1,7 @@
-from checks.jmx_connector import JmxCheck, JMXMetric
+from checks.jmx_connector import JmxCheck, JMXMetric, convert
 
 
 class TomcatMetric(JMXMetric):
-    """
-    Format of the whitelist:
-    {
-    attribute name : [{
-        bean attribute to filter: value of the attribute
-        'params': (metric_name, metric type (gauge or counter))
-    }]
-
-    }
-    """
-    
-    
-
-    WHITELIST = {
-    "maxThreads" : [{
-        'type' : 'ThreadPool',
-        'params' : ("tomcat.threads.max", "gauge")
-    }],
-    "currentThreadCount" : [{
-        'type': 'ThreadPool',
-        'params' : ("tomcat.threads.count", "gauge")
-    }],
-    "currentThreadsBusy" : [{
-        'type': 'ThreadPool',
-        'params' : ("tomcat.threads.busy", "gauge")
-    }],
-    "bytesSent" : [{
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.bytes_sent", "counter")
-    }],
-    "bytesReceived" : [{
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.bytes_rcvd", "counter")
-    }],
-    "processingTime" : [{
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.processing_time", "counter")
-    }],
-    "errorCount" : [
-        {
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.error_count", "counter")
-        },
-        {
-        'j2eeType' : 'Servlet',
-        'params' :  ("tomcat.servlet.error_count", "counter")
-        }],
-
-    "requestCount" : [{
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.request_count", "counter")
-    }],
-    "maxTime" : [{
-        'type' : 'GlobalRequestProcessor',
-        'params' : ("tomcat.max_time", "gauge")
-    }],
-    
-    "accessCount" : [{
-        'type' : 'Cache',
-        'params': ("tomcat.cache.access_count", "counter")
-    }],
-    
-    "hitsCounts" : [{
-        'type' : 'Cache',
-        'params' : ("tomcat.cache.hits_count", "counter")
-    }],
-
-    "jspCount" : [{
-        'type' : 'JspMonitor',
-        'params' : ("tomcat.jsp.count", "counter")
-    }],
-    "jspReloadCount" : [{
-        'type' : 'JspMonitor',
-        'params' : ("tomcat.jsp.reload_count", "counter")
-    }],
-
-    "processingTime" : [{
-        'j2eeType' : 'Servlet',
-        'params' : ("tomcat.servlet.processing_time", "counter")
-    }],
-
-    "requestCount" : [{
-        'j2eeType' : 'Servlet',
-        'params' : ("tomcat.servlet.request_count", "counter")
-    }]
-
-    }
-
-    def get_params(self):
-        if hasattr(self, 'params'):
-            return self.params
-
-        if TomcatMetric.WHITELIST.has_key(self.attribute_name):
-            for dic in TomcatMetric.WHITELIST[self.attribute_name]:
-                invalid = False
-                for key in dic.keys():
-                    if key=='params':
-                        continue
-                    if self.tags.get(key) != dic[key]:
-                        invalid = True
-                        break
-                if not invalid:
-                    self.params = dic['params']
-                    return self.params
-
-        self.params = None
-        return None
 
     @property
     def device(self):
@@ -135,16 +28,13 @@ class TomcatMetric(JMXMetric):
 
 
     @property
-    def send_metric(self):
-        return self.get_params() is not None
-
-    @property
     def metric_name(self):
-        return self.get_params()[0]
+        if hasattr(self, '_metric_name'):
+            return self._metric_name
+        name = ['tomcat', self.domain, self.attribute_name]
+        return convert(".".join(name))
 
-    @property
-    def type(self):
-        return self.get_params()[1]
+
 
 
 class Tomcat(JmxCheck):
@@ -158,8 +48,10 @@ class Tomcat(JmxCheck):
             tags['instance'] = instance_name
         dump = jmx.dump()
 
+        domains = Tomcat.TOMCAT_DOMAINS + self.init_config.get('domains', [])
+
         self.get_and_send_jvm_metrics(instance, dump, tags)
-        self.create_metrics(instance, self.get_beans(dump, Tomcat.TOMCAT_DOMAINS), TomcatMetric, tags=tags)
+        self.create_metrics(instance, self.get_beans(dump, domains), TomcatMetric, tags=tags)
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 

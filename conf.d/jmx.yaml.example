@@ -6,29 +6,18 @@ instances:
 #        name: jmx_instance
 #        user: username
 #        password: password
-#        domains:
-#            - name: first_domain
-#              beans:
-#                - name: first_bean
-#                  attributes:
-#                    - name: attribute1
-#                      type: counter
-#                      alias : jmx.my_metric_name
-#                    - name: attribute2
-#                      type: gauge
-#                - name: second_bean
-#                  attributes: all             
-#                 # In this case attributes will be considered as gauges
-#
-#            - name: second_domain
-#              beans: all
-#
-#    -   host: localhost
-#        port: 7200
-#        name: second_jmx_instance
-#        domains: all
-#
-#    -   host: localhost
-#        port: 7201
-#        #In this case the check will only fetch JVM metrics
-#
+#        conf:
+#            - white: 
+#                domain: my_domain
+#               bean: my_bean
+#                attribute:
+#                    attribute1:
+#                        metric_type: counter
+#                        alias: jmx.my_metric_name
+#                    attribute2:
+#                        metric_type: gauge
+#                        alias: jmx.my2ndattribute
+#            - white:
+#                domain: 2nd_domain
+#              black:
+#                bean: black_listed_bean

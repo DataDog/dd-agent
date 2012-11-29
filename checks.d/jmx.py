@@ -1,76 +1,26 @@
-from checks.jmx_connector import JmxCheck, JMXMetric
-import re
-metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
+from checks.jmx_connector import JmxCheck, JMXMetric, convert
 
 class JMXCustomMetric(JMXMetric):
 
+
     @property
     def type(self):
-        params = self.get_params()
-
-        if params is None or params == "default" or params[0]=="default":
-            return "gauge"
-
-        return params[0]
-
+        if hasattr(self, '_metric_type'):
+            return self._metric_type
+        return "gauge"
+    
     @property
     def metric_name(self):
-        params = self.get_params()
-
-        if params is None or params == "default" or params[1] == "default":
-            return "jmx.%s.%s" % (self.domain, self.attribute_name)
-
-        return params[1]
-
-    def get_params(self):
-        domains = self.instance.get('domains', None)
-        if domains is not None and type(domains) == type([]) and len(domains) > 0:
-            for d in domains:
-                if self.domain != d.get('name', None):
-                    continue
-
-                beans = d.get('beans', None)
-                if beans == "all":
-                    return "default"
-
-                if beans is not None and type(beans) == type([]) and len(beans) > 0:
-                    for b in beans:
-                        b_attrs = self.get_bean_attr(b.get('name'))[1]
-
-                        wrong_bean = False
-                        for atr in b_attrs.keys():
-                            if self.tags.get(atr) != b_attrs[atr]:
-                                wrong_bean = True
-
-                        if wrong_bean:
-                            continue
-
-                        attributes = b.get('attributes', None)
-
-                        if attributes == "all":
-                            return "default"
-
-                        for a in attributes:
-                            if self.attribute_name != a.get('name', None):
-                                continue
-
-                            return (a.get('type', "default"), a.get('alias', "default")) 
+        if hasattr(self, '_metric_name'):
+            return self._metric_name
+        name = ['jmx', self.domain, self.attribute_name]
+        if self.name_suffix is not None:
+            name.insert(2, self.name_suffix)
+        return convert(".".join(name))
 
 
 
-        elif domains == "all":
-            return "default"
-
-        return None
-
-
-
-    @property
-    def send_metric(self):
-        return self.get_params() is not None
-
-
-
+ 
 class JMX(JmxCheck):
 
     def check(self, instance):

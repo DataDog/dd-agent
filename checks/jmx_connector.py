@@ -23,6 +23,47 @@ import sys
 
 from checks import AgentCheck
 
+import logging
+log = logging.getLogger('jmx')
+
+JAVA_CONF = [{'white':
+                {'attribute': 
+                    {'CollectionCount': 
+                        {'alias': 'jvm.gc.cms.count',
+                         'metric_type': 'gauge'},
+                     'CollectionTime': 
+                        {'alias': 'jvm.gc.parnew.time',
+                        'metric_type': 'gauge'}},
+                'domain': 'java.lang',
+                'type': 'GarbageCollector'}
+                },
+               {'white':
+                   {'attribute': 
+                    {'HeapMemoryUsage.used':
+                        {'alias': 'jvm.heap_memory',
+                          'metric_type': 'gauge'},
+                     'NonHeapMemoryUsage.used': 
+                         {'alias': 'jvm.non_heap_memory',
+                         'metric_type': 'gauge'},
+                     'ThreadCount': 
+                         {'alias': 'jvm.thread_count',
+                         'metric_type': 'gauge'}},
+                    'domain': 'java.lang'}
+    }]
+
+first_cap_re = re.compile('(.)([A-Z][a-z]+)')
+all_cap_re = re.compile('([a-z0-9])([A-Z])')
+metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
+metric_dotunderscore_cleanup = re.compile(r'_*\._*')
+
+def convert(name):
+    """Convert from CamelCase to camel_case"""
+
+    metric_name = first_cap_re.sub(r'\1_\2', name)
+    metric_name = all_cap_re.sub(r'\1_\2', metric_name).lower()
+    metric_name = metric_replacement.sub('_', metric_name)
+    return metric_dotunderscore_cleanup.sub('.', metric_name).strip('_')
+
 
 class JmxConnector:
     """Persistent connection to JMX endpoint.
@@ -41,8 +82,6 @@ class JmxConnector:
     def terminate(self):
         self._jmx.sendline("bye")
         self._jmx.terminate(force=True)
-
-
 
     def connect(self, connection, user=None, passwd=None, timeout=20):
         import pexpect
@@ -72,7 +111,7 @@ class JmxConnector:
                 except ExceptionPexpect:
                     self.log.error("Cannot terminate process %s" % self._jmx)
             self._jmx = None
-            self.log.info('Error while fetching JVM metrics %s' % sys.exc_info()[0])
+            self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
             raise Exception('Error while fetching JVM metrics at attdress: %s:%s' % (connection, passwd))
 
     def dump(self):
@@ -107,33 +146,32 @@ class JmxConnector:
         return jsonvar
 
 class JMXMetric:
-    WHITELIST = {
-        'CollectionCount' : {
-            'java.lang:name=ConcurrentMarkSweep,type=GarbageCollector' : ('jvm.gc.cms.count', 'gauge'),
-            'java.lang:name=ParNew,type=GarbageCollector' : ('jvm.gc.parnew.count', 'gauge')
-            },
-        'CollectionTime' : {
-            "java.lang:name=ParNew,type=GarbageCollector" : ("jvm.gc.parnew.time", "gauge"),
-            "java.lang:name=ConcurrentMarkSweep,type=GarbageCollector" : ("jvm.gc.cms.time", "gauge")
-            },
-
-        'ThreadCount' : ('jvm.thread_count', 'gauge'),
-        'HeapMemoryUsage.used' : ("jvm.heap_memory", 'gauge'),
-        'NonHeapMemoryUsage.used' : ("jvm.non_heap_memory", 'gauge')
-
-    }
 
 
-    
-    def __init__(self, instance, bean_name, attribute_name, attribute_value, 
-        tags={}):
+    def __init__(self, instance, init_config, bean_name, attribute_name, attribute_value, 
+        tags={}, name_suffix=None):
+        if name_suffix is not None:
+            attribute_name = "%s.%s" % (attribute_name, name_suffix)
 
         (self.domain, self.tags) = self.get_bean_attr(bean_name) 
         self.tags.update(tags)
         self.value = attribute_value
+
         self.attribute_name = attribute_name
         self.instance = instance
+        self.init_config = init_config or {}
+        self.white_or_black_list = self.init_config.get('list', {})
         self.bean_name = bean_name
+
+        self.fields = {
+            'attribute': self.attribute_name,
+            'attribute_name': self.attribute_name,
+            'bean_name': self.bean_name,
+            'bean': self.bean_name,
+            'domain': self.domain
+        }
+        for t in self.tags.keys():
+            self.fields[t] = self.tags[t]
 
     def get_bean_attr(self, bean_name):
         split = bean_name.split(":")
@@ -150,41 +188,6 @@ class JMXMetric:
         return (domain, tags)
 
 
-    @property
-    def send_metric(self):
-        """
-        return a boolean that shows if the metric should be posted or not
-        """
-        if JMXMetric.WHITELIST.has_key(self.attribute_name):
-            params = JMXMetric.WHITELIST[self.attribute_name]
-            if type(params) == type({}):
-                if params.has_key(self.bean_name):
-                    return True
-            if type(params) == type(()):
-                return True
-        return False
-
-    @property
-    def metric_name(self):
-        params = JMXMetric.WHITELIST[self.attribute_name]
-        if type(params) == type({}):
-            return params[self.bean_name][0]
-        else:
-            return params[0]
-
-    @property
-    def type(self):
-        params = JMXMetric.WHITELIST[self.attribute_name]
-        if type(params) == type({}):
-            return params[self.bean_name][1]
-        else:
-            return params[1]
-
-    @property
-    def device(self):
-        return None
-
-
 
     @property
     def tags_list(self):
@@ -193,6 +196,96 @@ class JMXMetric:
             tags.append("%s:%s" % (tag, self.tags[tag]))
 
         return tags
+
+    def check_conf(self, white_fields={}, black_fields={}):
+        white_fields = white_fields.copy()
+        attributes = None
+        if "attribute" in white_fields.keys():
+            attributes = white_fields['attribute']
+            del white_fields['attribute']
+        attributes_ok = False
+
+        white_fields_ok = {}
+        for k in white_fields.keys():
+            white_fields_ok[k] = False
+
+        black_fields_ok = {}
+        for k in black_fields.keys():
+            black_fields_ok[k] = True
+
+        
+        if attributes is None:
+            if self.attribute_name not in self.white_or_black_list:
+                attributes_ok = True
+        else:
+            for attr in attributes:
+                if self.attribute_name == attr:
+                    if type(attributes) == type({}) and type(attributes[attr]) == type({}):
+                        attr = attributes[attr]
+                        if attr.has_key('alias'):
+                            self._metric_name = attr['alias']
+                        if attr.has_key('type'):
+                            self._metric_type = attr['metric_type']
+                    attributes_ok = True
+                    break
+
+        for k in white_fields.keys():
+            field = self.fields.get(k, None)
+            if field is None:
+                white_fields_ok[k] = False
+                #white_fields_ok[k] = not self.instance.get('exact_conf', self.init_config('exact_conf', False))
+
+            else:
+                if type(white_fields[k]) != type([]):
+                    white_fields[k] = [white_fields[k]]
+                for value in white_fields[k]:
+                    regex = re.compile(r"%s" % value.replace('*', '(.*)'))
+                    if regex.match(field) is not None:
+                        white_fields_ok[k] = True
+                        break
+
+        for k in black_fields.keys():
+            field = self.fields.get(k, None)
+            if field is not None:
+                if type(black_fields[k]) != type([]):
+                    black_fields[k] = [black_fields[k]]
+                for value in black_fields[k]:
+                    regex = re.compile(r"%s" % value.replace('*', '(.*)'))
+                    if regex.match(field) is not None:
+                        black_fields_ok[k] = False
+                        break
+
+        return attributes_ok and False not in black_fields_ok.values() and \
+            False not in white_fields_ok.values()
+
+    def send_metric(self, conf=None):
+        if conf is None:
+            default_conf = self.init_config.get('conf', [])
+            conf = self.instance.get('conf', default_conf)
+
+        for c in conf:
+            if self.check_conf(white_fields=c.get('white', {}), black_fields=c.get('black', {})):
+                return True
+        return False
+        
+    @property
+    def metric_name(self):
+        if hasattr(self, '_metric_name'):
+            return self._metric_name
+        name = ['jmx', self.domain, self.attribute_name]
+        return ".".join(name)
+
+    @property
+    def type(self):
+        if hasattr(self, '_metric_type'):
+            return self._metric_type
+
+        return "gauge"
+
+    @property
+    def device(self):
+        return None
+
 
 
     def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
@@ -206,8 +299,8 @@ class JMXMetric:
                     del self.tags[key]
 
     def __str__(self):
-        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags)
+        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}, fields={5}".format(self.domain,
+            self.bean_name, self.attribute_name, self.value, self.tags, self.fields)
 
 class JmxCheck(AgentCheck):
 
@@ -217,6 +310,7 @@ class JmxCheck(AgentCheck):
         # Used to store the instances of the jmx connector (1 per instance)
         self.jmxs = {}
         self.jmx_metrics = []
+        self.init_config = init_config
 
     def kill_jmx_connectors(self):
         for key in self.jmxs.keys():
@@ -250,27 +344,27 @@ class JmxCheck(AgentCheck):
 
     def get_and_send_jvm_metrics(self, instance, dump, tags=[]):
         self.create_metrics(instance, 
-            self.get_beans(dump, domains=["java.lang"]), JMXMetric, tags=tags)
+            self.get_beans(dump, domains=["java.lang"]), JMXMetric, tags=tags, conf=JAVA_CONF)
         
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 
 
 
-    def create_metrics(self, instance, beans, metric_class, tags={}):
+    def create_metrics(self, instance, beans, metric_class, tags={}, conf=None):
         """ Create a list of JMXMetric by filtering them according to the send_metric
         attribute """
 
-        def create_metric(val):
+        def create_metric(val, name_suffix=None):
             if type(val) == type(1) or type(val) == type(1.1):
-                metric = metric_class(instance, bean_name, attr, val, tags=tags)
-                if metric.send_metric:
+                metric = metric_class(instance, self.init_config, bean_name, attr, val, tags=tags, name_suffix=name_suffix)
+                if metric.send_metric(conf=conf):
                     self.jmx_metrics.append(metric)
                     
             elif type(val) == type({}):
                 for subattr in val.keys():
                     subval = val[subattr]
-                    create_metric(subval)
+                    create_metric(subval, subattr)
 
             elif type(val) == type("") and val != "NaN":
                 # This is a workaround for solr as every attribute is a string...
@@ -338,7 +432,8 @@ class JmxCheck(AgentCheck):
         if domains is None:
             return dump
         else:
-            return dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
+            beans = dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
+            return beans
 
     @staticmethod
     def _load_old_config(agentConfig, config_key):

@@ -1,8 +1,22 @@
-init_config:
+#init_config:
+#  list:
+#  - pendingTasks
+#  - MinimumCompactionThreshold
+#  - RowCacheKeysToSave
+#  - MaximumCompactionThreshold
+#  - KeyCacheSavePeriodInSeconds
+#  - RowCacheSavePeriodInSeconds
 
 instances:
-#    -   host: localhost
-#        port: 7199
+   -   host: localhost
+       port: 7199
 #        user: username
 #        password: password
-#        name: cassandra_instance
+       name: cassandra_instance
+
+
+init_config:
+
+  conf:
+    - attribute: 
+        - *

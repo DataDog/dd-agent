@@ -1,107 +1,16 @@
-from checks.jmx_connector import JmxCheck, JMXMetric
+from checks.jmx_connector import JmxCheck, JMXMetric, convert
 
 
 class ActiveMQMetric(JMXMetric):
 
-    """
-    Format of the whitelist:
-    {
-    attribute name : [{
-        bean attribute to filter: value of the attribute
-        'params': (metric_name, metric type (gauge or counter))
-    }]
-
-    }
-    """
-    
-    WHITELIST = {
-    'AverageEnqueueTime' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.avg_enqueue_time", "gauge")}],
-    'ConsumerCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.consumer_count", "gauge")}],
-    'ProducerCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.producer_count", "gauge")}],
-    'MaxEnqueueTime' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.max_enqueue_time", "gauge")}],
-    'MinEnqueueTime' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.min_enqueue_time", "gauge")}],
-    'MemoryPercentUsage' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.memory_pct", "gauge")},{
-        
-        'Type' : 'Broker',
-        'params' : ("activemq.broker.memory_pct", "gauge")}
-        ],
-    'QueueSize' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.size", "gauge")}],
-    
-
-    'DequeueCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.dequeue_count", "counter")}],
-    'DispatchCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.dispatch_count", "counter")}],
-    'EnqueueCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.enqueue_count", "counter")}],
-    'ExpiredCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.expired_count", "counter")}],
-    'InFlightCount' : [{
-        'Type' : 'Queue',
-        'params' : ("activemq.queue.in_flight_count", "counter")}],
-
-    'StorePercentUsage' : [{
-        'Type' : 'Broker',
-        'params' : ("activemq.broker.store_pct", "gauge")}],
-    'TempPercentUsage' : [{
-        'Type' : 'Broker',
-        'params' : ("activemq.broker.temp_pct", "gauge")}],
-
-    }
-
- 
-
-    def get_params(self):
-        if hasattr(self, 'params'):
-            return self.params
-
-        if ActiveMQMetric.WHITELIST.has_key(self.attribute_name):
-            for dic in ActiveMQMetric.WHITELIST[self.attribute_name]:
-                invalid = False
-                for key in dic.keys():
-                    if key=='params':
-                        continue
-                    if self.tags.get(key) != dic[key]:
-                        invalid = True
-                        break
-                if not invalid:
-                    self.params = dic['params']
-                    return dic['params']
-
-        self.params = None
-        return None
-
-
-    @property
-    def send_metric(self):
-        return self.get_params() is not None
-
     @property
     def metric_name(self):
-        return self.get_params()[0]
+        if hasattr(self, '_metric_name'):
+            return self._metric_name
+        name = ['activemq', self.domain, self.attribute_name]
+        return convert(".".join(name))
 
-    @property
-    def type(self):
-        return self.get_params()[1]
-
+  
     @property
     def device(self):
         type_tag = self.tags.get('Type')
@@ -125,8 +34,10 @@ class ActiveMQ(JmxCheck):
             tags['instance'] = instance_name
         dump = jmx.dump()
 
+        domains = ActiveMQ.ACTIVEMQ_DOMAINS + self.init_config.get('domains', [])
+
         self.get_and_send_jvm_metrics(instance, dump, tags)
-        self.create_metrics(instance, self.get_beans(dump, ActiveMQ.ACTIVEMQ_DOMAINS), ActiveMQMetric, tags=tags)
+        self.create_metrics(instance, self.get_beans(dump, domains), ActiveMQMetric, tags=tags)
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 

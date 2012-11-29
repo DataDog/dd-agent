@@ -1,111 +1,15 @@
-from checks.jmx_connector import JmxCheck, JMXMetric
+from checks.jmx_connector import JmxCheck, JMXMetric, convert
 
 class SolrMetric(JMXMetric):
-    """
-    Format of the whitelist:
-    {
-    attribute name : [{
-        bean attribute to filter: value of the attribute
-        'params': (metric_name, metric type (gauge or counter))
-    }]
-
-    }
-    """
     
-
-    WHITELIST = {
-    'maxDoc' : [{
-        'type' : 'searcher',
-        'params' : ("solr.searcher.maxdoc", "gauge")}],
-    'numDocs' : [{
-        'type' : 'searcher',
-        'params' : ("solr.searcher.numdocs", "gauge")}],
-    'warmupTime' : [{
-        'type' : 'searcher',
-        'params' : ("solr.searcher.warmup", "gauge")}],
-
-    'cumulative_lookups' : [{
-        'id' : 'org.apache.solr.search.FastLRUCache',
-        'params' : ("solr.cache.lookups", "counter")},{
-        
-        'id' : 'org.apache.solr.search.LRUCache',
-        'params' : ("solr.cache.lookups", "counter")}],
-    
-    'cumulative_hits' : [{
-        'id' : 'org.apache.solr.search.FastLRUCache',
-        'params' : ("solr.cache.hits", "counter")},{
-        
-        'id' : 'org.apache.solr.search.LRUCache',
-        'params' : ("solr.cache.hits", "counter")}],
-    
-    'cumulative_inserts' : [{
-        'id' : 'org.apache.solr.search.FastLRUCache',
-        'params' : ("solr.cache.inserts", "counter")},{
-        
-        'id' : 'org.apache.solr.search.LRUCache',
-        'params' : ("solr.cache.inserts", "counter")}],
-    
-    'cumulative_evictions' : [{
-        'id' : 'org.apache.solr.search.FastLRUCache',
-        'params' : ("solr.cache.evictions", "counter")},{
-        
-        'id' : 'org.apache.solr.search.LRUCache',
-        'params' : ("solr.cache.evictions", "counter")}],
-
-    'errors' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.errors", "counter")}],
-    'requests' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.requests", "counter")}],
-    'timeouts' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.timeouts", "counter")}],
-    'totalTime' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.time", "counter")}],
-    'avgTimePerRequest' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.avg_time_per_req", "gauge")}],
-    'avgRequestsPerSecond' : [{
-        'id' : 'org.apache.solr.handler.component.SearchHandler',
-        'params' : ("solr.search_handler.avg_requests_per_sec", "gauge")}],
-
-    }
- 
-
-    def get_params(self):
-        if hasattr(self, params):
-            return self.params
-
-        if SolrMetric.WHITELIST.has_key(self.attribute_name):
-            for dic in SolrMetric.WHITELIST[self.attribute_name]:
-                invalid = False
-                for key in dic.keys():
-                    if key=='params':
-                        continue
-                    if self.tags.get(key) != dic[key]:
-                        invalid = True
-                        break
-                if not invalid:
-                    self.params = dic['params']
-                    return dic['params']
-
-        self.params = None
-        return None
-
-
-    @property
-    def send_metric(self):
-        return self.get_params() is not None
-
     @property
     def metric_name(self):
-        return self.get_params()[0]
-
-    @property
-    def type(self):
-        return self.get_params()[1]
+        if hasattr(self, '_metric_name'):
+            return self._metric_name
+        name = ['solr', self.domain, self.attribute_name]
+        if self.name_suffix is not None:
+            name.insert(2, self.name_suffix)
+        return convert(".".join(name))
 
     @property
     def device(self):
@@ -127,8 +31,10 @@ class Solr(JmxCheck):
             tags['instance'] = instance_name
         dump = jmx.dump()
 
+        domains = Solr.SOLR_DOMAINS + self.init_config.get('domains', [])
+
         self.get_and_send_jvm_metrics(instance, dump, tags)
-        self.create_metrics(instance, self.get_beans(dump, Solr.SOLR_DOMAINS, approx=True), SolrMetric, tags=tags)
+        self.create_metrics(instance, self.get_beans(dump, domains, approx=True), SolrMetric, tags=tags)
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 
