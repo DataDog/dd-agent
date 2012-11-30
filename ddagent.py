@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -26,11 +26,11 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, getOS
+from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
 from config import get_config
-from checks.common import getUuid
 from checks import gethostname
+from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
@@ -229,7 +229,7 @@ class Application(tornado.web.Application):
     def _postMetrics(self):
 
         if len(self._metrics) > 0:
-            self._metrics['uuid'] = getUuid()
+            self._metrics['uuid'] = get_uuid()
             self._metrics['internalHostname'] = gethostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics, {})
@@ -278,7 +278,9 @@ class Application(tornado.web.Application):
         if self._watchdog:
             self._watchdog.reset()
         tr_sched.start()
+
         self.mloop.start()
+        logging.info("Stopped")
 
     def stop(self):
         self.mloop.stop()
@@ -293,18 +295,45 @@ def init():
         port = int(port)
 
     app = Application(port, agentConfig)
+
+    def sigterm_handler(signum, frame):
+        logging.info("caught sigterm. stopping")
+        app.stop()
+
+    import signal
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     return app
 
 def main():
     define("pycurl", default=1, help="Use pycurl")
-    parse_command_line()
+    args = parse_command_line()
 
     if options.pycurl == 0 or options.pycurl == "0":
         os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
 
-    import tornado.httpclient
-    app = init()
-    app.run()
+    # If we don't have any arguments, run the server.
+    if not args:
+        import tornado.httpclient
+        app = init()
+        try:
+            app.run()
+        finally:
+            ForwarderStatus.remove_latest_status()
+            
+    else:
+        usage = "%s [help|info]. Run with no commands to start the server" % (
+                                        sys.argv[0])
+        command = args[0]
+        if command == 'info':
+            ForwarderStatus.print_latest_status()
+        elif command == 'help':
+            print usage
+        else:
+            print "Unknown command: %s" % command
+            print usage
+            return -1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

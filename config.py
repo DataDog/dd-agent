@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.3.0"
+    return "3.4.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -87,8 +87,13 @@ def _windows_confd_path():
     raise PathNotFound(path)
 
 def _windows_checksd_path():
-    path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
-        'checks.d')
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        path = os.path.join(prog_path, 'checks.d')
+    else:
+        cur_path = os.path.dirname(__file__)
+        path = os.path.join(cur_path, 'checks.d')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -379,8 +384,13 @@ def set_win32_cert_path():
     will be able to override this in a clean way. For now, we have to monkey patch
     tornado.httpclient._DEFAULT_CA_CERTS
     '''
-    crt_path = os.path.join(os.environ['PROGRAMFILES'], 'Datadog', 'Datadog Agent',
-        'ca-certificates.crt')
+    if hasattr(sys, 'frozen'):
+        # we're frozen - from py2exe
+        prog_path = os.path.dirname(sys.executable)
+        crt_path = os.path.join(prog_path, 'ca-certificates.crt')
+    else:
+        cur_path = os.path.dirname(__file__)
+        crt_path = os.path.join(cur_path, 'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
@@ -421,7 +431,7 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            sys.stderr.write("No checks.d folder found in '%s'.\n" % e.message)
+            log.error("No checks.d folder found in '%s'.\n" % e.message)
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
@@ -470,7 +480,7 @@ def load_check_directory(agentConfig):
                     break
 
         if not check_class:
-            log.error('No check class (inheriting from AgentCheck) foound in %s.py' % check_name)
+            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config
@@ -483,7 +493,7 @@ def load_check_directory(agentConfig):
                 f.close()
             except:
                 f.close()
-                log.warn("Unable to parse yaml config in %s" % conf_path)
+                log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
@@ -511,9 +521,19 @@ def load_check_directory(agentConfig):
         if init_config is None:
             init_config = {}
 
-        init_config['instances_number'] = len(instances)
-        check_class = check_class(check_name, init_config=init_config,
-            agentConfig=agentConfig)
+
+        instances = check_config['instances']
+        try:
+            c = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig, instances=instances)
+        except TypeError, e:
+            # Backwards compatibility for checks which don't support the
+            # instances argument in the constructor.
+            c = check_class(check_name, init_config=init_config,
+                            agentConfig=agentConfig)
+            c.instances = instances
+
+        checks.append(c)
 
         # Add custom pythonpath(s) if available
         if 'pythonpath' in check_config:
@@ -523,10 +543,6 @@ def load_check_directory(agentConfig):
             sys.path.extend(pythonpath)
 
         log.debug('Loaded check.d/%s.py' % check_name)
-        checks.append({
-            'name': check_name,
-            'instances': check_config['instances'],
-            'class': check_class
-        })
 
+    log.info('checks.d checks: %s' % [c.name for c in checks])
     return checks

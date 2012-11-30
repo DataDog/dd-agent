@@ -304,7 +304,7 @@ class Dogstream(object):
             if metric_type == 'gauge':
                 val = float(val)
             elif metric_type == 'counter':
-                val = int(val)
+                val = sum(vals)
 
             output.append((metric, timestamp, val, attributes))
 

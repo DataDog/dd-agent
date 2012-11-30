@@ -40,7 +40,7 @@ class Gauge(Metric):
 
     def flush(self, timestamp, normalization_factor):
         if self.value is not None:
-            return [self.formatter(
+            res = [self.formatter(
                 metric=self.name,
                 timestamp=timestamp,
                 value=self.value,
@@ -49,6 +49,7 @@ class Gauge(Metric):
                 device_name=self.device_name
             )]
             self.value = None
+            return res
 
         return []
 
@@ -250,6 +251,9 @@ class MetricsAggregator(object):
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or self.api_formatter
         self.normalization_factor = normalization_factor
+
+    def packets_per_second(self, interval):
+        return round(float(self.count)/interval, 2)
 
     def submit_packets(self, packets):
 
