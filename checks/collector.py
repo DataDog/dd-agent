@@ -113,7 +113,8 @@ class Collector(object):
         # Event Checks
         self._event_checks = [
             ElasticSearchClusterStatus(checks_logger),
-            Nagios(socket.gethostname())
+            Nagios(socket.gethostname()),
+            Hudson()
         ]
 
         # Resource Checks
