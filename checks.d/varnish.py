@@ -24,7 +24,7 @@ class Varnish(AgentCheck):
             elif self._current_type in ("i", "g"):
                 self.gauge(m_name, long(self._current_value))
             else:
-                self.log.warn("Unsupported stat type in %s; skipping" % self._current_type)
+                # Unsupported data type, ignore
                 self._reset()
                 return # don't save
 
@@ -47,11 +47,13 @@ class Varnish(AgentCheck):
     def check(self, instance):
         """Extract stats from varnishstat -x
 
-        The text option (-1) is not reliable enough when counters get large
+        The text option (-1) is not reliable enough when counters get large.
         VBE.media_video_prd_services_01(10.93.67.16,,8080).happy18446744073709551615
 
         2 types of data, "a" for counter ("c" in newer versions of varnish), "i" for gauge ("g")
         https://github.com/varnish/Varnish-Cache/blob/master/include/tbl/vsc_fields.h
+
+        Bitmaps are not supported.
 
         <varnishstat>
             <stat>
