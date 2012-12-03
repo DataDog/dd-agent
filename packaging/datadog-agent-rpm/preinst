@@ -18,7 +18,4 @@ if [ $? -eq 0 ]
   /usr/share/datadog/agent/setup-supervisor.py /etc/dd-agent/supervisor.conf /etc/supervisord.conf remove
 fi
 
-# do a regular stop
-/etc/init.d/datadog-agent stop
-
 exit 0
