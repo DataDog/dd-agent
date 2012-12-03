@@ -148,9 +148,11 @@ class AgentStatus(object):
         collector_status = cls.load_latest_status()
         if not collector_status:
             print "%s is not running." % cls.NAME
+            return -1
         else:
-            collector_status.print_status() 
+            collector_status.print_status()
             print "\n"
+            return 0
 
 
     @classmethod

@@ -267,8 +267,7 @@ def main(config_path=None):
     else:
         command = args[0]
         if command == 'info':
-            DogstatsdStatus.print_latest_status()
-            return 0
+            return DogstatsdStatus.print_latest_status()
 
         if command == 'start':
             daemon.start()
