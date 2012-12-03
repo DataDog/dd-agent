@@ -39,8 +39,10 @@ def http_emitter(message, logger, agentConfig):
         request = urllib2.Request(url, postBackData, headers)
         # Do the request, log any errors
         response = urllib2.urlopen(request)
-
-        logger.debug('http_emitter: postback response: ' + str(response.read()))
+        try:
+            logger.debug('http_emitter: postback response: ' + str(response.read()))
+        finally:
+            response.close()
     except urllib2.HTTPError, e:
         if e.code == 202:
             logger.debug("http payload accepted")

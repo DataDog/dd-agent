@@ -115,7 +115,6 @@ class Reporter(threading.Thread):
 
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        conn = self.http_conn_cls(self.api_host)
         body = json.dumps({"series" : metrics})
         headers = {'Content-Type':'application/json'}
         method = 'POST'
@@ -126,14 +125,21 @@ class Reporter(threading.Thread):
         url = '/api/v1/series?%s' % urlencode(params)
 
         start_time = time()
-        conn.request(method, url, body, headers)
+        status = None
+        conn = self.http_conn_cls(self.api_host)
+        try:
+            conn.request(method, url, body, headers)
 
-        #FIXME: add timeout handling code here
+            #FIXME: add timeout handling code here
 
-        response = conn.getresponse()
+            response = conn.getresponse()
+            status = response.status
+            response.close()
+        finally:
+            conn.close()
         duration = round((time() - start_time) * 1000.0, 4)
         logger.info("%s %s %s%s (%sms)" % (
-                        response.status, method, self.api_host, url, duration))
+                        status, method, self.api_host, url, duration))
         return duration
 
 class Server(object):
