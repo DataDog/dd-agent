@@ -181,8 +181,9 @@ class Server(object):
                 ready = select_select(sock, [], [], timeout)
                 if ready[0]:
                     aggregator_submit(socket_recv(buffer_size))
-            except select_error as (errno, msg):
+            except select_error, se:
                 # Ignore interrupted system calls from sigterm.
+                errno = se[0]
                 if errno != 4:
                     raise
             except (KeyboardInterrupt, SystemExit):
