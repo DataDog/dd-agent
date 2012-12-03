@@ -192,6 +192,10 @@ deb_repo:
 	rm Packages.gz
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
+tmp:
+	cp *.deb /tmp/shared || true
+	cp *.rpm /tmp/shared || true
+
 all: clean deb rpm
 
 
