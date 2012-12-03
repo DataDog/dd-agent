@@ -10,7 +10,7 @@ import uuid
 try:
     from hashlib import md5
 except ImportError:
-    import md5
+    from md5 import md5
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
