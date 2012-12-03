@@ -43,6 +43,7 @@ source:
 	cp -r $(SRC)/resources $(ROOT)/
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
+	cp -r $(SRC)/datadog.conf.example $(ROOT)/
 
 
 # Layout all of the files common to both versions of the agent in
@@ -52,8 +53,9 @@ install_base: source
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/usr/bin
-	# Install the common source.
+	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
+	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
@@ -90,19 +92,24 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 -d "pexpect" \
+--replaces "datadog-agent-lib  < 3.4.0" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
 --pre-uninstall datadog-agent-base-rpm/pre_uninstall \
 .
 
 datadog_agent_rpm: clean install_full_rpm
-	FPM_EDITOR="echo '' >>" \
+	FPM_EDITOR="echo ''>>"  \
 $(FPM_BUILD) -t rpm \
 -n "datadog-agent" \
 -d "python(abi) >= 2.6" \
 -d "python-tornado >= 2.3" \
 -d "supervisor >= 3.0" \
+-d "sysstat" \
+-d "pexpect" \
 --conflicts "datadog-agent < $(VERSION)" \
+--replaces "datadog-agent-base < 3.4.0" \
+--replaces "datadog-agent-lib  < 3.4.0" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
@@ -139,6 +146,9 @@ $(FPM_BUILD) -t deb \
 -d "python (>= 2.6)" \
 -d "python-tornado (>= 2.3)" \
 -d "supervisor (>= 3.0)" \
+-d "adduser" \
+-d "sysstat" \
+-d "python-pexpect" \
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
@@ -184,6 +194,10 @@ installdeb:
 deb_repo:
 	rm Packages.gz
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+
+tmp:
+	cp *.deb /tmp/shared || true
+	cp *.rpm /tmp/shared || true
 
 all: clean deb rpm
 
