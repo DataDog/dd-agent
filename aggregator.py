@@ -2,7 +2,7 @@ import logging
 from time import time
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('ddagent.aggregator')
 
 
 class Infinity(Exception): pass

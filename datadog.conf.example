@@ -8,10 +8,6 @@ dd_url: https://app.datadoghq.com
 # https://app.datadoghq.com/account/settings
 api_key:
 
-# Boolean to enable debug_mode, which outputs massive amounts of log messages
-# to the /tmp/ directory.
-debug_mode: no
-
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
 
@@ -436,45 +432,28 @@ use_mount: no
 # -------------------------------------------------------------------------- #
 
 [loggers]
-keys:root,dogstatsd,checks
+keys:root,agent
 
 [handlers]
-keys:dogstatsd,checks
+keys:stream
 
 [formatters]
 keys:ddagent
 
-# DogStatsd logging
-
 [logger_root]
-level:INFO
-handlers:
-propagate:0
-qualname:root
+level:ERROR
+handlers:stream
 
-[logger_dogstatsd]
+[logger_agent]
 level:INFO
-handlers:dogstatsd
+handlers:stream
+qualname:ddagent
 propagate:0
-qualname:dogstatsd
 
-[logger_checks]
-level:WARN
-handlers:checks
-propagate:0
-qualname:checks
-
-[handler_dogstatsd]
-class:FileHandler
-level:INFO
+[handler_stream]
+class:StreamHandler
 formatter:ddagent
-args:('/tmp/dogstatsd.log', 'a')
-
-[handler_checks]
-class:FileHandler
-level:WARN
-formatter:ddagent
-args:('/tmp/dd-agent.log', 'a')
+args:()
 
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s

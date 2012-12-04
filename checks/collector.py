@@ -34,8 +34,8 @@ from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
-logger = logging.getLogger('collector')
-checks_logger = logging.getLogger('checks')
+logger = logging.getLogger('ddagent.collector')
+checks_logger = logging.getLogger('ddagent.checks')
 
 
 class Collector(object):

@@ -3,6 +3,9 @@
 A Python Statsd implementation with some datadog special sauce.
 """
 
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging()
+
 # stdlib
 import httplib as http_client
 import logging
@@ -25,12 +28,11 @@ from config import get_config
 from daemon import Daemon
 from util import json, PidFile
 
+logger = logging.getLogger('ddagent.dogstatsd')
 
-WATCHDOG_TIMEOUT = 120 
+
+WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
-
-
-logger = logging.getLogger('dogstatsd')
 
 
 class Reporter(threading.Thread):
@@ -68,6 +70,7 @@ class Reporter(threading.Thread):
         self.finished.set()
 
     def run(self):
+
         logger.info("Reporting to %s every %ss" % (self.api_host, self.interval))
         logger.debug("Watchdog enabled: %s" % bool(self.watchdog))
 
@@ -112,7 +115,6 @@ class Reporter(threading.Thread):
             logger.exception("Error flushing metrics")
 
     def submit(self, metrics):
-
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
         body = json.dumps({"series" : metrics})
@@ -163,6 +165,7 @@ class Server(object):
         """ Run the server. """
         # Bind to the UDP socket.
         self.socket.bind(self.address)
+
         logger.info('Listening on host & port: %s' % str(self.address))
 
         # Inline variables for quick look-up.
@@ -223,8 +226,7 @@ class Dogstatsd(Daemon):
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False):
-    c = get_config(parse_args=False, cfg_path=config_path, init_logging=True)
-
+    c = get_config(parse_args=False, cfg_path=config_path)
     logger.debug("Configuration dogstatsd")
 
     port      = c['dogstatsd_port']

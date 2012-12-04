@@ -27,7 +27,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
-        config = get_config(parse_args=False)
+        config = get_config(parse_args=False, init_logging=True)
         self.forwarder = DDForwarder(config)
         self.dogstatsd = DogstatsdThread(config)
 

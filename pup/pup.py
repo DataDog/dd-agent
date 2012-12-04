@@ -10,6 +10,9 @@ Pup.py
     (C) Datadog, Inc. 2012 all rights reserved
 """
 
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging()
+
 # stdlib
 from collections import defaultdict
 import sys
@@ -30,9 +33,7 @@ from tornado import websocket
 from config import get_config
 from util import json
 
-
-logger = logging.getLogger('pup')
-
+logger = logging.getLogger('ddagent.pup')
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',
@@ -244,10 +245,10 @@ def main():
     is_enabled = c['use_pup']
 
     if is_enabled:
-        logging.info("Starting pup")
+        logger.info("Starting pup")
         run_pup(c)
     else:
-        logging.info("Pup is disabled. Exiting")
+        logger.info("Pup is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
         # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
         # and thus can exit cleanly.

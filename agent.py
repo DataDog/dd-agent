@@ -10,6 +10,9 @@
     (C) Datadog, Inc. 2010 all rights reserved
 '''
 
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging()
+
 # Core modules
 import logging
 import modules
@@ -42,8 +45,7 @@ PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 
 # Globals
-agent_logger = logging.getLogger('agent')
-
+logger = logging.getLogger('ddagent.agent')
 
 class Agent(Daemon):
     """
@@ -56,7 +58,7 @@ class Agent(Daemon):
         self.collector = None
 
     def _handle_sigterm(self, signum, frame):
-        agent_logger.debug("Caught sigterm. Stopping run loop.")
+        logger.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
         if self.collector:
             self.collector.stop()
@@ -82,7 +84,7 @@ class Agent(Daemon):
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
         watchdog = self._get_watchdog(check_frequency, agentConfig)
-       
+
         # Run the main loop.
         while self.run_forever:
             # Do the work.
@@ -103,7 +105,7 @@ class Agent(Daemon):
 
         # Explicitly kill the process, because it might be running
         # as a daemon.
-        agent_logger.info("Exiting. Bye bye.")
+        logger.info("Exiting. Bye bye.")
         sys.exit(0)
 
     def _get_emitters(self, agentConfig):
@@ -127,51 +129,14 @@ class Agent(Daemon):
         if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
             instanceId = EC2.get_instance_id()
             if instanceId is not None:
-                agent_logger.info("Running on EC2, instanceId: %s" % instanceId)
+                logger.info("Running on EC2, instanceId: %s" % instanceId)
                 agentConfig['hostname'] = instanceId
             else:
-                agent_logger.info('Not running on EC2, using hostname to identify this server')
+                logger.info('Not running on EC2, using hostname to identify this server')
         return agentConfig
-
-
-def setup_logging(agentConfig):
-    """Configure logging to use syslog whenever possible.
-    Also controls debug_mode."""
-    if agentConfig['debug_mode']:
-        logFile = "/tmp/dd-agent.log"
-        logging.basicConfig(filename=logFile, filemode='w',
-        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        logging.info("Logging to %s" % logFile)
-    else:
-        try:
-            from logging.handlers import SysLogHandler
-            rootLog = logging.getLogger()
-            rootLog.setLevel(logging.INFO)
-
-            sys_log_addr = "/dev/log"
-
-            # Special-case macs
-            if sys.platform == 'darwin':
-                sys_log_addr = "/var/run/syslog"
-
-            handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
-            formatter = logging.Formatter("dd-agent - %(name)s - %(levelname)s - %(message)s")
-            handler.setFormatter(formatter)
-            rootLog.addHandler(handler)
-            logging.info('Logging to syslog is set up')
-        except Exception,e:
-            sys.stderr.write("Error while setting up syslog logging (%s). No logging available" % str(e))
-            logging.disable(logging.ERROR)
-
 
 def main():
     options, args = get_parsed_args()
-    agentConfig = get_config()
-
-    # Logging
-    setup_logging(agentConfig)
-
-
     COMMANDS = [
         'start',
         'stop',
@@ -192,7 +157,7 @@ def main():
         return 3
 
     pid_file = PidFile('dd-agent')
- 
+
     # Only initialize the Agent if we're starting or stopping it.
     if command in ['start', 'stop', 'restart', 'foreground']:
 
@@ -202,19 +167,19 @@ def main():
         agent = Agent(pid_file.get_path())
 
         if 'start' == command:
-            logging.info('Start daemon')
+            logger.info('Start daemon')
             agent.start()
 
         elif 'stop' == command:
-            logging.info('Stop daemon')
+            logger.info('Stop daemon')
             agent.stop()
 
         elif 'restart' == command:
-            logging.info('Restart daemon')
+            logger.info('Restart daemon')
             agent.restart()
 
         elif 'foreground' == command:
-            logging.info('Running in foreground')
+            logger.info('Running in foreground')
             agent.run()
 
     # Commands that don't need the agent to be initialized.
@@ -223,8 +188,10 @@ def main():
             pid = pid_file.get_pid()
             if pid is not None:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
+                logger.info("dd-agent is running as pid %s." % pid)
             else:
                 sys.stdout.write('dd-agent is not running.\n')
+                logger.info("dd-agent is not running.")
 
         elif 'info' == command:
             return CollectorStatus.print_latest_status()
@@ -238,7 +205,7 @@ if __name__ == '__main__':
     except Exception:
         # Try our best to log the error.
         try:
-            agent_logger.exception("Uncaught error running the agent")
+            logger.exception("Uncaught error running the agent")
         except:
             pass
         raise

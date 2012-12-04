@@ -10,13 +10,14 @@ import glob
 import inspect
 from optparse import OptionParser, Values
 from cStringIO import StringIO
-from util import getOS
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
+
+logger = logging.getLogger('ddagent.config')
 
 class PathNotFound(Exception): pass
 
@@ -46,10 +47,15 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path, os_name=None):
+def initialize_logging(config_path=None, os_name=None):
+    if os_name is None:
+        os_name = getOS()
+    if config_path is None:
+        config_path = get_config_path(None, os_name=getOS()),
     try:
         logging.config.fileConfig(config_path)
     except Exception, e:
+        raise
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 def _windows_commondata_path():
@@ -150,7 +156,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'debug_mode': False,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
         'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
@@ -233,9 +238,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
 
         # Which API key to use
         agentConfig['api_key'] = config.get('Main', 'api_key')
-
-        # Debug mode
-        agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
         # local traffic only? Default to no
         agentConfig['non_local_traffic'] = False
@@ -402,7 +404,6 @@ def set_win32_cert_path():
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
 def get_confd_path(osname):
-    log = logging.getLogger('config')
 
     if osname == 'windows':
         try:
@@ -421,12 +422,10 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
+    logger.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
 def get_checksd_path(osname):
-    log = logging.getLogger('config')
-
     # Unix only will look up based on the current directory
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
@@ -438,9 +437,9 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            log.error("No checks.d folder found in '%s'.\n" % e.message)
+            logger.error("No checks.d folder found in '%s'.\n" % e.message)
 
-    log.error("No checks.d folder at '%s'.\n" % checksd_path)
+    logger.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
 def load_check_directory(agentConfig):
@@ -451,7 +450,6 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('checks')
     osname = getOS()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
@@ -471,7 +469,7 @@ def load_check_directory(agentConfig):
         try:
             check_module = __import__(check_name)
         except:
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
+            logger.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
@@ -487,7 +485,7 @@ def load_check_directory(agentConfig):
                     break
 
         if not check_class:
-            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
+            logger.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config
@@ -500,7 +498,7 @@ def load_check_directory(agentConfig):
                 f.close()
             except:
                 f.close()
-                log.exception("Unable to parse yaml config in %s" % conf_path)
+                logger.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
@@ -508,12 +506,12 @@ def load_check_directory(agentConfig):
             if not check_config:
                 continue
         else:
-            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
+            logger.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
-            log.error("Config %s is missing 'instances'" % conf_path)
+            logger.error("Config %s is missing 'instances'" % conf_path)
             continue
 
         # Accept instances as a list, as a single dict, or as non-existant
@@ -549,7 +547,19 @@ def load_check_directory(agentConfig):
                 pythonpath = [pythonpath]
             sys.path.extend(pythonpath)
 
-        log.debug('Loaded check.d/%s.py' % check_name)
+        logger.debug('Loaded check.d/%s.py' % check_name)
 
-    log.info('checks.d checks: %s' % [c.name for c in checks])
+    logger.info('checks.d checks: %s' % [c.name for c in checks])
     return checks
+
+def getOS():
+    if sys.platform == 'darwin':
+        return 'mac'
+    elif sys.platform.find('freebsd') != -1:
+        return 'freebsd'
+    elif sys.platform.find('linux') != -1:
+        return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
+    else:
+        return sys.platform

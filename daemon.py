@@ -26,6 +26,7 @@ import sys
 import time
 import logging
 
+logger = logging.getLogger('ddagent.daemon')
 
 class Daemon:
     """
@@ -52,11 +53,11 @@ class Daemon:
                 sys.exit(0) 
         except OSError, e: 
             msg = "fork #1 failed: %d (%s)" % (e.errno, e.strerror)
-            logging.error(msg)
+            logger.error(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1)
        
-        logging.debug("Fork 1 ok") 
+        logger.debug("Fork 1 ok") 
 
         # Decouple from parent environment
         os.chdir("/") 
@@ -71,7 +72,7 @@ class Daemon:
                 sys.exit(0) 
         except OSError, e: 
             msg = "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
-            logging.error(msg)
+            logger.error(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1) 
    
@@ -87,7 +88,7 @@ class Daemon:
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
         
-        logging.info("Started")
+        logger.info("Started")
     
         # Write pidfile
         atexit.register(self.delpid) # Make sure pid file is removed if we quit
@@ -96,7 +97,7 @@ class Daemon:
             file(self.pidfile,'w+').write("%s\n" % pid)
         except Exception, e:
             msg = "Unable to write pidfile: %s" % self.pidfile
-            logging.exception(msg)
+            logger.exception(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1)
         
@@ -111,7 +112,7 @@ class Daemon:
         Start the daemon
         """
         
-        logging.info("Starting...")
+        logger.info("Starting...")
         # Check for a pidfile to see if the daemon already runs
         try:
             pf = file(self.pidfile,'r')
@@ -124,14 +125,14 @@ class Daemon:
     
         if pid:
             message = "pidfile %s already exists. Is it already running?\n"
-            logging.error(message % self.pidfile)
+            logger.error(message % self.pidfile)
             sys.stderr.write(message % self.pidfile)
             sys.exit(1)
 
         # Start the daemon
-        logging.info("Pidfile: %s" % self.pidfile)
+        logger.info("Pidfile: %s" % self.pidfile)
         self.daemonize()        
-        logging.debug("Calling run method")
+        logger.debug("Calling run method")
         self.run()
 
     def stop(self):
@@ -141,7 +142,7 @@ class Daemon:
 
         from signal import SIGTERM
 
-        logging.info("Stopping...") 
+        logger.info("Stopping...") 
         # Get the pid from the pidfile
         try:
             pf = file(self.pidfile,'r')
@@ -164,11 +165,11 @@ class Daemon:
                     time.sleep(0.1)
             except OSError, err:
                 if str(err).find("No such process") <= 0:
-                    logging.exception("Cannot kill agent daemon at pid %s" % pid)
+                    logger.exception("Cannot kill agent daemon at pid %s" % pid)
                     sys.stderr.write(str(err) + "\n")
         else:
             message = "Pidfile %s does not exist. Not running?\n" % self.pidfile
-            logging.info(message)
+            logger.info(message)
             sys.stderr.write(message)
             
             # Just to be sure. A ValueError might occur if the PID file is empty but does actually exist
@@ -178,7 +179,7 @@ class Daemon:
             return # Not an error in a restart
 
         
-        logging.info("Stopped")
+        logger.info("Stopped")
 
     def restart(self):
         "Restart the daemon"

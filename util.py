@@ -1,4 +1,3 @@
-import logging
 import os
 import platform
 import signal
@@ -6,6 +5,7 @@ import sys
 import math
 import time
 import uuid
+from config import getOS
 
 try:
     from hashlib import md5
@@ -41,6 +41,9 @@ try:
 except ImportError:
     from compat.namedtuple import namedtuple
 
+import logging
+logger = logging.getLogger('ddagent.agent')
+
 
 NumericTypes = (float, int, long)
 
@@ -56,8 +59,6 @@ def get_uuid():
     # on the back-end if need be, based on mac addresses.
     return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
-
-
 def headers(agentConfig):
     # Build the request headers
     return {
@@ -65,18 +66,6 @@ def headers(agentConfig):
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'text/html, */*',
     }
-
-def getOS():
-    if sys.platform == 'darwin':
-        return 'mac'
-    elif sys.platform.find('freebsd') != -1:
-        return 'freebsd'
-    elif sys.platform.find('linux') != -1:
-        return 'linux'
-    elif sys.platform.find('win32') != -1:
-        return 'windows'
-    else:
-        return sys.platform
 
 def getTopIndex():
     macV = None
@@ -128,13 +117,13 @@ class Watchdog(object):
     def self_destruct(signum, frame):
         try:
             import traceback
-            logging.error("Self-destructing...")
-            logging.error(traceback.format_exc())
+            logger.error("Self-destructing...")
+            logger.error(traceback.format_exc())
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
 
     def reset(self):
-        logging.debug("Resetting watchdog for %d" % self._duration)
+        logger.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
 
@@ -152,29 +141,29 @@ class PidFile(object):
         # Can we write to the directory
         try:
             if os.access(self.pid_dir, os.W_OK):
-                logging.debug("Pid file is: %s" % self.pid_path)
+                logger.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
-            logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+            logger.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
 
         # if all else fails
         if os.access("/tmp", os.W_OK):
             tmp_path = os.path.join('/tmp', self.pid_file)
-            logging.debug("Using temporary pid file: %s" % tmp_path)
+            logger.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
             # Can't save pid file, bail out
-            logging.error("Cannot save pid file anywhere")
+            logger.error("Cannot save pid file anywhere")
             raise Exception("Cannot save pid file anywhere")
 
     def clean(self):
         try:
             path = self.get_path()
-            logging.debug("Cleaning up pid file %s" % path)
+            logger.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
         except:
-            logging.exception("Could not clean up pid file")
+            logger.exception("Could not clean up pid file")
             return False
 
     def get_pid(self):
