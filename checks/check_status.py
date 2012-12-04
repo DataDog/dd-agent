@@ -62,9 +62,6 @@ class Stylizer(object):
 
         return text + fmt % (0, '') # reset
 
-    def disabled(self):
-        self.enabled = False
-
     def bold(self, text):
         return self.s(text, 'bold')
 
@@ -101,13 +98,20 @@ class AgentStatus(object):
         return td.seconds
 
     def print_status(self):
-        print self.render()
+        self.STYLIZER.enabled = False
+        try:
+            if sys.stdout.isatty():
+                self.STYLIZER.enabled = True
+        except Exception:
+            pass
+
+        sys.stdout.write(self.render())
 
     def render(self):
         indent = "  "
         lines = self._header_lines(indent) + [
             indent + l for l in self.body_lines()
-        ]
+        ] + ["", ""]
         return "\n".join(lines)
         
     def _header_lines(self, indent):
@@ -162,7 +166,6 @@ class AgentStatus(object):
             return -1
         else:
             collector_status.print_status()
-            print "\n"
             return 0
 
 
