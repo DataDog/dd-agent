@@ -23,7 +23,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         config = {
             'init_config': {},
             'instances': [{
-                'url': 'http://127.0.0.1:66666',
+                'url': 'http://127.0.0.1:55555',
                 'name': 'DownService'
             },{
                 'url': 'http://google.com',
