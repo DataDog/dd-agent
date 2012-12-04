@@ -111,7 +111,12 @@ class HaproxyTestCase(unittest.TestCase):
         self.start_server(HAPROXY_CFG, config)
 
         # Run the check, make sure there are no metrics or events
-        self.check.check(config['instances'][0])
+        try:
+            self.check.check(config['instances'][0])
+        except Exception:
+            pass
+        else:
+            assert False, "Should raise an error"
         metrics = self.check.get_metrics()
         assert len(metrics) == 0
         assert self.check.has_events() == False
