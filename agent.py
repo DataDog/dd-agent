@@ -227,7 +227,7 @@ def main():
                 sys.stdout.write('dd-agent is not running.\n')
 
         elif 'info' == command:
-            CollectorStatus.print_latest_status()
+            return CollectorStatus.print_latest_status()
 
     return 0
 

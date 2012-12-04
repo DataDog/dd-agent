@@ -326,7 +326,7 @@ def main():
                                         sys.argv[0])
         command = args[0]
         if command == 'info':
-            ForwarderStatus.print_latest_status()
+            return ForwarderStatus.print_latest_status()
         elif command == 'help':
             print usage
         else:
