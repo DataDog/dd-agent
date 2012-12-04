@@ -5,7 +5,7 @@ import sys
 import math
 import time
 import uuid
-from config import getOS
+from config import getOS, get_logger_name
 
 try:
     from hashlib import md5
@@ -42,8 +42,7 @@ except ImportError:
     from compat.namedtuple import namedtuple
 
 import logging
-logger = logging.getLogger('ddagent.agent')
-
+logger = logging.getLogger(get_logger_name())
 
 NumericTypes = (float, int, long)
 

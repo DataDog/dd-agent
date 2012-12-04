@@ -26,7 +26,9 @@ import sys
 import time
 import logging
 
-logger = logging.getLogger('ddagent.daemon')
+from config import get_logger_name
+
+logger = logging.getLogger(get_logger_name())
 
 class Daemon:
     """

@@ -11,7 +11,7 @@ Pup.py
 """
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging()
+from config import initialize_logging; initialize_logging(logger_name='pup')
 
 # stdlib
 from collections import defaultdict
@@ -30,10 +30,10 @@ from tornado import web
 from tornado import websocket
 
 # project
-from config import get_config
+from config import get_config, get_logger_name
 from util import json
 
-logger = logging.getLogger('ddagent.pup')
+logger = logging.getLogger(get_logger_name())
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',

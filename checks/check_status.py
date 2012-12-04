@@ -20,7 +20,7 @@ STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 
 
-log = logging.getLogger('ddagent.checks.check_status')
+log = logging.getLogger('%s.checks.check_status' % config.get_logger_name())
 
 
 class Stylizer(object):

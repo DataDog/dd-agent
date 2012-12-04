@@ -1,9 +1,9 @@
 import logging
 from time import time
 
+from config import get_logger_name
 
-logger = logging.getLogger('ddagent.aggregator')
-
+logger = logging.getLogger(get_logger_name())
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass

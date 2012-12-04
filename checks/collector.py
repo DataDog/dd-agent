@@ -11,7 +11,7 @@ import socket
 import modules
 
 from util import getOS, get_uuid, md5, Timer
-from config import get_version
+from config import get_version, get_logger_name
 from checks import gethostname
 
 import checks.system.unix as u
@@ -34,8 +34,8 @@ from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
-logger = logging.getLogger('ddagent.collector')
-checks_logger = logging.getLogger('ddagent.checks')
+logger = logging.getLogger('%s.collector' % get_logger_name())
+checks_logger = logging.getLogger('%s.checks' % get_logger_name())
 
 
 class Collector(object):
@@ -285,7 +285,7 @@ class Collector(object):
         for check in checksd:
             if not self.continue_running:
                 return
-            logger.debug("Running check %s" % check.name)
+            logger.info("Running check %s" % check.name)
             instance_statuses = [] 
             metric_count = 0
             event_count = 0

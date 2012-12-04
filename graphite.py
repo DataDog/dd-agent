@@ -5,7 +5,9 @@ import cPickle as pickle
 from tornado.ioloop import IOLoop
 from tornado.iostream import IOStream
 
-logger = logging.getLogger('ddagent.graphite')
+from config import get_logger_name
+
+logger = logging.getLogger(get_logger_name())
 
 try:
     from tornado.netutil import TCPServer

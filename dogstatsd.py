@@ -4,7 +4,7 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging()
+from config import initialize_logging; initialize_logging(logger_name='dogstatsd')
 
 # stdlib
 import httplib as http_client
@@ -24,11 +24,11 @@ from urllib import urlencode
 from aggregator import MetricsAggregator
 from checks import gethostname
 from checks.check_status import DogstatsdStatus
-from config import get_config
+from config import get_config, get_logger_name
 from daemon import Daemon
 from util import json, PidFile
 
-logger = logging.getLogger('ddagent.dogstatsd')
+logger = logging.getLogger(get_logger_name())
 
 
 WATCHDOG_TIMEOUT = 120

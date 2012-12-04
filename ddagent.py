@@ -11,7 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging()
+from config import initialize_logging; initialize_logging(logger_name='forwarder')
 
 # Standard imports
 import logging
@@ -31,12 +31,12 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
-from config import get_config
+from config import get_config, get_logger_name
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 
-logger = logging.getLogger('ddagent.forwarder')
+logger = logging.getLogger(get_logger_name())
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval

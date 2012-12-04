@@ -12,7 +12,9 @@ from tornado.iostream import IOStream, SSLIOStream
 
 import fcntl
 
-logger = logging.getLogger('ddagent.tornado')
+from config import get_logger_name
+
+logger = logging.getLogger(get_logger_name())
 
 def set_close_exec(fd):
     flags = fcntl.fcntl(fd, fcntl.F_GETFD)

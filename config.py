@@ -17,7 +17,13 @@ DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
 
-logger = logging.getLogger('ddagent.config')
+logger_name_fragment = None
+def get_logger_name():
+    if logger_name_fragment is None:
+        return 'dd'
+    return 'dd.%s' % logger_name_fragment
+
+logger = logging.getLogger(get_logger_name())
 
 class PathNotFound(Exception): pass
 
@@ -47,7 +53,7 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path=None, os_name=None):
+def initialize_logging(config_path=None, os_name=None, logger_name=None):
     if os_name is None:
         os_name = getOS()
     if config_path is None:
@@ -57,6 +63,11 @@ def initialize_logging(config_path=None, os_name=None):
     except Exception, e:
         raise
         sys.stderr.write("Couldn't initialize logging: %s" % str(e))
+    if logger_name is not None:
+        global logger
+        global logger_name_fragment
+        logger_name_fragment = logger_name
+        logger = logging.getLogger(get_logger_name())
 
 def _windows_commondata_path():
     ''' Return the common appdata path, using ctypes 
