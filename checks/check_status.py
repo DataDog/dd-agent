@@ -128,7 +128,7 @@ class AgentStatus(object):
             ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                                         self.created_seconds_ago())),
             ("Pid", self.created_by_pid),
-            ("Platform", sys.platform),
+            ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
         ]
 
