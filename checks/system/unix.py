@@ -210,7 +210,7 @@ class Load(Check):
             
             uptime = uptime[0] # readlines() provides a list but we want a string
         
-        elif sys.platform == 'darwin' or sys.platform.startswith("freebsd"):
+        elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
             try:
                 uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]

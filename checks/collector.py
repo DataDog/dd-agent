@@ -168,18 +168,19 @@ class Collector(object):
             payload.update(load)
                 
             memory = sys_checks['memory'].check(self.agentConfig)
-            payload.update({
-                'memPhysUsed' : memory.get('physUsed'), 
-                'memPhysFree' : memory.get('physFree'), 
-                'memPhysTotal' : memory.get('physTotal'), 
-                'memPhysUsable' : memory.get('physUsable'), 
-                'memSwapUsed' : memory.get('swapUsed'), 
-                'memSwapFree' : memory.get('swapFree'), 
-                'memSwapTotal' : memory.get('swapTotal'), 
-                'memCached' : memory.get('physCached'), 
-                'memBuffers': memory.get('physBuffers'),
-                'memShared': memory.get('physShared')
-            })
+            if memory:
+                payload.update({
+                    'memPhysUsed' : memory.get('physUsed'), 
+                    'memPhysFree' : memory.get('physFree'), 
+                    'memPhysTotal' : memory.get('physTotal'), 
+                    'memPhysUsable' : memory.get('physUsable'), 
+                    'memSwapUsed' : memory.get('swapUsed'), 
+                    'memSwapFree' : memory.get('swapFree'), 
+                    'memSwapTotal' : memory.get('swapTotal'), 
+                    'memCached' : memory.get('physCached'), 
+                    'memBuffers': memory.get('physBuffers'),
+                    'memShared': memory.get('physShared')
+                })
 
             ioStats = sys_checks['io'].check(checks_logger, self.agentConfig)
             if ioStats:
