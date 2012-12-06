@@ -20,14 +20,19 @@ Mode: leader
 Node count: 487
 ```
 
+Tested with Zookeeper versions 3.0.0 to 3.4.5
+
 '''
 
 from checks import AgentCheck
+import re
 import socket
 import struct
 from StringIO import StringIO
 
 class Zookeeper(AgentCheck):
+    version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
+
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
@@ -64,26 +69,35 @@ class Zookeeper(AgentCheck):
         for metric, value in metrics:
             self.gauge(metric, value, tags=tags)
 
-    @staticmethod
-    def parse_stat(buf):
+    @classmethod
+    def parse_stat(cls, buf):
         ''' `buf` is a readable file-like object
             returns a tuple: ([(metric_name, value)], tags)
         '''
         metrics = []
         buf.seek(0)
+
+        # Check the version line to make sure we parse the rest of the
+        # body correctly. Particularly, the Connections val was added in
+        # >= 3.4.4.
         start_line = buf.readline()
+        match = cls.version_pattern.match(start_line)
+        if match is None:
+            raise Exception("Could not parse version from stat command output: %s" % start_line)
+        else:
+            version_tuple = match.groups()
+        has_connections_val = version_tuple >= ('3', '4', '4')
 
         # Clients:
         buf.readline() # skip the Clients: header
-        num_clients = 0
+        connections = 0
         client_line = buf.readline().strip()
         if client_line:
-            num_clients += 1
+            connections += 1
         while client_line:
             client_line = buf.readline().strip()
             if client_line:
-                num_clients += 1
-        metrics.append(('zookeeper.clients', num_clients))
+                connections += 1
 
         # Latency min/avg/max: -10/0/20007
         _, value = buf.readline().split(':')
@@ -99,6 +113,15 @@ class Zookeeper(AgentCheck):
         # Sent: 1324
         _, value = buf.readline().split(':')
         metrics.append(('zookeeper.bytes_sent', long(value.strip())))
+
+        if has_connections_val:
+            # Connections: 1
+            _, value = buf.readline().split(':')
+            metrics.append(('zookeeper.connections', int(value.strip())))
+        else:
+            # If the zk version doesnt explicitly give the Connections val,
+            # use the value we computed from the client list.
+            metrics.append(('zookeeper.connections', connections))
 
         # Outstanding: 0
         _, value = buf.readline().split(':')
