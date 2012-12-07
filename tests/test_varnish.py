@@ -2,8 +2,9 @@ import logging
 import os
 import time
 import unittest
-from checks import UnknownValue
-from checks.varnish import Varnish
+
+from tests.common import get_check
+
 
 class VarnishTestCase(unittest.TestCase):
     def setUp(self):
@@ -1843,20 +1844,32 @@ VBE.default(127.0.0.1,,8080).happy           0          .   Happy health probes"
         	</stat>
         </varnishstat>
         """
-    
+
+        self.config = """
+init_config:
+
+instances:
+    -   varnishstat: /usr/bin/varnishstat
+"""
+
+
     def testParsing(self):
-        v = Varnish(logging.getLogger("tests"))
+        v, instances = get_check('varnish', self.config)
         v._parse_varnishstat(self.v_dump, False)
-        self.assertEquals(v.get_sample("varnish.n_waitinglist"), 980)
-        self.assertRaises(UnknownValue, v.get_sample, "varnish.fetch_length")
+        metrics = v.get_metrics()
+        self.assertEquals([m[2] for m in metrics
+            if m[0] == "varnish.n_waitinglist"][0], 980)
+        assert "varnish.fetch_length" not in [m[0] for m in metrics]
 
         # XML parsing
         v._parse_varnishstat(self.xml_dump, True)
-        self.assertEquals(v.get_sample("varnish.SMA.s0.g_space"), 120606)
-        self.assertRaises(UnknownValue, v.get_sample, "varnish.SMA.transient.c_bytes")
-        
+        metrics = v.get_metrics()
+        self.assertEquals([m[2] for m in metrics
+            if m[0] == "varnish.SMA.s0.g_space"][0], 120606)
+        assert "varnish.SMA.transient.c_bytes" not in [m[0] for m in metrics]
+
     def testCheck(self):
-        v = Varnish(logging.getLogger("tests"))
+        v, instances = get_check('varnish', self.config)
         import pprint
         try:
             for i in range(3):
@@ -1865,6 +1878,15 @@ VBE.default(127.0.0.1,,8080).happy           0          .   Happy health probes"
                 time.sleep(1)
         except:
             pass
-        
+
+    def testOldConfig(self):
+        v, instances = get_check('varnish', self.config)
+        config = {
+            'varnishstat': '/usr/bin/varnishstat'
+        }
+
+        instances = v.parse_agent_config(config)['instances']
+        assert instances[0]['varnishstat'] == config['varnishstat']
+
 if __name__ == '__main__':
     unittest.main()

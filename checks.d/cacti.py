@@ -48,22 +48,11 @@ class Cacti(AgentCheck):
         key = self._instance_key(instance)
 
         # The rrdtool module is required for the check to work
-        try:
-            import rrdtool
-        except ImportError:
-            self.log.exception("Cannot import rrdtool, Cacti check will not run.")
-            return
+        import rrdtool
 
         # Try importing MySQL and connecting to the database
-        try:
-            import MySQLdb
-            self.dbs[key] = MySQLdb.connect(host, user, password, db)
-        except ImportError:
-            self.log.exception("Cannot import MySQLdb")
-            return
-        except MySQLdb.OperationalError:
-            self.log.exception('MySQL connection error')
-            return
+        import MySQLdb
+        self.dbs[key] = MySQLdb.connect(host, user, password, db)
 
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 
@@ -75,15 +64,10 @@ class Cacti(AgentCheck):
                 self.log.exception("Unable to read whitelist file at %s" \
                     % (whitelist))
 
-            wl = None
-            try:
-                wl = open(whitelist)
-                for line in wl:
-                    patterns.append(line.strip())
-                wl.close()
-            except Exception:
-                self.log.exception("There was a problem when reading whitelist file")
-                return False
+            wl = open(whitelist)
+            for line in wl:
+                patterns.append(line.strip())
+            wl.close()
 
         # Fetch the RRD metadata from MySQL
         db = self.dbs[key]

@@ -1,10 +1,9 @@
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
 
 from datetime import datetime, timedelta
 import time
+
+from util import namedtuple
+
 
 class agg(object):
 

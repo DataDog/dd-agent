@@ -27,9 +27,17 @@ def load_check(name, config, agentConfig):
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 
     init_config = config.get('init_config', None)
+    instances = config.get('instances')
 
     # init the check class
-    return check_class(name, init_config=init_config, agentConfig=agentConfig)
+    try:
+        return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
+    except:
+        # Backwards compatitiblity for old checks that don't support the
+        # instances argument.
+        c = check_class(name, init_config=init_config, agentConfig=agentConfig)
+        c.instances = instances
+        return c
 
 def kill_subprocess(process_obj):
     try:
@@ -60,4 +68,10 @@ def get_check(name, config_str):
     if check_class is None:
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 
-    return check_class.from_yaml(yaml_text=config_str, check_name=name)
+    agentConfig = {
+        'version': '0.1',
+        'api_key': 'tota'
+    }
+
+    return check_class.from_yaml(yaml_text=config_str, check_name=name,
+        agentConfig=agentConfig)

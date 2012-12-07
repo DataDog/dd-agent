@@ -57,6 +57,9 @@ use_mount: no
 ## The dogstatsd flush period.
 # dogstatsd_interval : 10
 
+## If 'yes', counters and rates will be normalized to 1 second (that is divided
+## by the dogstatsd_interval) before being sent to the server. Defaults to 'yes'
+# dogstatsd_normalize : yes
 
 # ========================================================================== #
 # Service-specific configuration                                             #
@@ -379,13 +382,13 @@ qualname:checks
 class:FileHandler
 level:INFO
 formatter:ddagent
-args:('/var/log/datadog/dogstatsd.log', 'a')
+args:('/tmp/dogstatsd.log', 'a')
 
 [handler_checks]
 class:FileHandler
 level:WARN
 formatter:ddagent
-args:('/var/log/datadog/checks.log', 'a')
+args:('/tmp/dd-agent.log', 'a')
 
 [formatter_ddagent]
 format: %(asctime)s | %(name)s | %(levelname)s | %(message)s

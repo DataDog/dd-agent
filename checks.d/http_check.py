@@ -33,6 +33,10 @@ class HTTPCheck(ServicesCheck):
             self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
             return Status.DOWN, str(e)
 
+        except socket.error, e:
+            self.log.info("%s is DOWN, error: %s" % (addr, repr(e)))
+            return Status.DOWN, "Socket error: %s" % repr(e)
+
         except Exception, e:
             self.log.error("Unhandled exception %s" % str(e))
             raise

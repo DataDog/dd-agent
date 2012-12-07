@@ -1,10 +1,17 @@
+
+
+# stdlib
 import sys
 import time
 from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
 
+# vendor
 import tornado.ioloop
+
+# project
+from checks.check_status import ForwarderStatus
 
 def plural(count):
     if count > 1:
@@ -75,6 +82,7 @@ class TransactionManager(object):
         self._transactions = [] #List of all non commited transactions
         self._total_count = 0 # Maintain size/count not to recompute it everytime
         self._total_size = 0 
+        self._flush_count = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -82,6 +90,9 @@ class TransactionManager(object):
 
         self._trs_to_flush = None # Current transactions being flushed
         self._last_flush = datetime.now() # Last flush (for throttling)
+
+        # Track an initial status message.
+        ForwarderStatus().persist()
 
     def get_transactions(self):
         return self._transactions
@@ -141,6 +152,12 @@ class TransactionManager(object):
             logging.info("Flushing %s transaction%s" % (count,plural(count)))
             self._trs_to_flush = to_flush
             self.flush_next()
+        self._flush_count += 1
+
+        ForwarderStatus(
+            queue_length=self._total_count,
+            queue_size=self._total_size,
+            flush_count=self._flush_count).persist()
 
     def flush_next(self):
 
