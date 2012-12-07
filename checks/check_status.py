@@ -166,7 +166,7 @@ class AgentStatus(object):
         Stylizer.ENABLED = False
         try:
             if sys.stdout.isatty():
-                Stylizer.enabled = True
+                Stylizer.ENABLED = True
         except Exception:
             # Don't worry if we can't enable the
             # stylizer.
