@@ -1,3 +1,4 @@
+import operator
 import platform
 import re
 import socket
@@ -130,7 +131,10 @@ class Disk(Check):
             return False
 
 
-class IO(object):
+class IO(Check):
+    def __init__(self, logger):
+        self.logger = logger
+
     def _parse_linux2_iostat_output(self, iostat_output):
         headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
         itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
@@ -171,26 +175,17 @@ class IO(object):
 
         return ioStats
 
-    def check(self, logger, agentConfig):
-        logger.debug('getIOStats: start')
-        
+    def check(self, agentConfig):
         ioStats = {}
-    
         if sys.platform == 'linux2':
-            logger.debug('getIOStats: linux2')
-            
             try:
                 stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 ioStats.update(self._parse_linux2_iostat_output(stdout))
-                    
             except:
                 logger.exception('getIOStats')
                 return False
         else:
-            logger.debug('getIOStats: unsupported platform')
             return False
-            
-        logger.debug('getIOStats: completed, returning')
         return ioStats
 
 
@@ -233,7 +228,6 @@ class Load(Check):
                     'system.load.norm.15': float(load[2])/cores,
                     }
         except:
-            self.logger.exception("Cannot normalize load")
             # No normalized load available
             return {'system.load.1': float(load[0]),
                     'system.load.5': float(load[1]),
@@ -581,15 +575,16 @@ class Network(Check):
             self.logger.debug("getNetworkTraffic: unsupported platform")
             return False    
 
-class Processes(object):
-    def check(self, logger, agentConfig):
-        logger.debug('getProcesses: start')
-        
+class Processes(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+
+    def check(self, agentConfig):
         # Get output from ps
         try:
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
         except:
-            logger.exception('getProcesses')
+            self.logger.exception('getProcesses')
             return False
         
         # Split out each process
@@ -600,13 +595,9 @@ class Processes(object):
         
         processes = []
         
-        logger.debug('getProcesses: Popen success, parsing, looping')
-        
         for line in processLines:
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
-        
-        logger.debug('getProcesses: completed, returning')
         
         return { 'processes':   processes,
                  'apiKey':      agentConfig['api_key'],
@@ -630,7 +621,7 @@ class Cpu(Check):
             else:
                 # FIXME return a float or False, would trigger type error if not python
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
-                return 0
+                return 0.0
 
         if sys.platform == 'linux2':
             mpstat = subprocess.Popen(['mpstat', '1', '3'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
@@ -729,6 +720,79 @@ class Cpu(Check):
                 self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
                 return False
 
+        elif sys.platform == 'sunos5':
+            # mpstat -aq 1 2
+            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+            # 0 5239   0 12857 22969 5523 14628   73  546 4055    1 146856    5   6   0  89  24 <-- since boot
+            # 1 ...
+            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+            # 0 20374   0 45634 57792 5786 26767   80  876 20036    2 724475   13  13   0  75  24 <-- past 1s
+            # 1 ...
+            # http://docs.oracle.com/cd/E23824_01/html/821-1462/mpstat-1m.html
+            #
+            # Will aggregate over all processor sets
+            try:
+                mpstat = subprocess.Popen(['mpstat', '-aq', '1', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                lines = [l for l in mpstat.split("\n") if len(l) > 0]
+                # discard the first len(lines)/2 lines
+                lines = lines[len(lines)/2:]
+                legend = [l for l in lines if "SET" in l]
+                assert len(legend) == 1
+                if len(legend) == 1:
+                    headers = legend[0].split()
+                    # collect stats for each processor set
+                    # and aggregate them based on the relative set size
+                    d_lines = [l for l in lines if "SET" not in l]
+                    user = [get_value(headers, l.split(), "usr") for l in d_lines]
+                    kern = [get_value(headers, l.split(), "sys") for l in d_lines]
+                    wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
+                    idle = [get_value(headers, l.split(), "idl") for l in d_lines]
+                    size = [get_value(headers, l.split(), "sze") for l in d_lines]
+                    count = sum(size)
+                    rel_size = [s/count for s in size]
+                    dot = lambda v1, v2: reduce(operator.add, map(operator.mul, v1, v2))
+                    return format_results(dot(user, rel_size),
+                                          dot(kern, rel_size),
+                                          dot(wait, rel_size),
+                                          dot(idle, rel_size),
+                                          0.0)
+            except:
+                self.logger.exception("Cannot compute CPU stats")
+                return False
         else:
             self.logger.warn("CPUStats: unsupported platform")
             return False
+
+if __name__ == '__main__':
+    # 1s loop with results
+    import logging
+    import time
+    import pprint
+    
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
+    log = logging.getLogger()
+    cpu = Cpu(log)
+    disk = Disk(log)
+    io = IO(log)
+    load = Load(log)
+    mem = Memory(log)
+    proc = Processes(log)
+    net = Network(log)
+
+    config = {"api_key": "666"}
+    while True:
+        log.debug("CPU")
+        log.debug(cpu.check(config))
+        # log.debug("Load")
+        # log.debug(load.check(config))
+        # log.debug("Memory")
+        # log.debug(mem.check(config))
+        # log.debug("Network")
+        # log.debug(net.check(config))
+        # #log.debug("Disk")
+        # #log.debug(disk.check(config))
+        # log.debug("IO")
+        # log.debug(io.check(config))
+        # #log.debug("Processes")
+        # #log.debug(proc.check(config))
+        time.sleep(1)
