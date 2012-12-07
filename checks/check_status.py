@@ -52,7 +52,7 @@ class Stylizer(object):
     @classmethod
     def stylize(cls, text, *styles):
         """ stylize the text. """
-        if not cls.enabled:
+        if not cls.ENABLED:
             return text
         # don't bother about escaping, not that complicated.
         fmt = '\033[%dm%s'
