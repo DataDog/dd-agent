@@ -15,6 +15,45 @@ class TestUnitDogStatsd(object):
             return (m['metric'],  ','.join(m['tags'] or []))
         return sorted(metrics, key=sort_by)
 
+    def test_counter_normalization(self):
+        stats = MetricsAggregator('myhost', interval=10)
+
+        # Assert counters are normalized.
+        stats.submit_packets('int:1|c')
+        stats.submit_packets('int:4|c')
+        stats.submit_packets('int:15|c')
+
+        stats.submit_packets('float:5|c')
+
+
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 2
+
+        floatc, intc = metrics
+
+        nt.assert_equal(floatc['metric'], 'float')
+        nt.assert_equal(floatc['points'][0][1], 0.5)
+        nt.assert_equal(floatc['host'], 'myhost')
+
+        nt.assert_equal(intc['metric'], 'int')
+        nt.assert_equal(intc['points'][0][1], 2)
+        nt.assert_equal(intc['host'], 'myhost')
+
+    def test_histogram_normalization(self):
+        stats = MetricsAggregator('myhost', interval=10)
+        for i in range(5):
+            stats.submit_packets('h1:1|h')
+        for i in range(20):
+            stats.submit_packets('h2:1|h')
+
+        metrics = self.sort_metrics(stats.flush())
+        _, _, h1count, _, _, \
+        _, _, h2count, _, _ = metrics
+
+        nt.assert_equal(h1count['points'][0][1], 0.5)
+        nt.assert_equal(h2count['points'][0][1], 2)
+
+
     def test_tags(self):
         stats = MetricsAggregator('myhost')
         stats.submit_packets('gauge:1|c')
