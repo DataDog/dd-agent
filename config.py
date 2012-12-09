@@ -188,6 +188,8 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         # Core config
         #
 
+        # FIXME unnecessarily complex
+
         if config.has_option('Main', 'use_dd'):
             agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
         else:
@@ -195,8 +197,8 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
 
         if options is not None and options.use_forwarder:
             listen_port = 17123
-            if config.has_option('Main','listen_port'):
-                listen_port = config.get('Main','listen_port')
+            if config.has_option('Main', 'listen_port'):
+                listen_port = int(config.get('Main', 'listen_port'))
             agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
@@ -234,6 +236,11 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
 
         # Debug mode
         agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
+
+        # local traffic only? Default to no
+        agentConfig['non_local_traffic'] = False
+        if config.has_option('Main', 'non_local_traffic'):
+            agentConfig['non_local_traffic'] = config.get('Main', 'non_local_traffic').lower() in ("yes", "true")
 
         # DEPRECATED
         if config.has_option('Main', 'use_ec2_instance_id'):

@@ -249,9 +249,16 @@ class Application(tornado.web.Application):
             debug=False,
         )
 
+        non_local_traffic = self._agentConfig.get("non_local_traffic", False)
+
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
-        http_server.listen(self._port)
+        # non_local_traffic must be == True to match, not just some non-false value
+        if non_local_traffic is True:
+            http_server.listen(self._port)
+        else:
+            # localhost in lieu of 127.0.0.1 to support IPv6
+            http_server.listen(self._port, address = "localhost")
         logging.info("Listening on port %d" % self._port)
 
         # Register callbacks
@@ -272,7 +279,10 @@ class Application(tornado.web.Application):
             logging.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
             gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
-            gs.listen(gport)
+            if non_local_traffic is True:
+                gs.listen(gport)
+            else:
+                gs.listen(port, address = "localhost")
 
         # Start everything
         if self._watchdog:
