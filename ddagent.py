@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010 all rights reserved
+    (C) Datadog, Inc. 2010-2012 all rights reserved
 '''
 
 # Standard imports
@@ -246,7 +246,7 @@ class Application(tornado.web.Application):
         settings = dict(
             cookie_secret="12oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             xsrf_cookies=False,
-            debug=True,
+            debug=False,
         )
 
         tornado.web.Application.__init__(self, handlers, **settings)
