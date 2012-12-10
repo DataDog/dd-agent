@@ -5,7 +5,7 @@ if [ "$1" = purge ]; then
     update-rc.d datadog-agent remove
 fi
 
-supervisorctl reread
-supervisorctl update
+supervisorctl reread || echo "Error rereading supervisor config in postrm"
+supervisorctl update || echo "Error updating supervisor in postrm"
 
 exit 0
