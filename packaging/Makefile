@@ -17,6 +17,7 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
 -v $(VERSION) \
+--vendor Datadog \
 --iteration $(BUILD_NUMBER)
 
 
