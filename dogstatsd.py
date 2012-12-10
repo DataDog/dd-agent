@@ -4,7 +4,7 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging(logger_name='dogstatsd')
+from config import initialize_logging; initialize_logging('dogstatsd')
 
 # stdlib
 import httplib as http_client

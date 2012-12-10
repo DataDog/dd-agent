@@ -53,22 +53,6 @@ def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
-def initialize_logging(config_path=None, os_name=None, logger_name=None):
-    if os_name is None:
-        os_name = getOS()
-    if config_path is None:
-        config_path = get_config_path(None, os_name=getOS()),
-    try:
-        logging.config.fileConfig(config_path)
-    except Exception, e:
-        raise
-        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
-    if logger_name is not None:
-        global logger
-        global logger_name_fragment
-        logger_name_fragment = logger_name
-        logger = logging.getLogger(get_logger_name())
-
 def _windows_commondata_path():
     ''' Return the common appdata path, using ctypes 
     From: http://stackoverflow.com/questions/626796/how-do-i-find-the-windows-common-application-data-folder-using-python
@@ -158,7 +142,7 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
     sys.exit(3)
 
-def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
+def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, args = get_parsed_args()
     elif not options:
@@ -191,10 +175,6 @@ def get_config(parse_args = True, cfg_path=None, init_logging=False, options=Non
         config_path = get_config_path(cfg_path, os_name=getOS())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
-
-        if init_logging:
-            initialize_logging(config_path, os_name=getOS())
-
 
         # bulk import
         for option in config.options('Main'):
@@ -574,3 +554,84 @@ def getOS():
         return 'windows'
     else:
         return sys.platform
+
+#
+# logging
+
+def get_logging_config(cfg_path=None):
+    logging_config = {
+        'collector_log_file': '/var/log/datadog/collector.log',
+        'forwarder_log_file': '/var/log/datadog/forwarder.log',
+        'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
+        'pup_log_file': '/var/log/datadog/pup.log',
+        'format': '%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)s | %(message)s',
+        'level': None
+    }
+
+    config_path = get_config_path(cfg_path, os_name=getOS())
+    config = ConfigParser.ConfigParser()
+    config.readfp(skip_leading_wsp(open(config_path)))
+
+    for option in logging_config:
+        if config.has_option('Main', option):
+            logging_config[option] = config.get('Main', option)
+
+    levels = {
+        'CRITICAL': logging.CRITICAL,
+        'DEBUG': logging.DEBUG,
+        'ERROR': logging.ERROR,
+        'FATAL': logging.FATAL,
+        'INFO': logging.INFO,
+        'WARN': logging.WARN,
+        'WARNING': logging.WARNING,
+    }
+    if config.has_option('Main', 'level'):
+        logging_config['level'] = levels.get(config.get('Main', 'level'))
+
+    return logging_config
+
+def initialize_logging(logger_name):
+    try:
+        if getOS() == 'windows':
+            logging.config.fileConfig(get_config_path())
+
+        else:
+            logging_config = get_logging_config()
+
+            logging.basicConfig(
+                format=logging_config['format'],
+                level=logging_config['level'] or logging.ERROR,
+            )
+
+            log_file = logging_config.get('%s_log_file' % logger_name)
+            if log_file is not None:
+                # make sure the log file exists and is writeable
+                try:
+                    fp = open(log_file, 'a')
+                    fp.write('')
+                    fp.close()
+                except Exception, e:
+                    sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
+                else:
+                    file_handler = logging.FileHandler(log_file)
+                    file_handler.setFormatter(logging.Formatter(logging_config['format']))
+                    log = logging.getLogger()
+                    log.addHandler(file_handler)
+
+            dd_log = logging.getLogger('dd')
+            dd_log.setLevel(logging_config['level'] or logging.INFO)
+
+    except Exception, e:
+        sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
+
+        # if config fails entirely, enable basic stdout logging as a fallback
+        logging.basicConfig(
+            format="%(asctime)s | %(name)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s",
+            level=logging.INFO,
+        )
+
+    if logger_name is not None:
+        global logger
+        global logger_name_fragment
+        logger_name_fragment = logger_name
+        logger = logging.getLogger(get_logger_name())

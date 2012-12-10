@@ -14,6 +14,10 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Use the amazon EC2 instance-id instead of hostname (unless hostname is
+# explicitly set)
+use_ec2_instance_id: yes
+
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
@@ -405,60 +409,12 @@ use_mount: no
 # If the name of the check is not specified, 'Check' is assumed.
 
 # ========================================================================== #
-# WMI Metrics
+# Logging
 # ========================================================================== #
-[WMI]
-# Each value should have the following structure:
-#
-# my.custom.metric_name: Win32_Metric_Name:value_to_use
-#
-# Example:
-#
-# system.users.count: Win32_OperatingSystem:NumberOfUsers
 
-##############################################################################
-#################### NOTHING TO MODIFY AFTER THIS LINE #######################
-##############################################################################
+# collector_log_file: /var/log/datadog/collector.log
+# forwarder_log_file: /var/log/datadog/forwarder.log
+# dogstatsd_log_file: /var/log/datadog/dogstatsd.log
+# pup_log_file:       /var/log/datadog/pup.log
 
-# -------------------------------------------------------------------------- #
-#  Logging Configuration
-#
-#  PLEASE READ ME!
-#
-#  DO NOT PUT ANY INTEGRATION CONFIGURATION AFTER THIS SECTION
-#  IT WILL BE IGNORED.
-#  I REPEAT, IT WILL BE IGNORED.
-#
-# -------------------------------------------------------------------------- #
-
-[loggers]
-keys:root,agent
-
-[handlers]
-keys:stream
-
-[formatters]
-keys:ddagent
-
-[logger_root]
-level:ERROR
-handlers:stream
-
-[logger_agent]
-level:INFO
-handlers:stream
-qualname:ddagent
-propagate:0
-
-[handler_stream]
-class:StreamHandler
-formatter:ddagent
-args:()
-
-[formatter_ddagent]
-format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
-class:logging.Formatter
-
-# IF YOU ADD ANYTHING HERE, IT WILL BE IGNORED
-# SO IF YOU WANT TO CONFIGURE AN INTEGRATION,
-# DO IT IN THE SECTION ABOVE
+# level: INFO

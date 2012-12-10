@@ -11,7 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging(logger_name='agent')
+from config import initialize_logging; initialize_logging('collector')
 
 # Core modules
 import logging

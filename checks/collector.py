@@ -34,7 +34,7 @@ from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
-logger = logging.getLogger('%s.collector' % get_logger_name())
+logger = logging.getLogger('%s' % get_logger_name())
 checks_logger = logging.getLogger('%s.checks' % get_logger_name())
 
 

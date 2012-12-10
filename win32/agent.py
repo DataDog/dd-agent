@@ -1,3 +1,6 @@
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging('collector')
+
 import win32serviceutil
 import win32service
 import win32event
@@ -27,7 +30,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
-        config = get_config(parse_args=False, init_logging=True)
+        config = get_config(parse_args=False)
         self.forwarder = DDForwarder(config)
         self.dogstatsd = DogstatsdThread(config)
 
@@ -38,8 +41,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'use_forwarder': True,
             'disabled_dd': False
         }), []
-        agentConfig = get_config(init_logging=True, parse_args=False,
-            options=opts)
+        agentConfig = get_config(parse_args=False, options=opts)
         self.agent = DDAgent(agentConfig)
 
     def SvcStop(self):

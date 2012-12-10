@@ -11,7 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging(logger_name='forwarder')
+from config import initialize_logging; initialize_logging('forwarder')
 
 # Standard imports
 import logging
