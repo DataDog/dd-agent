@@ -96,7 +96,10 @@ class Daemon:
         atexit.register(self.delpid) # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         try:
-            file(self.pidfile,'w+').write("%s\n" % pid)
+            fp = os.fdopen(os.open(self.pidfile, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0644), 'w+')
+            fp.write("%s\n" % pid)
+            fp.close()
+            os.chmod(self.pidfile, 0644)
         except Exception, e:
             msg = "Unable to write pidfile: %s" % self.pidfile
             logger.exception(msg)
