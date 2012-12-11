@@ -45,6 +45,7 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
 # Layout all of the files common to both versions of the agent in
@@ -54,6 +55,7 @@ install_base: source
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/usr/bin
+	mkdir -p $(BUILD)/var/log/datadog
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
@@ -62,6 +64,7 @@ install_base: source
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
+	chmod 755 $(BUILD)/var/log/datadog
 
 install_full: source
 	# Install the forwarder.
