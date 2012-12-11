@@ -62,9 +62,6 @@ class Stylizer(object):
 
         return text + fmt % (0, '') # reset
 
-    def disabled(self):
-        self.enabled = False
-
     def bold(self, text):
         return self.s(text, 'bold')
 
@@ -100,27 +97,45 @@ class AgentStatus(object):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
 
-    def _header_lines(self):
+    def print_status(self):
+        self.STYLIZER.enabled = False
+        try:
+            if sys.stdout.isatty():
+                self.STYLIZER.enabled = True
+        except Exception:
+            pass
+
+        sys.stdout.write(self.render())
+
+    def render(self):
+        indent = "  "
+        lines = self._header_lines(indent) + [
+            indent + l for l in self.body_lines()
+        ] + ["", ""]
+        return "\n".join(lines)
+        
+    def _header_lines(self, indent):
+        # Don't indent the header
         name_line = "%s (v %s)" % (self.NAME, config.get_version())
         lines = [
-            "",
             "=" * len(name_line),
             "%s" % name_line,
             "=" * len(name_line),
+            "",
         ]
 
         fields = [
             ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                            self.created_seconds_ago())),
+                                        self.created_seconds_ago())),
             ("Pid", self.created_by_pid),
-            ("Platform", sys.platform),
+            ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
         ]
 
         for key, value in fields:
-            l = "%s: %s" % (key, value)
+            l = indent + "%s: %s" % (key, value)
             lines.append(l)
-        return lines + ["\n"]
+        return lines + [""]
 
 
     @classmethod
@@ -148,9 +163,10 @@ class AgentStatus(object):
         collector_status = cls.load_latest_status()
         if not collector_status:
             print "%s is not running." % cls.NAME
+            return -1
         else:
-            collector_status.print_status() 
-            print "\n"
+            collector_status.print_status()
+            return 0
 
 
     @classmethod
@@ -212,35 +228,41 @@ class CollectorStatus(AgentStatus):
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
 
-    def print_status(self):
-        lines = self._header_lines()
-
-        lines.append("Checks")
-        lines.append("------")
+    def body_lines(self):
+        # Checks.d Status
+        lines = [
+            'Checks',
+            '======',
+            ''
+        ]
         if not self.check_statuses:
-            lines.append("No checks have run yet.")
+            lines.append("  No checks have run yet.")
         else:
             for cs in self.check_statuses:
                 check_lines = [
-                    cs.name
+                    '  ' + cs.name,
+                    '  ' + '-' * len(cs.name)
                 ]
                 for s in cs.instance_statuses:
                     c = 'green'
                     if s.has_error():
                         c = 'red'
-                    line =  "  - instance #%s [%s]" % (
+                    line =  "    - instance #%s [%s]" % (
                              s.instance_id, self.style(s.status, c))
                     if s.has_error():
                         line += u": %s" % s.error
                     check_lines.append(line)
                 check_lines += [
-                    "  - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                    "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                    ""
                 ]
                 lines += check_lines
 
-        lines.append("")
-        lines.append("Emitters")
-        lines.append("------")
+        # Emitter status
+        lines += [
+            "Emitters",
+            "========"
+        ]
         if not self.emitter_statuses:
             lines.append("No emitters have run yet.")
         else:
@@ -253,7 +275,7 @@ class CollectorStatus(AgentStatus):
                     line += ": %s" % es.error
                 lines.append(line)
 
-        print "\n".join(lines)
+        return lines
 
 
 class DogstatsdStatus(AgentStatus):
@@ -268,14 +290,13 @@ class DogstatsdStatus(AgentStatus):
         self.metric_count = metric_count
 
 
-    def print_status(self):
-        lines = self._header_lines() + [
+    def body_lines(self):
+        return [
             "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
         ]
-        print "\n".join(lines)
 
 
 class ForwarderStatus(AgentStatus):
@@ -288,13 +309,9 @@ class ForwarderStatus(AgentStatus):
         self.queue_size = queue_size
         self.flush_count = flush_count
 
-    def print_status(self):
-        lines = self._header_lines() + [
+    def body_lines(self):
+        return [
             "Queue Size: %s" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
-        print "\n".join(lines)
-        
-
-
