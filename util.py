@@ -143,7 +143,7 @@ class PidFile(object):
                 logger.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
-            logger.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+            logger.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
 
         # if all else fails
         if os.access("/tmp", os.W_OK):
@@ -162,7 +162,7 @@ class PidFile(object):
             os.remove(path)
             return True
         except:
-            logger.exception("Could not clean up pid file")
+            logger.warn("Could not clean up pid file")
             return False
 
     def get_pid(self):

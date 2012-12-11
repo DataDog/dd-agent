@@ -202,7 +202,7 @@ def main():
 if __name__ == '__main__':
     try:
         sys.exit(main())
-    except Exception:
+    except StandardError:
         # Try our best to log the error.
         try:
             logger.exception("Uncaught error running the agent")

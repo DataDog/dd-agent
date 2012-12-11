@@ -120,17 +120,19 @@ def get_config_path(cfg_path=None, os_name=None):
         return cfg_path
 
     # Check for an OS-specific path, continue on not-found exceptions
-    exc = None
+    bad_path = ''
     if os_name == 'windows':
         try:
             return _windows_config_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
     else:
         try:
             return _unix_config_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
 
     # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
@@ -139,7 +141,7 @@ def get_config_path(cfg_path=None, os_name=None):
         return os.path.join(path, DATADOG_CONF)
     
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 def get_config(parse_args=True, cfg_path=None, options=None):
@@ -396,16 +398,19 @@ def set_win32_cert_path():
 
 def get_confd_path(osname):
 
+    bad_path = ''
     if osname == 'windows':
         try:
             return _windows_confd_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
     else:
         try:
             return _unix_confd_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
 
     cur_path = os.path.dirname(os.path.realpath(__file__))
     cur_path = os.path.join(cur_path, 'conf.d')
@@ -413,7 +418,7 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    logger.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
+    logger.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 def get_checksd_path(osname):
@@ -428,7 +433,10 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            logger.error("No checks.d folder found in '%s'.\n" % e.message)
+            if len(e.args) > 0:
+                logger.error("No checks.d folder found in '%s'.\n" % e.args[0])
+            else:
+                logger.error("No checks.d folder found.\n")
 
     logger.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
