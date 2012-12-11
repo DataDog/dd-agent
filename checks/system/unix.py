@@ -179,7 +179,9 @@ class IO(Check):
         ioStats = {}
         if sys.platform == 'linux2':
             try:
-                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
                 ioStats.update(self._parse_linux2_iostat_output(stdout))
             except:
                 logger.exception('getIOStats')
@@ -208,7 +210,9 @@ class Load(Check):
         elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
             try:
-                uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                uptime = subprocess.Popen(['uptime'],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
             except:
                 self.logger.exception('Cannot extract load')
                 return False
@@ -246,6 +250,17 @@ class Memory(Check):
             self.topIndex = 6
         else:
             self.topIndex = 5
+
+        self.pagesize = 0
+        if sys.platform == 'sunos5':
+            try:
+                pgsz = subprocess.Popen(['pagesize'],
+                                        stdout=subprocess.PIPE,
+                                        close_fds=True).communicate()[0]
+                self.pagesize = int(pgsz.strip())
+            except:
+                # No page size available
+                pass
     
     def check(self, agentConfig):
         if sys.platform == 'linux2':
@@ -376,7 +391,8 @@ class Memory(Check):
             # vm.stats.vm.v_free_count: 30542
             # ...
 
-            regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)') # We run this several times so one-time compile now
+            # We run this several times so one-time compile now
+            regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)')
             meminfo = {}
 
             for line in lines:
@@ -393,16 +409,63 @@ class Memory(Check):
             try:
                 pageSize = int(meminfo.get('v_page_size'))
 
-                memData['physTotal'] = (int(meminfo.get('v_page_count', 0)) * pageSize) / 1048576
-                memData['physFree'] = (int(meminfo.get('v_free_count', 0)) * pageSize) / 1048576
-                memData['physCached'] = (int(meminfo.get('v_cache_count', 0)) * pageSize) / 1048576
-                memData['physUsed'] = ((int(meminfo.get('v_active_count'), 0) + int(meminfo.get('v_wire_count', 0))) * pageSize) / 1048576
-                memData['physUsable'] = ((int(meminfo.get('v_free_count'), 0) + int(meminfo.get('v_cache_count', 0)) + int(meminfo.get('v_inactive_count', 0))) * pageSize) / 1048576
+                memData['physTotal'] = (int(meminfo.get('v_page_count', 0))
+                                        * pageSize) / 1048576
+                memData['physFree'] = (int(meminfo.get('v_free_count', 0))
+                                       * pageSize) / 1048576
+                memData['physCached'] = (int(meminfo.get('v_cache_count', 0))
+                                         * pageSize) / 1048576
+                memData['physUsed'] = ((int(meminfo.get('v_active_count'), 0) +
+                                        int(meminfo.get('v_wire_count', 0)))
+                                       * pageSize) / 1048576
+                memData['physUsable'] = ((int(meminfo.get('v_free_count'), 0) +
+                                          int(meminfo.get('v_cache_count', 0)) +
+                                          int(meminfo.get('v_inactive_count', 0))) *
+                                         pageSize) / 1048576
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
             
             return memData;
-            
+        elif sys.platform == 'sunos5':
+            try:
+                memData = {}
+                kmem = subprocess.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
+                                        stdout=subprocess.PIPE,
+                                        close_fds=True).communicate()[0]
+
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anon_alloc_fail   0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anonpgin  0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:class     zone_memory_cap
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:crtime    16359935.0680834
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:execpgin  185
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:fspgin    2556
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:n_pf_throttle     0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:n_pf_throttle_usec        0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:nover     0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:pagedout  0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:pgpgin    2741
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:physcap   536870912  <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:rss       115544064  <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:snaptime  16787393.9439095
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:swap      91828224   <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:swapcap   1073741824 <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:zonename  53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+                
+                # turn memory_cap:360:zone_name:key value
+                # into { "key": value, ...}
+                kv = [l.strip().split() for l in kmem.split("\n") if len(l) > 0]
+                entries = dict([(k.split(":")[-1], v) for (k, v) in kv])
+                # extract rss, physcap, swap, swapcap, turn into MB
+                convert = lambda v: int(long(v))/2**20
+                memData["physTotal"] = convert(entries["physcap"])
+                memData["physUsed"]  = convert(entries["rss"])
+                memData["physFree"]  = memData["physTotal"] - memData["physUsed"]
+                memData["swapTotal"] = convert(entries["swapcap"])
+                memData["swapUsed"]  = convert(entries["swap"])
+                memData["swapFree"]  = memData["swapTotal"] - memData["swapUsed"]
+                return memData
+            except:
+                self.logger.exception("Cannot compute mem stats from kstat -c zone_memory_cap")
         else:
             return False
     
@@ -781,18 +844,18 @@ if __name__ == '__main__':
 
     config = {"api_key": "666"}
     while True:
-        log.debug("CPU")
-        log.debug(cpu.check(config))
-        # log.debug("Load")
+        # log.debug("--- CPU ---")
+        # log.debug(cpu.check(config))
+        # log.debug("--- Load ---")
         # log.debug(load.check(config))
-        # log.debug("Memory")
-        # log.debug(mem.check(config))
-        # log.debug("Network")
+        log.debug("--- Memory ---")
+        log.debug(mem.check(config))
+        # log.debug("--- Network ---")
         # log.debug(net.check(config))
-        # #log.debug("Disk")
+        # #log.debug("--- Disk ---")
         # #log.debug(disk.check(config))
-        # log.debug("IO")
+        # log.debug("--- IO ---")
         # log.debug(io.check(config))
-        # #log.debug("Processes")
+        # #log.debug("--- Processes ---")
         # #log.debug(proc.check(config))
         time.sleep(1)
