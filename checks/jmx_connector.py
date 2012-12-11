@@ -454,6 +454,12 @@ class JmxCheck(AgentCheck):
         """ Converts the old style config to the checks.d style"""
 
         (connections, users, passwords) = JmxCheck._load_old_config(agentConfig, config_key)
+
+        # If there is no old configuration, don't try to run these
+        # integrations.
+        if not (connections and user and passwords):
+            return None
+
         config = {}
         instances = []
         for i in range(len(connections)):
