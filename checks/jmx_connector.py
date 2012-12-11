@@ -271,9 +271,6 @@ class JMXMetric:
         return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}, fields={5}".format(self.domain,
             self.bean_name, self.attribute_name, self.value, self.tags, self.fields)
 
-
-
-
     def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
         for k in keys_to_remove:
             if self.tags.has_key(k):
@@ -283,6 +280,7 @@ class JMXMetric:
             for (key, value) in self.tags.items():
                 if v == value:
                     del self.tags[key]
+
 
 class JmxCheck(AgentCheck):
 
@@ -330,8 +328,6 @@ class JmxCheck(AgentCheck):
         
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
-
-
 
     def create_metrics(self, instance, beans, metric_class, tags={}, conf=None):
         """ Create a list of JMXMetric by filtering them according to the send_metric
