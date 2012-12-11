@@ -61,11 +61,11 @@ class Collector(object):
         # Unix System Checks
         self._unix_system_checks = {
             'disk': u.Disk(checks_logger),
-            'io': u.IO(),
+            'io': u.IO(checks_logger),
             'load': u.Load(checks_logger),
             'memory': u.Memory(checks_logger),
             'network': u.Network(checks_logger),
-            'processes': u.Processes(),
+            'processes': u.Processes(checks_logger),
             'cpu': u.Cpu(checks_logger)
         }
 
@@ -182,11 +182,11 @@ class Collector(object):
                     'memShared': memory.get('physShared')
                 })
 
-            ioStats = sys_checks['io'].check(checks_logger, self.agentConfig)
+            ioStats = sys_checks['io'].check(self.agentConfig)
             if ioStats:
                 payload['ioStats'] = ioStats
 
-            processes = sys_checks['processes'].check(checks_logger, self.agentConfig)
+            processes = sys_checks['processes'].check(self.agentConfig)
             payload.update({'processes': processes})
 
             networkTraffic = sys_checks['network'].check(self.agentConfig)

@@ -176,6 +176,19 @@ class IO(Check):
 
         return ioStats
 
+    def xlate(self, metric_name):
+        """Standardize on linux metric names"""
+        names = {
+            "wait": "await",
+            "svc_t": "svctm",
+            "%b": "%util",
+            "kr/s": "rkB/s",
+            "kw/s": "wkB/s",
+            "actv": "avgqu-sz",
+            }
+        # translate if possible
+        return names.get(metric_name, metric_name)
+
     def check(self, agentConfig):
         """Capture io stats.
 
@@ -235,7 +248,7 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][headers[i]] = cols[i]
+                        io[cols[0]][self.xlate(headers[i])] = cols[i]
             else:
                 return False
             return io
