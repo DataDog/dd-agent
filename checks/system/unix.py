@@ -466,13 +466,16 @@ class Memory(Check):
                 return memData
             except:
                 self.logger.exception("Cannot compute mem stats from kstat -c zone_memory_cap")
+                return False
         else:
             return False
     
 class Network(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
+        self.solaris_re = re.compile("([ro]bytes64)|errors|collisions")
 
+        # FIXME rework linux support to use the built-in Check logic
         self.networkTrafficStore = {}
         self.networkTrafficStore["last_ts"] = time.time()
         self.networkTrafficStore["current_ts"] = self.networkTrafficStore["last_ts"]
@@ -500,7 +503,7 @@ class Network(Check):
                 self.networkTrafficStore["current_ts"] = time.time()
                 
             except:
-                self.logger.exception('getNetworkTraffic')
+                self.logger.exception("Cannot extract network statistics")
                 return False
             
             proc.close()
@@ -557,7 +560,7 @@ class Network(Check):
             try:
                 netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                            stdout=subprocess.PIPE,
-                                           close_fds=True)
+                                           close_fds=True).communicate()[0]
                 # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
                 # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
                 # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
@@ -576,9 +579,10 @@ class Network(Check):
                 # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
                 # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
                 # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
-                out, err = netstat.communicate()
-                lines = out.split("\n")
+
+                lines = netstat.split("\n")
                 headers = lines[0].split()
+
                 # Given the irregular structure of the table above, better to parse from the end of each line
                 # Verify headers first
                 #          -7       -6       -5        -4       -3       -2        -1
@@ -586,11 +590,17 @@ class Network(Check):
                     if h not in headers:
                         self.logger.error("%s not found in %s; cannot parse" % (h, headers))
                         return False
+                    
                 current = None
                 for l in lines[1:]:
+                    # Another header row, abort now, this is IPv6 land
+                    if "Name" in l:
+                        break
+
                     x = l.split()
                     if len(x) == 0:
                         break
+
                     iface = x[0]
                     if iface.endswith("*"):
                         iface = iface[:-1]
@@ -631,11 +641,99 @@ class Network(Check):
                 else:
                     return False
             except:
-                self.logger.exception('getNetworkTraffic')
+                self.logger.exception("Cannot gather network stats")
                 return False
-        
+
+        elif sys.platform == "sunos5":
+            # Can't get bytes sent and received via netstat
+            # Default to kstat -p link:0:
+            netstat = subprocess.Popen(["kstat", "-p", "link:0:"],
+                                       stdout=subprocess.PIPE,
+                                       close_fds=True).communicate()[0]
+            # link:0:net0:brdcstrcv   527336
+            # link:0:net0:brdcstxmt   1595
+            # link:0:net0:class       net
+            # link:0:net0:collisions  0
+            # link:0:net0:crtime      16359935.2637943
+            # link:0:net0:ierrors     0
+            # link:0:net0:ifspeed     10000000000
+            # link:0:net0:ipackets    682834
+            # link:0:net0:ipackets64  682834
+            # link:0:net0:link_duplex 0
+            # link:0:net0:link_state  1
+            # link:0:net0:multircv    0
+            # link:0:net0:multixmt    1595
+            # link:0:net0:norcvbuf    0
+            # link:0:net0:noxmtbuf    0
+            # link:0:net0:obytes      12820668
+            # link:0:net0:obytes64    12820668
+            # link:0:net0:oerrors     0
+            # link:0:net0:opackets    105445
+            # link:0:net0:opackets64  105445
+            # link:0:net0:rbytes      113983614
+            # link:0:net0:rbytes64    113983614
+            # link:0:net0:snaptime    16834735.1607669
+            # link:0:net0:unknowns    0
+            # link:0:net0:zonename    53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+            # link:0:net1:brdcstrcv   4947620
+            # link:0:net1:brdcstxmt   1594
+            # link:0:net1:class       net
+            # link:0:net1:collisions  0
+            # link:0:net1:crtime      16359935.2839167
+            # link:0:net1:ierrors     0
+            # link:0:net1:ifspeed     10000000000
+            # link:0:net1:ipackets    4947620
+            # link:0:net1:ipackets64  4947620
+            # link:0:net1:link_duplex 0
+            # link:0:net1:link_state  1
+            # link:0:net1:multircv    0
+            # link:0:net1:multixmt    1594
+            # link:0:net1:norcvbuf    0
+            # link:0:net1:noxmtbuf    0
+            # link:0:net1:obytes      73324
+            # link:0:net1:obytes64    73324
+            # link:0:net1:oerrors     0
+            # link:0:net1:opackets    1594
+            # link:0:net1:opackets64  1594
+            # link:0:net1:rbytes      304384894
+            # link:0:net1:rbytes64    304384894
+            # link:0:net1:snaptime    16834735.1613302
+            # link:0:net1:unknowns    0
+            # link:0:net1:zonename    53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+
+            lines = [l for l in netstat.split("\n") if len(l) > 0]
+            for l in lines:
+                k, v = l.split()
+                # only pick certain counters 
+                if self.solaris_re.search(k) is not None:
+                    if not self.is_counter(k):
+                        self.counter(k)
+                    self.save_sample(k, long(v))
+
+            # now turn that into {iface: {recv_bytes: xxx, trans_bytes: yyy}, ...}
+            interfaces = {}
+            for m in self.get_metric_names():
+                if not self.is_counter(m):
+                    continue
+                try:
+                    sample = self.get_sample(m)
+                    
+                    link, n, i, name = m.split(":")
+                    assert link == "link"
+
+                    # translate metric names
+                    if name == "rbytes64": name = "recv_bytes"
+                    elif name == "obytes64": name = "trans_bytes"
+                    else: pass
+
+                    # populate result dictionary
+                    if interfaces.get(i) is None:
+                        interfaces[i] = {}
+                    interfaces[i][name] = sample
+                except UnknownValue:
+                    pass
+            return interfaces
         else:
-            self.logger.debug("getNetworkTraffic: unsupported platform")
             return False    
 
 class Processes(Check):
@@ -844,18 +942,18 @@ if __name__ == '__main__':
 
     config = {"api_key": "666"}
     while True:
-        # log.debug("--- CPU ---")
-        # log.debug(cpu.check(config))
-        # log.debug("--- Load ---")
-        # log.debug(load.check(config))
-        log.debug("--- Memory ---")
-        log.debug(mem.check(config))
-        # log.debug("--- Network ---")
-        # log.debug(net.check(config))
-        # #log.debug("--- Disk ---")
-        # #log.debug(disk.check(config))
-        # log.debug("--- IO ---")
-        # log.debug(io.check(config))
-        # #log.debug("--- Processes ---")
-        # #log.debug(proc.check(config))
+        print("--- CPU ---")
+        print(cpu.check(config))
+        print("--- Load ---")
+        print(load.check(config))
+        print("--- Memory ---")
+        print(mem.check(config))
+        print("--- Network ---")
+        print(net.check(config))
+        # #print("--- Disk ---")
+        # #print(disk.check(config))
+        print("--- IO ---")
+        print(io.check(config))
+        # #print("--- Processes ---")
+        # #print(proc.check(config))
         time.sleep(1)
