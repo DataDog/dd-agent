@@ -200,8 +200,8 @@ deb_repo:
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
 tmp:
-	cp *.deb /tmp/shared || true
-	cp *.rpm /tmp/shared || true
+	cp ../artifacts/*.deb /tmp/shared || true
+	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm
 

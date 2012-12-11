@@ -1,5 +1,6 @@
 # start
 chown -R dd-agent /etc/dd-agent/
+chown -R dd-agent /var/log/datadog/
 chkconfig --add datadog-agent
 
 /etc/init.d/datadog-agent restart
