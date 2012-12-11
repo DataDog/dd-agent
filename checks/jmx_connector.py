@@ -1,27 +1,10 @@
-# Import json for the agent. Try simplejson first, then the stdlib version and
-# if all else fails, use minjson which we bundle with the agent.
-try:
-    import simplejson as json
-except ImportError:
-    try:
-        import json
-    except ImportError:
-        import minjson
-        class json(object):
-            @staticmethod
-            def dumps(data):
-                return minjson.write(data)
-
-            @staticmethod
-            def loads(data):
-                return minjson.safeRead(data)
-
 
 import os
 import re
 import sys
 
 from checks import AgentCheck
+from util import json
 
 import logging
 log = logging.getLogger('jmx')
