@@ -67,6 +67,16 @@ class Stylizer(object):
 def style(*args):
     return Stylizer.stylize(*args)
 
+def logger_info():
+    loggers = []
+    root_logger = logging.getLogger()
+    if len(root_logger.handlers) > 0:
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                loggers.append(handler.stream.name)
+    else:
+        loggers.append("No loggers configured")
+    return ', '.join(loggers)
 
 
 class AgentStatus(object):
@@ -124,6 +134,7 @@ class AgentStatus(object):
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
+            ("Logs", logger_info()),
         ]
 
         for key, value in fields:
