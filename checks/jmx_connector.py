@@ -41,7 +41,7 @@ metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
 def convert(name):
     """Convert from CamelCase to camel_case
-    And substiture illegal metric characters
+    And substitute illegal metric characters
     """
 
     metric_name = first_cap_re.sub(r'\1_\2', name)
