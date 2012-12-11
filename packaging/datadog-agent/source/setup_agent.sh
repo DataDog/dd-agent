@@ -21,13 +21,21 @@ if [ $apikey ]; then
     if [ $dd_home ]; then
 	dd_base=$dd_home
     else
-	dd_base=$HOME/.datadog-agent
+	if [ "$unamestr" = "SunOS" ]; then
+	    dd_base="/opt/local/datadog"
+	else
+	    dd_base=$HOME/.datadog-agent
+	fi
     fi
 else
     if [ $dd_home ]; then
 	dd_base=$dd_home
     else
-	dd_base=$HOME/.pup
+	if [ "$unamestr" = "SunOS" ]; then
+	    dd_base="/opt/local/datadog"
+	else
+	    dd_base=$HOME/.pup
+	fi
     fi
 fi
 mkdir -p $dd_base
@@ -40,9 +48,16 @@ python $dd_base/virtualenv.py $dd_base/venv
 # install dependencies
 pip install tornado
 
+# figure out where to pull from
+if [ "$unamestr" = "SunOS" ]; then
+    tag="smartos-release"
+else
+    tag="pup-release"
+fi
+
 # set up the agent
 mkdir -p $dd_base/agent
-$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/pup-release
+$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag
 tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1
