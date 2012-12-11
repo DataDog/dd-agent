@@ -133,16 +133,15 @@ class Disk(Check):
 
 class IO(Check):
     def __init__(self, logger):
-        self.logger = logger
+        Check.__init__(self, logger)
+        self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
+        self.item_re   = re.compile(r'^([a-zA-Z0-9\/]+)')
+        self.value_re  = re.compile(r'\d+\.\d+')
 
-    def _parse_linux2_iostat_output(self, iostat_output):
-        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
-        itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
-        valueRegexp = re.compile(r'\d+\.\d+')
-
-        recentStats = iostat_output.split('Device:')[2].split('\n')
+    def _parse_linux2(self, output):
+        recentStats = output.split('Device:')[2].split('\n')
         header = recentStats[0]
-        headerNames = re.findall(headerRegexp, header)
+        headerNames = re.findall(self.header_re, header)
         device = None
 
         ioStats = {}
@@ -154,13 +153,15 @@ class IO(Check):
                 # Ignore blank lines.
                 continue
 
-            deviceMatch = re.match(itemRegexp, row)
+            deviceMatch = self.item_re.match(row)
 
             if deviceMatch is not None:
                 # Sometimes device names span two lines.
                 device = deviceMatch.groups()[0]
+            else:
+                continue
 
-            values = re.findall(valueRegexp, row)
+            values = re.findall(self.value_re, row)
 
             if not values:
                 # Sometimes values are on the next line so we encounter
@@ -169,27 +170,78 @@ class IO(Check):
 
             ioStats[device] = {}
 
-            for headerIndex in range(0, len(headerNames)):
+            for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
 
     def check(self, agentConfig):
-        ioStats = {}
-        if sys.platform == 'linux2':
-            try:
+        """Capture io stats.
+
+        @rtype dict
+        @return {"device": {"metric": value, "metric": value}, ...}
+        """
+        io = {}
+        try:
+            if sys.platform == 'linux2':
                 stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
                                           stdout=subprocess.PIPE,
                                           close_fds=True).communicate()[0]
-                ioStats.update(self._parse_linux2_iostat_output(stdout))
-            except:
-                logger.exception('getIOStats')
-                return False
-        else:
-            return False
-        return ioStats
 
+                #                 Linux 2.6.32-343-ec2 (ip-10-35-95-10)   12/11/2012      _x86_64_        (2 CPU)  
+                #
+                # Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util  
+                # sda1              0.00    17.61    0.26   32.63     4.23   201.04    12.48     0.16    4.81   0.53   1.73  
+                # sdb               0.00     2.68    0.19    3.84     5.79    26.07    15.82     0.02    4.93   0.22   0.09  
+                # sdg               0.00     0.13    2.29    3.84   100.53    30.61    42.78     0.05    8.41   0.88   0.54  
+                # sdf               0.00     0.13    2.30    3.84   100.54    30.61    42.78     0.06    9.12   0.90   0.55  
+                # md0               0.00     0.00    0.05    3.37     1.41    30.01    18.35     0.00    0.00   0.00   0.00  
+                #
+                # Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util  
+                # sda1              0.00     0.00    0.00   10.89     0.00    43.56     8.00     0.03    2.73   2.73   2.97  
+                # sdb               0.00     0.00    0.00    2.97     0.00    11.88     8.00     0.00    0.00   0.00   0.00  
+                # sdg               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00  
+                # sdf               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00  
+                # md0               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+                io.update(self._parse_linux2(stdout))
+
+            elif sys.platform == "sunos5":
+                iostat = subprocess.Popen(["iostat", "-x", "-d", "1", "2"],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+
+                #                   extended device statistics <-- since boot
+                # device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
+                # ramdisk1    0.0    0.0    0.1    0.1  0.0  0.0    0.0   0   0
+                # sd0         0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd1        79.9  149.9 1237.6 6737.9  0.0  0.5    2.3   0  11
+                #                   extended device statistics <-- past second
+                # device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
+                # ramdisk1    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd0         0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd1         0.0  139.0    0.0 1850.6  0.0  0.0    0.1   0   1 
+                
+                # discard the first half of the display (stats since boot)
+                lines = [l for l in iostat.split("\n") if len(l) > 0]
+                lines = lines[len(lines)/2:]
+                
+                assert "extended device statistics" in lines[0]
+                headers = lines[1].split()
+                assert "device" in headers
+                for l in lines[2:]:
+                    cols = l.split()
+                    # cols[0] is the device
+                    # cols[1:] are the values
+                    io[cols[0]] = {}
+                    for i in range(1, len(cols)):
+                        io[cols[0]][headers[i]] = cols[i]
+            else:
+                return False
+            return io
+        except:
+            self.logger.exception("Cannot extract IO statistics")
+            return False
 
 class Load(Check):
     def __init__(self, logger):
@@ -724,7 +776,6 @@ class Network(Check):
                     # translate metric names
                     if name == "rbytes64": name = "recv_bytes"
                     elif name == "obytes64": name = "trans_bytes"
-                    else: pass
 
                     # populate result dictionary
                     if interfaces.get(i) is None:
@@ -950,10 +1001,10 @@ if __name__ == '__main__':
         print(mem.check(config))
         print("--- Network ---")
         print(net.check(config))
-        # #print("--- Disk ---")
-        # #print(disk.check(config))
+        print("--- Disk ---")
+        print(disk.check(config))
         print("--- IO ---")
         print(io.check(config))
-        # #print("--- Processes ---")
-        # #print(proc.check(config))
+        print("--- Processes ---")
+        print(proc.check(config))
         time.sleep(1)
