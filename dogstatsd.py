@@ -261,6 +261,22 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
+    # commands that don't need the daemon
+    if args and args[0] in ['info', 'status']:
+        command = args[0]
+        if command == 'info':
+            logger.setLevel(logging.ERROR)
+            return DogstatsdStatus.print_latest_status()
+        elif command == 'status':
+            pid = pid_file.get_pid()
+            if pid:
+                message = 'dogstatsd is running with pid %s' % pid
+            else:
+                message = 'dogstatsd is not running'
+            logger.info(message)
+            sys.stdout.write(message + "\n")
+            return 0
+
     reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
     pid_file = PidFile('dogstatsd')
     daemon = Dogstatsd(pid_file.get_path(), server, reporter)
@@ -273,8 +289,6 @@ def main(config_path=None):
     # Otherwise, we're process the deamon command.
     else:
         command = args[0]
-        if command == 'info':
-            return DogstatsdStatus.print_latest_status()
 
         if command == 'start':
             daemon.start()
@@ -282,14 +296,6 @@ def main(config_path=None):
             daemon.stop()
         elif command == 'restart':
             daemon.restart()
-        elif command == 'status':
-            pid = pid_file.get_pid()
-            if pid:
-                message = 'dogstatsd is running with pid %s' % pid
-            else:
-                message = 'dogstatsd is not running'
-            logger.info(message)
-            sys.stdout.write(message + "\n")
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()

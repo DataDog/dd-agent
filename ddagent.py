@@ -341,6 +341,7 @@ def main():
                                         sys.argv[0])
         command = args[0]
         if command == 'info':
+            logger.setLevel(logging.ERROR)
             return ForwarderStatus.print_latest_status()
         elif command == 'help':
             print usage

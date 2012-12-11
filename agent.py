@@ -194,6 +194,7 @@ def main():
                 logger.info("dd-agent is not running.")
 
         elif 'info' == command:
+            logger.setLevel(logging.ERROR)
             return CollectorStatus.print_latest_status()
 
     return 0
