@@ -265,7 +265,7 @@ def main(config_path=None):
     if args and args[0] in ['info', 'status']:
         command = args[0]
         if command == 'info':
-            logger.setLevel(logging.ERROR)
+            logging.getLogger().setLevel(logging.ERROR)
             return DogstatsdStatus.print_latest_status()
         elif command == 'status':
             pid = pid_file.get_pid()

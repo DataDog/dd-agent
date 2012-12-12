@@ -565,13 +565,19 @@ def getOS():
 def get_log_format(logger_name):
     return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
 
+def get_syslog_format(logger_name):
+    return 'dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+
 def get_logging_config(cfg_path=None):
     logging_config = {
+        'log_level': None,
         'collector_log_file': '/var/log/datadog/collector.log',
         'forwarder_log_file': '/var/log/datadog/forwarder.log',
         'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
         'pup_log_file': '/var/log/datadog/pup.log',
-        'log_level': None
+        'log_to_syslog': True,
+        'syslog_host': None,
+        'syslog_port': None,
     }
 
     config_path = get_config_path(cfg_path, os_name=getOS())
@@ -594,6 +600,23 @@ def get_logging_config(cfg_path=None):
     if config.has_option('Main', 'log_level'):
         logging_config['log_level'] = levels.get(config.get('Main', 'log_level'))
 
+    if config.has_option('Main', 'log_to_syslog'):
+        logging_config['log_to_syslog'] = config.get('Main', 'log_to_syslog').strip().lower() in ['yes', 'true', 1]
+
+    if config.has_option('Main', 'syslog_host'):
+        host = config.get('Main', 'syslog_host').strip()
+        if host:
+            logging_config['syslog_host'] = host
+        else:
+            logging_config['syslog_host'] = None
+
+    if config.has_option('Main', 'syslog_port'):
+        port = config.get('Main', 'syslog_port').strip()
+        try:
+            logging_config['syslog_port'] = int(port)
+        except:
+            logging_config['syslog_port'] = None
+
     return logging_config
 
 def initialize_logging(logger_name):
@@ -609,6 +632,7 @@ def initialize_logging(logger_name):
                 level=logging_config['log_level'] or logging.INFO,
             )
 
+            # set up file loggers
             log_file = logging_config.get('%s_log_file' % logger_name)
             if log_file is not None:
                 # make sure the log directory is writeable
@@ -620,6 +644,26 @@ def initialize_logging(logger_name):
                     log.addHandler(file_handler)
                 else:
                     sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
+
+            # set up syslog
+            if logging_config['log_to_syslog']:
+                try:
+                    from logging.handlers import SysLogHandler
+
+                    if logging_config['syslog_host'] is not None and logging_config['syslog_port'] is not None:
+                        sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
+                    else:
+                        sys_log_addr = "/dev/log"
+                        # Special-case macs
+                        if sys.platform == 'darwin':
+                            sys_log_addr = "/var/run/syslog"
+
+                    handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
+                    handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                    log.addHandler(handler)
+                except Exception, e:
+                    sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
+                    traceback.print_exc()
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))

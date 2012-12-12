@@ -74,6 +74,11 @@ def logger_info():
         for handler in root_logger.handlers:
             if isinstance(handler, logging.StreamHandler):
                 loggers.append(handler.stream.name)
+            if isinstance(handler, logging.handlers.SysLogHandler):
+                if isinstance(handler.address, basestring):
+                    loggers.append('syslog:%s' % handler.address)
+                else:
+                    loggers.append('syslog:(%s, %s)' % handler.address)
     else:
         loggers.append("No loggers configured")
     return ', '.join(loggers)
