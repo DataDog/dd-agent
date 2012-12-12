@@ -11,7 +11,7 @@ fi
 unamestr=`uname`
 
 if [ $(which curl) ]; then
-    dl_cmd="curl -L -o"
+    dl_cmd="curl -k -L -o"
 else
     dl_cmd="wget -O"
 fi
