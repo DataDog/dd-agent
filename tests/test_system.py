@@ -14,16 +14,17 @@ class TestSystem(unittest.TestCase):
         cpu = Cpu(logger)
         res = cpu.check({})
         # Make sure we sum up to 100% (or 99% in the case of macs)
-        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 1, res
+        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 5, res
 
     def testLoad(self):
         global logger
         load = Load(logger)
         res = load.check({'system_stats': get_system_stats()})
-        cores = int(get_system_stats().get('cpuCores'))
         assert 'system.load.1' in res
-        assert 'system.load.norm.1' in res
-        assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
+        if sys.platform == "linux2":
+            cores = int(get_system_stats().get('cpuCores'))
+            assert 'system.load.norm.1' in res
+            assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
 
         # same test but without cpu count, no normalized load sent.
         res = load.check({})
@@ -134,8 +135,8 @@ sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0
 
 """
 
-        checker = IO()
-        results = checker._parse_linux2_iostat_output(debian_iostat_output)
+        checker = IO(logger)
+        results = checker._parse_linux2(debian_iostat_output)
         self.assertTrue('sda' in results)
         for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
                     'avgrq-sz', 'avgqu-sz', 'await', 'r_await',
@@ -157,8 +158,8 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
 """
 
-        checker = IO()
-        results = checker._parse_linux2_iostat_output(centos_iostat_output)
+        checker = IO(logger)
+        results = checker._parse_linux2(centos_iostat_output)
         self.assertTrue('sda' in results)
         for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
                     'avgrq-sz', 'avgqu-sz', 'await', 'svctm', '%util'):
