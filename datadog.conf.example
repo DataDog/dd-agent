@@ -14,10 +14,6 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
-# Use the amazon EC2 instance-id instead of hostname (unless hostname is
-# explicitly set)
-use_ec2_instance_id: yes
-
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
@@ -412,9 +408,9 @@ use_mount: no
 # Logging
 # ========================================================================== #
 
+# log_level: INFO
+
 # collector_log_file: /var/log/datadog/collector.log
 # forwarder_log_file: /var/log/datadog/forwarder.log
 # dogstatsd_log_file: /var/log/datadog/dogstatsd.log
 # pup_log_file:       /var/log/datadog/pup.log
-
-# level: INFO

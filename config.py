@@ -566,14 +566,15 @@ def getOS():
 #
 # logging
 
+LOG_FORMAT = '%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)s | %(message)s'
+
 def get_logging_config(cfg_path=None):
     logging_config = {
         'collector_log_file': '/var/log/datadog/collector.log',
         'forwarder_log_file': '/var/log/datadog/forwarder.log',
         'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
         'pup_log_file': '/var/log/datadog/pup.log',
-        'format': '%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)s | %(message)s',
-        'level': None
+        'log_level': None
     }
 
     config_path = get_config_path(cfg_path, os_name=getOS())
@@ -593,8 +594,8 @@ def get_logging_config(cfg_path=None):
         'WARN': logging.WARN,
         'WARNING': logging.WARNING,
     }
-    if config.has_option('Main', 'level'):
-        logging_config['level'] = levels.get(config.get('Main', 'level'))
+    if config.has_option('Main', 'log_level'):
+        logging_config['log_level'] = levels.get(config.get('Main', 'log_level'))
 
     return logging_config
 
@@ -607,8 +608,8 @@ def initialize_logging(logger_name):
             logging_config = get_logging_config()
 
             logging.basicConfig(
-                format=logging_config['format'],
-                level=logging_config['level'] or logging.ERROR,
+                format=LOG_FORMAT,
+                level=logging_config['log_level'] or logging.ERROR,
             )
 
             log_file = logging_config.get('%s_log_file' % logger_name)
@@ -622,19 +623,19 @@ def initialize_logging(logger_name):
                     sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
                 else:
                     file_handler = logging.FileHandler(log_file)
-                    file_handler.setFormatter(logging.Formatter(logging_config['format']))
+                    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
                     log = logging.getLogger()
                     log.addHandler(file_handler)
 
             dd_log = logging.getLogger('dd')
-            dd_log.setLevel(logging_config['level'] or logging.INFO)
+            dd_log.setLevel(logging_config['log_level'] or logging.INFO)
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
 
         # if config fails entirely, enable basic stdout logging as a fallback
         logging.basicConfig(
-            format="%(asctime)s | %(name)s | %(levelname)s | %(filename)s:%(lineno)s | %(message)s",
+            format=LOG_FORMAT,
             level=logging.INFO,
         )
 
