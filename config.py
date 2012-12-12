@@ -9,6 +9,7 @@ import subprocess
 import sys
 import glob
 import inspect
+import traceback
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
@@ -622,6 +623,7 @@ def initialize_logging(logger_name):
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
+        traceback.print_exc()
 
         # if config fails entirely, enable basic stdout logging as a fallback
         logging.basicConfig(
