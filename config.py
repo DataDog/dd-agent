@@ -2,6 +2,7 @@ import ConfigParser
 import os
 import logging
 import logging.config
+import logging.handlers
 import platform
 import string
 import subprocess
@@ -614,19 +615,15 @@ def initialize_logging(logger_name):
 
             log_file = logging_config.get('%s_log_file' % logger_name)
             if log_file is not None:
-                # make sure the log file exists and is writeable
-                try:
-                    fp = open(log_file, 'a')
-                    fp.write('')
-                    fp.close()
-                except Exception, e:
-                    sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
-                else:
-                    file_handler = logging.FileHandler(log_file)
+                # make sure the log directory is writeable
+                # NOTE: the entire directory needs to be writable so that rotation works
+                if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
+                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1)
                     file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
                     log = logging.getLogger()
                     log.addHandler(file_handler)
-
+                else:
+                    sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
             dd_log = logging.getLogger('dd')
             dd_log.setLevel(logging_config['log_level'] or logging.INFO)
 
