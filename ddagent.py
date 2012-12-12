@@ -36,7 +36,7 @@ from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 
-logger = logging.getLogger('forwarder')
+log = logging.getLogger('forwarder')
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -82,10 +82,10 @@ class MetricTransaction(Transaction):
                 and cls._application._agentConfig.get('api_key') is not None\
                 and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
             if is_dd_user:
-                logger.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
+                log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
         except:
-            logger.info("Not a Datadog user")
+            log.info("Not a Datadog user")
 
     def __init__(self, data, headers):
         self._data = data
@@ -96,7 +96,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        logger.debug("Created transaction %d" % self.get_id())
+        log.debug("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -111,7 +111,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            logger.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers)
 
@@ -129,7 +129,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error:
-            logger.error("Response: %s" % response.error)
+            log.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -264,7 +264,7 @@ class Application(tornado.web.Application):
         else:
             # localhost in lieu of 127.0.0.1 to support IPv6
             http_server.listen(self._port, address = "localhost")
-        logger.info("Listening on port %d" % self._port)
+        log.info("Listening on port %d" % self._port)
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
@@ -281,7 +281,7 @@ class Application(tornado.web.Application):
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
-            logger.info("Starting graphite listener on port %s" % gport)
+            log.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
             gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
@@ -295,7 +295,7 @@ class Application(tornado.web.Application):
         tr_sched.start()
 
         self.mloop.start()
-        logger.info("Stopped")
+        log.info("Stopped")
 
     def stop(self):
         self.mloop.stop()
@@ -312,7 +312,7 @@ def init():
     app = Application(port, agentConfig)
 
     def sigterm_handler(signum, frame):
-        logger.info("caught sigterm. stopping")
+        log.info("caught sigterm. stopping")
         app.stop()
 
     import signal

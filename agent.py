@@ -45,7 +45,7 @@ PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 
 # Globals
-logger = logging.getLogger('collector')
+log = logging.getLogger('collector')
 
 class Agent(Daemon):
     """
@@ -58,7 +58,7 @@ class Agent(Daemon):
         self.collector = None
 
     def _handle_sigterm(self, signum, frame):
-        logger.debug("Caught sigterm. Stopping run loop.")
+        log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
         if self.collector:
             self.collector.stop()
@@ -105,7 +105,7 @@ class Agent(Daemon):
 
         # Explicitly kill the process, because it might be running
         # as a daemon.
-        logger.info("Exiting. Bye bye.")
+        log.info("Exiting. Bye bye.")
         sys.exit(0)
 
     def _get_emitters(self, agentConfig):
@@ -129,10 +129,10 @@ class Agent(Daemon):
         if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
             instanceId = EC2.get_instance_id()
             if instanceId is not None:
-                logger.info("Running on EC2, instanceId: %s" % instanceId)
+                log.info("Running on EC2, instanceId: %s" % instanceId)
                 agentConfig['hostname'] = instanceId
             else:
-                logger.info('Not running on EC2, using hostname to identify this server')
+                log.info('Not running on EC2, using hostname to identify this server')
         return agentConfig
 
 def main():
@@ -167,19 +167,19 @@ def main():
         agent = Agent(pid_file.get_path())
 
         if 'start' == command:
-            logger.info('Start daemon')
+            log.info('Start daemon')
             agent.start()
 
         elif 'stop' == command:
-            logger.info('Stop daemon')
+            log.info('Stop daemon')
             agent.stop()
 
         elif 'restart' == command:
-            logger.info('Restart daemon')
+            log.info('Restart daemon')
             agent.restart()
 
         elif 'foreground' == command:
-            logger.info('Running in foreground')
+            log.info('Running in foreground')
             agent.run()
 
     # Commands that don't need the agent to be initialized.
@@ -188,10 +188,10 @@ def main():
             pid = pid_file.get_pid()
             if pid is not None:
                 sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
-                logger.info("dd-agent is running as pid %s." % pid)
+                log.info("dd-agent is running as pid %s." % pid)
             else:
                 sys.stdout.write('dd-agent is not running.\n')
-                logger.info("dd-agent is not running.")
+                log.info("dd-agent is not running.")
 
         elif 'info' == command:
             logging.getLogger().setLevel(logging.ERROR)
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     except StandardError:
         # Try our best to log the error.
         try:
-            logger.exception("Uncaught error running the agent")
+            log.exception("Uncaught error running the agent")
         except:
             pass
         raise

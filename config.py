@@ -19,7 +19,7 @@ DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 class PathNotFound(Exception): pass
 
@@ -414,7 +414,7 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    logger.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
+    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 def get_checksd_path(osname):
@@ -430,11 +430,11 @@ def get_checksd_path(osname):
             return _windows_checksd_path()
         except PathNotFound, e:
             if len(e.args) > 0:
-                logger.error("No checks.d folder found in '%s'.\n" % e.args[0])
+                log.error("No checks.d folder found in '%s'.\n" % e.args[0])
             else:
-                logger.error("No checks.d folder found.\n")
+                log.error("No checks.d folder found.\n")
 
-    logger.error("No checks.d folder at '%s'.\n" % checksd_path)
+    log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
 def load_check_directory(agentConfig):
@@ -464,7 +464,7 @@ def load_check_directory(agentConfig):
         try:
             check_module = __import__(check_name)
         except:
-            logger.exception('Unable to import check module %s.py from checks.d' % check_name)
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
@@ -480,7 +480,7 @@ def load_check_directory(agentConfig):
                     break
 
         if not check_class:
-            logger.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
+            log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
             continue
 
         # Check if the config exists OR we match the old-style config
@@ -493,7 +493,7 @@ def load_check_directory(agentConfig):
                 f.close()
             except:
                 f.close()
-                logger.exception("Unable to parse yaml config in %s" % conf_path)
+                log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
@@ -501,12 +501,12 @@ def load_check_directory(agentConfig):
             if not check_config:
                 continue
         else:
-            logger.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
+            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Look for the per-check config, which *must* exist
         if not check_config.get('instances'):
-            logger.error("Config %s is missing 'instances'" % conf_path)
+            log.error("Config %s is missing 'instances'" % conf_path)
             continue
 
         # Accept instances as a list, as a single dict, or as non-existant
@@ -542,9 +542,9 @@ def load_check_directory(agentConfig):
                 pythonpath = [pythonpath]
             sys.path.extend(pythonpath)
 
-        logger.debug('Loaded check.d/%s.py' % check_name)
+        log.debug('Loaded check.d/%s.py' % check_name)
 
-    logger.info('checks.d checks: %s' % [c.name for c in checks])
+    log.info('checks.d checks: %s' % [c.name for c in checks])
     return checks
 
 def getOS():
@@ -643,8 +643,8 @@ def initialize_logging(logger_name):
                 if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                     file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1)
                     file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
-                    log = logging.getLogger()
-                    log.addHandler(file_handler)
+                    root_log = logging.getLogger()
+                    root_log.addHandler(file_handler)
                 else:
                     sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
 
@@ -663,7 +663,8 @@ def initialize_logging(logger_name):
 
                     handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
                     handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
-                    log.addHandler(handler)
+                    root_log = logging.getLogger()
+                    root_log.addHandler(handler)
                 except Exception, e:
                     sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
                     traceback.print_exc()
@@ -678,6 +679,6 @@ def initialize_logging(logger_name):
             level=logging.INFO,
         )
 
-    # re-get the logger after logging is initialized
-    global logger
-    logger = logging.getLogger(__name__)
+    # re-get the log after logging is initialized
+    global log
+    log = logging.getLogger(__name__)

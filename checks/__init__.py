@@ -21,7 +21,7 @@ import os
 from util import LaconicFilter
 from checks import check_status
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 # Konstants
 class CheckException(Exception): pass
@@ -478,7 +478,7 @@ def gethostname(agentConfig):
         try:
             return socket.getfqdn()
         except socket.error, e:
-            logger.debug("processes: unable to get hostname: " + str(e))
+            log.debug("processes: unable to get hostname: " + str(e))
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:

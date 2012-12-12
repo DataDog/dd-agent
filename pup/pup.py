@@ -33,7 +33,7 @@ from tornado import websocket
 from config import get_config
 from util import json
 
-logger = logging.getLogger('pup')
+log = logging.getLogger('pup')
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',
@@ -245,10 +245,10 @@ def main():
     is_enabled = c['use_pup']
 
     if is_enabled:
-        logger.info("Starting pup")
+        log.info("Starting pup")
         run_pup(c)
     else:
-        logger.info("Pup is disabled. Exiting")
+        log.info("Pup is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
         # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
         # and thus can exit cleanly.

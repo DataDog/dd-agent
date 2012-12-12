@@ -1,7 +1,7 @@
 import logging
 from time import time
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
@@ -197,12 +197,12 @@ class Rate(Metric):
     def _rate(self, sample1, sample2):
         interval = sample2[0] - sample1[0]
         if interval == 0:
-            logger.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
+            log.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
             raise Infinity()
 
         delta = sample2[1] - sample1[1]
         if delta < 0:
-            logger.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
+            log.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
             raise UnknownValue()
 
         return (delta / interval)
@@ -334,13 +334,13 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp, self.interval)
 
         # Save some stats.
-        logger.debug("received %s payloads since last flush" % self.count)
+        log.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics

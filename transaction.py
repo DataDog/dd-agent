@@ -11,7 +11,7 @@ import tornado.ioloop
 # project
 from checks.check_status import ForwarderStatus
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 def plural(count):
     if count > 1:
@@ -98,7 +98,7 @@ class TransactionManager(object):
         return self._transactions
 
     def print_queue_stats(self):
-        logger.info("Queue size: at %s, %s transaction(s), %s KB" % 
+        log.info("Queue size: at %s, %s transaction(s), %s KB" % 
             (time.time(), self._total_count, (self._total_size/1024)))
 
     def get_tr_id(self):
@@ -113,15 +113,15 @@ class TransactionManager(object):
         # Check the size
         tr_size = tr.get_size()
 
-        logger.info("New transaction to add, total size of queue would be: %s KB" % 
+        log.info("New transaction to add, total size of queue would be: %s KB" % 
             ((self._total_size + tr_size)/ 1024))
 
         if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
-            logger.warn("Queue is too big, removing old messages...")
+            log.warn("Queue is too big, removing old messages...")
             new_trs = sorted(self._transactions,key=attrgetter('_next_flush'), reverse = True)
             for tr2 in new_trs:
                 if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
-                    logger.warn("Removing transaction %s from queue" % tr2.get_id())
+                    log.warn("Removing transaction %s from queue" % tr2.get_id())
                     self._transactions.remove(tr2)
                     self._total_count = self._total_count - 1
                     self._total_size = self._total_size - tr2.get_size()
@@ -131,13 +131,13 @@ class TransactionManager(object):
         self._total_count = self._total_count + 1
         self._total_size = self._total_size + tr_size
 
-        logger.info("Transaction %s added" % (tr.get_id()))
+        log.info("Transaction %s added" % (tr.get_id()))
         self.print_queue_stats()
 
     def flush(self):
 
         if self._trs_to_flush is not None:
-            logger.info("A flush is already in progress, not doing anything")
+            log.info("A flush is already in progress, not doing anything")
             return
 
         to_flush = []
@@ -149,7 +149,7 @@ class TransactionManager(object):
 
         count = len(to_flush)
         if count > 0:
-            logger.info("Flushing %s transaction%s" % (count,plural(count)))
+            log.info("Flushing %s transaction%s" % (count,plural(count)))
             self._trs_to_flush = to_flush
             self.flush_next()
         self._flush_count += 1
@@ -173,11 +173,11 @@ class TransactionManager(object):
             if delay <= 0:
                 tr = self._trs_to_flush.pop()
                 self._last_flush = datetime.now()
-                logger.debug("Flushing transaction %d" % tr.get_id())
+                log.debug("Flushing transaction %d" % tr.get_id())
                 try:
                     tr.flush()
                 except Exception,e :
-                    logger.exception(e)
+                    log.exception(e)
                     self.tr_error(tr)
                     self.flush_next()
             else:
@@ -195,12 +195,12 @@ class TransactionManager(object):
     def tr_error(self,tr):
         tr.inc_error_count()
         tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
-        logger.info("Transaction %d in error (%s error%s), it will be replayed after %s" %
+        log.info("Transaction %d in error (%s error%s), it will be replayed after %s" %
           (tr.get_id(), tr.get_error_count(), plural(tr.get_error_count()), 
            tr.get_next_flush()))
 
     def tr_success(self,tr):
-        logger.info("Transaction %d completed" % tr.get_id())
+        log.info("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
         self._total_count = self._total_count - 1
         self._total_size = self._total_size - tr.get_size()

@@ -34,7 +34,7 @@ from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class Collector(object):
@@ -59,66 +59,66 @@ class Collector(object):
         
         # Unix System Checks
         self._unix_system_checks = {
-            'disk': u.Disk(logger),
+            'disk': u.Disk(log),
             'io': u.IO(),
-            'load': u.Load(logger),
-            'memory': u.Memory(logger),
-            'network': u.Network(logger),
+            'load': u.Load(log),
+            'memory': u.Memory(log),
+            'network': u.Network(log),
             'processes': u.Processes(),
-            'cpu': u.Cpu(logger)
+            'cpu': u.Cpu(log)
         }
 
         # Win32 System `Checks
         self._win32_system_checks = {
-            'disk': w32.Disk(logger),
-            'io': w32.IO(logger),
-            'proc': w32.Processes(logger),
-            'memory': w32.Memory(logger),
-            'network': w32.Network(logger),
-            'cpu': w32.Cpu(logger)
+            'disk': w32.Disk(log),
+            'io': w32.IO(log),
+            'proc': w32.Processes(log),
+            'memory': w32.Memory(log),
+            'network': w32.Network(log),
+            'cpu': w32.Cpu(log)
         }
 
         # Old-style metric checks
-        self._couchdb = CouchDb(logger)
-        self._mongodb = MongoDb(logger)
-        self._mysql = MySql(logger)
+        self._couchdb = CouchDb(log)
+        self._mongodb = MongoDb(log)
+        self._mysql = MySql(log)
         self._rabbitmq = RabbitMq()
-        self._ganglia = Ganglia(logger)
+        self._ganglia = Ganglia(log)
         self._cassandra = Cassandra()
-        self._dogstream = Dogstreams.init(logger, self.agentConfig)
-        self._ddforwarder = DdForwarder(logger, self.agentConfig)
-        self._ec2 = EC2(logger)
+        self._dogstream = Dogstreams.init(log, self.agentConfig)
+        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._ec2 = EC2(log)
 
         # Metric Checks
         self._metrics_checks = [
-            ElasticSearch(logger),
-            Jvm(logger),
-            Tomcat(logger),
-            ActiveMQ(logger),
-            Solr(logger),
-            WMICheck(logger),
-            Memcache(logger),
+            ElasticSearch(log),
+            Jvm(log),
+            Tomcat(log),
+            ActiveMQ(log),
+            Solr(log),
+            WMICheck(log),
+            Memcache(log),
         ]
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
             try:
-                self._metrics_checks.append(modules.load(module_spec, 'Check')(logger))
-                logger.info("Registered custom check %s" % module_spec)
+                self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
+                log.info("Registered custom check %s" % module_spec)
             except Exception, e:
-                logger.exception('Unable to load custom check module %s' % module_spec)
+                log.exception('Unable to load custom check module %s' % module_spec)
 
         # Event Checks
         self._event_checks = [
-            ElasticSearchClusterStatus(logger),
+            ElasticSearchClusterStatus(log),
             Nagios(socket.gethostname()),
             Hudson()
         ]
 
         # Resource Checks
         self._resources_checks = [
-            ResProcesses(logger,self.agentConfig)
+            ResProcesses(log,self.agentConfig)
         ]
 
     def stop(self):
@@ -139,7 +139,7 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        logger.info("Starting collection run #%s" % self.run_count)
+        log.info("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
         metrics = payload['metrics']
@@ -180,11 +180,11 @@ class Collector(object):
                 'memShared': memory.get('physShared')
             })
 
-            ioStats = sys_checks['io'].check(logger, self.agentConfig)
+            ioStats = sys_checks['io'].check(log, self.agentConfig)
             if ioStats:
                 payload['ioStats'] = ioStats
 
-            processes = sys_checks['processes'].check(logger, self.agentConfig)
+            processes = sys_checks['processes'].check(log, self.agentConfig)
             payload.update({'processes': processes})
 
             networkTraffic = sys_checks['network'].check(self.agentConfig)
@@ -196,11 +196,11 @@ class Collector(object):
 
         # Run old-style checks
         mysqlStatus = self._mysql.check(self.agentConfig)
-        rabbitmq = self._rabbitmq.check(logger, self.agentConfig)
+        rabbitmq = self._rabbitmq.check(log, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(logger, self.agentConfig)
+        cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
@@ -247,7 +247,7 @@ class Collector(object):
  
         # Process the event checks. 
         for event_check in self._event_checks:
-            event_data = event_check.check(logger, self.agentConfig)
+            event_data = event_check.check(log, self.agentConfig)
             if event_data:
                 events[event_check.key] = event_data
 
@@ -284,7 +284,7 @@ class Collector(object):
         for check in checksd:
             if not self.continue_running:
                 return
-            logger.info("Running check %s" % check.name)
+            log.info("Running check %s" % check.name)
             instance_statuses = [] 
             metric_count = 0
             event_count = 0
@@ -308,7 +308,7 @@ class Collector(object):
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
             except Exception, e:
-                logger.exception("Error running check %s" % check.name)
+                log.exception("Error running check %s" % check.name)
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
 
@@ -324,9 +324,9 @@ class Collector(object):
         try:
             CollectorStatus(check_statuses, emitter_statuses).persist()
         except Exception:
-            logger.exception("Error persisting collector status")
+            log.exception("Error persisting collector status")
 
-        logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+        log.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _emit(self, payload):
@@ -339,9 +339,9 @@ class Collector(object):
             name = emitter.__name__
             emitter_status = EmitterStatus(name)
             try:
-                emitter(payload, logger, self.agentConfig)
+                emitter(payload, log, self.agentConfig)
             except Exception, e:
-                logger.exception("Error running emitter: %s" % emitter.__name__)
+                log.exception("Error running emitter: %s" % emitter.__name__)
                 emitter_status = EmitterStatus(name, e)
             statuses.append(emitter_status)
         return statuses
@@ -415,7 +415,7 @@ class Collector(object):
         # If the interval has passed, send the metadata again
         now = time.time()
         if now - self.metadata_start >= self.metadata_interval:
-            logger.debug('Metadata interval has passed. Sending metadata.')
+            log.debug('Metadata interval has passed. Sending metadata.')
             self.metadata_start = now
             return True
 

@@ -12,7 +12,7 @@ from tornado.iostream import IOStream, SSLIOStream
 
 import fcntl
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 def set_close_exec(fd):
     flags = fcntl.fcntl(fd, fcntl.F_GETFD)
@@ -203,7 +203,7 @@ class TCPServer(object):
                 stream = IOStream(connection, io_loop=self.io_loop)
             self.handle_stream(stream, address)
         except Exception:
-            logger.error("Error in connection callback", exc_info=True)
+            log.error("Error in connection callback", exc_info=True)
 
 
 def bind_sockets(port, address=None, family=socket.AF_UNSPEC, backlog=128):

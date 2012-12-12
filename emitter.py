@@ -37,7 +37,7 @@ def http_emitter(message, logger, agentConfig):
 
     try:
         request = urllib2.Request(url, postBackData, headers)
-        # Do the request, log any errors
+        # Do the request, logger any errors
         response = urllib2.urlopen(request)
         try:
             logger.debug('http_emitter: postback response: ' + str(response.read()))
