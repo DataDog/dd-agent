@@ -12,9 +12,7 @@ from tornado.iostream import IOStream, SSLIOStream
 
 import fcntl
 
-from config import get_logger_name
-
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 def set_close_exec(fd):
     flags = fcntl.fcntl(fd, fcntl.F_GETFD)

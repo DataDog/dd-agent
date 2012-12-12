@@ -24,11 +24,11 @@ from urllib import urlencode
 from aggregator import MetricsAggregator
 from checks import gethostname
 from checks.check_status import DogstatsdStatus
-from config import get_config, get_logger_name
+from config import get_config
 from daemon import Daemon
 from util import json, PidFile
 
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger('dogstatsd')
 
 
 WATCHDOG_TIMEOUT = 120

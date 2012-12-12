@@ -31,12 +31,12 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, getOS, get_uuid
 from emitter import http_emitter, format_body
-from config import get_config, get_logger_name
+from config import get_config
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger('forwarder')
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval

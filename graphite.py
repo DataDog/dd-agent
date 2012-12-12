@@ -5,9 +5,7 @@ import cPickle as pickle
 from tornado.ioloop import IOLoop
 from tornado.iostream import IOStream
 
-from config import get_logger_name
-
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 try:
     from tornado.netutil import TCPServer

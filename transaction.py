@@ -10,9 +10,8 @@ import tornado.ioloop
 
 # project
 from checks.check_status import ForwarderStatus
-from config import get_logger_name
 
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 def plural(count):
     if count > 1:

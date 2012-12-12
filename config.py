@@ -18,13 +18,7 @@ DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
 
-logger_name_fragment = None
-def get_logger_name():
-    if logger_name_fragment is None:
-        return 'dd'
-    return 'dd.%s' % logger_name_fragment
-
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 class PathNotFound(Exception): pass
 
@@ -567,7 +561,8 @@ def getOS():
 #
 # logging
 
-LOG_FORMAT = '%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)s | %(message)s'
+def get_log_format(logger_name):
+    return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
 
 def get_logging_config(cfg_path=None):
     logging_config = {
@@ -609,8 +604,8 @@ def initialize_logging(logger_name):
             logging_config = get_logging_config()
 
             logging.basicConfig(
-                format=LOG_FORMAT,
-                level=logging_config['log_level'] or logging.ERROR,
+                format=get_log_format(logger_name),
+                level=logging_config['log_level'] or logging.INFO,
             )
 
             log_file = logging_config.get('%s_log_file' % logger_name)
@@ -619,25 +614,21 @@ def initialize_logging(logger_name):
                 # NOTE: the entire directory needs to be writable so that rotation works
                 if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                     file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1)
-                    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+                    file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
                     log = logging.getLogger()
                     log.addHandler(file_handler)
                 else:
                     sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
-            dd_log = logging.getLogger('dd')
-            dd_log.setLevel(logging_config['log_level'] or logging.INFO)
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
 
         # if config fails entirely, enable basic stdout logging as a fallback
         logging.basicConfig(
-            format=LOG_FORMAT,
+            format=get_log_format(logger_name),
             level=logging.INFO,
         )
 
-    if logger_name is not None:
-        global logger
-        global logger_name_fragment
-        logger_name_fragment = logger_name
-        logger = logging.getLogger(get_logger_name())
+    # re-get the logger after logging is initialized
+    global logger
+    logger = logging.getLogger(__name__)

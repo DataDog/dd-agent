@@ -20,9 +20,8 @@ import os
 
 from util import LaconicFilter
 from checks import check_status
-from config import get_logger_name
 
-logger = logging.getLogger('%s.checks' % get_logger_name())
+logger = logging.getLogger(__name__)
 
 # Konstants
 class CheckException(Exception): pass
@@ -271,7 +270,7 @@ class AgentCheck(object):
         self.init_config = init_config
         self.agentConfig = agentConfig
         self.hostname = gethostname(agentConfig)
-        self.log = logging.getLogger('%s.checks.%s' % (get_logger_name(), name))
+        self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
         self.instances = instances or []

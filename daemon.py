@@ -26,9 +26,7 @@ import sys
 import time
 import logging
 
-from config import get_logger_name
-
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 class Daemon:
     """

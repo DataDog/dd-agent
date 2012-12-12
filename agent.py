@@ -34,7 +34,7 @@ if int(sys.version_info[1]) <= 3:
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
 from checks.ec2 import EC2
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_logger_name
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
 from util import Watchdog, PidFile
@@ -45,7 +45,7 @@ PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 
 # Globals
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger('collector')
 
 class Agent(Daemon):
     """

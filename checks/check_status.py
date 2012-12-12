@@ -20,7 +20,7 @@ STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 
 
-log = logging.getLogger('%s.checks.check_status' % config.get_logger_name())
+log = logging.getLogger(__name__)
 
 
 class Stylizer(object):

@@ -30,10 +30,10 @@ from tornado import web
 from tornado import websocket
 
 # project
-from config import get_config, get_logger_name
+from config import get_config
 from util import json
 
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger('pup')
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',

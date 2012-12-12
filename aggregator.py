@@ -1,9 +1,7 @@
 import logging
 from time import time
 
-from config import get_logger_name
-
-logger = logging.getLogger(get_logger_name())
+logger = logging.getLogger(__name__)
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
