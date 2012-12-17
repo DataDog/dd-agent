@@ -135,7 +135,7 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        logger.info("Starting collection run #%s" % self.run_count)
+        logger.debug("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
         metrics = payload['metrics']
