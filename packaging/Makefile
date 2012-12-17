@@ -142,7 +142,7 @@ install_full_deb: install_base_deb install_full
 # Make the datadog agent debian package that includes supervisor, the forwarder
 # etc.
 datadog_agent_deb: clean install_full_deb
-	FPM_EDITOR="echo '' >>" \
+	FPM_EDITOR="echo 'Replaces: datadog-agent (<= $(VERSION)), datadog-agent-base (<= $(VERSION)), datadog-agent-lib' >>" \
 $(FPM_BUILD) -t deb \
 -n datadog-agent \
 -d "python (>= 2.6)" \
@@ -151,10 +151,6 @@ $(FPM_BUILD) -t deb \
 -d "adduser" \
 -d "sysstat" \
 -d "python-pexpect" \
---conflicts "datadog-agent-base (<= $(VERSION))" \
---replaces "datadog-agent-base	(<= $(VERSION))" \
---conflicts "datadog-agent-lib	(<= $(VERSION))" \
---replaces "datadog-agent-lib	(<= $(VERSION))" \
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
@@ -171,9 +167,6 @@ $(FPM_BUILD) -t deb \
 -d "adduser" \
 -d "sysstat" \
 -d "python-pexpect" \
---replaces "datadog-agent-lib (<= $(VERSION))" \
---conflicts "datadog-agent-lib (<= $(VERSION))" \
---conflicts "datadog-agent (<= $(VERSION))" \
 --post-install   datadog-agent-base-deb/postinst \
 --post-uninstall datadog-agent-base-deb/postrm \
 --pre-uninstall  datadog-agent-base-deb/prerm \
