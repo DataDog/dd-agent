@@ -22,8 +22,8 @@ else:
             return s[0:pos], sep, s[pos + len(sep):]
 
 def point_sorter(p):
-    # Sort and group by timestamp, metric name, host_name, device_name
-    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
+    # Sort and group by timestamp, metric name, host_name, device_name, tags
+    return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None), p[3].get('tags', None))
 
 class EventDefaults(object):
     EVENT_TYPE   = 'dogstream_event'
@@ -235,12 +235,12 @@ class Dogstream(object):
                     ts = (int(float(ts)) / self._freq) * self._freq
                     date = datetime.fromtimestamp(ts)
                     assert date.year > 1990
-                except Exception:
+                except:
                     invalid_reasons.append('invalid timestamp')
 
                 try:
                     value = float(value)
-                except Exception:
+                except:
                     invalid_reasons.append('invalid metric value')
 
                 if invalid_reasons:
@@ -248,7 +248,7 @@ class Dogstream(object):
                         repr(datum), ', '.join(invalid_reasons), line)
                 else:
                     self._values.append((metric, ts, value, attrs))
-        except Exception, e:
+        except:
             self.logger.debug("Error while parsing line %s" % line, exc_info=True)
             self._error_count += 1
             self.logger.error("Parser error: %s out of %s" % (self._error_count, self._line_count))
@@ -282,7 +282,7 @@ class Dogstream(object):
 
         values.sort(key=point_sorter)
 
-        for (timestamp, metric, host_name, device_name), val_attrs in groupby(values, key=point_sorter):
+        for (timestamp, metric, host_name, device_name, tags), val_attrs in groupby(values, key=point_sorter):
             attributes = {}
             vals = []
             for _metric, _timestamp, v, a in val_attrs:
@@ -296,6 +296,7 @@ class Dogstream(object):
             if len(vals) == 1:
                 val = vals[0]
             elif len(vals) > 1:
+                # FIXME alq - why -1?
                 val = vals[-1]
             else: # len(vals) == 0
                 continue

@@ -11,6 +11,8 @@ from tests.common import load_check, kill_subprocess
 
 logging.basicConfig()
 
+from checks.net.haproxy import HAProxyEvents, HAProxyMetrics, get_data, process_data
+
 MAX_WAIT = 30
 HAPROXY_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy.cfg"))
 HAPROXY_OPEN_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy-open.cfg"))

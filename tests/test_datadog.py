@@ -2,9 +2,11 @@ import logging
 import unittest
 from tempfile import NamedTemporaryFile
 import re
+import pprint
 import os
 
 from checks.datadog import Dogstreams, EventDefaults, point_sorter
+from dogstream import haproxy
 
 log = logging.getLogger('datadog.test')
 NAGIOS_TEST_HOST = os.path.join(os.path.dirname(__file__), "host-perfdata")
@@ -745,6 +747,47 @@ class TestNagiosPerfData(TailTestCase):
 
         expected_output = {'dogstream': [('nagios.host.pl', 1339511440, 0.0, {'warn': '80', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '100', 'unit': '%'}), ('nagios.host.rta', 1339511440, 0.048, {'warn': '3000.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '5000.000000', 'unit': 'ms'})]}
         self.assertEquals(expected_output, actual_output)
+
+class TestHAProxyDogstream(TailTestCase):
+    def test_log(self):
+        haproxy_sample = """2011-11-11T20:33:50+00:00 localhost haproxy[14992]: 127.0.0.1:58067 [11/Nov/2011:20:33:50.639] dogarchive-frontend dogarchive-backend/dogarchive-3 0/0/0/45/46 200 132 - - ---- 17/0/0/0/0 0/0 "POST /intake HTTP/1.1"
+2011-11-11T20:33:59+00:00 localhost haproxy[14992]: 10.212.98.197:1391 [11/Nov/2011:20:33:58.295] public dogweb/<STATS> 882/-1/-1/-1/883 200 23485 - - PR-- 16/16/0/0/0 0/0 "GET /admin?stats HTTP/1.1"
+2011-11-11T20:34:02+00:00 localhost haproxy[14992]: 10.84.199.126:37639 [11/Nov/2011:20:34:02.113] public public/<NOSRV> 0/-1/-1/-1/0 302 126 - - PR-- 17/17/0/0/0 0/0 "GET /status/pingdom?window=15 HTTP/1.1"
+"""
+
+        expected = [
+            [
+                ('haproxy.http.tq', 1321061630.0, 0, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.tw', 1321061630.0, 0, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.tc', 1321061630.0, 0, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.tr', 1321061630.0, 45, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.tt', 1321061630.0, 46, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.bytes_read', 1321061630.0, 132, {'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.2xx', 1321061630.0, 1, {'metric_type': 'counter', 'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.3xx', 1321061630.0, 0, {'metric_type': 'counter', 'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.4xx', 1321061630.0, 0, {'metric_type': 'counter', 'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ('haproxy.http.5xx', 1321061630.0, 0, {'metric_type': 'counter', 'tags': ["cmd:post", "service:dogarchive-backend"]}),
+                ],
+            [
+                ('haproxy.http.tq', 1321061642.0, 0, {'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.abort', 1321061642.0, 1, {'metric_type': 'counter', 'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.tt', 1321061642.0, 0, {'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.bytes_read', 1321061642.0, 126, {'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.2xx', 1321061642.0, 1, {'metric_type':'counter', 'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.3xx', 1321061642.0, 1, {'metric_type':'counter', 'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.4xx', 1321061642.0, 0, {'metric_type':'counter', 'tags': ["cmd:get", "service:public"]}),
+                ('haproxy.http.5xx', 1321061642.0, 0, {'metric_type':'counter', 'tags': ["cmd:get", "service:public"]}),
+                ],
+            ]
+        parser = haproxy.HAProxyLogParser({})
+        outputs = [parser.parse_line(line) for line in haproxy_sample.split('\n')]
+        outputs = [o for o in outputs if o is not None] 
+        for i in range(len(outputs)):
+            output = outputs[i]
+            for j in range(len(expected[i])):
+                for k in (0, 2): # skip timestamp and tags for now
+                    self.assertEquals(output[j][k], expected[i][j][k], "%s != %s" % (pprint.pformat(output), pprint.pformat(expected[i])))
+
 
 if __name__ == '__main__':
     logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
