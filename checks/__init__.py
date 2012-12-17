@@ -27,6 +27,15 @@ class Infinity(CheckException): pass
 class NaN(CheckException): pass
 class UnknownValue(CheckException): pass
 
+
+
+#==============================================================================
+# DEPRECATED
+# ------------------------------
+# If you are writing your own check, you should inherit from AgentCheck
+# and not this class. This class will be removed in a future version 
+# of the agent.
+#==============================================================================
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
@@ -35,6 +44,8 @@ class Check(object):
     * only log error messages once (instead of each time they occur)
 
     """
+
+
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
         # metric_name: {("sorted", "tags"): [(ts, value), (ts, value)],
