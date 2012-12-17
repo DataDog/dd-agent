@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -457,7 +456,7 @@ class JmxCheck(AgentCheck):
 
         # If there is no old configuration, don't try to run these
         # integrations.
-        if not (connections and user and passwords):
+        if not (connections and users and passwords):
             return None
 
         config = {}
