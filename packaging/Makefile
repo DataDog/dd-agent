@@ -201,5 +201,3 @@ tmp:
 	cp *.rpm /tmp/shared || true
 
 all: clean deb rpm
-
-
