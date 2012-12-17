@@ -53,6 +53,7 @@ install_base: source
 	mkdir -p $(BUILD)
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
+	mkdir -p $(BUILD)/etc/dd-agent/conf.d
 	mkdir -p $(BUILD)/usr/bin
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
@@ -77,7 +78,6 @@ install_base_rpm: install_base
 	mkdir -p $(BUILD)/etc/init.d
 	cp datadog-agent-base-rpm/datadog-agent-redhat $(BUILD)/etc/init.d/datadog-agent
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
-
 
 install_full_rpm: install_base_rpm install_full
 	mkdir -p $(BUILD)/etc/dd-agent
