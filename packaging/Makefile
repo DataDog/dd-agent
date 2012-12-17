@@ -93,7 +93,7 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 -d "pexpect" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
 --pre-uninstall datadog-agent-base-rpm/pre_uninstall \
@@ -110,7 +110,7 @@ $(FPM_BUILD) -t rpm \
 -d "pexpect" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib  < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
