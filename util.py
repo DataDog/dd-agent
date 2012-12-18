@@ -4,9 +4,13 @@ import platform
 import signal
 import sys
 import math
+import time
+import uuid
 
-NumericTypes = (float, int, long)
-
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import md5
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
@@ -32,6 +36,25 @@ try:
 except ImportError:
     from yaml import Loader as yLoader
 
+try:
+    from collections import namedtuple
+except ImportError:
+    from compat.namedtuple import namedtuple
+
+
+NumericTypes = (float, int, long)
+
+
+def get_uuid():
+    # Generate a unique name that will stay constant between
+    # invocations, such as platform.node() + uuid.getnode()
+    # Use uuid5, which does not depend on the clock and is
+    # recommended over uuid3.
+    # This is important to be able to identify a server even if
+    # its drives have been wiped clean.
+    # Note that this is not foolproof but we can reconcile servers
+    # on the back-end if need be, based on mac addresses.
+    return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
 def headers(agentConfig):
     # Build the request headers
@@ -42,6 +65,7 @@ def headers(agentConfig):
     }
 
 def getOS():
+    "Human-friendly OS name"
     if sys.platform == 'darwin':
         return 'mac'
     elif sys.platform.find('freebsd') != -1:
@@ -50,6 +74,8 @@ def getOS():
         return 'linux'
     elif sys.platform.find('win32') != -1:
         return 'windows'
+    elif sys.platform.find('sunos') != -1:
+        return 'solaris'
     else:
         return sys.platform
 
@@ -127,7 +153,7 @@ class PidFile(object):
         # Can we write to the directory
         try:
             if os.access(self.pid_dir, os.W_OK):
-                logging.info("Pid file is: %s" % self.pid_path)
+                logging.debug("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
             logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
@@ -135,7 +161,7 @@ class PidFile(object):
         # if all else fails
         if os.access("/tmp", os.W_OK):
             tmp_path = os.path.join('/tmp', self.pid_file)
-            logging.warn("Using temporary pid file: %s" % tmp_path)
+            logging.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
             # Can't save pid file, bail out
@@ -163,4 +189,54 @@ class PidFile(object):
         except:
             return None
 
-    
+
+class LaconicFilter(logging.Filter):
+    """
+    Filters messages, only print them once while keeping memory under control
+    """
+    LACONIC_MEM_LIMIT = 1024
+
+    def __init__(self, name=""):
+        logging.Filter.__init__(self, name)
+        self.hashed_messages = {}
+
+    def hash(self, msg):
+        return md5(msg).hexdigest()
+
+    def filter(self, record):
+        try:
+            h = self.hash(record.getMessage())
+            if h in self.hashed_messages:
+                return 0
+            else:
+                # Don't blow up our memory
+                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
+                    self.hashed_messages.clear()
+                self.hashed_messages[h] = True
+                return 1
+        except:
+            return 1
+
+class Timer(object):
+    """ Helper class """
+
+    def __init__(self):
+        self.start()
+
+    def _now(self):
+        return time.time()
+
+    def start(self):
+        self.start = self._now()
+        self.last = self.start
+        return self
+
+    def step(self):
+        now = self._now()
+        step =  now - self.last
+        self.last = now
+        return step
+
+    def total(self, as_sec=True):
+        return self._now() - self.start
+

@@ -1,12 +1,11 @@
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
+
 
 import subprocess
 import sys
 import traceback
+
 from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField, agg
+from util import namedtuple
 
 class Processes(ResourcePlugin):
 
@@ -79,9 +78,17 @@ class Processes(ResourcePlugin):
 
         self.start_snapshot()
         for line in processes:
-            psl = PSLine(*line)
-            self.add_to_snapshot([psl.user,float(psl.pct_cpu),float(psl.pct_mem),int(psl.vsz),
-                                int(psl.rss),_compute_family(psl.command),1])
+            try:
+                psl = PSLine(*line)
+                self.add_to_snapshot([psl.user,
+                                      float(psl.pct_cpu),
+                                      float(psl.pct_mem),
+                                      int(psl.vsz),
+                                      int(psl.rss),
+                                      _compute_family(psl.command),
+                                      1])
+            except:
+                pass
         self.end_snapshot(group_by= self.group_by_family)
 
     def flush_snapshots(self,snapshot_group):

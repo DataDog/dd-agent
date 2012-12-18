@@ -18,9 +18,10 @@ class Metric(object):
         """ Add a point to the given metric. """
         raise NotImplementedError()
 
-    def flush(self, timestamp, normalization_factor):
+    def flush(self, timestamp, interval):
         """ Flush all metrics up to the given timestamp. """
         raise NotImplementedError()
+
 
 class Gauge(Metric):
     """ A metric that tracks a value at particular points in time. """
@@ -38,9 +39,9 @@ class Gauge(Metric):
         self.value = value
         self.last_sample_time = time()
 
-    def flush(self, timestamp, normalization_factor):
+    def flush(self, timestamp, interval):
         if self.value is not None:
-            return [self.formatter(
+            res = [self.formatter(
                 metric=self.name,
                 timestamp=timestamp,
                 value=self.value,
@@ -49,8 +50,10 @@ class Gauge(Metric):
                 device_name=self.device_name
             )]
             self.value = None
+            return res
 
         return []
+
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -67,9 +70,9 @@ class Counter(Metric):
         self.value += value * int(1 / sample_rate)
         self.last_sample_time = time()
 
-    def flush(self, timestamp, normalization_factor):
+    def flush(self, timestamp, interval):
         try:
-            value = int(round(self.value * normalization_factor))
+            value = self.value / interval
             return [self.formatter(
                 metric=self.name,
                 value=value,
@@ -100,7 +103,7 @@ class Histogram(Metric):
         self.samples.append(value)
         self.last_sample_time = time()
 
-    def flush(self, ts, normalization_factor):
+    def flush(self, ts, interval):
         if not self.count:
             return []
 
@@ -115,7 +118,7 @@ class Histogram(Metric):
             ('max', max_),
             ('median', med),
             ('avg', avg),
-            ('count', self.count)
+            ('count', self.count/interval)
         ]
 
         metrics = [self.formatter(
@@ -161,7 +164,7 @@ class Set(Metric):
         self.values.add(value)
         self.last_sample_time = time()
 
-    def flush(self, timestamp, normalization_factor):
+    def flush(self, timestamp, interval):
         if not self.values:
             return []
         try:
@@ -206,13 +209,12 @@ class Rate(Metric):
 
         return (delta / interval)
 
-    def flush(self, timestamp, normalization_factor):
+    def flush(self, timestamp, interval):
         if len(self.samples) < 2:
             return []
         try:
             try:
                 val = self._rate(self.samples[-2], self.samples[-1])
-                val = val * normalization_factor
             except:
                 return []
 
@@ -234,7 +236,7 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
-    def __init__(self, hostname, normalization_factor=1.0, expiry_seconds=300, formatter=None):
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -249,7 +251,10 @@ class MetricsAggregator(object):
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or self.api_formatter
-        self.normalization_factor = normalization_factor
+        self.interval = float(interval)
+
+    def packets_per_second(self, interval):
+        return round(float(self.count)/interval, 2)
 
     def submit_packets(self, packets):
 
@@ -334,7 +339,7 @@ class MetricsAggregator(object):
                 logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
-                metrics += metric.flush(timestamp, self.normalization_factor)
+                metrics += metric.flush(timestamp, self.interval)
 
         # Save some stats.
         logger.debug("received %s payloads since last flush" % self.count)

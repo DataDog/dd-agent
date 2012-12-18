@@ -4,6 +4,10 @@ if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
 fi
 
+if [ -n "$DD_HOME" ]; then
+    dd_home=$DD_HOME
+fi
+
 unamestr=`uname`
 
 if [ $(which curl) ]; then
@@ -14,9 +18,17 @@ fi
 
 # create home base for the agent
 if [ $apikey ]; then
-    dd_base=$HOME/.datadog-agent
+    if [ $dd_home ]; then
+	dd_base=$dd_home
+    else
+	dd_base=$HOME/.datadog-agent
+    fi
 else
-    dd_base=$HOME/.pup
+    if [ $dd_home ]; then
+	dd_base=$dd_home
+    else
+	dd_base=$HOME/.pup
+    fi
 fi
 mkdir -p $dd_base
 

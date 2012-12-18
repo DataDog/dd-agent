@@ -1,14 +1,7 @@
 """Base class for Checks.
 
-If you are writing your own checks you should subclass the Check class.
-
-The typicall workflow works like this:
-1. Create your Check class
-2. Declare your metrics as gauges or counters
-3. Call save_sample for each metric
-4. Call get_metrics() to get results
-5. Plug the results into checks/common.py
-
+If you are writing your own checks you should subclass the AgentCheck class.
+The Check class is being deprecated so don't write new checks with it.
 """
 
 import logging
@@ -18,10 +11,8 @@ import time
 import types
 import os
 
-try:
-    from hashlib import md5
-except ImportError:
-    import md5
+from util import LaconicFilter
+from checks import check_status
 
 # Konstants
 class CheckException(Exception): pass
@@ -29,33 +20,15 @@ class Infinity(CheckException): pass
 class NaN(CheckException): pass
 class UnknownValue(CheckException): pass
 
-class LaconicFilter(logging.Filter):
-    """
-    Filters messages, only print them once while keeping memory under control
-    """
-    LACONIC_MEM_LIMIT = 1024
 
-    def __init__(self, name=""):
-        logging.Filter.__init__(self, name)
-        self.hashed_messages = {}
 
-    def hash(self, msg):
-        return md5(msg).hexdigest()
-
-    def filter(self, record):
-        try:
-            h = self.hash(record.getMessage())
-            if h in self.hashed_messages:
-                return 0
-            else:
-                # Don't blow up our memory
-                if len(self.hashed_messages) >= LaconicFilter.LACONIC_MEM_LIMIT:
-                    self.hashed_messages.clear()
-                self.hashed_messages[h] = True
-                return 1
-        except:
-            return 1
-
+#==============================================================================
+# DEPRECATED
+# ------------------------------
+# If you are writing your own check, you should inherit from AgentCheck
+# and not this class. This class will be removed in a future version 
+# of the agent.
+#==============================================================================
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
@@ -64,6 +37,8 @@ class Check(object):
     * only log error messages once (instead of each time they occur)
 
     """
+
+
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
         # metric_name: {("sorted", "tags"): [(ts, value), (ts, value)],
@@ -280,13 +255,15 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
-    def __init__(self, name, init_config, agentConfig):
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
 
         :param name: The name of the check
         :param init_config: The config for initializing the check
         :param agentConfig: The global configuration for the agent
+        :param instances: A list of configuration objects for each instance.
         """
         from aggregator import MetricsAggregator
 
@@ -298,6 +275,11 @@ class AgentCheck(object):
         self.log = logging.getLogger('checks.%s' % name)
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
+        self.instances = instances or []
+
+    def instance_count(self):
+        """ Return the number of instances that are configured for this check. """
+        return len(self.instances)
 
     def gauge(self, metric, value, tags=None, hostname=None, device_name=None, timestamp=None):
         """
@@ -426,6 +408,19 @@ class AgentCheck(object):
         self.events = []
         return events
 
+    def run(self):
+        """ Run all instances. """
+        instance_statuses = []
+        for i, instance in enumerate(self.instances):
+            try:
+                self.check(instance)
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+            except Exception, e:
+                self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
+            instance_statuses.append(instance_status)
+        return instance_statuses
+
     def check(self, instance):
         """
         Overriden by the check class. This will be called to run the check.
@@ -454,6 +449,29 @@ class AgentCheck(object):
         check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
         return check, config.get('instances', [])
+
+    def normalize(self, metric, prefix=None):
+        """
+        Turn a metric into a well-formed metric name
+        prefix.b.c
+
+        :param metric The metric name to normalize
+        :param prefix A prefix to to add to the normalized name, default None
+        """
+        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        # Eliminate multiple _
+        name = re.sub(r"__+", "_", name)
+        # Don't start/end with _
+        name = re.sub(r"^_", "", name)
+        name = re.sub(r"_$", "", name)
+        # Drop ._ and _.
+        name = re.sub(r"\._", ".", name)
+        name = re.sub(r"_\.", ".", name)
+
+        if prefix is not None:
+            return prefix + "." + name
+        else:
+            return name
 
 def gethostname(agentConfig):
     if agentConfig.get("hostname") is not None:

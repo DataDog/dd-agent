@@ -2,18 +2,58 @@
 import random
 import time
 
+import unittest
 import nose.tools as nt
 
 from dogstatsd import MetricsAggregator
 
 
-class TestUnitDogStatsd(object):
+class TestUnitDogStatsd(unittest.TestCase):
 
     @staticmethod
     def sort_metrics(metrics):
         def sort_by(m):
             return (m['metric'],  ','.join(m['tags'] or []))
         return sorted(metrics, key=sort_by)
+
+    def test_counter_normalization(self):
+        stats = MetricsAggregator('myhost', interval=10)
+
+        # Assert counters are normalized.
+        stats.submit_packets('int:1|c')
+        stats.submit_packets('int:4|c')
+        stats.submit_packets('int:15|c')
+
+        stats.submit_packets('float:5|c')
+
+
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 2
+
+        floatc, intc = metrics
+
+        nt.assert_equal(floatc['metric'], 'float')
+        nt.assert_equal(floatc['points'][0][1], 0.5)
+        nt.assert_equal(floatc['host'], 'myhost')
+
+        nt.assert_equal(intc['metric'], 'int')
+        nt.assert_equal(intc['points'][0][1], 2)
+        nt.assert_equal(intc['host'], 'myhost')
+
+    def test_histogram_normalization(self):
+        stats = MetricsAggregator('myhost', interval=10)
+        for i in range(5):
+            stats.submit_packets('h1:1|h')
+        for i in range(20):
+            stats.submit_packets('h2:1|h')
+
+        metrics = self.sort_metrics(stats.flush())
+        _, _, h1count, _, _, \
+        _, _, h2count, _, _ = metrics
+
+        nt.assert_equal(h1count['points'][0][1], 0.5)
+        nt.assert_equal(h2count['points'][0][1], 2)
+
 
     def test_tags(self):
         stats = MetricsAggregator('myhost')
@@ -281,3 +321,25 @@ class TestUnitDogStatsd(object):
 
         nt.assert_equal(first['metric'], 'datadog.dogstatsd.packet.count')
         nt.assert_equal(first['points'][0][1], 10)
+
+    def test_histogram_counter(self):
+        # Test whether histogram.count == increment
+        # same deal with a sample rate
+        cnt = 100000
+        for run in [1, 2]:
+            stats = MetricsAggregator('myhost')
+            for i in xrange(cnt):
+                if run == 2:
+                    stats.submit_packets('test.counter:1|c|@0.5')
+                    stats.submit_packets('test.hist:1|ms|@0.5')
+                else:
+                    stats.submit_packets('test.counter:1|c')
+                    stats.submit_packets('test.hist:1|ms')
+            metrics = self.sort_metrics(stats.flush())
+            assert len(metrics) > 0
+
+            nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.counter'], [cnt * run])
+            nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.hist.count'], [cnt * run])
+
+if __name__ == "__main__":
+    unittest.main()

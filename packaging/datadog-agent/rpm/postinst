@@ -1,3 +1,0 @@
-# start
-/etc/init.d/datadog-agent start
-exit 0
