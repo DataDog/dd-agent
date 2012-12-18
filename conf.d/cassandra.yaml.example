@@ -1,0 +1,39 @@
+instances:
+#   -   host: localhost
+#       port: 7199
+#       user: username
+#       password: password
+#       name: cassandra_instance
+
+
+init_config:
+    conf:
+      - include:
+          domain: org.apache.cassandra.db
+        exclude:
+          keyspace: system
+          attribute: 
+            - MinimumCompactionThreshold
+            - MaximumCompactionThreshold
+            - RowCacheKeysToSave
+            - KeyCacheSavePeriodInSeconds
+            - RowCacheSavePeriodInSeconds
+            - PendingTasks
+      - include:
+          domain: org.apache.cassandra.internal
+        exclude:
+          attribute:
+           - PendingTasks
+           - Token
+      - include:
+          domain: org.apache.cassandra.net
+      - include:
+          domain: org.apache.cassandra.request
+          attribute:
+            HeapMemoryUsage.used:
+              alias: cassandra.heap_used
+              metric_type: gauge
+            HeapMemoryUsage.max:
+              alias: cassandra.heap_total
+              metric_type: gauge
+
