@@ -26,7 +26,6 @@ from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
@@ -93,10 +92,6 @@ class Collector(object):
         # Metric Checks
         self._metrics_checks = [
             ElasticSearch(checks_logger),
-            Jvm(checks_logger),
-            Tomcat(checks_logger),
-            ActiveMQ(checks_logger),
-            Solr(checks_logger),
             WMICheck(checks_logger),
             Memcache(checks_logger),
         ]
