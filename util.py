@@ -56,8 +56,6 @@ def get_uuid():
     # on the back-end if need be, based on mac addresses.
     return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
-
-
 def headers(agentConfig):
     # Build the request headers
     return {
@@ -67,6 +65,7 @@ def headers(agentConfig):
     }
 
 def getOS():
+    "Human-friendly OS name"
     if sys.platform == 'darwin':
         return 'mac'
     elif sys.platform.find('freebsd') != -1:
@@ -75,6 +74,8 @@ def getOS():
         return 'linux'
     elif sys.platform.find('win32') != -1:
         return 'windows'
+    elif sys.platform.find('sunos') != -1:
+        return 'solaris'
     else:
         return sys.platform
 

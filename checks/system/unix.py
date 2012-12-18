@@ -1,3 +1,4 @@
+import operator
 import platform
 import re
 import socket
@@ -130,15 +131,17 @@ class Disk(Check):
             return False
 
 
-class IO(object):
-    def _parse_linux2_iostat_output(self, iostat_output):
-        headerRegexp = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
-        itemRegexp = re.compile(r'^([a-zA-Z0-9\/]+)')
-        valueRegexp = re.compile(r'\d+\.\d+')
+class IO(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+        self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
+        self.item_re   = re.compile(r'^([a-zA-Z0-9\/]+)')
+        self.value_re  = re.compile(r'\d+\.\d+')
 
-        recentStats = iostat_output.split('Device:')[2].split('\n')
+    def _parse_linux2(self, output):
+        recentStats = output.split('Device:')[2].split('\n')
         header = recentStats[0]
-        headerNames = re.findall(headerRegexp, header)
+        headerNames = re.findall(self.header_re, header)
         device = None
 
         ioStats = {}
@@ -150,13 +153,15 @@ class IO(object):
                 # Ignore blank lines.
                 continue
 
-            deviceMatch = re.match(itemRegexp, row)
+            deviceMatch = self.item_re.match(row)
 
             if deviceMatch is not None:
                 # Sometimes device names span two lines.
                 device = deviceMatch.groups()[0]
+            else:
+                continue
 
-            values = re.findall(valueRegexp, row)
+            values = re.findall(self.value_re, row)
 
             if not values:
                 # Sometimes values are on the next line so we encounter
@@ -165,34 +170,91 @@ class IO(object):
 
             ioStats[device] = {}
 
-            for headerIndex in range(0, len(headerNames)):
+            for headerIndex in range(len(headerNames)):
                 headerName = headerNames[headerIndex]
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
 
-    def check(self, logger, agentConfig):
-        logger.debug('getIOStats: start')
-        
-        ioStats = {}
-    
-        if sys.platform == 'linux2':
-            logger.debug('getIOStats: linux2')
-            
-            try:
-                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                ioStats.update(self._parse_linux2_iostat_output(stdout))
-                    
-            except:
-                logger.exception('getIOStats')
-                return False
-        else:
-            logger.debug('getIOStats: unsupported platform')
-            return False
-            
-        logger.debug('getIOStats: completed, returning')
-        return ioStats
+    def xlate(self, metric_name):
+        """Standardize on linux metric names"""
+        names = {
+            "wait": "await",
+            "svc_t": "svctm",
+            "%b": "%util",
+            "kr/s": "rkB/s",
+            "kw/s": "wkB/s",
+            "actv": "avgqu-sz",
+            }
+        # translate if possible
+        return names.get(metric_name, metric_name)
 
+    def check(self, agentConfig):
+        """Capture io stats.
+
+        @rtype dict
+        @return {"device": {"metric": value, "metric": value}, ...}
+        """
+        io = {}
+        try:
+            if sys.platform == 'linux2':
+                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+
+                #                 Linux 2.6.32-343-ec2 (ip-10-35-95-10)   12/11/2012      _x86_64_        (2 CPU)  
+                #
+                # Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util  
+                # sda1              0.00    17.61    0.26   32.63     4.23   201.04    12.48     0.16    4.81   0.53   1.73  
+                # sdb               0.00     2.68    0.19    3.84     5.79    26.07    15.82     0.02    4.93   0.22   0.09  
+                # sdg               0.00     0.13    2.29    3.84   100.53    30.61    42.78     0.05    8.41   0.88   0.54  
+                # sdf               0.00     0.13    2.30    3.84   100.54    30.61    42.78     0.06    9.12   0.90   0.55  
+                # md0               0.00     0.00    0.05    3.37     1.41    30.01    18.35     0.00    0.00   0.00   0.00  
+                #
+                # Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util  
+                # sda1              0.00     0.00    0.00   10.89     0.00    43.56     8.00     0.03    2.73   2.73   2.97  
+                # sdb               0.00     0.00    0.00    2.97     0.00    11.88     8.00     0.00    0.00   0.00   0.00  
+                # sdg               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00  
+                # sdf               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00  
+                # md0               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+                io.update(self._parse_linux2(stdout))
+
+            elif sys.platform == "sunos5":
+                iostat = subprocess.Popen(["iostat", "-x", "-d", "1", "2"],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+
+                #                   extended device statistics <-- since boot
+                # device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
+                # ramdisk1    0.0    0.0    0.1    0.1  0.0  0.0    0.0   0   0
+                # sd0         0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd1        79.9  149.9 1237.6 6737.9  0.0  0.5    2.3   0  11
+                #                   extended device statistics <-- past second
+                # device      r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b
+                # ramdisk1    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd0         0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0
+                # sd1         0.0  139.0    0.0 1850.6  0.0  0.0    0.1   0   1 
+                
+                # discard the first half of the display (stats since boot)
+                lines = [l for l in iostat.split("\n") if len(l) > 0]
+                lines = lines[len(lines)/2:]
+                
+                assert "extended device statistics" in lines[0]
+                headers = lines[1].split()
+                assert "device" in headers
+                for l in lines[2:]:
+                    cols = l.split()
+                    # cols[0] is the device
+                    # cols[1:] are the values
+                    io[cols[0]] = {}
+                    for i in range(1, len(cols)):
+                        io[cols[0]][self.xlate(headers[i])] = cols[i]
+            else:
+                return False
+            return io
+        except:
+            self.logger.exception("Cannot extract IO statistics")
+            return False
 
 class Load(Check):
     def __init__(self, logger):
@@ -210,10 +272,12 @@ class Load(Check):
             
             uptime = uptime[0] # readlines() provides a list but we want a string
         
-        elif sys.platform == 'darwin' or sys.platform.startswith("freebsd"):
+        elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
             try:
-                uptime = subprocess.Popen(['uptime'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                uptime = subprocess.Popen(['uptime'],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
             except:
                 self.logger.exception('Cannot extract load')
                 return False
@@ -233,7 +297,6 @@ class Load(Check):
                     'system.load.norm.15': float(load[2])/cores,
                     }
         except:
-            self.logger.exception("Cannot normalize load")
             # No normalized load available
             return {'system.load.1': float(load[0]),
                     'system.load.5': float(load[1]),
@@ -252,6 +315,17 @@ class Memory(Check):
             self.topIndex = 6
         else:
             self.topIndex = 5
+
+        self.pagesize = 0
+        if sys.platform == 'sunos5':
+            try:
+                pgsz = subprocess.Popen(['pagesize'],
+                                        stdout=subprocess.PIPE,
+                                        close_fds=True).communicate()[0]
+                self.pagesize = int(pgsz.strip())
+            except:
+                # No page size available
+                pass
     
     def check(self, agentConfig):
         if sys.platform == 'linux2':
@@ -382,7 +456,8 @@ class Memory(Check):
             # vm.stats.vm.v_free_count: 30542
             # ...
 
-            regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)') # We run this several times so one-time compile now
+            # We run this several times so one-time compile now
+            regexp = re.compile(r'^vm\.stats\.vm\.(\w+):\s+([0-9]+)')
             meminfo = {}
 
             for line in lines:
@@ -399,23 +474,73 @@ class Memory(Check):
             try:
                 pageSize = int(meminfo.get('v_page_size'))
 
-                memData['physTotal'] = (int(meminfo.get('v_page_count', 0)) * pageSize) / 1048576
-                memData['physFree'] = (int(meminfo.get('v_free_count', 0)) * pageSize) / 1048576
-                memData['physCached'] = (int(meminfo.get('v_cache_count', 0)) * pageSize) / 1048576
-                memData['physUsed'] = ((int(meminfo.get('v_active_count'), 0) + int(meminfo.get('v_wire_count', 0))) * pageSize) / 1048576
-                memData['physUsable'] = ((int(meminfo.get('v_free_count'), 0) + int(meminfo.get('v_cache_count', 0)) + int(meminfo.get('v_inactive_count', 0))) * pageSize) / 1048576
+                memData['physTotal'] = (int(meminfo.get('v_page_count', 0))
+                                        * pageSize) / 1048576
+                memData['physFree'] = (int(meminfo.get('v_free_count', 0))
+                                       * pageSize) / 1048576
+                memData['physCached'] = (int(meminfo.get('v_cache_count', 0))
+                                         * pageSize) / 1048576
+                memData['physUsed'] = ((int(meminfo.get('v_active_count'), 0) +
+                                        int(meminfo.get('v_wire_count', 0)))
+                                       * pageSize) / 1048576
+                memData['physUsable'] = ((int(meminfo.get('v_free_count'), 0) +
+                                          int(meminfo.get('v_cache_count', 0)) +
+                                          int(meminfo.get('v_inactive_count', 0))) *
+                                         pageSize) / 1048576
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
             
             return memData;
-            
+        elif sys.platform == 'sunos5':
+            try:
+                memData = {}
+                kmem = subprocess.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
+                                        stdout=subprocess.PIPE,
+                                        close_fds=True).communicate()[0]
+
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anon_alloc_fail   0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anonpgin  0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:class     zone_memory_cap
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:crtime    16359935.0680834
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:execpgin  185
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:fspgin    2556
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:n_pf_throttle     0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:n_pf_throttle_usec        0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:nover     0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:pagedout  0
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:pgpgin    2741
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:physcap   536870912  <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:rss       115544064  <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:snaptime  16787393.9439095
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:swap      91828224   <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:swapcap   1073741824 <--
+                # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:zonename  53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+                
+                # turn memory_cap:360:zone_name:key value
+                # into { "key": value, ...}
+                kv = [l.strip().split() for l in kmem.split("\n") if len(l) > 0]
+                entries = dict([(k.split(":")[-1], v) for (k, v) in kv])
+                # extract rss, physcap, swap, swapcap, turn into MB
+                convert = lambda v: int(long(v))/2**20
+                memData["physTotal"] = convert(entries["physcap"])
+                memData["physUsed"]  = convert(entries["rss"])
+                memData["physFree"]  = memData["physTotal"] - memData["physUsed"]
+                memData["swapTotal"] = convert(entries["swapcap"])
+                memData["swapUsed"]  = convert(entries["swap"])
+                memData["swapFree"]  = memData["swapTotal"] - memData["swapUsed"]
+                return memData
+            except:
+                self.logger.exception("Cannot compute mem stats from kstat -c zone_memory_cap")
+                return False
         else:
             return False
     
 class Network(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
+        self.solaris_re = re.compile("([ro]bytes64)|errors|collisions")
 
+        # FIXME rework linux support to use the built-in Check logic
         self.networkTrafficStore = {}
         self.networkTrafficStore["last_ts"] = time.time()
         self.networkTrafficStore["current_ts"] = self.networkTrafficStore["last_ts"]
@@ -443,7 +568,7 @@ class Network(Check):
                 self.networkTrafficStore["current_ts"] = time.time()
                 
             except:
-                self.logger.exception('getNetworkTraffic')
+                self.logger.exception("Cannot extract network statistics")
                 return False
             
             proc.close()
@@ -500,7 +625,7 @@ class Network(Check):
             try:
                 netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                            stdout=subprocess.PIPE,
-                                           close_fds=True)
+                                           close_fds=True).communicate()[0]
                 # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
                 # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
                 # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
@@ -519,9 +644,10 @@ class Network(Check):
                 # ham0  1404  5             5.77.191.245       30100     -    6815204    18742     -    8494811     -
                 # ham0  1404  seneca.loca fe80:6::7879:5ff:    30100     -    6815204    18742     -    8494811     -
                 # ham0  1404  2620:9b::54 2620:9b::54d:bff5    30100     -    6815204    18742     -    8494811     -
-                out, err = netstat.communicate()
-                lines = out.split("\n")
+
+                lines = netstat.split("\n")
                 headers = lines[0].split()
+
                 # Given the irregular structure of the table above, better to parse from the end of each line
                 # Verify headers first
                 #          -7       -6       -5        -4       -3       -2        -1
@@ -529,11 +655,17 @@ class Network(Check):
                     if h not in headers:
                         self.logger.error("%s not found in %s; cannot parse" % (h, headers))
                         return False
+                    
                 current = None
                 for l in lines[1:]:
+                    # Another header row, abort now, this is IPv6 land
+                    if "Name" in l:
+                        break
+
                     x = l.split()
                     if len(x) == 0:
                         break
+
                     iface = x[0]
                     if iface.endswith("*"):
                         iface = iface[:-1]
@@ -574,22 +706,110 @@ class Network(Check):
                 else:
                     return False
             except:
-                self.logger.exception('getNetworkTraffic')
+                self.logger.exception("Cannot gather network stats")
                 return False
-        
+
+        elif sys.platform == "sunos5":
+            # Can't get bytes sent and received via netstat
+            # Default to kstat -p link:0:
+            netstat = subprocess.Popen(["kstat", "-p", "link:0:"],
+                                       stdout=subprocess.PIPE,
+                                       close_fds=True).communicate()[0]
+            # link:0:net0:brdcstrcv   527336
+            # link:0:net0:brdcstxmt   1595
+            # link:0:net0:class       net
+            # link:0:net0:collisions  0
+            # link:0:net0:crtime      16359935.2637943
+            # link:0:net0:ierrors     0
+            # link:0:net0:ifspeed     10000000000
+            # link:0:net0:ipackets    682834
+            # link:0:net0:ipackets64  682834
+            # link:0:net0:link_duplex 0
+            # link:0:net0:link_state  1
+            # link:0:net0:multircv    0
+            # link:0:net0:multixmt    1595
+            # link:0:net0:norcvbuf    0
+            # link:0:net0:noxmtbuf    0
+            # link:0:net0:obytes      12820668
+            # link:0:net0:obytes64    12820668
+            # link:0:net0:oerrors     0
+            # link:0:net0:opackets    105445
+            # link:0:net0:opackets64  105445
+            # link:0:net0:rbytes      113983614
+            # link:0:net0:rbytes64    113983614
+            # link:0:net0:snaptime    16834735.1607669
+            # link:0:net0:unknowns    0
+            # link:0:net0:zonename    53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+            # link:0:net1:brdcstrcv   4947620
+            # link:0:net1:brdcstxmt   1594
+            # link:0:net1:class       net
+            # link:0:net1:collisions  0
+            # link:0:net1:crtime      16359935.2839167
+            # link:0:net1:ierrors     0
+            # link:0:net1:ifspeed     10000000000
+            # link:0:net1:ipackets    4947620
+            # link:0:net1:ipackets64  4947620
+            # link:0:net1:link_duplex 0
+            # link:0:net1:link_state  1
+            # link:0:net1:multircv    0
+            # link:0:net1:multixmt    1594
+            # link:0:net1:norcvbuf    0
+            # link:0:net1:noxmtbuf    0
+            # link:0:net1:obytes      73324
+            # link:0:net1:obytes64    73324
+            # link:0:net1:oerrors     0
+            # link:0:net1:opackets    1594
+            # link:0:net1:opackets64  1594
+            # link:0:net1:rbytes      304384894
+            # link:0:net1:rbytes64    304384894
+            # link:0:net1:snaptime    16834735.1613302
+            # link:0:net1:unknowns    0
+            # link:0:net1:zonename    53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
+
+            lines = [l for l in netstat.split("\n") if len(l) > 0]
+            for l in lines:
+                k, v = l.split()
+                # only pick certain counters 
+                if self.solaris_re.search(k) is not None:
+                    if not self.is_counter(k):
+                        self.counter(k)
+                    self.save_sample(k, long(v))
+
+            # now turn that into {iface: {recv_bytes: xxx, trans_bytes: yyy}, ...}
+            interfaces = {}
+            for m in self.get_metric_names():
+                if not self.is_counter(m):
+                    continue
+                try:
+                    sample = self.get_sample(m)
+                    
+                    link, n, i, name = m.split(":")
+                    assert link == "link"
+
+                    # translate metric names
+                    if name == "rbytes64": name = "recv_bytes"
+                    elif name == "obytes64": name = "trans_bytes"
+
+                    # populate result dictionary
+                    if interfaces.get(i) is None:
+                        interfaces[i] = {}
+                    interfaces[i][name] = sample
+                except UnknownValue:
+                    pass
+            return interfaces
         else:
-            self.logger.debug("getNetworkTraffic: unsupported platform")
             return False    
 
-class Processes(object):
-    def check(self, logger, agentConfig):
-        logger.debug('getProcesses: start')
-        
+class Processes(Check):
+    def __init__(self, logger):
+        Check.__init__(self, logger)
+
+    def check(self, agentConfig):
         # Get output from ps
         try:
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
         except:
-            logger.exception('getProcesses')
+            self.logger.exception('getProcesses')
             return False
         
         # Split out each process
@@ -600,13 +820,9 @@ class Processes(object):
         
         processes = []
         
-        logger.debug('getProcesses: Popen success, parsing, looping')
-        
         for line in processLines:
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
-        
-        logger.debug('getProcesses: completed, returning')
         
         return { 'processes':   processes,
                  'apiKey':      agentConfig['api_key'],
@@ -630,7 +846,7 @@ class Cpu(Check):
             else:
                 # FIXME return a float or False, would trigger type error if not python
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
-                return 0
+                return 0.0
 
         if sys.platform == 'linux2':
             mpstat = subprocess.Popen(['mpstat', '1', '3'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
@@ -729,6 +945,79 @@ class Cpu(Check):
                 self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
                 return False
 
+        elif sys.platform == 'sunos5':
+            # mpstat -aq 1 2
+            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+            # 0 5239   0 12857 22969 5523 14628   73  546 4055    1 146856    5   6   0  89  24 <-- since boot
+            # 1 ...
+            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+            # 0 20374   0 45634 57792 5786 26767   80  876 20036    2 724475   13  13   0  75  24 <-- past 1s
+            # 1 ...
+            # http://docs.oracle.com/cd/E23824_01/html/821-1462/mpstat-1m.html
+            #
+            # Will aggregate over all processor sets
+            try:
+                mpstat = subprocess.Popen(['mpstat', '-aq', '1', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                lines = [l for l in mpstat.split("\n") if len(l) > 0]
+                # discard the first len(lines)/2 lines
+                lines = lines[len(lines)/2:]
+                legend = [l for l in lines if "SET" in l]
+                assert len(legend) == 1
+                if len(legend) == 1:
+                    headers = legend[0].split()
+                    # collect stats for each processor set
+                    # and aggregate them based on the relative set size
+                    d_lines = [l for l in lines if "SET" not in l]
+                    user = [get_value(headers, l.split(), "usr") for l in d_lines]
+                    kern = [get_value(headers, l.split(), "sys") for l in d_lines]
+                    wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
+                    idle = [get_value(headers, l.split(), "idl") for l in d_lines]
+                    size = [get_value(headers, l.split(), "sze") for l in d_lines]
+                    count = sum(size)
+                    rel_size = [s/count for s in size]
+                    dot = lambda v1, v2: reduce(operator.add, map(operator.mul, v1, v2))
+                    return format_results(dot(user, rel_size),
+                                          dot(kern, rel_size),
+                                          dot(wait, rel_size),
+                                          dot(idle, rel_size),
+                                          0.0)
+            except:
+                self.logger.exception("Cannot compute CPU stats")
+                return False
         else:
             self.logger.warn("CPUStats: unsupported platform")
             return False
+
+if __name__ == '__main__':
+    # 1s loop with results
+    import logging
+    import time
+    import pprint
+    
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
+    log = logging.getLogger()
+    cpu = Cpu(log)
+    disk = Disk(log)
+    io = IO(log)
+    load = Load(log)
+    mem = Memory(log)
+    proc = Processes(log)
+    net = Network(log)
+
+    config = {"api_key": "666"}
+    while True:
+        print("--- CPU ---")
+        print(cpu.check(config))
+        print("--- Load ---")
+        print(load.check(config))
+        print("--- Memory ---")
+        print(mem.check(config))
+        print("--- Network ---")
+        print(net.check(config))
+        print("--- Disk ---")
+        print(disk.check(config))
+        print("--- IO ---")
+        print(io.check(config))
+        print("--- Processes ---")
+        print(proc.check(config))
+        time.sleep(1)
