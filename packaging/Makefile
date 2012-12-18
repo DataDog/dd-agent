@@ -17,6 +17,7 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
 -v $(VERSION) \
+--vendor Datadog \
 --iteration $(BUILD_NUMBER)
 
 
@@ -103,7 +104,7 @@ datadog_agent_rpm: clean install_full_rpm
 $(FPM_BUILD) -t rpm \
 -n "datadog-agent" \
 -d "python(abi) >= 2.6" \
--d "python-tornado >= 2.3" \
+-d "python-tornado >= 2.2" \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
 -d "pexpect" \
@@ -200,5 +201,3 @@ tmp:
 	cp *.rpm /tmp/shared || true
 
 all: clean deb rpm
-
-

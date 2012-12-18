@@ -27,6 +27,13 @@ use_mount: no
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
 
+# Allow non-local traffic to this agent
+# This is required when using this agent as a proxy for other agents
+# that might not have an internet connection
+# For more information, please see
+# https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
+# non_local_traffic: no
+
 # ========================================================================== #
 # Pup configuration
 # ========================================================================== #

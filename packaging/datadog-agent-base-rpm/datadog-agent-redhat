@@ -162,10 +162,10 @@ restart() {
 }
 
 info() {
-    su $AGENTUSER -c "$AGENTPATH info"
-    su $AGENTUSER -c "$DOGSTATSDPATH info"
+    su $AGENTUSER -c "$AGENTPATH info" || true
+    su $AGENTUSER -c "$DOGSTATSDPATH info" || true
     if [ -f $USE_SUPERVISOR ]; then
-        su $AGENTUSER -c "$USE_SUPERVISOR info"
+        su $AGENTUSER -c "$USE_SUPERVISOR info" || true
     fi
 }
 

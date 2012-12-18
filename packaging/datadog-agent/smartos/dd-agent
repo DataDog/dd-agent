@@ -1,0 +1,18 @@
+#!/bin/sh -x
+dd_base=/opt/local/datadog
+source $dd_base/venv/bin/activate
+
+case "$1" in
+	start)
+		cd $dd_base && $dd_base/venv/bin/supervisord -n -c $dd_base/supervisord/supervisord.conf
+		;;
+
+	stop)
+		cd $dd_base && $dd_base/venv/bin/supervisorctl  -c $dd_base/supervisord/supervisord.conf shutdown
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 2
+esac
+exit $?

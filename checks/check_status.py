@@ -47,23 +47,26 @@ class Stylizer(object):
     RESET = '\033[0m'
 
 
-    def __init__(self):
-        self.enabled = True
+    ENABLED = False
 
-    def stylize(self, text, *styles):
+    @classmethod
+    def stylize(cls, text, *styles):
         """ stylize the text. """
-        if not self.enabled:
+        if not cls.ENABLED:
             return text
         # don't bother about escaping, not that complicated.
         fmt = '\033[%dm%s'
 
         for style in styles or []:
-            text = fmt % (self.STYLES[style], text)
+            text = fmt % (cls.STYLES[style], text)
 
         return text + fmt % (0, '') # reset
 
-    def bold(self, text):
-        return self.s(text, 'bold')
+
+# a small convienence method
+def style(*args):
+    return Stylizer.stylize(*args)
+
 
 
 class AgentStatus(object):
@@ -72,14 +75,10 @@ class AgentStatus(object):
     """
 
     NAME = None
-    STYLIZER = Stylizer()
     
     def __init__(self):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
-
-    def style(self, text, *args):
-        return self.STYLIZER.stylize(text, *args)
 
     def persist(self):
         try:
@@ -97,25 +96,15 @@ class AgentStatus(object):
         td = datetime.datetime.now() - self.created_at
         return td.seconds
 
-    def print_status(self):
-        self.STYLIZER.enabled = False
-        try:
-            if sys.stdout.isatty():
-                self.STYLIZER.enabled = True
-        except Exception:
-            pass
-
-        sys.stdout.write(self.render())
-
     def render(self):
         indent = "  "
         lines = self._header_lines(indent) + [
             indent + l for l in self.body_lines()
         ] + ["", ""]
         return "\n".join(lines)
-        
-    def _header_lines(self, indent):
-        # Don't indent the header
+
+    @classmethod
+    def _title_lines(self):
         name_line = "%s (v %s)" % (self.NAME, config.get_version())
         lines = [
             "=" * len(name_line),
@@ -123,6 +112,11 @@ class AgentStatus(object):
             "=" * len(name_line),
             "",
         ]
+        return lines
+        
+    def _header_lines(self, indent):
+        # Don't indent the header
+        lines = self._title_lines()
 
         fields = [
             ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
@@ -136,6 +130,15 @@ class AgentStatus(object):
             l = indent + "%s: %s" % (key, value)
             lines.append(l)
         return lines + [""]
+
+    @classmethod
+    def _not_running_message(cls):
+        lines = cls._title_lines() + [
+            style("  %s is not running." % cls.NAME, 'red'),
+            "",
+            ""
+        ]
+        return "\n".join(lines)
 
 
     @classmethod
@@ -160,14 +163,25 @@ class AgentStatus(object):
 
     @classmethod
     def print_latest_status(cls):
-        collector_status = cls.load_latest_status()
-        if not collector_status:
-            print "%s is not running." % cls.NAME
-            return -1
-        else:
-            collector_status.print_status()
-            return 0
+        Stylizer.ENABLED = False
+        try:
+            if sys.stdout.isatty():
+                Stylizer.ENABLED = True
+        except Exception:
+            # Don't worry if we can't enable the
+            # stylizer.
+            pass
 
+        message = cls._not_running_message()
+        exit_code = -1
+
+        collector_status = cls.load_latest_status()
+        if collector_status:
+            message = collector_status.render()
+            exit_code = 0
+
+        sys.stdout.write(message)
+        return exit_code
 
     @classmethod
     def _get_pickle_path(cls):
@@ -248,7 +262,7 @@ class CollectorStatus(AgentStatus):
                     if s.has_error():
                         c = 'red'
                     line =  "    - instance #%s [%s]" % (
-                             s.instance_id, self.style(s.status, c))
+                             s.instance_id, style(s.status, c))
                     if s.has_error():
                         line += u": %s" % s.error
                     check_lines.append(line)
@@ -260,6 +274,7 @@ class CollectorStatus(AgentStatus):
 
         # Emitter status
         lines += [
+            "",
             "Emitters",
             "========"
         ]
@@ -270,7 +285,7 @@ class CollectorStatus(AgentStatus):
                 c = 'green'
                 if es.has_error():
                     c = 'red'
-                line = "  - %s [%s]" % (es.name, self.style(es.status,c))
+                line = "  - %s [%s]" % (es.name, style(es.status,c))
                 if es.status != STATUS_OK:
                     line += ": %s" % es.error
                 lines.append(line)

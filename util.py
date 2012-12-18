@@ -153,7 +153,7 @@ class PidFile(object):
         # Can we write to the directory
         try:
             if os.access(self.pid_dir, os.W_OK):
-                logging.info("Pid file is: %s" % self.pid_path)
+                logging.debug("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
             logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
