@@ -2,12 +2,13 @@
 import random
 import time
 
+import unittest
 import nose.tools as nt
 
 from dogstatsd import MetricsAggregator
 
 
-class TestUnitDogStatsd(object):
+class TestUnitDogStatsd(unittest.TestCase):
 
     @staticmethod
     def sort_metrics(metrics):
@@ -320,3 +321,25 @@ class TestUnitDogStatsd(object):
 
         nt.assert_equal(first['metric'], 'datadog.dogstatsd.packet.count')
         nt.assert_equal(first['points'][0][1], 10)
+
+    def test_histogram_counter(self):
+        # Test whether histogram.count == increment
+        # same deal with a sample rate
+        cnt = 100000
+        for run in [1, 2]:
+            stats = MetricsAggregator('myhost')
+            for i in xrange(cnt):
+                if run == 2:
+                    stats.submit_packets('test.counter:1|c|@0.5')
+                    stats.submit_packets('test.hist:1|ms|@0.5')
+                else:
+                    stats.submit_packets('test.counter:1|c')
+                    stats.submit_packets('test.hist:1|ms')
+            metrics = self.sort_metrics(stats.flush())
+            assert len(metrics) > 0
+
+            nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.counter'], [cnt * run])
+            nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.hist.count'], [cnt * run])
+
+if __name__ == "__main__":
+    unittest.main()
