@@ -47,7 +47,7 @@ def parse_date(timestamp):
     except ValueError:
         # Only Python >= 2.6 supports %f in the date string
         timestamp, _ = timestamp.split(',')
-        common.parse_date(timestamp, LEGACY_DATE_FORMAT)
+        return common.parse_date(timestamp, LEGACY_DATE_FORMAT)
 
 def parse_cassandra(log, line):
     matched = LOG_PATTERN.match(line)
