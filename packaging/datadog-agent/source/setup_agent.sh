@@ -149,6 +149,13 @@ while you're logged in, run:
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
     launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
 "
+		elif [ "$unamestr" = "SunOS" ]; then
+		echo "To set it up as a daemon that always runs in the background,
+    run as root or via sudo:
+
+		svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
+		svcs datadog
+"
     fi
 
     printf "\033[0m"
