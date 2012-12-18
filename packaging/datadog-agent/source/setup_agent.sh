@@ -19,23 +19,23 @@ fi
 # create home base for the agent
 if [ $apikey ]; then
     if [ $dd_home ]; then
-	dd_base=$dd_home
+  dd_base=$dd_home
     else
-	if [ "$unamestr" = "SunOS" ]; then
-	    dd_base="/opt/local/datadog"
-	else
-	    dd_base=$HOME/.datadog-agent
-	fi
+  if [ "$unamestr" = "SunOS" ]; then
+      dd_base="/opt/local/datadog"
+  else
+      dd_base=$HOME/.datadog-agent
+  fi
     fi
 else
     if [ $dd_home ]; then
-	dd_base=$dd_home
+  dd_base=$dd_home
     else
-	if [ "$unamestr" = "SunOS" ]; then
-	    dd_base="/opt/local/datadog"
-	else
-	    dd_base=$HOME/.pup
-	fi
+  if [ "$unamestr" = "SunOS" ]; then
+      dd_base="/opt/local/datadog"
+  else
+      dd_base=$HOME/.pup
+  fi
     fi
 fi
 mkdir -p $dd_base
@@ -71,8 +71,8 @@ chmod +x $dd_base/bin/agent
 
 # This is the script that will be used by SMF
 if [ "$unamestr" = "SunOS" ]; then
-		cp $dd_base/agent/packaging/datadog-agent/smartos/dd-agent $dd_base/bin/dd-agent
-		chmod +x $dd_base/bin/dd-agent
+    cp $dd_base/agent/packaging/datadog-agent/smartos/dd-agent $dd_base/bin/dd-agent
+    chmod +x $dd_base/bin/dd-agent
 fi
 
 # set up supervisor
@@ -156,13 +156,13 @@ while you're logged in, run:
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
     launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
 "
-		elif [ "$unamestr" = "SunOS" ]; then
-		echo "To set it up as a daemon that always runs in the background,
+    elif [ "$unamestr" = "SunOS" ]; then
+    echo "To set it up as a daemon that always runs in the background,
     run as root or via sudo:
 
-		svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
+    svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
     svcadm enable site/datadog
-		svcs datadog
+    svcs datadog
 "
     fi
 
