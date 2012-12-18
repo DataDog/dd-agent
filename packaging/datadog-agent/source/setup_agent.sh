@@ -69,6 +69,12 @@ mkdir -p $dd_base/bin
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent
 chmod +x $dd_base/bin/agent
 
+# This is the script that will be used by SMF
+if [ "$unamestr" = "SunOS" ]; then
+		cp $dd_base/agent/packaging/datadog-agent/smartos/dd-agent $dd_base/bin/dd-agent
+		chmod +x $dd_base/bin/dd-agent
+fi
+
 # set up supervisor
 mkdir -p $dd_base/supervisord/logs
 pip install supervisor
@@ -139,6 +145,7 @@ up again in the foreground, run:
 
 cd $dd_base
 sh bin/agent
+
 "
 
     if [ "$unamestr" = "Darwin" ]; then
@@ -154,6 +161,7 @@ while you're logged in, run:
     run as root or via sudo:
 
 		svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
+    svcadm enable site/datadog
 		svcs datadog
 "
     fi
