@@ -14,6 +14,9 @@
 import logging
 import os
 import sys
+import threading
+import zlib
+from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
@@ -32,6 +35,7 @@ from config import get_config
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
+import modules
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -44,15 +48,76 @@ MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
 
+class EmitterThread(threading.Thread):
+
+    def __init__(self, *args, **kwargs):
+        self.__name = kwargs['name']
+        self.__emitter = kwargs.pop('emitter')
+        self.__logger = kwargs.pop('logger')
+        self.__config = kwargs.pop('config')
+        self.__max_queue_size = kwargs.pop('max_queue_size', 100)
+        self.__queue = Queue(self.__max_queue_size)
+        threading.Thread.__init__(self, *args, **kwargs)
+        self.daemon = True
+
+    def run(self):
+        while True:
+            (data, headers) = self.__queue.get()
+            try:
+                self.__logger.debug('Emitter %r handling a packet', self.__name)
+                self.__emitter(data, self.__logger, self.__config)
+            except Exception:
+                self.__logger.error('Failure during operation of emitter %r', self.__name, exc_info=True)
+
+    def enqueue(self, data, headers):
+        try:
+            self.__queue.put((data, headers), block=False)
+        except Full:
+            self.__logger.warn('Dropping packet for %r due to backlog', self.__name)
+
+class EmitterManager(object):
+    """Track custom emitters"""
+
+    def __init__(self, config):
+        self.agentConfig = config
+        self.emitterThreads = []
+        for emitter_spec in [s.strip() for s in self.agentConfig.get('custom_emitters', '').split(',')]:
+            if len(emitter_spec) == 0: continue
+            logging.info('Setting up custom emitter %r', emitter_spec)
+            try:
+                thread = EmitterThread(
+                    name=emitter_spec,
+                    emitter=modules.load(emitter_spec, 'emitter'),
+                    logger=logging,
+                    config=config,
+                )
+                thread.start()
+                self.emitterThreads.append(thread)
+            except Exception, e:
+                logging.error('Unable to start thread for emitter: %r', emitter_spec, exc_info=True)
+        logging.info('Done with custom emitters')
+
+    def send(self, data, headers=None):
+        if not self.emitterThreads:
+            return # bypass decompression/decoding
+        if headers and headers.get('Content-Encoding') == 'deflate':
+            data = zlib.decompress(data)
+        data = json_decode(data)
+        for emitterThread in self.emitterThreads:
+            logging.info('Queueing for emitter %r', emitterThread.name)
+            emitterThread.enqueue(data, headers)
+
 class MetricTransaction(Transaction):
 
     _application = None
     _trManager = None
     _endpoints = []
+    _emitter_manager = None
 
     @classmethod
     def set_application(cls, app):
         cls._application = app
+        cls._emitter_manager = EmitterManager(cls._application._agentConfig)
 
     @classmethod
     def set_tr_manager(cls, manager):
@@ -87,6 +152,10 @@ class MetricTransaction(Transaction):
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
+
+        # Emitters operate outside the regular transaction framework
+        if self._emitter_manager is not None:
+            self._emitter_manager.send(data, headers)
 
         # Insert the transaction in the Manager
         self._trManager.append(self)

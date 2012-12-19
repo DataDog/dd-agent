@@ -108,9 +108,6 @@ class Agent(Daemon):
 
     def _get_emitters(self, agentConfig):
         emitters = [http_emitter]
-        for emitter_spec in [s.strip() for s in agentConfig.get('custom_emitters', '').split(',')]:
-            if len(emitter_spec) == 0: continue
-            emitters.append(modules.load(emitter_spec, 'emitter'))
         return emitters
 
     def _get_watchdog(self, check_freq, agentConfig):
