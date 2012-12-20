@@ -6,6 +6,8 @@ import time
 import urllib2
 import urlparse
 
+from tests.common import load_check
+
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus, _get_data, HEALTH_URL
 
 PORT = 9200
@@ -26,6 +28,7 @@ class TestElastic(unittest.TestCase):
                 if loop >= MAX_WAIT:
                     break              
 
+    
     def setUp(self):
         self.c = ElasticSearch(logging.getLogger())
         self.d = ElasticSearchClusterStatus(logging.getLogger())
@@ -45,67 +48,41 @@ class TestElastic(unittest.TestCase):
     def tearDown(self):
         if self.process is not None:
             self.process.terminate()
-
-    def testEvent(self):
-        agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
+    
+    def testElasticChecksD(self):
+        agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
               'version': '0.1',
               'api_key': 'toto' }
 
+        # Initialize the check from checks.d
+        c = load_check('elastic', {'init_config': {}, 'instances':{}},agentConfig)
+        conf = c.parse_agent_config(agentConfig)
+        self.check = load_check('elastic', conf, agentConfig)
+        
+        self.check.check(conf['instances'][0])
 
-        url = urlparse.urljoin(agentConfig['elasticsearch'], HEALTH_URL)
-        data = _get_data(agentConfig, url)
-        self.assertEquals(len(data), 10,data)
+        r = self.check.get_metrics()
 
-        data['status'] = "green"
-        events = self.d.check(logging.getLogger(), agentConfig,data)
-        self.assertEquals(len(events),0,events)
+        self.assertTrue(type(r) == type([]))
+        self.assertTrue(len(r) > 0)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.get.total"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.search.fetch.total"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_committed"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_used"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.threads.count"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "jvm.threads.peak_count"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.rx_count"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.tx_size"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.server_open"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.thread_pool.snapshot.queue"]), 1, r)
+        self.assertEquals(len([t for t in r if t[0] == "elasticsearch.active_shards"]), 1, r)
 
-        data = _get_data(agentConfig, url)
-        data['status'] = "red"
-        events = self.d.check(logging.getLogger,agentConfig, data)
+        self.check.cluster_status[conf['instances'][0].get('url')] = "red"
+        self.check.check(conf['instances'][0])
+        events = self.check.get_events()
         self.assertEquals(len(events),1,events)
 
-
-
-
-    def testCheck(self):
-        agentConfig = { 'elasticsearch': 'http://localhost:%s/_cluster/nodes/stats?all=true' % PORT,
-                      'version': '0.1',
-                      'api_key': 'toto' }
-
-        r = self.c.check(agentConfig)
-        def _check(slf, r):
-            slf.assertTrue(type(r) == type([]))
-            slf.assertTrue(len(r) > 0)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.get.total"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.search.fetch.total"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_committed"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_used"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "jvm.threads.count"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "jvm.threads.peak_count"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.rx_count"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.tx_size"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.server_open"]), 1, r)
-            slf.assertEquals(len([t for t in r if t[0] == "elasticsearch.thread_pool.snapshot.queue"]), 1, r)
-
-        _check(self, r)
-
-        # Same check, only given hostname
-        agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
-                      'version': '0.1',
-                      'api_key': 'toto' }
-
-        r = self.c.check(agentConfig)
-        _check(self, r)
-
-        # Same check, only given hostname
-        agentConfig = { 'elasticsearch': 'http://localhost:%s/wrong_url' % PORT,
-                      'version': '0.1',
-                      'api_key': 'toto' }
-
-        r = self.c.check(agentConfig)
-        self.assertFalse(r)
         
 
 if __name__ == "__main__":
