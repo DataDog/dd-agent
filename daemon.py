@@ -26,6 +26,7 @@ import sys
 import time
 import logging
 
+from util import AgentSupervisor
 
 class Daemon:
     """
@@ -63,19 +64,11 @@ class Daemon:
         os.setsid() 
         os.umask(0) 
     
-        # Do second fork
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                # Exit from second parent
-                sys.exit(0) 
-        except OSError, e: 
-            msg = "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
-            logging.error(msg)
-            sys.stderr.write(msg + "\n")
-            sys.exit(1) 
-   
-     
+        # Set-up the supervisor callbacks and put a fork in it.
+        def parent_func():
+            self.start_event = False
+        AgentSupervisor.start(parent_func)
+
         if sys.platform != 'darwin': # This block breaks on OS X
             # Redirect standard file descriptors
             sys.stdout.flush()
@@ -99,7 +92,7 @@ class Daemon:
             logging.exception(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1)
-        
+
     def delpid(self):
         try:
             os.remove(self.pidfile)

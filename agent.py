@@ -34,12 +34,13 @@ from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile
+from util import Watchdog, PidFile, AgentSupervisor
 
 
 # Constants
 PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
+RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
 
 # Globals
 agent_logger = logging.getLogger('agent')
@@ -50,10 +51,11 @@ class Agent(Daemon):
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile):
+    def __init__(self, pidfile, start_event=True):
         Daemon.__init__(self, pidfile)
         self.run_forever = True
         self.collector = None
+        self.start_event = start_event
 
     def _handle_sigterm(self, signum, frame):
         agent_logger.debug("Caught sigterm. Stopping run loop.")
@@ -82,11 +84,19 @@ class Agent(Daemon):
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
         watchdog = self._get_watchdog(check_frequency, agentConfig)
-       
+
+        # Initialize the auto-restarter
+        self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
+        self.agent_start = time.time()
+
         # Run the main loop.
         while self.run_forever:
             # Do the work.
-            self.collector.run(checksd=checksd)
+            self.collector.run(checksd=checksd, start_event=self.start_event)
+
+            # Check if we should restart.
+            if self._should_restart():
+                self._do_restart()
 
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.
@@ -133,6 +143,14 @@ class Agent(Daemon):
                 agent_logger.info('Not running on EC2, using hostname to identify this server')
         return agentConfig
 
+    def _should_restart(self):
+        if time.time() - self.agent_start > self.restart_interval:
+            return True
+        return False
+
+    def _do_restart(self):
+        agent_logger.info("Running an auto-restart.")
+        sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
 def setup_logging(agentConfig):
     """Configure logging to use syslog whenever possible.
@@ -215,7 +233,11 @@ def main():
 
         elif 'foreground' == command:
             logging.info('Running in foreground')
-            agent.run()
+
+            # Set-up the supervisor callbacks and fork it.
+            def child_func(): agent.run()
+            def parent_func(): agent.start_event = False
+            AgentSupervisor.start(parent_func, child_func)
 
     # Commands that don't need the agent to be initialized.
     else:

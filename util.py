@@ -240,3 +240,40 @@ class Timer(object):
     def total(self, as_sec=True):
         return self._now() - self.start
 
+
+class AgentSupervisor(object):
+    ''' A simple supervisor to keep a restart a child on expected auto-restarts
+    '''
+    RESTART_EXIT_STATUS = 5
+
+    @classmethod
+    def start(cls, parent_func, child_func=None):
+        ''' `parent_func` is a function that's called every time the child
+            process dies.
+            `child_func` is a function that should be run by the forked child
+            that will auto-restart with the RESTART_EXIT_STATUS.
+        '''
+        exit_code = cls.RESTART_EXIT_STATUS
+        while exit_code == cls.RESTART_EXIT_STATUS:
+            try:
+                pid = os.fork()
+                if pid > 0:
+                    # The parent waits on the child.
+                    wait_pid, status = os.waitpid(pid, 0)
+                    exit_code = status >> 8
+                    parent_func()
+                else:
+                    # The child will call our given function
+                    if child_func:
+                        child_func()
+                    else:
+                        break
+            except OSError, e:
+                msg = "Agent fork failed: %d (%s)" % (e.errno, e.strerror)
+                logging.error(msg)
+                sys.stderr.write(msg + "\n")
+                sys.exit(1)
+
+        # Exit from the parent cleanly
+        if pid > 0:
+            sys.exit(0)
