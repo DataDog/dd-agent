@@ -253,12 +253,18 @@ class AgentSupervisor(object):
             `child_func` is a function that should be run by the forked child
             that will auto-restart with the RESTART_EXIT_STATUS.
         '''
+        cls.running = True
         exit_code = cls.RESTART_EXIT_STATUS
-        while exit_code == cls.RESTART_EXIT_STATUS:
+
+        # Allow the child process to die on SIGTERM
+        signal.signal(signal.SIGTERM, cls._handle_sigterm)
+
+        while cls.running and exit_code == cls.RESTART_EXIT_STATUS:
             try:
                 pid = os.fork()
                 if pid > 0:
                     # The parent waits on the child.
+                    cls.child_pid = pid
                     wait_pid, status = os.waitpid(pid, 0)
                     exit_code = status >> 8
                     parent_func()
@@ -277,3 +283,7 @@ class AgentSupervisor(object):
         # Exit from the parent cleanly
         if pid > 0:
             sys.exit(0)
+
+    @classmethod
+    def _handle_sigterm(cls, signum, frame):
+        os.kill(cls.child_pid, signal.SIGTERM)
