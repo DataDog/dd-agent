@@ -8,7 +8,6 @@ class CouchDb(AgentCheck):
     http://wiki.apache.org/couchdb/Runtime_Statistics
     """
     def _create_metric(self, data, tags=None):
-        self.log.info(data)
         overall_stats = data.get('stats', {})
         for key, stats in overall_stats.items():
             for metric, val in stats.items():
@@ -20,7 +19,9 @@ class CouchDb(AgentCheck):
             for name, val in db_stats.items():
                 if name in ['doc_count', 'disk_size'] and val is not None:
                     metric_name = '.'.join(['couchdb', 'by_db', name])
-                    self.gauge(metric_name, val, tags=tags)
+                    metric_tags = list(tags)
+                    metric_tags.append('db:%s' % db_name)
+                    self.gauge(metric_name, val, tags=metric_tags, device_name=db_name)
 
         
     def _get_stats(self, url):
