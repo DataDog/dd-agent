@@ -3,6 +3,8 @@
 A Python Statsd implementation with some datadog special sauce.
 """
 
+import os; os.umask(022)
+
 # stdlib
 import httplib as http_client
 import logging

@@ -10,6 +10,8 @@
     (C) Datadog, Inc. 2010-2012 all rights reserved
 '''
 
+import os; os.umask(022)
+
 # Standard imports
 import logging
 import os
