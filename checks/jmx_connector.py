@@ -97,7 +97,7 @@ class JmxConnector:
             self._jmx = None
             self.log.critical(str(e))
             self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
-            raise Exception('Error while fetching JVM metrics at attdress: %s:%s' % (connection, passwd))
+            raise Exception('Error while fetching JVM metrics at address: %s:%s' % (connection, passwd))
 
     def dump(self):
         """Returns a dictionnary of all beans and attributes
