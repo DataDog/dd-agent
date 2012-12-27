@@ -64,12 +64,7 @@ none                   3943856         0   3943856   0% /lib/init/rw
 nfs:/abc/def/ghi/jkl/mno/pqr
                       52403200  40909112  11494088  79% /data2
 /dev/sdg              52403200  40909112  11494088  79% /data3
-/dev/xvda1       8256952   1671204   6166320  22% /
-udev            35090624         8  35090616   1% /dev
 tmpfs           14039440       256  14039184   1% /run
-none                5120         0      5120   0% /run/lock
-none            35098596         0  35098596   0% /run/shm
-/dev/xvdb      866917368  20452616 802427864   3% /mnt
 /dev/xvdf1     209612800 144149992  65462808  69% /var/lib/postgresql/9.1/main
 /dev/xvdf2     209612800   2294024 207318776   2% /var/lib/postgresql/9.1/main/pg_xlog
 /dev/xvdf3       2086912   1764240    322672  85% /var/lib/postgresql/9.1/user_influence_history
@@ -114,9 +109,9 @@ none                  985964       1  985963    1% /lib/init/rw
         if sys.platform == 'linux2':
             res = disk._parse_df(TestSystem.linux_df_k)
             assert res[0][:4] == ["/dev/sda1", 8256952, 5600592,  2236932], res[0]
-            assert res[8][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[-2]
-            assert res[9][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[-1]
-            assert res[10][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[-2]
+            assert res[2][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[2]
+            assert res[3][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[3]
+            assert res[4][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[4]
     
             res = disk._parse_df(TestSystem.linux_df_i, inodes = True)
             assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
@@ -125,9 +120,9 @@ none                  985964       1  985963    1% /lib/init/rw
     
             res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
             assert res[0][:4] == ["/", 8256952, 5600592,  2236932], res[0]
-            assert res[8][:4] == ["/data", 52403200, 40909112, 11494088], res[8]
-            assert res[9][:4] == ["/data2", 52403200, 40909112, 11494088], res[9]
-            assert res[10][:4] == ["/data3", 52403200, 40909112, 11494088], res[10]
+            assert res[2][:4] == ["/data", 52403200, 40909112, 11494088], res[2]
+            assert res[3][:4] == ["/data2", 52403200, 40909112, 11494088], res[3]
+            assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
             assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
         
 
