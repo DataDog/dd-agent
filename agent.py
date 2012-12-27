@@ -51,10 +51,11 @@ class Agent(Daemon):
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile, start_event=True):
+    def __init__(self, pidfile, autorestart, start_event=True):
         Daemon.__init__(self, pidfile)
         self.run_forever = True
         self.collector = None
+        self.autorestart = autorestart
         self.start_event = start_event
 
     def _handle_sigterm(self, signum, frame):
@@ -217,7 +218,7 @@ def main():
         if options.clean:
             pid_file.clean()
 
-        agent = Agent(pid_file.get_path())
+        agent = Agent(pid_file.get_path(), options.autorestart)
 
         if 'start' == command:
             logging.info('Start daemon')
@@ -234,10 +235,15 @@ def main():
         elif 'foreground' == command:
             logging.info('Running in foreground')
 
-            # Set-up the supervisor callbacks and fork it.
-            def child_func(): agent.run()
-            def parent_func(): agent.start_event = False
-            AgentSupervisor.start(parent_func, child_func)
+            if options.autorestart:
+                # Set-up the supervisor callbacks and fork it.
+                logging.info('Running Agent with auto-restart ON')
+                def child_func(): agent.run()
+                def parent_func(): agent.start_event = False
+                AgentSupervisor.start(parent_func, child_func)
+            else:
+                # Run in the standard foreground.
+                agent.run()
 
     # Commands that don't need the agent to be initialized.
     else:

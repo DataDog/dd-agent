@@ -63,11 +63,25 @@ class Daemon:
         os.chdir("/") 
         os.setsid() 
         os.umask(0) 
-    
-        # Set-up the supervisor callbacks and put a fork in it.
-        def parent_func():
-            self.start_event = False
-        AgentSupervisor.start(parent_func)
+
+        if self.autorestart:
+            # Set-up the supervisor callbacks and put a fork in it.
+            logging.info('Running Agent with auto-restart ON')
+            def parent_func():
+                self.start_event = False
+            AgentSupervisor.start(parent_func)
+        else:
+            # Do second fork
+            try:
+                pid = os.fork()
+                if pid > 0:
+                    # Exit from second parent
+                    sys.exit(0)
+            except OSError, e:
+                msg = "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
+                logging.error(msg)
+                sys.stderr.write(msg + "\n")
+                sys.exit(1)
 
         if sys.platform != 'darwin': # This block breaks on OS X
             # Redirect standard file descriptors
