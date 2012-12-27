@@ -62,7 +62,6 @@ class Daemon:
         # Decouple from parent environment
         os.chdir("/") 
         os.setsid() 
-        os.umask(0) 
 
         if self.autorestart:
             # Set-up the supervisor callbacks and put a fork in it.

@@ -10,6 +10,8 @@
     (C) Datadog, Inc. 2010-2012 all rights reserved
 '''
 
+import os; os.umask(022)
+
 # Standard imports
 import logging
 import os
@@ -282,7 +284,7 @@ class Application(tornado.web.Application):
             if non_local_traffic is True:
                 gs.listen(gport)
             else:
-                gs.listen(port, address = "localhost")
+                gs.listen(gport, address = "localhost")
 
         # Start everything
         if self._watchdog:

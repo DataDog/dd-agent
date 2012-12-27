@@ -88,15 +88,16 @@ class JmxConnector:
                 self._jmx = pexpect.spawn(cmd, timeout = timeout)
                 self._jmx.delaybeforesend = 0
                 self._wait_prompt()
-        except:
+        except BaseException, e:
             if self._jmx:
                 try:
                     self._jmx.terminate(force=True)
                 except ExceptionPexpect:
                     self.log.error("Cannot terminate process %s" % self._jmx)
             self._jmx = None
+            self.log.critical(str(e))
             self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
-            raise Exception('Error while fetching JVM metrics at attdress: %s:%s' % (connection, passwd))
+            raise Exception('Error while fetching JVM metrics at address: %s:%s' % (connection, passwd))
 
     def dump(self):
         """Returns a dictionnary of all beans and attributes
