@@ -66,11 +66,18 @@ class Agent(Daemon):
         if self.collector:
             self.collector.stop()
 
+    def _handle_sigusr1(self, signum, frame):
+        self._handle_sigterm(signum, frame)
+        self._do_restart()
+
     def run(self):
         """Main loop of the collector"""
 
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+
+        # A SIGUSR1 signals an exit with an autorestart
+        signal.signal(signal.SIGUSR1, self._handle_sigusr1)
 
         # Save the agent start-up stats.
         CollectorStatus().persist()
