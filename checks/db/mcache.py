@@ -55,6 +55,8 @@ from checks import *
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
 class Memcache(Check):
+    DEFAULT_PORT = 11211
+
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.gauge("memcache.total_items")
@@ -97,23 +99,21 @@ class Memcache(Check):
         #memcache_instance_1: first_host:first_port:first_tag
         #memcache_instance_2: second_host:second_port:second_tag
         #memcache_instance_3: third_host:third_port:third_tag
-        def load_conf(index=1):
+        index = 1
+        instance = agentConfig.get("memcache_instance_%s" % index, None)
+        while instance:
+            instance = instance.split(":")
+            memcache_urls.append(instance[0])
+            if len(instance)>1:
+                memcache_ports.append(instance[1])
+            else:
+                memcache_ports.append(self.DEFAULT_PORT)
+            if len(instance)==3:
+                tags.append(instance[2])
+            else:
+                tags.append(None)
+            index = index + 1
             instance = agentConfig.get("memcache_instance_%s" % index, None)
-            if instance is not None:
-                instance = instance.split(":")
-                memcache_urls.append(instance[0])
-                if len(instance)>1:
-                    memcache_ports.append(instance[1])
-                else:
-                    memcache_ports.append(11211)
-                if len(instance)==3:
-                    tags.append(instance[2])
-                else:
-                    tags.append(None)
-                    
-                load_conf(index+1)
-
-        load_conf()
 
         return (memcache_urls, memcache_ports, tags)
 
