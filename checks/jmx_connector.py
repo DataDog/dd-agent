@@ -70,6 +70,7 @@ class JmxConnector:
     def connect(self, connection, user=None, passwd=None, timeout=20):
         import pexpect
         from pexpect import ExceptionPexpect
+        import traceback
 
         try:
             if self._jmx is not None:
@@ -95,7 +96,7 @@ class JmxConnector:
                 except ExceptionPexpect:
                     self.log.error("Cannot terminate process %s" % self._jmx)
             self._jmx = None
-            self.log.critical(str(e))
+            self.log.debug(traceback.format_exc())
             self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
             raise Exception('Error while fetching JVM metrics at address: %s:%s' % (connection, passwd))
 
