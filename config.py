@@ -40,7 +40,7 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.4.2"
+    return "3.4.3"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -138,7 +138,7 @@ def get_config_path(cfg_path=None, os_name=None):
         return os.path.join(path, DATADOG_CONF)
     
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % exc.message)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % str(exc))
     sys.exit(3)
 
 def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
@@ -421,7 +421,7 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % exc.message)
+    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % str(exc))
     sys.exit(3)
 
 def get_checksd_path(osname):
@@ -438,7 +438,7 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            log.error("No checks.d folder found in '%s'.\n" % e.message)
+            log.error("No checks.d folder found in '%s'.\n" % str(e))
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
