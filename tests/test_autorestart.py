@@ -25,12 +25,12 @@ class TestAutoRestart(unittest.TestCase):
         # Run the agent in the foreground with auto-restarting on.
         args = shlex.split('python agent.py --autorestart foreground')
         self.agent_foreground = subprocess.Popen(args)
-        time.sleep(2)
+        time.sleep(5)
 
     def _start_daemon(self):
         args = shlex.split('python agent.py --autorestart start')
         self.agent_daemon = subprocess.Popen(args)
-        time.sleep(2)
+        time.sleep(5)
 
     def _get_child_parent_pids(self, grep_str):
         args = shlex.split('pgrep -f "%s"' % grep_str)
