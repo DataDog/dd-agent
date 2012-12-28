@@ -39,7 +39,7 @@ class TestAutoRestart(unittest.TestCase):
         pids = pgrep.strip().split('\n')
         assert len(pids) == 2, pgrep
 
-        return [int(p) for p in pids]
+        return sorted([int(p) for p in pids], reverse=True)
 
     def test_foreground(self):
         self._start_foreground()
@@ -49,7 +49,8 @@ class TestAutoRestart(unittest.TestCase):
 
         # Try killing the parent proc, confirm that the child is killed as well.
         os.kill(parent_pid, signal.SIGTERM)
-        time.sleep(5)
+        os.waitpid(parent_pid, 0)
+        time.sleep(6)
         self.assertRaises(OSError, os.kill, child_pid, signal.SIGTERM)
 
         # Restart the foreground agent.
@@ -58,7 +59,7 @@ class TestAutoRestart(unittest.TestCase):
 
         # Set a SIGUSR1 to the child to force an auto-restart exit.
         os.kill(child_pid, signal.SIGUSR1)
-        time.sleep(5)
+        time.sleep(6)
 
         # Confirm that the child is still alive
         child_pid, parent_pid = self._get_child_parent_pids(grep_str)
@@ -75,7 +76,7 @@ class TestAutoRestart(unittest.TestCase):
 
         # Try killing the parent proc, confirm that the child is killed as well.
         os.kill(parent_pid, signal.SIGTERM)
-        time.sleep(5)
+        time.sleep(6)
         self.assertRaises(OSError, os.kill, child_pid, signal.SIGTERM)
 
         # Restart the daemon agent.
@@ -84,7 +85,7 @@ class TestAutoRestart(unittest.TestCase):
 
         # Set a SIGUSR1 to the child to force an auto-restart exit.
         os.kill(child_pid, signal.SIGUSR1)
-        time.sleep(5)
+        time.sleep(6)
 
         # Confirm that the child is still alive
         child_pid, parent_pid = self._get_child_parent_pids(grep_str)
