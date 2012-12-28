@@ -95,8 +95,7 @@ class JmxConnector:
                 except ExceptionPexpect:
                     self.log.error("Cannot terminate process %s" % self._jmx)
             self._jmx = None
-            self.log.critical(str(e))
-            self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
+            self.log.exception('Error while fetching JVM metrics')
             raise Exception('Error while fetching JVM metrics at address: %s:%s' % (connection, passwd))
 
     def dump(self):
