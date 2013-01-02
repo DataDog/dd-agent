@@ -302,11 +302,8 @@ class MetricsAggregator(object):
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
-        if tags:
-            tags = tuple(sorted(set(tags)))
-        else:
-            tags = tuple()
-        context = (name, tags, hostname, device_name)
+        context = (name, tuple(sorted(set(tags or []))), hostname,
+                   device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
