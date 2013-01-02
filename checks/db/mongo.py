@@ -104,13 +104,16 @@ class MongoDb(Check):
             username = parsed.get('username')
             password = parsed.get('password')
 
+            do_auth = True
             if username is None or password is None:
-                self.logger.error("Mongo: cannot extract username and password from config %s" % agentConfig['mongodb_server'])
-                return False
+                self.logger.debug("Mongo: cannot extract username and password from config %s" % agentConfig['mongodb_server'])
+                do_auth = False
 
             conn = Connection(agentConfig['mongodb_server'])
             db = conn['admin']
-            db.authenticate(username, password)
+            if do_auth:
+                if not db.authenticate(username, password):
+                    lef.logger.error("Mongo: cannot connect with config %s" % agentConfig['mongodb_server'])
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
@@ -154,7 +157,7 @@ class MongoDb(Check):
                         results['events'] = {'Mongo': [event]}
                     status['replSet'] = data
             except:
-                self.logger.exception("Cannot determine replication set status")
+                self.logger.debug("Cannot determine replication set status", exc_info=True)
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:
