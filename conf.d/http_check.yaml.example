@@ -8,6 +8,8 @@ instances:
 #        url: http://some.url.example.com
 #        username: user
 #        password: pass
+#        threshold: 3
+#        window: 5
 #        timeout: 1
 
 #    -   name: My_second_service

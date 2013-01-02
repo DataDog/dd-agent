@@ -10,7 +10,7 @@ class TCPCheck(ServicesCheck):
         # Fetches the conf
 
         port = instance.get('port', None)
-        timeout = int(instance.get('timeout', 10))
+        timeout = float(instance.get('timeout', 10))
         socket_type = None
         try:
             port = int(port)
@@ -48,6 +48,7 @@ class TCPCheck(ServicesCheck):
         try:    
             self.log.debug("Connecting to %s %s" % (addr, port))
             sock = socket.socket(socket_type)
+            start = time.time()
             try:
                 sock.settimeout(timeout)
                 sock.connect((addr, port))
@@ -55,8 +56,9 @@ class TCPCheck(ServicesCheck):
                 sock.close()
 
         except Exception, e:
-            self.log.info("%s:%s is down" % (addr, port))
-            return Status.DOWN, str(e)
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
+            return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         self.log.info("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
@@ -67,6 +69,8 @@ class TCPCheck(ServicesCheck):
         host = instance.get('host', None)
         port = instance.get('port', None)
         name = instance.get('name', None)
+        nb_failures = self.statuses[name].count(Status.DOWN)
+        nb_tries = len(self.statuses[name])
         
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
@@ -95,15 +99,15 @@ class TCPCheck(ServicesCheck):
         if status == Status.DOWN:
             title = "[Alert] %s is down" % name
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s:%s) failed with %s" % (notify_message,
-                custom_message, self.hostname, name, host, port, msg)
+            msg = "%s %s %s reported that %s (%s:%s) failed %s time(s) within %s last attempt(s). Last error: %s" % (notify_message,
+                custom_message, self.hostname, name, host, port, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
         else: # Status is UP
             title = "[Recovered] %s is up" % name
             alert_type = "success"
-            msg = "%s %s %s reported that %s (%s:%s) recovered" % (notify_message,
-                custom_message, self.hostname, name, host, port)
+            msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,
+                custom_message, self.hostname, name, host, port, nb_failures, nb_tries)
             event_type = EventType.UP
 
         return {
