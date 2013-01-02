@@ -5,9 +5,9 @@ from datetime import datetime
 from checks import *
 
 # When running with pymongo < 2.0
-# Not the full spec for mongo URIs
+# Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
-mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
+mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
 
 class MongoDb(Check):
 
@@ -90,25 +90,27 @@ class MongoDb(Check):
 
         try:
             from pymongo import Connection
-            dbName = None
             try:
                 from pymongo import uri_parser
                 # Configuration a URL, mongodb://user:pass@server/db
-                dbName = uri_parser.parse_uri(agentConfig['mongodb_server'])['database']
-
-                # parse_uri gives a default database of None
-                dbName = dbName or 'test'
-
+                parsed = uri_parser.parse_uri(agentConfig['mongodb_server'])
             except ImportError:
                 # uri_parser is pymongo 2.0+
-                dbName = mongo_uri_re.match(agentConfig['mongodb_server']).group(1)
+                matches = mongo_uri_re.match(agentConfig['mongodb_server'])
+                if matches:
+                    parsed = matches.groupdict()
+                else:
+                    parsed = {}
+            username = parsed.get('username')
+            password = parsed.get('password')
 
-            if dbName is None:
-                self.logger.error("Mongo: cannot extract db name from config %s" % agentConfig['mongodb_server'])
+            if username is None or password is None:
+                self.logger.error("Mongo: cannot extract username and password from config %s" % agentConfig['mongodb_server'])
                 return False
 
             conn = Connection(agentConfig['mongodb_server'])
-            db = conn[dbName]
+            db = conn['admin']
+            db.authenticate(username, password)
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
@@ -120,7 +122,7 @@ class MongoDb(Check):
             try:
                 data = {}
 
-                replSet = conn['admin'].command('replSetGetStatus')
+                replSet = db.command('replSetGetStatus')
                 serverVersion = conn.server_info()['version']
                 if replSet:
                     primary = None
