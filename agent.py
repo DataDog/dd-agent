@@ -105,7 +105,7 @@ class Agent(Daemon):
             self.collector.run(checksd=checksd, start_event=self.start_event)
 
             # Check if we should restart.
-            if self._should_restart():
+            if self.autorestart and self._should_restart():
                 self._do_restart()
 
             # Only plan for the next loop if we will continue,
