@@ -95,6 +95,7 @@ class MongoDb(Check):
                 # Configuration a URL, mongodb://user:pass@server/db
                 parsed = uri_parser.parse_uri(agentConfig['mongodb_server'])
             except ImportError:
+                self.logger.debug('Mongo: running with pymongo < 2.0, custom uri parsing')
                 # uri_parser is pymongo 2.0+
                 matches = mongo_uri_re.match(agentConfig['mongodb_server'])
                 if matches:
@@ -113,7 +114,7 @@ class MongoDb(Check):
             db = conn['admin']
             if do_auth:
                 if not db.authenticate(username, password):
-                    lef.logger.error("Mongo: cannot connect with config %s" % agentConfig['mongodb_server'])
+                    self.logger.error("Mongo: cannot connect with config %s" % agentConfig['mongodb_server'])
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
