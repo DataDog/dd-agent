@@ -8,8 +8,6 @@ import urlparse
 
 from tests.common import load_check
 
-from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus, _get_data, HEALTH_URL
-
 PORT = 9200
 MAX_WAIT = 150
 
@@ -30,8 +28,6 @@ class TestElastic(unittest.TestCase):
 
     
     def setUp(self):
-        self.c = ElasticSearch(logging.getLogger())
-        self.d = ElasticSearchClusterStatus(logging.getLogger())
         self.process = None
         try:
             # Start elasticsearch
