@@ -176,7 +176,7 @@ class ElasticSearch(AgentCheck):
             data = _get_data(self.agentConfig, url)
 
             if url_suffix==STATS_URL:
-                self._process_data(self.agentConfig, data, tags=tags)
+                self._process_data(data, tags=tags)
                 self.load_url(config_url, instance, tags=tags, url_suffix=HEALTH_URL)
 
             else:
@@ -192,7 +192,7 @@ class ElasticSearch(AgentCheck):
             return config_url
         return "%s://%s" % (parsed.scheme, parsed.netloc)
 
-    def _process_data(self, agentConfig, data, tags=None):
+    def _process_data(self, data, tags=None):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
@@ -203,7 +203,7 @@ class ElasticSearch(AgentCheck):
             if 'hostname' in node_data:
                 # For ES >= 0.19
                 hostnames = (
-                    gethostname(agentConfig).decode('utf-8'),
+                    gethostname(self.agentConfig).decode('utf-8'),
                     socket.gethostname().decode('utf-8'),
                     socket.getfqdn().decode('utf-8')
                 )
@@ -214,9 +214,9 @@ class ElasticSearch(AgentCheck):
                 # Fetch interface address from ifconfig or ip addr and check
                 # against the primary IP from ES
                 try:
-                    base_url = self._base_es_url(agentConfig['elasticsearch'])
+                    base_url = self._base_es_url(self.agentConfig['elasticsearch'])
                     url = "%s%s" % (base_url, NODES_URL)
-                    primary_addr = self._get_primary_addr(agentConfig, url, node)
+                    primary_addr = self._get_primary_addr(self.agentConfig, url, node)
                 except NodeNotFound:
                     # Skip any nodes that aren't found
                     continue
@@ -267,7 +267,7 @@ class ElasticSearch(AgentCheck):
         self.log.warning("Metric not found: %s -> %s", path, metric)
 
     def _create_event(self):
-        hostname = gethostname(agentConfig).decode('utf-8')
+        hostname = gethostname(self.agentConfig).decode('utf-8')
         if self.cluster_status == "red" or self.cluster_status=="yellow":
             alert_type = "error"
             msg_title = "%s is %s" % (hostname, self.cluster_status)
