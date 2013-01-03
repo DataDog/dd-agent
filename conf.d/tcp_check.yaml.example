@@ -7,6 +7,9 @@ instances:
 #    -   name: My_first_service
 #        host: myhost.example.com
 #        port: 8080
+#        The window and threshold parameters allow you to trigger alerts only if 
+#        the check fails x times within the last y attempts where x is the threshold and 
+#        y is the window
 #        threshold: 3
 #        window: 5
 #        timeout: 1
