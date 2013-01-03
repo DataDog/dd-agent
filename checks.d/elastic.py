@@ -152,11 +152,11 @@ class ElasticSearch(AgentCheck):
         if self.cluster_status.get(url, None) is None:
             self.cluster_status[url] = data['status']
             if data['status'] in ["yellow", "red"]:
-                event = self._create_event(self.agentConfig)
+                event = self._create_event()
                 self.event(event)
         if data['status'] != self.cluster_status.get(url):
             self.cluster_status[url] = data['status']
-            event = self._create_event(config)
+            event = self._create_event()
             self.event(event)
 
         
@@ -266,7 +266,7 @@ class ElasticSearch(AgentCheck):
     def _metric_not_found(self, metric, path):
         self.log.warning("Metric not found: %s -> %s", path, metric)
 
-    def _create_event(self, agentConfig):
+    def _create_event(self):
         hostname = gethostname(agentConfig).decode('utf-8')
         if self.cluster_status == "red" or self.cluster_status=="yellow":
             alert_type = "error"
@@ -281,7 +281,7 @@ class ElasticSearch(AgentCheck):
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
                  'event_type': 'elasticsearch',
                  'host': hostname,
-                 'api_key': agentConfig['api_key'],
+                 'api_key': self.agentConfig['api_key'],
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,
