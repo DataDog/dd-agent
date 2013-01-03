@@ -36,9 +36,11 @@ class Zookeeper(AgentCheck):
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
+        timeout = float(instance.get('timeout', 3.0))
         tags = instance.get('tags', [])
 
         sock = socket.socket()
+        sock.settimeout(timeout)
         buf = StringIO()
         chunk_size = 1024
         try:
