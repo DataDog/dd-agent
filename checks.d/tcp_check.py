@@ -55,6 +55,26 @@ class TCPCheck(ServicesCheck):
             finally:
                 sock.close()
 
+        except socket.timeout, e:
+            # The connection timed out because it took more time than the specified value in the yaml config file
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
+            return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
+
+        except socket.error, e:
+            length = int((time.time() - start) * 1000)
+            if "timed out" in str(e):
+                
+                # The connection timed out becase it took more time than the system tcp stack allows
+                self.log.warning("The connection timed out becase it took more time than the system tcp stack allows. You might want to change this setting to allow longer timeouts")
+                self.log.info("System tcp timeout. Assuming that the checked system is down")
+                return Status.DOWN, """Socket error: %s.
+                 The connection timed out after %s ms because it took more time than the system tcp stack allows.
+                 You might want to change this setting to allow longer timeouts""" % (str(e), length)
+            else:
+                self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
+                return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
+
         except Exception, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
@@ -99,7 +119,8 @@ class TCPCheck(ServicesCheck):
         if status == Status.DOWN:
             title = "[Alert] %s is down" % name
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s:%s) failed %s time(s) within %s last attempt(s). Last error: %s" % (notify_message,
+            msg = """%s %s %s reported that %s (%s:%s) failed %s time(s) within %s last attempt(s). 
+                Last error: %s""" % (notify_message,
                 custom_message, self.hostname, name, host, port, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
