@@ -107,7 +107,7 @@ class TCPCheck(ServicesCheck):
             title = "[Recovered] %s is up" % name
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,
-                custom_message, self.hostname, name, host, port, nb_failures, nb_tries)
+                custom_message, self.hostname, name, host, port)
             event_type = EventType.UP
 
         return {
