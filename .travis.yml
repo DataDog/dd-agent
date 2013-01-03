@@ -36,5 +36,6 @@ before_script:
   - sudo apt-get remove memcached
   - sudo apt-get install memcached
   - sudo apt-get install couchdb -y
+  - sudo /etc/init.d/couchdb start
 env:
   - DB=redis
