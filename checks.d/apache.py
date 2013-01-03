@@ -18,8 +18,8 @@ class Apache(AgentCheck):
     }
 
     RATES = {
-        'Total kBytes': 'apache.net.request_per_s',
-        'Total Accesses': 'apache.net.bytes_per_s',
+        'Total kBytes': 'apache.net.bytes_per_s',
+        'Total Accesses': 'apache.net.request_per_s'
     }
 
     def check(self, instance):
