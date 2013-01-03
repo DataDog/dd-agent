@@ -10,6 +10,8 @@ Pup.py
     (C) Datadog, Inc. 2012 all rights reserved
 """
 
+import os; os.umask(022)
+
 # stdlib
 from collections import defaultdict
 import sys

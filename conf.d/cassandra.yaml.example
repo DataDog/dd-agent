@@ -7,6 +7,7 @@ instances:
 
 
 init_config:
+# edit only if you know what you are doing
     conf:
       - include:
           domain: org.apache.cassandra.db
@@ -19,6 +20,7 @@ init_config:
             - KeyCacheSavePeriodInSeconds
             - RowCacheSavePeriodInSeconds
             - PendingTasks
+            - Scores
       - include:
           domain: org.apache.cassandra.internal
         exclude:
@@ -27,6 +29,14 @@ init_config:
            - Token
       - include:
           domain: org.apache.cassandra.net
+        exclude:
+          attribute:
+           - CommandCompletedTasks
+           - RecentTimeoutsPerHost
+           - ResponseCompletedTasks
+           - ResponsePendingTasks
+           - TimeoutsPerHost
+           - CommandPendingTasks
       - include:
           domain: org.apache.cassandra.request
           attribute:

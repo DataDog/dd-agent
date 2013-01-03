@@ -302,12 +302,25 @@ class MetricsAggregator(object):
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
-        context = (name, tuple(tags or []), hostname, device_name)
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[mtype]
-            self.metrics[context] = metric_class(self.formatter, name, tags,
-                hostname or self.hostname, device_name)
-        self.metrics[context].sample(value, sample_rate)
+        # If the value is not NaN, +infinity or -infinity
+        if value == value and value != float('inf') and value != float('-inf'):
+            # Avoid calling extra functions to dedupe tags if there are none
+            if tags is None:
+                context = (name, tuple(), hostname, device_name)
+            else:
+                context = (name, tuple(sorted(set(tags))), hostname, device_name)
+            if context not in self.metrics:
+                metric_class = self.metric_type_to_class[mtype]
+                self.metrics[context] = metric_class(self.formatter, name, tags,
+                    hostname or self.hostname, device_name)
+            self.metrics[context].sample(value, sample_rate)
+
+        elif value != value:
+            logger.warning("Trying to send a NaN value for metric %s" % name)
+        elif value == float('inf'):
+            logger.warning("Trying to send an Infinity value for metric %s" % name)
+        elif value == float('-inf'):
+            logger.warning("Trying to send an -Infinity value for metric %s" % name)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)

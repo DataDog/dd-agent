@@ -61,7 +61,6 @@ class Daemon:
         # Decouple from parent environment
         os.chdir("/") 
         os.setsid() 
-        os.umask(0) 
     
         # Do second fork
         try: 
@@ -74,8 +73,7 @@ class Daemon:
             logging.error(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1) 
-   
-     
+
         if sys.platform != 'darwin': # This block breaks on OS X
             # Redirect standard file descriptors
             sys.stdout.flush()

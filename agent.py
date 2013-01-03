@@ -10,6 +10,8 @@
     (C) Datadog, Inc. 2010 all rights reserved
 '''
 
+import os; os.umask(022)
+
 # Core modules
 import logging
 import modules

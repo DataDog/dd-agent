@@ -64,6 +64,23 @@ none                   3943856         0   3943856   0% /lib/init/rw
 nfs:/abc/def/ghi/jkl/mno/pqr
                       52403200  40909112  11494088  79% /data2
 /dev/sdg              52403200  40909112  11494088  79% /data3
+tmpfs           14039440       256  14039184   1% /run
+/dev/xvdf1     209612800 144149992  65462808  69% /var/lib/postgresql/9.1/main
+/dev/xvdf2     209612800   2294024 207318776   2% /var/lib/postgresql/9.1/main/pg_xlog
+/dev/xvdf3       2086912   1764240    322672  85% /var/lib/postgresql/9.1/user_influence_history
+/dev/xvdf4      41922560  12262780  29659780  30% /var/lib/postgresql/9.1/entity_love
+/dev/xvdf5      10475520   3943856   6531664  38% /var/lib/postgresql/9.1/user_profile
+/dev/xvdf6      10475520   5903964   4571556  57% /var/lib/postgresql/9.1/entity_love_history
+/dev/xvdf7       8378368     33288   8345080   1% /var/lib/postgresql/9.1/_user_profile_queue
+/dev/xvdf8      41922560   6784964  35137596  17% /var/lib/postgresql/9.1/entity_entity
+/dev/xvdf9       2086912     33480   2053432   2% /var/lib/postgresql/9.1/event_framework_event_handler_queue
+/dev/xvdi1       2086912     33488   2053424   2% /var/lib/postgresql/9.1/user_communication_queue
+/dev/xvdi2      52403200   9960744  42442456  20% /var/lib/postgresql/9.1/affiliate_click_tracking
+/dev/xvdi3      31441920   9841092  21600828  32% /var/lib/postgresql/9.1/index01
+/dev/xvdi4      31441920  10719884  20722036  35% /var/lib/postgresql/9.1/index02
+/dev/xvdi5      31441920   9096476  22345444  29% /var/lib/postgresql/9.1/index03
+/dev/xvdi6      31441920   6473916  24968004  21% /var/lib/postgresql/9.1/index04
+/dev/xvdi7      31441920   3519356  27922564  12% /var/lib/postgresql/9.1/index05
 """
 
     linux_df_i = """Filesystem            Inodes   IUsed   IFree IUse% Mounted on
@@ -92,9 +109,9 @@ none                  985964       1  985963    1% /lib/init/rw
         if sys.platform == 'linux2':
             res = disk._parse_df(TestSystem.linux_df_k)
             assert res[0][:4] == ["/dev/sda1", 8256952, 5600592,  2236932], res[0]
-            assert res[-3][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[-2]
-            assert res[-2][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[-1]
-            assert res[-1][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[-2]
+            assert res[2][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[2]
+            assert res[3][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[3]
+            assert res[4][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[4]
     
             res = disk._parse_df(TestSystem.linux_df_i, inodes = True)
             assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
@@ -103,9 +120,10 @@ none                  985964       1  985963    1% /lib/init/rw
     
             res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
             assert res[0][:4] == ["/", 8256952, 5600592,  2236932], res[0]
-            assert res[-3][:4] == ["/data", 52403200, 40909112, 11494088], res[-2]
-            assert res[-2][:4] == ["/data2", 52403200, 40909112, 11494088], res[-1]
-            assert res[-1][:4] == ["/data3", 52403200, 40909112, 11494088], res[-2]
+            assert res[2][:4] == ["/data", 52403200, 40909112, 11494088], res[2]
+            assert res[3][:4] == ["/data2", 52403200, 40909112, 11494088], res[3]
+            assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
+            assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
         
 
     def testMemory(self):
@@ -134,8 +152,9 @@ sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0
 
 """
 
-        checker = IO()
-        results = checker._parse_linux2_iostat_output(debian_iostat_output)
+        global logger
+        checker = IO(logger)
+        results = checker._parse_linux2(debian_iostat_output)
         self.assertTrue('sda' in results)
         for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
                     'avgrq-sz', 'avgqu-sz', 'await', 'r_await',
@@ -157,8 +176,8 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
 """
 
-        checker = IO()
-        results = checker._parse_linux2_iostat_output(centos_iostat_output)
+        checker = IO(logger)
+        results = checker._parse_linux2(centos_iostat_output)
         self.assertTrue('sda' in results)
         for key in ('rrqm/s', 'wrqm/s', 'r/s', 'w/s', 'rkB/s', 'wkB/s',
                     'avgrq-sz', 'avgqu-sz', 'await', 'svctm', '%util'):

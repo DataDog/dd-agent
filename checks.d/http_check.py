@@ -18,27 +18,33 @@ class HTTPCheck(ServicesCheck):
 
     def _check(self, instance):
         addr, username, password, timeout = self._load_conf(instance)
+        start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
+
             h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
             resp, content = h.request(addr, "GET")
 
         except socket.timeout, e:
-            self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
-            return Status.DOWN, str(e)
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
+            return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except HttpLib2Error, e:
-            self.log.info("%s is DOWN, error: %s" % (addr, str(e)))
-            return Status.DOWN, str(e)
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
+            return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except socket.error, e:
-            self.log.info("%s is DOWN, error: %s" % (addr, repr(e)))
-            return Status.DOWN, "Socket error: %s" % repr(e)
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, repr(e), length))
+            return Status.DOWN, "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
 
         except Exception, e:
-            self.log.error("Unhandled exception %s" % str(e))
+            length = int((time.time() - start) * 1000)
+            self.log.error("Unhandled exception %s. Connection failed after %s ms" % (str(e), length))
             raise
 
         if int(resp.status) >= 400:
@@ -52,6 +58,8 @@ class HTTPCheck(ServicesCheck):
         # Get the instance settings
         url = instance.get('url', None)
         name = instance.get('name', None)
+        nb_failures = self.statuses[name].count(Status.DOWN)
+        nb_tries = len(self.statuses[name])
         
         
         # Get a custom message that will be displayed in the event
@@ -79,8 +87,8 @@ class HTTPCheck(ServicesCheck):
         if status == Status.DOWN:
             title = "[Alert] %s is down" % name
             alert_type = "error"
-            msg = "%s %s %s reported that %s (%s) failed with %s" % (notify_message,
-                custom_message, self.hostname, name, url, msg)
+            msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s). Last error: %s" % (notify_message,
+                custom_message, self.hostname, name, url, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
         else: # Status is UP
