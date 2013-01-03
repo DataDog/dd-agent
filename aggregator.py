@@ -304,7 +304,7 @@ class MetricsAggregator(object):
                                 device_name=None, timestamp=None, sample_rate=1):
 
         if value == value and value != float('inf') and value != float('-inf'):
-            # If the values is not NaN, +infinity or -infinity
+            # If the value is not NaN, +infinity or -infinity
             context = (name, tuple(tags or []), hostname, device_name)
             if context not in self.metrics:
                 metric_class = self.metric_type_to_class[mtype]
@@ -316,7 +316,7 @@ class MetricsAggregator(object):
             logger.warning("Trying to send a NaN value for metric %s" % name)
         elif value == float('inf'):
             logger.warning("Trying to send an Infinity value for metric %s" % name)
-        elif value == float('inf'):
+        elif value == float('-inf'):
             logger.warning("Trying to send an -Infinity value for metric %s" % name)
 
 
