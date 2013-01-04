@@ -39,7 +39,7 @@ class Cacti(AgentCheck):
         # Load the instance configuration
         host = instance.get('mysql_host')
         user = instance.get('mysql_user')
-        password = instance.get('mysql_password', '')
+        password = instance.get('mysql_password', '') or ''
         db = instance.get('mysql_db', 'cacti')
         rrd_path = instance.get('rrd_path')
         whitelist = instance.get('rrd_whitelist')
