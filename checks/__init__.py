@@ -240,10 +240,6 @@ class Check(object):
                     tags, device_name = key
                     try:
                         ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name, expire)
-                        
-                        if val != val or val == float('inf') or val == float('-inf'):
-                            # If the values is NaN, +infinity or -infinity
-                            raise UnknownValue()
                     except UnknownValue:
                         continue
                     attributes = {}
