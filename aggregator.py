@@ -283,7 +283,13 @@ class MetricsAggregator(object):
                 try:
                     value = float(metadata[0])
                 except ValueError:
-                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
+
+                    # If the data type is Set, we will allow strings
+                    if metadata[1] == 's':
+                        value = metadata[0]
+                    else:
+                        # Otherwise, raise an error saying it must be a number
+                        raise Exception('Metric value must be a number unless it is a set: %s, %s' % (name, metadata[0]))
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
