@@ -243,9 +243,7 @@ class CollectorStatus(AgentStatus):
         self.emitter_statuses = emitter_statuses or []
         if metadata is not None:
             self.metadata = ','.join(k + ':' + v for (k,v) in metadata.items())
-            #print "Metadata saved is: " + self.metadata
         else:
-            #print "Empty metadata"
             self.metadata = []
 
     def body_lines(self):
