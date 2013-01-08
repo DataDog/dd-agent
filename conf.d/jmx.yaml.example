@@ -7,7 +7,7 @@ instances:
 #        user: username
 #        password: password
 #        conf:
-#            - white: 
+#            -include: 
 #                domain: my_domain
 #               bean: my_bean
 #                attribute:
@@ -17,7 +17,7 @@ instances:
 #                    attribute2:
 #                        metric_type: gauge
 #                        alias: jmx.my2ndattribute
-#            - white:
+#            - include:
 #                domain: 2nd_domain
-#              black:
-#                bean: black_listed_bean
+#              exclude:
+#                bean: excluded_bean
