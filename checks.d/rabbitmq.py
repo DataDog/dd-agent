@@ -1,8 +1,8 @@
-import json
 import urllib2
 import urlparse
 
 from checks import AgentCheck
+from util import json
 
 
 class RabbitMQ(AgentCheck):
