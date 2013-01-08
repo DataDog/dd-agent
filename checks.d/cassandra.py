@@ -21,11 +21,20 @@ class Cassandra(JmxCheck):
 
 
     def check(self, instance):
-        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        try:
+            (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        except Exception, e:
+            self.log.critical(str(e))
+            return False
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name
-        dump = jmx.dump()
+        
+        dump = jmx.dump_domains(["org.apache.cassandra.db", 
+            "org.apache.cassandra.internal",
+            "org.apache.cassandra.net",
+            "org.apache.cassandra.request",
+            "java.lang"])
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
 

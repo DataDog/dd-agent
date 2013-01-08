@@ -23,13 +23,17 @@ class Solr(JmxCheck):
     SOLR_DOMAINS = ['solr']
 
     def check(self, instance):
-        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        try:
+            (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        except Exception, e:
+            self.log.critical(str(e))
+            return False
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name
-        dump = jmx.dump()
 
         domains = Solr.SOLR_DOMAINS + self.init_config.get('domains', [])
+        dump = jmx.dump(values_only=False)
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
         self.create_metrics(instance, self.get_beans(dump, domains, approx=True), SolrMetric, tags=tags)

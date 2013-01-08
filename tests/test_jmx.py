@@ -45,12 +45,14 @@ class JMXTestCase(unittest.TestCase):
         try:
             self.process = None
             self.process = subprocess.Popen(["sh", path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print "TOMCAT STARTED"
+            print "Executing {0}".format(path)
         except Exception:
             logging.getLogger().exception("Cannot instantiate Tomcat")
 
+    
+
     def testCustomJMXMetric(self):
-        raise SkipTest()
+        #raise SkipTest()
         agentConfig = {
             'version': '0.1',
             'api_key': 'toto'
@@ -99,7 +101,6 @@ class JMXTestCase(unittest.TestCase):
         timers_first_check = []
 
         for instance in config['instances']:
-            #print "processing instance %s" % instance
             start = time.time()
             metrics_check.check(instance)
             timers_first_check.append(time.time() - start)
@@ -111,14 +112,13 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
         self.assertEquals(len([t for t in metrics if t[0] == "my.metric.buf"]), 1, metrics)
-        self.assertEquals(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool']), 10, metrics)
+        self.assertTrue(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool' and "jmx.catalina" in t[0]]) > 10, metrics)
         self.assertTrue(len([t for t in metrics if "jmx.java.lang" in t[0]]) > 50, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, metrics)
 
 
         timers_second_check = []
         for instance in config['instances']:
-            #print "processing instance %s" % instance
             try:
                 start = time.time()
                 metrics_check.check(instance)
@@ -133,16 +133,17 @@ class JMXTestCase(unittest.TestCase):
         self.assertEquals(len([t for t in timers_second_check if t > 2]), 0, timers_second_check)
 
         metrics_check.kill_jmx_connectors()
+        time.sleep(2)
 
         
 
 
     def testJavaMetric(self):
-        raise SkipTest()
+        #raise SkipTest()
         agentConfig = {
             'java_jmx_instance_1': 'localhost:8090',
             'java_jmx_instance_2': 'dummyhost:9999:dummy',
-            'java_jmx_instance_3': 'localhost:2222:second_instance',
+            'java_jmx_instance_2': 'localhost:2222:second_instance',
             'version': '0.1',
             'api_key': 'toto'
         }
@@ -163,7 +164,6 @@ class JMXTestCase(unittest.TestCase):
         timers_first_check = []
 
         for instance in config['instances']:
-            #print "processing instance %s" % instance
             try:
                 start = time.time()
                 metrics_check.check(instance)
@@ -198,11 +198,11 @@ class JMXTestCase(unittest.TestCase):
             kill_subprocess(first_instance)
 
     def testTomcatMetrics(self):
-        raise SkipTest()
+        #raise SkipTest()
         agentConfig = {
             'tomcat_jmx_instance_1': 'localhost:8090:first_instance',
             'tomcat_jmx_instance_2': 'dummyurl:4444:fake_url',
-            'tomcat_jmx_instance_3': 'monitorRole:tomcat@localhost:8091:second_instance_with_auth',
+            'tomcat_jmx_instance_2': 'monitorRole:tomcat@localhost:8091:second_instance_with_auth',
             'version': '0.1',
             'api_key': 'toto'
         }
@@ -225,7 +225,7 @@ class JMXTestCase(unittest.TestCase):
                 metrics_check.check(instance)
                 timers_first_check.append(time.time() - start)
             except Exception,e:
-                print e
+                #print e
                 continue
 
         metrics = metrics_check.get_metrics()
@@ -237,7 +237,6 @@ class JMXTestCase(unittest.TestCase):
 
         timers_second_check = []
         for instance in config['instances']:
-            #print "processing instance %s" % instance
             try:
                 start = time.time()
                 metrics_check.check(instance)
@@ -257,11 +256,11 @@ class JMXTestCase(unittest.TestCase):
 
     
     def testSolrMetrics(self):
-        raise SkipTest()
+        #raise SkipTest()
         agentConfig = {
             'solr_jmx_instance_1': 'localhost:3000:first_instance',
             'solr_jmx_instance_2': 'dummyurl:4444:fake_url',
-            'solr_jmx_instance_3': 'monitorRole:solr@localhost:3001:second_instance_with_auth',
+            'solr_jmx_instance_2': 'monitorRole:solr@localhost:3001:second_instance_with_auth',
             'version': '0.1',
             'api_key': 'toto'
         }
@@ -300,13 +299,13 @@ class JMXTestCase(unittest.TestCase):
         
 
         self.assertTrue(type(metrics) == type([]))
-        self.assertTrue(len(metrics) > 0)
+        self.assertTrue(len(metrics) > 8, metrics)
         self.assertEquals(len([t for t in metrics if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 2, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, [t for t in metrics if "jvm." in t[0]])
+        self.assertTrue(len([t for t in metrics if "solr." in t[0]]) > 8, [t for t in metrics if "solr." in t[0]])
 
         timers_second_check = []
         for instance in config['instances']:
-            #print "processing instance %s" % instance
             try:
                 start = time.time()
                 metrics_check.check(instance)
