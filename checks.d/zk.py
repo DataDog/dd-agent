@@ -72,9 +72,8 @@ class Zookeeper(AgentCheck):
             metrics, new_tags = self.parse_stat(buf)
 
             # Write the data
-            tags.extend(new_tags)
             for metric, value in metrics:
-                self.gauge(metric, value, tags=tags)
+                self.gauge(metric, value, tags=tags + new_tags)
         else:
             # Reading from the client port timed out, track it as a metric
             self.increment('zookeeper.timeouts', tags=tags)
