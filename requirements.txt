@@ -6,4 +6,3 @@ pexpect
 python-memcached
 pyyaml
 simplejson
-selenium
