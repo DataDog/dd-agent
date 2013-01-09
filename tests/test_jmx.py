@@ -112,7 +112,7 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
         self.assertEquals(len([t for t in metrics if t[0] == "my.metric.buf"]), 1, metrics)
-        self.assertTrue(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool' and "jmx.catalina" in t[0]]) > 10, metrics)
+        self.assertTrue(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool' and "jmx.catalina" in t[0]]) > 8, metrics)
         self.assertTrue(len([t for t in metrics if "jmx.java.lang" in t[0]]) > 50, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, metrics)
 
@@ -258,7 +258,7 @@ class JMXTestCase(unittest.TestCase):
     def testSolrMetrics(self):
         #raise SkipTest()
         agentConfig = {
-            'solr_jmx_instance_1': 'localhost:3000:first_instance',
+            'solr_jmx_instance_1': 'localhost:3000',
             'solr_jmx_instance_2': 'dummyurl:4444:fake_url',
             'solr_jmx_instance_2': 'monitorRole:solr@localhost:3001:second_instance_with_auth',
             'version': '0.1',

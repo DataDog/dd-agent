@@ -100,8 +100,8 @@ class JmxConnector:
                 self._wait_prompt()
         except BaseException, e:
             self.terminate()
-            self.log.exception('Error while fetching JVM metrics %s' % str(e))
-            raise Exception('Error while fetching JVM metrics at address: %s:%s %s' % (connection, passwd, str(e)))
+            self.log.exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
+            raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
     def dump_domains(self, domains):
         d = {}
@@ -154,14 +154,14 @@ class JmxConnector:
             self._wait_prompt()
             content = self._jmx.before.replace(cmd,'').strip()
         except BaseException, e:
-            self.log.critical("POPEN error while dumping data %s" % str(e))
+            self.log.critical("POPEN error while dumping data. \n JMX Connector will be relaunched  \n %s" % str(e))
             self.terminate()
             raise
 
         try:
             jsonvar = json.loads(content)
         except Exception, e:
-            self.log.error("Couldn't decode JSON %s. %s \n Reinitializing JMX Connector" % (str(e), content))
+            self.log.error("Couldn't decode JSON %s. %s \n JMX Connector will be relaunched" % (str(e), content))
             self.terminate()
             raise
 
@@ -332,6 +332,7 @@ class JmxCheck(AgentCheck):
         # Used to store the number of times we opened a new jmx connector for this instance
         self.jmx_connections_watcher = {}
 
+
     def kill_jmx_connectors(self):
         for key in self.jmxs.keys():
             self.jmxs[key].terminate()
@@ -358,18 +359,16 @@ class JmxCheck(AgentCheck):
                 self.jmx_connections_watcher[key] = 1
 
             if self.jmx_connections_watcher[key] > 3:
-                raise Exception("JMX Connection failed 3 times.  Skipping instance name: %s" % instance_name)
+                raise Exception("JMX Connection failed too many times in a row.  Skipping instance name: %s" % instance_name)
 
             jmx = JmxConnector(self.log)
             jmx.connect("%s:%s" % (host, port), user, password)
             self.jmxs[key] = jmx
             
-            # When the connection succeeds we decrease the watcher counter
+            # When the connection succeeds we set the counter to a lower value
+            # Because it means that the configuration is good
             if jmx.connected():
-                if self.jmx_connections_watcher[key] > 0:
-                    self.jmx_connections_watcher[key] += -1
-                else:
-                    self.jmx_connections_watcher[key] = 0
+                self.jmx_connections_watcher[key] = -2
 
             return jmx
 
