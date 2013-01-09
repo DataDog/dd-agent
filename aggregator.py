@@ -236,6 +236,9 @@ class MetricsAggregator(object):
     A metric aggregator class.
     """
 
+    # Types of metrics that allow strings
+    ALLOW_STRINGS = ['s', ]
+
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
         self.metrics = {}
         self.total_count = 0
@@ -285,11 +288,11 @@ class MetricsAggregator(object):
                 except ValueError:
 
                     # If the data type is Set, we will allow strings
-                    if metadata[1] == 's':
+                    if metadata[1] in self.ALLOW_STRINGS:
                         value = metadata[0]
                     else:
                         # Otherwise, raise an error saying it must be a number
-                        raise Exception('Metric value must be a number unless it is a set: %s, %s' % (name, metadata[0]))
+                        raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
