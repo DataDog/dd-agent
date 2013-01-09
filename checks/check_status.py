@@ -295,7 +295,7 @@ class CollectorStatus(AgentStatus):
             "========"
         ]
         if not self.emitter_statuses:
-            lines.append("No emitters have run yet.")
+            lines.append("  No emitters have run yet.")
         else:
             for es in self.emitter_statuses:
                 c = 'green'

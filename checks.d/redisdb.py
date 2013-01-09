@@ -108,8 +108,9 @@ class Redis(AgentCheck):
 
     def _check_db(self, host, port, password, custom_tags=None):
         conn = self._get_conn(host, port, password)
-        tags = custom_tags or []
-        tags += ["redis_host:%s" % host, "redis_port:%s" % port]
+        tags = set(custom_tags or [])
+        tags = sorted(tags.union(["redis_host:%s" % host,
+                                  "redis_port:%s" % port]))
       
         # Ping the database for info, and track the latency.
         start = time.time()

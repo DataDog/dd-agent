@@ -66,6 +66,21 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+def getOS():
+    "Human-friendly OS name"
+    if sys.platform == 'darwin':
+        return 'mac'
+    elif sys.platform.find('freebsd') != -1:
+        return 'freebsd'
+    elif sys.platform.find('linux') != -1:
+        return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
+    elif sys.platform.find('sunos') != -1:
+        return 'solaris'
+    else:
+        return sys.platform
+
 def getTopIndex():
     macV = None
     if sys.platform == 'darwin':

@@ -39,7 +39,7 @@ class Cacti(AgentCheck):
         # Load the instance configuration
         host = instance.get('mysql_host')
         user = instance.get('mysql_user')
-        password = instance.get('mysql_password', '')
+        password = instance.get('mysql_password', '') or ''
         db = instance.get('mysql_db', 'cacti')
         rrd_path = instance.get('rrd_path')
         whitelist = instance.get('rrd_whitelist')
@@ -218,11 +218,16 @@ class Cacti(AgentCheck):
             if not agentConfig.get(param):
                 return False
 
+        # There was a version of this check that used `cacti_mysql_password`
+        # while the sample used `cacti_mysql_pass`. For backwards-compatibility
+        # sake, we'll allow both when parsing old versions.
+        mysql_pass = agentConfig.get('cacti_mysql_password') or agentConfig.get('cacti_mysql_pass')
+
         return {
             'instances': [{
                 'mysql_host': agentConfig.get('cacti_mysql_server'),
                 'mysql_user': agentConfig.get('cacti_mysql_user'),
-                'mysql_password': agentConfig.get('cacti_mysql_password'),
+                'mysql_password': mysql_pass,
                 'rrd_path': agentConfig.get('cacti_rrd_path'),
                 'rrd_whitelist': agentConfig.get('cacti_rrd_whitelist')
             }]

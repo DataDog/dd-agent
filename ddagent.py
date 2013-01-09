@@ -13,6 +13,8 @@
 # set up logging before importing any other components
 from config import initialize_logging; initialize_logging('forwarder')
 
+import os; os.umask(022)
+
 # Standard imports
 import logging
 import os
@@ -287,7 +289,7 @@ class Application(tornado.web.Application):
             if non_local_traffic is True:
                 gs.listen(gport)
             else:
-                gs.listen(port, address = "localhost")
+                gs.listen(gport, address = "localhost")
 
         # Start everything
         if self._watchdog:

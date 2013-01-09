@@ -54,6 +54,7 @@ install_base: source
 	mkdir -p $(BUILD)
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
+	mkdir -p $(BUILD)/etc/dd-agent/conf.d
 	mkdir -p $(BUILD)/usr/bin
 	mkdir -p $(BUILD)/var/log/datadog
 	# Install the common source & config.
@@ -81,7 +82,6 @@ install_base_rpm: install_base
 	cp datadog-agent-base-rpm/datadog-agent-redhat $(BUILD)/etc/init.d/datadog-agent
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
 
-
 install_full_rpm: install_base_rpm install_full
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/usr/share/datadog/agent
@@ -96,7 +96,7 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 -d "pexpect" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
 --pre-uninstall datadog-agent-base-rpm/pre_uninstall \
@@ -107,13 +107,13 @@ datadog_agent_rpm: clean install_full_rpm
 $(FPM_BUILD) -t rpm \
 -n "datadog-agent" \
 -d "python(abi) >= 2.6" \
--d "python-tornado >= 2.3" \
+-d "python-tornado >= 2.2" \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
 -d "pexpect" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib  < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
@@ -204,5 +204,3 @@ tmp:
 	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm
-
-

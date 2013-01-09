@@ -497,9 +497,19 @@ def load_check_directory(agentConfig):
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
-            check_config = check_class.parse_agent_config(agentConfig)
+            try:
+                check_config = check_class.parse_agent_config(agentConfig)
+            except Exception, e:
+                continue
             if not check_config:
                 continue
+            d = [
+                "Configuring %s in datadog.conf is deprecated." % (check_name),
+                "Please use conf.d. In a future release, support for the",
+                "old style of configuration will be dropped.",
+            ]
+            log.warn(" ".join(d))
+
         else:
             log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue

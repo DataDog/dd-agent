@@ -1,14 +1,7 @@
 """Base class for Checks.
 
-If you are writing your own checks you should subclass the Check class.
-
-The typicall workflow works like this:
-1. Create your Check class
-2. Declare your metrics as gauges or counters
-3. Call save_sample for each metric
-4. Call get_metrics() to get results
-5. Plug the results into checks/common.py
-
+If you are writing your own checks you should subclass the AgentCheck class.
+The Check class is being deprecated so don't write new checks with it.
 """
 
 import logging
@@ -29,6 +22,15 @@ class Infinity(CheckException): pass
 class NaN(CheckException): pass
 class UnknownValue(CheckException): pass
 
+
+
+#==============================================================================
+# DEPRECATED
+# ------------------------------
+# If you are writing your own check, you should inherit from AgentCheck
+# and not this class. This class will be removed in a future version 
+# of the agent.
+#==============================================================================
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
@@ -37,6 +39,8 @@ class Check(object):
     * only log error messages once (instead of each time they occur)
 
     """
+
+
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
         # metric_name: {("sorted", "tags"): [(ts, value), (ts, value)],

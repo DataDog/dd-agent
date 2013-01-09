@@ -36,38 +36,47 @@ class Zookeeper(AgentCheck):
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
+        timeout = float(instance.get('timeout', 3.0))
         tags = instance.get('tags', [])
 
         sock = socket.socket()
+        sock.settimeout(timeout)
         buf = StringIO()
         chunk_size = 1024
+        # try-finally and try-except to stay compatible with python 2.4
         try:
-            # Connect to the zk client port and send the stat command
-            sock.connect((host, port))
-            sock.sendall('stat')
+            try:
+                # Connect to the zk client port and send the stat command
+                sock.connect((host, port))
+                sock.sendall('stat')
 
-            # Read the response into a StringIO buffer
-            chunk = sock.recv(chunk_size)
-            buf.write(chunk)
-            num_reads = 1
-            max_reads = 10000
-            while chunk:
-                if num_reads > max_reads:
-                    # Safeguard against an infinite loop
-                    raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                # Read the response into a StringIO buffer
                 chunk = sock.recv(chunk_size)
                 buf.write(chunk)
-                num_reads += 1
+                num_reads = 1
+                max_reads = 10000
+                while chunk:
+                    if num_reads > max_reads:
+                        # Safeguard against an infinite loop
+                        raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                    chunk = sock.recv(chunk_size)
+                    buf.write(chunk)
+                    num_reads += 1
+            except socket.timeout:
+                buf = None
         finally:
             sock.close()
 
-        # Parse the response
-        metrics, new_tags = self.parse_stat(buf)
+        if buf is not None:
+            # Parse the response
+            metrics, new_tags = self.parse_stat(buf)
 
-        # Write the data
-        tags.extend(new_tags)
-        for metric, value in metrics:
-            self.gauge(metric, value, tags=tags)
+            # Write the data
+            for metric, value in metrics:
+                self.gauge(metric, value, tags=tags + new_tags)
+        else:
+            # Reading from the client port timed out, track it as a metric
+            self.increment('zookeeper.timeouts', tags=tags)
 
     @classmethod
     def parse_stat(cls, buf):

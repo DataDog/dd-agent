@@ -13,6 +13,8 @@ Pup.py
 # set up logging before importing any other components
 from config import initialize_logging; initialize_logging('pup')
 
+import os; os.umask(022)
+
 # stdlib
 from collections import defaultdict
 import sys

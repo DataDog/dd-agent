@@ -5,7 +5,8 @@ from checks.libs.thread_pool import Pool
 
 
 
-TIMEOUT = 120
+
+TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
 
@@ -44,6 +45,7 @@ class ServicesCheck(AgentCheck):
 
         # A dictionary to keep track of service statuses
         self.statuses = {}
+        self.notified = {}
         self.start_pool()
 
     def start_pool(self):
@@ -105,27 +107,39 @@ class ServicesCheck(AgentCheck):
 
             event = None
 
-            if self.statuses.get(name, None) is None and status == Status.DOWN:
-                # First time the check is run since agent startup and the service is down
-                # We trigger an event
-                self.statuses[name] = status
-                event = self._create_status_event(status, msg, queue_instance)
+            if not name in self.statuses:
+                self.statuses[name] = []
 
-            elif self.statuses.get(name, Status.UP) != status:
-                # There is a change in the state versus previous state
-                # We trigger an event
-                self.statuses[name] = status
-                event = self._create_status_event(status, msg, queue_instance)
+            self.statuses[name].append(status)
 
+            window = int(queue_instance.get('window', 1))
+
+            if window > 256:
+                self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
+                window = 256
+
+
+
+            threshold = queue_instance.get('threshold', 1)
+
+            if len(self.statuses[name]) > window:
+                self.statuses[name].pop(0)
+
+            nb_failures = self.statuses[name].count(Status.DOWN)
+
+            if nb_failures >= threshold:
+                if self.notified.get(name, Status.UP) != Status.DOWN:
+                    event = self._create_status_event(status, msg, queue_instance)
+                    self.notified[name] = Status.DOWN
             else:
-                # Either it's the first time the check is run and the service is up
-                # or there is no change in the status
-                self.statuses[name] = status
+                if self.notified.get(name, Status.UP) != Status.UP:
+                    event = self._create_status_event(status, msg, queue_instance)
+                    self.notified[name] = Status.UP
 
             if event is not None:
                 self.events.append(event)
 
-            # The job is finish here, this instance can be re processed
+            # The job is finished here, this instance can be re processed
             del self.jobs_status[name]
 
     def _check(self, instance):

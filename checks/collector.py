@@ -26,7 +26,6 @@ from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.jmx import Jvm, Tomcat, ActiveMQ, Solr
 from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
@@ -92,10 +91,6 @@ class Collector(object):
         # Metric Checks
         self._metrics_checks = [
             ElasticSearch(log),
-            Jvm(log),
-            Tomcat(log),
-            ActiveMQ(log),
-            Solr(log),
             WMICheck(log),
             Memcache(log),
         ]
@@ -139,7 +134,7 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        log.info("Starting collection run #%s" % self.run_count)
+        logger.debug("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
         metrics = payload['metrics']
@@ -167,18 +162,20 @@ class Collector(object):
             payload.update(load)
                 
             memory = sys_checks['memory'].check(self.agentConfig)
-            payload.update({
-                'memPhysUsed' : memory.get('physUsed'), 
-                'memPhysFree' : memory.get('physFree'), 
-                'memPhysTotal' : memory.get('physTotal'), 
-                'memPhysUsable' : memory.get('physUsable'), 
-                'memSwapUsed' : memory.get('swapUsed'), 
-                'memSwapFree' : memory.get('swapFree'), 
-                'memSwapTotal' : memory.get('swapTotal'), 
-                'memCached' : memory.get('physCached'), 
-                'memBuffers': memory.get('physBuffers'),
-                'memShared': memory.get('physShared')
-            })
+
+            if memory:
+                payload.update({
+                    'memPhysUsed' : memory.get('physUsed'), 
+                    'memPhysFree' : memory.get('physFree'), 
+                    'memPhysTotal' : memory.get('physTotal'), 
+                    'memPhysUsable' : memory.get('physUsable'), 
+                    'memSwapUsed' : memory.get('swapUsed'), 
+                    'memSwapFree' : memory.get('swapFree'), 
+                    'memSwapTotal' : memory.get('swapTotal'), 
+                    'memCached' : memory.get('physCached'), 
+                    'memBuffers': memory.get('physBuffers'),
+                    'memShared': memory.get('physShared')
+                })
 
             ioStats = sys_checks['io'].check(log, self.agentConfig)
             if ioStats:
