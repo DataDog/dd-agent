@@ -46,7 +46,7 @@ class Tomcat(JmxCheck):
             (host, port, user, password, jmx, instance_name) = self._load_config(instance)
         except Exception, e:
             self.log.critical(str(e))
-            return False
+            raise
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name
