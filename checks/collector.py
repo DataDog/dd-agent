@@ -56,6 +56,7 @@ class Collector(object):
         socket.setdefaulttimeout(15)
         self.run_count = 0
         self.continue_running = True
+        self.metadata_cache = None
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -321,7 +322,7 @@ class Collector(object):
 
         # Persist the status of the collection run.
         try:
-            CollectorStatus(check_statuses, emitter_statuses).persist()
+            CollectorStatus(check_statuses, emitter_statuses, self.metadata_cache).persist()
         except Exception:
             logger.exception("Error persisting collector status")
 
@@ -380,6 +381,7 @@ class Collector(object):
         # Periodically send the host metadata.
         if self._is_first_run() or self._should_send_metadata():
             payload['meta'] = self._get_metadata()
+            self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 payload['tags'] = self.agentConfig['tags']
