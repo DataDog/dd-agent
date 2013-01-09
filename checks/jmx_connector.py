@@ -103,10 +103,10 @@ class JmxConnector:
             self.log.exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
             raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
-    def dump_domains(self, domains):
+    def dump_domains(self, domains, values_only=True):
         d = {}
         for domain in domains:
-            d.update(self.dump(domain))
+            d.update(self.dump(domain, values_only))
         return d
 
     def dump(self, domain=None, values_only=True):
