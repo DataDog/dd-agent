@@ -237,14 +237,33 @@ class CollectorStatus(AgentStatus):
 
     NAME = 'Collector'
 
-    def __init__(self, check_statuses=None, emitter_statuses=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
+        if metadata is not None:
+            self.metadata = ','.join(k + ':' + v for (k,v) in metadata.items())
+        else:
+            self.metadata = []
 
     def body_lines(self):
-        # Checks.d Status
+        # Hostnames
         lines = [
+            'Hostnames',
+            '=========',
+            ''
+        ]
+        if not self.metadata:
+            lines.append("  No host information available yet.")
+        else:
+            host_info = dict(item.split(":") for item in self.metadata.split(","))
+            for key, host in host_info.items():
+                lines.append("  " + key + ": " + host)
+
+        lines.append('')
+
+        # Checks.d Status
+        lines += [
             'Checks',
             '======',
             ''
@@ -276,7 +295,8 @@ class CollectorStatus(AgentStatus):
         lines += [
             "",
             "Emitters",
-            "========"
+            "========",
+            ""
         ]
         if not self.emitter_statuses:
             lines.append("  No emitters have run yet.")
