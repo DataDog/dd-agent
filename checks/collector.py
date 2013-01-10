@@ -369,7 +369,7 @@ class Collector(object):
 
         # Include system stats on first postback
         if self._is_first_run():
-            payload['systemStats'] = self.agentConfig.get('systemStats', {})
+            payload['systemStats'] = self.agentConfig.get('system_stats', {})
             # Also post an event in the newsfeed
             payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                  'host': payload['internalHostname'],
