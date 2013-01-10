@@ -77,7 +77,7 @@ class JmxConnector:
 
         self._jmx = None
 
-    def connect(self, connection, user=None, passwd=None, timeout=20):
+    def connect(self, connection, user=None, passwd=None, timeout=20, priority=15):
         import pexpect
         from pexpect import ExceptionPexpect
 
@@ -91,7 +91,7 @@ class JmxConnector:
             if self._jmx is None or not self._jmx.isalive():
                 # Figure out which path to the jar, __file__ is jmx.pyc
                 pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
-                cmd = "nice -n 15 java -jar %s -l %s" % (pth, connection)
+                cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
                 if user is not None and passwd is not None:
                     cmd += " -u %s -p %s" % (user, passwd)
                 self.log.info("Opening JMX connector with PATH=%s" % cmd)
@@ -362,7 +362,11 @@ class JmxCheck(AgentCheck):
                 raise Exception("JMX Connection failed too many times in a row.  Skipping instance name: %s" % instance_name)
 
             jmx = JmxConnector(self.log)
-            jmx.connect("%s:%s" % (host, port), user, password)
+
+            priority = int(instance.get('priority', 15))
+            if priority < 0:
+                priority = 0
+            jmx.connect("%s:%s" % (host, port), user, password, priority=priority)
             self.jmxs[key] = jmx
             
             # When the connection succeeds we set the counter to a lower value
