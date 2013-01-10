@@ -405,6 +405,8 @@ class Memory(Check):
                 memData['physUsed'] = memData['physTotal'] - memData['physFree']
                 # Usable is relative since cached and buffers are actually used to speed things up.
                 memData['physUsable'] = memData['physFree'] + memData['physBuffers'] + memData['physCached']
+                # Make PctUsable an integer value for precision
+                memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
             
@@ -415,6 +417,8 @@ class Memory(Check):
                 memData['swapFree']  = int(meminfo.get('SwapFree', 0)) / 1024
 
                 memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
+                # Make PctFree an integer value for precision
+                memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
             except:
                 self.logger.exception('Cannot compute swap stats')
             
@@ -487,6 +491,8 @@ class Memory(Check):
                                           int(meminfo.get('v_cache_count', 0)) +
                                           int(meminfo.get('v_inactive_count', 0))) *
                                          pageSize) / 1048576
+                # Make PctUsable an integer value for precision
+                memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
             
@@ -528,6 +534,8 @@ class Memory(Check):
                 memData["swapTotal"] = convert(entries["swapcap"])
                 memData["swapUsed"]  = convert(entries["swap"])
                 memData["swapFree"]  = memData["swapTotal"] - memData["swapUsed"]
+                # Make PctFree an integer value for precision
+                memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
                 return memData
             except:
                 self.logger.exception("Cannot compute mem stats from kstat -c zone_memory_cap")
