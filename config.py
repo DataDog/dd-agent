@@ -33,6 +33,8 @@ def get_parsed_args():
                         default=False,dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
+    parser.add_option('-v', '--verbose', action='store_true', default=False,
+                        dest='verbose', help='Print out available tracebacks for errors in checks')
     try:
         options, args = parser.parse_args()
     except SystemExit:
@@ -143,8 +145,6 @@ def get_config_path(cfg_path=None, os_name=None):
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, args = get_parsed_args()
-    elif not options:
-        args = None
 
     # General config
     agentConfig = {

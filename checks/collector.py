@@ -56,6 +56,7 @@ class Collector(object):
         socket.setdefaulttimeout(15)
         self.run_count = 0
         self.continue_running = True
+        self.metadata_cache = None
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -168,11 +169,13 @@ class Collector(object):
             if memory:
                 payload.update({
                     'memPhysUsed' : memory.get('physUsed'), 
+                    'memPhysPctUsable' : memory.get('physPctUsable'), 
                     'memPhysFree' : memory.get('physFree'), 
                     'memPhysTotal' : memory.get('physTotal'), 
                     'memPhysUsable' : memory.get('physUsable'), 
                     'memSwapUsed' : memory.get('swapUsed'), 
                     'memSwapFree' : memory.get('swapFree'), 
+                    'memSwapPctFree' : memory.get('swapPctFree'), 
                     'memSwapTotal' : memory.get('swapTotal'), 
                     'memCached' : memory.get('physCached'), 
                     'memBuffers': memory.get('physBuffers'),
@@ -321,7 +324,7 @@ class Collector(object):
 
         # Persist the status of the collection run.
         try:
-            CollectorStatus(check_statuses, emitter_statuses).persist()
+            CollectorStatus(check_statuses, emitter_statuses, self.metadata_cache).persist()
         except Exception:
             log.exception("Error persisting collector status")
 
@@ -369,7 +372,7 @@ class Collector(object):
 
         # Include system stats on first postback
         if self._is_first_run():
-            payload['systemStats'] = self.agentConfig.get('systemStats', {})
+            payload['systemStats'] = self.agentConfig.get('system_stats', {})
             # Also post an event in the newsfeed
             payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                  'host': payload['internalHostname'],
@@ -381,6 +384,7 @@ class Collector(object):
         # Periodically send the host metadata.
         if self._is_first_run() or self._should_send_metadata():
             payload['meta'] = self._get_metadata()
+            self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 payload['tags'] = self.agentConfig['tags']
