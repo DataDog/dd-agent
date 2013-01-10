@@ -73,7 +73,7 @@ class Agent(Daemon):
         CollectorStatus().persist()
 
         # Intialize the collector.
-        agentConfig = self._set_agent_config_hostname(get_config())
+        agentConfig = self._set_agent_config_hostname(get_config(parse_args=true))
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
         self.collector = Collector(agentConfig, emitters, systemStats)
@@ -168,7 +168,7 @@ def setup_logging(agentConfig):
 
 def main():
     options, args = get_parsed_args()
-    agentConfig = get_config()
+    agentConfig = get_config(options=options, args=args)
 
     # Logging
     setup_logging(agentConfig)
@@ -188,7 +188,6 @@ def main():
         return 2
 
     command = args[0]
-
     if command not in COMMANDS:
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
@@ -229,7 +228,7 @@ def main():
                 sys.stdout.write('dd-agent is not running.\n')
 
         elif 'info' == command:
-            return CollectorStatus.print_latest_status()
+            return CollectorStatus.print_latest_status(verbose=options.verbose)
 
     return 0
 

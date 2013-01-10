@@ -10,6 +10,7 @@ import socket
 import time
 import types
 import os
+import sys
 
 from util import LaconicFilter
 from checks import check_status
@@ -417,7 +418,8 @@ class AgentCheck(object):
                 instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
+                # Send the traceback (located at sys.exc_info()[2]) into the InstanceStatus otherwise a traceback won't be able to be printed
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e, sys.exc_info()[2])
             instance_statuses.append(instance_status)
         return instance_statuses
 
