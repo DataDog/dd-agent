@@ -11,6 +11,7 @@ import pickle
 import platform
 import sys
 import tempfile
+import traceback
 
 # project
 import config
@@ -162,7 +163,8 @@ class AgentStatus(object):
             return None
 
     @classmethod
-    def print_latest_status(cls):
+    def print_latest_status(cls, verbose=False):
+        cls.verbose = verbose
         Stylizer.ENABLED = False
         try:
             if sys.stdout.isatty():
@@ -190,10 +192,15 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None):
+    def __init__(self, instance_id, status, error=None, tb=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
+
+        if (type(tb).__name__ == 'traceback'):
+            self.traceback = traceback.format_tb(tb)
+        else:
+            self.traceback = None
 
     def has_error(self):
         return self.status != STATUS_OK
@@ -289,6 +296,19 @@ class CollectorStatus(AgentStatus):
                     "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
                     ""
                 ]
+
+                if self.verbose and s.traceback is not None:
+                    # Formatting the traceback to look like a python traceback
+                    check_lines.append("    Traceback (most recent call last):")
+
+                    # Format the traceback lines to look good in the output
+                    for tb_line in s.traceback:
+                        lines = tb_line.split('\n')
+                        for line in lines:
+                            if line.strip() == '':
+                                continue
+                            check_lines.append('    ' + line)
+
                 lines += check_lines
 
         # Emitter status
