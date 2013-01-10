@@ -38,6 +38,9 @@ all_cap_re = re.compile('([a-z0-9])([A-Z])')
 metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
 metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
+DEFAULT_PRIORITY = 0
+MAX_JMX_RETRIES = 3
+
 def convert(name):
     """Convert from CamelCase to camel_case
     And substitute illegal metric characters
@@ -77,7 +80,7 @@ class JmxConnector:
 
         self._jmx = None
 
-    def connect(self, connection, user=None, passwd=None, timeout=20, priority=15):
+    def connect(self, connection, user=None, passwd=None, timeout=20, priority=DEFAULT_PRIORITY):
         import pexpect
         from pexpect import ExceptionPexpect
 
@@ -91,7 +94,10 @@ class JmxConnector:
             if self._jmx is None or not self._jmx.isalive():
                 # Figure out which path to the jar, __file__ is jmx.pyc
                 pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
-                cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
+                if priority==0:
+                    cmd = "java -jar %s -l %s" % (pth, connection)
+                else:
+                    cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
                 if user is not None and passwd is not None:
                     cmd += " -u %s -p %s" % (user, passwd)
                 self.log.info("Opening JMX connector with PATH=%s" % cmd)
@@ -358,12 +364,12 @@ class JmxCheck(AgentCheck):
             else:
                 self.jmx_connections_watcher[key] = 1
 
-            if self.jmx_connections_watcher[key] > 3:
+            if self.jmx_connections_watcher[key] > MAX_JMX_RETRIES:
                 raise Exception("JMX Connection failed too many times in a row.  Skipping instance name: %s" % instance_name)
 
             jmx = JmxConnector(self.log)
 
-            priority = int(instance.get('priority', 15))
+            priority = int(instance.get('priority', DEFAULT_PRIORITY))
             if priority < 0:
                 priority = 0
             jmx.connect("%s:%s" % (host, port), user, password, priority=priority)
@@ -372,7 +378,7 @@ class JmxCheck(AgentCheck):
             # When the connection succeeds we set the counter to a lower value
             # Because it means that the configuration is good
             if jmx.connected():
-                self.jmx_connections_watcher[key] = -2
+                self.jmx_connections_watcher[key] = 0
 
             return jmx
 
