@@ -30,6 +30,8 @@ def get_parsed_args():
                         default=False,dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
+    parser.add_option('-v', '--verbose', action='store_true', default=False,
+                        dest='verbose', help='Print out available tracebacks for errors in checks')
     try:
         options, args = parser.parse_args()
     except SystemExit:
@@ -141,11 +143,9 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % str(exc))
     sys.exit(3)
 
-def get_config(parse_args = True, cfg_path=None, init_logging=False, options=None):
+def get_config(parse_args=False, cfg_path=None, init_logging=False, options=None):
     if parse_args:
         options, args = get_parsed_args()
-    elif not options:
-        args = None
 
     # General config
     agentConfig = {
