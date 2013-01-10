@@ -369,6 +369,7 @@ class Collector(object):
 
         # Include system stats on first postback
         if self._is_first_run():
+            payload['systemStats'] = self.agentConfig.get('systemStats', {})
             # Also post an event in the newsfeed
             payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                  'host': payload['internalHostname'],
@@ -379,7 +380,6 @@ class Collector(object):
 
         # Periodically send the host metadata.
         if self._is_first_run() or self._should_send_metadata():
-            payload['systemStats'] = self.agentConfig.get('systemStats', {})
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
