@@ -144,9 +144,6 @@ def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
 
-    # Logging
-    setup_logging(agentConfig)
-
     COMMANDS = [
         'start',
         'stop',
