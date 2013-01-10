@@ -402,6 +402,8 @@ class JmxCheck(AgentCheck):
                     
             elif type(val) == type({}):
                 for subattr in val.keys():
+                    if subattr == 'null':
+                        continue
                     subval = val[subattr]
                     create_metric(subval, subattr)
 

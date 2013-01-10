@@ -7,7 +7,7 @@ instances:
 
 
 init_config:
-# edit only if you know what you are doing
+    # this section must be present but contents will be ignored.
     conf:
       - include:
           domain: org.apache.cassandra.db
@@ -21,6 +21,7 @@ init_config:
             - RowCacheSavePeriodInSeconds
             - PendingTasks
             - Scores
+            - RpcTimeout
       - include:
           domain: org.apache.cassandra.internal
         exclude:
