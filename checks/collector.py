@@ -167,11 +167,13 @@ class Collector(object):
             if memory:
                 payload.update({
                     'memPhysUsed' : memory.get('physUsed'), 
+                    'memPhysPctUsable' : memory.get('physPctUsable'), 
                     'memPhysFree' : memory.get('physFree'), 
                     'memPhysTotal' : memory.get('physTotal'), 
                     'memPhysUsable' : memory.get('physUsable'), 
                     'memSwapUsed' : memory.get('swapUsed'), 
                     'memSwapFree' : memory.get('swapFree'), 
+                    'memSwapPctFree' : memory.get('swapPctFree'), 
                     'memSwapTotal' : memory.get('swapTotal'), 
                     'memCached' : memory.get('physCached'), 
                     'memBuffers': memory.get('physBuffers'),
