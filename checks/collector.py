@@ -34,7 +34,6 @@ from resources.processes import Processes as ResProcesses
 
 
 log = logging.getLogger(__name__)
-LOGGING_INTERVAL = 20
 
 
 class Collector(object):
@@ -136,8 +135,7 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        if self.run_count == 1 or self.run_count % LOGGING_INTERVAL == 0:
-            log.debug("Starting collection run #%s" % self.run_count)
+        log.debug("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
         metrics = payload['metrics']
@@ -328,9 +326,8 @@ class Collector(object):
         except Exception:
             log.exception("Error persisting collector status")
 
-        if self.run_count == 1 or self.run_count % LOGGING_INTERVAL == 0:
-            log.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
-                        (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
+        log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+                    (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """
