@@ -63,7 +63,7 @@ class Agent(Daemon):
         if self.collector:
             self.collector.stop()
 
-    def run(self):
+    def run(self, config=None):
         """Main loop of the collector"""
 
         # Gracefully exit on sigterm.
@@ -73,7 +73,10 @@ class Agent(Daemon):
         CollectorStatus().persist()
 
         # Intialize the collector.
-        agentConfig = self._set_agent_config_hostname(get_config(parse_args=true))
+        if not config:
+            config = get_config(parse_args=True)
+
+        agentConfig = self._set_agent_config_hostname(config)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
         self.collector = Collector(agentConfig, emitters, systemStats)
@@ -168,7 +171,7 @@ def setup_logging(agentConfig):
 
 def main():
     options, args = get_parsed_args()
-    agentConfig = get_config(options=options, args=args)
+    agentConfig = get_config(options=options)
 
     # Logging
     setup_logging(agentConfig)
@@ -216,7 +219,7 @@ def main():
 
         elif 'foreground' == command:
             logging.info('Running in foreground')
-            agent.run()
+            agent.run(config=agentConfig)
 
     # Commands that don't need the agent to be initialized.
     else:

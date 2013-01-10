@@ -143,7 +143,7 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % str(exc))
     sys.exit(3)
 
-def get_config(parse_args = False, cfg_path=None, init_logging=False, options=None, args=None):
+def get_config(parse_args=False, cfg_path=None, init_logging=False, options=None):
     if parse_args:
         options, args = get_parsed_args()
 
