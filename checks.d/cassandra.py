@@ -25,6 +25,7 @@ class Cassandra(JmxCheck):
             "org.apache.cassandra.internal",
             "org.apache.cassandra.net",
             "org.apache.cassandra.request"]
+        JAVA_DOMAINS = ['java.lang']
         try:
             (host, port, user, password, jmx, instance_name) = self._load_config(instance)
         except Exception, e:
@@ -34,7 +35,8 @@ class Cassandra(JmxCheck):
         if instance_name is not None:
             tags['instance'] = instance_name
         
-        dump = jmx.dump_domains(CASSANDRA_DOMAINS+['java.lang'])
+        domains = CASSANDRA_DOMAINS + JAVA_DOMAINS + self.init_config.get('domains', [])
+        dump = jmx.dump_domains(domains)
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
 

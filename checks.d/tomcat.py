@@ -39,9 +39,12 @@ class TomcatMetric(JMXMetric):
 
 class Tomcat(JmxCheck):
 
-    TOMCAT_DOMAINS = ['Catalina', 'java.lang']
+    
 
     def check(self, instance):
+        TOMCAT_DOMAINS = ['Catalina']
+        JAVA_DOMAINS = ['java.lang']
+
         try:
             (host, port, user, password, jmx, instance_name) = self._load_config(instance)
         except Exception, e:
@@ -52,7 +55,7 @@ class Tomcat(JmxCheck):
             tags['instance'] = instance_name
         
 
-        domains = Tomcat.TOMCAT_DOMAINS + self.init_config.get('domains', [])
+        domains = TOMCAT_DOMAINS + JAVA_DOMAINS + self.init_config.get('domains', [])
         dump = jmx.dump_domains(domains)
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
