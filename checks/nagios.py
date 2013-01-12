@@ -153,9 +153,7 @@ def parse_log(api_key, log_file):
     import socket
     import sys
 
-    logger = logging.getLogger("nagios")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
+    logger = logging.getLogger("ddagent.checks.nagios")
     nagios = Nagios(socket.gethostname())
 
     events = nagios.check(logger, {'api_key': api_key, 'nagios_log': log_file}, move_end=False)
@@ -165,9 +163,8 @@ def parse_log(api_key, log_file):
 if __name__ == "__main__":
     import logging
     import socket
-    logger = logging.getLogger("nagios")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
+
+    logger = logging.getLogger("ddagent.checks.nagios")
     nagios = Nagios(socket.gethostname())
 
     config = {'api_key':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}

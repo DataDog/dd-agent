@@ -2,21 +2,24 @@ import ConfigParser
 import os
 import logging
 import logging.config
+import logging.handlers
 import platform
 import string
 import subprocess
 import sys
 import glob
 import inspect
+import traceback
 from optparse import OptionParser, Values
 from cStringIO import StringIO
-from util import getOS
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15 # seconds
 DEFAULT_STATSD_FREQUENCY = 10 # seconds
 PUP_STATSD_FREQUENCY = 2 # seconds
+
+log = logging.getLogger(__name__)
 
 class PathNotFound(Exception): pass
 
@@ -42,17 +45,11 @@ def get_parsed_args():
     return options, args
 
 def get_version():
-    return "3.4.4"
+    return "3.5.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
-
-def initialize_logging(config_path, os_name=None):
-    try:
-        logging.config.fileConfig(config_path)
-    except Exception, e:
-        sys.stderr.write("Couldn't initialize logging: %s" % str(e))
 
 def _windows_commondata_path():
     ''' Return the common appdata path, using ctypes 
@@ -121,17 +118,19 @@ def get_config_path(cfg_path=None, os_name=None):
         return cfg_path
 
     # Check for an OS-specific path, continue on not-found exceptions
-    exc = None
+    bad_path = ''
     if os_name == 'windows':
         try:
             return _windows_config_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
     else:
         try:
             return _unix_config_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
 
     # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
@@ -140,17 +139,16 @@ def get_config_path(cfg_path=None, os_name=None):
         return os.path.join(path, DATADOG_CONF)
     
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % str(exc))
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
-def get_config(parse_args=False, cfg_path=None, init_logging=False, options=None):
+def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, args = get_parsed_args()
 
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'debug_mode': False,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
         'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
@@ -175,10 +173,6 @@ def get_config(parse_args=False, cfg_path=None, init_logging=False, options=None
         config_path = get_config_path(cfg_path, os_name=getOS())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
-
-        if init_logging:
-            initialize_logging(config_path, os_name=getOS())
-
 
         # bulk import
         for option in config.options('Main'):
@@ -233,9 +227,6 @@ def get_config(parse_args=False, cfg_path=None, init_logging=False, options=None
 
         # Which API key to use
         agentConfig['api_key'] = config.get('Main', 'api_key')
-
-        # Debug mode
-        agentConfig['debug_mode'] = config.get('Main', 'debug_mode').lower() in ("yes", "true")
 
         # local traffic only? Default to no
         agentConfig['non_local_traffic'] = False
@@ -402,18 +393,20 @@ def set_win32_cert_path():
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
 def get_confd_path(osname):
-    log = logging.getLogger('config')
 
+    bad_path = ''
     if osname == 'windows':
         try:
             return _windows_confd_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
     else:
         try:
             return _unix_confd_path()
         except PathNotFound, e:
-            exc = e
+            if len(e.args) > 0:
+                bad_path = e.args[0]
 
     cur_path = os.path.dirname(os.path.realpath(__file__))
     cur_path = os.path.join(cur_path, 'conf.d')
@@ -421,12 +414,10 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % str(exc))
+    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 def get_checksd_path(osname):
-    log = logging.getLogger('config')
-
     # Unix only will look up based on the current directory
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
@@ -438,7 +429,10 @@ def get_checksd_path(osname):
         try:
             return _windows_checksd_path()
         except PathNotFound, e:
-            log.error("No checks.d folder found in '%s'.\n" % str(e))
+            if len(e.args) > 0:
+                log.error("No checks.d folder found in '%s'.\n" % e.args[0])
+            else:
+                log.error("No checks.d folder found.\n")
 
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
@@ -451,7 +445,6 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    log = logging.getLogger('checks')
     osname = getOS()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
@@ -563,3 +556,139 @@ def load_check_directory(agentConfig):
 
     log.info('checks.d checks: %s' % [c.name for c in checks])
     return checks
+
+def getOS():
+    if sys.platform == 'darwin':
+        return 'mac'
+    elif sys.platform.find('freebsd') != -1:
+        return 'freebsd'
+    elif sys.platform.find('linux') != -1:
+        return 'linux'
+    elif sys.platform.find('win32') != -1:
+        return 'windows'
+    else:
+        return sys.platform
+
+#
+# logging
+
+def get_log_format(logger_name):
+    return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+
+def get_syslog_format(logger_name):
+    return 'dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+
+def get_logging_config(cfg_path=None):
+    logging_config = {
+        'log_level': None,
+        'collector_log_file': '/var/log/datadog/collector.log',
+        'forwarder_log_file': '/var/log/datadog/forwarder.log',
+        'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
+        'pup_log_file': '/var/log/datadog/pup.log',
+        'log_to_syslog': True,
+        'syslog_host': None,
+        'syslog_port': None,
+    }
+
+    config_path = get_config_path(cfg_path, os_name=getOS())
+    config = ConfigParser.ConfigParser()
+    config.readfp(skip_leading_wsp(open(config_path)))
+
+    if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
+        sys.stderr.write("Python logging config is no longer supported and will be ignored.\nTo configure logging, update the logging portion of 'datadog.conf' to match:\n  'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.\n")
+
+    for option in logging_config:
+        if config.has_option('Main', option):
+            logging_config[option] = config.get('Main', option)
+
+    levels = {
+        'CRITICAL': logging.CRITICAL,
+        'DEBUG': logging.DEBUG,
+        'ERROR': logging.ERROR,
+        'FATAL': logging.FATAL,
+        'INFO': logging.INFO,
+        'WARN': logging.WARN,
+        'WARNING': logging.WARNING,
+    }
+    if config.has_option('Main', 'log_level'):
+        logging_config['log_level'] = levels.get(config.get('Main', 'log_level'))
+
+    if config.has_option('Main', 'log_to_syslog'):
+        logging_config['log_to_syslog'] = config.get('Main', 'log_to_syslog').strip().lower() in ['yes', 'true', 1]
+
+    if config.has_option('Main', 'syslog_host'):
+        host = config.get('Main', 'syslog_host').strip()
+        if host:
+            logging_config['syslog_host'] = host
+        else:
+            logging_config['syslog_host'] = None
+
+    if config.has_option('Main', 'syslog_port'):
+        port = config.get('Main', 'syslog_port').strip()
+        try:
+            logging_config['syslog_port'] = int(port)
+        except:
+            logging_config['syslog_port'] = None
+
+    return logging_config
+
+def initialize_logging(logger_name):
+    try:
+        if getOS() == 'windows':
+            logging.config.fileConfig(get_config_path())
+
+        else:
+            logging_config = get_logging_config()
+
+            logging.basicConfig(
+                format=get_log_format(logger_name),
+                level=logging_config['log_level'] or logging.INFO,
+            )
+
+            # set up file loggers
+            log_file = logging_config.get('%s_log_file' % logger_name)
+            if log_file is not None:
+                # make sure the log directory is writeable
+                # NOTE: the entire directory needs to be writable so that rotation works
+                if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
+                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1)
+                    file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
+                    root_log = logging.getLogger()
+                    root_log.addHandler(file_handler)
+                else:
+                    sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
+
+            # set up syslog
+            if logging_config['log_to_syslog']:
+                try:
+                    from logging.handlers import SysLogHandler
+
+                    if logging_config['syslog_host'] is not None and logging_config['syslog_port'] is not None:
+                        sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
+                    else:
+                        sys_log_addr = "/dev/log"
+                        # Special-case macs
+                        if sys.platform == 'darwin':
+                            sys_log_addr = "/var/run/syslog"
+
+                    handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
+                    handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                    root_log = logging.getLogger()
+                    root_log.addHandler(handler)
+                except Exception, e:
+                    sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
+                    traceback.print_exc()
+
+    except Exception, e:
+        sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
+        traceback.print_exc()
+
+        # if config fails entirely, enable basic stdout logging as a fallback
+        logging.basicConfig(
+            format=get_log_format(logger_name),
+            level=logging.INFO,
+        )
+
+    # re-get the log after logging is initialized
+    global log
+    log = logging.getLogger(__name__)
