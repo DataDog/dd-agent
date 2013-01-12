@@ -36,6 +36,6 @@ before_script:
   - sudo apt-get remove memcached
   - sudo apt-get install memcached
   - sudo mkdir -p /etc/dd-agent/
-  - sudo basch -c "curl -L https://raw.github.com/DataDog/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 env:
   - DB=redis
