@@ -1,4 +1,3 @@
-import logging
 import os
 import platform
 import signal
@@ -6,6 +5,7 @@ import sys
 import math
 import time
 import uuid
+from config import getOS
 
 try:
     from hashlib import md5
@@ -41,6 +41,8 @@ try:
 except ImportError:
     from compat.namedtuple import namedtuple
 
+import logging
+log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
@@ -129,13 +131,13 @@ class Watchdog(object):
     def self_destruct(signum, frame):
         try:
             import traceback
-            logging.error("Self-destructing...")
-            logging.error(traceback.format_exc())
+            log.error("Self-destructing...")
+            log.error(traceback.format_exc())
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
 
     def reset(self):
-        logging.debug("Resetting watchdog for %d" % self._duration)
+        log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
 
@@ -153,29 +155,29 @@ class PidFile(object):
         # Can we write to the directory
         try:
             if os.access(self.pid_dir, os.W_OK):
-                logging.debug("Pid file is: %s" % self.pid_path)
+                log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
-            logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+            log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
 
         # if all else fails
         if os.access("/tmp", os.W_OK):
             tmp_path = os.path.join('/tmp', self.pid_file)
-            logging.debug("Using temporary pid file: %s" % tmp_path)
+            log.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
             # Can't save pid file, bail out
-            logging.error("Cannot save pid file anywhere")
+            log.error("Cannot save pid file anywhere")
             raise Exception("Cannot save pid file anywhere")
 
     def clean(self):
         try:
             path = self.get_path()
-            logging.debug("Cleaning up pid file %s" % path)
+            log.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
         except:
-            logging.exception("Could not clean up pid file")
+            log.warn("Could not clean up pid file")
             return False
 
     def get_pid(self):

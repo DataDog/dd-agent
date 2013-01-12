@@ -33,8 +33,7 @@ from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
 
-logger = logging.getLogger('collector')
-checks_logger = logging.getLogger('checks')
+log = logging.getLogger(__name__)
 
 
 class Collector(object):
@@ -60,62 +59,62 @@ class Collector(object):
         
         # Unix System Checks
         self._unix_system_checks = {
-            'disk': u.Disk(checks_logger),
-            'io': u.IO(checks_logger),
-            'load': u.Load(checks_logger),
-            'memory': u.Memory(checks_logger),
-            'network': u.Network(checks_logger),
-            'processes': u.Processes(checks_logger),
-            'cpu': u.Cpu(checks_logger)
+            'disk': u.Disk(log),
+            'io': u.IO(log),
+            'load': u.Load(log),
+            'memory': u.Memory(log),
+            'network': u.Network(log),
+            'processes': u.Processes(log),
+            'cpu': u.Cpu(log)
         }
 
         # Win32 System `Checks
         self._win32_system_checks = {
-            'disk': w32.Disk(checks_logger),
-            'io': w32.IO(checks_logger),
-            'proc': w32.Processes(checks_logger),
-            'memory': w32.Memory(checks_logger),
-            'network': w32.Network(checks_logger),
-            'cpu': w32.Cpu(checks_logger)
+            'disk': w32.Disk(log),
+            'io': w32.IO(log),
+            'proc': w32.Processes(log),
+            'memory': w32.Memory(log),
+            'network': w32.Network(log),
+            'cpu': w32.Cpu(log)
         }
 
         # Old-style metric checks
-        self._couchdb = CouchDb(checks_logger)
-        self._mongodb = MongoDb(checks_logger)
-        self._mysql = MySql(checks_logger)
+        self._couchdb = CouchDb(log)
+        self._mongodb = MongoDb(log)
+        self._mysql = MySql(log)
         self._rabbitmq = RabbitMq()
-        self._ganglia = Ganglia(checks_logger)
+        self._ganglia = Ganglia(log)
         self._cassandra = Cassandra()
-        self._dogstream = Dogstreams.init(checks_logger, self.agentConfig)
-        self._ddforwarder = DdForwarder(checks_logger, self.agentConfig)
-        self._ec2 = EC2(checks_logger)
+        self._dogstream = Dogstreams.init(log, self.agentConfig)
+        self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._ec2 = EC2(log)
 
         # Metric Checks
         self._metrics_checks = [
-            ElasticSearch(checks_logger),
-            WMICheck(checks_logger),
-            Memcache(checks_logger),
+            ElasticSearch(log),
+            WMICheck(log),
+            Memcache(log),
         ]
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
             try:
-                self._metrics_checks.append(modules.load(module_spec, 'Check')(checks_logger))
-                logger.info("Registered custom check %s" % module_spec)
+                self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
+                log.info("Registered custom check %s" % module_spec)
             except Exception, e:
-                logger.exception('Unable to load custom check module %s' % module_spec)
+                log.exception('Unable to load custom check module %s' % module_spec)
 
         # Event Checks
         self._event_checks = [
-            ElasticSearchClusterStatus(checks_logger),
+            ElasticSearchClusterStatus(log),
             Nagios(socket.gethostname()),
             Hudson()
         ]
 
         # Resource Checks
         self._resources_checks = [
-            ResProcesses(checks_logger,self.agentConfig)
+            ResProcesses(log,self.agentConfig)
         ]
 
     def stop(self):
@@ -136,7 +135,7 @@ class Collector(object):
         """
         timer = Timer()
         self.run_count += 1
-        logger.debug("Starting collection run #%s" % self.run_count)
+        log.debug("Starting collection run #%s" % self.run_count)
 
         payload = self._build_payload()
         metrics = payload['metrics']
@@ -164,6 +163,7 @@ class Collector(object):
             payload.update(load)
                 
             memory = sys_checks['memory'].check(self.agentConfig)
+
             if memory:
                 payload.update({
                     'memPhysUsed' : memory.get('physUsed'), 
@@ -196,11 +196,11 @@ class Collector(object):
 
         # Run old-style checks
         mysqlStatus = self._mysql.check(self.agentConfig)
-        rabbitmq = self._rabbitmq.check(checks_logger, self.agentConfig)
+        rabbitmq = self._rabbitmq.check(log, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(checks_logger, self.agentConfig)
+        cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
@@ -247,7 +247,7 @@ class Collector(object):
  
         # Process the event checks. 
         for event_check in self._event_checks:
-            event_data = event_check.check(checks_logger, self.agentConfig)
+            event_data = event_check.check(log, self.agentConfig)
             if event_data:
                 events[event_check.key] = event_data
 
@@ -284,7 +284,7 @@ class Collector(object):
         for check in checksd:
             if not self.continue_running:
                 return
-            logger.debug("Running check %s" % check.name)
+            log.info("Running check %s" % check.name)
             instance_statuses = [] 
             metric_count = 0
             event_count = 0
@@ -308,7 +308,7 @@ class Collector(object):
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
             except Exception, e:
-                logger.exception("Error running check %s" % check.name)
+                log.exception("Error running check %s" % check.name)
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
 
@@ -324,9 +324,9 @@ class Collector(object):
         try:
             CollectorStatus(check_statuses, emitter_statuses, self.metadata_cache).persist()
         except Exception:
-            logger.exception("Error persisting collector status")
+            log.exception("Error persisting collector status")
 
-        logger.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+        log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(emit_duration, 2)))
 
     def _emit(self, payload):
@@ -339,9 +339,9 @@ class Collector(object):
             name = emitter.__name__
             emitter_status = EmitterStatus(name)
             try:
-                emitter(payload, checks_logger, self.agentConfig)
+                emitter(payload, log, self.agentConfig)
             except Exception, e:
-                logger.exception("Error running emitter: %s" % emitter.__name__)
+                log.exception("Error running emitter: %s" % emitter.__name__)
                 emitter_status = EmitterStatus(name, e)
             statuses.append(emitter_status)
         return statuses
@@ -416,7 +416,7 @@ class Collector(object):
         # If the interval has passed, send the metadata again
         now = time.time()
         if now - self.metadata_start >= self.metadata_interval:
-            checks_logger.debug('Metadata interval has passed. Sending metadata.')
+            log.debug('Metadata interval has passed. Sending metadata.')
             self.metadata_start = now
             return True
 

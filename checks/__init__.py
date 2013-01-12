@@ -15,6 +15,8 @@ import sys
 from util import LaconicFilter
 from checks import check_status
 
+log = logging.getLogger(__name__)
+
 # Konstants
 class CheckException(Exception): pass
 class Infinity(CheckException): pass
@@ -273,7 +275,7 @@ class AgentCheck(object):
         self.init_config = init_config
         self.agentConfig = agentConfig
         self.hostname = gethostname(agentConfig)
-        self.log = logging.getLogger('checks.%s' % name)
+        self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
         self.instances = instances or []
@@ -482,7 +484,7 @@ def gethostname(agentConfig):
         try:
             return socket.getfqdn()
         except socket.error, e:
-            logging.debug("processes: unable to get hostname: " + str(e))
+            log.debug("processes: unable to get hostname: " + str(e))
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
