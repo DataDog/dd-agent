@@ -256,8 +256,8 @@ class CollectorStatus(AgentStatus):
     def body_lines(self):
         # Hostnames
         lines = [
-            'Hostnames',
-            '=========',
+            'Metadata',
+            '========',
             ''
         ]
         if not self.metadata:
