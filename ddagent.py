@@ -10,6 +10,9 @@
     (C) Datadog, Inc. 2010-2012 all rights reserved
 '''
 
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging('forwarder')
+
 import os; os.umask(022)
 
 # Standard imports
@@ -34,6 +37,8 @@ from config import get_config
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
+
+log = logging.getLogger('forwarder')
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -66,6 +71,7 @@ class MetricTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
+
         if 'use_pup' in cls._application._agentConfig:
             if cls._application._agentConfig['use_pup']:
                 cls._endpoints.append('pup_url')
@@ -78,10 +84,10 @@ class MetricTransaction(Transaction):
                 and cls._application._agentConfig.get('api_key') is not None\
                 and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
             if is_dd_user:
-                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
+                log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
         except:
-            logging.info("Not a Datadog user")
+            log.info("Not a Datadog user")
 
     def __init__(self, data, headers):
         self._data = data
@@ -92,7 +98,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        logging.debug("Created transaction %d" % self.get_id())
+        log.debug("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -107,7 +113,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers)
 
@@ -125,7 +131,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error:
-            logging.error("Response: %s" % response.error)
+            log.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -238,7 +244,6 @@ class Application(tornado.web.Application):
             self._metrics = {}
 
     def run(self):
-
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
@@ -261,7 +266,7 @@ class Application(tornado.web.Application):
         else:
             # localhost in lieu of 127.0.0.1 to support IPv6
             http_server.listen(self._port, address = "localhost")
-        logging.info("Listening on port %d" % self._port)
+        log.info("Listening on port %d" % self._port)
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
@@ -278,7 +283,7 @@ class Application(tornado.web.Application):
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
-            logging.info("Starting graphite listener on port %s" % gport)
+            log.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
             gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
@@ -292,7 +297,7 @@ class Application(tornado.web.Application):
         tr_sched.start()
 
         self.mloop.start()
-        logging.info("Stopped")
+        log.info("Stopped")
 
     def stop(self):
         self.mloop.stop()
@@ -309,7 +314,7 @@ def init():
     app = Application(port, agentConfig)
 
     def sigterm_handler(signum, frame):
-        logging.info("caught sigterm. stopping")
+        log.info("caught sigterm. stopping")
         app.stop()
 
     import signal
@@ -332,12 +337,13 @@ def main():
             app.run()
         finally:
             ForwarderStatus.remove_latest_status()
-            
+
     else:
         usage = "%s [help|info]. Run with no commands to start the server" % (
                                         sys.argv[0])
         command = args[0]
         if command == 'info':
+            logging.getLogger().setLevel(logging.ERROR)
             return ForwarderStatus.print_latest_status()
         elif command == 'help':
             print usage

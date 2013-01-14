@@ -5,17 +5,19 @@ import cPickle as pickle
 from tornado.ioloop import IOLoop
 from tornado.iostream import IOStream
 
+log = logging.getLogger(__name__)
+
 try:
     from tornado.netutil import TCPServer
 except Exception, e:
-    logging.warn("Tornado < 2.1.1 detected, using compatibility TCPServer")
+    log.warn("Tornado < 2.1.1 detected, using compatibility TCPServer")
     from compat.tornadotcpserver import TCPServer
 
 
 class GraphiteServer(TCPServer):
 
     def __init__(self, app, hostname, io_loop=None, ssl_options=None, **kwargs):
-        logging.info('Graphite listener is started')
+        log.info('Graphite listener is started')
         self.app = app
         self.hostname = hostname
         TCPServer.__init__(self, io_loop=io_loop, ssl_options=ssl_options, **kwargs)
@@ -27,7 +29,7 @@ class GraphiteServer(TCPServer):
 class GraphiteConnection(object):
 
     def __init__(self, stream, address, app, hostname):
-        logging.debug('received a new connection from %s', address)
+        log.debug('received a new connection from %s', address)
         self.app = app
         self.stream = stream
         self.address = address
@@ -38,17 +40,17 @@ class GraphiteConnection(object):
     def _on_read_header(self,data):
         try:
             size = struct.unpack("!I",data)[0]
-            logging.debug("Receiving a string of size:" + str(size))
+            log.debug("Receiving a string of size:" + str(size))
             self.stream.read_bytes(size, self._on_read_line)
         except Exception, e:
-            logging.error(e)
+            log.error(e)
 
     def _on_read_line(self, data):
-        logging.debug('read a new line from %s', self.address)
+        log.debug('read a new line from %s', self.address)
         self._decode(data)
 
     def _on_close(self):
-        logging.debug('client quit %s', self.address)
+        log.debug('client quit %s', self.address)
 
     def _parseMetric(self, metric):
         """Graphite does not impose a particular metric structure.
@@ -68,7 +70,7 @@ class GraphiteConnection(object):
         
             return metric, host, device
         except Exception, e:
-            logging.exception("Unparsable metric: {0}".format(metric))
+            log.exception("Unparsable metric: {0}".format(metric))
             return None, None, None
 
     def _postMetric(self, name, host, device, datapoint):
@@ -81,25 +83,25 @@ class GraphiteConnection(object):
         """Parse the metric name to fetch (host, metric, device) and
             send the datapoint to datadog"""
 
-        logging.debug("New metric: %s, values: %s" % (metric, datapoint))
+        log.debug("New metric: %s, values: %s" % (metric, datapoint))
         (metric,host,device) = self._parseMetric(metric)
         if metric is not None:    
             self._postMetric(metric,host,device, datapoint)
-            logging.info("Posted metric: %s, host: %s, device: %s" % (metric, host, device))
+            log.info("Posted metric: %s, host: %s, device: %s" % (metric, host, device))
 
     def _decode(self,data):
 
         try:
             datapoints = pickle.loads(data)
         except:
-            logging.exception("Cannot decode grapite points")
+            log.exception("Cannot decode grapite points")
             return
    
         for (metric, datapoint) in datapoints:
             try:
                 datapoint = ( float(datapoint[0]), float(datapoint[1]) )
             except Exception, e:
-                logging.error(e)
+                log.error(e)
                 continue
             
             self._processMetric(metric,datapoint) 
