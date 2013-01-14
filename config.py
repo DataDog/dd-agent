@@ -117,6 +117,9 @@ def get_config_path(cfg_path=None, os_name=None):
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
 
+    if os_name is None:
+        os_name = getOS()
+
     # Check for an OS-specific path, continue on not-found exceptions
     bad_path = ''
     if os_name == 'windows':
