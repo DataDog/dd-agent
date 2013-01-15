@@ -98,7 +98,7 @@ class TransactionManager(object):
         return self._transactions
 
     def print_queue_stats(self):
-        log.info("Queue size: at %s, %s transaction(s), %s KB" % 
+        log.debug("Queue size: at %s, %s transaction(s), %s KB" % 
             (time.time(), self._total_count, (self._total_size/1024)))
 
     def get_tr_id(self):
@@ -113,7 +113,7 @@ class TransactionManager(object):
         # Check the size
         tr_size = tr.get_size()
 
-        log.info("New transaction to add, total size of queue would be: %s KB" % 
+        log.debug("New transaction to add, total size of queue would be: %s KB" % 
             ((self._total_size + tr_size)/ 1024))
 
         if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
@@ -131,13 +131,13 @@ class TransactionManager(object):
         self._total_count = self._total_count + 1
         self._total_size = self._total_size + tr_size
 
-        log.info("Transaction %s added" % (tr.get_id()))
+        log.debug("Transaction %s added" % (tr.get_id()))
         self.print_queue_stats()
 
     def flush(self):
 
         if self._trs_to_flush is not None:
-            log.info("A flush is already in progress, not doing anything")
+            log.debug("A flush is already in progress, not doing anything")
             return
 
         to_flush = []
@@ -149,7 +149,7 @@ class TransactionManager(object):
 
         count = len(to_flush)
         if count > 0:
-            log.info("Flushing %s transaction%s" % (count,plural(count)))
+            log.debug("Flushing %s transaction%s" % (count,plural(count)))
             self._trs_to_flush = to_flush
             self.flush_next()
         self._flush_count += 1
@@ -200,7 +200,7 @@ class TransactionManager(object):
            tr.get_next_flush()))
 
     def tr_success(self,tr):
-        log.info("Transaction %d completed" % tr.get_id())
+        log.debug("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
         self._total_count = self._total_count - 1
         self._total_size = self._total_size - tr.get_size()
