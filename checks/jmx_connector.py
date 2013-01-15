@@ -38,6 +38,7 @@ all_cap_re = re.compile('([a-z0-9])([A-Z])')
 metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
 metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
+DO_NOT_NICE = 0
 DEFAULT_PRIORITY = 0
 MAX_JMX_RETRIES = 3
 
@@ -94,7 +95,8 @@ class JmxConnector:
             if self._jmx is None or not self._jmx.isalive():
                 # Figure out which path to the jar, __file__ is jmx.pyc
                 pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
-                if priority==0:
+                # Only use nice is the requested priority warrants it
+                if priority == DO_NOT_NICE:
                     cmd = "java -jar %s -l %s" % (pth, connection)
                 else:
                     cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
