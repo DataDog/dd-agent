@@ -35,6 +35,7 @@ log = logging.getLogger('dogstatsd')
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
+LOGGING_INTERVAL = 10
 
 
 class Reporter(threading.Thread):
@@ -98,10 +99,13 @@ class Reporter(threading.Thread):
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
+            should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0
             if not count:
-                log.info("Flush #%s: No metrics to flush." % self.flush_count)
+                if should_log:
+                    log.info("Flush #%s: No metrics to flush." % self.flush_count)
             else:
-                log.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
+                if should_log:
+                    log.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
                 self.submit(metrics)
 
             # Persist a status message.
@@ -142,7 +146,7 @@ class Reporter(threading.Thread):
         finally:
             conn.close()
         duration = round((time() - start_time) * 1000.0, 4)
-        log.info("%s %s %s%s (%sms)" % (
+        log.debug("%s %s %s%s (%sms)" % (
                         status, method, self.api_host, url, duration))
         return duration
 
