@@ -16,7 +16,6 @@ import traceback
 # project
 import config
 
-
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 
@@ -68,7 +67,21 @@ class Stylizer(object):
 def style(*args):
     return Stylizer.stylize(*args)
 
-
+def logger_info():
+    loggers = []
+    root_logger = logging.getLogger()
+    if len(root_logger.handlers) > 0:
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                loggers.append(handler.stream.name)
+            if isinstance(handler, logging.handlers.SysLogHandler):
+                if isinstance(handler.address, basestring):
+                    loggers.append('syslog:%s' % handler.address)
+                else:
+                    loggers.append('syslog:(%s, %s)' % handler.address)
+    else:
+        loggers.append("No loggers configured")
+    return ', '.join(loggers)
 
 class AgentStatus(object):
     """ 
@@ -248,10 +261,7 @@ class CollectorStatus(AgentStatus):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
-        if metadata is not None:
-            self.metadata = ','.join(k + ':' + v for (k,v) in metadata.items())
-        else:
-            self.metadata = []
+        self.metadata = metadata or []
 
     def body_lines(self):
         # Metadata whitelist
@@ -271,8 +281,7 @@ class CollectorStatus(AgentStatus):
         if not self.metadata:
             lines.append("  No host information available yet.")
         else:
-            host_info = dict(item.split(":") for item in self.metadata.split(","))
-            for key, host in host_info.items():
+            for key, host in self.metadata.items():
                 for whitelist_item in metadata_whitelist:
                     if whitelist_item in key:
                         lines.append("  " + key + ": " + host)
