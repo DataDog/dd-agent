@@ -144,12 +144,15 @@ class Collector(object):
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
-            metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
-            metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
-            metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
-            metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
-            metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
-            metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+            try:
+                metrics.extend(self._win32_system_checks['disk'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['memory'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['cpu'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['network'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['io'].check(self.agentConfig))
+                metrics.extend(self._win32_system_checks['proc'].check(self.agentConfig))
+            except Exception:
+                log.exception('Unable to fetch Windows system metrics.')
         else:
             # Unix system checks
             sys_checks = self._unix_system_checks
