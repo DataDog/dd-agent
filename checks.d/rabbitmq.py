@@ -17,6 +17,8 @@ class RabbitMQ(AgentCheck):
 
         # get parameters
         base_url = instance['rabbitmq_api_url']
+        if not base_url.endswith('/'):
+            base_url += '/'
         username = instance.get('rabbitmq_user', 'guest')
         password = instance.get('rabbitmq_pass', 'guest')
 
