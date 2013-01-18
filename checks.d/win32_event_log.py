@@ -68,7 +68,7 @@ class Win32EventLog(AgentCheck):
         ''' Return the timezone offset for the current local time
         '''
         if time.daylight == 0:
-            offest = time.timezone
+            offest = time.localtime().tm_isdst
         else:
             offset = time.altzone
         return offset / 60 / 60 * -1

@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+    # for every instance a 'rabbitmq_api_url' must be provided, pointing to the api
+    # url of the RabbitMQ Managment Plugin (http://www.rabbitmq.com/management.html)
+    # optional: 'rabbitmq_user' (default: guest) and 'rabbitmq_pass' (default: guest)
+
+    -  rabbitmq_api_url: http://localhost:15672/api/
+       rabbitmq_user: guest
+       rabbitmq_pass: guest
