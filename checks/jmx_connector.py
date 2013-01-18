@@ -471,21 +471,18 @@ class JmxCheck(AgentCheck):
 
         """
 
-        def in_domains(domain):
-            if domain in domains:
-                return True
+        def in_domains(dom, doms, approx):
             if approx:
-                for d in domains:
-                    regex = re.compile(r"(.*)%s(\.*)" % d)
-                    m = regex.match(domain)
-                    if m is not None:
-                        return True
-            return False
+                return len([d for d in doms if dom in d]) > 0
+            else:
+                return dom in doms
 
         if domains is None:
             return dump
         else:
-            beans = dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
+            beans = dict((k,dump[k]) for k in [ke for ke in dump.keys() \
+                                                   if in_domains(ke.split(':')[0], domains, approx)] \
+                             if k in dump)
             return beans
 
     @staticmethod
