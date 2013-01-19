@@ -5,7 +5,6 @@ import sys
 import math
 import time
 import uuid
-from config import getOS
 
 try:
     from hashlib import md5
@@ -58,15 +57,8 @@ def get_uuid():
     # on the back-end if need be, based on mac addresses.
     return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
-def headers(agentConfig):
-    # Build the request headers
-    return {
-        'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'text/html, */*',
-    }
 
-def getOS():
+def get_os():
     "Human-friendly OS name"
     if sys.platform == 'darwin':
         return 'mac'
@@ -81,6 +73,16 @@ def getOS():
     else:
         return sys.platform
 
+
+def headers(agentConfig):
+    # Build the request headers
+    return {
+        'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'text/html, */*',
+    }
+
+
 def getTopIndex():
     macV = None
     if sys.platform == 'darwin':
@@ -92,6 +94,7 @@ def getTopIndex():
     else:
         return 5
 
+
 def isnan(val):
     if hasattr(math, 'isnan'):
         return math.isnan(val)
@@ -99,6 +102,7 @@ def isnan(val):
     # for py < 2.6, use a different check
     # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
     return str(val) == str(1e400*0)
+
 
 def cast_metric_val(val):
     # ensure that the metric value is a numeric type
@@ -115,6 +119,7 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
     if it has not been reset every N seconds.
@@ -127,6 +132,7 @@ class Watchdog(object):
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
+
     @staticmethod
     def self_destruct(signum, frame):
         try:
@@ -135,6 +141,7 @@ class Watchdog(object):
             log.error(traceback.format_exc())
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
+
 
     def reset(self):
         log.debug("Resetting watchdog for %d" % self._duration)
@@ -146,10 +153,12 @@ class PidFile(object):
 
     PID_DIR = '/var/run/dd-agent'
 
+
     def __init__(self, program, pid_dir=PID_DIR):
         self.pid_file = "%s.pid" % program
         self.pid_dir = pid_dir
         self.pid_path = os.path.join(self.pid_dir, self.pid_file)
+
 
     def get_path(self):
         # Can we write to the directory
@@ -170,6 +179,7 @@ class PidFile(object):
             log.error("Cannot save pid file anywhere")
             raise Exception("Cannot save pid file anywhere")
 
+
     def clean(self):
         try:
             path = self.get_path()
@@ -179,6 +189,7 @@ class PidFile(object):
         except:
             log.warn("Could not clean up pid file")
             return False
+
 
     def get_pid(self):
         "Retrieve the actual pid"
