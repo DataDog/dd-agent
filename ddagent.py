@@ -113,7 +113,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers)
 
