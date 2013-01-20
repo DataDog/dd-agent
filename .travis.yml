@@ -13,6 +13,7 @@ python:
   - "2.6"
   - "2.7"
 before_install:
+  - sudo apt-get update
   - sudo apt-get install sysstat
   - sudo apt-get install haproxy
   - sudo apt-get install python-mysqldb
