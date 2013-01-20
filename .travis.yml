@@ -38,6 +38,7 @@ before_script:
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/ports.conf > /etc/apache2/ports.conf"
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/apache.conf > /etc/apache2/apache.conf"
   - sudo mkdir -p /etc/dd-agent/
+  - sudo install -d --mode=777 /var/log/datadog
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
   - sudo service tomcat6 restart
   - sudo service nginx restart
