@@ -251,6 +251,8 @@ class JMXMetric:
                         attr = attributes[attr]
                         if attr.has_key('alias'):
                             self._metric_name = attr['alias']
+                        if attr.has_key('type'):
+                            self._metric_type = attr['type']
                         if attr.has_key('metric_type'):
                             self._metric_type = attr['metric_type']
                     attributes_ok = True
