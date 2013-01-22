@@ -13,15 +13,21 @@ import traceback
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
+from util import get_os
+
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
-DEFAULT_CHECK_FREQUENCY = 15 # seconds
-DEFAULT_STATSD_FREQUENCY = 10 # seconds
-PUP_STATSD_FREQUENCY = 2 # seconds
+DEFAULT_CHECK_FREQUENCY = 15   # seconds
+DEFAULT_STATSD_FREQUENCY = 10  # seconds
+PUP_STATSD_FREQUENCY = 2       # seconds
+LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
 
-class PathNotFound(Exception): pass
+
+class PathNotFound(Exception):
+    pass
+
 
 def get_parsed_args():
     parser = OptionParser()
@@ -30,31 +36,37 @@ def get_parsed_args():
     parser.add_option('-c', '--clean', action='store_true', default=False,
                         dest='clean')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
-                        default=False,dest='use_forwarder')
+                        default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
-                        dest='verbose', help='Print out available tracebacks for errors in checks')
+                        dest='verbose',
+                      help='Print out stacktraces for errors in checks')
     try:
         options, args = parser.parse_args()
     except SystemExit:
+        # Ignore parse errors
         options, args = Values({'dd_url': None,
                                 'clean': False,
-                                'use_forwarder':False,
-                                'disable_dd':False}), [] # Ignore parse errors
+                                'use_forwarder': False,
+                                'disable_dd': False}), []
     return options, args
+
 
 def get_version():
     return "3.5.0"
+
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
+
 def _windows_commondata_path():
-    ''' Return the common appdata path, using ctypes 
-    From: http://stackoverflow.com/questions/626796/how-do-i-find-the-windows-common-application-data-folder-using-python
-    '''
+    """Return the common appdata path, using ctypes
+    From http://stackoverflow.com/questions/626796/\
+    how-do-i-find-the-windows-common-application-data-folder-using-python
+    """
     import ctypes
     from ctypes import wintypes, windll
 
@@ -78,12 +90,14 @@ def _windows_config_path():
         return path
     raise PathNotFound(path)
 
+
 def _windows_confd_path():
     common_data = _windows_commondata_path()
     path = os.path.join(common_data, 'Datadog', 'conf.d')
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
+
 
 def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
@@ -97,11 +111,13 @@ def _windows_checksd_path():
         return path
     raise PathNotFound(path)
 
+
 def _unix_config_path():
     path = os.path.join('/etc/dd-agent', DATADOG_CONF)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
+
 
 def _unix_confd_path():
     path = os.path.join('/etc/dd-agent', 'conf.d')
@@ -109,8 +125,10 @@ def _unix_confd_path():
         return path
     raise PathNotFound(path)
 
+
 def _is_affirmative(s):
     return s.lower() in ('yes', 'true')
+
 
 def get_config_path(cfg_path=None, os_name=None):
     # Check if there's an override and if it exists
@@ -118,7 +136,7 @@ def get_config_path(cfg_path=None, os_name=None):
         return cfg_path
 
     if os_name is None:
-        os_name = getOS()
+        os_name = get_os()
 
     # Check for an OS-specific path, continue on not-found exceptions
     bad_path = ''
@@ -140,10 +158,11 @@ def get_config_path(cfg_path=None, os_name=None):
     path = os.path.dirname(path)
     if os.path.exists(os.path.join(path, DATADOG_CONF)):
         return os.path.join(path, DATADOG_CONF)
-    
+
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
+
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
@@ -173,7 +192,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         path = os.path.realpath(__file__)
         path = os.path.dirname(path)
 
-        config_path = get_config_path(cfg_path, os_name=getOS())
+        config_path = get_config_path(cfg_path, os_name=get_os())
         config = ConfigParser.ConfigParser()
         config.readfp(skip_leading_wsp(open(config_path)))
 
@@ -254,17 +273,18 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig['watchdog'] = False
 
         # Optional graphite listener
-        if config.has_option('Main','graphite_listen_port'):
-            agentConfig['graphite_listen_port'] = int(config.get('Main','graphite_listen_port'))
+        if config.has_option('Main', 'graphite_listen_port'):
+            agentConfig['graphite_listen_port'] = \
+                int(config.get('Main', 'graphite_listen_port'))
         else:
             agentConfig['graphite_listen_port'] = None
 
         # Dogstatsd config
         dogstatsd_defaults = {
-            'dogstatsd_port' : 8125,
-            'dogstatsd_target' : 'http://localhost:17123',
-            'dogstatsd_interval' : dogstatsd_interval,
-            'dogstatsd_normalize' : 'yes',
+            'dogstatsd_port': 8125,
+            'dogstatsd_target': 'http://localhost:17123',
+            'dogstatsd_interval': dogstatsd_interval,
+            'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
@@ -307,7 +327,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}
             for key, value in config.items('WMI'):
-                agentConfig['WMI'][key] = value    
+                agentConfig['WMI'][key] = value
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -344,6 +364,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     return agentConfig
 
+
 def get_system_stats():
     systemStats = {
         'machine': platform.machine(),
@@ -371,20 +392,20 @@ def get_system_stats():
 
     elif sys.platform.find('freebsd') != -1:
         version = platform.uname()[2]
-        systemStats['fbsdV'] = ('freebsd', version, '') # no codename for FreeBSD
-
+        systemStats['fbsdV'] = ('freebsd', version, '')  # no codename for FreeBSD
 
     return systemStats
 
+
 def set_win32_cert_path():
-    ''' In order to use tornado.httpclient with the packaged .exe on Windows we
+    """In order to use tornado.httpclient with the packaged .exe on Windows we
     need to override the default ceritifcate location which is based on the path
     to tornado and will give something like "C:\path\to\program.exe\tornado/cert-file".
 
     If pull request #379 is accepted (https://github.com/facebook/tornado/pull/379) we
     will be able to override this in a clean way. For now, we have to monkey patch
     tornado.httpclient._DEFAULT_CA_CERTS
-    '''
+    """
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
@@ -394,6 +415,7 @@ def set_win32_cert_path():
         crt_path = os.path.join(cur_path, 'ca-certificates.crt')
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
+
 
 def get_confd_path(osname):
 
@@ -420,6 +442,7 @@ def get_confd_path(osname):
     log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
+
 def get_checksd_path(osname):
     # Unix only will look up based on the current directory
     # because checks.d will hang with the other python modules
@@ -440,6 +463,7 @@ def get_checksd_path(osname):
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
+
 def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
     file in conf.d will be returned. '''
@@ -448,7 +472,7 @@ def load_check_directory(agentConfig):
 
     checks = []
 
-    osname = getOS()
+    osname = get_os()
     checks_path = get_checksd_path(osname)
     confd_path = get_confd_path(osname)
     check_glob = os.path.join(checks_path, '*.py')
@@ -534,7 +558,6 @@ def load_check_directory(agentConfig):
         if init_config is None:
             init_config = {}
 
-
         instances = check_config['instances']
         try:
             c = check_class(check_name, init_config=init_config,
@@ -560,26 +583,18 @@ def load_check_directory(agentConfig):
     log.info('checks.d checks: %s' % [c.name for c in checks])
     return checks
 
-def getOS():
-    if sys.platform == 'darwin':
-        return 'mac'
-    elif sys.platform.find('freebsd') != -1:
-        return 'freebsd'
-    elif sys.platform.find('linux') != -1:
-        return 'linux'
-    elif sys.platform.find('win32') != -1:
-        return 'windows'
-    else:
-        return sys.platform
 
 #
 # logging
 
+
 def get_log_format(logger_name):
     return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
 
+
 def get_syslog_format(logger_name):
-    return 'dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+    return '%%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+
 
 def get_logging_config(cfg_path=None):
     logging_config = {
@@ -593,7 +608,7 @@ def get_logging_config(cfg_path=None):
         'syslog_port': None,
     }
 
-    config_path = get_config_path(cfg_path, os_name=getOS())
+    config_path = get_config_path(cfg_path, os_name=get_os())
     config = ConfigParser.ConfigParser()
     config.readfp(skip_leading_wsp(open(config_path)))
 
@@ -635,9 +650,10 @@ def get_logging_config(cfg_path=None):
 
     return logging_config
 
+
 def initialize_logging(logger_name):
     try:
-        if getOS() == 'windows':
+        if get_os() == 'windows':
             logging.config.fileConfig(get_config_path())
 
         else:
@@ -654,7 +670,7 @@ def initialize_logging(logger_name):
                 # make sure the log directory is writeable
                 # NOTE: the entire directory needs to be writable so that rotation works
                 if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
-                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=1)
+                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
                     file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
                     root_log = logging.getLogger()
                     root_log.addHandler(file_handler)

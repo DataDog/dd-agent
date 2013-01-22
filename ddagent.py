@@ -31,7 +31,7 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, getOS, get_uuid
+from util import Watchdog, get_uuid
 from emitter import http_emitter, format_body
 from config import get_config
 from checks import gethostname
@@ -113,7 +113,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers)
 
