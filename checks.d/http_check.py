@@ -59,8 +59,8 @@ class HTTPCheck(ServicesCheck):
         name = instance.get('name', None)
         nb_failures = self.statuses[name].count(Status.DOWN)
         nb_tries = len(self.statuses[name])
-        
-        
+
+
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
         if custom_message:
@@ -72,7 +72,7 @@ class HTTPCheck(ServicesCheck):
             source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, name)
         else:
             source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, instance_source_type_name)
-        
+
 
         # Get the handles you want to notify
         notify = instance.get('notify', self.init_config.get('notify', []))
