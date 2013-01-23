@@ -19,5 +19,5 @@ instances:
 #                        alias: jmx.my2ndattribute
 #            - include:
 #                domain: 2nd_domain
-#              exclude:
+#            - exclude:
 #                bean: excluded_bean

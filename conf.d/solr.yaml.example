@@ -7,6 +7,7 @@ instances:
 
 
 init_config:
+  # this section must be present but contents will be ignored.
   conf:
     - include:
         type: searcher
