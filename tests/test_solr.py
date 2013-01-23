@@ -29,7 +29,6 @@ class JMXTestCase(unittest.TestCase):
 
         config = JmxCheck.parse_agent_config(agentConfig, 'solr')
         config['init_config'] = SOLR_CONFIG
-        config['init_config']['domains'] = ['solr/']
 
         metrics_check = load_check('solr', config, agentConfig)
 
