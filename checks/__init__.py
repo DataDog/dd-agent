@@ -10,9 +10,12 @@ import socket
 import time
 import types
 import os
+import sys
 
 from util import LaconicFilter
 from checks import check_status
+
+log = logging.getLogger(__name__)
 
 # Konstants
 class CheckException(Exception): pass
@@ -240,10 +243,6 @@ class Check(object):
                     tags, device_name = key
                     try:
                         ts, val, hostname, device_name = self.get_sample_with_timestamp(m, tags, device_name, expire)
-                        
-                        if val != val or val == float('inf') or val == float('-inf'):
-                            # If the values is NaN, +infinity or -infinity
-                            raise UnknownValue()
                     except UnknownValue:
                         continue
                     attributes = {}
@@ -276,7 +275,7 @@ class AgentCheck(object):
         self.init_config = init_config
         self.agentConfig = agentConfig
         self.hostname = gethostname(agentConfig)
-        self.log = logging.getLogger('checks.%s' % name)
+        self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
         self.instances = instances or []
@@ -421,7 +420,8 @@ class AgentCheck(object):
                 instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
+                # Send the traceback (located at sys.exc_info()[2]) into the InstanceStatus otherwise a traceback won't be able to be printed
+                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e, sys.exc_info()[2])
             instance_statuses.append(instance_status)
         return instance_statuses
 
@@ -484,7 +484,7 @@ def gethostname(agentConfig):
         try:
             return socket.getfqdn()
         except socket.error, e:
-            logging.debug("processes: unable to get hostname: " + str(e))
+            log.debug("processes: unable to get hostname: " + str(e))
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:

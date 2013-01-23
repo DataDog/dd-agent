@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     hudson_home, apiKey = sys.argv[1:3]
 
-    logger = logging.getLogger('hudson')
+    logger = logging.getLogger('ddagent.checks.hudson')
     logger.setLevel(logging.INFO)
     logger.addHandler(logging.StreamHandler())
     hudson = Hudson()

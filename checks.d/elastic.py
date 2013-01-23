@@ -303,4 +303,13 @@ class ElasticSearch(AgentCheck):
 
 
 
+if __name__ == "__main__":
+    import pprint
+    import logging
+    from config import get_version
+    logging.basicConfig()
+    logger = logging.getLogger('ddagent.checks.elastic')
+    c = ElasticSearch(logger)
+    config = {"elasticsearch": "http://localhost:9200", "version": get_version(), "api_key":"apiKey 2"}
+    pprint.pprint(c.check(config))
 

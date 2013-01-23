@@ -2,6 +2,7 @@ from checks import AgentCheck
 import time
 from Queue import Queue, Empty
 from checks.libs.thread_pool import Pool
+import threading
 
 
 
@@ -9,6 +10,7 @@ from checks.libs.thread_pool import Pool
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
+FAILURE = "FAILURE"
 
 class Status:
     DOWN = "DOWN"
@@ -47,27 +49,34 @@ class ServicesCheck(AgentCheck):
         self.statuses = {}
         self.notified = {}
         self.start_pool()
+        self.nb_failures = 0
 
     def start_pool(self):
         # The pool size should be the minimum between the number of instances
         # and the DEFAULT_SIZE_POOL. It can also be overridden by the 'threads_count'
         # parameter in the init_config of the check
+        self.log.info("Starting Thread Pool")
         default_size = min(self.instance_count(), DEFAULT_SIZE_POOL)
-        pool_size = int(self.init_config.get('threads_count', default_size))
+        self.pool_size = int(self.init_config.get('threads_count', default_size))
 
-        self.pool = Pool(pool_size)
+        self.pool = Pool(self.pool_size)
 
         self.resultsq = Queue()
         self.jobs_status = {}
 
     def stop_pool(self):
+        self.log.info("Stopping Thread Pool")
         self.pool.terminate()
+        self.pool.join()
+        self.jobs_status.clear()
 
     def restart_pool(self):
         self.stop_pool()
         self.start_pool()
 
     def check(self, instance):
+        if threading.active_count() > 5 * self.pool_size:
+            raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.active_count())
         self._process_results()
         self._clean()
         name = instance.get('name', None)
@@ -94,8 +103,8 @@ class ServicesCheck(AgentCheck):
             self.resultsq.put(result)
 
         except Exception, e:
-            self.log.exception(e)
-            self.restart_pool()
+            result = (FAILURE, FAILURE, FAILURE, FAILURE)
+            self.resultsq.put(result)
 
     def _process_results(self):
         for i in range(MAX_LOOP_ITERATIONS):
@@ -104,6 +113,13 @@ class ServicesCheck(AgentCheck):
                 status, msg, name, queue_instance = self.resultsq.get_nowait()
             except Empty:
                 break
+
+            if status == FAILURE:
+                self.nb_failures += 1
+                if self.nb_failures >= self.pool_size - 1:
+                    self.nb_failures = 0
+                    self.restart_pool()
+                continue
 
             event = None
 

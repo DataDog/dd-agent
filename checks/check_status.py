@@ -11,10 +11,10 @@ import pickle
 import platform
 import sys
 import tempfile
+import traceback
 
 # project
 import config
-
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -67,7 +67,21 @@ class Stylizer(object):
 def style(*args):
     return Stylizer.stylize(*args)
 
-
+def logger_info():
+    loggers = []
+    root_logger = logging.getLogger()
+    if len(root_logger.handlers) > 0:
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                loggers.append(handler.stream.name)
+            if isinstance(handler, logging.handlers.SysLogHandler):
+                if isinstance(handler.address, basestring):
+                    loggers.append('syslog:%s' % handler.address)
+                else:
+                    loggers.append('syslog:(%s, %s)' % handler.address)
+    else:
+        loggers.append("No loggers configured")
+    return ', '.join(loggers)
 
 class AgentStatus(object):
     """ 
@@ -124,6 +138,7 @@ class AgentStatus(object):
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
+            ("Logs", logger_info()),
         ]
 
         for key, value in fields:
@@ -162,7 +177,8 @@ class AgentStatus(object):
             return None
 
     @classmethod
-    def print_latest_status(cls):
+    def print_latest_status(cls, verbose=False):
+        cls.verbose = verbose
         Stylizer.ENABLED = False
         try:
             if sys.stdout.isatty():
@@ -190,10 +206,15 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None):
+    def __init__(self, instance_id, status, error=None, tb=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
+
+        if (type(tb).__name__ == 'traceback'):
+            self.traceback = traceback.format_tb(tb)
+        else:
+            self.traceback = None
 
     def has_error(self):
         return self.status != STATUS_OK
@@ -237,14 +258,40 @@ class CollectorStatus(AgentStatus):
 
     NAME = 'Collector'
 
-    def __init__(self, check_statuses=None, emitter_statuses=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
+        self.metadata = metadata or []
 
     def body_lines(self):
-        # Checks.d Status
+        # Metadata whitelist
+        metadata_whitelist = [
+            'hostname',
+            'fqdn',
+            'ipv4',
+            'instance-id'
+        ]
+
+        # Hostnames
         lines = [
+            'Hostnames',
+            '=========',
+            ''
+        ]
+        if not self.metadata:
+            lines.append("  No host information available yet.")
+        else:
+            for key, host in self.metadata.items():
+                for whitelist_item in metadata_whitelist:
+                    if whitelist_item in key:
+                        lines.append("  " + key + ": " + host)
+                        break
+
+        lines.append('')
+
+        # Checks.d Status
+        lines += [
             'Checks',
             '======',
             ''
@@ -270,13 +317,27 @@ class CollectorStatus(AgentStatus):
                     "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
                     ""
                 ]
+
+                if self.verbose and s.traceback is not None:
+                    # Formatting the traceback to look like a python traceback
+                    check_lines.append("    Traceback (most recent call last):")
+
+                    # Format the traceback lines to look good in the output
+                    for tb_line in s.traceback:
+                        lines = tb_line.split('\n')
+                        for line in lines:
+                            if line.strip() == '':
+                                continue
+                            check_lines.append('    ' + line)
+
                 lines += check_lines
 
         # Emitter status
         lines += [
             "",
             "Emitters",
-            "========"
+            "========",
+            ""
         ]
         if not self.emitter_statuses:
             lines.append("  No emitters have run yet.")

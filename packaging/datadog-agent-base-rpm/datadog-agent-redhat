@@ -29,11 +29,7 @@ PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 
-if [ -x "/usr/bin/python2.6" ]; then
-    PYTHON="/usr/bin/python2.6"
-else
-    PYTHON="/usr/bin/python"
-fi
+PYTHON="/usr/bin/python2"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -120,9 +116,9 @@ start() {
         fi
         echo -n 'Starting Datadog agent: '
         install -d -o $AGENTUSER $PIDPATH
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
@@ -147,9 +143,9 @@ stop() {
             return
         fi
         echo -n 'Stopping Datadog agent: '
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop >/dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop > /dev/null 2>&1"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi

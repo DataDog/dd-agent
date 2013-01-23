@@ -21,7 +21,6 @@ class HTTPCheck(ServicesCheck):
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
-
             h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
             if username is not None and password is not None:
                 h.add_credentials(username, password)

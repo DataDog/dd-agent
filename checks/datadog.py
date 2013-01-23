@@ -568,7 +568,7 @@ class DdForwarder(object):
 def testDogStream():
     import logging
 
-    logger = logging.getLogger("datadog")
+    logger = logging.getLogger("ddagent.checks.datadog")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
     dogstream = Dogstream(logger)
@@ -582,7 +582,7 @@ def testDogStream():
 def testddForwarder():
     import logging
 
-    logger = logging.getLogger("datadog")
+    logger = logging.getLogger("ddagent.checks.datadog")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 
