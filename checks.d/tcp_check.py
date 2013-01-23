@@ -45,10 +45,10 @@ class TCPCheck(ServicesCheck):
     def _check(self, instance):
 
         addr, port, socket_type, timeout = self._load_conf(instance)
+        start = time.time()
         try:    
             self.log.debug("Connecting to %s %s" % (addr, port))
             sock = socket.socket(socket_type)
-            start = time.time()
             try:
                 sock.settimeout(timeout)
                 sock.connect((addr, port))
