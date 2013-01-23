@@ -6,6 +6,8 @@ import shlex
 import os
 import signal
 
+from nose.plugins.skip import SkipTest
+
 from util import AgentSupervisor
 
 class TestAutoRestart(unittest.TestCase):
@@ -42,6 +44,7 @@ class TestAutoRestart(unittest.TestCase):
         return sorted([int(p) for p in pids], reverse=True)
 
     def test_foreground(self):
+        raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_foreground()
 
         grep_str = 'agent.py --autorestart foreground'
@@ -69,6 +72,7 @@ class TestAutoRestart(unittest.TestCase):
         self.agent_foreground = None
 
     def test_daemon(self):
+        raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_daemon()
 
         grep_str = 'agent.py --autorestart start'
