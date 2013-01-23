@@ -77,8 +77,8 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._mongodb = MongoDb(checks_logger)
-        self._mysql = MySql(checks_logger)
+        self._mongodb = MongoDb(log)
+        self._mysql = MySql(log)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(log)
         self._cassandra = Cassandra()
@@ -88,8 +88,8 @@ class Collector(object):
 
         # Metric Checks
         self._metrics_checks = [
-            WMICheck(checks_logger),
-            Memcache(checks_logger),
+            WMICheck(log),
+            Memcache(log),
         ]
 
         # Custom metric checks
