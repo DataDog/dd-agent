@@ -12,6 +12,7 @@
 
 # set up logging before importing any other components
 from config import initialize_logging; initialize_logging('forwarder')
+from config import get_logging_config
 
 import os; os.umask(022)
 
@@ -260,6 +261,15 @@ class Application(tornado.web.Application):
 
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
+
+        # set the root logger to warn so tornado is less chatty
+        logging.getLogger().setLevel(logging.WARNING)
+
+        # but keep the forwarder logger at the original level
+        forwarder_logger = logging.getLogger('forwarder')
+        log_config = get_logging_config()
+        forwarder_logger.setLevel(log_config['log_level'] or logging.INFO)
+
         # non_local_traffic must be == True to match, not just some non-false value
         if non_local_traffic is True:
             http_server.listen(self._port)
