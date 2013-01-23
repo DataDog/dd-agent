@@ -8,6 +8,11 @@ instances:
 #        url: http://some.url.example.com
 #        username: user
 #        password: pass
+#        The window and threshold parameters allow you to trigger alerts only if 
+#        the check fails x times within the last y attempts where x is the threshold and 
+#        y is the window
+#        threshold: 3
+#        window: 5
 #        timeout: 1
 
 #    -   name: My_second_service

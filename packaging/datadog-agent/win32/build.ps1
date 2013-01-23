@@ -53,6 +53,3 @@ cd ..\..\..\
 
 # Sign the installers
 # TODO
-
-# Install the new version of the agent
-msiexec /qn /i build\ddagent.msi APIKEY="apikey_2" HOSTNAME="agent-build-win32"

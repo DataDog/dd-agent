@@ -1,0 +1,3 @@
+JAVA_OPTS="$JAVA_OPTS -Dcom.sun.management.jmxremote.port=8090"
+JAVA_OPTS="$JAVA_OPTS -Dcom.sun.management.jmxremote.authenticate=false"
+JAVA_OPTS="$JAVA_OPTS -Dcom.sun.management.jmxremote.ssl=false"

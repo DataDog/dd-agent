@@ -43,8 +43,8 @@ case "$1" in
                 mkdir -p $PIDPATH
             fi
             chown $AGENTUSER $PIDPATH
-            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean"
-            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start"
+            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1"
+            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
         fi
         echo "$NAME."
     ;;
@@ -66,8 +66,8 @@ case "$1" in
                 echo -n "(warning: datadog-agent supervisor config is missing) "
             fi
         else
-            su $AGENTUSER -c "$AGENTPATH stop init"
-            su $AGENTUSER -c "$DOGSTATSDPATH stop"
+            su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1"
+            su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
         fi
 
         echo "$NAME."

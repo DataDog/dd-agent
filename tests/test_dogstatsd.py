@@ -171,6 +171,24 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Assert there are no more sets
         assert not stats.flush()
 
+    def test_string_sets(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('my.set:string|s')
+        stats.submit_packets('my.set:sets|s')
+        stats.submit_packets('my.set:sets|s')
+        stats.submit_packets('my.set:test|s')
+        stats.submit_packets('my.set:test|s')
+        stats.submit_packets('my.set:test|s')
+
+        # Assert that it's treated normally.
+        metrics = stats.flush()
+        nt.assert_equal(len(metrics), 1)
+        m = metrics[0]
+        nt.assert_equal(m['metric'], 'my.set')
+        nt.assert_equal(m['points'][0][1], 3)
+
+        # Assert there are no more sets
+        assert not stats.flush()
 
     def test_rate(self):
         stats = MetricsAggregator('myhost')

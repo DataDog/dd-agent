@@ -1,9 +1,7 @@
 import logging
 from time import time
 
-
-logger = logging.getLogger(__name__)
-
+log = logging.getLogger(__name__)
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
@@ -199,12 +197,12 @@ class Rate(Metric):
     def _rate(self, sample1, sample2):
         interval = sample2[0] - sample1[0]
         if interval == 0:
-            logger.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
+            log.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
             raise Infinity()
 
         delta = sample2[1] - sample1[1]
         if delta < 0:
-            logger.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
+            log.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
             raise UnknownValue()
 
         return (delta / interval)
@@ -235,6 +233,9 @@ class MetricsAggregator(object):
     """
     A metric aggregator class.
     """
+
+    # Types of metrics that allow strings
+    ALLOW_STRINGS = ['s', ]
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
         self.metrics = {}
@@ -283,7 +284,13 @@ class MetricsAggregator(object):
                 try:
                     value = float(metadata[0])
                 except ValueError:
-                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
+
+                    # If the data type is Set, we will allow strings
+                    if metadata[1] in self.ALLOW_STRINGS:
+                        value = metadata[0]
+                    else:
+                        # Otherwise, raise an error saying it must be a number
+                        raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
 
             # Parse the optional values - sample rate & tags.
             sample_rate = 1
@@ -302,7 +309,11 @@ class MetricsAggregator(object):
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
-        context = (name, tuple(tags or []), hostname, device_name)
+        # Avoid calling extra functions to dedupe tags if there are none
+        if tags is None:
+            context = (name, tuple(), hostname, device_name)
+        else:
+            context = (name, tuple(sorted(set(tags))), hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
@@ -336,13 +347,13 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp, self.interval)
 
         # Save some stats.
-        logger.debug("received %s payloads since last flush" % self.count)
+        log.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics

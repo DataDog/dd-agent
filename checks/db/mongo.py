@@ -5,9 +5,9 @@ from datetime import datetime
 from checks import *
 
 # When running with pymongo < 2.0
-# Not the full spec for mongo URIs
+# Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
-mongo_uri_re=re.compile(r"^mongodb://[^/]+/(\w+)$")
+mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
 
 class MongoDb(Check):
 
@@ -90,25 +90,31 @@ class MongoDb(Check):
 
         try:
             from pymongo import Connection
-            dbName = None
             try:
                 from pymongo import uri_parser
                 # Configuration a URL, mongodb://user:pass@server/db
-                dbName = uri_parser.parse_uri(agentConfig['mongodb_server'])['database']
-
-                # parse_uri gives a default database of None
-                dbName = dbName or 'test'
-
+                parsed = uri_parser.parse_uri(agentConfig['mongodb_server'])
             except ImportError:
+                self.logger.debug('Mongo: running with pymongo < 2.0, custom uri parsing')
                 # uri_parser is pymongo 2.0+
-                dbName = mongo_uri_re.match(agentConfig['mongodb_server']).group(1)
+                matches = mongo_uri_re.match(agentConfig['mongodb_server'])
+                if matches:
+                    parsed = matches.groupdict()
+                else:
+                    parsed = {}
+            username = parsed.get('username')
+            password = parsed.get('password')
 
-            if dbName is None:
-                self.logger.error("Mongo: cannot extract db name from config %s" % agentConfig['mongodb_server'])
-                return False
+            do_auth = True
+            if username is None or password is None:
+                self.logger.debug("Mongo: cannot extract username and password from config %s" % agentConfig['mongodb_server'])
+                do_auth = False
 
             conn = Connection(agentConfig['mongodb_server'])
-            db = conn[dbName]
+            db = conn['admin']
+            if do_auth:
+                if not db.authenticate(username, password):
+                    self.logger.error("Mongo: cannot connect with config %s" % agentConfig['mongodb_server'])
 
             status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
             status['stats'] = db.command('dbstats')
@@ -120,7 +126,7 @@ class MongoDb(Check):
             try:
                 data = {}
 
-                replSet = conn['admin'].command('replSetGetStatus')
+                replSet = db.command('replSetGetStatus')
                 serverVersion = conn.server_info()['version']
                 if replSet:
                     primary = None
@@ -152,7 +158,7 @@ class MongoDb(Check):
                         results['events'] = {'Mongo': [event]}
                     status['replSet'] = data
             except:
-                self.logger.exception("Cannot determine replication set status")
+                self.logger.debug("Cannot determine replication set status", exc_info=True)
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:

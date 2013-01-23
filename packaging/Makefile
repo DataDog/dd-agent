@@ -56,6 +56,7 @@ install_base: source
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/etc/dd-agent/conf.d
 	mkdir -p $(BUILD)/usr/bin
+	mkdir -p $(BUILD)/var/log/datadog
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
@@ -64,6 +65,7 @@ install_base: source
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
+	chmod 755 $(BUILD)/var/log/datadog
 
 install_full: source
 	# Install the forwarder.
@@ -198,7 +200,7 @@ deb_repo:
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
 tmp:
-	cp *.deb /tmp/shared || true
-	cp *.rpm /tmp/shared || true
+	cp ../artifacts/*.deb /tmp/shared || true
+	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm
