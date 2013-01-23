@@ -38,6 +38,7 @@ init_config:
             - TotalWriteLatencyMicros
             - UpdateInterval
             - WriteCount
+            - PendingTasks
         exclude:
           keyspace: system
           attribute: 
@@ -56,10 +57,6 @@ init_config:
             - CompletedTasks
             - CurrentlyBlockedTasks
             - TotalBlockedTasks
-        exclude:
-          attribute:
-           - PendingTasks
-           - Token
       - include:
           domain: org.apache.cassandra.net
           attribute:

@@ -475,7 +475,7 @@ class JmxCheck(AgentCheck):
 
         def in_domains(dom, doms, approx):
             if approx:
-                return len([d for d in doms if dom in d]) > 0
+                return len([d for d in doms if d in dom]) > 0
             else:
                 return dom in doms
 
