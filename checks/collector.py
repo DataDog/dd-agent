@@ -20,13 +20,11 @@ from checks.nagios import Nagios
 from checks.build import Hudson
 from checks.db.mysql import MySql
 from checks.db.mongo import MongoDb
-from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
 from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.db.elastic import ElasticSearch, ElasticSearchClusterStatus
 from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
@@ -79,7 +77,6 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._couchdb = CouchDb(log)
         self._mongodb = MongoDb(log)
         self._mysql = MySql(log)
         self._rabbitmq = RabbitMq()
@@ -91,7 +88,6 @@ class Collector(object):
 
         # Metric Checks
         self._metrics_checks = [
-            ElasticSearch(log),
             WMICheck(log),
             Memcache(log),
         ]
@@ -107,7 +103,6 @@ class Collector(object):
 
         # Event Checks
         self._event_checks = [
-            ElasticSearchClusterStatus(log),
             Nagios(socket.gethostname()),
             Hudson()
         ]
@@ -201,7 +196,6 @@ class Collector(object):
         mysqlStatus = self._mysql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(log, self.agentConfig)
         mongodb = self._mongodb.check(self.agentConfig)
-        couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
@@ -228,10 +222,6 @@ class Collector(object):
                 del mongodb['events']
             payload['mongoDB'] = mongodb
             
-        # CouchDB
-        if couchdb:
-            payload['couchDB'] = couchdb
-        
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)

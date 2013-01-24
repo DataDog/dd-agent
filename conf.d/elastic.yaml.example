@@ -1,0 +1,4 @@
+init_config:
+
+instances:
+    - #url: http://localhost:9200
