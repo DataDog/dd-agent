@@ -22,6 +22,7 @@ before_install:
   - sudo apt-get install solr-tomcat
   - sudo apt-get install nginx
   - sudo apt-get install apache2
+  - sudo apt-get install couchdb
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
@@ -41,6 +42,7 @@ before_script:
   - sudo service apache2 start
   - sudo service nginx start
   - sudo service tomcat6 restart
+  - sudo service couchdb start
 env:
   - DB=redis
 script: nosetests -A 'not windows' tests
