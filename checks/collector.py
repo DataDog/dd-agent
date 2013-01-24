@@ -326,7 +326,6 @@ class Collector(object):
 
 
         emitter_statuses = self._emit(payload)
-        log.error(emitter_statuses)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
