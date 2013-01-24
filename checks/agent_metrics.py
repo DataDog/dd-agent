@@ -1,6 +1,5 @@
 import threading
 from checks import Check
-import subprocess
 
 
 class CollectorMetrics(Check):
