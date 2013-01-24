@@ -40,17 +40,22 @@ def get_parsed_args():
                         default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
+    parser.add_option('-r', '--autorestart', action='store_true', default=False,
+                        dest="autorestart")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
+
     try:
         options, args = parser.parse_args()
     except SystemExit:
         # Ignore parse errors
         options, args = Values({'dd_url': None,
                                 'clean': False,
-                                'use_forwarder': False,
-                                'disable_dd': False}), []
+                                'use_forwarder':False,
+                                'disable_dd':False,
+                                'autorestart':False,
+                                'use_forwarder': False}), []
     return options, args
 
 

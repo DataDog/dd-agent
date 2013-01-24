@@ -430,7 +430,7 @@ class Memory(Check):
             try:
                 top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                 sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            except:
+            except StandardError:
                 self.logger.exception('getMemoryUsage')
                 return False
             
@@ -820,7 +820,7 @@ class Processes(Check):
         # Get output from ps
         try:
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-        except:
+        except StandardError:
             self.logger.exception('getProcesses')
             return False
         
