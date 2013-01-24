@@ -134,6 +134,8 @@ class Collector(object):
         Collect data from each check and submit their data.
         """
         timer = Timer()
+        if self.os != 'windows':
+            cpu_clock = time.clock()
         self.run_count += 1
         log.debug("Starting collection run #%s" % self.run_count)
 
@@ -315,9 +317,16 @@ class Collector(object):
         payload['events'] = events
         collect_duration = timer.step()
 
-        payload['metrics'].extend(self._agent_metrics.check(self.agentConfig, collect_duration, self.emit_duration))
+        if self.os != 'windows':
+            payload['metrics'].extend(self._agent_metrics.check(self.agentConfig, 
+                collect_duration, self.emit_duration, time.clock() - cpu_clock))
+        else:
+            payload['metrics'].extend(self._agent_metrics.check(self.agentConfig, 
+                collect_duration, self.emit_duration))
+
 
         emitter_statuses = self._emit(payload)
+        log.error(emitter_statuses)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
