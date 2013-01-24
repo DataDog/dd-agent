@@ -10,6 +10,7 @@ import sys
 import glob
 import inspect
 import traceback
+import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
@@ -477,9 +478,6 @@ def load_check_directory(agentConfig):
     confd_path = get_confd_path(osname)
     check_glob = os.path.join(checks_path, '*.py')
 
-    # Update the python path before the import
-    sys.path.append(checks_path)
-
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
     # config will "activate" the check.
@@ -489,7 +487,7 @@ def load_check_directory(agentConfig):
     for check in glob.glob(check_glob):
         check_name = os.path.basename(check).split('.')[0]
         try:
-            check_module = __import__(check_name)
+            check_module = imp.load_source('checksd_%s' % check_name, check)
         except:
             log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
