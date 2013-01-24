@@ -20,19 +20,36 @@ class SolrMetric(JMXMetric):
 
 class Solr(JmxCheck):
 
-    SOLR_DOMAINS = ['solr']
+
+
 
     def check(self, instance):
-        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        SOLR_DOMAINS = ['solr']
+        JAVA_DOMAINS = ['java.lang']
+
+        try:
+            (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        except Exception, e:
+            self.log.critical(str(e))
+            raise
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name
-        dump = jmx.dump()
 
-        domains = Solr.SOLR_DOMAINS + self.init_config.get('domains', [])
+        user_solr_domain = self.init_config.get('domains', [])
 
-        self.get_and_send_jvm_metrics(instance, dump, tags)
-        self.create_metrics(instance, self.get_beans(dump, domains, approx=True), SolrMetric, tags=tags)
+        if len(user_solr_domain) > 0:
+            domains = user_solr_domain + JAVA_DOMAINS
+            dump = jmx.dump_domains(JAVA_DOMAINS + user_solr_domain, values_only=False)
+            self.get_and_send_jvm_metrics(instance, dump, tags)
+            self.create_metrics(instance, self.get_beans(dump, domains, approx=False), SolrMetric, tags=tags)
+        else:
+            domains = SOLR_DOMAINS + JAVA_DOMAINS
+            dump = jmx.dump(values_only=False)
+            self.get_and_send_jvm_metrics(instance, dump, tags)
+            self.create_metrics(instance, self.get_beans(dump, domains, approx=True), SolrMetric, tags=tags)
+        
+
         self.send_jmx_metrics()
         self.clear_jmx_metrics()
 

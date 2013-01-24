@@ -25,16 +25,22 @@ class ActiveMQMetric(JMXMetric):
 
 class ActiveMQ(JmxCheck):
 
-    ACTIVEMQ_DOMAINS = ['org.apache.activemq']
-
+    
     def check(self, instance):
-        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        ACTIVEMQ_DOMAINS = ['org.apache.activemq']
+        JAVA_DOMAINS = ['java.lang']
+
+        try:
+            (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+        except Exception, e:
+            self.log.critical(str(e))
+            raise
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name
-        dump = jmx.dump()
 
-        domains = ActiveMQ.ACTIVEMQ_DOMAINS + self.init_config.get('domains', [])
+        domains = ACTIVEMQ_DOMAINS + JAVA_DOMAINS + self.init_config.get('domains', [])
+        dump = jmx.dump_domains(domains)
 
         self.get_and_send_jvm_metrics(instance, dump, tags)
         self.create_metrics(instance, self.get_beans(dump, domains), ActiveMQMetric, tags=tags)
