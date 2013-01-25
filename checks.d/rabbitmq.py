@@ -38,8 +38,10 @@ class RabbitMQ(AgentCheck):
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
             self.log.info('Cannot open RabbitMQ API url: %s', url)
+            raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
             self.log.info('Cannot parse JSON response from API url: %s', url)
+            raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:
             tags = []
@@ -62,8 +64,10 @@ class RabbitMQ(AgentCheck):
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
             self.log.info('Cannot open RabbitMQ API url: %s', url)
+            raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
             self.log.info('Cannot parse JSON response from API url: %s', url)
+            raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:
             tags = []
