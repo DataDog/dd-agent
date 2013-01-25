@@ -438,6 +438,7 @@ class AgentCheck(object):
         """
         To be executed when the agent is being stopped to clean ressources
         """
+        pass
 
     @classmethod
     def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
