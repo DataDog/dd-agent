@@ -342,6 +342,9 @@ class JmxCheck(AgentCheck):
         # Used to store the number of times we opened a new jmx connector for this instance
         self.jmx_connections_watcher = {}
 
+    def stop(self):
+        self.kill_jmx_connectors()
+
 
     def kill_jmx_connectors(self):
         for key in self.jmxs.keys():

@@ -42,6 +42,7 @@ class ServicesCheck(AgentCheck):
             when the service turns down.
 
     """
+
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
@@ -50,6 +51,9 @@ class ServicesCheck(AgentCheck):
         self.notified = {}
         self.start_pool()
         self.nb_failures = 0
+
+    def stop(self):
+        self.stop_pool()
 
     def start_pool(self):
         # The pool size should be the minimum between the number of instances

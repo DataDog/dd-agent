@@ -216,6 +216,7 @@ class Dogstatsd(Daemon):
         # Gracefully exit on sigterm.
         log.info("Adding sig handler")
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+        signal.signal(signal.SIGINT, self._handle_sigterm)
         self.reporter.start()
         try:
             self.server.start()

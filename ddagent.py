@@ -329,6 +329,7 @@ def init():
 
     import signal
     signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
 
     return app
 

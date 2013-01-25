@@ -81,6 +81,9 @@ class Agent(Daemon):
         # A SIGUSR1 signals an exit with an autorestart
         signal.signal(signal.SIGUSR1, self._handle_sigusr1)
 
+        # Handle Keyboard Interrupt
+        signal.signal(signal.SIGINT, self._handle_sigterm)
+
         # Save the agent start-up stats.
         CollectorStatus().persist()
 

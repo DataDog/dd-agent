@@ -434,6 +434,11 @@ class AgentCheck(object):
         """
         raise NotImplementedError()
 
+    def stop(self):
+        """
+        To be executed when the agent is being stopped to clean ressources
+        """
+
     @classmethod
     def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
         """

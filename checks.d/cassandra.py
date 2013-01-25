@@ -21,10 +21,14 @@ class Cassandra(JmxCheck):
 
 
     def check(self, instance):
-        CASSANDRA_DOMAINS = ["org.apache.cassandra.db", 
+        try:
+            CASSANDRA_DOMAINS = [c['include']['domain'] for c in self.init_config['conf']]
+        except Exception:
+            CASSANDRA_DOMAINS = ["org.apache.cassandra.db", 
             "org.apache.cassandra.internal",
             "org.apache.cassandra.net",
             "org.apache.cassandra.request"]
+            
         JAVA_DOMAINS = ['java.lang']
         try:
             (host, port, user, password, jmx, instance_name) = self._load_config(instance)

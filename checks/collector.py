@@ -56,6 +56,7 @@ class Collector(object):
         self.run_count = 0
         self.continue_running = True
         self.metadata_cache = None
+        self.checks_d = []
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -128,6 +129,8 @@ class Collector(object):
         # in which case we'll get a misleading error in the logs.
         # Best to not even try.
         self.continue_running = False
+        for check in self.checks_d:
+            check.stop()
     
     def run(self, checksd=None, start_event=True):
         """
@@ -142,6 +145,7 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
+        self.checks_d = checksd
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
