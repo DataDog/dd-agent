@@ -424,7 +424,7 @@ class JmxCheck(AgentCheck):
                     subval = val[subattr]
                     create_metric(subval, subattr)
 
-            elif type(val) == type("") and val != "NaN":
+            elif (type(val) == type("") or type(val) == type(u"")) and val != "NaN":
                 # This is a workaround for solr as every attribute is a string...
                 try:
                     val = float(val)
