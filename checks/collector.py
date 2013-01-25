@@ -318,10 +318,10 @@ class Collector(object):
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
                 collect_duration, self.emit_duration, time.clock() - cpu_clock))
         else:
-            payload['metrics'].extend(self._agent_metrics.check(self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
                 collect_duration, self.emit_duration))
 
 
