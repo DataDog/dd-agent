@@ -19,7 +19,7 @@ class CollectorMetrics(Check):
         
         if threading.active_count() > MAX_THREADS_COUNT:
             self.save_sample('datadog.collector.threads.count', threading.active_count())
-            self.logger.warning("Thread count is high: %s %s" % (threading.active_count())
+            self.logger.warning("Thread count is high: %s %s" % (threading.active_count()))
 
         
         if collection_time > MAX_COLLECTION_TIME:
