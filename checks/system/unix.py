@@ -498,6 +498,35 @@ class Memory(Check):
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
+
+
+            # Swap
+            try:
+                sysctl = subprocess.Popen(['swapinfo', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            except:
+                self.logger.exception('getMemoryUsage')
+                return False
+
+            lines = sysctl.split('\n')
+
+            # ...
+            # Device          1M-blocks     Used    Avail Capacity
+            # /dev/ad0s1b           570        0      570     0%
+            # ...
+
+            assert "Device" in lines[0]
+
+            try:
+                memData['swapTotal'] = 0
+                memData['swapFree']  = 0
+                memData['swapUsed'] = 0
+                for line in lines[1:]:
+                    line = line.split()
+                    memData['swapTotal'] += int(line[1])
+                    memData['swapFree']  += int(line[3])
+                    memData['swapUsed'] += int(line[2])
+            except:
+                self.logger.exception('Cannot compute stats from swapinfo')
             
             return memData;
         elif sys.platform == 'sunos5':
