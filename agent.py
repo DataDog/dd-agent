@@ -167,7 +167,7 @@ class Agent(Daemon):
         return False
 
     def _do_restart(self):
-        agent_logger.info("Running an auto-restart.")
+        log.info("Running an auto-restart.")
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
 def main():
