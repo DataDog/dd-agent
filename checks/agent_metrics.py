@@ -17,9 +17,9 @@ class CollectorMetrics(Check):
 
     def check(self, payload, agentConfig, collection_time, emit_time, cpu_time=None):
         
-        if threading.active_count() > MAX_THREADS_COUNT:
-            self.save_sample('datadog.agent.collector.threads.count', threading.active_count())
-            self.logger.warning("Thread count is high: %s %s" % (threading.active_count()))
+        if threading.activeCount() > MAX_THREADS_COUNT:
+            self.save_sample('datadog.agent.collector.threads.count', threading.activeCount())
+            self.logger.warning("Thread count is high: %s %s" % (threading.activeCount()))
 
         
         if collection_time > MAX_COLLECTION_TIME:
