@@ -23,6 +23,7 @@ import sys
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
+from socket import gaierror
 
 # Tornado
 import tornado.httpserver
@@ -275,7 +276,12 @@ class Application(tornado.web.Application):
             http_server.listen(self._port)
         else:
             # localhost in lieu of 127.0.0.1 to support IPv6
-            http_server.listen(self._port, address = "localhost")
+            try:
+                http_server.listen(self._port, address = "localhost")
+            except gaierror:
+                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                http_server.listen(self._port, address = "127.0.0.1")
+
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
