@@ -68,8 +68,6 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertTrue(len(events) == 1, events)
         self.assertTrue(events[0]['event_object'] == 'UpService', events)
 
-        self.check.stop_pool()
-
         time.sleep(2)
 
 

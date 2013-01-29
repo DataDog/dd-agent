@@ -73,14 +73,15 @@ class ServicesCheck(AgentCheck):
         self.pool.terminate()
         self.pool.join()
         self.jobs_status.clear()
+        assert self.pool.get_nworkers() == 0
 
     def restart_pool(self):
         self.stop_pool()
         self.start_pool()
 
     def check(self, instance):
-        if threading.active_count() > 5 * self.pool_size:
-            raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.active_count())
+        if threading.activeCount() > 5 * self.pool_size:
+            raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
         name = instance.get('name', None)
