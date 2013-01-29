@@ -17,6 +17,13 @@ class Processes(Check):
         import wmi
         w = wmi.WMI()
         try:
+            os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.' \
+                             ' No process metrics will be returned.')
+            return
+
+        try:
             cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
         except AttributeError:
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
