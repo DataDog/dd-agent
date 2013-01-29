@@ -168,11 +168,14 @@ class Agent(Daemon):
 
     def _do_restart(self):
         log.info("Running an auto-restart.")
+        if self.collector:
+            self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
+    autorestart = agentConfig.get('autorestart', False)
 
     COMMANDS = [
         'start',
@@ -200,7 +203,7 @@ def main():
         if options.clean:
             pid_file.clean()
 
-        agent = Agent(pid_file.get_path(), options.autorestart)
+        agent = Agent(pid_file.get_path(), autorestart)
 
         if 'start' == command:
             log.info('Start daemon')
@@ -217,7 +220,7 @@ def main():
         elif 'foreground' == command:
             logging.info('Running in foreground')
 
-            if options.autorestart:
+            if autorestart:
                 # Set-up the supervisor callbacks and fork it.
                 logging.info('Running Agent with auto-restart ON')
                 def child_func(): agent.run()

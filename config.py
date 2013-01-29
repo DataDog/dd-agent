@@ -40,8 +40,6 @@ def get_parsed_args():
                         default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
-    parser.add_option('-r', '--autorestart', action='store_true', default=False,
-                        dest="autorestart")
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
@@ -54,7 +52,6 @@ def get_parsed_args():
                                 'clean': False,
                                 'use_forwarder':False,
                                 'disable_dd':False,
-                                'autorestart':False,
                                 'use_forwarder': False}), []
     return options, args
 
@@ -311,6 +308,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # FIXME not the prettiest code ever...
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
+
+        if config.has_option('Main', 'autorestart'):
+            agentConfig['autorestart'] = config.get('Main', 'autorestart').lower() in ("yes", "true", "1")
 
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
