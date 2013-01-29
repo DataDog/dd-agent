@@ -8,6 +8,9 @@ import sys
 import time
 from checks import Check, gethostname, UnknownValue
 
+# locale-resilient float converter
+to_f = lambda s: float(s.replace(",", "."))
+
 class Disk(Check):
 
     def __init__(self, logger):
@@ -854,7 +857,7 @@ class Cpu(Check):
         def get_value(legend, data, name):
             "Using the legend and a metric name, get the value or None from the data line"
             if name in legend:
-                return float(data[legend.index(name)])
+                return to_f(data[legend.index(name)])
             else:
                 # FIXME return a float or False, would trigger type error if not python
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
