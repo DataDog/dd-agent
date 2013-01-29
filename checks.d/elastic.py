@@ -264,7 +264,7 @@ class ElasticSearch(AgentCheck):
             func(metric, *desc)
 
     def _metric_not_found(self, metric, path):
-        self.log.warning("Metric not found: %s -> %s", path, metric)
+        self.log.debug("Metric not found: %s -> %s", path, metric)
 
     def _create_event(self):
         hostname = gethostname(self.agentConfig).decode('utf-8')
