@@ -811,7 +811,10 @@ class Network(Check):
                     interfaces[i][name] = sample
                 except UnknownValue:
                     pass
-            return interfaces
+            if len(interfaces) > 0:
+                return interfaces
+            else:
+                return False
         else:
             return False    
 
