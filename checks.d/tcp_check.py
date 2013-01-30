@@ -80,7 +80,7 @@ class TCPCheck(ServicesCheck):
             self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
-        self.log.info("%s:%s is UP" % (addr, port))
+        self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
 
 

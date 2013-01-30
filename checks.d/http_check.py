@@ -50,7 +50,7 @@ class HTTPCheck(ServicesCheck):
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
             return Status.DOWN, str(resp.status)
 
-        self.log.info("%s is UP" % addr)
+        self.log.debug("%s is UP" % addr)
         return Status.UP, "UP"
 
     def _create_status_event(self, status, msg, instance):
