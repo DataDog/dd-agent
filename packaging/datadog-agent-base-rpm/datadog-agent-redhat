@@ -120,9 +120,9 @@ start() {
         fi
         echo -n 'Starting Datadog agent: '
         install -d -o $AGENTUSER $PIDPATH
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean >/dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
@@ -147,9 +147,9 @@ stop() {
             return
         fi
         echo -n 'Stopping Datadog agent: '
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop >/dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop > /dev/null 2>&1"
         RETURNVALUE=$?
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi
@@ -162,10 +162,10 @@ restart() {
 }
 
 info() {
-    su $AGENTUSER -c "$AGENTPATH info"
-    su $AGENTUSER -c "$DOGSTATSDPATH info"
+    su $AGENTUSER -c "$AGENTPATH info" || true
+    su $AGENTUSER -c "$DOGSTATSDPATH info" || true
     if [ -f $USE_SUPERVISOR ]; then
-        su $AGENTUSER -c "$USE_SUPERVISOR info"
+        su $AGENTUSER -c "$USE_SUPERVISOR info" || true
     fi
 }
 

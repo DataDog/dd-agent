@@ -55,6 +55,8 @@ from checks import *
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
 class Memcache(Check):
+    DEFAULT_PORT = 11211
+
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.gauge("memcache.total_items")
@@ -66,6 +68,11 @@ class Memcache(Check):
         self.gauge("memcache.connection_structures")
         self.gauge("memcache.threads")
         self.gauge("memcache.pointer_size")
+
+        # these two are calculated from other metrics
+        self.gauge("memcache.get_hit_percent")
+        self.gauge("memcache.avg_item_size")
+        self.gauge("memcache.fill_percent")
 
         self.counter("memcache.rusage_user_rate")
         self.counter("memcache.rusage_system_rate")
@@ -97,30 +104,28 @@ class Memcache(Check):
         #memcache_instance_1: first_host:first_port:first_tag
         #memcache_instance_2: second_host:second_port:second_tag
         #memcache_instance_3: third_host:third_port:third_tag
-        def load_conf(index=1):
+        index = 1
+        instance = agentConfig.get("memcache_instance_%s" % index, None)
+        while instance:
+            instance = instance.split(":")
+            memcache_urls.append(instance[0])
+            if len(instance)>1:
+                memcache_ports.append(instance[1])
+            else:
+                memcache_ports.append(self.DEFAULT_PORT)
+            if len(instance)==3:
+                tags.append(instance[2])
+            else:
+                tags.append(None)
+            index = index + 1
             instance = agentConfig.get("memcache_instance_%s" % index, None)
-            if instance is not None:
-                instance = instance.split(":")
-                memcache_urls.append(instance[0])
-                if len(instance)>1:
-                    memcache_ports.append(instance[1])
-                else:
-                    memcache_ports.append(11211)
-                if len(instance)==3:
-                    tags.append(instance[2])
-                else:
-                    tags.append(None)
-                    
-                load_conf(index+1)
-
-        load_conf()
 
         return (memcache_urls, memcache_ports, tags)
 
     def _get_metrics(self, server, port, tags, memcache):
         mc = None # client
         try:
-            self.logger.debug("Connecting to %s:%s tags:%s" % (server, port, tags))
+            self.logger.debug("Connecting to %s:%s tags:%s", server, port, tags)
             mc = memcache.Client(["%s:%d" % (server, port)])
             raw_stats = mc.get_stats()
 
@@ -128,7 +133,7 @@ class Memcache(Check):
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
-                self.logger.debug("Processing %s: %s" % (metric, stats[metric]))
+                self.logger.debug("Processing %s: %s", metric, stats[metric])
 
                 our_metric = "memcache." + metric
                 # Tweak the name if it's a counter so that we don't use the exact
@@ -138,15 +143,51 @@ class Memcache(Check):
 
                 if self.is_metric(our_metric):
                     self.save_sample(our_metric, float(stats[metric]), tags=tags)
-                    self.logger.debug("Saved %s: %s" % (our_metric, stats[metric]))
+                    self.logger.debug("Saved %s: %s", our_metric, stats[metric])
         except ValueError:
             self.logger.exception("Cannot convert port value; check your configuration")
         except CheckException:
             self.logger.exception("Cannot save sampled data")
-        except:
+        except Exception:
             self.logger.exception("Cannot get data from memcache")
 
         if mc is not None:
+            # calculate some metrics based on other metrics.
+            # stats should be present, but wrap in try/except
+            # and log an exception just in case.
+            try:
+                self.save_sample(
+                    "memcache.get_hit_percent",
+                    100.0 * float(stats["get_hits"]) / float(stats["cmd_get"]),
+                    tags=tags,
+                )
+            except ZeroDivisionError:
+                pass
+            except Exception: 
+                self.logger.exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
+
+            try:
+                self.save_sample(
+                    "memcache.fill_percent",
+                    100.0 * float(stats["bytes"]) / float(stats["limit_maxbytes"]),
+                    tags=tags,
+                )
+            except ZeroDivisionError:
+                pass
+            except Exception:
+                self.logger.exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
+            
+            try:
+                self.save_sample(
+                    "memcache.avg_item_size",
+                    float(stats["bytes"]) / float(stats["curr_items"]),
+                    tags=tags,
+                )
+            except ZeroDivisionError:
+                pass
+            except Exception:
+                self.logger.exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
+            
             mc.disconnect_all()
             self.logger.debug("Disconnected from memcached")
         del mc
@@ -160,6 +201,13 @@ class Memcache(Check):
         except ImportError:
             self.logger.exception("Cannot import python-based memcache driver")
             return False
+
+        # Hacky monkeypatch to fix a memory leak in the memcache library.
+        # See https://github.com/DataDog/dd-agent/issues/278 for details.
+        try:
+            memcache.Client.debuglog = None
+        except:
+            pass
 
         for i in range(len(memcache_urls)):
             server = memcache_urls[i]
@@ -177,7 +225,7 @@ class Memcache(Check):
             self._get_metrics(server, port, tag, memcache)
                 
         metrics = self.get_metrics()
-        self.logger.debug("Memcache samples: %s" % metrics)
+        self.logger.debug("Memcache samples: %s", metrics)
         return metrics
 
  

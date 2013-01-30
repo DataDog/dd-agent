@@ -55,7 +55,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertTrue(len(events) == 0)
 
         # We change the stored status, so next check should trigger an event
-        self.check.statuses['UpService'] = "DOWN"
+        self.check.notified['UpService'] = "DOWN"
 
         self.check.check(config['instances'][0])
         self.check.check(config['instances'][1])
@@ -64,13 +64,9 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.check.check(config['instances'][1])
 
         events = self.check.get_events()
-
-        assert events
-        self.assertTrue(type(events) == type([]))
-        self.assertTrue(len(events) == 1)
-        self.assertTrue(events[0]['event_object'] == 'UpService')
-
-        self.check.stop_pool()
+        self.assertTrue(type(events) == type([]), events)
+        self.assertTrue(len(events) == 1, events)
+        self.assertTrue(events[0]['event_object'] == 'UpService', events)
 
         time.sleep(2)
 
@@ -119,7 +115,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertTrue(len(events) == 0)
 
         # We change the stored status, so next check should trigger an event
-        self.check.statuses['UpService'] = "DOWN"
+        self.check.notified['UpService'] = "DOWN"
 
         self.check.run()
         time.sleep(5)

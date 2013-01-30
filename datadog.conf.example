@@ -8,10 +8,6 @@ dd_url: https://app.datadoghq.com
 # https://app.datadoghq.com/account/settings
 api_key:
 
-# Boolean to enable debug_mode, which outputs massive amounts of log messages
-# to the /tmp/ directory.
-debug_mode: no
-
 # Force the hostname to whatever you want.
 #hostname: mymachine.mydomain
 
@@ -26,6 +22,13 @@ use_mount: no
 
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
+
+# Allow non-local traffic to this agent
+# This is required when using this agent as a proxy for other agents
+# that might not have an internet connection
+# For more information, please see
+# https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
+# non_local_traffic: no
 
 # ========================================================================== #
 # Pup configuration
@@ -209,85 +212,6 @@ use_mount: no
 #nagios_perf_cfg: /etc/nagios/nagios.cfg
 
 
-# -------------------------------------------------------------------------- #
-#   Java                                                                     #
-# -------------------------------------------------------------------------- #
-
-# Get Java JVM metrics using JMX
-# You can set multiple Java instances, using the schema below
-# user is the JMX user (if any) used to connect to the related JMX instance
-# password is the JMX password (if any) used to connect to the related JMX instance
-# server is the JMX server url
-# port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance, it's an optional parameter
-# if not present the tag would be "server-port"
-
-
-#java_jmx_instance_1: user:password@server:port:tag
-
-#java_jmx_instance_2: user:password@server:port:tag
-
-#...
-
-# -------------------------------------------------------------------------- #
-#   Tomcat                                                                   #
-# -------------------------------------------------------------------------- #
-
-# Get Tomcat metrics using JMX
-# You can set multiple Tomcat instances, using the schema below
-# user is the JMX user (if any) used to connect to the related JMX instance
-# password is the JMX password (if any) used to connect to the related JMX instance
-# server is the JMX server url
-# port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance, it's an optional parameter
-# if not present the tag would be "server-port"
-
-#tomcat_jmx_instance_1: user:password@server:port:tag
-
-#tomcat_jmx_instance_2: user:password@server:port:tag
-
-#...
-
-
-
-# -------------------------------------------------------------------------- #
-#   Activemq                                                                 #
-# -------------------------------------------------------------------------- #
-
-# Get Activemq metrics using JMX
-# You can set multiple ActiveMQ instances, using the schema below
-# user is the JMX user (if any) used to connect to the related JMX instance
-# password is the JMX password (if any) used to connect to the related JMX instance
-# server is the JMX server url
-# port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance, it's an optional parameter
-# if not present the tag would be "server-port"
-
-
-#activemq_jmx_instance_1: user:password@server:port:tag
-
-#activemq_jmx_instance_2: user:password@server:port:tag
-
-#...
-
-# -------------------------------------------------------------------------- #
-#  Solr                                                                      #
-# -------------------------------------------------------------------------- #
-
-# Get Solr metrics using JMX
-# You can set multiple Solr instances, using the schema below
-# user is the JMX user (if any) used to connect to the related JMX instance
-# password is the JMX password (if any) used to connect to the related JMX instance
-# server is the JMX server url
-# port is the port where the JMX server runs
-# tag is the tag you want to associate to this instance, it's an optional parameter
-# if not present the tag would be "server-port"
-
-#solr_jmx_instance_1: user:password@server:port:tag
-
-#solr_jmx_instance_2: user:password@server:port:tag
-
-#...
 
 # -------------------------------------------------------------------------- #
 #  Memcache
@@ -402,77 +326,19 @@ use_mount: no
 # If the name of the check is not specified, 'Check' is assumed.
 
 # ========================================================================== #
-# WMI Metrics
+# Logging
 # ========================================================================== #
-[WMI]
-# Each value should have the following structure:
+
+# log_level: INFO
+
+# collector_log_file: /var/log/datadog/collector.log
+# forwarder_log_file: /var/log/datadog/forwarder.log
+# dogstatsd_log_file: /var/log/datadog/dogstatsd.log
+# pup_log_file:       /var/log/datadog/pup.log
+
+# if syslog is enabled but a host and port are not set, a local domain socket
+# connection will be attempted
 #
-# my.custom.metric_name: Win32_Metric_Name:value_to_use
-#
-# Example:
-#
-# system.users.count: Win32_OperatingSystem:NumberOfUsers
-
-##############################################################################
-#################### NOTHING TO MODIFY AFTER THIS LINE #######################
-##############################################################################
-
-# -------------------------------------------------------------------------- #
-#  Logging Configuration
-#
-#  PLEASE READ ME!
-#
-#  DO NOT PUT ANY INTEGRATION CONFIGURATION AFTER THIS SECTION
-#  IT WILL BE IGNORED.
-#  I REPEAT, IT WILL BE IGNORED.
-#
-# -------------------------------------------------------------------------- #
-
-[loggers]
-keys:root,dogstatsd,checks
-
-[handlers]
-keys:dogstatsd,checks
-
-[formatters]
-keys:ddagent
-
-# DogStatsd logging
-
-[logger_root]
-level:INFO
-handlers:
-propagate:0
-qualname:root
-
-[logger_dogstatsd]
-level:INFO
-handlers:dogstatsd
-propagate:0
-qualname:dogstatsd
-
-[logger_checks]
-level:WARN
-handlers:checks
-propagate:0
-qualname:checks
-
-[handler_dogstatsd]
-class:FileHandler
-level:INFO
-formatter:ddagent
-args:('/tmp/dogstatsd.log', 'a')
-
-[handler_checks]
-class:FileHandler
-level:WARN
-formatter:ddagent
-args:('/tmp/dd-agent.log', 'a')
-
-[formatter_ddagent]
-format: %(asctime)s | %(name)s | %(levelname)s | %(message)s
-class:logging.Formatter
-
-# IF YOU ADD ANYTHING HERE, IT WILL BE IGNORED
-# SO IF YOU WANT TO CONFIGURE AN INTEGRATION,
-# DO IT IN THE SECTION ABOVE
+# log_to_syslog: yes
+# syslog_host:
+# syslog_port:

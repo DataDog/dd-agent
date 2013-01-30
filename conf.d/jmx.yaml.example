@@ -1,0 +1,23 @@
+init_config:
+
+instances:
+#    -   host: localhost
+#        port: 7199
+#        name: jmx_instance
+#        user: username
+#        password: password
+#        conf:
+#            -include: 
+#               domain: my_domain
+#               bean: my_bean
+#               attribute:
+#                    attribute1:
+#                        metric_type: counter
+#                        alias: jmx.my_metric_name
+#                    attribute2:
+#                        metric_type: gauge
+#                        alias: jmx.my2ndattribute
+#            - include:
+#                domain: 2nd_domain
+#            - exclude:
+#                bean: excluded_bean

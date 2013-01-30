@@ -1,4 +1,3 @@
-import logging
 import os
 import platform
 import signal
@@ -41,6 +40,8 @@ try:
 except ImportError:
     from compat.namedtuple import namedtuple
 
+import logging
+log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
@@ -56,15 +57,8 @@ def get_uuid():
     # on the back-end if need be, based on mac addresses.
     return uuid.uuid5(uuid.NAMESPACE_DNS, platform.node() + str(uuid.getnode())).hex
 
-def headers(agentConfig):
-    # Build the request headers
-    return {
-        'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'text/html, */*',
-    }
 
-def getOS():
+def get_os():
     "Human-friendly OS name"
     if sys.platform == 'darwin':
         return 'mac'
@@ -79,6 +73,16 @@ def getOS():
     else:
         return sys.platform
 
+
+def headers(agentConfig):
+    # Build the request headers
+    return {
+        'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'text/html, */*',
+    }
+
+
 def getTopIndex():
     macV = None
     if sys.platform == 'darwin':
@@ -90,6 +94,7 @@ def getTopIndex():
     else:
         return 5
 
+
 def isnan(val):
     if hasattr(math, 'isnan'):
         return math.isnan(val)
@@ -97,6 +102,7 @@ def isnan(val):
     # for py < 2.6, use a different check
     # http://stackoverflow.com/questions/944700/how-to-check-for-nan-in-python
     return str(val) == str(1e400*0)
+
 
 def cast_metric_val(val):
     # ensure that the metric value is a numeric type
@@ -113,6 +119,7 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
     if it has not been reset every N seconds.
@@ -125,17 +132,19 @@ class Watchdog(object):
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
+
     @staticmethod
     def self_destruct(signum, frame):
         try:
             import traceback
-            logging.error("Self-destructing...")
-            logging.error(traceback.format_exc())
+            log.error("Self-destructing...")
+            log.error(traceback.format_exc())
         finally:
             os.kill(os.getpid(), signal.SIGKILL)
 
+
     def reset(self):
-        logging.debug("Resetting watchdog for %d" % self._duration)
+        log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 
 
@@ -144,39 +153,43 @@ class PidFile(object):
 
     PID_DIR = '/var/run/dd-agent'
 
+
     def __init__(self, program, pid_dir=PID_DIR):
         self.pid_file = "%s.pid" % program
         self.pid_dir = pid_dir
         self.pid_path = os.path.join(self.pid_dir, self.pid_file)
 
+
     def get_path(self):
         # Can we write to the directory
         try:
             if os.access(self.pid_dir, os.W_OK):
-                logging.info("Pid file is: %s" % self.pid_path)
+                log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except:
-            logging.exception("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+            log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
 
         # if all else fails
         if os.access("/tmp", os.W_OK):
             tmp_path = os.path.join('/tmp', self.pid_file)
-            logging.debug("Using temporary pid file: %s" % tmp_path)
+            log.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
             # Can't save pid file, bail out
-            logging.error("Cannot save pid file anywhere")
+            log.error("Cannot save pid file anywhere")
             raise Exception("Cannot save pid file anywhere")
+
 
     def clean(self):
         try:
             path = self.get_path()
-            logging.debug("Cleaning up pid file %s" % path)
+            log.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
         except:
-            logging.exception("Could not clean up pid file")
+            log.warn("Could not clean up pid file")
             return False
+
 
     def get_pid(self):
         "Retrieve the actual pid"
@@ -240,3 +253,50 @@ class Timer(object):
     def total(self, as_sec=True):
         return self._now() - self.start
 
+
+class AgentSupervisor(object):
+    ''' A simple supervisor to keep a restart a child on expected auto-restarts
+    '''
+    RESTART_EXIT_STATUS = 5
+
+    @classmethod
+    def start(cls, parent_func, child_func=None):
+        ''' `parent_func` is a function that's called every time the child
+            process dies.
+            `child_func` is a function that should be run by the forked child
+            that will auto-restart with the RESTART_EXIT_STATUS.
+        '''
+        cls.running = True
+        exit_code = cls.RESTART_EXIT_STATUS
+
+        # Allow the child process to die on SIGTERM
+        signal.signal(signal.SIGTERM, cls._handle_sigterm)
+
+        while cls.running and exit_code == cls.RESTART_EXIT_STATUS:
+            try:
+                pid = os.fork()
+                if pid > 0:
+                    # The parent waits on the child.
+                    cls.child_pid = pid
+                    wait_pid, status = os.waitpid(pid, 0)
+                    exit_code = status >> 8
+                    parent_func()
+                else:
+                    # The child will call our given function
+                    if child_func:
+                        child_func()
+                    else:
+                        break
+            except OSError, e:
+                msg = "Agent fork failed: %d (%s)" % (e.errno, e.strerror)
+                logging.error(msg)
+                sys.stderr.write(msg + "\n")
+                sys.exit(1)
+
+        # Exit from the parent cleanly
+        if pid > 0:
+            sys.exit(0)
+
+    @classmethod
+    def _handle_sigterm(cls, signum, frame):
+        os.kill(cls.child_pid, signal.SIGTERM)

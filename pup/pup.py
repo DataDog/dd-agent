@@ -10,6 +10,11 @@ Pup.py
     (C) Datadog, Inc. 2012 all rights reserved
 """
 
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging('pup')
+
+import os; os.umask(022)
+
 # stdlib
 from collections import defaultdict
 import sys
@@ -30,9 +35,7 @@ from tornado import websocket
 from config import get_config
 from util import json
 
-
-logger = logging.getLogger('pup')
-
+log = logging.getLogger('pup')
 
 AGENT_TRANSLATION = {
     'cpuUser'     : 'CPU user (%)',
@@ -225,14 +228,17 @@ def run_pup(config):
 
     port = config.get('pup_port', 17125)
 
-    application.listen(port)
+    if config.get('non_local_traffic', False) is True:
+        application.listen(port)
+    else:
+        # localhost in lieu of 127.0.0.1 allows for ipv6
+        application.listen(port, address="localhost")
 
     interval_ms = 2000
     io_loop = ioloop.IOLoop.instance()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
-
 
 def main():
     """ Parses arguments and starts Pup server """
@@ -241,10 +247,10 @@ def main():
     is_enabled = c['use_pup']
 
     if is_enabled:
-        logging.info("Starting pup")
+        log.info("Starting pup")
         run_pup(c)
     else:
-        logging.info("Pup is disabled. Exiting")
+        log.info("Pup is disabled. Exiting")
         # We're exiting purposefully, so exit with zero (supervisor's expected
         # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
         # and thus can exit cleanly.

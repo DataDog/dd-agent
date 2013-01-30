@@ -2,12 +2,15 @@ from checks import AgentCheck
 import time
 from Queue import Queue, Empty
 from checks.libs.thread_pool import Pool
+import threading
 
 
 
-TIMEOUT = 120
+
+TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
 MAX_LOOP_ITERATIONS = 1000
+FAILURE = "FAILURE"
 
 class Status:
     DOWN = "DOWN"
@@ -39,33 +42,46 @@ class ServicesCheck(AgentCheck):
             when the service turns down.
 
     """
+
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # A dictionary to keep track of service statuses
         self.statuses = {}
+        self.notified = {}
         self.start_pool()
+        self.nb_failures = 0
+
+    def stop(self):
+        self.stop_pool()
 
     def start_pool(self):
         # The pool size should be the minimum between the number of instances
         # and the DEFAULT_SIZE_POOL. It can also be overridden by the 'threads_count'
         # parameter in the init_config of the check
+        self.log.info("Starting Thread Pool")
         default_size = min(self.instance_count(), DEFAULT_SIZE_POOL)
-        pool_size = int(self.init_config.get('threads_count', default_size))
+        self.pool_size = int(self.init_config.get('threads_count', default_size))
 
-        self.pool = Pool(pool_size)
+        self.pool = Pool(self.pool_size)
 
         self.resultsq = Queue()
         self.jobs_status = {}
 
     def stop_pool(self):
+        self.log.info("Stopping Thread Pool")
         self.pool.terminate()
+        self.pool.join()
+        self.jobs_status.clear()
+        assert self.pool.get_nworkers() == 0
 
     def restart_pool(self):
         self.stop_pool()
         self.start_pool()
 
     def check(self, instance):
+        if threading.activeCount() > 5 * self.pool_size:
+            raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
         name = instance.get('name', None)
@@ -92,8 +108,8 @@ class ServicesCheck(AgentCheck):
             self.resultsq.put(result)
 
         except Exception, e:
-            self.log.exception(e)
-            self.restart_pool()
+            result = (FAILURE, FAILURE, FAILURE, FAILURE)
+            self.resultsq.put(result)
 
     def _process_results(self):
         for i in range(MAX_LOOP_ITERATIONS):
@@ -103,29 +119,48 @@ class ServicesCheck(AgentCheck):
             except Empty:
                 break
 
+            if status == FAILURE:
+                self.nb_failures += 1
+                if self.nb_failures >= self.pool_size - 1:
+                    self.nb_failures = 0
+                    self.restart_pool()
+                continue
+
             event = None
 
-            if self.statuses.get(name, None) is None and status == Status.DOWN:
-                # First time the check is run since agent startup and the service is down
-                # We trigger an event
-                self.statuses[name] = status
-                event = self._create_status_event(status, msg, queue_instance)
+            if not name in self.statuses:
+                self.statuses[name] = []
 
-            elif self.statuses.get(name, Status.UP) != status:
-                # There is a change in the state versus previous state
-                # We trigger an event
-                self.statuses[name] = status
-                event = self._create_status_event(status, msg, queue_instance)
+            self.statuses[name].append(status)
 
+            window = int(queue_instance.get('window', 1))
+
+            if window > 256:
+                self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
+                window = 256
+
+
+
+            threshold = queue_instance.get('threshold', 1)
+
+            if len(self.statuses[name]) > window:
+                self.statuses[name].pop(0)
+
+            nb_failures = self.statuses[name].count(Status.DOWN)
+
+            if nb_failures >= threshold:
+                if self.notified.get(name, Status.UP) != Status.DOWN:
+                    event = self._create_status_event(status, msg, queue_instance)
+                    self.notified[name] = Status.DOWN
             else:
-                # Either it's the first time the check is run and the service is up
-                # or there is no change in the status
-                self.statuses[name] = status
+                if self.notified.get(name, Status.UP) != Status.UP:
+                    event = self._create_status_event(status, msg, queue_instance)
+                    self.notified[name] = Status.UP
 
             if event is not None:
                 self.events.append(event)
 
-            # The job is finish here, this instance can be re processed
+            # The job is finished here, this instance can be re processed
             del self.jobs_status[name]
 
     def _check(self, instance):

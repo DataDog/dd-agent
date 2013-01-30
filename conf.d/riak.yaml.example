@@ -1,0 +1,4 @@
+init_config:
+
+instances:
+#  - url: http://127.0.0.1:8098/stats

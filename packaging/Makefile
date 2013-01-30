@@ -17,6 +17,7 @@ FPM_BUILD=fpm -s dir -e -C $(BUILD) \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
 -v $(VERSION) \
+--vendor Datadog \
 --iteration $(BUILD_NUMBER)
 
 
@@ -44,6 +45,7 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
 # Layout all of the files common to both versions of the agent in
@@ -52,7 +54,9 @@ install_base: source
 	mkdir -p $(BUILD)
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
+	mkdir -p $(BUILD)/etc/dd-agent/conf.d
 	mkdir -p $(BUILD)/usr/bin
+	mkdir -p $(BUILD)/var/log/datadog
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
@@ -61,6 +65,7 @@ install_base: source
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
+	chmod 755 $(BUILD)/var/log/datadog
 
 install_full: source
 	# Install the forwarder.
@@ -77,7 +82,6 @@ install_base_rpm: install_base
 	cp datadog-agent-base-rpm/datadog-agent-redhat $(BUILD)/etc/init.d/datadog-agent
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
 
-
 install_full_rpm: install_base_rpm install_full
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/usr/share/datadog/agent
@@ -92,7 +96,7 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 -d "pexpect" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
 --pre-uninstall datadog-agent-base-rpm/pre_uninstall \
@@ -103,13 +107,13 @@ datadog_agent_rpm: clean install_full_rpm
 $(FPM_BUILD) -t rpm \
 -n "datadog-agent" \
 -d "python(abi) >= 2.6" \
--d "python-tornado >= 2.3" \
+-d "python-tornado >= 2.2" \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
 -d "pexpect" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib  < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
@@ -196,9 +200,7 @@ deb_repo:
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
 tmp:
-	cp *.deb /tmp/shared || true
-	cp *.rpm /tmp/shared || true
+	cp ../artifacts/*.deb /tmp/shared || true
+	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm
-
-
