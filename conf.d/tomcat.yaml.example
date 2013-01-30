@@ -5,8 +5,9 @@ instances:
 #        password: password
 #        name: tomcat_instance
 
+# List of metrics to be collected by the integration
+# You should not need to modify this.
 init_config:
-  # this section must be present but contents will be ignored.
   conf:
     - include:
         type: ThreadPool
