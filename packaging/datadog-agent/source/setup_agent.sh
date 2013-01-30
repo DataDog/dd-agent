@@ -11,7 +11,7 @@ fi
 unamestr=`uname`
 
 if [ $(which curl) ]; then
-    dl_cmd="curl -L -o"
+    dl_cmd="curl -k -L -o"
 else
     dl_cmd="wget -O"
 fi
@@ -19,15 +19,23 @@ fi
 # create home base for the agent
 if [ $apikey ]; then
     if [ $dd_home ]; then
-	dd_base=$dd_home
+  dd_base=$dd_home
     else
-	dd_base=$HOME/.datadog-agent
+  if [ "$unamestr" = "SunOS" ]; then
+      dd_base="/opt/local/datadog"
+  else
+      dd_base=$HOME/.datadog-agent
+  fi
     fi
 else
     if [ $dd_home ]; then
-	dd_base=$dd_home
+  dd_base=$dd_home
     else
-	dd_base=$HOME/.pup
+  if [ "$unamestr" = "SunOS" ]; then
+      dd_base="/opt/local/datadog"
+  else
+      dd_base=$HOME/.pup
+  fi
     fi
 fi
 mkdir -p $dd_base
@@ -40,9 +48,16 @@ python $dd_base/virtualenv.py $dd_base/venv
 # install dependencies
 pip install tornado
 
+# figure out where to pull from
+if [ "$unamestr" = "SunOS" ]; then
+    tag="smartos-release"
+else
+    tag="pup-release"
+fi
+
 # set up the agent
 mkdir -p $dd_base/agent
-$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/pup-release
+$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag
 tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1
@@ -53,6 +68,12 @@ sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agen
 mkdir -p $dd_base/bin
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent
 chmod +x $dd_base/bin/agent
+
+# This is the script that will be used by SMF
+if [ "$unamestr" = "SunOS" ]; then
+    cp $dd_base/agent/packaging/datadog-agent/smartos/dd-agent $dd_base/bin/dd-agent
+    chmod +x $dd_base/bin/dd-agent
+fi
 
 # set up supervisor
 mkdir -p $dd_base/supervisord/logs
@@ -124,6 +145,7 @@ up again in the foreground, run:
 
 cd $dd_base
 sh bin/agent
+
 "
 
     if [ "$unamestr" = "Darwin" ]; then
@@ -133,6 +155,14 @@ while you're logged in, run:
     mkdir -p ~/Library/LaunchAgents
     cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
     launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+"
+    elif [ "$unamestr" = "SunOS" ]; then
+    echo "To set it up as a daemon that always runs in the background,
+    run as root or via sudo:
+
+    svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
+    svcadm enable site/datadog
+    svcs datadog
 "
     fi
 

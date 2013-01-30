@@ -869,7 +869,7 @@ class Cpu(Check):
         if sys.platform == 'linux2':
             mpstat = subprocess.Popen(['mpstat', '1', '3'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
             # topdog@ip:~$ mpstat 1 3
-            # Linux 2.6.32-341-ec2 (ip) 	01/19/2012 	_x86_64_	(2 CPU)
+            # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)
             #
             # 04:22:41 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
             # 04:22:42 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
