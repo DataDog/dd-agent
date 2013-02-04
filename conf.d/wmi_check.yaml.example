@@ -9,7 +9,7 @@ instances:
     # standard class names on the MSDN docs at
     # http://msdn.microsoft.com/en-us/library/windows/desktop/aa394084.aspx.
     # The Win32_FormattedData_* classes provide many useful performance counters
-    # by defaults.
+    # by default.
     #
     #
     # `metrics` is a list of metrics you want to capture, with each item in the
@@ -26,7 +26,7 @@ instances:
     #
     #
     # `filters` is a list of filters on the WMI query you may want. For example,
-    # for a process-based WMI class, you may want metrics for only certain
+    # for a process-based WMI class you may want metrics for only certain
     # processes running on your machine, so you could add a filter for each
     # process name. See below for an example of this case.
     #
