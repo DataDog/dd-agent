@@ -9,7 +9,8 @@ from config import initialize_logging; initialize_logging('dogstatsd')
 import os; os.umask(022)
 
 # stdlib
-import httplib as http_client
+import httplib
+import urllib2
 import logging
 import optparse
 from random import randrange
@@ -37,6 +38,43 @@ WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
 LOGGING_INTERVAL = 10
 
+class HTTPResponse(object):
+
+    def __init__(self, response):
+        self.response = response
+        self.status = response.code
+
+    def close(self):
+        pass
+
+
+class HTTPClient(object):
+
+    def __init__(self, api_host, lib='httplib', proxy_host=None, proxy_port=None, proxy_user=None, proxy_pass=None):
+        self.lib = lib
+        self.api_host = api_host
+        if self.lib == 'httplib':
+            self.client = httplib.HTTPConnection(api_host)
+
+    def request(self, method, url, body, headers):
+        if self.lib == 'httplib':
+            self.client.request(method, url, body, headers)
+        else:
+            url = "https://%s%s" % (self.api_host, url)
+            self.client = urllib2.Request(url, data=body, headers=headers)
+            self.response = HTTPResponse(urllib2.urlopen(self.client))
+
+
+    def getresponse(self):
+        if self.lib == 'httplib':
+            return self.client.getresponse()
+        else:
+            return self.response
+
+    def close(self):
+        if self.lib == 'httplib':
+            self.client.close()
+
 
 class Reporter(threading.Thread):
     """
@@ -44,12 +82,14 @@ class Reporter(threading.Thread):
     server.
     """
 
-    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False):
+    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, 
+        use_watchdog=False, use_urllib2=False):
         threading.Thread.__init__(self)
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
+        self.use_urllib2 = use_urllib2
 
         self.watchdog = None
         if use_watchdog:
@@ -59,14 +99,14 @@ class Reporter(threading.Thread):
         self.api_key = api_key
         self.api_host = api_host
 
-        self.http_conn_cls = http_client.HTTPSConnection
+        self.http_conn_cls = HTTPClient
 
         match = re.match('^(https?)://(.*)', api_host)
 
         if match:
             self.api_host = match.group(2)
             if match.group(1) == 'http':
-                self.http_conn_cls = http_client.HTTPConnection
+                self.http_conn_cls = HTTPClient
 
     def stop(self):
         log.info("Stopping reporter")
@@ -134,7 +174,12 @@ class Reporter(threading.Thread):
 
         start_time = time()
         status = None
-        conn = self.http_conn_cls(self.api_host)
+        if self.use_urllib2:
+            log.info("Using urllib2")
+            conn = self.http_conn_cls(self.api_host, lib='urllib2')
+        else:
+            log.info("Using httplib")
+            conn = self.http_conn_cls(self.api_host)
         try:
             conn.request(method, url, body, headers)
 
@@ -240,6 +285,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     interval  = int(c['dogstatsd_interval'])
     normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
+    use_urllib2 = c.get('use_urllib2', False)
 
     target = c['dd_url']
     if use_forwarder:
@@ -253,7 +299,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     aggregator = MetricsAggregator(hostname, interval)
 
     # Start the reporting thread.
-    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
+    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, use_urllib2=use_urllib2)
 
     # Start the server.
     server_host = ''
