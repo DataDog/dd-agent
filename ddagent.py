@@ -193,7 +193,7 @@ class MetricTransaction(Transaction):
                 proxy_port = None
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, headers=self._headers, proxy_host=proxy_host, 
-                proxy_port=proxy_port)
+                proxy_port=proxy_port, validate_cert=False)
 
             # Send Transaction to the endpoint
             if proxy_port is not None and proxy_host is not None:
