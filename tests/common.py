@@ -1,7 +1,6 @@
 from checks import AgentCheck
 from config import get_checksd_path, get_confd_path
 from util import get_os
-from pprint import pprint
 import sys
 import inspect
 import os
