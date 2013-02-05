@@ -1,6 +1,7 @@
 from checks import AgentCheck
-from config import get_checksd_path
+from config import get_checksd_path, get_confd_path
 from util import get_os
+from pprint import pprint
 import sys
 import inspect
 import os
@@ -75,3 +76,27 @@ def get_check(name, config_str):
 
     return check_class.from_yaml(yaml_text=config_str, check_name=name,
         agentConfig=agentConfig)
+
+def run_check(name, path=None):
+    # Read the config file
+    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
+
+    try:
+        f = open(confd_path)
+    except IOError:
+        raise Exception('Unable to open configuration at %s' % confd_path)
+
+    config_str = f.read()
+    f.close()
+
+    # Run the check
+    check, instances = get_check(name, config_str)
+    if not instances:
+        raise Exception('YAML configuration returned no instances.')
+    for instance in instances:
+        check.check(instance)
+        if check.has_events():
+            print "Events:\n"
+            pprint(check.get_events(), indent=4)
+        print "Metrics:\n"
+        pprint(check.get_metrics(), indent=4)
