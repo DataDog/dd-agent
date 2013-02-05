@@ -8,6 +8,7 @@ directory for more details on configuration.
 from checks import AgentCheck
 
 UP_METRIC = 'Up'
+SEARCH_WILDCARD = '*'
 
 class WMICheck(AgentCheck):
     def check(self, instance):
@@ -25,7 +26,15 @@ class WMICheck(AgentCheck):
         # If there are filters, we need one query per filter.
         if filters:
             for f in filters:
-                results = getattr(w, wmi_class)(**f)
+                prop = f.keys()[0]
+                search = f.values()[0]
+                if SEARCH_WILDCARD in search:
+                    search = search.replace(SEARCH_WILDCARD, '%')
+                    wql = "SELECT * FROM %s WHERE %s LIKE '%s'" \
+                                                % (wmi_class, prop, search)
+                    results = w.query(wql)
+                else:
+                    results = getattr(w, wmi_class)(**f)
                 self._extract_metrics(results, metrics, tag_by)
         else:
             results = getattr(w, wmi_class)()
