@@ -7,6 +7,8 @@ directory for more details on configuration.
 '''
 from checks import AgentCheck
 
+UP_METRIC = 'Up'
+
 class WMICheck(AgentCheck):
     def check(self, instance):
         wmi_class = instance.get('class')
@@ -35,7 +37,12 @@ class WMICheck(AgentCheck):
 
         for wmi_property, name, mtype in metrics:
             for res in results:
-                val = float(getattr(res, wmi_property))
+                if wmi_property == UP_METRIC:
+                    # Special-case metric will just submit 1 for every value
+                    # returned in the result.
+                    val = 1
+                else:
+                    val = float(getattr(res, wmi_property))
 
                 # Grab the tag from the result if there's a `tag_by` value (e.g.: "name:jenkins")
                 if tag_by:
