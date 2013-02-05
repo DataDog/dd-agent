@@ -38,7 +38,8 @@ if sys.platform == 'win32':
         'python-memcached==1.48',
         'redis==2.6.2',
         'adodbapi'
-        'elementtree'
+        'elementtree',
+        'pycurl',
     ])
 
     # Modules to force-include in the exe
@@ -50,6 +51,7 @@ if sys.platform == 'win32':
         'simplejson',
         'adodbapi',
         'elementtree',
+        'pycurl',
 
         # agent
         'checks.services_checks',

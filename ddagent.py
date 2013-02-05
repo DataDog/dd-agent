@@ -196,9 +196,10 @@ class MetricTransaction(Transaction):
                 proxy_port=proxy_port)
 
             # Send Transaction to the endpoint
-            http = tornado.httpclient.AsyncHTTPClient()
             if proxy_port is not None and proxy_host is not None:
-                http.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+                tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            http = tornado.httpclient.AsyncHTTPClient()
+            
 
             # The success of this metric transaction should only depend on
             # whether or not it's successfully sent to datadoghq. If it fails
