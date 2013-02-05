@@ -26,7 +26,6 @@ from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -94,7 +93,6 @@ class Collector(object):
 
         # Metric Checks
         self._metrics_checks = [
-            WMICheck(log),
             Memcache(log),
         ]
 
