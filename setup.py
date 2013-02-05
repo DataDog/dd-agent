@@ -52,6 +52,7 @@ if sys.platform == 'win32':
         'adodbapi',
         'elementtree',
         'pycurl',
+        'tornado.curl_httpclient',
 
         # agent
         'checks.services_checks',
