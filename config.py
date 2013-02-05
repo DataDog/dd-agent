@@ -312,9 +312,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'autorestart'):
             agentConfig['autorestart'] = config.get('Main', 'autorestart').lower() in ("yes", "true", "1")
 
-        if config.has_option('Main', 'use_urllib2'):
-            agentConfig['use_urllib2'] = config.get('Main', 'use_urllib2').lower() in ("yes", "true", "1")
-
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
 
