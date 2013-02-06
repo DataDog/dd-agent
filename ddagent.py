@@ -192,8 +192,13 @@ class MetricTransaction(Transaction):
             except (ValueError, TypeError):
                 proxy_port = None
             req = tornado.httpclient.HTTPRequest(url, method="POST",
-                body=self._data, headers=self._headers, proxy_host=proxy_host, 
-                proxy_port=proxy_port, ca_certs=self._application._agentConfig.get('ca_certs', None))
+                body=self._data, 
+                headers=self._headers, 
+                proxy_host=proxy_host, 
+                proxy_port=proxy_port,
+                proxy_username=self._application._agentConfig.get('proxy_username', None),
+                proxy_password=self._application._agentConfig.get('proxy_password', None),
+                ca_certs=self._application._agentConfig.get('ca_certs', None))
 
             # Send Transaction to the endpoint
             if proxy_port is not None and proxy_host is not None:

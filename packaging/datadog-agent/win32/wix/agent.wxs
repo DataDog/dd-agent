@@ -75,7 +75,7 @@
                 <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
                     <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
                 </Component>
-                <Component Id="datadog-cert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
+                <Component Id="datadogcert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
                     <File Id="datadog-cert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
                 </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
@@ -103,7 +103,7 @@
             <ComponentRef Id="ddagent.exe" />
             <ComponentRef Id="shell.exe" />
             <ComponentRef Id="cacertificates.crt" />
-            <ComponentRef Id="datadog-cert.pem" />
+            <ComponentRef Id="datadogcert.pem" />
             <ComponentRef Id="license.txt" />
             <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
             <ComponentRef Id="msvcp90.dll" />
