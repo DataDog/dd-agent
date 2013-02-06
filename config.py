@@ -422,6 +422,24 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
+def get_proxy(osname):
+
+    if osname == 'windows':
+        try:
+            import _winreg
+            proxy = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
+            server, type = _winreg.QueryValueEx(proxy, "ProxyServer")
+            enabled, type = _winreg.QueryValueEx(proxy, "ProxyEnable")
+            if enabled:
+                for proxy in server.split(';'):
+                    if "https=" in proxy:
+                        split = proxy.split('https=')[1].split(":")
+                        proxy_host = split[0]
+                        proxy_port = split[1]
+                        return (proxy_host, proxy_port)
+        except Exception:
+            pass
+    return (None, None)
 
 def get_confd_path(osname):
 

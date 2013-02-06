@@ -36,7 +36,7 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid
+from util import Watchdog, get_uuid, get_os
 from emitter import http_emitter, format_body
 from config import get_config
 from checks import gethostname
@@ -186,9 +186,11 @@ class MetricTransaction(Transaction):
             url = self.get_url(endpoint)
             log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
 
-            proxy_host = self._application._agentConfig.get('proxy_host', None)
+            proxy_host, proxy_port = get_proxy(get_os())
+            proxy_host = self._application._agentConfig.get('proxy_host', proxy_host)
+
             try:
-                proxy_port = int(self._application._agentConfig.get('proxy_port', None))
+                proxy_port = int(self._application._agentConfig.get('proxy_port', proxy_port))
             except (ValueError, TypeError):
                 proxy_port = None
             req = tornado.httpclient.HTTPRequest(url, method="POST",
@@ -349,7 +351,7 @@ class Application(tornado.web.Application):
         http_server = tornado.httpserver.HTTPServer(self)
 
         # set the root logger to warn so tornado is less chatty
-        logging.getLogger().setLevel(logging.WARNING)
+        logging.getLogger().setLevel(logging.DEBUG)
 
         # but keep the forwarder logger at the original level
         forwarder_logger = logging.getLogger('forwarder')
