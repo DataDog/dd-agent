@@ -220,6 +220,7 @@ class MetricTransaction(Transaction):
             log.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
+            log.info("Flushing was a success")
             self._trManager.tr_success(self)
 
         self._trManager.flush_next()
