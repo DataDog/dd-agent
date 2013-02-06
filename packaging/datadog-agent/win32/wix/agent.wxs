@@ -76,7 +76,7 @@
                     <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
                 </Component>
                 <Component Id="datadogcert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
-                    <File Id="datadog-cert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
+                    <File Id="datadogcert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
                 </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
