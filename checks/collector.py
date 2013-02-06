@@ -396,6 +396,15 @@ class Collector(object):
             if self.agentConfig['tags'] is not None:
                 payload['tags'] = self.agentConfig['tags']
 
+            # Log the metadata on the first run
+            if self._is_first_run():
+                if self.agentConfig['tags'] is not None:
+                    log.info(u"Hostnames: %s, tags: %s" \
+                        % (repr(self.metadata_cache),
+                           self.agentConfig['tags']))
+                else:
+                    log.info(u"Hostnames: %s" % repr(self.metadata_cache))
+
         return payload
 
     def _get_metadata(self):
