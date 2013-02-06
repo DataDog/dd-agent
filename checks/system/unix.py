@@ -179,16 +179,25 @@ class IO(Check):
 
         return ioStats
 
-    def xlate(self, metric_name):
+    def xlate(self, metric_name, os_name):
         """Standardize on linux metric names"""
-        names = {
-            "wait": "await",
-            "svc_t": "svctm",
-            "%b": "%util",
-            "kr/s": "rkB/s",
-            "kw/s": "wkB/s",
-            "actv": "avgqu-sz",
-            }
+        if os_name == "sunos":
+            names = {
+                "wait": "await",
+                "svc_t": "svctm",
+                "%b": "%util",
+                "kr/s": "rkB/s",
+                "kw/s": "wkB/s",
+                "actv": "avgqu-sz",
+                }
+        elif os_name == "freebsd":
+            names = {
+                "svc_t": "await",
+                "%b": "%util",
+                "kr/s": "rkB/s",
+                "kw/s": "wkB/s",
+                "wait": "avgqu-sz",
+                }
         # translate if possible
         return names.get(metric_name, metric_name)
 
@@ -251,7 +260,36 @@ class IO(Check):
                     # cols[1:] are the values
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
-                        io[cols[0]][self.xlate(headers[i])] = cols[i]
+                        io[cols[0]][self.xlate(headers[i], "sunos")] = cols[i]
+                        
+            elif sys.platform.startswith("freebsd"):
+                iostat = subprocess.Popen(["iostat", "-x", "-d", "1", "2"],
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+
+                # Be careful! 
+                # It looks like SunOS, but some columms (wait, svc_t) doesn't mean the same
+                #                        extended device statistics  
+                # device     r/s   w/s    kr/s    kw/s wait svc_t  %b  
+                # ad0        3.1   1.3    49.9    18.8    0   0.7   0
+                #                         extended device statistics  
+                # device     r/s   w/s    kr/s    kw/s wait svc_t  %b  
+                # ad0        0.0   2.0     0.0    31.8    0   0.2   0
+                
+                # discard the first half of the display (stats since boot)
+                lines = [l for l in iostat.split("\n") if len(l) > 0]
+                lines = lines[len(lines)/2:]
+                
+                assert "extended device statistics" in lines[0]
+                headers = lines[1].split()
+                assert "device" in headers
+                for l in lines[2:]:
+                    cols = l.split()
+                    # cols[0] is the device
+                    # cols[1:] are the values
+                    io[cols[0]] = {}
+                    for i in range(1, len(cols)):
+                        io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
             else:
                 return False
             return io
@@ -501,6 +539,35 @@ class Memory(Check):
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
             except:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
+
+
+            # Swap
+            try:
+                sysctl = subprocess.Popen(['swapinfo', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            except:
+                self.logger.exception('getMemoryUsage')
+                return False
+
+            lines = sysctl.split('\n')
+
+            # ...
+            # Device          1M-blocks     Used    Avail Capacity
+            # /dev/ad0s1b           570        0      570     0%
+            # ...
+
+            assert "Device" in lines[0]
+
+            try:
+                memData['swapTotal'] = 0
+                memData['swapFree']  = 0
+                memData['swapUsed'] = 0
+                for line in lines[1:-1]:
+                    line = line.split()
+                    memData['swapTotal'] += int(line[1])
+                    memData['swapFree']  += int(line[3])
+                    memData['swapUsed'] += int(line[2])
+            except:
+                self.logger.exception('Cannot compute stats from swapinfo')
             
             return memData;
         elif sys.platform == 'sunos5':
