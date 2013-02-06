@@ -47,12 +47,13 @@ python $dd_base/virtualenv.py $dd_base/venv
 
 # install dependencies
 pip install tornado
+pip install pycurl
 
 # figure out where to pull from
 if [ "$unamestr" = "SunOS" ]; then
     tag="smartos-release"
 else
-    tag="pup-release"
+    tag="proxy-release"
 fi
 
 # set up the agent
