@@ -38,7 +38,7 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, get_uuid, get_os
 from emitter import http_emitter, format_body
-from config import get_config
+from config import get_config, get_proxy
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
