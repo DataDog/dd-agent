@@ -268,7 +268,7 @@ class IO(Check):
                                           close_fds=True).communicate()[0]
 
                 # Be careful! 
-                # It looks like SunOS, but some columms (wait, svc_t) doesn't mean the same
+                # It looks like SunOS, but some columms (wait, svc_t) have different meaning
                 #                        extended device statistics  
                 # device     r/s   w/s    kr/s    kw/s wait svc_t  %b  
                 # ad0        3.1   1.3    49.9    18.8    0   0.7   0
