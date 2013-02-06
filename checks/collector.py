@@ -26,7 +26,6 @@ from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.wmi_check import WMICheck
 from checks.ec2 import EC2
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -94,7 +93,6 @@ class Collector(object):
 
         # Metric Checks
         self._metrics_checks = [
-            WMICheck(log),
             Memcache(log),
         ]
 
@@ -397,6 +395,15 @@ class Collector(object):
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
                 payload['tags'] = self.agentConfig['tags']
+
+            # Log the metadata on the first run
+            if self._is_first_run():
+                if self.agentConfig['tags'] is not None:
+                    log.info(u"Hostnames: %s, tags: %s" \
+                        % (repr(self.metadata_cache),
+                           self.agentConfig['tags']))
+                else:
+                    log.info(u"Hostnames: %s" % repr(self.metadata_cache))
 
         return payload
 
