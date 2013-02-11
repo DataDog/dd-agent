@@ -162,6 +162,7 @@ class Server(object):
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024
 
+        # IPv4 only
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
 
@@ -240,6 +241,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     interval  = int(c['dogstatsd_interval'])
     normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
+    non_local_traffic = c['non_local_traffic']
 
     target = c['dd_url']
     if use_forwarder:
@@ -255,8 +257,13 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
 
-    # Start the server.
-    server_host = ''
+    # Start the server on an IPv4 stack
+    # Default to loopback
+    server_host = '127.0.0.1'
+    # If specified, bind to all addressses
+    if non_local_traffic:
+        server_host = ''
+
     server = Server(aggregator, server_host, port)
 
     return reporter, server
