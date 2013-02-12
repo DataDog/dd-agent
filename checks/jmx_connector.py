@@ -40,7 +40,7 @@ metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
 DO_NOT_NICE = 0
 DEFAULT_PRIORITY = 0
-MAX_JMX_RETRIES = 3
+MAX_JMX_RETRIES = 10
 
 def convert(name):
     """Convert from CamelCase to camel_case
@@ -108,7 +108,6 @@ class JmxConnector:
                 self._wait_prompt()
         except BaseException, e:
             self.terminate()
-            self.log.exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
             raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
     def dump_domains(self, domains, values_only=True):
@@ -340,6 +339,10 @@ class JmxCheck(AgentCheck):
         self.init_config = init_config
 
         # Used to store the number of times we opened a new jmx connector for this instance
+        # keys of the dict will be (host, port) (so it characterizes an instance)
+        # Values are a list of 2 ints, the first one will be a counter that will be decremented 
+        # each time we skip an instance
+        # the second one is used to store how many instances should be skipped.
         self.jmx_connections_watcher = {}
 
     def stop(self):
@@ -362,30 +365,32 @@ class JmxCheck(AgentCheck):
         if password is not None and len(password.strip()) == 0:
             password = None
 
-
         key = (host,port)
 
         def connect():
             if key in self.jmx_connections_watcher:
-                self.jmx_connections_watcher[key] += 1
+                self.jmx_connections_watcher[key][0] -= 1
             else:
-                self.jmx_connections_watcher[key] = 1
+                self.jmx_connections_watcher[key] = [0,1]
 
-            if self.jmx_connections_watcher[key] > MAX_JMX_RETRIES:
-                raise Exception("JMX Connection failed too many times in a row.  Skipping instance name: %s" % instance_name)
+            if self.jmx_connections_watcher[key][0] > 0:
+                raise Exception("""JMX Connection failed during last collection.
+                 Skipping instance name: %s. Next retry in %s iteration(s)"""  
+                 % (instance_name,self.jmx_connections_watcher[key][0]))
 
             jmx = JmxConnector(self.log)
+            self.jmxs[key] = jmx
 
             priority = int(instance.get('priority', DEFAULT_PRIORITY))
             if priority < 0:
                 priority = 0
             jmx.connect("%s:%s" % (host, port), user, password, priority=priority)
-            self.jmxs[key] = jmx
             
-            # When the connection succeeds we set the counter to a lower value
-            # Because it means that the configuration is good
+            
+            # When the connection succeeds we set the watcher to these values that 
+            # resets the "watcher".
             if jmx.connected():
-                self.jmx_connections_watcher[key] = 0
+                self.jmx_connections_watcher[key] = [1,2]
 
             return jmx
 
@@ -396,6 +401,18 @@ class JmxCheck(AgentCheck):
             jmx = self.jmxs[key]
 
         if not jmx.connected():
+            
+            # This case happens when the previous collection failed
+            if self.jmx_connections_watcher[key][0] == 0:
+                # The "watcher" is used to prevent from trying to reconnect at 
+                # each collection. 
+                # At first fail, we will retry at next collection. 
+                # Then it would retry, 2, 6 collections later, and then, every 9 
+                # collections.
+                self.jmx_connections_watcher[key] = [
+                    min(self.jmx_connections_watcher[key][1]*2, MAX_JMX_RETRIES)-1,
+                    min(self.jmx_connections_watcher[key][1]*2, MAX_JMX_RETRIES)
+                ]
             jmx = connect()
 
         return (host, port, user, password, jmx, instance_name)

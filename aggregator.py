@@ -205,7 +205,7 @@ class Rate(Metric):
             log.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
             raise UnknownValue()
 
-        return (delta / interval)
+        return (delta / float(interval))
 
     def flush(self, timestamp, interval):
         if len(self.samples) < 2:
