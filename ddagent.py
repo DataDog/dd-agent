@@ -186,7 +186,7 @@ class MetricTransaction(Transaction):
             url = self.get_url(endpoint)
             log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
 
-            proxy_host, proxy_port = get_proxy(get_os())
+            proxy_host, proxy_port = get_proxy()
             proxy_host = self._application._agentConfig.get('proxy_host', proxy_host)
 
             try:
