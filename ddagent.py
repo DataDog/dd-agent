@@ -38,7 +38,7 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, get_uuid, get_os
 from emitter import http_emitter, format_body
-from config import get_config, get_proxy
+from config import get_config, get_proxy, get_ssl_certificate
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
@@ -200,7 +200,7 @@ class MetricTransaction(Transaction):
                 proxy_port=proxy_port,
                 proxy_username=self._application._agentConfig.get('proxy_username', None),
                 proxy_password=self._application._agentConfig.get('proxy_password', None),
-                ca_certs=self._application._agentConfig.get('ca_certs', None))
+                ca_certs=get_ssl_certificate(get_os(), self._application._agentConfig.get('ca_certs', None)))
 
             # Send Transaction to the endpoint
             if proxy_port is not None and proxy_host is not None:

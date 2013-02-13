@@ -486,6 +486,21 @@ def get_checksd_path(osname):
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
+def get_ssl_certificate(osname, filename):
+    if osname == 'windows':
+        if hasattr(sys, 'frozen'):
+            # we're frozen - from py2exe
+            prog_path = os.path.dirname(sys.executable)
+            path = os.path.join(prog_path, filename)
+        else:
+            cur_path = os.path.dirname(__file__)
+            path = os.path.join(cur_path, filename)
+        if os.path.exists(path):
+            return path
+        raise PathNotFound(path)
+    raise Exception("Not on windows")
+
+
 
 def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
