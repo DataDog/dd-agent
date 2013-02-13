@@ -186,21 +186,27 @@ class MetricTransaction(Transaction):
             url = self.get_url(endpoint)
             log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
 
+            # Getting proxy settings
             proxy_host, proxy_port = get_proxy()
             proxy_host = self._application._agentConfig.get('proxy_host', proxy_host)
-
             try:
                 proxy_port = int(self._application._agentConfig.get('proxy_port', proxy_port))
             except (ValueError, TypeError):
                 proxy_port = None
+            ssl_certificate = self._application._agentConfig.get('ca_certs', None)
+            if ssl_certificate is None:
+                ssl_certificate = get_ssl_certificate(get_os(), 'datadog-cert.pem')
+
             req = tornado.httpclient.HTTPRequest(url, method="POST",
                 body=self._data, 
                 headers=self._headers, 
+                # The settings below will just be used if we use the CurlAsyncHttpClient of tornado
                 proxy_host=proxy_host, 
                 proxy_port=proxy_port,
                 proxy_username=self._application._agentConfig.get('proxy_username', None),
                 proxy_password=self._application._agentConfig.get('proxy_password', None),
-                ca_certs=get_ssl_certificate(get_os(), self._application._agentConfig.get('ca_certs', 'datadog-cert.pem')))
+                ca_certs=ssl_certificate
+                )
 
             # Send Transaction to the endpoint
             if proxy_port is not None and proxy_host is not None:

@@ -426,14 +426,11 @@ def get_proxy():
     try:
         import urllib
         proxies = urllib.getproxies()
-        log.debug("Proxies: %s" % str(proxies))
         proxy = proxies.get('https', None)
-        log.debug("HTTPS Proxy: %s" % str(proxy))
         try:
             proxy = proxy.split('://')[1]
         except Exception:
             pass
-        log.debug("Splitted Proxy: %s" % str(proxy))
         split = proxy.split(':')
         proxy_host = split[0]
         proxy_port = split[1]
@@ -441,22 +438,6 @@ def get_proxy():
         return (proxy_host, proxy_port)
     except Exception, e:
         log.debug("Error while trying to fetch proxy settings using urllib2 %s. Proxy is probably not set" % str(e))
-
-    try:
-        log.debug("Trying to fetch proxy settings by directly looking into windows registry")
-        import _winreg
-        proxy = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
-        server, type = _winreg.QueryValueEx(proxy, "ProxyServer")
-        enabled, type = _winreg.QueryValueEx(proxy, "ProxyEnable")
-        if enabled:
-            for proxy in server.split(';'):
-                if "https=" in proxy:
-                    split = proxy.split('https=')[1].split(":")
-                    proxy_host = split[0]
-                    proxy_port = split[1]
-                    return (str(proxy_host), int(proxy_port))
-    except Exception, e:
-        log.debug("Error while trying to fetch proxy settings using windows registry. %s" % str(e))
 
     return (None, None)
 
@@ -519,6 +500,13 @@ def get_ssl_certificate(osname, filename):
         if os.path.exists(path):
             log.debug("Certificate file found at %s" % str(path))
             return path
+
+    else:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(cur_path, filename)
+        if os.path.exists(checksd_path):
+            return path
+
 
     log.info("Certificate file NOT found at %s" % str(path))
     return None
