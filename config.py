@@ -425,14 +425,19 @@ def set_win32_cert_path():
 def get_proxy():
     try:
         import urllib
-        proxy = urllib.getproxies().get('https', None)
+        proxies = urllib.getproxies()
+        log.debug("Proxies: %s" % str(proxies))
+        proxy = proxies.get('https', None)
+        log.debug("HTTPS Proxy: %s" % str(proxy))
         try:
             proxy = proxy.split('://')[1]
         except Exception:
             pass
+        log.debug("Splitted Proxy: %s" % str(proxy))
         split = proxy.split(':')
         proxy_host = split[0]
         proxy_port = split[1]
+        log.debug("Proxy Settings %s:%s" % (proxy_host, proxy_port))
         return (proxy_host, proxy_port)
     except Exception, e:
         log.debug("Error while trying to fetch proxy settings %s. Proxy is probably not set" % str(e))
