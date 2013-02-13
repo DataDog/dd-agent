@@ -154,7 +154,7 @@ class MetricTransaction(Transaction):
                 log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
         except:
-            log.info("Not a Datadog user")
+            log.error("Not a Datadog user")
 
     def __init__(self, data, headers):
         self._data = data
@@ -169,7 +169,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        log.debug("Created transaction %d" % self.get_id())
+        log.error("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -184,7 +184,7 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.error("Sending metrics to endpoint %s at %s" % (endpoint, url))
 
             proxy_host, proxy_port = get_proxy()
             proxy_host = self._application._agentConfig.get('proxy_host', proxy_host)
@@ -222,7 +222,7 @@ class MetricTransaction(Transaction):
             log.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
-            log.info("Flushing was a success")
+            log.error("Flushing was a success")
             self._trManager.tr_success(self)
 
         self._trManager.flush_next()
@@ -296,6 +296,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
 
     def __init__(self, port, agentConfig, watchdog=True):
+        log.error("In the forwarder constructor")
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -333,6 +334,7 @@ class Application(tornado.web.Application):
             self._metrics = {}
 
     def run(self):
+        log.error("Running the forwarder")
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
@@ -369,7 +371,7 @@ class Application(tornado.web.Application):
                 log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
                 http_server.listen(self._port, address = "127.0.0.1")
 
-        log.info("Listening on port %d" % self._port)
+        log.error("Listening on port %d" % self._port)
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
@@ -386,7 +388,7 @@ class Application(tornado.web.Application):
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
-            log.info("Starting graphite listener on port %s" % gport)
+            log.error("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
             gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
@@ -400,7 +402,7 @@ class Application(tornado.web.Application):
         tr_sched.start()
 
         self.mloop.start()
-        log.info("Stopped")
+        log.error("Stopped")
 
     def stop(self):
         self.mloop.stop()
@@ -417,7 +419,7 @@ def init():
     app = Application(port, agentConfig)
 
     def sigterm_handler(signum, frame):
-        log.info("caught sigterm. stopping")
+        log.error("caught sigterm. stopping")
         app.stop()
 
     import signal

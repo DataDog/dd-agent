@@ -22,17 +22,25 @@ from config import (get_config, set_win32_cert_path, get_system_stats,
     load_check_directory)
 from win32.common import handle_exe_click
 
+log = logging.getLogger('collector')
+
+
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddagent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
 
     def __init__(self, args):
+        log.info("Initiating the service")
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+        log.info("Loading the config")
         config = get_config(parse_args=False)
+        log.info("Initiating the forwarder")
         self.forwarder = DDForwarder(config)
+        log.info("Initiating dogstatsd")
         self.dogstatsd = DogstatsdThread(config)
+
 
         # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
@@ -42,6 +50,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'disabled_dd': False
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
+        log.info("Initiating the collector")
         self.agent = DDAgent(agentConfig)
 
     def SvcStop(self):
@@ -59,14 +68,18 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                                 servicemanager.PYS_SERVICE_STARTED,
                                 (self._svc_name_, ''))
         # Start all services
+        log.info("Starting forwarder")
         self.forwarder.start()
+        log.info("Starting agent")
         self.agent.start()
+        log.info("Starting dogstatds")
         self.dogstatsd.start()
 
         # Loop to keep the service running since all DD services are
         # running in separate threads
         self.running = True
         while self.running:
+            log.info("Service is running")
             time.sleep(1)
 
 
@@ -118,6 +131,7 @@ class DDForwarder(threading.Thread):
         self.forwarder = Application(port, agentConfig, watchdog=False)
 
     def run(self):
+        log.info("Running Forwarder")
         self.forwarder.run()        
 
     def stop(self):
