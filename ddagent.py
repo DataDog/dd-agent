@@ -200,11 +200,14 @@ class MetricTransaction(Transaction):
                 proxy_port=proxy_port,
                 proxy_username=self._application._agentConfig.get('proxy_username', None),
                 proxy_password=self._application._agentConfig.get('proxy_password', None),
-                ca_certs=get_ssl_certificate(get_os(), self._application._agentConfig.get('ca_certs', None)))
+                ca_certs=get_ssl_certificate(get_os(), self._application._agentConfig.get('ca_certs', 'datadog-cert.pem')))
 
             # Send Transaction to the endpoint
             if proxy_port is not None and proxy_host is not None:
+                log.info("Configuring tornado to use proxy settings: %s:%s" % (str(proxy_host), str(proxy_port)))
                 tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using Tornado simple HTTP Client")
             http = tornado.httpclient.AsyncHTTPClient()
             
 
@@ -222,7 +225,6 @@ class MetricTransaction(Transaction):
             log.error("Response: %s" % response.error)
             self._trManager.tr_error(self)
         else:
-            log.info("Flushing was a success")
             self._trManager.tr_success(self)
 
         self._trManager.flush_next()
@@ -351,7 +353,7 @@ class Application(tornado.web.Application):
         http_server = tornado.httpserver.HTTPServer(self)
 
         # set the root logger to warn so tornado is less chatty
-        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.WARNING)
 
         # but keep the forwarder logger at the original level
         forwarder_logger = logging.getLogger('forwarder')

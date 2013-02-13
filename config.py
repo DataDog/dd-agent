@@ -424,8 +424,8 @@ def set_win32_cert_path():
 
 def get_proxy():
     try:
-        import urllib2
-        proxy = urllib2.getproxies().get('https', None)
+        import urllib
+        proxy = urllib.getproxies().get('https', None)
         try:
             proxy = proxy.split('://')[1]
         except Exception:
@@ -435,7 +435,7 @@ def get_proxy():
         proxy_port = split[1]
         return (proxy_host, proxy_port)
     except Exception, e:
-        log.error("Error while trying to fetch proxy settings %s" % str(e))
+        log.debug("Error while trying to fetch proxy settings %s. Proxy is probably not set" % str(e))
 
     return (None, None)
 
@@ -496,9 +496,11 @@ def get_ssl_certificate(osname, filename):
             cur_path = os.path.dirname(__file__)
             path = os.path.join(cur_path, filename)
         if os.path.exists(path):
+            log.debug("Certificate file found at %s" % str(path))
             return path
-        raise PathNotFound(path)
-    raise Exception("Not on windows")
+
+    log.info("Certificate file NOT found at %s" % str(path))
+    return None
 
 
 
