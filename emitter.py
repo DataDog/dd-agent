@@ -4,12 +4,13 @@ from pprint import pformat as pp
 from util import json, md5, get_os
 from config import get_ssl_certificate, get_proxy
 
-def import_http_library(proxy_settings):
+def get_http_library(proxy_settings):
     #There is a bug in the https proxy connection in urllib2 on python < 2.6
     if proxy_settings['host'] is None or int(sys.version_info[1]) >= 6:
         import urllib2
     else:
         import urllib2proxy as urllib2
+    return urllib2 
 
 def format_body(message):
     payload = json.dumps(message)
@@ -41,13 +42,12 @@ def http_emitter(message, logger, agentConfig):
     headers = post_headers(agentConfig, postBackData)
 
     proxy_settings = get_proxy(agentConfig)
-    import_http_library(proxy_settings)
-
+    urllib2 = get_http_library(proxy_settings)
 
     try:
         request = urllib2.Request(url, postBackData, headers)
         # Do the request, logger any errors
-        opener = get_opener(logger, proxy_settings, agentConfig['use_forwarder'])
+        opener = get_opener(logger, proxy_settings, agentConfig['use_forwarder'], urllib2)
         if opener is not None:
             urllib2.install_opener(opener)
         response = urllib2.urlopen(request)
@@ -61,12 +61,12 @@ def http_emitter(message, logger, agentConfig):
         else:
             raise
 
-def get_opener(logger, proxy_settings, use_forwarder):
+def get_opener(logger, proxy_settings, use_forwarder, urllib2):
     if use_forwarder:
         # We are using the forwarder, so it's local trafic. We don't use the proxy
         return None
 
-    if proxy_settings['system_setting'] or proxy_settings['host'] is None:
+    if proxy_settings['system_settings'] or proxy_settings['host'] is None:
         # urllib2 will figure out how to connect automatically        
         return None
 

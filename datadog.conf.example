@@ -3,6 +3,12 @@
 # The host of the Datadog intake server to send agent data to
 dd_url: https://app.datadoghq.com
 
+# If you need a proxy to connect to Internet, provide the settings here
+# proxy_host: my-proxy.com
+# proxy_port: 3128
+# proxy_user: user
+# proxy_password: password
+
 # The Datadog api key to associate your agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
