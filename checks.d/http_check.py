@@ -48,7 +48,7 @@ class HTTPCheck(ServicesCheck):
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
-            return Status.DOWN, str(resp.status)
+            return Status.DOWN, (resp.status, resp.reason, content or '')
 
         self.log.debug("%s is UP" % addr)
         return Status.UP, "UP"
@@ -84,6 +84,16 @@ class HTTPCheck(ServicesCheck):
             notify_message = " ".join(notify_list) + " \n"
 
         if status == Status.DOWN:
+            # format the HTTP response body into the event
+            code, reason, content = msg
+
+            # truncate and html-escape content
+            if len(content) > 200:
+                content = content[:197] + '...'
+            content = content.replace('<', '&lt;').replace('>', '&gt;')
+
+            msg = "%d %s\n\n%s" % (code, reason, content)
+
             title = "[Alert] %s is down" % name
             alert_type = "error"
             msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s). Last error: %s" % (notify_message,
