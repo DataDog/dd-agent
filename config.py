@@ -214,11 +214,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_dd'] = True
 
+        agentConfig['use_forwarder'] = False
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
             agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            agentConfig['use_forwarder'] = True
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
         else:
@@ -368,6 +370,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             sys.stderr.write('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
             sys.exit(2)
 
+    # Storing proxy settings in the agentConfig
+    agentConfig['proxy_settings'] = get_proxy(agentConfig)
+    if agentConfig.get('ca_certs', None) is None:
+        agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
+    else:
+        agentConfig['ssl_certificate'] = agentConfig['ca_certs']
+
     return agentConfig
 
 
@@ -422,7 +431,23 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
-def get_proxy():
+def get_proxy(agentConfig):
+    proxy_settings = {}
+    proxy_host = agentConfig.get('proxy_host', None)
+    if proxy_host is not None:
+        proxy_settings['host'] = proxy_host
+        try:
+            proxy_settings['port'] = int(agentConfig.get('proxy_port', 3128))
+        except ValueError:
+            log.error('Proxy port must be an Integer. Defaulting it to 3128')
+            proxy_settings['port'] = 3128
+
+        proxy_settings['user'] = agentConfig.get('proxy_user', None)
+        proxy_settings['password'] = agentConfig.get('proxy_password', None)
+        proxy_settings['system_settings'] = False
+        log.debug("Proxy Settings %s" % str(proxy_settings))
+        return proxy_settings
+
     try:
         import urllib
         proxies = urllib.getproxies()
@@ -432,14 +457,28 @@ def get_proxy():
         except Exception:
             pass
         split = proxy.split(':')
-        proxy_host = split[0]
-        proxy_port = split[1]
-        log.debug("Proxy Settings %s:%s" % (proxy_host, proxy_port))
-        return (proxy_host, proxy_port)
-    except Exception, e:
-        log.debug("Error while trying to fetch proxy settings using urllib2 %s. Proxy is probably not set" % str(e))
+        proxy_settings['host'] = split[0]
+        proxy_settings['port'] = split[1]
+        proxy_settings['user'] = None
+        proxy_settings['password'] = None
+        proxy_settings['system_settings'] = True
+        if '@' in proxy_settings['host']:
+            split = proxy_settings['host'].split('@')[0].split(':')
+            proxy_settings['user'] = split[0]
+            if len(split) == 2:
+                proxy_settings['password'] = split[1]
 
-    return (None, None)
+        log.debug("Proxy Settings %s" % str(proxy_settings))
+        return proxy_settings
+    except Exception, e:
+        log.debug("Error while trying to fetch proxy settings using urllib %s. Proxy is probably not set" % str(e))
+
+    return {'host': None,
+            'port': None,
+            'user': None,
+            'password': None,
+            'system_settings': False
+            }
 
 
 def get_confd_path(osname):
@@ -504,7 +543,7 @@ def get_ssl_certificate(osname, filename):
     else:
         cur_path = os.path.dirname(os.path.realpath(__file__))
         path = os.path.join(cur_path, filename)
-        if os.path.exists(checksd_path):
+        if os.path.exists(path):
             return path
 
 
