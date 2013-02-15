@@ -85,14 +85,15 @@ class HTTPCheck(ServicesCheck):
 
         if status == Status.DOWN:
             # format the HTTP response body into the event
-            code, reason, content = msg
+            if isinstance(msg, tuple):
+                code, reason, content = msg
 
-            # truncate and html-escape content
-            if len(content) > 200:
-                content = content[:197] + '...'
-            content = content.replace('<', '&lt;').replace('>', '&gt;')
+                # truncate and html-escape content
+                if len(content) > 200:
+                    content = content[:197] + '...'
+                content = content.replace('<', '&lt;').replace('>', '&gt;')
 
-            msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = "%d %s\n\n%s" % (code, reason, content)
 
             title = "[Alert] %s is down" % name
             alert_type = "error"
