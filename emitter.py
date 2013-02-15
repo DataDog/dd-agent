@@ -71,12 +71,6 @@ def get_opener(logger, proxy_settings, use_forwarder, urllib2):
         return None
 
     proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-    if proxy_settings['user'] is not None:
-        proxy_auth = proxy_settings['user']
-        if proxy_settings['password'] is not None:
-            proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
-        proxy_url = '%s@%s' % (proxy_auth, proxy_url)
-
     proxy = {'https': proxy_url}
     logger.info("Using proxy settings %s" % proxy)
     proxy_handler = urllib2.ProxyHandler(proxy)
