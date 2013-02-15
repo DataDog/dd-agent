@@ -36,9 +36,9 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid, get_os
+from util import Watchdog, get_uuid
 from emitter import http_emitter, format_body
-from config import get_config, get_proxy, get_ssl_certificate
+from config import get_config
 from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager

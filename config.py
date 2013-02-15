@@ -433,6 +433,8 @@ def set_win32_cert_path():
 
 def get_proxy(agentConfig):
     proxy_settings = {}
+    
+    # First we read the proxy configuration from datadog.conf
     proxy_host = agentConfig.get('proxy_host', None)
     if proxy_host is not None:
         proxy_settings['host'] = proxy_host
@@ -448,6 +450,8 @@ def get_proxy(agentConfig):
         log.debug("Proxy Settings %s" % str(proxy_settings))
         return proxy_settings
 
+    # If no proxy configuration was specified in datadog.conf
+    # We try to read it from the system settings
     try:
         import urllib
         proxies = urllib.getproxies()
@@ -528,6 +532,7 @@ def get_checksd_path(osname):
     sys.exit(3)
 
 def get_ssl_certificate(osname, filename):
+    # The SSL certificate is needed by tornado in case of connection through a proxy
     if osname == 'windows':
         if hasattr(sys, 'frozen'):
             # we're frozen - from py2exe
