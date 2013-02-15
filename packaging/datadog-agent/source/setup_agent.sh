@@ -47,7 +47,6 @@ python $dd_base/virtualenv.py $dd_base/venv
 
 # install dependencies
 pip install tornado
-pip install pycurl
 
 # figure out where to pull from
 if [ "$unamestr" = "SunOS" ]; then
