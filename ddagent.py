@@ -203,7 +203,8 @@ class MetricTransaction(Transaction):
                 )
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
-                log.info("Configuring tornado to use proxy settings: %s" % str(proxy_settings))
+                log.info("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                    proxy_settings['host'], proxy_settings['port']))
                 tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             else:
                 log.debug("Using Tornado simple HTTP Client")
