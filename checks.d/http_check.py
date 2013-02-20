@@ -14,10 +14,12 @@ class HTTPCheck(ServicesCheck):
         url = instance.get('url', None)
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
-        return url, username, password, timeout
+        include_content = instance.get('include_content', False)
+        return url, username, password, timeout, include_content
 
     def _check(self, instance):
-        addr, username, password, timeout = self._load_conf(instance)
+        addr, username, password, timeout, include_content = self._load_conf(instance)
+        content = ''
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
@@ -48,6 +50,8 @@ class HTTPCheck(ServicesCheck):
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
+            if not include_content:
+                content = ''
             return Status.DOWN, (resp.status, resp.reason, content or '')
 
         self.log.debug("%s is UP" % addr)
@@ -94,6 +98,7 @@ class HTTPCheck(ServicesCheck):
                 content = content.replace('<', '&lt;').replace('>', '&gt;')
 
                 msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = msg.rstrip()
 
             title = "[Alert] %s is down" % name
             alert_type = "error"
