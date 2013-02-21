@@ -185,11 +185,31 @@ class MetricTransaction(Transaction):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
             log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
-            req = tornado.httpclient.HTTPRequest(url, method="POST",
-                body=self._data, headers=self._headers)
 
-            # Send Transaction to the endpoint
+            # Getting proxy settings
+            proxy_settings = self._application._agentConfig.get('proxy_settings', None)
+            ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
+
+            req = tornado.httpclient.HTTPRequest(url, method="POST",
+                body=self._data, 
+                headers=self._headers, 
+                # The settings below will just be used if we use the CurlAsyncHttpClient of tornado
+                # i.e. in case of connection using a proxy
+                proxy_host=proxy_settings['host'], 
+                proxy_port=proxy_settings['port'],
+                proxy_username=proxy_settings['user'],
+                proxy_password=proxy_settings['password'],
+                ca_certs=ssl_certificate
+                )
+
+            if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
+                log.info("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                    proxy_settings['host'], proxy_settings['port']))
+                tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using Tornado simple HTTP Client")
             http = tornado.httpclient.AsyncHTTPClient()
+            
 
             # The success of this metric transaction should only depend on
             # whether or not it's successfully sent to datadoghq. If it fails

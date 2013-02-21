@@ -45,6 +45,7 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	cp -r $(SRC)/datadog-cert.pem $(ROOT)/
 	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
@@ -111,6 +112,7 @@ $(FPM_BUILD) -t rpm \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
 -d "pexpect" \
+-d "python-pycurl" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
 --replaces "datadog-agent-lib  < $(VERSION)" \
@@ -153,6 +155,7 @@ $(FPM_BUILD) -t deb \
 -d "adduser" \
 -d "sysstat" \
 -d "python-pexpect" \
+-d "python-pycurl" \
 --config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
