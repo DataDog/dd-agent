@@ -52,7 +52,7 @@ pip install tornado
 if [ "$unamestr" = "SunOS" ]; then
     tag="smartos-release"
 else
-    tag="pup-release"
+    tag="3.5.0"
 fi
 
 # set up the agent
