@@ -67,12 +67,6 @@ class Redis(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-
-        try:
-            import redis
-        except ImportError:
-            self.log.error('redisdb.yaml exists but redis module can not be imported. Skipping check.')
-
         self.previous_total_commands = {}
         self.connections = {}
 
@@ -147,6 +141,12 @@ class Redis(AgentCheck):
         self.previous_total_commands[tuple_tags] = total_commands
 
     def check(self, instance):
+        try:
+            import redis
+        except ImportError:
+            self.log.error('redisdb.yaml exists but redis module can not be imported. Skipping check.')
+            raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
+
         # Allow the default redis database to be overridden.
         host = instance.get('host', 'localhost')
         port = instance.get('port', 6379)
