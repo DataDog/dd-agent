@@ -363,9 +363,9 @@ class Collector(object):
         """
         Return an dictionary that contains all of the generic payload data.
         """
-
+        now = time.time()
         payload = {
-            'collection_timestamp': time.time(),
+            'collection_timestamp': now,
             'os' : self.os,
             'python': sys.version,
             'agentVersion' : self.agentConfig['version'],
@@ -383,7 +383,7 @@ class Collector(object):
             # Also post an event in the newsfeed
             payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
                                  'host': payload['internalHostname'],
-                                 'timestamp': int(time.mktime(datetime.datetime.now().timetuple())),
+                                 'timestamp': now,
                                  'event_type':'Agent Startup',
                                  'msg_text': 'Version %s' % get_version()
                                  }]
