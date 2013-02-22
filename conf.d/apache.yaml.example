@@ -4,10 +4,10 @@ instances:
     # For every instance, you have an `apache_status_url` and (optionally)
     # a list of tags.
 
-    -   apache_status_url: http://example.com/server-status/
+    -   apache_status_url: http://example.com/server-status?auto
         tags:
             -   instance:foo
 
-    -   apache_status_url: http://example2.com:1234/server-status/
+    -   apache_status_url: http://example2.com:1234/server-status?auto
         tags:
             -   instance:bar
