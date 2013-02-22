@@ -152,11 +152,11 @@ class ElasticSearch(AgentCheck):
         if self.cluster_status.get(url, None) is None:
             self.cluster_status[url] = data['status']
             if data['status'] in ["yellow", "red"]:
-                event = self._create_event()
+                event = self._create_event(data['status'])
                 self.event(event)
         if data['status'] != self.cluster_status.get(url):
             self.cluster_status[url] = data['status']
-            event = self._create_event()
+            event = self._create_event(data['status'])
             self.event(event)
 
         
@@ -170,7 +170,7 @@ class ElasticSearch(AgentCheck):
         else:
             url = config_url
 
-        self.log.info("Fetching elasticsearch data from: %s" % url)
+        self.log.debug("Fetching elasticsearch data from: %s" % url)
 
         try:
             data = _get_data(self.agentConfig, url)
@@ -266,17 +266,22 @@ class ElasticSearch(AgentCheck):
     def _metric_not_found(self, metric, path):
         self.log.debug("Metric not found: %s -> %s", path, metric)
 
-    def _create_event(self):
+    def _create_event(self, status):
         hostname = gethostname(self.agentConfig).decode('utf-8')
-        if self.cluster_status == "red" or self.cluster_status=="yellow":
+        if status == "red":
             alert_type = "error"
-            msg_title = "%s is %s" % (hostname, self.cluster_status)
+            msg_title = "%s is %s" % (hostname, status)
+
+        elif status == "yellow":
+            alert_type = "warning"
+            msg_title = "%s is %s" % (hostname, status)
+
         else:
             # then it should be green
             alert_type = "info"
-            msg_title = "%s recovered as %s" % (hostname, self.cluster_status)
+            msg_title = "%s recovered as %s" % (hostname, status)
 
-        msg = "ElasticSearch: %s just reported as %s" % (hostname, self.cluster_status)
+        msg = "ElasticSearch: %s just reported as %s" % (hostname, status)
 
         return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
                  'event_type': 'elasticsearch',
