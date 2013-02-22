@@ -23,6 +23,15 @@ instances:
 #        threshold: 3
 #        window: 5
 
+         # The (optional) include_content parameter will instruct the check
+         # to include the first 200 characters of the HTTP response body
+         # in notifications sent by this plugin. This is best used with
+         # "healthcheck"-type URLs, where the body contains a brief, human-
+         # readable summary of failure reasons in the case of errors. This
+         # defaults to false.
+
+#        include_content: true
+
 #    -   name: My second service
 #        url: https://another.url.example.com
 
