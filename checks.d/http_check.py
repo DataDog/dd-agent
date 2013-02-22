@@ -95,7 +95,6 @@ class HTTPCheck(ServicesCheck):
                 # truncate and html-escape content
                 if len(content) > 200:
                     content = content[:197] + '...'
-                content = content.replace('<', '&lt;').replace('>', '&gt;')
 
                 msg = "%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
