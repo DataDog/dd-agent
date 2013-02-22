@@ -37,6 +37,7 @@ class Daemon:
     Usage: subclass the Daemon class and override the run() method
     """
     def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
+        self.autorestart = False
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
