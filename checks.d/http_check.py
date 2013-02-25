@@ -99,14 +99,14 @@ class HTTPCheck(ServicesCheck):
                 msg = "%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
-            title = "[Alert] %s is down" % name
+            title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
             msg = "%s %s %s reported that %s (%s) failed %s time(s) within %s last attempt(s). Last error: %s" % (notify_message,
                 custom_message, self.hostname, name, url, nb_failures, nb_tries, msg)
             event_type = EventType.DOWN
 
         else: # Status is UP
-            title = "[Recovered] %s is up" % name
+            title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s) recovered" % (notify_message,
                 custom_message, self.hostname, name,url)

@@ -117,7 +117,7 @@ class TCPCheck(ServicesCheck):
 
 
         if status == Status.DOWN:
-            title = "[Alert] %s is down" % name
+            title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
             msg = """%s %s %s reported that %s (%s:%s) failed %s time(s) within %s last attempt(s). 
                 Last error: %s""" % (notify_message,
@@ -125,7 +125,7 @@ class TCPCheck(ServicesCheck):
             event_type = EventType.DOWN
 
         else: # Status is UP
-            title = "[Recovered] %s is up" % name
+            title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,
                 custom_message, self.hostname, name, host, port)
