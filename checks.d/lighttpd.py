@@ -23,8 +23,8 @@ class Lighttpd(AgentCheck):
 
     def check(self, instance):
         if 'lighttpd_status_url' not in instance:
-            self.log.warn("Missing 'lighttpd_status_url' in Lighttpd config")
-            return
+            raise Exception("Missing 'lighttpd_status_url' in Lighttpd config")
+
         tags = instance.get('tags', [])
         req = urllib2.Request(instance['lighttpd_status_url'], None,
             headers(self.agentConfig))
