@@ -6,7 +6,8 @@ import string
 import subprocess
 import sys
 import time
-from checks import Check, gethostname, UnknownValue
+from checks import Check, UnknownValue
+from util import get_hostname
 
 # locale-resilient float converter
 to_f = lambda s: float(s.replace(",", "."))
@@ -911,7 +912,7 @@ class Processes(Check):
         
         return { 'processes':   processes,
                  'apiKey':      agentConfig['api_key'],
-                 'host':        gethostname(agentConfig) }
+                 'host':        get_hostname(agentConfig) }
             
 class Cpu(Check):
     def __init__(self, logger):

@@ -13,7 +13,7 @@ import os
 import sys
 from pprint import pprint
 
-from util import LaconicFilter, get_os
+from util import LaconicFilter, get_os, get_hostname
 from config import get_confd_path
 from checks import check_status
 
@@ -276,7 +276,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
-        self.hostname = gethostname(agentConfig)
+        self.hostname = get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
@@ -484,16 +484,6 @@ class AgentCheck(object):
             return prefix + "." + name
         else:
             return name
-
-
-def gethostname(agentConfig):
-    if agentConfig.get("hostname") is not None:
-        return agentConfig["hostname"]
-    else:
-        try:
-            return socket.getfqdn()
-        except socket.error, e:
-            log.debug("processes: unable to get hostname: " + str(e))
 
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):

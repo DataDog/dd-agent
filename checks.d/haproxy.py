@@ -2,7 +2,7 @@ import urlparse
 import urllib2
 import socket
 
-from checks import AgentCheck, gethostname
+from checks import AgentCheck
 from util import json, headers
 
 import time
