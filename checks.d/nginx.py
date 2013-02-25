@@ -22,8 +22,7 @@ class Nginx(AgentCheck):
     """
     def check(self, instance):
         if 'nginx_status_url' not in instance:
-            self.log.error('NginX instance missing "nginx_status_url" value.')
-            return
+            raise Exception('NginX instance missing "nginx_status_url" value.')
         tags = instance.get('tags', [])
 
         self._get_metrics(instance['nginx_status_url'], tags)

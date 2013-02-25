@@ -24,8 +24,7 @@ class Apache(AgentCheck):
 
     def check(self, instance):
         if 'apache_status_url' not in instance:
-            self.log.warn("Missing 'apache_status_url' in Apache config")
-            return
+            raise Exception("Missing 'apache_status_url' in Apache config")
         tags = instance.get('tags', [])
         req = urllib2.Request(instance['apache_status_url'], None,
             headers(self.agentConfig))

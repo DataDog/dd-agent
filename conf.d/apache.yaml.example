@@ -8,6 +8,6 @@ instances:
         tags:
             -   instance:foo
 
-    -   nginx_status_url: http://example2.com:1234/server-status/
+    -   apache_status_url: http://example2.com:1234/server-status/
         tags:
             -   instance:bar
