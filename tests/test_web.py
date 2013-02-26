@@ -39,10 +39,10 @@ instances:
 init_config:
 
 instances:
-    -   lighttpd_status_url: http://localhost:9445/server-status?auto
+    -   lighttpd_status_url: http://localhost:9449/server-status?auto
         tags:
             - instance:first
-    -   lighttpd_status_url: http://localhost:9445/server-status?auto
+    -   lighttpd_status_url: http://localhost:9449/server-status?auto
         tags:
             - instance:second
 """
