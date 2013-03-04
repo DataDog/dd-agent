@@ -95,36 +95,41 @@ class Cpu(Check):
                              ' No CPU metrics will be returned.')
             return
 
-        cpu_user = self._sum_metric(cpu, 'PercentUserTime')
+        cpu_user = self._average_metric(cpu, 'PercentUserTime')
         if cpu_user:
             self.save_sample('system.cpu.user', cpu_user)
 
-        cpu_idle = self._sum_metric(cpu, 'PercentIdleTime')
+        cpu_idle = self._average_metric(cpu, 'PercentIdleTime')
         if cpu_idle:
             self.save_sample('system.cpu.idle', cpu_idle)
 
-        cpu_interrupt = self._sum_metric(cpu, 'PercentInterruptTime')
+        cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
         if cpu_interrupt is not None:
             self.save_sample('system.cpu.interrupt', cpu_interrupt)
 
-        cpu_privileged = self._sum_metric(cpu, 'PercentPrivilegedTime')
+        cpu_privileged = self._average_metric(cpu, 'PercentPrivilegedTime')
         if cpu_privileged is not None:
             self.save_sample('system.cpu.system', cpu_privileged)
 
         return self.get_metrics()
 
-    def _sum_metric(wmi_class, wmi_prop):
+    def _average_metric(self, wmi_class, wmi_prop):
         ''' Sum all of the values of a metric from a WMI class object, excluding
             the value for "_Total"
         '''
         val = 0
+        counter = 0
         for wmi_object in wmi_class:
             if wmi_object.Name == '_Total':
                 # Skip the _Total value
                 continue
 
             if getattr(wmi_object, wmi_prop) is not None:
+                counter += 1
                 val += getattr(wmi_object, wmi_prop)
+
+        if counter > 0:
+            return val / counter
 
         return val
 
