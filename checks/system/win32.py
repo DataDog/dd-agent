@@ -126,7 +126,7 @@ class Cpu(Check):
 
             if getattr(wmi_object, wmi_prop) is not None:
                 counter += 1
-                val += getattr(wmi_object, wmi_prop)
+                val += float(getattr(wmi_object, wmi_prop))
 
         if counter > 0:
             return val / counter
