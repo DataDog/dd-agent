@@ -49,11 +49,7 @@ python $dd_base/virtualenv.py $dd_base/venv
 pip install tornado
 
 # figure out where to pull from
-if [ "$unamestr" = "SunOS" ]; then
-    tag="smartos-release"
-else
-    tag="3.5.1"
-fi
+tag="3.5.1"
 
 # set up the agent
 mkdir -p $dd_base/agent
