@@ -89,22 +89,42 @@ class Cpu(Check):
         import wmi
         w = wmi.WMI()
         try:
-            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
         except AttributeError:
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
                              ' No CPU metrics will be returned.')
             return
 
         if cpu.PercentUserTime is not None:
-            self.save_sample('system.cpu.user', cpu.PercentUserTime)
+            cpu_user = self._sum_metric(cpu, 'PercentUserTime')
+            self.save_sample('system.cpu.user', cpu_user)
         if cpu.PercentIdleTime is not None:
-            self.save_sample('system.cpu.idle', cpu.PercentIdleTime)
+            cpu_idle = self._sum_metric(cpu, 'PercentIdleTime')
+            self.save_sample('system.cpu.idle', cpu_idle)
         if cpu.PercentInterruptTime is not None:
-            self.save_sample('system.cpu.interrupt', cpu.PercentInterruptTime)
+            cpu_interrupt = self._sum_metric(cpu, 'PercentInterruptTime')
+            self.save_sample('system.cpu.interrupt', cpu_interrupt)
         if cpu.PercentPrivilegedTime is not None:
-            self.save_sample('system.cpu.system', cpu.PercentPrivilegedTime)
+            cpu_privileged = self._sum_metric(cpu, 'PercentPrivilegedTime')
+            self.save_sample('system.cpu.system', cpu_privileged)
 
         return self.get_metrics()
+
+    def _sum_metric(wmi_class, wmi_prop):
+        ''' Sum all of the values of a metric from a WMI class object, excluding
+            the value for "_Total"
+        '''
+        val = 0
+        for wmi_object in wmi_class:
+            if wmi_object.Name == '_Total':
+                # Skip the _Total value
+                continue
+
+            if getattr(wmi_object, wmi_prop) is not None:
+                val += getattr(wmi_object, wmi_prop)
+
+        return val
+
 
 class Network(Check):
     def __init__(self, logger):
