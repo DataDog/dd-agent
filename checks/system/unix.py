@@ -853,9 +853,10 @@ class Network(Check):
                 k, v = l.split()
                 # only pick certain counters 
                 if self.solaris_re.search(k) is not None:
-                    if not self.is_counter(k):
-                        self.counter(k)
-                    self.save_sample(k, long(v))
+                    metric_name = 'system.net.%s' % k
+                    if not self.is_counter(metric_name):
+                        self.counter(metric_name)
+                    self.save_sample(metric_name, long(v))
 
             # now turn that into {iface: {recv_bytes: xxx, trans_bytes: yyy}, ...}
             interfaces = {}
