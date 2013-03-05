@@ -96,99 +96,155 @@ rm $dd_base/virtualenv.pyc
 rm $dd_base/agent.tar.gz
 rm $dd_base/agent/datadog.conf.1
 
-# run agent
-cd $dd_base
-supervisord -c $dd_base/supervisord/supervisord.conf > /dev/null 2>&1 &
-agent_pid=$!
-trap "{ kill $agent_pid; exit 255; }" INT TERM
-trap "{ kill $agent_pid; exit; }" EXIT
-
-# regular agent install
-if [ $apikey ]; then
-
-    # wait for metrics to be submitted
-    printf "\033[32m
-Your agent has started up for the first time. We're currently
-verifying that data is being submitted. You should see your agent show
-up in Datadog within a few seconds at:
-
-    https://app.datadoghq.com/account/settings#agent\033[0m
-
-Waiting for metrics..."
-
-    c=0
-    while [ "$c" -lt "30" ]; do
-        sleep 1
-        echo -n "."
-        c=$(($c+1))
-    done
-
-    curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
-    success=$?
-    while [ "$success" -gt "0" ]; do
-        sleep 1
-        echo -n "."
-        curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
-        success=$?
-    done
-
-    # print instructions
-    printf "\033[32m
-
-Success! Your agent is functioning properly, and will continue to run
-in the foreground. To stop it, simply press CTRL-C. To start it back
-up again in the foreground, run:
-
-cd $dd_base
-sh bin/agent
-
-"
-
-    if [ "$unamestr" = "Darwin" ]; then
-    echo "To set it up as a daemon that always runs in the background
-while you're logged in, run:
-
-    mkdir -p ~/Library/LaunchAgents
-    cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
-    launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-"
-    elif [ "$unamestr" = "SunOS" ]; then
-    echo "To set it up as a daemon that always runs in the background,
-    run as root or via sudo:
-
+# on solaris, skip the test
+# just svcadm
+if [ "$unamestr" = "SunOS" ]; then
     svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml
     svcadm enable site/datadog
     svcs datadog
-"
-    fi
 
-    printf "\033[0m"
-
-# pup install
+		printf "*** The agent is running. My work on this planet is done... ( ^_^)／ ***"
+		printf "
+                                                                                
+                                         7           77II?+~,,,,,,              
+                                        77II?~:,,,,,,,,,,,,,,,,,,,              
+                           77I?+~:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,I             
+   7         77II?+~,,,,,,,,,,,,,,,,,,,,,,,,,,,,I :,,,,,,,,,,,,,,,:             
+  II?=:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,:   ~  +,,,,,,,,,,,,,,             
+  ,,,,,,,,,,,,,,,,,=7:,,,,,,,,,,,,,,,,,,,,,,~    =   7,,,,,,,,,,,,,7            
+  ,,,,,,,,,,,,,=     =7,,,,,,,,,,, ~7:I,,,:      7I    ,,,,,,,,,,,,I            
+  ,,,,,,,,,,,,7       ,  ,,,,,=                   ,7    ,,,,,,,,,,,,            
+  I,,,,,,,,,,         +~                     7:I  ,,   7 ,,,,,,,,,,,            
+   ,,,,,,,,+           ,I                     7 ,+ ,,I   +,,,,,,,,,,7           
+   ,,,,,,,,            ,,                        ,,,,,,I7?,,,,,,,,,,+           
+   :,,,,,,,            7,                         ,,,,,,,,,,,,,,,,,,,           
+   7,,,,,,,7            ,7                         ,,,,,,,,,,,,,,,,,,           
+    ,,,,,,,,7           ,7                    7,,,I ,,,,,,,,,,,,,,,,,7          
+    ,,,,,,,,,I         7,7      7I:,,:         I,,,7:,,,,,,,,,,,,,,,,=          
+    =,,,,,,,,,,       I,,      7,,,,,  7        ?,, =,,,,,,,,,,,,,,,,,          
+    7,,,,,,,,,,,,I77?,,,       =,,,,,7              ?,,,,,,,,,,,,,,,,,          
+     ,,,,,,,,,,,,,,,,,          ,,,=                 7,,,,,,,,,,,,,,,,          
+     ,,,,,,,,,,,,=                                     ,,,,,,,,,,,,,,,7         
+     ,,,,,,,,,,,,:                                      ,,,,,,,,,,,,,,=         
+     ~,,,,,,,,,,,, 7                             I?~,,,7 ,,,,,,,,,,,,,,         
+     7,,,,,,,,,,,,I                            7,,,,,,,7 ,,,,,,,,,,,,,,         
+      ,,,,,,,,,,,,,  7                          ,,,,,,,7 ,,,,,,,,,,,,,,I        
+      ,,,,,,,,,,,,,7 7                            ~,,:   ,,,,,,,,,,,,,,:        
+      =,,,,,,,,,,,,:,7           I                 77   ?,,,,,,,,,,,,,,,        
+      7,,,,,,,,,,,,,,,          7 ,7              7,    ,,,,,,,,,,,,,:,,7 7     
+       ,,,,,,,,,,,,,,,,,           :,I           7,,+?~,,,,,:?       7,,I       
+       ,,,,,,,,,,,,,,,,,:            ,,,I      7+,,,=                 ,,,       
+       ?,,,,,,,,,,,,,,,,,        +:,,,,,,,,,,,,,,                     ,,,       
+        ,,,,,,,,,,,,,,,,,        7,7       ~,~   7                7,  ,,,77     
+        ,,,,,,,,,,,,,,,,,         ,=                     7       I,,7 ,,,+      
+        ,,,,,,,,,,,,,,,,I         ,,                    7       7,,,7 ,,,,      
+        I,,,,,,,,,,,,,,           ,,                   ,,,I    I,,,,+ ,,,,      
+         ,,,,,,,,,,,,7  7         +,                  ?,,,,,7 =,,,,,: ,,,,7     
+         ,,,,,,,,,,?+,,,,,,?      7,7               7?,,,,,,,,,,,,,,, =,,,=     
+         :,,,,,,,,,       7,,I     ,=        ~I     I,,,,,,,,,,,,,,,, 7,,,,     
+         7,,,,,,            ,,     ,,     7 ?,,,~7 I,,,,,,,,,,,,,,,,, 7,,,,     
+          ,,,,,              ,,    ,,     7+,,,,,,,,,,,,,,,,,,,,,,,,,7 ,,,,     
+          ,,,,                ,I   ,,     +,,,,,,,,,,,,,,,,,,,,,,,,,,I ,,,,7    
+          ,,,,7               ,,   =,7  7+,,,,,,,,,,,,,,,,,,,,,,,,,,,= ,,7      
+          :,,,:               I,III=,=  =,,,,,,,,,,,,,,,,,,,,,~7   7  7,,=      
+          7,,,,:              7,,,,,,,  ,,,,,,,,,,,,,,+       7I?~,,,,,,,,      
+           ,,,,,,              ,=7 7,,  ,,,,,=    7  7I?=,,,,,,,,,,,,,,,,,7     
+           ,,,,,,:            7,    ,,       II+:,,,,,,,,,,,,,,,,,,~?           
+                  7           :,    ,,?~,,,,,,,,,,,,,,:?                        
+                              ,+    ,,,,,:=7                                    
+                    I       7,,                                                 
+                    I,,~++:,,,                                                  
+                       ?:,:I 7                                                  
+         "
+	  # kthxbye
+	  exit $?
 else
-
-    # print instructions
-    printf "\033[32m
-
-Success! Pup is installed and functioning properly, and will continue to
-run in the foreground. To stop it, simply press CTRL-C. To start it back
-up again in the foreground, run:
-
+    # run agent
+    cd $dd_base
+    supervisord -c $dd_base/supervisord/supervisord.conf > /dev/null 2>&1 &
+    agent_pid=$!
+    trap "{ kill $agent_pid; exit 255; }" INT TERM
+    trap "{ kill $agent_pid; exit; }" EXIT
+    
+    # regular agent install
+    if [ $apikey ]; then
+    
+        # wait for metrics to be submitted
+        printf "\033[32m
+    Your agent has started up for the first time. We're currently
+    verifying that data is being submitted. You should see your agent show
+    up in Datadog within a few seconds at:
+    
+        https://app.datadoghq.com/account/settings#agent\033[0m
+    
+    Waiting for metrics..."
+    
+        c=0
+        while [ "$c" -lt "30" ]; do
+            sleep 1
+            echo -n "."
+            c=$(($c+1))
+        done
+    
+        curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
+        success=$?
+        while [ "$success" -gt "0" ]; do
+            sleep 1
+            echo -n "."
+            curl -f http://localhost:17123/status?threshold=0 > /dev/null 2>&1
+            success=$?
+        done
+    
+        # print instructions
+        printf "\033[32m
+    
+    Success! Your agent is functioning properly, and will continue to run
+    in the foreground. To stop it, simply press CTRL-C. To start it back
+    up again in the foreground, run:
+    
     cd $dd_base
     sh bin/agent
-"
-
-    if [ "$unamestr" = "Darwin" ]; then
-    echo "To set it up as a daemon that always runs in the background
-while you're logged in, run:
-
-    mkdir -p ~/Library/LaunchAgents
-    cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
-    launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-"
+    
+    "
+    
+        if [ "$unamestr" = "Darwin" ]; then
+        echo "To set it up as a daemon that always runs in the background
+    while you're logged in, run:
+    
+        mkdir -p ~/Library/LaunchAgents
+        cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
+        launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+    "
+        fi
+    
+        printf "\033[0m"
+    
+    # pup install
+    else
+    
+        # print instructions
+        printf "\033[32m
+    
+    Success! Pup is installed and functioning properly, and will continue to
+    run in the foreground. To stop it, simply press CTRL-C. To start it back
+    up again in the foreground, run:
+    
+        cd $dd_base
+        sh bin/agent
+    "
+    
+        if [ "$unamestr" = "Darwin" ]; then
+        echo "To set it up as a daemon that always runs in the background
+    while you're logged in, run:
+    
+        mkdir -p ~/Library/LaunchAgents
+        cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
+        launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+    "
+        fi
+    
+        printf "\033[0m"
     fi
-
-    printf "\033[0m"
+    
+    wait $agent_pid
 fi
-
-wait $agent_pid
