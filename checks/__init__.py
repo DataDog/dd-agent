@@ -261,7 +261,7 @@ class Check(object):
 
 class AgentCheck(object):
 
-    def __init__(self, name, init_config, agentConfig, instances=None, allow_no_data=False):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
 
@@ -281,7 +281,6 @@ class AgentCheck(object):
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
         self.instances = instances or []
-        self.allow_no_data = allow_no_data
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -446,9 +445,7 @@ class AgentCheck(object):
                 self.check(instance)
 
                 # We check that metrics or events have been collected
-                if metrics_count == self.metrics_count()\
-                    and events_count == self.events_count()\
-                    and not self.allow_no_data:
+                if metrics_count == self.metrics_count() and events_count == self.events_count():
                     raise Exception("No metrics or events were collected for this instance. Please check your configuration")
 
                 instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
