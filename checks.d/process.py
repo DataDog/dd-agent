@@ -1,5 +1,4 @@
 import sys
-from pprint import pprint as pp
 import psutil
 from checks import AgentCheck
 class ProcessCheck(AgentCheck):
@@ -61,6 +60,7 @@ class ProcessCheck(AgentCheck):
         #self.gauge('system.%s.processes.mem.vms', self.processes_memory(pids_list)[1], tags=[name])
 
 if __name__ == '__main__':
+    from pprint import pprint as pp
     check, instances = ProcessCheck.from_yaml('../conf.d/process.yaml.example')
     for instance in instances:
         check.check(instance)
