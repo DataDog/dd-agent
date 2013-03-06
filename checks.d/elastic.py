@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 import time
 
-from checks import AgentCheck, gethostname
+from checks import AgentCheck
 from util import json, headers
 
 HEALTH_URL = "/_cluster/health?pretty=true"
@@ -203,7 +203,7 @@ class ElasticSearch(AgentCheck):
             if 'hostname' in node_data:
                 # For ES >= 0.19
                 hostnames = (
-                    gethostname(self.agentConfig).decode('utf-8'),
+                    self.hostname.decode('utf-8'),
                     socket.gethostname().decode('utf-8'),
                     socket.getfqdn().decode('utf-8')
                 )
@@ -267,7 +267,7 @@ class ElasticSearch(AgentCheck):
         self.log.debug("Metric not found: %s -> %s", path, metric)
 
     def _create_event(self, status):
-        hostname = gethostname(self.agentConfig).decode('utf-8')
+        hostname = self.hostname.decode('utf-8')
         if status == "red":
             alert_type = "error"
             msg_title = "%s is %s" % (hostname, status)
