@@ -1,0 +1,25 @@
+init_config:
+
+instances:
+#  - name: (mandatory) STRING Is the display name of the check, it will be system.name.processes
+# You need to choose one of process or search_string attribute, not both
+#    process: (optional) LIST OF STRINGS Is the EXACT name of the processes to search
+#    search_string: (optional) LIST OF STRINGS If one of the element in the list matches, 
+#                    return the counter of all the processes that contain the string
+# Examples:
+#
+#  - name: ssh
+#    search_string: ['ssh', 'sshd']
+#  - name: python
+#    process: python
+
+  -  name: ssh
+     search_string: ['sshd', 'ssh']
+     process: ['sshd']
+  -  name: python
+     process: ['python']
+  -  name: nodeserver
+     search_string: ['node server.js']
+  -  name: node
+     process: ['node']
+  -  name: All
