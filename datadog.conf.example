@@ -46,6 +46,7 @@ use_mount: no
 
 # use_pup: yes
 # pup_port: 17125
+# pup_interface: localhost
 # pup_url: http://localhost:17125
 
 # ========================================================================== #
