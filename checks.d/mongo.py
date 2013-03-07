@@ -120,12 +120,16 @@ class MongoDb(AgentCheck):
 
         do_auth = True
         if username is None or password is None:
+            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['mongodb_server'])
             do_auth = False
 
         conn = Connection(instance['mongodb_server'])
         db = conn['admin']
+        if do_auth:
+            if not db.authenticate(username, password):
+                self.log.error("Mongo: cannot connect with config %s" % instance['mongodb_server'])
 
-        status = db.command('serverStatus') # Shorthand for {'serverStatus': 1}
+        status = db.command('serverStatus')     # Shorthand for {'serverStatus': 1}
         status['stats'] = db.command('dbstats')
 
         results = {}
@@ -185,10 +189,7 @@ class MongoDb(AgentCheck):
         except KeyError:
             pass
 
-        # Flatten the metrics first
-        # Collect samples
-        # Send a dictionary back
-
+        # Go through the metrics and save the values
         for m in self.METRICS:
             # each metric is of the form: x.y.z with z optional
             # and can be found at status[x][y][z]
@@ -202,6 +203,7 @@ class MongoDb(AgentCheck):
             # value is now status[x][y][z]
             assert type(value) in (types.IntType, types.LongType, types.FloatType)
 
+            # Check if metric is a gauge or rate
             if m in self.GAUGES:
                 self.gauge(m, value, tags=tags)
 
