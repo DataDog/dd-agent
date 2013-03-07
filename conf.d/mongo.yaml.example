@@ -2,7 +2,6 @@ init_config:
 
 instances:
 #   -   mongodb_server: mongodb://localhost:27017
-#       api_key: toto
 #       tags:
 #            - optional_tag1
 #            - optional_tag2

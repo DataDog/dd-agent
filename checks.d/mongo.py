@@ -4,6 +4,8 @@ from datetime import datetime
 
 from checks import AgentCheck
 
+from pprint import pprint
+
 # When running with pymongo < 2.0
 # Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
@@ -96,7 +98,12 @@ class MongoDb(AgentCheck):
 
         tags = instance.get('tags', [])
 
-        from pymongo import Connection
+        try:
+            from pymongo import Connection
+        except ImportError:
+            self.log.error('mongo.yaml exists but pymongo module can not be imported. Skipping check.')
+            raise Exception('Python PyMongo Module can not be imported. Please check the installation instruction on the Datadog Website')
+
         try:
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
@@ -159,8 +166,14 @@ class MongoDb(AgentCheck):
                 if event is not None:
                     results['events'] = {'Mongo': [event]}
                 status['replSet'] = data
-        except:
-            pass
+        except Exception, e:
+
+            from pymongo.errors import OperationFailure
+
+            if type(e) == OperationFailure and "replSetGetStatus" in str(e):
+                pass
+            else:
+                raise e
 
         # If these keys exist, remove them for now as they cannot be serialized
         try:
@@ -194,6 +207,18 @@ class MongoDb(AgentCheck):
 
             if m in self.RATES:
                 self.rate(m, value, tags=tags)
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+        if not agentConfig.get('mongodb_server'):
+            return False
+
+        return {
+            'instances': [{
+                'url': agentConfig.get('mongodb_server'),
+                'tags': agentConfig.get('tags', [])
+            }]
+        }
 
 if __name__ == "__main__":
     check, instances = MongoDb.from_yaml('conf.d/mongo.yaml')
