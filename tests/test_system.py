@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 from checks.system.unix import *
+from common import get_check
 from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
@@ -187,14 +188,24 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
     def testNetwork(self):
         global logger
-        checker = Network(logger)
-        # First call yields nothing
-        self.assertEquals(False, checker.check({}))
-        # Second call yields values
-        if sys.platform == "darwin":
-            v = checker.check({})
-            assert "lo0" in v
-            
+        config = """
+init_config:
+
+instances:
+    -
+"""
+        check, instances = get_check('network', config)
+
+        from time import time
+
+        check.check(instances[0])
+        check.get_metrics()
+
+        metric_names = [m[0] for m in check.aggregator.metrics]
+
+        assert 'system.net.bytes_rcvd' in metric_names
+        assert 'system.net.bytes_sent' in metric_names
+
 
 if __name__ == "__main__":
     unittest.main()
