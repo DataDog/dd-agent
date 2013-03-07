@@ -91,8 +91,9 @@ class TestCore(unittest.TestCase):
 
     def test_metadata(self):
         c = Collector({}, None, {})
-        assert "hostname" in c._get_metadata(), c.get_metadata()
-        assert "fqdn" in c._get_metadata(), c.get_metadata()
+        assert "hostname" in c._get_metadata()
+        assert "socket-fqdn" in c._get_metadata()
+        assert "socket-hostname" in c._get_metadata()
 
 class TestAggregator(unittest.TestCase):
     def setUp(self):
