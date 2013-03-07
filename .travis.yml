@@ -38,7 +38,7 @@ before_script:
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/ports.conf > /etc/apache2/ports.conf"
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/apache.conf > /etc/apache2/apache.conf"
   - sudo /etc/init.d/lighttpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/lighttpd/tests/lighttpd/lighttpd.conf > /etc/lighttpd/lighttpd.conf"
+  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/lighttpd/lighttpd.conf > /etc/lighttpd/lighttpd.conf"
   - sudo mkdir -p /etc/dd-agent/
   - sudo install -d -o "$(id -u)" /var/log/datadog
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
