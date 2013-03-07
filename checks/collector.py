@@ -19,7 +19,6 @@ import checks.system.win32 as w32
 from checks.nagios import Nagios
 from checks.build import Hudson
 from checks.db.mysql import MySql
-from checks.db.mongo import MongoDb
 from checks.db.couch import CouchDb
 from checks.db.mcache import Memcache
 from checks.queue import RabbitMq
@@ -80,7 +79,6 @@ class Collector(object):
 
         # Old-style metric checks
         self._couchdb = CouchDb(log)
-        self._mongodb = MongoDb(log)
         self._mysql = MySql(log)
         self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(log)
@@ -200,7 +198,6 @@ class Collector(object):
         # Run old-style checks
         mysqlStatus = self._mysql.check(self.agentConfig)
         rabbitmq = self._rabbitmq.check(log, self.agentConfig)
-        mongodb = self._mongodb.check(self.agentConfig)
         couchdb = self._couchdb.check(self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(log, self.agentConfig)
@@ -220,13 +217,6 @@ class Collector(object):
         # RabbitMQ
         if rabbitmq:
             payload['rabbitMQ'] = rabbitmq
-        
-        # MongoDB
-        if mongodb:
-            if mongodb.has_key('events'):
-                events['Mongo'] = mongodb['events']['Mongo']
-                del mongodb['events']
-            payload['mongoDB'] = mongodb
             
         # CouchDB
         if couchdb:
