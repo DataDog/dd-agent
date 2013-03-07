@@ -187,7 +187,6 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             self.assertEqual(results['sda'][key], '0.00')
 
     def testNetwork(self):
-        global logger
         config = """
 init_config:
 
@@ -195,8 +194,6 @@ instances:
     -
 """
         check, instances = get_check('network', config)
-
-        from time import time
 
         check.check(instances[0])
         check.get_metrics()
