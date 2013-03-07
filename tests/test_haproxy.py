@@ -63,6 +63,7 @@ class HaproxyTestCase(unittest.TestCase):
 
     def testCheck(self):
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
@@ -102,6 +103,7 @@ class HaproxyTestCase(unittest.TestCase):
     def testWrongConfig(self):
         # Same check, with wrong data
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
@@ -124,6 +126,7 @@ class HaproxyTestCase(unittest.TestCase):
     def testOpenConfig(self):
         # No passwords this time
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
             }]
