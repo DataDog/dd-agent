@@ -62,7 +62,6 @@ class Collector(object):
             'io': u.IO(log),
             'load': u.Load(log),
             'memory': u.Memory(log),
-            'network': u.Network(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log)
         }
@@ -192,9 +191,6 @@ class Collector(object):
 
             processes = sys_checks['processes'].check(self.agentConfig)
             payload.update({'processes': processes})
-
-            networkTraffic = sys_checks['network'].check(self.agentConfig)
-            payload.update({'networkTraffic': networkTraffic})
 
             cpuStats = sys_checks['cpu'].check(self.agentConfig)
             if cpuStats:
