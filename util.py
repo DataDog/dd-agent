@@ -1,6 +1,8 @@
 import os
 import platform
 import signal
+import socket
+import subprocess
 import sys
 import math
 import time
@@ -119,6 +121,68 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+def is_valid_hostname(hostname):
+    return hostname.lower() not in set([
+        'localhost',
+        'localhost.localdomain',
+        'localhost6.localdomain6',
+        'ip6-localhost',
+    ])
+
+def get_hostname(config=None):
+    """
+    Get the canonical host name this agent should identify as. This is
+    the authoritative source of the host name for the agent.
+
+    Tries, in order:
+
+      * agent config (datadog.conf, "hostname:")
+      * 'hostname -f' (on unix)
+      * socket.gethostname()
+    """
+    hostname = None
+
+    # first, try the config
+    if config is None:
+        from config import get_config
+        config = get_config(parse_args=True)
+    config_hostname = config.get('hostname')
+    if config_hostname and is_valid_hostname(config_hostname):
+        hostname = config_hostname
+
+    # then move on to os-specific detection
+    if hostname is None:
+        def _get_hostname_unix():
+            try:
+                # try fqdn
+                p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
+                out, err = p.communicate()
+                if p.returncode == 0:
+                    hostname = out.strip()
+                    if is_valid_hostname(hostname):
+                        return hostname
+            except:
+                return None
+
+        os_name = get_os()
+        if os_name in ['mac', 'freebsd', 'linux', 'solaris']:
+            unix_hostname = _get_hostname_unix()
+            if unix_hostname and is_valid_hostname(unix_hostname):
+                hostname = unix_hostname
+
+    # fall back on socket.gethostname(), socket.getfqdn() is too unreliable
+    if hostname is None:
+        try:
+            socket_hostname = socket.gethostname()
+        except socket.error, e:
+            socket_hostname = None
+        if socket_hostname and is_valid_hostname(socket_hostname):
+            hostname = socket_hostname
+
+    if hostname is None:
+        raise Exception('Unable to reliably determine host name')
+    else:
+        return hostname
 
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process

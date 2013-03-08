@@ -44,7 +44,7 @@ class ServicesCheck(AgentCheck):
     """
 
     def __init__(self, name, init_config, agentConfig, instances):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances, allow_no_data=True)
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # A dictionary to keep track of service statuses
         self.statuses = {}

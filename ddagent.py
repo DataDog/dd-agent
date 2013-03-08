@@ -36,10 +36,9 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid
+from util import Watchdog, get_uuid, get_hostname
 from emitter import http_emitter, format_body
 from config import get_config
-from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
@@ -203,7 +202,7 @@ class MetricTransaction(Transaction):
                 )
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
-                log.info("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
                 tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             else:
@@ -329,7 +328,7 @@ class Application(tornado.web.Application):
 
         if len(self._metrics) > 0:
             self._metrics['uuid'] = get_uuid()
-            self._metrics['internalHostname'] = gethostname(self._agentConfig)
+            self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics, {})
             self._metrics = {}
@@ -390,7 +389,7 @@ class Application(tornado.web.Application):
         if gport is not None:
             log.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
-            gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
+            gs = GraphiteServer(self, get_hostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
                 gs.listen(gport)
             else:

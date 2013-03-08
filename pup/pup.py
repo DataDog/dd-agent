@@ -227,12 +227,13 @@ def run_pup(config):
     global port
 
     port = config.get('pup_port', 17125)
+    interface = config.get('pup_interface', 'localhost')
 
     if config.get('non_local_traffic', False) is True:
         application.listen(port)
     else:
         # localhost in lieu of 127.0.0.1 allows for ipv6
-        application.listen(port, address="localhost")
+        application.listen(port, address=interface)
 
     interval_ms = 2000
     io_loop = ioloop.IOLoop.instance()

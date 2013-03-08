@@ -17,7 +17,7 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
-from checks import gethostname
+from util import get_hostname
 
 class Continue(Exception):
     pass
@@ -116,7 +116,7 @@ class Hudson(object):
         for job_dir in job_dirs:
             for output in self._get_build_results(logger, job_dir):
                 output['api_key'] = agentConfig['api_key']
-                output['host'] = gethostname(agentConfig)
+                output['host'] = get_hostname(agentConfig)
                 build_events.append(output)
 
         return build_events

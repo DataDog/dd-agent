@@ -24,11 +24,10 @@ from urllib import urlencode
 
 # project
 from aggregator import MetricsAggregator
-from checks import gethostname
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon
-from util import json, PidFile
+from util import json, PidFile, get_hostname
 
 log = logging.getLogger('dogstatsd')
 
@@ -247,7 +246,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     if use_forwarder:
         target = c['dogstatsd_target'] 
 
-    hostname = gethostname(c)
+    hostname = get_hostname(c)
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.

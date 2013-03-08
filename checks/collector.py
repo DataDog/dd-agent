@@ -10,9 +10,8 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer
+from util import get_os, get_uuid, md5, Timer, get_hostname
 from config import get_version
-from checks import gethostname
 
 import checks.system.unix as u
 import checks.system.win32 as w32
@@ -63,7 +62,6 @@ class Collector(object):
             'io': u.IO(log),
             'load': u.Load(log),
             'memory': u.Memory(log),
-            'network': u.Network(log),
             'processes': u.Processes(log),
             'cpu': u.Cpu(log)
         }
@@ -107,7 +105,7 @@ class Collector(object):
 
         # Event Checks
         self._event_checks = [
-            Nagios(socket.gethostname()),
+            Nagios(get_hostname()),
             Hudson()
         ]
 
@@ -193,9 +191,6 @@ class Collector(object):
 
             processes = sys_checks['processes'].check(self.agentConfig)
             payload.update({'processes': processes})
-
-            networkTraffic = sys_checks['network'].check(self.agentConfig)
-            payload.update({'networkTraffic': networkTraffic})
 
             cpuStats = sys_checks['cpu'].check(self.agentConfig)
             if cpuStats:
@@ -373,7 +368,7 @@ class Collector(object):
             'events': {},
             'metrics': [],
             'resources': {},
-            'internalHostname' : gethostname(self.agentConfig),
+            'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
         }
 
@@ -411,23 +406,21 @@ class Collector(object):
         metadata = self._ec2.get_metadata()
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
+            del metadata['hostname']
 
-        # if hostname is set in the configuration file
-        # use that instead of gethostname
-        # gethostname is vulnerable to 2 hosts: x.domain1, x.domain2
-        # will cause both to be aliased (see #157)
         if self.agentConfig.get('hostname'):
             metadata['agent-hostname'] = self.agentConfig.get('hostname')
-            metadata['hostname'] = metadata['agent-hostname']
         else:
             try:
-                metadata["hostname"] = socket.gethostname()
+                metadata["socket-hostname"] = socket.gethostname()
             except:
                 pass
         try:
-            metadata["fqdn"] = socket.getfqdn()
+            metadata["socket-fqdn"] = socket.getfqdn()
         except:
             pass
+
+        metadata["hostname"] = get_hostname()
 
         return metadata
 

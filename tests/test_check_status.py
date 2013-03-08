@@ -6,9 +6,6 @@ import nose.tools as nt
 
 class DummyAgentCheck(AgentCheck):
 
-    def __init__(self, name, init_config, agentConfig, instances):
-        AgentCheck.__init__(self, name, init_config, agentConfig, instances, allow_no_data=True)
-
     def check(self, instance):
         if not instance['pass']:
             raise Exception("failure")

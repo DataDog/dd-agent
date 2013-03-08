@@ -152,7 +152,7 @@ Section "Datadog Agent" SecDummy
   File /oname=ddagent.exe "..\install_files\agent.exe"
   File "..\install_files\shell.exe"
   File "..\install_files\ca-certificates.crt"
-  File "..\install_files\datadog-cert-pem"
+  File "..\install_files\datadog-cert.pem"
 
   ; Install all of the checks.d checks
   File /r "..\install_files\checks.d"

@@ -13,7 +13,7 @@ import os
 import sys
 from pprint import pprint
 
-from util import LaconicFilter, get_os
+from util import LaconicFilter, get_os, get_hostname
 from config import get_confd_path
 from checks import check_status
 
@@ -261,7 +261,7 @@ class Check(object):
 
 class AgentCheck(object):
 
-    def __init__(self, name, init_config, agentConfig, instances=None, allow_no_data=False):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
 
@@ -276,12 +276,11 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
-        self.hostname = gethostname(agentConfig)
+        self.hostname = get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
         self.instances = instances or []
-        self.allow_no_data = allow_no_data
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -394,25 +393,6 @@ class AgentCheck(object):
         """
         return len(self.events) > 0
 
-    def metrics_count(self):
-        """
-        Returns the metrics count for this check
-
-        @return the metrics count for this check
-        @rtype int
-        """
-        return len(self.aggregator.metrics)
-
-    def events_count(self):
-        """
-        Returns the events for this check
-
-        @return the events count for this check
-        @rtype int
-        """
-        return len(self.events)
-
-
     def get_metrics(self):
         """
         Get all metrics, including the ones that are tagged.
@@ -438,19 +418,7 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                # We store the previous metrics and events count
-                metrics_count = self.metrics_count()
-                events_count = self.events_count()
-
-                # Run the check for this instance
                 self.check(instance)
-
-                # We check that metrics or events have been collected
-                if metrics_count == self.metrics_count()\
-                    and events_count == self.events_count()\
-                    and not self.allow_no_data:
-                    raise Exception("No metrics or events were collected for this instance. Please check your configuration")
-
                 instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
@@ -516,16 +484,6 @@ class AgentCheck(object):
             return prefix + "." + name
         else:
             return name
-
-
-def gethostname(agentConfig):
-    if agentConfig.get("hostname") is not None:
-        return agentConfig["hostname"]
-    else:
-        try:
-            return socket.getfqdn()
-        except socket.error, e:
-            log.debug("processes: unable to get hostname: " + str(e))
 
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
