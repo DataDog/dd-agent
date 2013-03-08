@@ -7,8 +7,7 @@ import socket
 
 import pymongo
 
-from checks import gethostname
-from tests.common import load_check, kill_subprocess
+from tests.common import load_check
 
 PORT1 = 37017
 PORT2 = 37018
