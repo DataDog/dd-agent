@@ -38,7 +38,7 @@ class TestMongo(unittest.TestCase):
         self.agentConfig = {}
 
         # Initialize the check from checks.d
-        self.c = load_check('mongo', config, self.agentConfig)
+        self.check = load_check('mongo', config, self.agentConfig)
 
         # Start 2 instances of Mongo in a replica set
         dir1 = mkdtemp()
@@ -112,9 +112,9 @@ class TestMongo(unittest.TestCase):
             if "replSet" == metric_name.split(".")[1]:
                 replSetCheck = True
             if metric_name in metric_val_checks:
-                assert check_result == metric_val_checks[metric_name]( m[2] )
+                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-        assert replSetCheck
+        self.assertTrue( replSetCheck )
 
         # Run the check against our running server
         self.check.check(config['instances'][1])
@@ -135,9 +135,9 @@ class TestMongo(unittest.TestCase):
             if "replSet" == metric_name.split(".")[1]:
                 replSetCheck = True
             if metric_name in metric_val_checks:
-                assert check_result == metric_val_checks[metric_name]( m[2] )
+                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-        assert replSetCheck
+        self.assertTrue( replSetCheck )
 
 if __name__ == '__main__':
     unittest.main()
