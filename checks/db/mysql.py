@@ -145,14 +145,12 @@ class MySql(Check):
                 f = open(pid_file)
                 pid = int(f.readline())
                 f.close()
-            except:
-                if self.logger is not None:
-                    self.logger.warn("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
-
-        self.logger.debug("pid: %s" % pid)
-        # If pid has not been found (permission issue), read it from ps
+                self.logger.debug("pid: %s" % pid)
+            except Exception:
+                pass
 
         if pid is None:
+            # If pid has not been found (permission issue), read it from ps
             pid = self._get_server_pid()
             self.logger.debug("pid: %s" % pid)
 
@@ -179,6 +177,9 @@ class MySql(Check):
             except:
                 if self.logger is not None:
                     self.logger.exception("While reading mysql (pid: %s) procfs data" % pid)
+
+        else:
+            self.logger.warn("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
 
     def check(self, agentConfig):
         try:

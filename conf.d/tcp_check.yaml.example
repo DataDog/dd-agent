@@ -1,22 +1,31 @@
 init_config:
-#    notify: 
-#        - user1@myorg
+
+# To notify on every service, set a list of notified uses here.
+#
+#    notify:
+#        - user1@example.com
 #        - pagerduty
 
+
 instances:
-#    -   name: My_first_service
+#    -   name: My first service
 #        host: myhost.example.com
 #        port: 8080
-#        The window and threshold parameters allow you to trigger alerts only if 
-#        the check fails x times within the last y attempts where x is the threshold and 
-#        y is the window
-#        threshold: 3
-#        window: 5
 #        timeout: 1
 
-#    -   name: My_second_service
+         # The (optional) window and threshold parameters allow you to trigger
+         # alerts only if the check fails x times within the last y attempts
+         # where x is the threshold and y is the window.
+
+#        threshold: 3
+#        window: 5
+
+#    -   name: My second service
 #        host: 127.0.0.1
 #        port: 80
+
+         # For service-specific notifications, you can optionally specify
+         # a list of users to notify within the service configuration.
 #        notify:
-#           - user2@myorg
+#           - user2@example.com
 #           - pagerduty

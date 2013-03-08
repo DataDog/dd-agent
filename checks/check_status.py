@@ -313,22 +313,24 @@ class CollectorStatus(AgentStatus):
                     if s.has_error():
                         line += u": %s" % s.error
                     check_lines.append(line)
+                
+
+                    if self.verbose and s.traceback is not None:
+                        # Formatting the traceback to look like a python traceback
+                        check_lines.append("    Traceback (most recent call last):")
+
+                        # Format the traceback lines to look good in the output
+                        for tb_line in s.traceback:
+                            lines = tb_line.split('\n')
+                            for line in lines:
+                                if line.strip() == '':
+                                    continue
+                                check_lines.append('    ' + line)
+
                 check_lines += [
                     "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
                     ""
                 ]
-
-                if self.verbose and s.traceback is not None:
-                    # Formatting the traceback to look like a python traceback
-                    check_lines.append("    Traceback (most recent call last):")
-
-                    # Format the traceback lines to look good in the output
-                    for tb_line in s.traceback:
-                        lines = tb_line.split('\n')
-                        for line in lines:
-                            if line.strip() == '':
-                                continue
-                            check_lines.append('    ' + line)
 
                 lines += check_lines
 

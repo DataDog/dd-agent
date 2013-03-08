@@ -20,9 +20,13 @@ import os; os.umask(022)
 import logging
 import os
 import sys
+import threading
+import zlib
+from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
+from socket import gaierror
 
 # Tornado
 import tornado.httpserver
@@ -32,12 +36,12 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid
+from util import Watchdog, get_uuid, get_hostname
 from emitter import http_emitter, format_body
 from config import get_config
-from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
+import modules
 
 log = logging.getLogger('forwarder')
 
@@ -52,15 +56,76 @@ MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
 
+class EmitterThread(threading.Thread):
+
+    def __init__(self, *args, **kwargs):
+        self.__name = kwargs['name']
+        self.__emitter = kwargs.pop('emitter')
+        self.__logger = kwargs.pop('logger')
+        self.__config = kwargs.pop('config')
+        self.__max_queue_size = kwargs.pop('max_queue_size', 100)
+        self.__queue = Queue(self.__max_queue_size)
+        threading.Thread.__init__(self, *args, **kwargs)
+        self.daemon = True
+
+    def run(self):
+        while True:
+            (data, headers) = self.__queue.get()
+            try:
+                self.__logger.debug('Emitter %r handling a packet', self.__name)
+                self.__emitter(data, self.__logger, self.__config)
+            except Exception:
+                self.__logger.error('Failure during operation of emitter %r', self.__name, exc_info=True)
+
+    def enqueue(self, data, headers):
+        try:
+            self.__queue.put((data, headers), block=False)
+        except Full:
+            self.__logger.warn('Dropping packet for %r due to backlog', self.__name)
+
+class EmitterManager(object):
+    """Track custom emitters"""
+
+    def __init__(self, config):
+        self.agentConfig = config
+        self.emitterThreads = []
+        for emitter_spec in [s.strip() for s in self.agentConfig.get('custom_emitters', '').split(',')]:
+            if len(emitter_spec) == 0: continue
+            logging.info('Setting up custom emitter %r', emitter_spec)
+            try:
+                thread = EmitterThread(
+                    name=emitter_spec,
+                    emitter=modules.load(emitter_spec, 'emitter'),
+                    logger=logging,
+                    config=config,
+                )
+                thread.start()
+                self.emitterThreads.append(thread)
+            except Exception, e:
+                logging.error('Unable to start thread for emitter: %r', emitter_spec, exc_info=True)
+        logging.info('Done with custom emitters')
+
+    def send(self, data, headers=None):
+        if not self.emitterThreads:
+            return # bypass decompression/decoding
+        if headers and headers.get('Content-Encoding') == 'deflate':
+            data = zlib.decompress(data)
+        data = json_decode(data)
+        for emitterThread in self.emitterThreads:
+            logging.info('Queueing for emitter %r', emitterThread.name)
+            emitterThread.enqueue(data, headers)
+
 class MetricTransaction(Transaction):
 
     _application = None
     _trManager = None
     _endpoints = []
+    _emitter_manager = None
 
     @classmethod
     def set_application(cls, app):
         cls._application = app
+        cls._emitter_manager = EmitterManager(cls._application._agentConfig)
 
     @classmethod
     def set_tr_manager(cls, manager):
@@ -97,6 +162,10 @@ class MetricTransaction(Transaction):
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
 
+        # Emitters operate outside the regular transaction framework
+        if self._emitter_manager is not None:
+            self._emitter_manager.send(data, headers)
+
         # Insert the transaction in the Manager
         self._trManager.append(self)
         log.debug("Created transaction %d" % self.get_id())
@@ -115,11 +184,31 @@ class MetricTransaction(Transaction):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
             log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
-            req = tornado.httpclient.HTTPRequest(url, method="POST",
-                body=self._data, headers=self._headers)
 
-            # Send Transaction to the endpoint
+            # Getting proxy settings
+            proxy_settings = self._application._agentConfig.get('proxy_settings', None)
+            ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
+
+            req = tornado.httpclient.HTTPRequest(url, method="POST",
+                body=self._data, 
+                headers=self._headers, 
+                # The settings below will just be used if we use the CurlAsyncHttpClient of tornado
+                # i.e. in case of connection using a proxy
+                proxy_host=proxy_settings['host'], 
+                proxy_port=proxy_settings['port'],
+                proxy_username=proxy_settings['user'],
+                proxy_password=proxy_settings['password'],
+                ca_certs=ssl_certificate
+                )
+
+            if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
+                log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                    proxy_settings['host'], proxy_settings['port']))
+                tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using Tornado simple HTTP Client")
             http = tornado.httpclient.AsyncHTTPClient()
+            
 
             # The success of this metric transaction should only depend on
             # whether or not it's successfully sent to datadoghq. If it fails
@@ -239,7 +328,7 @@ class Application(tornado.web.Application):
 
         if len(self._metrics) > 0:
             self._metrics['uuid'] = get_uuid()
-            self._metrics['internalHostname'] = gethostname(self._agentConfig)
+            self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(self._metrics, {})
             self._metrics = {}
@@ -275,7 +364,12 @@ class Application(tornado.web.Application):
             http_server.listen(self._port)
         else:
             # localhost in lieu of 127.0.0.1 to support IPv6
-            http_server.listen(self._port, address = "localhost")
+            try:
+                http_server.listen(self._port, address = "localhost")
+            except gaierror:
+                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                http_server.listen(self._port, address = "127.0.0.1")
+
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
@@ -295,7 +389,7 @@ class Application(tornado.web.Application):
         if gport is not None:
             log.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
-            gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
+            gs = GraphiteServer(self, get_hostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
                 gs.listen(gport)
             else:
@@ -329,6 +423,7 @@ def init():
 
     import signal
     signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
 
     return app
 

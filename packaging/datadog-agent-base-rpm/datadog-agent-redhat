@@ -29,7 +29,11 @@ PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
 
-PYTHON="/usr/bin/python2"
+if [ -x "/usr/bin/python2.6" ]; then
+    PYTHON="/usr/bin/python2.6"
+else
+    PYTHON="/usr/bin/python"
+fi
 
 # Source function library.
 . /etc/rc.d/init.d/functions

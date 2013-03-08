@@ -152,6 +152,7 @@ Section "Datadog Agent" SecDummy
   File /oname=ddagent.exe "..\install_files\agent.exe"
   File "..\install_files\shell.exe"
   File "..\install_files\ca-certificates.crt"
+  File "..\install_files\datadog-cert.pem"
 
   ; Install all of the checks.d checks
   File /r "..\install_files\checks.d"
@@ -199,6 +200,7 @@ Section "Uninstall"
   Delete "$INSTDIR\shell.exe"
   Delete "$0\Datadog\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
+  Delete "$INSTDIR\datadog-cert.pem"
   Delete "$INSTDIR\license.txt"
   Delete "$INSTDIR\Uninstall.exe"
 

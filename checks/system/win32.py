@@ -17,6 +17,13 @@ class Processes(Check):
         import wmi
         w = wmi.WMI()
         try:
+            os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.' \
+                             ' No process metrics will be returned.')
+            return
+
+        try:
             cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
         except AttributeError:
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
@@ -82,22 +89,50 @@ class Cpu(Check):
         import wmi
         w = wmi.WMI()
         try:
-            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
         except AttributeError:
             self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
                              ' No CPU metrics will be returned.')
             return
 
-        if cpu.PercentUserTime is not None:
-            self.save_sample('system.cpu.user', cpu.PercentUserTime)
-        if cpu.PercentIdleTime is not None:
-            self.save_sample('system.cpu.idle', cpu.PercentIdleTime)
-        if cpu.PercentInterruptTime is not None:
-            self.save_sample('system.cpu.interrupt', cpu.PercentInterruptTime)
-        if cpu.PercentPrivilegedTime is not None:
-            self.save_sample('system.cpu.system', cpu.PercentPrivilegedTime)
+        cpu_user = self._average_metric(cpu, 'PercentUserTime')
+        if cpu_user:
+            self.save_sample('system.cpu.user', cpu_user)
+
+        cpu_idle = self._average_metric(cpu, 'PercentIdleTime')
+        if cpu_idle:
+            self.save_sample('system.cpu.idle', cpu_idle)
+
+        cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
+        if cpu_interrupt is not None:
+            self.save_sample('system.cpu.interrupt', cpu_interrupt)
+
+        cpu_privileged = self._average_metric(cpu, 'PercentPrivilegedTime')
+        if cpu_privileged is not None:
+            self.save_sample('system.cpu.system', cpu_privileged)
 
         return self.get_metrics()
+
+    def _average_metric(self, wmi_class, wmi_prop):
+        ''' Sum all of the values of a metric from a WMI class object, excluding
+            the value for "_Total"
+        '''
+        val = 0
+        counter = 0
+        for wmi_object in wmi_class:
+            if wmi_object.Name == '_Total':
+                # Skip the _Total value
+                continue
+
+            if getattr(wmi_object, wmi_prop) is not None:
+                counter += 1
+                val += float(getattr(wmi_object, wmi_prop))
+
+        if counter > 0:
+            return val / counter
+
+        return val
+
 
 class Network(Check):
     def __init__(self, logger):

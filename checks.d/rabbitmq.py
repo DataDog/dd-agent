@@ -4,6 +4,29 @@ import urlparse
 from checks import AgentCheck
 from util import json
 
+QUEUE_ATTRIBUTES = [
+        'active_consumers',
+        'consumers',
+        'memory',
+        'messages',
+        'messages_ready',
+        'messages_unacknowledged'
+    ]
+
+NODE_ATTRIBUTES = [
+                'disk_free',
+                'disk_free_limit',
+                'fd_total',
+                'fd_used',
+                'mem_limit',
+                'mem_used',
+                'proc_total',
+                'proc_used',
+                'processors',
+                'run_queue',
+                'sockets_total',
+                'sockets_used',
+    ]
 
 class RabbitMQ(AgentCheck):
     """This check is for gathering statistics from the RabbitMQ
@@ -38,22 +61,29 @@ class RabbitMQ(AgentCheck):
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
             self.log.info('Cannot open RabbitMQ API url: %s', url)
+            raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
             self.log.info('Cannot parse JSON response from API url: %s', url)
+            raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:
             tags = []
-            tags.append('rabbitmq_node:%s' % node['node'])
-            tags.append('rabbitmq_queue:%s' % node['name'])
-            tags.append('rabbitmq_vhost:%s' % node['vhost'])
-            tags.append('rabbitmq_policy:%s' % node['policy'])
+            tag_list = {
+                'node':'node',
+                'name':'queue',
+                'vhost':'vhost',
+                'policy':'policy',
+            }
+            for t in tag_list.keys():
+                tag = node.get(t, None)
+                if tag is not None:
+                    tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
-            self.gauge('rabbitmq.queue.active_consumers', int(node['active_consumers']), tags=tags)
-            self.gauge('rabbitmq.queue.consumers', int(node['consumers']), tags=tags)
-            self.gauge('rabbitmq.queue.memory', int(node['memory']), tags=tags)
-            self.gauge('rabbitmq.queue.messages', int(node['messages']), tags=tags)
-            self.gauge('rabbitmq.queue.messages_ready', int(node['messages_ready']), tags=tags)
-            self.gauge('rabbitmq.queue.messages_unacknowledged', int(node['messages_unacknowledged']), tags=tags)
+
+            for attribute in QUEUE_ATTRIBUTES:
+                value = node.get(attribute, None)
+                if value is not None:
+                    self.gauge('rabbitmq.queue.%s' % attribute, int(value), tags=tags)
 
     def get_node_stats(self, base_url):
         url = urlparse.urljoin(base_url, 'nodes')
@@ -62,22 +92,17 @@ class RabbitMQ(AgentCheck):
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
             self.log.info('Cannot open RabbitMQ API url: %s', url)
+            raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
             self.log.info('Cannot parse JSON response from API url: %s', url)
+            raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:
             tags = []
-            tags.append('rabbitmq_node:%s' % node['name'])
+            if 'name' in node:
+                tags.append('rabbitmq_node:%s' % node['name'])
 
-            self.gauge('rabbitmq.node.disk_free', int(node['disk_free']), tags=tags)
-            self.gauge('rabbitmq.node.disk_free_limit', int(node['disk_free_limit']), tags=tags)
-            self.gauge('rabbitmq.node.fd_total', int(node['fd_total']), tags=tags)
-            self.gauge('rabbitmq.node.fd_used', int(node['fd_used']), tags=tags)
-            self.gauge('rabbitmq.node.mem_limit', int(node['mem_limit']), tags=tags)
-            self.gauge('rabbitmq.node.mem_used', int(node['mem_used']), tags=tags)
-            self.gauge('rabbitmq.node.proc_total', int(node['proc_total']), tags=tags)
-            self.gauge('rabbitmq.node.proc_used', int(node['proc_used']), tags=tags)
-            self.gauge('rabbitmq.node.processors', int(node['processors']), tags=tags)
-            self.gauge('rabbitmq.node.run_queue', int(node['run_queue']), tags=tags)
-            self.gauge('rabbitmq.node.sockets_total', int(node['sockets_total']), tags=tags)
-            self.gauge('rabbitmq.node.sockets_used', int(node['sockets_used']), tags=tags)
+            for attribute in NODE_ATTRIBUTES:
+                value = node.get(attribute, None)
+                if value is not None:
+                    self.gauge('rabbitmq.node.%s' % attribute, int(value), tags=tags)

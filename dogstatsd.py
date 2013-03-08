@@ -24,11 +24,10 @@ from urllib import urlencode
 
 # project
 from aggregator import MetricsAggregator
-from checks import gethostname
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon
-from util import json, PidFile
+from util import json, PidFile, get_hostname
 
 log = logging.getLogger('dogstatsd')
 
@@ -162,6 +161,7 @@ class Server(object):
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024
 
+        # IPv4 only
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
 
@@ -216,6 +216,7 @@ class Dogstatsd(Daemon):
         # Gracefully exit on sigterm.
         log.info("Adding sig handler")
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+        signal.signal(signal.SIGINT, self._handle_sigterm)
         self.reporter.start()
         try:
             self.server.start()
@@ -239,12 +240,13 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     interval  = int(c['dogstatsd_interval'])
     normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
+    non_local_traffic = c['non_local_traffic']
 
     target = c['dd_url']
     if use_forwarder:
         target = c['dogstatsd_target'] 
 
-    hostname = gethostname(c)
+    hostname = get_hostname(c)
 
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
@@ -254,8 +256,13 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
 
-    # Start the server.
-    server_host = ''
+    # Start the server on an IPv4 stack
+    # Default to loopback
+    server_host = '127.0.0.1'
+    # If specified, bind to all addressses
+    if non_local_traffic:
+        server_host = ''
+
     server = Server(aggregator, server_host, port)
 
     return reporter, server

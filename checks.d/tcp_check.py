@@ -45,10 +45,10 @@ class TCPCheck(ServicesCheck):
     def _check(self, instance):
 
         addr, port, socket_type, timeout = self._load_conf(instance)
+        start = time.time()
         try:    
             self.log.debug("Connecting to %s %s" % (addr, port))
             sock = socket.socket(socket_type)
-            start = time.time()
             try:
                 sock.settimeout(timeout)
                 sock.connect((addr, port))
@@ -80,7 +80,7 @@ class TCPCheck(ServicesCheck):
             self.log.info("%s:%s is DOWN (%s). Connection failed after %s ms" % (addr, port, str(e), length))
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
-        self.log.info("%s:%s is UP" % (addr, port))
+        self.log.debug("%s:%s is UP" % (addr, port))
         return Status.UP, "UP"
 
 
@@ -117,7 +117,7 @@ class TCPCheck(ServicesCheck):
 
 
         if status == Status.DOWN:
-            title = "[Alert] %s is down" % name
+            title = "[Alert] %s reported that %s is down" % (self.hostname, name)
             alert_type = "error"
             msg = """%s %s %s reported that %s (%s:%s) failed %s time(s) within %s last attempt(s). 
                 Last error: %s""" % (notify_message,
@@ -125,7 +125,7 @@ class TCPCheck(ServicesCheck):
             event_type = EventType.DOWN
 
         else: # Status is UP
-            title = "[Recovered] %s is up" % name
+            title = "[Recovered] %s reported that %s is up" % (self.hostname, name)
             alert_type = "success"
             msg = "%s %s %s reported that %s (%s:%s) recovered." % (notify_message,
                 custom_message, self.hostname, name, host, port)

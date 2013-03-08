@@ -6,7 +6,7 @@ import tempfile
 import os
 import logging
 
-from checks import gethostname
+from util import get_hostname
 from tests.common import load_check, kill_subprocess
 
 logging.basicConfig()
@@ -63,6 +63,7 @@ class HaproxyTestCase(unittest.TestCase):
 
     def testCheck(self):
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
@@ -93,7 +94,7 @@ class HaproxyTestCase(unittest.TestCase):
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
         new_data = [l.replace("OPEN", "DOWN") for l in data]
 
-        self.check._process_data(new_data, gethostname(self.agentConfig),
+        self.check._process_data(new_data, get_hostname(self.agentConfig),
             event_cb=self.check._process_events)
 
         assert self.check.has_events()
@@ -102,6 +103,7 @@ class HaproxyTestCase(unittest.TestCase):
     def testWrongConfig(self):
         # Same check, with wrong data
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
@@ -124,6 +126,7 @@ class HaproxyTestCase(unittest.TestCase):
     def testOpenConfig(self):
         # No passwords this time
         config = {
+            'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
             }]

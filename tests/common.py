@@ -1,5 +1,5 @@
 from checks import AgentCheck
-from config import get_checksd_path
+from config import get_checksd_path, get_confd_path
 from util import get_os
 import sys
 import inspect

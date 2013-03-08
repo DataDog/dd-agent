@@ -5,6 +5,8 @@ instances:
 #        password: password
 #        name: tomcat_instance
 
+# List of metrics to be collected by the integration
+# You should not need to modify this.
 init_config:
   conf:
     - include:

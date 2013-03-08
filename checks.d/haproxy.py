@@ -2,7 +2,7 @@ import urlparse
 import urllib2
 import socket
 
-from checks import AgentCheck, gethostname
+from checks import AgentCheck
 from util import json, headers
 
 import time
@@ -48,8 +48,13 @@ class HAProxy(AgentCheck):
        
         data = self._fetch_data(url, username, password)
 
+        if instance.get('status_check', self.init_config.get('status_check', True)):
+            events_cb = self._process_events
+        else:
+            events_cb = None
+
         self._process_data(data, self.hostname, self._process_metrics,
-            self._process_events)
+            events_cb)
 
     def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''

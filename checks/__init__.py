@@ -11,8 +11,10 @@ import time
 import types
 import os
 import sys
+from pprint import pprint
 
-from util import LaconicFilter
+from util import LaconicFilter, get_os, get_hostname
+from config import get_confd_path
 from checks import check_status
 
 log = logging.getLogger(__name__)
@@ -274,7 +276,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
-        self.hostname = gethostname(agentConfig)
+        self.hostname = get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
         self.events = []
@@ -434,6 +436,12 @@ class AgentCheck(object):
         """
         raise NotImplementedError()
 
+    def stop(self):
+        """
+        To be executed when the agent is being stopped to clean ressources
+        """
+        pass
+
     @classmethod
     def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
         """
@@ -477,14 +485,6 @@ class AgentCheck(object):
         else:
             return name
 
-def gethostname(agentConfig):
-    if agentConfig.get("hostname") is not None:
-        return agentConfig["hostname"]
-    else:
-        try:
-            return socket.getfqdn()
-        except socket.error, e:
-            log.debug("processes: unable to get hostname: " + str(e))
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
@@ -500,3 +500,30 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)
+
+
+def run_check(name, path=None):
+    from tests.common import get_check
+
+    # Read the config file
+    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
+
+    try:
+        f = open(confd_path)
+    except IOError:
+        raise Exception('Unable to open configuration at %s' % confd_path)
+
+    config_str = f.read()
+    f.close()
+
+    # Run the check
+    check, instances = get_check(name, config_str)
+    if not instances:
+        raise Exception('YAML configuration returned no instances.')
+    for instance in instances:
+        check.check(instance)
+        if check.has_events():
+            print "Events:\n"
+            pprint(check.get_events(), indent=4)
+        print "Metrics:\n"
+        pprint(check.get_metrics(), indent=4)

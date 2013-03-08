@@ -10,6 +10,7 @@ import sys
 import glob
 import inspect
 import traceback
+import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
@@ -42,19 +43,21 @@ def get_parsed_args():
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
+
     try:
         options, args = parser.parse_args()
     except SystemExit:
         # Ignore parse errors
         options, args = Values({'dd_url': None,
                                 'clean': False,
-                                'use_forwarder': False,
-                                'disable_dd': False}), []
+                                'use_forwarder':False,
+                                'disable_dd':False,
+                                'use_forwarder': False}), []
     return options, args
 
 
 def get_version():
-    return "3.5.0"
+    return "3.6.0"
 
 
 def skip_leading_wsp(f):
@@ -211,11 +214,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_dd'] = True
 
+        agentConfig['use_forwarder'] = False
         if options is not None and options.use_forwarder:
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
             agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            agentConfig['use_forwarder'] = True
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
         else:
@@ -306,6 +311,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
 
+        if config.has_option('Main', 'autorestart'):
+            agentConfig['autorestart'] = config.get('Main', 'autorestart').lower() in ("yes", "true", "1")
+
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
 
@@ -340,27 +348,24 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     except ConfigParser.NoOptionError, e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
 
-    if 'apache_status_url' in agentConfig and agentConfig['apache_status_url'] == None:
-        sys.stderr.write('You must provide a config value for apache_status_url. If you do not wish to use Apache monitoring, leave it as its default value - http://www.example.com/server-status/?auto.\n')
-        sys.exit(2)
-
-    if 'nginx_status_url' in agentConfig and agentConfig['nginx_status_url'] == None:
-        sys.stderr.write('You must provide a config value for nginx_status_url. If you do not wish to use Nginx monitoring, leave it as its default value - http://www.example.com/nginx_status.\n')
-        sys.exit(2)
-
     if 'mysql_server' in agentConfig and agentConfig['mysql_server'] != '' and 'mysql_user' in agentConfig and agentConfig['mysql_user'] != '' and 'mysql_pass' in agentConfig:
         try:
             import MySQLdb
         except ImportError:
-            sys.stderr.write('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
-            sys.exit(2)
+            log.error('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
 
     if 'mongodb_server' in agentConfig and agentConfig['mongodb_server'] != '':
         try:
             import pymongo
         except ImportError:
-            sys.stderr.write('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
-            sys.exit(2)
+            log.error('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
+
+    # Storing proxy settings in the agentConfig
+    agentConfig['proxy_settings'] = get_proxy(agentConfig)
+    if agentConfig.get('ca_certs', None) is None:
+        agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
+    else:
+        agentConfig['ssl_certificate'] = agentConfig['ca_certs']
 
     return agentConfig
 
@@ -416,6 +421,59 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
+def get_proxy(agentConfig):
+    proxy_settings = {}
+    
+    # First we read the proxy configuration from datadog.conf
+    proxy_host = agentConfig.get('proxy_host', None)
+    if proxy_host is not None:
+        proxy_settings['host'] = proxy_host
+        try:
+            proxy_settings['port'] = int(agentConfig.get('proxy_port', 3128))
+        except ValueError:
+            log.error('Proxy port must be an Integer. Defaulting it to 3128')
+            proxy_settings['port'] = 3128
+
+        proxy_settings['user'] = agentConfig.get('proxy_user', None)
+        proxy_settings['password'] = agentConfig.get('proxy_password', None)
+        proxy_settings['system_settings'] = False
+        log.debug("Proxy Settings %s" % str(proxy_settings))
+        return proxy_settings
+
+    # If no proxy configuration was specified in datadog.conf
+    # We try to read it from the system settings
+    try:
+        import urllib
+        proxies = urllib.getproxies()
+        proxy = proxies.get('https', None)
+        try:
+            proxy = proxy.split('://')[1]
+        except Exception:
+            pass
+        split = proxy.split(':')
+        proxy_settings['host'] = split[0]
+        proxy_settings['port'] = split[1]
+        proxy_settings['user'] = None
+        proxy_settings['password'] = None
+        proxy_settings['system_settings'] = True
+        if '@' in proxy_settings['host']:
+            split = proxy_settings['host'].split('@')[0].split(':')
+            proxy_settings['user'] = split[0]
+            if len(split) == 2:
+                proxy_settings['password'] = split[1]
+
+        log.debug("Proxy Settings %s" % str(proxy_settings))
+        return proxy_settings
+    except Exception, e:
+        log.debug("Error while trying to fetch proxy settings using urllib %s. Proxy is probably not set" % str(e))
+
+    return {'host': None,
+            'port': None,
+            'user': None,
+            'password': None,
+            'system_settings': False
+            }
+
 
 def get_confd_path(osname):
 
@@ -463,6 +521,31 @@ def get_checksd_path(osname):
     log.error("No checks.d folder at '%s'.\n" % checksd_path)
     sys.exit(3)
 
+def get_ssl_certificate(osname, filename):
+    # The SSL certificate is needed by tornado in case of connection through a proxy
+    if osname == 'windows':
+        if hasattr(sys, 'frozen'):
+            # we're frozen - from py2exe
+            prog_path = os.path.dirname(sys.executable)
+            path = os.path.join(prog_path, filename)
+        else:
+            cur_path = os.path.dirname(__file__)
+            path = os.path.join(cur_path, filename)
+        if os.path.exists(path):
+            log.debug("Certificate file found at %s" % str(path))
+            return path
+
+    else:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(cur_path, filename)
+        if os.path.exists(path):
+            return path
+
+
+    log.info("Certificate file NOT found at %s" % str(path))
+    return None
+
+
 
 def load_check_directory(agentConfig):
     ''' Return the checks from checks.d. Only checks that have a configuration
@@ -477,9 +560,6 @@ def load_check_directory(agentConfig):
     confd_path = get_confd_path(osname)
     check_glob = os.path.join(checks_path, '*.py')
 
-    # Update the python path before the import
-    sys.path.append(checks_path)
-
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
     # config will "activate" the check.
@@ -489,7 +569,7 @@ def load_check_directory(agentConfig):
     for check in glob.glob(check_glob):
         check_name = os.path.basename(check).split('.')[0]
         try:
-            check_module = __import__(check_name)
+            check_module = imp.load_source('checksd_%s' % check_name, check)
         except:
             log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue

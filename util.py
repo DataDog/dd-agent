@@ -1,6 +1,8 @@
 import os
 import platform
 import signal
+import socket
+import subprocess
 import sys
 import math
 import time
@@ -119,6 +121,68 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+def is_valid_hostname(hostname):
+    return hostname.lower() not in set([
+        'localhost',
+        'localhost.localdomain',
+        'localhost6.localdomain6',
+        'ip6-localhost',
+    ])
+
+def get_hostname(config=None):
+    """
+    Get the canonical host name this agent should identify as. This is
+    the authoritative source of the host name for the agent.
+
+    Tries, in order:
+
+      * agent config (datadog.conf, "hostname:")
+      * 'hostname -f' (on unix)
+      * socket.gethostname()
+    """
+    hostname = None
+
+    # first, try the config
+    if config is None:
+        from config import get_config
+        config = get_config(parse_args=True)
+    config_hostname = config.get('hostname')
+    if config_hostname and is_valid_hostname(config_hostname):
+        hostname = config_hostname
+
+    # then move on to os-specific detection
+    if hostname is None:
+        def _get_hostname_unix():
+            try:
+                # try fqdn
+                p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
+                out, err = p.communicate()
+                if p.returncode == 0:
+                    hostname = out.strip()
+                    if is_valid_hostname(hostname):
+                        return hostname
+            except:
+                return None
+
+        os_name = get_os()
+        if os_name in ['mac', 'freebsd', 'linux', 'solaris']:
+            unix_hostname = _get_hostname_unix()
+            if unix_hostname and is_valid_hostname(unix_hostname):
+                hostname = unix_hostname
+
+    # fall back on socket.gethostname(), socket.getfqdn() is too unreliable
+    if hostname is None:
+        try:
+            socket_hostname = socket.gethostname()
+        except socket.error, e:
+            socket_hostname = None
+        if socket_hostname and is_valid_hostname(socket_hostname):
+            hostname = socket_hostname
+
+    if hostname is None:
+        raise Exception('Unable to reliably determine host name')
+    else:
+        return hostname
 
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
@@ -253,3 +317,50 @@ class Timer(object):
     def total(self, as_sec=True):
         return self._now() - self.start
 
+
+class AgentSupervisor(object):
+    ''' A simple supervisor to keep a restart a child on expected auto-restarts
+    '''
+    RESTART_EXIT_STATUS = 5
+
+    @classmethod
+    def start(cls, parent_func, child_func=None):
+        ''' `parent_func` is a function that's called every time the child
+            process dies.
+            `child_func` is a function that should be run by the forked child
+            that will auto-restart with the RESTART_EXIT_STATUS.
+        '''
+        cls.running = True
+        exit_code = cls.RESTART_EXIT_STATUS
+
+        # Allow the child process to die on SIGTERM
+        signal.signal(signal.SIGTERM, cls._handle_sigterm)
+
+        while cls.running and exit_code == cls.RESTART_EXIT_STATUS:
+            try:
+                pid = os.fork()
+                if pid > 0:
+                    # The parent waits on the child.
+                    cls.child_pid = pid
+                    wait_pid, status = os.waitpid(pid, 0)
+                    exit_code = status >> 8
+                    parent_func()
+                else:
+                    # The child will call our given function
+                    if child_func:
+                        child_func()
+                    else:
+                        break
+            except OSError, e:
+                msg = "Agent fork failed: %d (%s)" % (e.errno, e.strerror)
+                logging.error(msg)
+                sys.stderr.write(msg + "\n")
+                sys.exit(1)
+
+        # Exit from the parent cleanly
+        if pid > 0:
+            sys.exit(0)
+
+    @classmethod
+    def _handle_sigterm(cls, signum, frame):
+        os.kill(cls.child_pid, signal.SIGTERM)

@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 from checks.system.unix import *
+from common import get_check
 from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
@@ -14,16 +15,17 @@ class TestSystem(unittest.TestCase):
         cpu = Cpu(logger)
         res = cpu.check({})
         # Make sure we sum up to 100% (or 99% in the case of macs)
-        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 1, res
+        assert abs(reduce(lambda a,b:a+b, res.values(), 0) - 100) <= 5, res
 
     def testLoad(self):
         global logger
         load = Load(logger)
         res = load.check({'system_stats': get_system_stats()})
-        cores = int(get_system_stats().get('cpuCores'))
         assert 'system.load.1' in res
-        assert 'system.load.norm.1' in res
-        assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
+        if sys.platform == "linux2":
+            cores = int(get_system_stats().get('cpuCores'))
+            assert 'system.load.norm.1' in res
+            assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
 
         # same test but without cpu count, no normalized load sent.
         res = load.check({})
@@ -185,15 +187,22 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             self.assertEqual(results['sda'][key], '0.00')
 
     def testNetwork(self):
-        global logger
-        checker = Network(logger)
-        # First call yields nothing
-        self.assertEquals(False, checker.check({}))
-        # Second call yields values
-        if sys.platform == "darwin":
-            v = checker.check({})
-            assert "lo0" in v
-            
+        config = """
+init_config:
+
+instances:
+    -
+"""
+        check, instances = get_check('network', config)
+
+        check.check(instances[0])
+        check.get_metrics()
+
+        metric_names = [m[0] for m in check.aggregator.metrics]
+
+        assert 'system.net.bytes_rcvd' in metric_names
+        assert 'system.net.bytes_sent' in metric_names
+
 
 if __name__ == "__main__":
     unittest.main()
