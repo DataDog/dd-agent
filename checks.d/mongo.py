@@ -4,8 +4,6 @@ from datetime import datetime
 
 from checks import AgentCheck
 
-from pprint import pprint
-
 # When running with pymongo < 2.0
 # Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
@@ -92,8 +90,8 @@ class MongoDb(AgentCheck):
         """
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
         """
-        if 'mongodb_server' not in instance:
-            self.log.warn("Missing 'mongodb_server' in mongo config")
+        if 'server' not in instance:
+            self.log.warn("Missing 'server' in mongo config")
             return
 
         tags = instance.get('tags', [])
@@ -107,10 +105,10 @@ class MongoDb(AgentCheck):
         try:
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(instance['mongodb_server'])
+            parsed = uri_parser.parse_uri(instance['server'])
         except ImportError:
             # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(instance['mongodb_server'])
+            matches = mongo_uri_re.match(instance['server'])
             if matches:
                 parsed = matches.groupdict()
             else:
@@ -120,14 +118,14 @@ class MongoDb(AgentCheck):
 
         do_auth = True
         if username is None or password is None:
-            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['mongodb_server'])
+            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['server'])
             do_auth = False
 
-        conn = Connection(instance['mongodb_server'])
+        conn = Connection(instance['server'])
         db = conn['admin']
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % instance['mongodb_server'])
+                self.log.error("Mongo: cannot connect with config %s" % instance['server'])
 
         status = db.command('serverStatus')     # Shorthand for {'serverStatus': 1}
         status['stats'] = db.command('dbstats')
@@ -205,9 +203,11 @@ class MongoDb(AgentCheck):
 
             # Check if metric is a gauge or rate
             if m in self.GAUGES:
+                m = self.normalize(m.lower(), 'mongodb')
                 self.gauge(m, value, tags=tags)
 
             if m in self.RATES:
+                m = self.normalize(m.lower(), 'mongodb') + "ps"
                 self.rate(m, value, tags=tags)
 
     @staticmethod
@@ -217,8 +217,7 @@ class MongoDb(AgentCheck):
 
         return {
             'instances': [{
-                'url': agentConfig.get('mongodb_server'),
-                'tags': agentConfig.get('tags', [])
+                'server': agentConfig.get('mongodb_server')
             }]
         }
 

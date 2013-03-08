@@ -6,7 +6,9 @@ import time
 import socket
 
 import pymongo
-from checks.db.mongo import MongoDb
+
+from checks import gethostname
+from tests.common import load_check, kill_subprocess
 
 PORT1 = 37017
 PORT2 = 37018
@@ -26,9 +28,18 @@ class TestMongo(unittest.TestCase):
                 loop += 1
                 if loop >= MAX_WAIT:
                     break
-        
+
     def setUp(self):
-        self.c = MongoDb(logging.getLogger(__file__))
+        config = {
+            'instances': [{
+                'server': 'mongodb://localhost:27017'
+            }]
+        }
+        self.agentConfig = {}
+
+        # Initialize the check from checks.d
+        self.c = load_check('mongo', config, self.agentConfig)
+
         # Start 2 instances of Mongo in a replica set
         dir1 = mkdtemp()
         dir2 = mkdtemp()
@@ -65,23 +76,68 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testCheck(self):
-        r = self.c.check({"mongodb_server": "mongodb://localhost:%s/test" % PORT1, "api_key": "abc123"})
-        self.assertEquals(r and r["connections"]["current"] >= 1, True)
-        assert r["connections"]["available"] >= 1
-        assert r["uptime"] >= 0, r
-        assert r["mem"]["resident"] > 0
-        assert r["mem"]["virtual"] > 0
-        assert "replSet" in r
+        config = {
+            'instances': [{
+                'server': "mongodb://localhost:%s/test" % PORT1
+            },
+            {
+                'server': "mongodb://localhost:%s/test" % PORT2
+            }]
+        }
 
-        r = self.c.check({"mongodb_server": "mongodb://localhost:%s/test" % PORT2, "api_key": "abc123"})
-        self.assertEquals(r and r["connections"]["current"] >= 1, True)
-        assert r["connections"]["available"] >= 1
-        assert r["uptime"] >= 0, r
-        assert r["mem"]["resident"] > 0
-        assert r["mem"]["virtual"] > 0
-        assert "replSet" in r
-            
+        # Run the check against our running server
+        self.check.check(config['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(config['instances'][0])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        metric_val_checks = {
+            'mongodb.connections.current': lambda x: x >= 1,
+            'mongodb.connections.available': lambda x: x >= 1,
+            'mongodb.uptime': lambda x: x >= 0,
+            'mongodb.mem.resident': lambda x: x > 0,
+            'mongodb.mem.virtual': lambda x: x > 0
+        }
+
+        replSetCheck = False
+        for m in metrics:
+            metric_name = m[0]
+            if "replSet" == metric_name.split(".")[1]:
+                replSetCheck = True
+            if metric_name in metric_val_checks:
+                assert check_result == metric_val_checks[metric_name]( m[2] )
+
+        assert replSetCheck
+
+        # Run the check against our running server
+        self.check.check(config['instances'][1])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(config['instances'][1])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        replSetCheck = False
+        for m in metrics:
+            metric_name = m[0]
+            if "replSet" == metric_name.split(".")[1]:
+                replSetCheck = True
+            if metric_name in metric_val_checks:
+                assert check_result == metric_val_checks[metric_name]( m[2] )
+
+        assert replSetCheck
 
 if __name__ == '__main__':
     unittest.main()
-        
