@@ -1,5 +1,6 @@
 import re
 import types
+import time
 from datetime import datetime
 
 from checks import AgentCheck
