@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 
 from checks import AgentCheck
+from util import get_hostname
 
 # When running with pymongo < 2.0
 # Not the full spec for mongo URIs -- just extract username and password
@@ -82,7 +83,7 @@ class MongoDb(AgentCheck):
 
         return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
                  'event_type': 'Mongo',
-                 'host': gethostname(agentConfig),
+                 'host': get_hostname(agentConfig),
                  'api_key': agentConfig['api_key'],
                  'version': serverVersion,
                  'state': get_state_description(state) }
