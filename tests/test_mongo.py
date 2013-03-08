@@ -30,15 +30,18 @@ class TestMongo(unittest.TestCase):
                     break
 
     def setUp(self):
-        config = {
+        self.config = {
             'instances': [{
-                'server': 'mongodb://localhost:27017'
+                'server': "mongodb://localhost:%s/test" % PORT1
+            },
+            {
+                'server': "mongodb://localhost:%s/test" % PORT2
             }]
         }
         self.agentConfig = {}
 
         # Initialize the check from checks.d
-        self.check = load_check('mongo', config, self.agentConfig)
+        self.check = load_check('mongo', self.config, self.agentConfig)
 
         # Start 2 instances of Mongo in a replica set
         dir1 = mkdtemp()
@@ -76,21 +79,12 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testCheck(self):
-        config = {
-            'instances': [{
-                'server': "mongodb://localhost:%s/test" % PORT1
-            },
-            {
-                'server': "mongodb://localhost:%s/test" % PORT2
-            }]
-        }
-
         # Run the check against our running server
-        self.check.check(config['instances'][0])
+        self.check.check(self.config['instances'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(config['instances'][0])
+        self.check.check(self.config['instances'][0])
 
         # Metric assertions
         metrics = self.check.get_metrics()
@@ -117,11 +111,11 @@ class TestMongo(unittest.TestCase):
         self.assertTrue( replSetCheck )
 
         # Run the check against our running server
-        self.check.check(config['instances'][1])
+        self.check.check(self.config['instances'][1])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(config['instances'][1])
+        self.check.check(self.config['instances'][1])
 
         # Metric assertions
         metrics = self.check.get_metrics()
