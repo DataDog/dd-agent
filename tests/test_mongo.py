@@ -37,7 +37,10 @@ class TestMongo(unittest.TestCase):
                 'server': "mongodb://localhost:%s/test" % PORT2
             }]
         }
-        self.agentConfig = {}
+        self.agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
 
         # Initialize the check from checks.d
         self.check = load_check('mongo', self.config, self.agentConfig)

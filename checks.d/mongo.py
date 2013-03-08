@@ -60,12 +60,12 @@ class MongoDb(AgentCheck):
 
         self._last_state = -1
 
-    def checkLastState(self, state, agentConfig, serverVersion):
+    def checkLastState(self, state, agentConfig):
         if self._last_state != state:
             self._last_state = state
-            return self.create_event(state, agentConfig, serverVersion)
+            return self.create_event(state, agentConfig)
 
-    def create_event(self, state, agentConfig, serverVersion):
+    def create_event(self, state, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -81,12 +81,19 @@ class MongoDb(AgentCheck):
             elif state == 8: return 'Down'
             elif state == 9: return 'Rollback'
 
-        return { 'timestamp': int(time.mktime(datetime.now().timetuple())),
-                 'event_type': 'Mongo',
-                 'host': get_hostname(agentConfig),
-                 'api_key': agentConfig['api_key'],
-                 'version': serverVersion,
-                 'state': get_state_description(state) }
+        status = get_state_description(state)
+        hostname = get_hostname(agentConfig)
+        msg_title = "%s is %s" % (hostname, status)
+        msg = "MongoDB: %s just reported as %s" % (hostname, status)
+
+        self.event({
+            'timestamp': int(time.mktime(datetime.now().timetuple())),
+            'event_type': 'Mongo',
+            'api_key': agentConfig['api_key'],
+            'msg_title': msg_title,
+            'msg_text': msg,
+            'host': hostname
+        })
 
     def check(self, instance):
         """
@@ -140,7 +147,6 @@ class MongoDb(AgentCheck):
             data = {}
 
             replSet = db.command('replSetGetStatus')
-            serverVersion = conn.server_info()['version']
             if replSet:
                 primary = None
                 current = None
@@ -166,9 +172,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                event = self.checkLastState(data['state'], self.agentConfig, serverVersion)
-                if event is not None:
-                    results['events'] = {'Mongo': [event]}
+                self.checkLastState(data['state'], self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
 
