@@ -22,7 +22,7 @@ class Apache(AgentCheck):
         'Total Accesses': 'apache.net.request_per_s'
     }
 
-    def __init__(self, name, init_config, agentConfig, instances):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.assumed_url = {}
 
