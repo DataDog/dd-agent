@@ -34,7 +34,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         }
 
         self.init_check(config, 'http_check')
-
+        time.sleep(1)
         nt.assert_equals(self.check.pool.get_nworkers(), 2)
 
         # We launch each instance twice to be sure to get the results
@@ -59,7 +59,7 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         self.check.check(config['instances'][0])
         self.check.check(config['instances'][1])
-        time.sleep(2)
+        time.sleep(1)
         self.check.check(config['instances'][0])
         self.check.check(config['instances'][1])
 
@@ -68,7 +68,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertTrue(len(events) == 1, events)
         self.assertTrue(events[0]['event_object'] == 'UpService', events)
 
-        time.sleep(2)
+        time.sleep(1)
 
 
     def testTCP(self):
@@ -94,6 +94,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         }
 
         self.init_check(config, 'tcp_check')
+        time.sleep(1)
 
         nt.assert_equals(self.check.pool.get_nworkers(), 3)
 
