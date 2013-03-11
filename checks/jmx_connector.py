@@ -103,7 +103,7 @@ class JmxConnector:
                     cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
                 if user is not None and passwd is not None:
                     cmd += " -u %s -p %s" % (user, passwd)
-                self.log.info("Opening JMX connector with PATH=%s" % cmd)
+                self.log.debug("Opening JMX connector with PATH=%s" % cmd)
                 self._jmx = pexpect.spawn(cmd, timeout = timeout)
                 self._jmx.delaybeforesend = 0
                 self._wait_prompt()
@@ -150,7 +150,7 @@ class JmxConnector:
         msg = "Dumping"
         if domain is not None:
             msg = "%s domain: %s" % (msg, domain)
-        self.log.info(msg)
+        self.log.debug(msg)
         
         cmd = "dump"
         if domain is not None:
