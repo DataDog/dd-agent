@@ -84,5 +84,4 @@ class CouchDb(AgentCheck):
                 'server': agentConfig.get('couchdb_server'),
             }]
         }
-
         

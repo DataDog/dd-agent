@@ -315,10 +315,6 @@ class JMXMetric:
     def device(self):
         return None
 
-    def __str__(self):
-        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}, fields={5}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags, self.fields)
-
     def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
         for k in keys_to_remove:
             if self.tags.has_key(k):
