@@ -22,15 +22,23 @@ class Apache(AgentCheck):
         'Total Accesses': 'apache.net.request_per_s'
     }
 
+    def __init__(self, name, init_config, agentConfig, instances):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.assumed_url = {}
+
     def check(self, instance):
         if 'apache_status_url' not in instance:
             raise Exception("Missing 'apache_status_url' in Apache config")
+
+        url = self.assumed_url.get(instance['apache_status_url'], instance['apache_status_url'])
+
         tags = instance.get('tags', [])
         req = urllib2.Request(instance['apache_status_url'], None,
             headers(self.agentConfig))
         request = urllib2.urlopen(req)
         response = request.read()
 
+        metric_count = 0
         # Loop through and extract the numerical values
         for line in response.split('\n'):
             values = line.split(': ')
@@ -47,13 +55,24 @@ class Apache(AgentCheck):
 
                 # Send metric as a gauge, if applicable
                 if metric in self.GAUGES:
+                    metric_count += 1
                     metric_name = self.GAUGES[metric]
                     self.gauge(metric_name, value, tags=tags)
 
                 # Send metric as a rate, if applicable
                 if metric in self.RATES:
+                    metric_count += 1
                     metric_name = self.RATES[metric]
                     self.rate(metric_name, value, tags=tags)
+
+        if metric_count == 0:
+            if self.assumed_url.get('apache_status_url', None) is None and url[-5:] != '?auto':
+                self.assumed_url['apache_status_url'] = '%s?auto' % url
+                self.log.debug("Assuming url was not correct. Trying to add ?auto suffix to the url")
+                self.check(instance)
+            else:
+                raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['apache_status_url'])
+
 
     @staticmethod
     def parse_agent_config(agentConfig):
