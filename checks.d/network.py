@@ -53,6 +53,9 @@ class Network(AgentCheck):
             except ValueError:
                 return 0
 
+    def _is_local_interface(self, iface):
+        return iface in ['lo', 'lo0']
+
     def _check_linux(self, instance):
         try:
             collect_connection_state = instance.get('collect_connection_state', False)
@@ -110,11 +113,11 @@ class Network(AgentCheck):
                 iface = cols[0].strip()
                 self.rate('system.net.bytes_rcvd', self._parse_value(x[0]), device_name=iface)
                 self.rate('system.net.bytes_sent', self._parse_value(x[8]), device_name=iface)
-
-                self.rate('system.net.packets_in.count', self._parse_value(x[1]), device_name=iface)
-                self.rate('system.net.packets_in.error', self._parse_value(x[2]) + self._parse_value(x[3]), device_name=iface)
-                self.rate('system.net.packets_out.count', self._parse_value(x[9]), device_name=iface)
-                self.rate('system.net.packets_out.error', self._parse_value(x[10]) + self._parse_value(x[11]), device_name=iface)
+                if not self._is_local_interface(iface):
+                    self.rate('system.net.packets_in.count', self._parse_value(x[1]), device_name=iface)
+                    self.rate('system.net.packets_in.error', self._parse_value(x[2]) + self._parse_value(x[3]), device_name=iface)
+                    self.rate('system.net.packets_out.count', self._parse_value(x[9]), device_name=iface)
+                    self.rate('system.net.packets_out.error', self._parse_value(x[10]) + self._parse_value(x[11]), device_name=iface)
 
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
@@ -173,11 +176,11 @@ class Network(AgentCheck):
             if self._parse_value(x[-5]) or self._parse_value(x[-2]):
                 self.rate('system.net.bytes_rcvd', self._parse_value(x[-5]), device_name=iface)
                 self.rate('system.net.bytes_sent', self._parse_value(x[-2]), device_name=iface)
-
-                self.rate('system.net.packets_in.count', self._parse_value(x[-7]), device_name=iface)
-                self.rate('system.net.packets_in.error', self._parse_value(x[-6]), device_name=iface)
-                self.rate('system.net.packets_out.count', self._parse_value(x[-4]), device_name=iface)
-                self.rate('system.net.packets_out.error', self._parse_value(x[-3]), device_name=iface)
+                if not self._is_local_interface(iface):
+                    self.rate('system.net.packets_in.count', self._parse_value(x[-7]), device_name=iface)
+                    self.rate('system.net.packets_in.error', self._parse_value(x[-6]), device_name=iface)
+                    self.rate('system.net.packets_out.count', self._parse_value(x[-4]), device_name=iface)
+                    self.rate('system.net.packets_out.error', self._parse_value(x[-3]), device_name=iface)
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
