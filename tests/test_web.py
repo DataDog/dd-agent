@@ -11,7 +11,7 @@ class TestWeb(unittest.TestCase):
 init_config:
 
 instances:
-    -   apache_status_url: http://localhost:9444/server-status?auto
+    -   apache_status_url: http://localhost:9444/server-status
         tags:
             - instance:first
     -   apache_status_url: http://localhost:9444/server-status?auto
@@ -39,7 +39,7 @@ instances:
 init_config:
 
 instances:
-    -   lighttpd_status_url: http://localhost:9449/server-status?auto
+    -   lighttpd_status_url: http://localhost:9449/server-status
         tags:
             - instance:first
     -   lighttpd_status_url: http://localhost:9449/server-status?auto
