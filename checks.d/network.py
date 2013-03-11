@@ -37,6 +37,11 @@ class Network(AgentCheck):
     }
 
     def check(self, instance):
+        if instance is None:
+            instance = {}
+        self.excluded_interfaces = instance.get('excluded_interfaces', [])
+        self.collect_connection_state = instance.get('collect_connection_state', False)
+
         if sys.platform == 'linux2':
             self._check_linux(instance)
         elif sys.platform == "darwin" or sys.platform.startswith("freebsd"):
@@ -53,16 +58,8 @@ class Network(AgentCheck):
             except ValueError:
                 return 0
 
-    def _is_local_interface(self, iface):
-        return iface in ['lo', 'lo0']
-
     def _check_linux(self, instance):
-        try:
-            collect_connection_state = instance.get('collect_connection_state', False)
-        except AttributeError:
-            collect_connection_state = False
-
-        if collect_connection_state:
+        if self.collect_connection_state:
             netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
                                        stdout=subprocess.PIPE,
                                        close_fds=True).communicate()[0]
@@ -113,7 +110,7 @@ class Network(AgentCheck):
                 iface = cols[0].strip()
                 self.rate('system.net.bytes_rcvd', self._parse_value(x[0]), device_name=iface)
                 self.rate('system.net.bytes_sent', self._parse_value(x[8]), device_name=iface)
-                if not self._is_local_interface(iface):
+                if iface not in self.excluded_interfaces:
                     self.rate('system.net.packets_in.count', self._parse_value(x[1]), device_name=iface)
                     self.rate('system.net.packets_in.error', self._parse_value(x[2]) + self._parse_value(x[3]), device_name=iface)
                     self.rate('system.net.packets_out.count', self._parse_value(x[9]), device_name=iface)
@@ -176,7 +173,7 @@ class Network(AgentCheck):
             if self._parse_value(x[-5]) or self._parse_value(x[-2]):
                 self.rate('system.net.bytes_rcvd', self._parse_value(x[-5]), device_name=iface)
                 self.rate('system.net.bytes_sent', self._parse_value(x[-2]), device_name=iface)
-                if not self._is_local_interface(iface):
+                if iface not in self.excluded_interfaces:
                     self.rate('system.net.packets_in.count', self._parse_value(x[-7]), device_name=iface)
                     self.rate('system.net.packets_in.error', self._parse_value(x[-6]), device_name=iface)
                     self.rate('system.net.packets_out.count', self._parse_value(x[-4]), device_name=iface)
@@ -249,12 +246,13 @@ class Network(AgentCheck):
                 self.rate('system.net.bytes_rcvd', self._parse_value(cols[1]), device_name=iface)
             elif name == "obytes64":
                 self.rate('system.net.bytes_sent', self._parse_value(cols[1]), device_name=iface)
-            elif name == "ipackets64":
-                self.rate('system.net.packets_in.count', self._parse_value(cols[1]), device_name=iface)
-            elif name == "ierrors":
-                self.rate('system.net.packets_in.error', self._parse_value(cols[1]), device_name=iface)
-            elif name == "opackets64":
-                self.rate('system.net.packets_out.count', self._parse_value(cols[1]), device_name=iface)
-            elif name == "oerrors":
-                self.rate('system.net.packets_out.error', self._parse_value(cols[1]), device_name=iface)
+            elif iface not in self.excluded_interfaces:
+                if name == "ipackets64":
+                    self.rate('system.net.packets_in.count', self._parse_value(cols[1]), device_name=iface)
+                elif name == "ierrors":
+                    self.rate('system.net.packets_in.error', self._parse_value(cols[1]), device_name=iface)
+                elif name == "opackets64":
+                    self.rate('system.net.packets_out.count', self._parse_value(cols[1]), device_name=iface)
+                elif name == "oerrors":
+                    self.rate('system.net.packets_out.error', self._parse_value(cols[1]), device_name=iface)
 
