@@ -87,7 +87,7 @@ class MongoDb(AgentCheck):
         msg = "MongoDB: %s just reported as %s" % (hostname, status)
 
         self.event({
-            'timestamp': int(time.mktime(datetime.now().timetuple())),
+            'timestamp': int(time.time()),
             'event_type': 'Mongo',
             'api_key': agentConfig['api_key'],
             'msg_title': msg_title,
