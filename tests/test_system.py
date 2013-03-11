@@ -192,6 +192,9 @@ init_config:
 
 instances:
     - collect_connection_state: true
+      excluded_interfaces:
+        - lo
+        - lo0
 """
         check, instances = get_check('network', config)
 
