@@ -55,8 +55,7 @@ class SQLServer(AgentCheck):
         try:
             import adodbapi
         except ImportError:
-            self.log.error("Unable to import adodbapi module.")
-            return
+            raise Exception("Unable to import adodbapi module.")
 
         host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
@@ -70,9 +69,8 @@ class SQLServer(AgentCheck):
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
             except:
-                self.log.exception("Unable to connect to SQL Server for instance %s" \
+                raise Exception("Unable to connect to SQL Server for instance %s" \
                     % instance)
-                return
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()

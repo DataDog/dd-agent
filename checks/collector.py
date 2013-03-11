@@ -30,7 +30,8 @@ from resources.processes import Processes as ResProcesses
 
 
 log = logging.getLogger(__name__)
-
+FLUSH_LOGGING_PERIOD = 10
+FLUSH_LOGGING_INITIAL = 5
 
 class Collector(object):
     """
@@ -321,8 +322,16 @@ class Collector(object):
         except Exception:
             log.exception("Error persisting collector status")
 
-        log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+        if self.run_count <= FLUSH_LOGGING_INITIAL or self.run_count % FLUSH_LOGGING_PERIOD == 0:
+            log.info("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
+            if self.run_count == FLUSH_LOGGING_INITIAL:
+                log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+
+        else:
+            log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
+                    (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
+
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """

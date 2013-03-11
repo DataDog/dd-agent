@@ -144,7 +144,6 @@ class Redis(AgentCheck):
         try:
             import redis
         except ImportError:
-            self.log.error('redisdb.yaml exists but redis module can not be imported. Skipping check.')
             raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
 
         # Allow the default redis database to be overridden.

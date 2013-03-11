@@ -18,8 +18,7 @@ class Win32EventLog(AgentCheck):
         try:
             import wmi
         except ImportError:
-            self.log.error("Unable to import 'wmi' module")
-            return
+            raise Exception("Unable to import 'wmi' module")
 
         host = instance.get('host')
         user = instance.get('username')

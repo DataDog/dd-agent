@@ -20,18 +20,12 @@ class SolrMetric(JMXMetric):
 
 class Solr(JmxCheck):
 
-
-
-
     def check(self, instance):
         SOLR_DOMAINS = ['solr']
         JAVA_DOMAINS = ['java.lang']
 
-        try:
-            (host, port, user, password, jmx, instance_name) = self._load_config(instance)
-        except Exception, e:
-            self.log.critical(str(e))
-            raise
+        (host, port, user, password, jmx, instance_name) = self._load_config(instance)
+
         tags = {}
         if instance_name is not None:
             tags['instance'] = instance_name

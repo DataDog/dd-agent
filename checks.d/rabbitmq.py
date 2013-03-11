@@ -35,8 +35,7 @@ class RabbitMQ(AgentCheck):
     def check(self, instance):
         # make sure 'rabbitmq_api_url; is present
         if 'rabbitmq_api_url' not in instance:
-            self.log.info('Skipping instance "rabbitmq_api_url" not found')
-            return
+            raise Exception('Missing "rabbitmq_api_url" in RabbitMQ config.')
 
         # get parameters
         base_url = instance['rabbitmq_api_url']
@@ -60,10 +59,8 @@ class RabbitMQ(AgentCheck):
         try:
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
-            self.log.info('Cannot open RabbitMQ API url: %s', url)
             raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
-            self.log.info('Cannot parse JSON response from API url: %s', url)
             raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:
@@ -91,10 +88,8 @@ class RabbitMQ(AgentCheck):
         try:
             stats = json.loads(urllib2.urlopen(url).read())
         except urllib2.URLError, e:
-            self.log.info('Cannot open RabbitMQ API url: %s', url)
             raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
-            self.log.info('Cannot parse JSON response from API url: %s', url)
             raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
 
         for node in stats:

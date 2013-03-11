@@ -78,7 +78,7 @@ class WMICheck(AgentCheck):
             try:
                 wmi_class, wmi_prop = wmi_conf.split(':')
             except ValueError:
-                self.logger.error('Invalid WMI line format: %s' % wmi_conf)
+                self.log.error('Invalid WMI line format: %s' % wmi_conf)
 
             config.append({
                 'class': wmi_class,
