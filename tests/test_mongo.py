@@ -29,21 +29,13 @@ class TestMongo(unittest.TestCase):
                     break
 
     def setUp(self):
-        self.config = {
-            'instances': [{
-                'server': "mongodb://localhost:%s/test" % PORT1
-            },
-            {
-                'server': "mongodb://localhost:%s/test" % PORT2
-            }]
-        }
         self.agentConfig = {
             'version': '0.1',
             'api_key': 'toto'
         }
 
         # Initialize the check from checks.d
-        self.check = load_check('mongo', self.config, self.agentConfig)
+        self.check = load_check('mongo', {'init_config': {}, 'instances': {}}, self.agentConfig)
 
         # Start 2 instances of Mongo in a replica set
         dir1 = mkdtemp()
@@ -81,6 +73,19 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testCheck(self):
+
+        self.config = {
+            'instances': [{
+                'server': "mongodb://localhost:%s/test" % PORT1
+            },
+            {
+                'server': "mongodb://localhost:%s/test" % PORT2
+            }]
+        }
+
+        # Test mongodb with checks.d
+        self.check = load_check('mongo', self.config, self.agentConfig)
+
         # Run the check against our running server
         self.check.check(self.config['instances'][0])
         # Sleep for 1 second so the rate interval >=1
@@ -118,6 +123,81 @@ class TestMongo(unittest.TestCase):
         time.sleep(1)
         # Run the check again so we get the rates
         self.check.check(self.config['instances'][1])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        replSetCheck = False
+        for m in metrics:
+            metric_name = m[0]
+            if "replset" in metric_name.split("."):
+                replSetCheck = True
+            if metric_name in metric_val_checks:
+                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
+
+        self.assertTrue( replSetCheck )
+
+    def testParseAgentConfig(self):
+        self.agentConfig1 = {
+            'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+        conf1 = self.check.parse_agent_config(self.agentConfig1)
+        self.agentConfig2 = {
+            'mongodb_server': "mongodb://localhost:%s/test" % PORT2,
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+        conf2 = self.check.parse_agent_config(self.agentConfig2)
+
+        # Test the first mongodb instance
+        self.check = load_check('mongo', conf1, self.agentConfig1)
+
+        # Run the check against our running server
+        self.check.check(conf1['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(conf1['instances'][0])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
+
+        metric_val_checks = {
+            'mongodb.connections.current': lambda x: x >= 1,
+            'mongodb.connections.available': lambda x: x >= 1,
+            'mongodb.uptime': lambda x: x >= 0,
+            'mongodb.mem.resident': lambda x: x > 0,
+            'mongodb.mem.virtual': lambda x: x > 0
+        }
+
+        replSetCheck = False
+        for m in metrics:
+            metric_name = m[0]
+            if "replset" in metric_name.split("."):
+                replSetCheck = True
+            if metric_name in metric_val_checks:
+                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
+
+        self.assertTrue( replSetCheck )
+
+
+        # Test the second mongodb instance
+        self.check = load_check('mongo', conf2, self.agentConfig2)
+
+        # Run the check against our running server
+        self.check.check(conf2['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(conf2['instances'][0])
 
         # Metric assertions
         metrics = self.check.get_metrics()
