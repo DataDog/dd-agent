@@ -191,7 +191,7 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 init_config:
 
 instances:
-    -
+    - collect_connection_state: true
 """
         check, instances = get_check('network', config)
 

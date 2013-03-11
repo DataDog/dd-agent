@@ -54,7 +54,11 @@ class Network(AgentCheck):
                 return 0
 
     def _check_linux(self, instance):
-        collect_connection_state = instance.get('collect_connection_state', False)
+        try:
+            collect_connection_state = instance.get('collect_connection_state', False)
+        except AttributeError:
+            collect_connection_state = False
+
         if collect_connection_state:
             netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
                                        stdout=subprocess.PIPE,
