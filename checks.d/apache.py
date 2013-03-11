@@ -33,7 +33,7 @@ class Apache(AgentCheck):
         url = self.assumed_url.get(instance['apache_status_url'], instance['apache_status_url'])
 
         tags = instance.get('tags', [])
-        req = urllib2.Request(instance['apache_status_url'], None,
+        req = urllib2.Request(url, None,
             headers(self.agentConfig))
         request = urllib2.urlopen(req)
         response = request.read()
