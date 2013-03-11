@@ -38,11 +38,11 @@ class Network(AgentCheck):
 
     def check(self, instance):
         if sys.platform == 'linux2':
-            self._check_linux()
+            self._check_linux(instance)
         elif sys.platform == "darwin" or sys.platform.startswith("freebsd"):
-            self._check_bsd()
+            self._check_bsd(instance)
         elif sys.platform == "sunos5":
-            self._check_solaris()
+            self._check_solaris(instance)
 
     def _parse_value(self, v):
         if v == "-":
@@ -53,39 +53,41 @@ class Network(AgentCheck):
             except ValueError:
                 return 0
 
-    def _check_linux(self):
-        netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
-        # Active Internet connections (w/o servers)
-        # Proto Recv-Q Send-Q Local Address           Foreign Address         State
-        # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
-        # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
-        # tcp        0      0 46.105.75.4:50468       107.20.207.175:443      TIME_WAIT
-        # tcp6       0      0 46.105.75.4:80          93.15.237.188:58038     FIN_WAIT2
-        # tcp6       0      0 46.105.75.4:80          79.220.227.193:2029     ESTABLISHED
-        # udp        0      0 0.0.0.0:123             0.0.0.0:*
-        # udp6       0      0 :::41458                :::*
-
-        lines = netstat.split("\n")
-
-        metrics = dict.fromkeys(self.NETSTAT_GAUGE.values(), 0)
-        for l in lines[2:-1]:
-            cols = l.split()
-            # 0          1      2               3                           4               5
+    def _check_linux(self, instance):
+        collect_connection_state = instance.get('collect_connection_state', False)
+        if collect_connection_state:
+            netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
+                                       stdout=subprocess.PIPE,
+                                       close_fds=True).communicate()[0]
+            # Active Internet connections (w/o servers)
+            # Proto Recv-Q Send-Q Local Address           Foreign Address         State
+            # tcp        0      0 46.105.75.4:80          79.220.227.193:2032     SYN_RECV
             # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
-            if cols[0].startswith("tcp"):
-                protocol = ("tcp4", "tcp6")[cols[0] == "tcp6"]
-                if cols[5] in self.TCP_STATES:
-                    metric = self.NETSTAT_GAUGE[protocol, self.TCP_STATES[cols[5]]]
-                    metrics[metric] += 1
-            elif cols[0].startswith("udp"):
-                protocol = ("udp4", "udp6")[cols[0] == "udp6"]
-                metric = self.NETSTAT_GAUGE[protocol, 'connections']
-                metrics[metric] += 1
+            # tcp        0      0 46.105.75.4:50468       107.20.207.175:443      TIME_WAIT
+            # tcp6       0      0 46.105.75.4:80          93.15.237.188:58038     FIN_WAIT2
+            # tcp6       0      0 46.105.75.4:80          79.220.227.193:2029     ESTABLISHED
+            # udp        0      0 0.0.0.0:123             0.0.0.0:*
+            # udp6       0      0 :::41458                :::*
 
-        for metric, value in metrics.iteritems():
-            self.gauge(metric, value)
+            lines = netstat.split("\n")
+
+            metrics = dict.fromkeys(self.NETSTAT_GAUGE.values(), 0)
+            for l in lines[2:-1]:
+                cols = l.split()
+                # 0          1      2               3                           4               5
+                # tcp        0      0 46.105.75.4:143         90.56.111.177:56867     ESTABLISHED
+                if cols[0].startswith("tcp"):
+                    protocol = ("tcp4", "tcp6")[cols[0] == "tcp6"]
+                    if cols[5] in self.TCP_STATES:
+                        metric = self.NETSTAT_GAUGE[protocol, self.TCP_STATES[cols[5]]]
+                        metrics[metric] += 1
+                elif cols[0].startswith("udp"):
+                    protocol = ("udp4", "udp6")[cols[0] == "udp6"]
+                    metric = self.NETSTAT_GAUGE[protocol, 'connections']
+                    metrics[metric] += 1
+
+            for metric, value in metrics.iteritems():
+                self.gauge(metric, value)
 
 
         proc = open('/proc/net/dev', 'r')
@@ -110,7 +112,7 @@ class Network(AgentCheck):
                 self.rate('system.net.packets_out.count', self._parse_value(x[9]), device_name=iface)
                 self.rate('system.net.packets_out.error', self._parse_value(x[10]) + self._parse_value(x[11]), device_name=iface)
 
-    def _check_bsd(self):
+    def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                    stdout=subprocess.PIPE,
                                    close_fds=True).communicate()[0]
@@ -173,7 +175,7 @@ class Network(AgentCheck):
                 self.rate('system.net.packets_out.count', self._parse_value(x[-4]), device_name=iface)
                 self.rate('system.net.packets_out.error', self._parse_value(x[-3]), device_name=iface)
 
-    def _check_solaris(self):
+    def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
         # Default to kstat -p link:0:
         netstat = subprocess.Popen(["kstat", "-p", "link:0:"],

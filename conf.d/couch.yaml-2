@@ -1,4 +1,0 @@
-init_config:
-
-instances:
-    - server: http://localhost:5984
