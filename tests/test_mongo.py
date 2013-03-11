@@ -105,7 +105,8 @@ class TestMongo(unittest.TestCase):
         replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replSet" == metric_name.split(".")[1]:
+            if "replset" in metric_name.split("."):
+                logging.getLogger().debug(metric_name)
                 replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
@@ -128,7 +129,8 @@ class TestMongo(unittest.TestCase):
         replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replSet" == metric_name.split(".")[1]:
+            if "replset" in metric_name.split("."):
+                logging.getLogger().debug(metric_name)
                 replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
