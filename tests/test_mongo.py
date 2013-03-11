@@ -72,7 +72,7 @@ class TestMongo(unittest.TestCase):
         except:
             logging.getLogger().exception("Cannot terminate mongod instances")
 
-    def testCheck(self):
+    def testMongoCheck(self):
 
         self.config = {
             'instances': [{
@@ -140,7 +140,7 @@ class TestMongo(unittest.TestCase):
 
         self.assertTrue( replSetCheck )
 
-    def testParseAgentConfig(self):
+    def testMongoOldConfig(self):
         self.agentConfig1 = {
             'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
             'version': '0.1',
