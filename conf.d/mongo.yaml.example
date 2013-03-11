@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+#   -   server: mongodb://localhost:27017
+#       tags:
+#            - optional_tag1
+#            - optional_tag2
