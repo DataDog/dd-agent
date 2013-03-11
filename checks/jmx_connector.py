@@ -68,15 +68,16 @@ class JmxConnector:
         return self._jmx is not None and self._jmx.isalive()
 
     def terminate(self):
+        from pexpect import ExceptionPexpect
         if self._jmx is not None:
             try:
                 self._jmx.sendline("bye")
-            except BaseException, e:
+            except ExceptionPexpect, e:
                 pass
 
             try:
                 self._jmx.terminate(force=True)
-            except BaseException, e:
+            except ExceptionPexpect, e:
                 pass
 
         self._jmx = None
@@ -106,7 +107,7 @@ class JmxConnector:
                 self._jmx = pexpect.spawn(cmd, timeout = timeout)
                 self._jmx.delaybeforesend = 0
                 self._wait_prompt()
-        except BaseException, e:
+        except ExceptionPexpect, e:
             self.terminate()
             raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
@@ -117,6 +118,7 @@ class JmxConnector:
         return d
 
     def dump(self, domain=None, values_only=True):
+        from pexpect import ExceptionPexpect
         """Returns a dictionnary of all beans and attributes
 
         If values_only parameter is true, only numeric values will be fetched by 
@@ -160,7 +162,7 @@ class JmxConnector:
             self._jmx.sendline(cmd)
             self._wait_prompt()
             content = self._jmx.before.replace(cmd,'').strip()
-        except BaseException, e:
+        except ExceptionPexpect, e:
             self.log.critical("POPEN error while dumping data. \n JMX Connector will be relaunched  \n %s" % str(e))
             self.terminate()
             raise
