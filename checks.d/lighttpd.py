@@ -66,8 +66,8 @@ class Lighttpd(AgentCheck):
                     self.rate(metric_name, value, tags=tags)
 
         if metric_count == 0:
-            if self.assumed_url.get('lighttpd_status_url', None) is None and url[-5:] != '?auto':
-                self.assumed_url['lighttpd_status_url'] = '%s?auto' % url
+            if self.assumed_url.get(instance['lighttpd_status_url'], None) is None and url[-5:] != '?auto':
+                self.assumed_url[instance['lighttpd_status_url']] = '%s?auto' % url
                 self.log.debug("Assuming url was not correct. Trying to add ?auto suffix to the url")
                 self.check(instance)
             else:

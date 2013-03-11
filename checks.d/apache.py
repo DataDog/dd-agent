@@ -66,8 +66,8 @@ class Apache(AgentCheck):
                     self.rate(metric_name, value, tags=tags)
 
         if metric_count == 0:
-            if self.assumed_url.get('apache_status_url', None) is None and url[-5:] != '?auto':
-                self.assumed_url['apache_status_url'] = '%s?auto' % url
+            if self.assumed_url.get(instance['apache_status_url'], None) is None and url[-5:] != '?auto':
+                self.assumed_url[instance['apache_status_url']]= '%s?auto' % url
                 self.log.debug("Assuming url was not correct. Trying to add ?auto suffix to the url")
                 self.check(instance)
             else:
