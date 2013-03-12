@@ -175,10 +175,7 @@ class MongoDb(AgentCheck):
                 self.checkLastState(data['state'], self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
-
-            from pymongo.errors import OperationFailure
-
-            if type(e) == OperationFailure and "replSetGetStatus" in str(e):
+            if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
                 pass
             else:
                 raise e
