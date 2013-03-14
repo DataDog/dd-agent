@@ -201,7 +201,6 @@ class MySql(AgentCheck):
                 self.log.debug("Connected to MySQL")
     
                 # Metric collection
-                self.gauge("mysql.connections", self._collect_scalar("SHOW STATUS LIKE 'Connections'"), tags=tags)
     
                 self.log.debug("MySQL version %s" % self.mysqlVersion)
                 # show global status was introduced in 5.0.2
@@ -218,12 +217,15 @@ class MySql(AgentCheck):
                 except:
                     self.log.exception("Cannot compute mysql version from %s, assuming older than 5.0.2" % self.mysqlVersion)
     
+		self.gauge("mysql.connections", self._collect_scalar("show status like 'Connections'"), tags=tags)
                 if greater_502:
+                    self.gauge("mysql.threads", self._collect_scalar("select 'threads_connected', count(*) from information_schema.processlist"), tags=tags)
                     self.gauge("mysql.created_tmp_disk_tables", self._collect_scalar("SHOW GLOBAL STATUS LIKE 'Created_tmp_disk_tables'"), tags=tags)
                     self.rate("mysql.slow_queries", self._collect_scalar("SHOW GLOBAL STATUS LIKE 'Slow_queries'"), tags=tags)
                     self.rate("mysql.questions", self._collect_scalar("SHOW GLOBAL STATUS LIKE 'Questions'"), tags=tags)
                     self.rate("mysql.queries", self._collect_scalar("SHOW GLOBAL STATUS LIKE 'Queries'"), tags=tags)
                 else:
+                    self.gauge("mysql.threads", self._collect_scalar("show global status like 'threads_connected'"), tags=tags)
                     self.gauge("mysql.created_tmp_disk_tables", self._collect_scalar("SHOW STATUS LIKE 'Created_tmp_disk_tables'"), tags=tags)
                     self.rate("mysql.slow_queries", self._collect_scalar("SHOW STATUS LIKE 'Slow_queries'"), tags=tags)
                     self.rate("mysql.questions", self._collect_scalar("SHOW STATUS LIKE 'Questions'"), tags=tags)
