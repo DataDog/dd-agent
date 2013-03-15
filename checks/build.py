@@ -29,20 +29,14 @@ class Hudson(object):
     def __init__(self):
         self.high_watermarks = None
 
-    def _extract_timestamp(self, job_name, dir_name):
+    def _extract_timestamp(self, dir_name):
         try:
             # Parse the timestamp from the directory name
             date_str = os.path.basename(dir_name)
             time_tuple = time.strptime(date_str, self.datetime_format)
-            timestamp = time.mktime(time_tuple)
+            return time.mktime(time_tuple)
         except ValueError:
-            raise Continue("Skipping non-timestamp dir: %s" % (dir_name))
-        else:
-            # Check if it's a build we've seen already
-            if timestamp <= self.high_watermarks[job_name]:
-                raise Continue("Skipping old build: %s at %s" % (job_name, timestamp))
-            else:
-                return timestamp
+            raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
 
     def _get_build_metadata(self, dir_name):
         # Read the build.xml metadata file that Hudson generates
@@ -62,36 +56,38 @@ class Hudson(object):
                         if v is not None])
             return d
 
-    def _update_high_watermark(self, job_name, timestamp):
-        self.high_watermarks[job_name] = max(timestamp, self.high_watermarks[job_name])
-
     def _get_build_results(self, logger, job_dir):
         job_name = os.path.basename(job_dir)
 
-        for dir_name in glob(os.path.join(job_dir, 'builds', '*')):
+        try:
+            dirs = glob(os.path.join(job_dir, 'builds', '*_*'))
+            if len(dirs) > 0:
+                dirs = sorted(dirs, reverse=True)
+                # We try to get the last valid build
+                for index in xrange(0, len(dirs) - 1):
+                    dir_name = dirs[index]
+                    timestamp = self._extract_timestamp(dir_name)
+                    # Check if it's a new build
+                    if timestamp > self.high_watermarks[job_name]:
+                        # If we can't get build metadata, we try the previous one
+                        try:
+                            build_metadata = self._get_build_metadata(dir_name)
+                        except:
+                            continue
 
-            try:
-                timestamp = self._extract_timestamp(job_name, dir_name)
-                build_metadata = self._get_build_metadata(dir_name)
-                self._update_high_watermark(job_name, timestamp)
-
-            except Continue, e:
-                logger.debug(str(e))
-
-            except Exception:
-                # Catchall so that the agent loop doesn't die
-                # if there are unexpected errors.
-                logger.error(traceback.format_exc())
-
-            else:
-                output = {
-                    'job_name':     job_name,
-                    'timestamp':    timestamp,
-                    'event_type':   'build result'
-                }
-                output.update(build_metadata)
-                yield output
-
+                        output = {
+                                'job_name':     job_name,
+                                'timestamp':    timestamp,
+                                'event_type':   'build result'
+                            }
+                        output.update(build_metadata)
+                        self.high_watermarks[job_name] = timestamp
+                        yield output
+                    # If it not a new build, stop here
+                    else:
+                        break
+        except Exception, e:
+            log.error("Error while working on job %s, exception: %s" % (job_name, e))
 
     def check(self, logger, agentConfig):
         if self.high_watermarks is None:
@@ -121,9 +117,6 @@ class Hudson(object):
 
         return build_events
 
-
-
-
 if __name__ == '__main__':
     import logging
     import sys
@@ -138,5 +131,4 @@ if __name__ == '__main__':
         print hudson.check(logger,
                            {'hudson_home': hudson_home,
                             'api_key': apiKey})
-        time.sleep(1)
-
+        time.sleep(5)
