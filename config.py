@@ -1,5 +1,6 @@
 import ConfigParser
 import os
+import itertools
 import logging
 import logging.config
 import logging.handlers
@@ -102,17 +103,21 @@ def _windows_confd_path():
     raise PathNotFound(path)
 
 
-def _windows_checksd_path():
+def _windows_checksd_path(local=False):
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        path = os.path.join(prog_path, 'checks.d')
+        checksd_path = os.path.join(prog_path, 'checks.d')
     else:
-        cur_path = os.path.dirname(__file__)
-        path = os.path.join(cur_path, 'checks.d')
-    if os.path.exists(path):
-        return path
-    raise PathNotFound(path)
+        if local:
+            common_path = _windows_commondata_path()
+            checksd_path = os.path.join(common_path, 'Datadog', 'checks.d')
+        else:
+            cur_path = os.path.dirname(__file__)
+            checksd_path = os.path.join(cur_path, 'checks.d')
+    if os.path.exists(checksd_path):
+        return checksd_path
+    raise PathNotFound(checksd_path)
 
 
 def _unix_config_path():
@@ -126,6 +131,19 @@ def _unix_confd_path():
     path = os.path.join('/etc/dd-agent', 'conf.d')
     if os.path.exists(path):
         return path
+    raise PathNotFound(path)
+
+
+def _unix_checksd_path(local=False):
+    if local:
+        checksd_path = '/etc/dd-agent/checks.d/'
+    else:
+        # Unix only will look up based on the current directory
+        # because checks.d will hang with the other python modules
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        checksd_path = os.path.join(cur_path, 'checks.d')
+    if os.path.exists(checksd_path):
+        return checksd_path
     raise PathNotFound(path)
 
 
@@ -423,7 +441,7 @@ def set_win32_cert_path():
 
 def get_proxy(agentConfig):
     proxy_settings = {}
-    
+
     # First we read the proxy configuration from datadog.conf
     proxy_host = agentConfig.get('proxy_host', None)
     if proxy_host is not None:
@@ -501,25 +519,19 @@ def get_confd_path(osname):
     sys.exit(3)
 
 
-def get_checksd_path(osname):
-    # Unix only will look up based on the current directory
-    # because checks.d will hang with the other python modules
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    checksd_path = os.path.join(cur_path, 'checks.d')
-    if os.path.exists(checksd_path):
-        return checksd_path
-
-    if osname == 'windows':
-        try:
-            return _windows_checksd_path()
-        except PathNotFound, e:
-            if len(e.args) > 0:
-                log.error("No checks.d folder found in '%s'.\n" % e.args[0])
-            else:
-                log.error("No checks.d folder found.\n")
-
-    log.error("No checks.d folder at '%s'.\n" % checksd_path)
+def get_checksd_path(osname, local=False):
+    try:
+        if osname == 'windows':
+            return _windows_checksd_path(local=local)
+        else:
+            return _unix_checksd_path(local=local)
+    except PathNotFound, e:
+        if len(e.args) > 0:
+            log.error("No checks.d folder found in '%s'.\n" % e.args[0])
+        else:
+            log.error("No checks.d folder found.\n")
     sys.exit(3)
+
 
 def get_ssl_certificate(osname, filename):
     # The SSL certificate is needed by tornado in case of connection through a proxy
@@ -553,12 +565,14 @@ def load_check_directory(agentConfig):
     from util import yaml, yLoader
     from checks import AgentCheck
 
-    checks = []
+    checks = {}
 
     osname = get_os()
     checks_path = get_checksd_path(osname)
+    local_checks_path = get_checksd_path(osname, local=True)
     confd_path = get_confd_path(osname)
-    check_glob = os.path.join(checks_path, '*.py')
+    check_glob = glob.iglob(os.path.join(checks_path, '*.py'))
+    local_check_glob = glob.iglob(os.path.join(local_checks_path, '*.py'))
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
@@ -566,8 +580,11 @@ def load_check_directory(agentConfig):
     #
     # Once old-style checks aren't supported, we'll just read the configs and
     # import the corresponding check module
-    for check in glob.glob(check_glob):
+    for check in itertools.chain(local_check_glob, check_glob):
         check_name = os.path.basename(check).split('.')[0]
+        if check_name in checks:
+            log.debug('Skipping check %s because it has already been loaded from another location', check)
+            continue
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except:
@@ -649,7 +666,7 @@ def load_check_directory(agentConfig):
                             agentConfig=agentConfig)
             c.instances = instances
 
-        checks.append(c)
+        checks[check_name] = c
 
         # Add custom pythonpath(s) if available
         if 'pythonpath' in check_config:
@@ -660,8 +677,8 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
-    log.info('checks.d checks: %s' % [c.name for c in checks])
-    return checks
+    log.info('checks.d checks: %s' % checks.keys())
+    return checks.values()
 
 
 #
