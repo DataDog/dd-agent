@@ -29,6 +29,9 @@ use_mount: no
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
 
+# Additional directory to look for Datadog checks
+# additional_checksd: /etc/dd-agent/checks.d/
+
 # Allow non-local traffic to this agent
 # This is required when using this agent as a proxy for other agents
 # that might not have an internet connection
@@ -143,7 +146,7 @@ use_mount: no
 # See http://wiki.nginx.org/HttpStubStatusModule for details.
 # You can set multiple Nginx instances, using the schema below
 # You have to set the end tag, your metrics will be then tagged instance:your_tag
-# 
+#
 #nginx_status_url_1: http://www.example.com/nginx_status:first_tag
 #nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
 #nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
