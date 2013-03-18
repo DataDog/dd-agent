@@ -5,6 +5,12 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
+if [ $(which curl) ]; then
+    dl_cmd="curl -f"
+else
+    dl_cmd="wget --quiet"
+fi
+
 # Set up a named pipe for logging
 npipe=/tmp/$$.tmp
 mknod $npipe p
@@ -151,12 +157,12 @@ while [ "$c" -lt "30" ]; do
     c=$(($c+1))
 done
 
-curl -f http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
+$dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
 success=$?
 while [ "$success" -gt "0" ]; do
     sleep 1
     echo -n "."
-    curl -f http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
+    $dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
     success=$?
 done
 
