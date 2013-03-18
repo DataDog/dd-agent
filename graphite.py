@@ -39,7 +39,7 @@ class GraphiteConnection(object):
 
     def _on_read_header(self,data):
         try:
-            size = struct.unpack("!I",data)[0]
+            size = struct.unpack("!L",data)[0]
             log.debug("Receiving a string of size:" + str(size))
             self.stream.read_bytes(size, self._on_read_line)
         except Exception, e:
