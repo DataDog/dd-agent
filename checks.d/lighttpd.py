@@ -9,6 +9,13 @@ class Lighttpd(AgentCheck):
     See http://redmine.lighttpd.net/projects/1/wiki/Docs_ModStatus for Lighttpd details
     See http://redmine.lighttpd.net/projects/lighttpd2/wiki/Mod_status for Lighttpd2 details
     """
+
+    URL_SUFFIX_PER_VERSION = {
+        1: '?auto',
+        2: '?format=plain',
+        'Unknown': '?auto'
+    }
+
     GAUGES = {
         'IdleServers': 'lighttpd.performance.idle_server',
         'BusyServers': 'lighttpd.performance.busy_servers',
@@ -59,9 +66,12 @@ class Lighttpd(AgentCheck):
         url = self.assumed_url.get(instance['lighttpd_status_url'], instance['lighttpd_status_url'])
 
         tags = instance.get('tags', [])
+        self.log.debug("Connecting to %s" % url)
         req = urllib2.Request(url, None,
             headers(self.agentConfig))
         request = urllib2.urlopen(req)
+        headers_resp = request.info().headers
+        server_version = self._get_server_version(headers_resp)
         response = request.read()
 
         metric_count = 0
@@ -98,9 +108,26 @@ class Lighttpd(AgentCheck):
                     self.increment(metric_name, value, tags=tags)
 
         if metric_count == 0:
-            if self.assumed_url.get(instance['lighttpd_status_url'], None) is None and url[-5:] != '?auto':
-                self.assumed_url[instance['lighttpd_status_url']] = '%s?auto' % url
-                self.log.debug("Assuming url was not correct. Trying to add ?auto suffix to the url")
+            url_suffix = self.URL_SUFFIX_PER_VERSION[server_version]
+            if self.assumed_url.get(instance['lighttpd_status_url'], None) is None and url[-len(url_suffix):] != url_suffix:
+                self.assumed_url[instance['lighttpd_status_url']] = '%s%s' % (url, url_suffix)
+                self.log.debug("Assuming url was not correct. Trying to add %s suffix to the url" % url_suffix)
                 self.check(instance)
             else:
                 raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['lighttpd_status_url'])
+
+    def _get_server_version(self, headers):
+        for h in headers:
+            if "Server:" not in h:
+                continue
+            try:
+                version = int(h.split('/')[1][0])
+            except Exception, e:
+                self.log.debug("Error while trying to get server version %s" % str(e))
+                version = "Unknown"
+            self.log.debug("Lighttpd server version is %s" % version)
+            return version
+
+        self.log.debug("Lighttpd server version is Unknown")
+        return "Unknown"
+
