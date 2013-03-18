@@ -87,7 +87,7 @@ class Hudson(object):
                     else:
                         break
         except Exception, e:
-            log.error("Error while working on job %s, exception: %s" % (job_name, e))
+            logger.error("Error while working on job %s, exception: %s" % (job_name, e))
 
     def check(self, logger, agentConfig):
         if self.high_watermarks is None:
