@@ -213,6 +213,24 @@ settings = {
     "xsrf_cookies": True,
 }
 
+
+
+def tornado_logger(handler):
+    """ Override the tornado logging method.
+    If everything goes well, log level is DEBUG.
+    Otherwise it's WARNING or ERROR depending on the response code. """
+    if handler.get_status() < 400:
+        log_method = log.debug
+    elif handler.get_status() < 500:
+        log_method = log.warning
+    else:
+        log_method = log.error
+    request_time = 1000.0 * handler.request.request_time()
+    log_method("%d %s %.2fms", handler.get_status(),
+               handler._request_summary(), request_time)
+    
+
+
 application = tornado.web.Application([
     (r"/", MainHandler),
     (r"/(.*\..*$)", tornado.web.StaticFileHandler,
@@ -220,7 +238,7 @@ application = tornado.web.Application([
     (r"/pupsocket", PupSocket),
     (r"/api/v1/series?", PostHandler),
     (r"/intake", AgentPostHandler),
-])
+], log_function=tornado_logger)
 
 def run_pup(config):
     """ Run the pup server. """
