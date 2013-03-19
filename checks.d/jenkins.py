@@ -20,7 +20,7 @@ from checks import AgentCheck
 class Jenkins(AgentCheck):
     datetime_format = '%Y-%m-%d_%H-%M-%S'
 
-    def __init__(self):
+    def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.high_watermarks = {}
 
