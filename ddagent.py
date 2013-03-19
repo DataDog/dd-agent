@@ -36,7 +36,7 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid, get_hostname
+from util import Watchdog, get_uuid, get_hostname, json
 from emitter import http_emitter, format_body
 from config import get_config
 from checks.check_status import ForwarderStatus
@@ -330,7 +330,8 @@ class Application(tornado.web.Application):
             self._metrics['uuid'] = get_uuid()
             self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
-            MetricTransaction(self._metrics, {})
+            MetricTransaction(json.dumps(self._metrics),
+                headers={'Content-Type': 'application/json'})
             self._metrics = {}
 
     def run(self):
