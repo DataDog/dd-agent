@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+    # For every instance, you have a `name` and a `jenkins_home`
+
+    -   name: default
+        jenkins_home: /var/lib/jenkins
+
+    -   name
+        jenkins_home: /var/lib/jenkins2
