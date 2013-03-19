@@ -108,7 +108,7 @@ class Jenkins(AgentCheck):
         for job_dir in job_dirs:
             for output in self._get_build_results(instance.get('name'), job_dir):
                 output['api_key'] = self.agentConfig['api_key']
-                output['host'] = get_hostname(agentConfig)
+                output['host'] = get_hostname(self.agentConfig)
                 if create_event:
                     log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)
