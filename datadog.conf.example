@@ -29,6 +29,9 @@ use_mount: no
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
 
+# Additional directory to look for Datadog checks
+# additional_checksd: /etc/dd-agent/checks.d/
+
 # Allow non-local traffic to this agent
 # This is required when using this agent as a proxy for other agents
 # that might not have an internet connection
