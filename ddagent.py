@@ -44,6 +44,7 @@ from transaction import Transaction, TransactionManager
 import modules
 
 log = logging.getLogger('forwarder')
+log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -311,6 +312,20 @@ class Application(tornado.web.Application):
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
             self._watchdog = Watchdog(watchdog_timeout)
 
+    def log_request(self, handler):
+        """ Override the tornado logging method.
+        If everything goes well, log level is DEBUG.
+        Otherwise it's WARNING or ERROR depending on the response code. """
+        if handler.get_status() < 400:
+            log_method = log.debug
+        elif handler.get_status() < 500:
+            log_method = log.warning
+        else:
+            log_method = log.error
+        request_time = 1000.0 * handler.request.request_time()
+        log_method("%d %s %.2fms", handler.get_status(),
+                   handler._request_summary(), request_time)
+
     def appendMetric(self, prefix, name, host, device, ts, value):
 
         if self._metrics.has_key(prefix):
@@ -345,20 +360,13 @@ class Application(tornado.web.Application):
             cookie_secret="12oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             xsrf_cookies=False,
             debug=False,
+            log_function=self.log_request
         )
 
         non_local_traffic = self._agentConfig.get("non_local_traffic", False)
 
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
-
-        # set the root logger to warn so tornado is less chatty
-        logging.getLogger().setLevel(logging.WARNING)
-
-        # but keep the forwarder logger at the original level
-        forwarder_logger = logging.getLogger('forwarder')
-        log_config = get_logging_config()
-        forwarder_logger.setLevel(log_config['log_level'] or logging.INFO)
 
         # non_local_traffic must be == True to match, not just some non-false value
         if non_local_traffic is True:
