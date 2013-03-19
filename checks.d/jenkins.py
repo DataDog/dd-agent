@@ -38,7 +38,7 @@ class Jenkins(AgentCheck):
         build_metadata = os.path.join(dir_name, 'build.xml')
 
         if not os.access(build_metadata, os.R_OK):
-            self.log.error("Can't read build file at %s" % (build_metadata))
+            self.log.debug("Can't read build file at %s" % (build_metadata))
             raise Exception("Can't read build file at %s" % (build_metadata))
         else:
             tree = ElementTree()
@@ -110,7 +110,7 @@ class Jenkins(AgentCheck):
                 output['api_key'] = self.agentConfig['api_key']
                 output['host'] = get_hostname(self.agentConfig)
                 if create_event:
-                    log.debug("Creating event for job: %s" % output['job_name'])
+                    self.log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)
 
     @staticmethod
