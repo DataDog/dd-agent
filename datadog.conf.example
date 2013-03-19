@@ -76,15 +76,6 @@ use_mount: no
 # ========================================================================== #
 
 # -------------------------------------------------------------------------- #
-#   Apache                                                                   #
-# -------------------------------------------------------------------------- #
-
-# Url to Apache's status page. Must have mod_status installed.
-# See http://httpd.apache.org/docs/2.0/mod/mod_status.html for details.
-#apache_status_url: http://www.example.com/server-status/?auto
-
-
-# -------------------------------------------------------------------------- #
 #   Ganglia                                                                  #
 # -------------------------------------------------------------------------- #
 
@@ -116,65 +107,6 @@ use_mount: no
 # MySQL user's password
 #mysql_pass:
 
-# -------------------------------------------------------------------------- #
-#   PostgreSQL                                                               #
-# -------------------------------------------------------------------------- #
-
-# PostgreSQL host
-#postgresql_server:
-
-# PostgreSQL port
-#postgresql_port:
-
-# PostgreSQL user. It needs to connect to the "postgres" database but does not
-# require any privileges, so you should consider creating a separate,
-# unprivileged user
-#postgresql_user:
-
-# PostgreSQL user's password
-#postgresql_pass:
-
-
-# -------------------------------------------------------------------------- #
-#   Nginx                                                                    #
-# -------------------------------------------------------------------------- #
-
-# Url to nginx's status page. Must have http_stub_status_module installed.
-# See http://wiki.nginx.org/HttpStubStatusModule for details.
-# You can set multiple Nginx instances, using the schema below
-# You have to set the end tag, your metrics will be then tagged instance:your_tag
-# 
-#nginx_status_url_1: http://www.example.com/nginx_status:first_tag
-#nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
-#nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
-#...
-
-
-# -------------------------------------------------------------------------- #
-#   RabbitMQ                                                                 #
-# -------------------------------------------------------------------------- #
-
-# Url to RabbitMQ's status page. Must have rabbitmq-status plugin installed.
-# See http://www.lshift.net/blog/2009/11/30/introducing-rabbitmq-status-plugin
-# for details.
-#rabbitmq_status_url: http://www.example.com:55672/json
-#rabbitmq_user: guest
-#rabbitmq_pass: guest
-
-
-# -------------------------------------------------------------------------- #
-#   MongoDB                                                                  #
-# -------------------------------------------------------------------------- #
-
-# MongoDB uri. For example: mongodb://my_user:my_pass@localhost/my_db
-#mongodb_server:
-
-# -------------------------------------------------------------------------- #
-#   CouchDB                                                                  #
-# -------------------------------------------------------------------------- #
-
-# CouchDB host
-#couchdb_server:
 
 # -------------------------------------------------------------------------- #
 #   Cassandra                                                                #
@@ -185,14 +117,6 @@ use_mount: no
 # cassandra_port: 7199
 ## If you're using Cassandra 0.7 or lower:
 #cassandra_port: 8080
-
-# -------------------------------------------------------------------------- #
-#   Hudson                                                                   #
-# -------------------------------------------------------------------------- #
-
-# Path to Hudson's home directory
-# Make sure the dd-agent user can read this directory
-#hudson_home: /var/lib/hudson/
 
 
 # -------------------------------------------------------------------------- #
@@ -264,46 +188,6 @@ use_mount: no
 #     metric timestamp value key0=val0 key1=val1 ...
 #
 
-# -------------------------------------------------------------------------- #
-#  Cacti
-# -------------------------------------------------------------------------- #
-#cacti_mysql_server: localhost
-#cacti_mysql_user: dd-agent
-#cacti_mysql_pass: agent
-#cacti_rrd_path: /var/lib/cacti/rra
-
-# If you want to whitelist only certain rrd files, you can add a list of patterns
-# to a cacti rrd whitelist file, and reference it here.
-#     e.g.: *localhost_load*.rrd
-#cacti_rrd_whitelist: /etc/dd-agent/cacti-whitelist.txt
-
-# -------------------------------------------------------------------------- #
-#  Varnish
-# -------------------------------------------------------------------------- #
-#varnishstat: /usr/bin/varnishstat
-
-# -------------------------------------------------------------------------- #
-#  Redis
-#
-#   To monitor one or more redis instances, list their connection
-#   information below:
-# -------------------------------------------------------------------------- #
-#
-#redis_urls: localhost:6379, password@myserver:16379
-
-# -------------------------------------------------------------------------- #
-#  ElaticSearch
-# -------------------------------------------------------------------------- #
-#elasticsearch: http://localhost:9200/_cluster/nodes/stats?all=true
-
-# -------------------------------------------------------------------------- #
-#  HAProxy
-# -------------------------------------------------------------------------- #
-#haproxy_url: https://localhost/admin?stats
-
-# If basic authentification is enabled
-#haproxy_user = username
-#haproxy_password = password
 
 # ========================================================================== #
 # Custom Emitters                                                            #

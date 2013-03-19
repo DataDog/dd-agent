@@ -17,7 +17,6 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.nagios import Nagios
-from checks.build import Hudson
 from checks.db.mysql import MySql
 from checks.db.mcache import Memcache
 from checks.queue import RabbitMq
@@ -105,7 +104,6 @@ class Collector(object):
         # Event Checks
         self._event_checks = [
             Nagios(get_hostname()),
-            Hudson()
         ]
 
         # Resource Checks
