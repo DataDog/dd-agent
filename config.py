@@ -445,12 +445,12 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
-def get_proxy(agentConfig):
+def get_proxy(agentConfig, use_system_settings=False):
     proxy_settings = {}
 
     # First we read the proxy configuration from datadog.conf
     proxy_host = agentConfig.get('proxy_host', None)
-    if proxy_host is not None:
+    if proxy_host is not None and not use_system_settings:
         proxy_settings['host'] = proxy_host
         try:
             proxy_settings['port'] = int(agentConfig.get('proxy_port', 3128))
@@ -573,7 +573,7 @@ def load_check_directory(agentConfig):
     checks = {}
 
     osname = get_os()
-    checks_paths = (glob.iglob('%s*.py' % path) for path
+    checks_paths = (glob.glob(os.path.join(path, '*.py')) for path
                     in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
 
