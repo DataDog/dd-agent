@@ -222,7 +222,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error:
-            log.error("Response: %s" % response.error)
+            log.error("Response: %s" % response)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -383,6 +383,8 @@ class Application(tornado.web.Application):
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
+
+        logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
         def flush_trs():
             if self._watchdog:
