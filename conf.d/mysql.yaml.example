@@ -5,6 +5,10 @@ instances:
 #    user: my_username 
 #    pass: my_password 
 #    tags:
-#	  - optional_tag1
-#	  - optional_tag2
-
+#        - optional_tag1
+#	 - optional_tag2
+#    options:
+#        option1: value
+#        option2: value
+#        replication: 0
+#        galera_cluster: 1          

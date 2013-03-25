@@ -175,6 +175,9 @@ class MySql(AgentCheck):
             password = instance.get('pass', '')
             mysql_sock = instance.get('sock', '')
             tags = instance.get('tags', [])
+            options = instance.get('options', {})
+            self.log.debug("OPTIONS")
+            self.log.debug(options)
 
             if  host != '' and user != '':
                 # Connect
@@ -236,14 +239,31 @@ class MySql(AgentCheck):
                 self.gauge("mysql.table_locks_waited", self._collect_scalar("SHOW STATUS LIKE 'Table_locks_waited'"), tags=tags)
                 self.gauge("mysql.threads_connected", self._collect_scalar("SHOW STATUS LIKE 'Threads_connected'"), tags=tags)
     
+                innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'")
+                innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'")
+                innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free 
+                innodb_buffer_pool_pages_total = (innodb_buffer_pool_pages_total * 16384)/1024;
+                innodb_buffer_pool_pages_free = (innodb_buffer_pool_pages_free * 16384)/1024;
+                innodb_buffer_pool_pages_used = (innodb_buffer_pool_pages_used * 16384)/1024;
+                self.log.debug("bufer_pool_stats: total %s free %s used %s" % (innodb_buffer_pool_pages_total,innodb_buffer_pool_pages_free, innodb_buffer_pool_pages_used))
+                self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
+                self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
+                self.gauge("mysql.innodb.buffer_pool_total",innodb_buffer_pool_pages_total, tags=tags)
+                
+
+                self.rate("mysql.innodb.buffer_pool_size", self._collect_scalar("SHOW STATUS LIKE 'Innodb_data_reads'"), tags=tags)
                 self.rate("mysql.innodb.data_reads", self._collect_scalar("SHOW STATUS LIKE 'Innodb_data_reads'"), tags=tags)
                 self.rate("mysql.innodb.data_writes", self._collect_scalar("SHOW STATUS LIKE 'Innodb_data_writes'"), tags=tags)
                 self.rate("mysql.innodb.os_log_fsyncs", self._collect_scalar("SHOW STATUS LIKE 'Innodb_os_log_fsyncs'"), tags=tags)
     
                 self.log.debug("Collect cpu stats")
                 self._collect_procfs(tags=tags)
+
+                if ('galera_cluster' in options.keys() and options['galera_cluster']):
+                    self.gauge('mysql.galera.wsrep_cluster_size', self._collect_scalar("SHOW STATUS LIKE 'wsrep_cluster_size'"), tags=tags)
     
-                self._collect_dict("gauge", {"Seconds_behind_master": "mysql.seconds_behind_master"}, "SHOW SLAVE STATUS", tags=tags)
+                if ('replication' in options.keys() and options['replication']):
+                    self._collect_dict("gauge", {"Seconds_behind_master": "mysql.seconds_behind_master"}, "SHOW SLAVE STATUS", tags=tags)
     
                 self.log.debug("Done with MySQL")
                 return True
