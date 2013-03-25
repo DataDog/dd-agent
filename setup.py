@@ -50,7 +50,7 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree',
+        'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
 
