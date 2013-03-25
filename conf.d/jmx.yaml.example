@@ -7,7 +7,7 @@ instances:
 #        user: username
 #        password: password
 #        conf:
-#            -include: 
+#            - include: 
 #               domain: my_domain
 #               bean: my_bean
 #               attribute:
