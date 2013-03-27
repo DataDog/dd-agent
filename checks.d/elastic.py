@@ -176,7 +176,7 @@ class ElasticSearch(AgentCheck):
             data = _get_data(self.agentConfig, url)
 
             if url_suffix==STATS_URL:
-                self._process_data(data, tags=tags)
+                self._process_data(data, tags=tags, instance=instance)
                 self.load_url(config_url, instance, tags=tags, url_suffix=HEALTH_URL)
 
             else:
@@ -185,6 +185,7 @@ class ElasticSearch(AgentCheck):
 
         except Exception, e:
             self.log.exception('Unable to get elasticsearch statistics %s' % str(e))
+            raise
 
     def _base_es_url(self, config_url):
         parsed = urlparse.urlparse(config_url)
@@ -192,7 +193,7 @@ class ElasticSearch(AgentCheck):
             return config_url
         return "%s://%s" % (parsed.scheme, parsed.netloc)
 
-    def _process_data(self, data, tags=None):
+    def _process_data(self, data, tags=None, instance=None):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
@@ -214,7 +215,7 @@ class ElasticSearch(AgentCheck):
                 # Fetch interface address from ifconfig or ip addr and check
                 # against the primary IP from ES
                 try:
-                    base_url = self._base_es_url(self.agentConfig['elasticsearch'])
+                    base_url = self._base_es_url(instance['url'])
                     url = "%s%s" % (base_url, NODES_URL)
                     primary_addr = self._get_primary_addr(self.agentConfig, url, node)
                 except NodeNotFound:
@@ -222,6 +223,49 @@ class ElasticSearch(AgentCheck):
                     continue
                 if self._host_matches_node(primary_addr):
                     self._map_metric(process_metric)
+
+    def _get_primary_addr(self, agentConfig, url, node_name):
+        ''' Returns a list of primary interface addresses as seen by ES.
+        Used in ES < 0.19
+        '''
+        req = urllib2.Request(url, None, headers(agentConfig))
+        request = urllib2.urlopen(req)
+        response = request.read()
+        data = json.loads(response)
+
+        if node_name in data['nodes']:
+            node = data['nodes'][node_name]
+            if 'network' in node\
+            and 'primary_interface' in node['network']\
+            and 'address' in node['network']['primary_interface']:
+                return node['network']['primary_interface']['address']
+
+        raise NodeNotFound()
+
+    def _host_matches_node(self, primary_addrs):
+        ''' For < 0.19, check if the current host matches the IP given
+        in the cluster nodes check `/_cluster/nodes`. Uses `ip addr` on Linux
+        and `ifconfig` on Mac
+        '''
+        if sys.platform == 'darwin':
+            ifaces = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
+        else:
+            ifaces = subprocess.Popen(['ip', 'addr'], stdout=subprocess.PIPE)
+        grepper = subprocess.Popen(['grep', 'inet'], stdin=ifaces.stdout,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        ifaces.stdout.close()
+        out, err = grepper.communicate()
+
+        # Capture the list of interface IPs
+        ips = []
+        for iface in out.split("\n"):
+            iface = iface.strip()
+            if iface:
+                ips.append( iface.split(' ')[1].split('/')[0] )
+
+        # Check the interface addresses against the primary address
+        return primary_addrs in ips
 
     def _process_metric(self, data, metric, path, xform=None, tags=None):
         """data: dictionary containing all the stats
