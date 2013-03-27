@@ -61,7 +61,7 @@ class KyotoTycoonCheck(AgentCheck):
             key, value = line.strip().split('\t', 1)
             if key in self.GAUGES:
                 name = self.GAUGES[key]
-                self.gauge('kyototycoon.%s' % name, int(value), tags=tags)
+                self.gauge('kyototycoon.%s' % name, float(value), tags=tags)
 
             elif db_stats.match(key):
                 # Also produce a per-db metrics tagged with the db
@@ -73,10 +73,10 @@ class KyotoTycoonCheck(AgentCheck):
                     k, v = part.split('=', 1)
                     if k in self.DB_GAUGES:
                         name = self.DB_GAUGES[k]
-                        self.gauge('kyototycoon.%s' % name, int(v), tags=mytags)
+                        self.gauge('kyototycoon.%s' % name, float(v), tags=mytags)
 
             if key in self.TOTALS:
-                totals[self.TOTALS[key]] += int(value)
+                totals[self.TOTALS[key]] += float(value)
 
         for key, value in totals.items():
             self.gauge('kyototycoon.%s' % key, value, tags=tags)
