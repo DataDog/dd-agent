@@ -38,6 +38,10 @@ class KyotoTycoonCheck(AgentCheck):
 
     def check(self, instance):
         url = instance.get('report_url')
+        if not url:
+            self.log.exception('Invalid Kyoto Tycoon report url %r', url)
+            return
+
         tags = instance.get('tags', {})
         name = instance.get('name')
 
@@ -50,7 +54,7 @@ class KyotoTycoonCheck(AgentCheck):
             response = urllib2.urlopen(url)
             body = response.read()
         except:
-            self.log.exception('Could not connect to Kyoto Tycoon at %s', url)
+            self.log.exception('Could not connect to Kyoto Tycoon at %r', url)
             return
 
         totals = defaultdict(lambda: 0)
