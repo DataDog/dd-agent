@@ -10,7 +10,7 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname
+from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
 from config import get_version
 
 import checks.system.unix as u
@@ -23,7 +23,6 @@ from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.ec2 import EC2
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
@@ -82,7 +81,6 @@ class Collector(object):
         self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
-        self._ec2 = EC2(log)
 
         # Agent Metrics
         self._agent_metrics = CollectorMetrics(log)
@@ -400,7 +398,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = self._ec2.get_metadata()
+        metadata = EC2.get_metadata()
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']

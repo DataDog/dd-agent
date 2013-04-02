@@ -35,11 +35,10 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, AgentSupervisor
+from util import Watchdog, PidFile, AgentSupervisor, EC2
 
 
 # Constants
