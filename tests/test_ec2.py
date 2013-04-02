@@ -3,7 +3,7 @@ import logging
 import types
 import time
 
-from checks.ec2 import EC2
+from util import EC2
 
 class TestEC2(unittest.TestCase):
     def setUp(self):

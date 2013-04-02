@@ -83,6 +83,15 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(third['points'][0][1], 16)
         nt.assert_equal(third['host'], 'myhost')
 
+    def test_tags_gh442(self):
+        import util
+        import dogstatsd
+        from aggregator import api_formatter
+
+        json = util.generate_minjson_adapter()
+        dogstatsd.json = json
+        serialized = dogstatsd.serialize([api_formatter("foo", 12, 1, ('tag',), 'host')])
+        assert '"tags": ["tag"]' in serialized
 
     def test_counter(self):
         stats = MetricsAggregator('myhost')

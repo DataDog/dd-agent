@@ -35,11 +35,10 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, AgentSupervisor
+from util import Watchdog, PidFile, AgentSupervisor, EC2
 
 
 # Constants
@@ -180,6 +179,7 @@ def main():
         'foreground',
         'status',
         'info',
+        'check',
     ]
 
     if len(args) < 1:
@@ -194,7 +194,7 @@ def main():
     pid_file = PidFile('dd-agent')
 
     # Only initialize the Agent if we're starting or stopping it.
-    if command in ['start', 'stop', 'restart', 'foreground']:
+    if command in ['start', 'stop', 'restart', 'foreground', 'check']:
 
         if options.clean:
             pid_file.clean()
@@ -225,6 +225,21 @@ def main():
             else:
                 # Run in the standard foreground.
                 agent.run(config=agentConfig)
+
+        elif 'check' == command:
+            check_name = args[1]
+            try:
+                import checks.collector
+                # Try the old-style check first
+                print getattr(checks.collector, check_name)(log).check(agentConfig)
+            except Exception:
+                # If not an old-style check, try checks.d
+                checks = load_check_directory(agentConfig)
+                for check in checks:
+                    if check.name == check_name:
+                        check.run()
+                        print check.get_metrics()
+                        print check.get_events()
 
     # Commands that don't need the agent to be initialized.
     else:
