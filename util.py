@@ -17,21 +17,27 @@ except ImportError:
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
+def generate_minjson_adapter():
+    import minjson
+    class json(object):
+        @staticmethod
+        def dumps(data):
+            return minjson.write(data)
+
+        @staticmethod
+        def loads(data):
+            return minjson.safeRead(data)
+    return json
+
 try:
     import simplejson as json
 except ImportError:
     try:
         import json
     except ImportError:
-        import minjson
-        class json(object):
-            @staticmethod
-            def dumps(data):
-                return minjson.write(data)
+        json = generate_minjson_adapter()
 
-            @staticmethod
-            def loads(data):
-                return minjson.safeRead(data)
+
 
 import yaml
 try:

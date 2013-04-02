@@ -36,6 +36,8 @@ WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
 LOGGING_INTERVAL = 10
 
+def serialize(metrics):
+    return json.dumps({"series" : metrics})
 
 class Reporter(threading.Thread):
     """
@@ -122,7 +124,7 @@ class Reporter(threading.Thread):
     def submit(self, metrics):
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        body = json.dumps({"series" : metrics})
+        body = self.serialize(metrics)
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
