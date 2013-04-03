@@ -108,7 +108,7 @@ class HaproxyTestCase(unittest.TestCase):
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
-                'password': 'isdevops'
+                'password': 'isdevops',
                 'status_check': True
             }]
         }
