@@ -204,9 +204,6 @@ class EC2(object):
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
 
-    def __init__(self, logger):
-        Check.__init__(self, logger)
-
     @staticmethod
     def get_metadata():
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
