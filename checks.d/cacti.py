@@ -34,7 +34,7 @@ class Cacti(AgentCheck):
         required = ['mysql_host', 'mysql_user', 'rrd_path']
         for param in required:
             if not instance.get(param):
-                self.log.warn("Cacti instance missing %s. Skipping." % (param))
+                raise Exception("Cacti instance missing %s. Skipping." % (param))
 
         # Load the instance configuration
         host = instance.get('mysql_host')
