@@ -240,6 +240,13 @@ def main():
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                        if len(args) == 3 and args[2] == 'check_rate':
+                            print "Running 2nd iteration to capture rate metrics"
+                            time.sleep(1)
+                            check.run()
+                        print check.get_metrics()
+                        print check.get_events()
+
 
     # Commands that don't need the agent to be initialized.
     else:

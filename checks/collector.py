@@ -17,9 +17,7 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.nagios import Nagios
-from checks.db.mysql import MySql
 from checks.db.mcache import Memcache
-from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
@@ -75,8 +73,6 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._mysql = MySql(log)
-        self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(log)
         self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
@@ -192,8 +188,6 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        mysqlStatus = self._mysql.check(self.agentConfig)
-        rabbitmq = self._rabbitmq.check(log, self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
@@ -204,14 +198,6 @@ class Collector(object):
            
         if cassandraData is not False and cassandraData is not None:
             payload['cassandra'] = cassandraData
-            
-        # MySQL Status
-        if mysqlStatus:
-            payload.update(mysqlStatus)
-       
-        # RabbitMQ
-        if rabbitmq:
-            payload['rabbitMQ'] = rabbitmq
             
         # dogstream
         if dogstreamData:
