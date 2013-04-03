@@ -67,7 +67,8 @@ class HaproxyTestCase(unittest.TestCase):
             'instances': [{
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
-                'password': 'isdevops'
+                'password': 'isdevops',
+                'status_check': True
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -108,6 +109,7 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
                 'password': 'isdevops'
+                'status_check': True
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -129,6 +131,7 @@ class HaproxyTestCase(unittest.TestCase):
             'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
+                'status_check': True
             }]
         }
         self.start_server(HAPROXY_OPEN_CFG, config)
