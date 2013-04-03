@@ -12,7 +12,10 @@ from glob import glob
 try:
     from xml.etree.ElementTree import ElementTree
 except ImportError:
-    from elementtree import ElementTree
+    try:
+        from elementtree import ElementTree
+    except ImportError:
+        pass
 
 from util import get_hostname
 from checks import AgentCheck
