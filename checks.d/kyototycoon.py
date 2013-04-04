@@ -35,8 +35,8 @@ class KyotoTycoonCheck(AgentCheck):
         'cnt_get_misses':     'ops.get.total',
         'cnt_set':            'ops.set.total',
         'cnt_set_misses':     'ops.set.total',
-        'cnt_remove':         'ops.get.total',
-        'cnt_remove_misses':  'ops.get.total',
+        'cnt_remove':         'ops.del.total',
+        'cnt_remove_misses':  'ops.del.total',
     }
 
     def check(self, instance):
