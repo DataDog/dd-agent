@@ -124,7 +124,7 @@ class Reporter(threading.Thread):
     def submit(self, metrics):
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        body = self.serialize(metrics)
+        body = serialize(metrics)
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
