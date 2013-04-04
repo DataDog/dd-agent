@@ -223,9 +223,3 @@ class MongoDb(AgentCheck):
                 'server': agentConfig.get('mongodb_server')
             }]
         }
-
-if __name__ == "__main__":
-    check, instances = MongoDb.from_yaml('conf.d/mongo.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()

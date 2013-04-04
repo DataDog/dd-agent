@@ -99,12 +99,3 @@ class Riak(AgentCheck):
                 'msg_text': '%s returned a status of %s' % (url, r.status_code),
                 'aggregation_key': aggregation_key
             })
-
-if __name__ == '__main__':
-    check, instances = Riak.from_yaml('/etc/dd-agent/conf.d/riak.yaml')
-    for instance in instances:
-        print "\nRunning the check against url: %s" % (instance['url'])
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-        print 'Metrics: %s' % (check.get_metrics())

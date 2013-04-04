@@ -182,11 +182,3 @@ class LogEvent(object):
 
     def _aggregation_key(self, event):
         return event.SourceName
-
-if __name__ == "__main__":
-    check, instances = Win32EventLog.from_yaml('conf.d/win32_event_log.yaml')
-    for instance in instances:
-        check.check(instance)
-        # Run check again so "last time" is populated
-        check.check(instance)
-    print check.get_events()

@@ -128,8 +128,3 @@ class SQLServer(AgentCheck):
             metric_func = getattr(self, mtype)
             metric_func(mname, value, tags=tags)
 
-if __name__ == "__main__":
-    check, instances = SQLServer.from_yaml('conf.d/sqlserver.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()

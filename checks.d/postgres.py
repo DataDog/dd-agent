@@ -96,8 +96,3 @@ class PostgreSql(AgentCheck):
             }
 
         return False
-
-if __name__ == "__main__":
-    pg = PostgreSql(logging)
-    pg.check({'host': 'localhost', 'username': 'dog', 'password': 'dog'})
-

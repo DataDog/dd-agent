@@ -296,8 +296,3 @@ class MySql(AgentCheck):
             }]
         }
         
-
-
-
-
-            
