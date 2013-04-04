@@ -165,5 +165,4 @@ class RabbitMQ(AgentCheck):
             if i > 100:
                 self.log.debug("More than 100 nodes are present. Only collecting data using the 100 first")
                 break
-
-            
+                
