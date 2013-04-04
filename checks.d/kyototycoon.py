@@ -16,6 +16,10 @@ class KyotoTycoonCheck(AgentCheck):
     """
 
     GAUGES = {
+        'repl_delay':         'replication.delay',
+    }
+
+    RATES = {
         'serv_conn_count':    'connections',
         'serv_thread_count':  'threads',
         'cnt_get':            'ops.get.hits',
@@ -24,8 +28,8 @@ class KyotoTycoonCheck(AgentCheck):
         'cnt_set_misses':     'ops.set.misses',
         'cnt_remove':         'ops.del.hits',
         'cnt_remove_misses':  'ops.del.misses',
-        'repl_delay':         'replication.delay',
     }
+
     DB_GAUGES = {
         'count':              'records',
         'size':               'size',
@@ -64,6 +68,10 @@ class KyotoTycoonCheck(AgentCheck):
             if key in self.GAUGES:
                 name = self.GAUGES[key]
                 self.gauge('kyototycoon.%s' % name, float(value), tags=tags)
+            
+            elif key in self.RATES:
+                name = self.RATES[key]
+                self.rate('kyototycoon.%s_per_s' % name, float(value), tags=tags)
 
             elif db_stats.match(key):
                 # Also produce a per-db metrics tagged with the db
@@ -81,4 +89,4 @@ class KyotoTycoonCheck(AgentCheck):
                 totals[self.TOTALS[key]] += float(value)
 
         for key, value in totals.items():
-            self.gauge('kyototycoon.%s' % key, value, tags=tags)
+            self.rate('kyototycoon.%s_per_s' % key, value, tags=tags)
