@@ -76,12 +76,12 @@ class CouchDb(AgentCheck):
 
     @staticmethod
     def parse_agent_config(agentConfig):
-        if not agentConfig.get('haproxy_url'):
+        if not agentConfig.get('couchdb_server'):
             return False
 
+        
         return {
             'instances': [{
                 'server': agentConfig.get('couchdb_server'),
             }]
         }
-        
