@@ -22,6 +22,7 @@ USE_SUPERVISOR="/usr/bin/dd-forwarder"
 PIDPATH="/var/run/dd-agent"
 NAME="datadog-agent"
 DESC="datadog agent"
+SUPERVISOR_FILE="/etc/supervisor/supervisord.conf"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"
 
@@ -37,7 +38,7 @@ case "$1" in
 
         if [ -f $USE_SUPERVISOR ]; then
             echo -n "(using supervisorctl) "
-            supervisorctl start datadog-agent:*
+            supervisorctl -c $SUPERVISOR_FILE start datadog-agent:*
         else
             if [ ! -f $PIDPATH ]; then
                 mkdir -p $PIDPATH
@@ -57,7 +58,7 @@ case "$1" in
         echo -n "Stopping $DESC: "
         if [ -f $USE_SUPERVISOR ]; then
 	    # Prevent errors if not under actual supervision
-	    supervised=$(supervisorctl avail | grep datadog-agent | wc -l)
+	    supervised=$(supervisorctl -c $SUPERVISOR_FILE avail | grep datadog-agent | wc -l)
 	    if [ $supervised -gt 1 ]; then
             	echo -n "(using supervisorctl) "
             	supervisorctl stop datadog-agent:*
