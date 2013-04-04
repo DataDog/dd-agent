@@ -1,7 +1,4 @@
 import unittest
-import logging; logger = logging.getLogger()
-
-from checks.db.mysql import MySql
 from tests.common import load_check
 import time
 

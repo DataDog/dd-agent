@@ -94,9 +94,8 @@ class HaproxyTestCase(unittest.TestCase):
         inst = config['instances'][0]
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
         new_data = [l.replace("OPEN", "DOWN") for l in data]
-
         self.check._process_data(new_data, get_hostname(self.agentConfig),
-            event_cb=self.check._process_events)
+            event_cb=self.check._process_events, url=inst['url'])
 
         assert self.check.has_events()
         assert len(self.check.get_events()) == 1
@@ -109,7 +108,6 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
                 'password': 'isdevops',
-                'status_check': True
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -131,7 +129,6 @@ class HaproxyTestCase(unittest.TestCase):
             'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
-                'status_check': True
             }]
         }
         self.start_server(HAPROXY_OPEN_CFG, config)
