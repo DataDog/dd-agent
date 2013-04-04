@@ -17,11 +17,11 @@ class KyotoTycoonCheck(AgentCheck):
 
     GAUGES = {
         'repl_delay':         'replication.delay',
+        'serv_thread_count':  'threads',
     }
 
     RATES = {
         'serv_conn_count':    'connections',
-        'serv_thread_count':  'threads',
         'cnt_get':            'ops.get.hits',
         'cnt_get_misses':     'ops.get.misses',
         'cnt_set':            'ops.set.hits',
