@@ -1,6 +1,9 @@
 import re
 import urllib2
-from collections import defaultdict
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
 
 from checks import AgentCheck
 
@@ -79,13 +82,3 @@ class KyotoTycoonCheck(AgentCheck):
 
         for key, value in totals.items():
             self.gauge('kyototycoon.%s' % key, value, tags=tags)
-
-if __name__ == '__main__':
-    check, instances = KyotoTycoonCheck.from_yaml('kyototycoon.yaml')
-    for instance in instances:
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-        print 'Metrics: %s'
-        import pprint
-        pprint.pprint(check.get_metrics())
