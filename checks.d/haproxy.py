@@ -7,6 +7,11 @@ from util import json, headers
 
 import time
 
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
+
 STATS_URL = ";csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
@@ -20,7 +25,7 @@ class HAProxy(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
         # Host status needs to persist across all checks
-        self.host_status = {}
+        self.host_status = defaultdict(lambda: defaultdict(lambda: None))
 
     METRICS = {
         "qcur": ("gauge", "queue.current"),
@@ -214,12 +219,10 @@ class HAProxy(AgentCheck):
             hostname = data['svname']
             service_name = data['pxname']
             key = "%s:%s" % (hostname,service_name)
-            status_dic = self.host_status.get(url, {})
-            status = status_dic.get(key, None)
+            status = self.host_status[url][key]
 
             if status is None:
-                status_dic[key] = data['status']
-                self.host_status[url] = status_dic
+                self.host_status[url][key] = data['status']
                 continue
 
             if status != data['status'] and data['status'] in ('UP', 'DOWN'):
@@ -235,8 +238,7 @@ class HAProxy(AgentCheck):
                 self.event(ev)
 
                 # Store this host status so we can check against it later
-                status_dic[key] = data['status']
-                self.host_status[url] = status_dic
+                self.host_status[url][key] = data['status']
 
     def _create_event(self, api_key, status, hostname, lastchg, service_name):
         if status == "DOWN":
