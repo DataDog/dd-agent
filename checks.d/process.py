@@ -1,4 +1,4 @@
-import sys
+
 import psutil
 
 from checks import AgentCheck
