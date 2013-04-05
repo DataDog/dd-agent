@@ -110,23 +110,13 @@ class Memcache(AgentCheck):
                 if metric in self.GAUGES:
                     our_metric = self.normalize(metric.lower(), 'memcache')
                     self.gauge(our_metric, float(stats[metric]), tags=tags)
-                    self.log.debug("Saved %s: %s", our_metric, stats[metric])
 
                 # Tweak the name if it's a rate so that we don't use the exact
                 # same metric name as the memcache documentation
                 if metric + "_rate" in self.RATES:
                     our_metric = self.normalize(metric.lower() + "_rate", 'memcache')
                     self.rate(our_metric, float(stats[metric]), tags=tags)
-                    self.log.debug("Saved %s: %s", our_metric, stats[metric])
 
-        except ValueError:
-            self.log.exception("Cannot convert port value; check your configuration")
-        except CheckException:
-            self.log.exception("Cannot save sampled data")
-        except Exception:
-            self.log.exception("Cannot get data from memcache")
-
-        if mc is not None:
             # calculate some metrics based on other metrics.
             # stats should be present, but wrap in try/except
             # and log an exception just in case.
@@ -139,7 +129,7 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.log.exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
+                raise Exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -150,7 +140,7 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.log.exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
+                raise Exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -161,8 +151,17 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.log.exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
+                raise Exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
+        except AssertionError:
+            raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + port + ". Please check your configuration")
+        except ValueError:
+            raise Exception("Cannot convert port value; check your configuration")
+        except CheckException:
+            raise Exception("Cannot save sampled data")
+        except Exception:
+            raise Exception("Cannot get data from memcache")
 
+        if mc is not None:
             mc.disconnect_all()
             self.log.debug("Disconnected from memcached")
         del mc
@@ -176,8 +175,7 @@ class Memcache(AgentCheck):
         try:
             import memcache
         except ImportError:
-            self.log.exception("Cannot import python-based memcache driver")
-            return False
+            raise Exception("Cannot import memcache module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mcache")
 
         # Hacky monkeypatch to fix a memory leak in the memcache library.
         # See https://github.com/DataDog/dd-agent/issues/278 for details.
