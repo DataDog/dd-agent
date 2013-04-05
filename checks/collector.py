@@ -17,7 +17,6 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.nagios import Nagios
-from checks.db.mcache import Memcache
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
