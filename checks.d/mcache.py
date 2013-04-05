@@ -104,8 +104,6 @@ class Memcache(AgentCheck):
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
-                self.log.debug("Processing %s: %s", metric, stats[metric])
-
                 # Check if metric is a gauge or rate
                 if metric in self.GAUGES:
                     our_metric = self.normalize(metric.lower(), 'memcache')
