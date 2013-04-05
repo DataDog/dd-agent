@@ -14,12 +14,19 @@ instances:
 #    process: python
 
   -  name: ssh
-     search_string: ['sshd', 'ssh']
-     process: ['sshd']
-  -  name: python
-     process: ['python']
-  -  name: nodeserver
-     search_string: ['node server.js']
-  -  name: node
-     process: ['node']
+     search_string: ['ssh', 'ubuntu']
+     exact_match: False
+
+  -  name: postgres
+     search_string: ['postgres']
+     
   -  name: All
+     search_string: ['All']
+     
+#  -  name: python
+#     process: ['python']
+#  -  name: nodeserver
+#     search_string: ['node server.js']
+#  -  name: node
+#     process: ['node']
+#  -  name: All
