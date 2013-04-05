@@ -1,6 +1,6 @@
 import sys
 import psutil
-sys.path.append("../")
+# sys.path.append("../")
 from checks import AgentCheck
 class ProcessCheck(AgentCheck):
 
