@@ -45,7 +45,7 @@ class ProcessCheck(AgentCheck):
         search_string = instance.get('search_string')
         pids_list = self.process_finder(exact_match, search_string)
         self.log.debug('ProcessCheck: process %s analysed' % name)
-        self.gauge('system.processes', len(pids_list), tags=[name])
+        self.gauge('system.processes.number', len(pids_list), tags=[name])
         self.gauge('system.processes.mem.rss', self.processes_memory(pids_list)[0], tags=[name])
         self.gauge('system.processes.mem.vms', self.processes_memory(pids_list)[1], tags=[name])
 
