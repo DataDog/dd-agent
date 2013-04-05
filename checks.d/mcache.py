@@ -96,7 +96,7 @@ class Memcache(AgentCheck):
     def _get_metrics(self, server, port, tags, memcache):
         mc = None  # client
         try:
-            self.logger.debug("Connecting to %s:%s tags:%s", server, port, tags)
+            self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
             mc = memcache.Client(["%s:%d" % (server, port)])
             raw_stats = mc.get_stats()
 
@@ -104,28 +104,27 @@ class Memcache(AgentCheck):
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
-                self.logger.debug("Processing %s: %s", metric, stats[metric])
+                self.log.debug("Processing %s: %s", metric, stats[metric])
 
                 # Check if metric is a gauge or rate
                 if metric in self.GAUGES:
                     our_metric = self.normalize(metric.lower(), 'memcache')
-                    self.gauge(our_metric, stats[metric], tags=tags)
-                    self.logger.debug("Saved %s: %s", our_metric, stats[metric])
+                    self.gauge(our_metric, float(stats[metric]), tags=tags)
+                    self.log.debug("Saved %s: %s", our_metric, stats[metric])
 
                 # Tweak the name if it's a rate so that we don't use the exact
                 # same metric name as the memcache documentation
                 if metric + "_rate" in self.RATES:
-                    metric = metric + "_rate"
-                    our_metric = self.normalize(metric.lower(), 'memcache')
-                    self.rate(our_metric, stats[metric], tags=tags)
-                    self.logger.debug("Saved %s: %s", our_metric, stats[metric])
+                    our_metric = self.normalize(metric.lower() + "_rate", 'memcache')
+                    self.rate(our_metric, float(stats[metric]), tags=tags)
+                    self.log.debug("Saved %s: %s", our_metric, stats[metric])
 
         except ValueError:
-            self.logger.exception("Cannot convert port value; check your configuration")
+            self.log.exception("Cannot convert port value; check your configuration")
         except CheckException:
-            self.logger.exception("Cannot save sampled data")
+            self.log.exception("Cannot save sampled data")
         except Exception:
-            self.logger.exception("Cannot get data from memcache")
+            self.log.exception("Cannot get data from memcache")
 
         if mc is not None:
             # calculate some metrics based on other metrics.
@@ -140,7 +139,7 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.logger.exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
+                self.log.exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -151,7 +150,7 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.logger.exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
+                self.log.exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -162,22 +161,22 @@ class Memcache(AgentCheck):
             except ZeroDivisionError:
                 pass
             except Exception:
-                self.logger.exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
+                self.log.exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
 
             mc.disconnect_all()
-            self.logger.debug("Disconnected from memcached")
+            self.log.debug("Disconnected from memcached")
         del mc
 
     def check(self, instance):
         server = instance.get('url', None)
-        if server:
+        if not server:
             self.log.warn("Missing or null 'url' in mcache config")
             return
 
         try:
             import memcache
         except ImportError:
-            self.logger.exception("Cannot import python-based memcache driver")
+            self.log.exception("Cannot import python-based memcache driver")
             return False
 
         # Hacky monkeypatch to fix a memory leak in the memcache library.
@@ -190,7 +189,7 @@ class Memcache(AgentCheck):
         port = int(instance.get('port', self.DEFAULT_PORT))
 
         tag = instance.get('tag', None)
-        if tag is not None:
+        if tag:
             tag = ["instance:%s" % tag]
         else:
             tag = ["instance:%s_%s" % (server, port)]
@@ -203,7 +202,7 @@ class Memcache(AgentCheck):
 
         # Load the conf according to the old schema
         memcache_url = agentConfig.get("memcache_server", None)
-        memcache_port = agentConfig.get("memcache_port", None)
+        memcache_port = agentConfig.get("memcache_port", Memcache.DEFAULT_PORT)
         if memcache_url is not None:
             instance = {
                 'url': memcache_url,
@@ -222,7 +221,7 @@ class Memcache(AgentCheck):
             instance = instance.split(":")
 
             url = instance[0]
-            port = self.DEFAULT_PORT
+            port = Memcache.DEFAULT_PORT
             tag = None
 
             if len(instance) > 1:
@@ -240,6 +239,15 @@ class Memcache(AgentCheck):
             index = index + 1
             instance = agentConfig.get("memcache_instance_%s" % index, None)
 
+        if len(all_instances) == 0:
+            return False
+
         return {
             'instances': all_instances
         }
+
+if __name__ == "__main__":
+    check, instances = Memcache.from_yaml('conf.d/mcache.yaml')
+    for instance in instances:
+        check.check(instance)
+        print check.get_metrics()
