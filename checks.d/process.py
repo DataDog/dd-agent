@@ -1,6 +1,6 @@
 import sys
 import psutil
-# sys.path.append("../")
+#sys.path.append("../")
 from checks import AgentCheck
 class ProcessCheck(AgentCheck):
 
@@ -14,8 +14,6 @@ class ProcessCheck(AgentCheck):
         Create a set of pids of selected process.
         Search for search_string 
         """
-        counter = 0
-        print search_string
         found_process_list = []
         for proc in psutil.process_iter():
             found = False
