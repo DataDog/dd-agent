@@ -4,11 +4,6 @@ import psutil
 from checks import AgentCheck
 class ProcessCheck(AgentCheck):
 
-
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
-#        self.log.info('ProcessCheck: Agent started')
-        
     def process_finder(self, exact_match=True, search_string=None):
         """
         Create a set of pids of selected process.
