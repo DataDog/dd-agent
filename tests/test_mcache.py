@@ -2,12 +2,10 @@ import unittest
 import logging
 import os
 from subprocess import Popen, PIPE
-from checks.db.mcache import *
 from nose.plugins.skip import SkipTest
 
 from tests.common import load_check
 
-from pprint import pprint
 
 class TestMemCache(unittest.TestCase):
     def setUp(self):
