@@ -41,7 +41,7 @@ fi
 mkdir -p $dd_base
 
 # set up a virtual env
-$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/develop/virtualenv.py
+$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.9.1/virtualenv.py
 python $dd_base/virtualenv.py $dd_base/venv
 . $dd_base/venv/bin/activate
 
