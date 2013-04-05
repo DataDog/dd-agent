@@ -1,6 +1,6 @@
 nose
 pymongo
-tornado
+tornado==2.4
 redis
 pexpect
 python-memcached

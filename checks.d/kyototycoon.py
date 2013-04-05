@@ -1,6 +1,9 @@
 import re
 import urllib2
-from collections import defaultdict
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
 
 from checks import AgentCheck
 
@@ -13,16 +16,20 @@ class KyotoTycoonCheck(AgentCheck):
     """
 
     GAUGES = {
-        'serv_conn_count':    'connections',
+        'repl_delay':         'replication.delay',
         'serv_thread_count':  'threads',
+    }
+
+    RATES = {
+        'serv_conn_count':    'connections',
         'cnt_get':            'ops.get.hits',
         'cnt_get_misses':     'ops.get.misses',
         'cnt_set':            'ops.set.hits',
         'cnt_set_misses':     'ops.set.misses',
         'cnt_remove':         'ops.del.hits',
         'cnt_remove_misses':  'ops.del.misses',
-        'repl_delay':         'replication.delay',
     }
+
     DB_GAUGES = {
         'count':              'records',
         'size':               'size',
@@ -32,8 +39,8 @@ class KyotoTycoonCheck(AgentCheck):
         'cnt_get_misses':     'ops.get.total',
         'cnt_set':            'ops.set.total',
         'cnt_set_misses':     'ops.set.total',
-        'cnt_remove':         'ops.get.total',
-        'cnt_remove_misses':  'ops.get.total',
+        'cnt_remove':         'ops.del.total',
+        'cnt_remove_misses':  'ops.del.total',
     }
 
     def check(self, instance):
@@ -61,6 +68,10 @@ class KyotoTycoonCheck(AgentCheck):
             if key in self.GAUGES:
                 name = self.GAUGES[key]
                 self.gauge('kyototycoon.%s' % name, float(value), tags=tags)
+            
+            elif key in self.RATES:
+                name = self.RATES[key]
+                self.rate('kyototycoon.%s_per_s' % name, float(value), tags=tags)
 
             elif db_stats.match(key):
                 # Also produce a per-db metrics tagged with the db
@@ -78,14 +89,4 @@ class KyotoTycoonCheck(AgentCheck):
                 totals[self.TOTALS[key]] += float(value)
 
         for key, value in totals.items():
-            self.gauge('kyototycoon.%s' % key, value, tags=tags)
-
-if __name__ == '__main__':
-    check, instances = KyotoTycoonCheck.from_yaml('kyototycoon.yaml')
-    for instance in instances:
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-        print 'Metrics: %s'
-        import pprint
-        pprint.pprint(check.get_metrics())
+            self.rate('kyototycoon.%s_per_s' % key, value, tags=tags)

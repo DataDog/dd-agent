@@ -63,7 +63,6 @@ class Tomcat(JmxCheck):
 
     @staticmethod
     def parse_agent_config(agentConfig):
-
         return JmxCheck.parse_agent_config(agentConfig, 'tomcat', INIT_CONFIG)
 
 

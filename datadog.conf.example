@@ -88,29 +88,6 @@ use_mount: no
 # Ganglia port where gmetad is running
 #ganglia_port: 8651
 
-
-# -------------------------------------------------------------------------- #
-#   MySQL                                                                    #
-# -------------------------------------------------------------------------- #
-
-# MySQL host
-#mysql_server:
-
-# (Alternative connection via unix sockets)
-#mysql_sock:
-
-# MySQL user. It runs "SHOW STATUS" and "SHOW SLAVE STATUS" queries.
-# You should consider creating a separate user, e.g. datadog.
-# CREATE USER 'datadog'@'localhost' identified by 'my_password';
-# The latter requires the "REPLICATION CLIENT" privileges using a command like:
-# GRANT REPLICATION CLIENT ON *.* TO 'datadog'@'localhost';
-# http://dev.mysql.com/doc/refman/5.1/en/privileges-provided.html#priv_replication-client
-#mysql_user:
-
-# MySQL user's password
-#mysql_pass:
-
-
 # -------------------------------------------------------------------------- #
 #   Cassandra                                                                #
 # -------------------------------------------------------------------------- #
@@ -190,7 +167,6 @@ use_mount: no
 # If this value isn't specified, the default parser assumes this log format:
 #     metric timestamp value key0=val0 key1=val1 ...
 #
-
 
 # ========================================================================== #
 # Custom Emitters                                                            #

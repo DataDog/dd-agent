@@ -68,10 +68,3 @@ class IIS(AgentCheck):
                 continue
             value = getattr(wmi_cls, wmi_val)
             self.gauge(metric, value, tags=tags)
-
-
-if __name__ == "__main__":
-    check, instances = IIS.from_yaml('conf.d/iis.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()

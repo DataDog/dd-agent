@@ -166,9 +166,7 @@ def get_hostname(config=None):
                 p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
                 out, err = p.communicate()
                 if p.returncode == 0:
-                    hostname = out.strip()
-                    if is_valid_hostname(hostname):
-                        return hostname
+                    return out.strip()
             except:
                 return None
 
@@ -179,7 +177,7 @@ def get_hostname(config=None):
                 hostname = unix_hostname
 
     # if we have an ec2 default hostname, see if there's an instance-id available
-    if True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
+    if hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
         instanceid = EC2.get_instance_id()
         if instanceid:
             hostname = instanceid
@@ -203,9 +201,6 @@ class EC2(object):
     """
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
-
-    def __init__(self, logger):
-        Check.__init__(self, logger)
 
     @staticmethod
     def get_metadata():

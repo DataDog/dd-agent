@@ -58,7 +58,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.6.1"
+    return "3.6.2"
 
 
 def skip_leading_wsp(f):
@@ -371,18 +371,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     except ConfigParser.NoOptionError, e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
-
-    if 'mysql_server' in agentConfig and agentConfig['mysql_server'] != '' and 'mysql_user' in agentConfig and agentConfig['mysql_user'] != '' and 'mysql_pass' in agentConfig:
-        try:
-            import MySQLdb
-        except ImportError:
-            log.error('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
-
-    if 'mongodb_server' in agentConfig and agentConfig['mongodb_server'] != '':
-        try:
-            import pymongo
-        except ImportError:
-            log.error('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
 
     # Storing proxy settings in the agentConfig
     agentConfig['proxy_settings'] = get_proxy(agentConfig)

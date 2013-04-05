@@ -159,9 +159,3 @@ class Zookeeper(AgentCheck):
         metrics.append(('zookeeper.nodes', long(value.strip())))
 
         return metrics, tags
-
-if __name__ == "__main__":
-    import logging, pprint
-    zk = Zookeeper('zk', {}, {})
-    zk.check({'host': 'localhost', 'port': 2181, 'tags': ['thing']})
-    pprint.pprint(zk.get_metrics())
