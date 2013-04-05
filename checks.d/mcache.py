@@ -153,7 +153,7 @@ class Memcache(AgentCheck):
             except Exception:
                 raise Exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
         except AssertionError:
-            raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + port + ". Please check your configuration")
+            raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + str(port) + ". Please check your configuration")
         except ValueError:
             raise Exception("Cannot convert port value; check your configuration")
         except CheckException:

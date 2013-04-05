@@ -1,6 +1,7 @@
 import unittest
 import logging
 import os
+import time
 from subprocess import Popen, PIPE
 from nose.plugins.skip import SkipTest
 
@@ -13,8 +14,7 @@ class TestMemCache(unittest.TestCase):
         self.agent_config = {
             "memcache_server": "localhost",
             "memcache_instance_1": "localhost:11211:mytag",
-            "memcache_instance_2": "dummy:11211:myothertag",
-            "memcache_instance_3": "localhost:11211:mythirdtag",
+            "memcache_instance_2": "localhost:11211:mythirdtag",
         }
         self.conf = self.c.parse_agent_config(self.agent_config)
 
@@ -49,6 +49,9 @@ class TestMemCache(unittest.TestCase):
 
         # Check that we got 21 metrics for a specific host
         self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 21, r)
+
+    def testDummyHost(self):
+        self.assertRaises(Exception, self.c.check, self.c.parse_agent_config({"memcache_instance_2": "dummy:11211:myothertag"}))
 
     def testMemoryLeak(self):
         for instance in self.conf['instances']:
