@@ -1,10 +1,9 @@
-
 import psutil
-
 from checks import AgentCheck
+
 class ProcessCheck(AgentCheck):
 
-    def process_finder(self, exact_match=True, search_string=None):
+    def find_pids(self, search_string, exact_match=True):
         """
         Create a set of pids of selected process.
         Search for search_string 
@@ -25,29 +24,31 @@ class ProcessCheck(AgentCheck):
             
         return set(found_process_list)
         
-    def processes_memory(self, pids_list):
+    def get_process_memory_size(self, pids):
         rss = 0
         vms = 0
-        for pid in set(pids_list):
+        for pid in set(pids):
             try:
-                rss += psutil.Process(pid).get_ext_memory_info()[0]
-                vms += psutil.Process(pid).get_ext_memory_info()[1]
+                memory_info = psutil.Process(pid).get_ext_memory_info()
+                rss += memory_info[0]
+                vms += memory_info[1]
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 pass
         #Return value in Byte
         return (rss, vms)
         
-        
     def check(self, instance):
         name = instance.get('name', '')
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string')
-        pids_list = self.process_finder(exact_match, search_string)
+        pids = self.find_pids(search_string, exact_match)
         self.log.debug('ProcessCheck: process %s analysed' % name)
-        self.gauge('system.processes.number', len(pids_list), tags=[name])
-        self.gauge('system.processes.mem.rss', self.processes_memory(pids_list)[0], tags=[name])
-        self.gauge('system.processes.mem.vms', self.processes_memory(pids_list)[1], tags=[name])
+        self.gauge('system.processes.number', len(pids), tags=[name])
+        rss, vms = self.get_process_memory_size(pids)
+        self.gauge('system.processes.mem.rss', rss, tags=[name])
+        self.gauge('system.processes.mem.vms', vms, tags=[name])
+
 
 if __name__ == '__main__':
     from pprint import pprint as pp
