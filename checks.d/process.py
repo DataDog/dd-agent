@@ -3,13 +3,17 @@ from checks import AgentCheck
 
 class ProcessCheck(AgentCheck):
 
-    def find_pids(self, search_string, exact_match=True):
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
+        self.processes = psutil.process_iter()
+        
+    def find_pids(self, processes, search_string, exact_match=True):
         """
         Create a set of pids of selected process.
         Search for search_string 
         """
         found_process_list = []
-        for proc in psutil.process_iter():
+        for proc in processes:
             found = False
             for string in search_string:
                 if exact_match:
@@ -42,7 +46,8 @@ class ProcessCheck(AgentCheck):
         name = instance.get('name', '')
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string')
-        pids = self.find_pids(search_string, exact_match)
+        #processes = self.pro
+        pids = self.find_pids(self.processes, search_string, exact_match)
         self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=[name])
         rss, vms = self.get_process_memory_size(pids)
