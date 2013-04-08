@@ -183,19 +183,6 @@ use_mount: no
 
 
 # ========================================================================== #
-# Custom Checks
-# ========================================================================== #
-
-# Comma-separated list of additional metric checks
-#
-# Expected to be passed as a comma-separated list of colon-delimited
-# name/object pairs.
-#
-# custom_checks: /usr/local/my-code/checks/foo.py:FooCheck
-#
-# If the name of the check is not specified, 'Check' is assumed.
-
-# ========================================================================== #
 # Logging
 # ========================================================================== #
 
