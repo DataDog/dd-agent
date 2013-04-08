@@ -80,6 +80,8 @@ class Collector(object):
         # Agent Metrics
         self._agent_metrics = CollectorMetrics(log)
 
+        self._metrics_checks = []
+
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
             if len(module_spec) == 0: continue
