@@ -56,6 +56,8 @@ class TestMemCache(unittest.TestCase):
     def testMemoryLeak(self):
         for instance in self.conf['instances']:
             self.c.check(instance)
+        self.c.get_metrics()
+
         import gc
         gc.set_debug(gc.DEBUG_LEAK)
         try:
@@ -63,6 +65,8 @@ class TestMemCache(unittest.TestCase):
             for i in range(10):
                 for instance in self.conf['instances']:
                     self.c.check(instance)
+                self.c.get_metrics()
+
             end = len(gc.garbage)
             self.assertEquals(end - start, 0, gc.garbage)
         finally:
