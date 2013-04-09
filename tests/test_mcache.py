@@ -57,6 +57,7 @@ class TestMemCache(unittest.TestCase):
         for instance in self.conf['instances']:
             self.c.check(instance)
         self.c.get_metrics()
+        time.sleep(1)
 
         import gc
         gc.set_debug(gc.DEBUG_LEAK)
@@ -66,6 +67,7 @@ class TestMemCache(unittest.TestCase):
                 for instance in self.conf['instances']:
                     self.c.check(instance)
                 self.c.get_metrics()
+                time.sleep(1)
 
             end = len(gc.garbage)
             self.assertEquals(end - start, 0, gc.garbage)
