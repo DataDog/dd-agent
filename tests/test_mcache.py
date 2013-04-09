@@ -31,7 +31,8 @@ class TestMemCache(unittest.TestCase):
         for i in range(3):
             # Count open connections to localhost:11211, should be 0
             self.assertEquals(self._countConnections(11211), 0)
-            self.c.check(self.c.parse_agent_config({"memcache_server": "localhost"}))
+            new_conf = self.c.parse_agent_config({"memcache_server": "localhost"})
+            self.c.check(new_conf['instances'][0])
             # Verify that the count is still 0
             self.assertEquals(self._countConnections(11211), 0)
 
@@ -51,7 +52,8 @@ class TestMemCache(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 21, r)
 
     def testDummyHost(self):
-        self.assertRaises(Exception, self.c.check, self.c.parse_agent_config({"memcache_instance_2": "dummy:11211:myothertag"}))
+        new_conf = self.c.parse_agent_config({"memcache_instance_1": "dummy:11211:myothertag"})
+        self.assertRaises(Exception, self.c.check, new_conf['instances'][0])
 
     def testMemoryLeak(self):
         # See https://github.com/DataDog/dd-agent/issues/438 for more info

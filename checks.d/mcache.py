@@ -66,12 +66,7 @@ class Memcache(AgentCheck):
         "curr_connections",
         "connection_structures",
         "threads",
-        "pointer_size",
-
-        # these are calculated from other metrics
-        "get_hit_percent",
-        "avg_item_size",
-        "fill_percent"
+        "pointer_size"
     ]
 
     RATES = [
@@ -87,8 +82,6 @@ class Memcache(AgentCheck):
         "bytes_written_rate",
         "total_connections_rate"
     ]
-
-    METRICS = GAUGES + RATES
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -126,8 +119,6 @@ class Memcache(AgentCheck):
                 )
             except ZeroDivisionError:
                 pass
-            except Exception:
-                raise Exception("Cannot calculate memcache.get_hit_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -137,8 +128,6 @@ class Memcache(AgentCheck):
                 )
             except ZeroDivisionError:
                 pass
-            except Exception:
-                raise Exception("Cannot calculate memcache.fill_percent for tags: %s", tags)
 
             try:
                 self.gauge(
@@ -148,16 +137,8 @@ class Memcache(AgentCheck):
                 )
             except ZeroDivisionError:
                 pass
-            except Exception:
-                raise Exception("Cannot calculate memcache.avg_item_size for tags: %s", tags)
         except AssertionError:
             raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + str(port) + ". Please check your configuration")
-        except ValueError:
-            raise Exception("Cannot convert port value; check your configuration")
-        except CheckException:
-            raise Exception("Cannot save sampled data")
-        except Exception:
-            raise Exception("Cannot get data from memcache")
 
         if mc is not None:
             mc.disconnect_all()
@@ -167,8 +148,7 @@ class Memcache(AgentCheck):
     def check(self, instance):
         server = instance.get('url', None)
         if not server:
-            self.log.warn("Missing or null 'url' in mcache config")
-            return
+            raise Exception("Missing or null 'url' in mcache config")
 
         try:
             import memcache
@@ -184,13 +164,13 @@ class Memcache(AgentCheck):
 
         port = int(instance.get('port', self.DEFAULT_PORT))
 
-        tag = instance.get('tag', None)
-        if tag:
-            tag = ["instance:%s" % tag]
+        tags = instance.get('tag', None)
+        if tags:
+            tags = ["instance:%s" % tags]
         else:
-            tag = ["instance:%s_%s" % (server, port)]
+            tags = ["instance:%s_%s" % (server, port)]
 
-        self._get_metrics(server, port, tag, memcache)
+        self._get_metrics(server, port, tags, memcache)
 
     @staticmethod
     def parse_agent_config(agentConfig):
@@ -218,18 +198,18 @@ class Memcache(AgentCheck):
 
             url = instance[0]
             port = Memcache.DEFAULT_PORT
-            tag = None
+            tags = None
 
             if len(instance) > 1:
                 port = instance[1]
 
             if len(instance) == 3:
-                tag = instance[2]
+                tags = instance[2]
 
             all_instances.append({
                 'url': url,
                 'port': port,
-                'tag': tag
+                'tag': tags
             })
 
             index = index + 1
@@ -241,9 +221,3 @@ class Memcache(AgentCheck):
         return {
             'instances': all_instances
         }
-
-if __name__ == "__main__":
-    check, instances = Memcache.from_yaml('conf.d/mcache.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()
