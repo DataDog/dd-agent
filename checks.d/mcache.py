@@ -164,9 +164,9 @@ class Memcache(AgentCheck):
 
         port = int(instance.get('port', self.DEFAULT_PORT))
 
-        tags = instance.get('tag', None)
+        tags = instance.get('tags', None)
         if tags:
-            tags = ["instance:%s" % tags]
+            tags = ["instance:%s" % t for t in tags]
         else:
             tags = ["instance:%s_%s" % (server, port)]
 
@@ -183,7 +183,7 @@ class Memcache(AgentCheck):
             instance = {
                 'url': memcache_url,
                 'port': memcache_port,
-                'tag': None
+                'tags': None
             }
             all_instances.append(instance)
 
@@ -204,12 +204,12 @@ class Memcache(AgentCheck):
                 port = instance[1]
 
             if len(instance) == 3:
-                tags = instance[2]
+                tags = [instance[2]]
 
             all_instances.append({
                 'url': url,
                 'port': port,
-                'tag': tags
+                'tags': tags
             })
 
             index = index + 1

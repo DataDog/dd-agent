@@ -1,6 +1,8 @@
 init_config:
 
 instances:
-#   -   url: localhost
-#       port: 11211
-#       tag: optional_tag
+#    - url: localhost
+#      port: 11211
+#      tags: 
+#        - optional_tag1
+#        - optional_tag2
