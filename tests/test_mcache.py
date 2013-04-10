@@ -70,7 +70,6 @@ class TestMemCache(unittest.TestCase):
         try:
             #scanner.dump_all_objects(filename_before)
             start = len(gc.garbage)
-            initial_garbage = gc.garbage
             for i in range(10):
                 for instance in self.conf['instances']:
                     self.c.check(instance)
@@ -79,11 +78,7 @@ class TestMemCache(unittest.TestCase):
 
             #scanner.dump_all_objects(filename_after)
             end = len(gc.garbage)
-            new_garbage = []
-            for g in gc.garbage:
-                if g not in initial_garbage:
-                    new_garbage.append(g)
-            self.assertEquals(end - start, 0, new_garbage)
+            self.assertEquals(end - start, 0, gc.garbage)
         finally:
             gc.set_debug(0)
 
