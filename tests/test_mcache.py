@@ -56,11 +56,6 @@ class TestMemCache(unittest.TestCase):
         self.assertRaises(Exception, self.c.check, new_conf['instances'][0])
 
     def testMemoryLeak(self):
-        #from meliae import scanner
-        #filename_before = 'testMemoryLeak_before.profile'
-        #filename_after = 'testMemoryLeak_after.profile'
-        # See https://github.com/DataDog/dd-agent/issues/438 for more info
-        #raise SkipTest('Failing on travis. See github issue #438 for more information.')
         for instance in self.conf['instances']:
             self.c.check(instance)
         self.c.get_metrics()
@@ -68,7 +63,6 @@ class TestMemCache(unittest.TestCase):
         import gc
         gc.set_debug(gc.DEBUG_LEAK)
         try:
-            #scanner.dump_all_objects(filename_before)
             start = len(gc.garbage)
             for i in range(10):
                 for instance in self.conf['instances']:
@@ -76,7 +70,6 @@ class TestMemCache(unittest.TestCase):
                 time.sleep(1)
                 self.c.get_metrics()
 
-            #scanner.dump_all_objects(filename_after)
             end = len(gc.garbage)
             self.assertEquals(end - start, 0, gc.garbage)
         finally:
