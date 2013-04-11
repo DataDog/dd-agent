@@ -3,6 +3,7 @@ from checks import AgentCheck
 from fnmatch import fnmatch
 import os
 import time
+from util import namedtuple
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -27,32 +28,34 @@ CACTI_TO_DD = {
 class Cacti(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-        self.dbs = {}
         self.last_ts = {}
 
     def check(self, instance):
         
         # Load the instance config
-        host, user, password, db, rrd_path, whitelist, device_names = self._get_config(instance)
-
-        # Generate an instance key to store state across checks
-        key = self._instance_key(instance)
+        config = self._get_config(instance)
 
         # The rrdtool module is required for the check to work
-        import rrdtool
+        try:
+            import rrdtool
+        except ImportError, e:
+            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
 
-        # Try importing MySQL and connecting to the database
-        import MySQLdb
-        self.dbs[key] = MySQLdb.connect(host, user, password, db)
+        # Try importing MySQL
+        try:
+            import MySQLdb
+        except ImportError, e:
+            raise Exception("Cannot import MySQLdb module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/cacti")
+
+        connection = MySQLdb.connect(config.host, config.user, config.password, config.db)
 
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 
         # Get whitelist patterns, if available
-        patterns = self._get_whitelist_patterns(whitelist)
+        patterns = self._get_whitelist_patterns(config.whitelist)
 
         # Fetch the RRD metadata from MySQL
-        db = self.dbs[key]
-        rrd_meta = self._fetch_rrd_meta(db, rrd_path, patterns, device_names)
+        rrd_meta = self._fetch_rrd_meta(connection, config.rrd_path, config.patterns, config.device_names)
 
         # Load the metrics from each RRD, tracking the count as we go
         metric_count = 0
@@ -92,8 +95,17 @@ class Cacti(AgentCheck):
         whitelist = instance.get('rrd_whitelist')
         field_names = instance.get('field_names', ['ifName', 'dskDevice'])
 
-        return host, user, password, db, rrd_path, whitelist, field_names
+        Config = namedtuple('Config', [
+            'host',
+            'user',
+            'password',
+            'db',
+            'rrd_path',
+            'whitelist',
+            'field_names']
+        )
 
+        return Config(host, user, password, db, rrd_path, whitelist, field_names)
 
     def _read_rrd(self, rrd_path, hostname, device_name):
         ''' Main metric fetching method '''
@@ -149,11 +161,7 @@ class Cacti(AgentCheck):
             self.last_ts[last_ts_key] = last_ts
         return metric_count
 
-    def _instance_key(*args):
-        ''' return a key unique for this instance '''
-        return '|'.join([str(a) for a in args])
-
-    def _fetch_rrd_meta(self, db, rrd_path_root, whitelist, field_names):
+    def _fetch_rrd_meta(self, connection, rrd_path_root, whitelist, field_names):
         ''' Fetch metadata about each RRD in this Cacti DB, returning a list of
             tuples of (hostname, device_name, rrd_path)
         '''
@@ -164,7 +172,7 @@ class Cacti(AgentCheck):
                     return True
             return False
 
-        c = db.cursor()
+        c = connection.cursor()
 
         and_parameters = " OR ".join(["hsc.field_name = '%s'" % field_name for field_name in field_names])
 
