@@ -31,18 +31,9 @@ class Cacti(AgentCheck):
         self.last_ts = {}
 
     def check(self, instance):
-        required = ['mysql_host', 'mysql_user', 'rrd_path']
-        for param in required:
-            if not instance.get(param):
-                raise Exception("Cacti instance missing %s. Skipping." % (param))
-
-        # Load the instance configuration
-        host = instance.get('mysql_host')
-        user = instance.get('mysql_user')
-        password = instance.get('mysql_password', '') or ''
-        db = instance.get('mysql_db', 'cacti')
-        rrd_path = instance.get('rrd_path')
-        whitelist = instance.get('rrd_whitelist')
+        
+        # Load the instance config
+        host, user, password, db, rrd_path, whitelist, device_names = self._get_config(instance)
 
         # Generate an instance key to store state across checks
         key = self._instance_key(instance)
@@ -57,6 +48,21 @@ class Cacti(AgentCheck):
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 
         # Get whitelist patterns, if available
+        patterns = self._get_whitelist_patterns(whitelist)
+
+        # Fetch the RRD metadata from MySQL
+        db = self.dbs[key]
+        rrd_meta = self._fetch_rrd_meta(db, rrd_path, patterns, device_names)
+
+        # Load the metrics from each RRD, tracking the count as we go
+        metric_count = 0
+        for hostname, device_name, rrd_path in rrd_meta:
+            m_count = self._read_rrd(rrd_path, hostname, device_name)
+            metric_count += m_count
+
+        self.gauge('cacti.metrics.count', metric_count)
+
+    def _get_whitelist_patterns(self, whitelist):
         patterns = []
         if whitelist:
             if not os.path.isfile(whitelist) or not os.access(whitelist, os.R_OK):
@@ -69,17 +75,25 @@ class Cacti(AgentCheck):
                 patterns.append(line.strip())
             wl.close()
 
-        # Fetch the RRD metadata from MySQL
-        db = self.dbs[key]
-        rrd_meta = self._fetch_rrd_meta(db, rrd_path, patterns)
+        return patterns
 
-        # Load the metrics from each RRD, tracking the count as we go
-        metric_count = 0
-        for hostname, device_name, rrd_path in rrd_meta:
-            m_count = self._read_rrd(rrd_path, hostname, device_name)
-            metric_count += m_count
 
-        self.gauge('cacti.metrics.count', metric_count)
+    def _get_config(self, instance):
+        required = ['mysql_host', 'mysql_user', 'rrd_path']
+        for param in required:
+            if not instance.get(param):
+                raise Exception("Cacti instance missing %s. Skipping." % (param))
+
+        host = instance.get('mysql_host')
+        user = instance.get('mysql_user')
+        password = instance.get('mysql_password', '') or ''
+        db = instance.get('mysql_db', 'cacti')
+        rrd_path = instance.get('rrd_path')
+        whitelist = instance.get('rrd_whitelist')
+        field_names = instance.get('field_names', ['ifName', 'dskDevice'])
+
+        return host, user, password, db, rrd_path, whitelist, field_names
+
 
     def _read_rrd(self, rrd_path, hostname, device_name):
         ''' Main metric fetching method '''
@@ -110,7 +124,7 @@ class Cacti(AgentCheck):
             except rrdtool.error:
                 # Start time was out of range, skip this RRD
                 self.log.warn("Time %s out of range for %s" % (rrd_path, start))
-                return
+                return metric_count
 
             # Extract the data
             (start_ts, end_ts, interval) = fetched[0]
@@ -139,7 +153,7 @@ class Cacti(AgentCheck):
         ''' return a key unique for this instance '''
         return '|'.join([str(a) for a in args])
 
-    def _fetch_rrd_meta(self, db, rrd_path_root, whitelist):
+    def _fetch_rrd_meta(self, db, rrd_path_root, whitelist, field_names):
         ''' Fetch metadata about each RRD in this Cacti DB, returning a list of
             tuples of (hostname, device_name, rrd_path)
         '''
@@ -151,6 +165,8 @@ class Cacti(AgentCheck):
             return False
 
         c = db.cursor()
+
+        and_parameters = " OR ".join(["hsc.field_name = '%s'" % field_name for field_name in field_names])
 
         # Check for the existence of the `host_snmp_cache` table
         rrd_query = """
@@ -165,8 +181,8 @@ class Cacti(AgentCheck):
                     AND dl.snmp_index = hsc.snmp_index
             WHERE dt.data_source_path IS NOT NULL
             AND dt.data_source_path != ''
-            AND (hsc.field_name = 'ifName' OR hsc.field_name = 'dskDevice' OR hsc.field_name is NULL)
-        """
+            AND (%s OR hsc.field_name is NULL) """ % and_parameters
+            
         c.execute(rrd_query)
         res = []
         for hostname, device_name, rrd_path in c.fetchall():
