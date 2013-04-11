@@ -1,13 +1,11 @@
 import unittest
-import logging; logger = logging.getLogger(__file__)
 import os
 import tempfile
 
 from tests.common import load_check
 
-from checks.nagios import *
-
 NAGIOS_TEST_LOG = os.path.join(os.path.dirname(__file__), "nagios.log")
+
 
 class TestNagios(unittest.TestCase):
     def setUp(self):
