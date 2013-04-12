@@ -1,4 +1,6 @@
 init_config:
 
+# Each nagios log file must have a different path
 instances:
 #   -   log_file: /var/log/nagios3/nagios.log
+#   -   log_file: /var/log/other_nagios3/nagios.log

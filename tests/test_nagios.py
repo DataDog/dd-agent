@@ -18,6 +18,7 @@ class TestNagios(unittest.TestCase):
 
     def testParseLine(self):
         """Test line parser"""
+        self.check.event_count = 0
         counters = {}
 
         for line in open(NAGIOS_TEST_LOG).readlines():
@@ -82,6 +83,33 @@ class TestNagios(unittest.TestCase):
                 assert len([e for e in events if e["api_key"] == "123"]) > 500, "Missing api-keys in events"
         f.close()
         self.assertEquals(len(events), ITERATIONS * 503)
+
+    def testMultiInstance(self):
+        """Make sure the check can handle multiple instances"""
+        x = open(NAGIOS_TEST_LOG).readlines()
+        f = tempfile.NamedTemporaryFile(mode="a+b")
+        f2 = tempfile.NamedTemporaryFile(mode="a+b")
+
+        files = [f, f2]
+
+        instances = [
+            {'log_file': f.name},
+            {'log_file': f2.name}
+        ]
+
+        for index, instance in enumerate(instances):
+            cur_file = files[index]
+            # Open the file for an initial determination of position
+            self.check.check(instance)
+            for i in range(index):
+                cur_file.writelines(x)
+            cur_file.flush()
+            self.check.check(instance)
+            events = self.check.get_events()
+            assert len(events) == 503 * index
+
+        f.close()
+        f2.close()
 
 
 if __name__ == '__main__':
