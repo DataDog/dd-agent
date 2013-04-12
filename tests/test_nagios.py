@@ -18,7 +18,6 @@ class TestNagios(unittest.TestCase):
 
     def testParseLine(self):
         """Test line parser"""
-        self.check.event_count = 0
         counters = {}
 
         for line in open(NAGIOS_TEST_LOG).readlines():
