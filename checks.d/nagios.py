@@ -6,6 +6,7 @@ from checks.utils import TailFile
 
 
 class NagiosParsingError(Exception): pass
+class InvalidDataTemplate(Exception): pass
 
 
 class Nagios(AgentCheck):
@@ -78,7 +79,7 @@ class Nagios(AgentCheck):
 
     def _parse_line(self, line):
         """Actual nagios parsing
-        Return True if we found an event, False otherwise
+        Return True if we found an event, False Otherwise
         """
 
         # We need to use try/catch here because a specific return value
@@ -128,10 +129,29 @@ class Nagios(AgentCheck):
         self._line_parsed = 0
         self.event_count = 0
 
+        cfg_path = instance.get('cfg_file', None)
+
+        tail = None
+        gen = None
+        perf_data_parsers = None
+
+        instance_key = self._instance_key(instance)
+
+        if instance_key in self.tails:
+            tail = self.tails[instance_key]
+            gen = self.gens[instance_key]
+
+        if instance_key in self.perf_data_parsers:
+            perf_data_parsers = self.perf_data_parsers[instance_key]
+
         # Build our tail -f
         if self.gen is None:
             self.tail = TailFile(self.log, log_path, self._parse_line)
             self.gen = self.tail.tail(line_by_line=False)
+
+        if perf_data_parsers is None and cfg_path is not None:
+            perf_data_parsers = NagiosPerfData.init(self.log, cfg_path)
+            self.perf_data_parsers[instance_key] = perf_data_parsers
 
         # read until the end of file
         try:
@@ -154,6 +174,222 @@ class Nagios(AgentCheck):
                 'log_file': agentConfig.get('nagios_log')
             }]
         }
+
+
+class NagiosPerfData(object):
+    perfdata_field = ''  # Should be overriden by subclasses
+    metric_prefix = 'nagios'
+    pair_pattern = re.compile(r"".join([
+            r"'?(?P<label>[^=']+)'?=",
+            r"(?P<value>[-0-9.]+)",
+            r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
+            r"(;(?P<warn>@?[-0-9.~]*:?[-0-9.~]*))?",
+            r"(;(?P<crit>@?[-0-9.~]*:?[-0-9.~]*))?",
+            r"(;(?P<min>[-0-9.]*))?",
+            r"(;(?P<max>[-0-9.]*))?",
+        ]))
+
+    def __init__(self, logger, line_pattern, datafile):
+        if isinstance(line_pattern, (str, unicode)):
+            self.line_pattern = re.compile(line_pattern)
+        else:
+            self.line_pattern = line_pattern
+
+        self.logger = logger
+
+        self.log_path = datafile
+
+        self._gen = None
+        self._values = None
+        self._error_count = 0L
+        self._line_count = 0L
+        self.parser_state = {}
+
+    @classmethod
+    def init(cls, logger, cfg_path):
+        parsers = []
+        if cfg_path:
+            nagios_config = cls.parse_nagios_config(cfg_path)
+
+            host_parser = NagiosHostPerfData.init(logger, nagios_config)
+            if host_parser:
+                parsers.append(host_parser)
+
+            service_parser = NagiosServicePerfData.init(logger, nagios_config)
+            if service_parser:
+                parsers.append(service_parser)
+
+        return parsers
+
+    @staticmethod
+    def template_regex(file_template):
+        try:
+            # Escape characters that will be interpreted as regex bits
+            # e.g. [ and ] in "[SERVICEPERFDATA]"
+            #regex = re.sub(r'[[\]*]', r'.', file_template)
+            regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
+            return re.compile(regex)
+        except Exception, e:
+            raise InvalidDataTemplate("%s (%s)"% (file_template, e))
+
+
+    @staticmethod
+    def underscorize(s):
+        return s.replace(' ', '_').lower()
+
+    @classmethod
+    def parse_nagios_config(cls, filename):
+        output = {}
+        keys = [
+            'host_perfdata_file_template',
+            'service_perfdata_file_template',
+            'host_perfdata_file',
+            'service_perfdata_file',
+        ]
+
+        f = None
+        try:
+            try:
+                f = open(filename)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    for key in keys:
+                        if line.startswith(key + '='):
+                            eq_pos = line.find('=')
+                            if eq_pos:
+                                output[key] = line[eq_pos + 1:]
+                                break
+                return output
+            except:
+                # Can't parse, assume it's just not working
+                # Don't return an incomplete config
+                return {}
+        finally:
+            if f is not None:
+                f.close()
+
+    def _get_metric_prefix(self, data):
+        # Should be overridded by subclasses
+        return [self.metric_prefix]
+
+    def _parse_line(self, logger, line):
+        matched = self.line_pattern.match(line)
+        output = []
+        if matched:
+            data = matched.groupdict()
+            metric_prefix = self._get_metric_prefix(data)
+
+            # Parse the prefdata values, which are a space-delimited list of:
+            #   'label'=value[UOM];[warn];[crit];[min];[max]
+            perf_data = data.get(self.perfdata_field, '').split(' ')
+            for pair in perf_data:
+                pair_match = self.pair_pattern.match(pair)
+                if not pair_match:
+                    continue
+                else:
+                    pair_data = pair_match.groupdict()
+
+                label = pair_data['label']
+                timestamp = data.get('TIMET', '')
+                value = pair_data['value']
+                attributes = {'metric_type': 'gauge'}
+
+                if '/' in label:
+                    # Special case: if the label begins
+                    # with a /, treat the label as the device
+                    # and use the metric prefix as the metric name
+                    metric = '.'.join(metric_prefix)
+                    attributes['device_name'] = label
+
+                else:
+                    # Otherwise, append the label to the metric prefix
+                    # and use that as the metric name
+                    metric = '.'.join(metric_prefix + [label])
+
+                host_name = data.get('HOSTNAME', None)
+                if host_name:
+                    attributes['host_name'] = host_name
+
+                optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
+                for key in optional_keys:
+                    attr_val = pair_data.get(key, None)
+                    if attr_val is not None and attr_val != '':
+                        attributes[key] = attr_val
+
+                output.append((
+                    metric,
+                    timestamp,
+                    value,
+                    attributes
+                ))
+        return output
+
+    def check(self, agentConfig, move_end=True):
+        if self.log_path:
+            self._freq = int(agentConfig.get('check_freq', 15))
+            self._values = []
+            self._events = []
+
+            # Build our tail -f
+            if self._gen is None:
+                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
+
+            # read until the end of file
+            try:
+                self._gen.next()
+                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
+            except StopIteration, e:
+                self.logger.exception(e)
+                self.logger.warn("Can't tail %s file" % self.log_path)
+
+            check_output = self._aggregate(self._values)
+            if self._events:
+                check_output.update({"dogstreamEvents": self._events})
+            return check_output
+        else:
+            return {}
+
+
+class NagiosHostPerfData(NagiosPerfData):
+    perfdata_field = 'HOSTPERFDATA'
+
+    @classmethod
+    def init(cls, logger, nagios_config):
+        host_perfdata_file_template = nagios_config.get('host_perfdata_file_template', None)
+        host_perfdata_file = nagios_config.get('host_perfdata_file', None)
+
+        if host_perfdata_file_template and host_perfdata_file:
+            host_pattern = cls.template_regex(host_perfdata_file_template)
+            return cls(logger, host_pattern, host_perfdata_file)
+        else:
+            return None
+
+    def _get_metric_prefix(self, line_data):
+        return [self.metric_prefix, 'host']
+
+
+class NagiosServicePerfData(NagiosPerfData):
+    perfdata_field = 'SERVICEPERFDATA'
+
+    @classmethod
+    def init(cls, logger, nagios_config):
+        service_perfdata_file_template = nagios_config.get('service_perfdata_file_template', None)
+        service_perfdata_file = nagios_config.get('service_perfdata_file', None)
+
+        if service_perfdata_file_template and service_perfdata_file:
+            service_pattern = cls.template_regex(service_perfdata_file_template)
+            return cls(logger, service_pattern, service_perfdata_file)
+        else:
+            return None
+
+    def _get_metric_prefix(self, line_data):
+        metric = [self.metric_prefix]
+        middle_name = line_data.get('SERVICEDESC', None)
+        if middle_name:
+            metric.append(middle_name.replace(' ', '_').lower())
+        return metric
 
 if __name__ == "__main__":
     import logging
