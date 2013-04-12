@@ -196,7 +196,7 @@ class NagiosPerfData(object):
             r"(;(?P<max>[-0-9.]*))?",
         ]))
 
-    def __init__(self, logger, line_pattern, datafile):
+    def __init__(self, logger, line_pattern, log_path, agentConfig):
         if isinstance(line_pattern, (str, unicode)):
             self.line_pattern = re.compile(line_pattern)
         else:
@@ -204,7 +204,8 @@ class NagiosPerfData(object):
 
         self.logger = logger
 
-        self.log_path = datafile
+        self.log_path = log_path
+        self.agentConfig = agentConfig
 
         self._gen = None
         self._values = None
@@ -213,16 +214,16 @@ class NagiosPerfData(object):
         self.parser_state = {}
 
     @classmethod
-    def init(cls, logger, cfg_path):
+    def init(cls, logger, cfg_path, agentConfig):
         parsers = []
         if cfg_path:
             nagios_config = cls.parse_nagios_config(cfg_path)
 
-            host_parser = NagiosHostPerfData.init(logger, nagios_config)
+            host_parser = NagiosHostPerfData.init(logger, nagios_config, agentConfig)
             if host_parser:
                 parsers.append(host_parser)
 
-            service_parser = NagiosServicePerfData.init(logger, nagios_config)
+            service_parser = NagiosServicePerfData.init(logger, nagios_config, agentConfig)
             if service_parser:
                 parsers.append(service_parser)
 
@@ -333,15 +334,15 @@ class NagiosPerfData(object):
                 ))
         return output
 
-    def check(self, agentConfig, move_end=True):
+    def check(self):
         if self.log_path:
-            self._freq = int(agentConfig.get('check_freq', 15))
+            self._freq = int(self.agentConfig.get('check_freq', 15))
             self._values = []
             self._events = []
 
             # Build our tail -f
             if self._gen is None:
-                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False, move_end=move_end)
+                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False)
 
             # read until the end of file
             try:
@@ -363,13 +364,13 @@ class NagiosHostPerfData(NagiosPerfData):
     perfdata_field = 'HOSTPERFDATA'
 
     @classmethod
-    def init(cls, logger, nagios_config):
+    def init(cls, logger, nagios_config, agentConfig):
         host_perfdata_file_template = nagios_config.get('host_perfdata_file_template', None)
         host_perfdata_file = nagios_config.get('host_perfdata_file', None)
 
         if host_perfdata_file_template and host_perfdata_file:
             host_pattern = cls.template_regex(host_perfdata_file_template)
-            return cls(logger, host_pattern, host_perfdata_file)
+            return cls(logger, host_pattern, host_perfdata_file, agentConfig)
         else:
             return None
 
@@ -381,13 +382,13 @@ class NagiosServicePerfData(NagiosPerfData):
     perfdata_field = 'SERVICEPERFDATA'
 
     @classmethod
-    def init(cls, logger, nagios_config):
+    def init(cls, logger, nagios_config, agentConfig):
         service_perfdata_file_template = nagios_config.get('service_perfdata_file_template', None)
         service_perfdata_file = nagios_config.get('service_perfdata_file', None)
 
         if service_perfdata_file_template and service_perfdata_file:
             service_pattern = cls.template_regex(service_perfdata_file_template)
-            return cls(logger, service_pattern, service_perfdata_file)
+            return cls(logger, service_pattern, service_perfdata_file, agentConfig)
         else:
             return None
 
