@@ -4,5 +4,7 @@ instances:
 #    - url: localhost
 #      port: 11211
 #      tags: 
-#        - optional_tag1
-#        - optional_tag2
+#        # This is to be able to continue using the old 'instance:tag'
+#        # If no tags are passed in, a tag of 'instance:(url)_(port)' will be added
+#        - 'instance:instance_tag'
+#        - optional_regular_tag

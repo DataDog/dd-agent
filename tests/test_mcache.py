@@ -51,6 +51,38 @@ class TestMemCache(unittest.TestCase):
         # Check that we got 21 metrics for a specific host
         self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 21, r)
 
+    def testTagging(self):
+        instance = {
+            'url': 'localhost',
+            'port': 11211,
+            'tags': ['instance:mytag', 'regular_old_tag']
+        }
+
+        self.c.check(instance)
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        self.c.check(instance)
+
+        r = self.c.get_metrics()
+
+        # Check the tags
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mytag", "regular_old_tag"]]), 21, r)
+
+        instance = {
+            'url': 'localhost',
+            'port': 11211
+        }
+
+        self.c.check(instance)
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        self.c.check(instance)
+
+        r = self.c.get_metrics()
+
+        # Check the tags
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:localhost_11211"]]), 21, r)
+
     def testDummyHost(self):
         new_conf = self.c.parse_agent_config({"memcache_instance_1": "dummy:11211:myothertag"})
         self.assertRaises(Exception, self.c.check, new_conf['instances'][0])
