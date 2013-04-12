@@ -47,6 +47,8 @@ class Nagios(AgentCheck):
     }
 
     key = "Nagios"
+    RE_LINE_REG = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
+    RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -63,10 +65,10 @@ class Nagios(AgentCheck):
         self._line_parsed = 0
 
     def create_event(self, timestamp, event_type, fields):
-        # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
-        # but couldn't think of anything smarter
         hostname = get_hostname(self.agentConfig)
 
+        # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
+        # but couldn't think of anything smarter
         d = fields._asdict()
         d.update({'timestamp': timestamp, 'event_type': event_type, 'api_key': self.agentConfig.get('api_key', '')})
         # if host is localhost, turn that into the internal host name
@@ -82,13 +84,16 @@ class Nagios(AgentCheck):
         """Actual nagios parsing
         Return True if we found an event, False otherwise
         """
-        # first isolate the timestamp and the event type
+
+        # We need to use try/catch here because a specific return value
+        # of True or False is expected, and one line failing shouldn't
+        # cause the entire thing to fail
         try:
             self._line_parsed = self._line_parsed + 1
 
-            m = self.re_line_reg.match(line)
+            m = self.RE_LINE_REG.match(line)
             if m is None:
-                m = self.re_line_ext.match(line)
+                m = self.RE_LINE_EXT.match(line)
             if m is None:
                 return False
 
@@ -114,7 +119,6 @@ class Nagios(AgentCheck):
 
             return True
         except Exception, e:
-            self.log.warn("Unable to create a nagios event from line: [%s]" % (line))
             self.log.exception(e)
             return False
 
