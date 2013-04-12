@@ -55,7 +55,7 @@ class Cacti(AgentCheck):
         patterns = self._get_whitelist_patterns(config.whitelist)
 
         # Fetch the RRD metadata from MySQL
-        rrd_meta = self._fetch_rrd_meta(connection, config.rrd_path, patterns, config.device_names)
+        rrd_meta = self._fetch_rrd_meta(connection, config.rrd_path, patterns, config.field_names)
 
         # Load the metrics from each RRD, tracking the count as we go
         metric_count = 0
