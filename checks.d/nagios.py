@@ -152,7 +152,7 @@ class Nagios(AgentCheck):
         # Build our tail -f
         if gen is None:
             tail = TailFile(self.log, log_path, self._parse_line)
-            gen = self.tail.tail(line_by_line=False)
+            gen = tail.tail(line_by_line=False)
             self.tails[instance_key] = tail
             self.gens[instance_key] = gen
 
