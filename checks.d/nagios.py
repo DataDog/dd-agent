@@ -48,18 +48,23 @@ class Nagios(AgentCheck):
     }
 
     key = "Nagios"
+
+    # Regex alternation ends up being tricker than expected, and much less readable
     RE_LINE_REG = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
     RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
-        # Regex alternation ends up being tricker than expected, and much less readable
-        self.gen = None
-        self.tail = None
-        self.event_count = 0
+        self.gens = {}
+        self.tails = {}
+        self.perf_data_parsers = {}
 
         self._line_parsed = 0
+
+    def _instance_key(*args):
+        """ Return a key unique for this instance """
+        return '|'.join([str(a) for a in args])
 
     def create_event(self, timestamp, event_type, fields):
         hostname = get_hostname(self.agentConfig)
@@ -145,9 +150,11 @@ class Nagios(AgentCheck):
             perf_data_parsers = self.perf_data_parsers[instance_key]
 
         # Build our tail -f
-        if self.gen is None:
-            self.tail = TailFile(self.log, log_path, self._parse_line)
-            self.gen = self.tail.tail(line_by_line=False)
+        if gen is None:
+            tail = TailFile(self.log, log_path, self._parse_line)
+            gen = self.tail.tail(line_by_line=False)
+            self.tails[instance_key] = tail
+            self.gens[instance_key] = gen
 
         if perf_data_parsers is None and cfg_path is not None:
             perf_data_parsers = NagiosPerfData.init(self.log, cfg_path)
@@ -156,8 +163,8 @@ class Nagios(AgentCheck):
         # read until the end of file
         try:
             self.log.debug("Start nagios check for file %s" % (log_path))
-            self.tail._log = self.log
-            self.gen.next()
+            tail._log = self.log
+            gen.next()
             self.log.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
                 (log_path, self._line_parsed, self.event_count))
         except StopIteration, e:
