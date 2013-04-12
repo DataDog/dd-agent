@@ -54,10 +54,6 @@ class Nagios(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
         # Regex alternation ends up being tricker than expected, and much less readable
-        #self.re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
-        self.re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
-        self.re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
-
         self.gen = None
         self.tail = None
         self.event_count = 0
