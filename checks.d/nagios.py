@@ -1,15 +1,129 @@
-import time
 import re
-from checks import AgentCheck
+from checks.log_parser import LogParserCheck, LogParser
 from util import namedtuple, get_hostname
-from checks.utils import TailFile
 
 
 class NagiosParsingError(Exception): pass
 class InvalidDataTemplate(Exception): pass
 
 
-class Nagios(AgentCheck):
+class Nagios(LogParserCheck):
+
+    key = "Nagios"
+
+    def __init__(self, name, init_config, agentConfig):
+        LogParserCheck.__init__(self, name, init_config, agentConfig)
+
+    def create_event(self, event_data):
+        timestamp, event_type, fields = event_data
+        hostname = get_hostname(self.agentConfig)
+
+        # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
+        # but couldn't think of anything smarter
+        d = fields._asdict()
+        d.update({'timestamp': timestamp, 'event_type': event_type, 'api_key': self.agentConfig.get('api_key', '')})
+        # if host is localhost, turn that into the internal host name
+        host = d.get('host', None)
+        if host == "localhost":
+            d["host"] = hostname
+
+        self.log.debug("Nagios event: %s" % (d))
+        self.event(d)
+
+    def check(self, instance):
+
+        # Check arguments
+        log_path = instance.get('log_file', None)
+        if log_path is None:
+            raise Exception("Not checking nagios because 'log_file' is not set in nagios config")
+
+        cfg_path = instance.get('cfg_file', None)
+        tags = instance.get('tags', None)
+
+        instance_key = self._instance_key(instance)
+
+        parsers = []
+        if instance_key in self.parsers:
+            parsers = self.parsers[instance_key]
+
+        # Build our tail -f
+        if len(parsers) == 0:
+            nagios_log_parser = NagiosLogParser(self.log, log_path)
+            parsers.append(nagios_log_parser)
+
+            if cfg_path:
+                nagios_config = self.parse_nagios_config(cfg_path)
+
+                host_parser = NagiosHostPerfData(self.log, nagios_config)
+                if host_parser.tail:
+                    parsers.append(host_parser)
+
+                service_parser = NagiosServicePerfData(self.log, nagios_config)
+                if service_parser.tail:
+                    parsers.append(service_parser)
+
+            self.parsers[instance_key] = parsers
+
+        # read until the end of file
+        for parser in parsers:
+            parser.parse_file()
+            events = parser._get_events()
+            for event in events:
+                self.create_event(event)
+
+            metrics = parser._get_metrics()
+            from pprint import pprint
+            for metric in metrics:
+                pprint(metric)
+
+                self.gauge(metric['metric'], metric['value'], tags=tags, hostname=metric['hostname'], device_name=metric['device_name'], timestamp=metric['timestamp'])
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+        if not agentConfig.get('nagios_log'):
+            return False
+
+        return {
+            'instances': [{
+                'log_file': agentConfig.get('nagios_log')
+            }]
+        }
+
+    @classmethod
+    def parse_nagios_config(cls, filename):
+        output = {}
+        keys = [
+            'host_perfdata_file_template',
+            'service_perfdata_file_template',
+            'host_perfdata_file',
+            'service_perfdata_file',
+        ]
+
+        f = None
+        try:
+            try:
+                f = open(filename)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    for key in keys:
+                        if line.startswith(key + '='):
+                            eq_pos = line.find('=')
+                            if eq_pos:
+                                output[key] = line[eq_pos + 1:]
+                                break
+                return output
+            except:
+                # Can't parse, assume it's just not working
+                # Don't return an incomplete config
+                return {}
+        finally:
+            if f is not None:
+                f.close()
+
+
+class NagiosLogParser(LogParser):
 
     # Event types we know about but decide to ignore in the parser
     IGNORE_EVENT_TYPES = []
@@ -47,40 +161,12 @@ class Nagios(AgentCheck):
         'SERVICE DOWNTIME ALERT': namedtuple('E_ServiceDowntime', 'host, check_name, downtime_start_stop, payload'),
     }
 
-    key = "Nagios"
-
     # Regex alternation ends up being tricker than expected, and much less readable
     RE_LINE_REG = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
     RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
-
-        self.gens = {}
-        self.tails = {}
-        self.perf_data_parsers = {}
-
-        self._line_parsed = 0
-
-    def _instance_key(*args):
-        """ Return a key unique for this instance """
-        return '|'.join([str(a) for a in args])
-
-    def create_event(self, timestamp, event_type, fields):
-        hostname = get_hostname(self.agentConfig)
-
-        # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
-        # but couldn't think of anything smarter
-        d = fields._asdict()
-        d.update({'timestamp': timestamp, 'event_type': event_type, 'api_key': self.agentConfig.get('api_key', '')})
-        # if host is localhost, turn that into the internal host name
-        host = d.get('host', None)
-        if host == "localhost":
-            d["host"] = hostname
-
-        self.log.debug("Nagios event: %s" % (d))
-        self.event_count = self.event_count + 1
-        self.event(d)
+    def __init__(self, logger, log_path):
+        LogParser.__init__(self, logger, log_path)
 
     def _parse_line(self, line):
         """Actual nagios parsing
@@ -117,73 +203,15 @@ class Nagios(AgentCheck):
             # Chop parts we don't recognize
             parts = parts[:len(fields._fields)]
 
-            self.create_event(tstamp, event_type, fields._make(parts))
+            self.event_data.append((tstamp, event_type, fields._make(parts)))
 
             return True
         except Exception, e:
             self.log.exception(e)
             return False
 
-    def check(self, instance):
 
-        # Check arguments
-        log_path = instance.get('log_file', None)
-        if log_path is None:
-            raise Exception("Not checking nagios because 'log_file' is not set in nagios config")
-
-        self._line_parsed = 0
-        self.event_count = 0
-
-        cfg_path = instance.get('cfg_file', None)
-
-        tail = None
-        gen = None
-        perf_data_parsers = None
-
-        instance_key = self._instance_key(instance)
-
-        if instance_key in self.tails:
-            tail = self.tails[instance_key]
-            gen = self.gens[instance_key]
-
-        if instance_key in self.perf_data_parsers:
-            perf_data_parsers = self.perf_data_parsers[instance_key]
-
-        # Build our tail -f
-        if gen is None:
-            tail = TailFile(self.log, log_path, self._parse_line)
-            gen = tail.tail(line_by_line=False)
-            self.tails[instance_key] = tail
-            self.gens[instance_key] = gen
-
-        if perf_data_parsers is None and cfg_path is not None:
-            perf_data_parsers = NagiosPerfData.init(self.log, cfg_path)
-            self.perf_data_parsers[instance_key] = perf_data_parsers
-
-        # read until the end of file
-        try:
-            self.log.debug("Start nagios check for file %s" % (log_path))
-            tail._log = self.log
-            gen.next()
-            self.log.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
-                (log_path, self._line_parsed, self.event_count))
-        except StopIteration, e:
-            self.log.warn("Can't tail %s file" % (log_path))
-            raise
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('nagios_log'):
-            return False
-
-        return {
-            'instances': [{
-                'log_file': agentConfig.get('nagios_log')
-            }]
-        }
-
-
-class NagiosPerfData(object):
+class NagiosPerfData(LogParser):
     perfdata_field = ''  # Should be overriden by subclasses
     metric_prefix = 'nagios'
     pair_pattern = re.compile(r"".join([
@@ -196,95 +224,35 @@ class NagiosPerfData(object):
             r"(;(?P<max>[-0-9.]*))?",
         ]))
 
-    def __init__(self, logger, line_pattern, log_path, agentConfig):
+    def __init__(self, logger, line_pattern, log_path):
         if isinstance(line_pattern, (str, unicode)):
             self.line_pattern = re.compile(line_pattern)
         else:
             self.line_pattern = line_pattern
 
-        self.logger = logger
-
-        self.log_path = log_path
-        self.agentConfig = agentConfig
-
-        self._gen = None
-        self._values = None
-        self._error_count = 0L
-        self._line_count = 0L
-        self.parser_state = {}
-
-    @classmethod
-    def init(cls, logger, cfg_path, agentConfig):
-        parsers = []
-        if cfg_path:
-            nagios_config = cls.parse_nagios_config(cfg_path)
-
-            host_parser = NagiosHostPerfData.init(logger, nagios_config, agentConfig)
-            if host_parser:
-                parsers.append(host_parser)
-
-            service_parser = NagiosServicePerfData.init(logger, nagios_config, agentConfig)
-            if service_parser:
-                parsers.append(service_parser)
-
-        return parsers
+        LogParser.__init__(self, logger, log_path)
 
     @staticmethod
     def template_regex(file_template):
         try:
             # Escape characters that will be interpreted as regex bits
             # e.g. [ and ] in "[SERVICEPERFDATA]"
-            #regex = re.sub(r'[[\]*]', r'.', file_template)
+            regex = re.sub(r'[[\]*]', r'.', file_template)
             regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
             return re.compile(regex)
         except Exception, e:
-            raise InvalidDataTemplate("%s (%s)"% (file_template, e))
-
+            raise InvalidDataTemplate("%s (%s)" % (file_template, e))
 
     @staticmethod
     def underscorize(s):
         return s.replace(' ', '_').lower()
 
-    @classmethod
-    def parse_nagios_config(cls, filename):
-        output = {}
-        keys = [
-            'host_perfdata_file_template',
-            'service_perfdata_file_template',
-            'host_perfdata_file',
-            'service_perfdata_file',
-        ]
-
-        f = None
-        try:
-            try:
-                f = open(filename)
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    for key in keys:
-                        if line.startswith(key + '='):
-                            eq_pos = line.find('=')
-                            if eq_pos:
-                                output[key] = line[eq_pos + 1:]
-                                break
-                return output
-            except:
-                # Can't parse, assume it's just not working
-                # Don't return an incomplete config
-                return {}
-        finally:
-            if f is not None:
-                f.close()
-
     def _get_metric_prefix(self, data):
         # Should be overridded by subclasses
         return [self.metric_prefix]
 
-    def _parse_line(self, logger, line):
+    def _parse_line(self, line):
         matched = self.line_pattern.match(line)
-        output = []
         if matched:
             data = matched.groupdict()
             metric_prefix = self._get_metric_prefix(data)
@@ -302,14 +270,14 @@ class NagiosPerfData(object):
                 label = pair_data['label']
                 timestamp = data.get('TIMET', '')
                 value = pair_data['value']
-                attributes = {'metric_type': 'gauge'}
+                device_name = None
 
                 if '/' in label:
                     # Special case: if the label begins
                     # with a /, treat the label as the device
                     # and use the metric prefix as the metric name
                     metric = '.'.join(metric_prefix)
-                    attributes['device_name'] = label
+                    device_name = label
 
                 else:
                     # Otherwise, append the label to the metric prefix
@@ -317,62 +285,38 @@ class NagiosPerfData(object):
                     metric = '.'.join(metric_prefix + [label])
 
                 host_name = data.get('HOSTNAME', None)
-                if host_name:
-                    attributes['host_name'] = host_name
 
-                optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
-                for key in optional_keys:
-                    attr_val = pair_data.get(key, None)
-                    if attr_val is not None and attr_val != '':
-                        attributes[key] = attr_val
+                #optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
+                #for key in optional_keys:
+                #    attr_val = pair_data.get(key, None)
+                #    if attr_val is not None and attr_val != '':
+                #        attributes[key] = attr_val
 
-                output.append((
-                    metric,
-                    timestamp,
-                    value,
-                    attributes
-                ))
-        return output
+                self.metric_data.append({
+                    'metric': metric,
+                    'value': value,
+                    'hostname': host_name,
+                    'device_name': device_name,
+                    'timestamp': timestamp
+                })
+            # Matches have been processed
+            return True
 
-    def check(self):
-        if self.log_path:
-            self._freq = int(self.agentConfig.get('check_freq', 15))
-            self._values = []
-            self._events = []
-
-            # Build our tail -f
-            if self._gen is None:
-                self._gen = TailFile(self.logger, self.log_path, self._line_parser).tail(line_by_line=False)
-
-            # read until the end of file
-            try:
-                self._gen.next()
-                self.logger.debug("Done dogstream check for file %s, found %s metric points" % (self.log_path, len(self._values)))
-            except StopIteration, e:
-                self.logger.exception(e)
-                self.logger.warn("Can't tail %s file" % self.log_path)
-
-            check_output = self._aggregate(self._values)
-            if self._events:
-                check_output.update({"dogstreamEvents": self._events})
-            return check_output
-        else:
-            return {}
+        # No matches
+        return False
 
 
 class NagiosHostPerfData(NagiosPerfData):
     perfdata_field = 'HOSTPERFDATA'
 
-    @classmethod
-    def init(cls, logger, nagios_config, agentConfig):
+    def __init__(self, logger, nagios_config):
         host_perfdata_file_template = nagios_config.get('host_perfdata_file_template', None)
         host_perfdata_file = nagios_config.get('host_perfdata_file', None)
 
+        self.tail = None
         if host_perfdata_file_template and host_perfdata_file:
-            host_pattern = cls.template_regex(host_perfdata_file_template)
-            return cls(logger, host_pattern, host_perfdata_file, agentConfig)
-        else:
-            return None
+            host_pattern = NagiosPerfData.template_regex(host_perfdata_file_template)
+            NagiosPerfData.__init__(self, logger, host_pattern, host_perfdata_file)
 
     def _get_metric_prefix(self, line_data):
         return [self.metric_prefix, 'host']
@@ -381,35 +325,24 @@ class NagiosHostPerfData(NagiosPerfData):
 class NagiosServicePerfData(NagiosPerfData):
     perfdata_field = 'SERVICEPERFDATA'
 
-    @classmethod
-    def init(cls, logger, nagios_config, agentConfig):
+    def __init__(self, logger, nagios_config):
         service_perfdata_file_template = nagios_config.get('service_perfdata_file_template', None)
         service_perfdata_file = nagios_config.get('service_perfdata_file', None)
 
+        self.tail = None
         if service_perfdata_file_template and service_perfdata_file:
-            service_pattern = cls.template_regex(service_perfdata_file_template)
-            return cls(logger, service_pattern, service_perfdata_file, agentConfig)
-        else:
-            return None
+            service_pattern = NagiosPerfData.template_regex(service_perfdata_file_template)
+            return NagiosPerfData.__init__(self, logger, service_pattern, service_perfdata_file)
 
     def _get_metric_prefix(self, line_data):
         metric = [self.metric_prefix]
         middle_name = line_data.get('SERVICEDESC', None)
         if middle_name:
-            metric.append(middle_name.replace(' ', '_').lower())
+            metric.append(self.underscorize(middle_name))
         return metric
 
 if __name__ == "__main__":
-    import logging
 
     nagios = Nagios('nagios', {'init_config': {}, 'instances': {}}, {'api_key': 'apikey_2', 'nagios_log': '/var/log/nagios3/nagios.log'})
-    logger = logging.getLogger("ddagent.checks.nagios")
-    nagios = Nagios(get_hostname())
 
     config = {'api_key': 'apikey_2', 'nagios_log': '/var/log/nagios3/nagios.log'}
-    events = nagios.check(logger, config)
-    while True:
-        #for e in events:
-        #    print "Event:", e
-        time.sleep(5)
-        events = nagios.check(logger, config)

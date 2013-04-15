@@ -13,12 +13,33 @@ NAGIOS_TEST_SVC_TEMPLATE="[SERVICEPERFDATA]\t$TIMET$\t$HOSTNAME$\t$SERVICEDESC$\
 
 class TestNagios(unittest.TestCase):
     def setUp(self):
+        self.nagios_config = tempfile.NamedTemporaryFile()
+        self.nagios_config.flush()
         self.agentConfig = {
+            'nagios_perf_cfg': self.nagios_config.name,
+            'check_freq': 5,
             'api_key': '123'
         }
 
         # Initialize the check from checks.d
         self.check = load_check('nagios', {'init_config': {}, 'instances': {}}, self.agentConfig)
+
+    def _write_log(self, log_data):
+        for data in log_data:
+            print >> self.log_file, data
+        self.log_file.flush()
+
+    def _write_nagios_config(self, config_data):
+        for data in config_data:
+            print >> self.nagios_config, data
+        self.nagios_config.flush()
+
+    def _point_sorter(self, p):
+        # Sort and group by timestamp, metric name, host_name, device_name
+        return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
+
+    def tearDown(self):
+        self.nagios_config.close()
 
     def testParseLine(self):
         """Test line parser"""
@@ -76,8 +97,6 @@ class TestNagios(unittest.TestCase):
         f = tempfile.NamedTemporaryFile(mode="a+b")
         new_conf = self.check.parse_agent_config({"nagios_log": f.name})
 
-        # Open the file for an initial determination of position
-        self.check.check(new_conf['instances'][0])
         for i in range(ITERATIONS):
             f.write(x)
             f.flush()
@@ -103,11 +122,12 @@ class TestNagios(unittest.TestCase):
 
         for index, instance in enumerate(instances):
             cur_file = files[index]
-            # Open the file for an initial determination of position
-            self.check.check(instance)
+
+            # Give each of the files a different number of lines
             for i in range(index):
                 cur_file.writelines(x)
             cur_file.flush()
+
             self.check.check(instance)
             events = self.check.get_events()
             assert len(events) == 503 * index
@@ -115,47 +135,16 @@ class TestNagios(unittest.TestCase):
         f.close()
         f2.close()
 
-
-class TestNagiosPerfData(unittest.TestCase):
-    def setUp(self):
-        self.log_file = tempfile.NamedTemporaryFile()
-        self.logger = logging.getLogger('test.dogstream')
-        self.nagios_config = tempfile.NamedTemporaryFile()
-        self.nagios_config.flush()
-
-        self.agent_config = {
-            'nagios_perf_cfg': self.nagios_config.name,
-            'check_freq': 5,
-        }
-
-    def _write_log(self, log_data):
-        for data in log_data:
-            print >> self.log_file, data
-        self.log_file.flush()
-
-    def _write_nagios_config(self, config_data):
-        for data in config_data:
-            print >> self.nagios_config, data
-        self.nagios_config.flush()
-
-    def _point_sorter(self, p):
-        # Sort and group by timestamp, metric name, host_name, device_name
-        return (p[1], p[0], p[3].get('host_name', None), p[3].get('device_name', None))
-
-    def tearDown(self):
-        self.log_file.close()
-        self.nagios_config.close()
-
+"""
     def test_service_perfdata(self):
-        from checks.datadog import NagiosServicePerfData
+        self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
             "service_perfdata_file=%s" % self.log_file.name,
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        dogstream = Dogstreams.init(self.logger, self.agent_config)
-        self.assertEquals([NagiosServicePerfData], [d.__class__ for d in dogstream.dogstreams])
+        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -218,13 +207,17 @@ class TestNagiosPerfData(unittest.TestCase):
 
         self._write_log(('\t'.join(data) for data in log_data))
 
-        actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
+        self.check.check(instance)
+        actual_output = self.check.get_metrics()
+        from pprint import pprint
+        pprint(actual_output)
         actual_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
+        self.log_file.close()
 
     def test_service_perfdata_special_cases(self):
-        from checks.datadog import NagiosServicePerfData
+        self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
             "service_perfdata_file=%s" % self.log_file.name,
@@ -346,17 +339,15 @@ class TestNagiosPerfData(unittest.TestCase):
         actual_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
+        self.log_file.close()
 
     def test_host_perfdata(self):
-        from checks.datadog import NagiosHostPerfData
+        self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
             "host_perfdata_file=%s" % self.log_file.name,
             "host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$",
         ])
-
-        dogstream = Dogstreams.init(self.logger, self.agent_config)
-        self.assertEquals([NagiosHostPerfData], [d.__class__ for d in dogstream.dogstreams])
 
         log_data = [(
             "DATATYPE::HOSTPERFDATA",
@@ -397,6 +388,7 @@ class TestNagiosPerfData(unittest.TestCase):
         actual_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
+        self.log_file.close()
 
     def test_alt_service_perfdata(self):
         from checks.datadog import NagiosServicePerfData
@@ -427,7 +419,7 @@ class TestNagiosPerfData(unittest.TestCase):
 
         expected_output = {'dogstream': [('nagios.host.pl', 1339511440, 0.0, {'warn': '80', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '100', 'unit': '%'}), ('nagios.host.rta', 1339511440, 0.048, {'warn': '3000.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '5000.000000', 'unit': 'ms'})]}
         self.assertEquals(expected_output, actual_output)
-
+"""
 
 if __name__ == '__main__':
     unittest.main()
