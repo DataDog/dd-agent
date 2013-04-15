@@ -24,13 +24,14 @@ class Metric(object):
 class Gauge(Metric):
     """ A metric that tracks a value at particular points in time. """
 
-    def __init__(self, formatter, name, tags, hostname, device_name):
+    def __init__(self, formatter, name, tags, hostname, device_name, timestamp=None):
         self.formatter = formatter
         self.name = name
         self.value = None
         self.tags = tags
         self.hostname = hostname
         self.device_name = device_name
+        self.timestamp = timestamp
         self.last_sample_time = None
 
     def sample(self, value, sample_rate):
@@ -41,7 +42,7 @@ class Gauge(Metric):
         if self.value is not None:
             res = [self.formatter(
                 metric=self.name,
-                timestamp=timestamp,
+                timestamp=self.timestamp or timestamp,
                 value=self.value,
                 tags=self.tags,
                 hostname=self.hostname,
@@ -316,8 +317,13 @@ class MetricsAggregator(object):
             context = (name, tuple(sorted(set(tags))), hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
-            self.metrics[context] = metric_class(self.formatter, name, tags,
-                hostname or self.hostname, device_name)
+            if timestamp is not None:
+                timestamp = int(timestamp)
+                self.metrics[context] = metric_class(self.formatter, name, tags,
+                    hostname or self.hostname, device_name, timestamp)
+            else:
+                self.metrics[context] = metric_class(self.formatter, name, tags,
+                    hostname or self.hostname, device_name)
         self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
