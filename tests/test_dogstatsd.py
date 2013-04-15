@@ -160,6 +160,15 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(second['metric'], 'my.second.gauge')
         nt.assert_equals(second['points'][0][1], 1.5)
 
+        # Check custom timestamp on gauge submission
+        stats.gauge('gauge.with.timestamp', 1, tags=None, hostname=None, device_name=None, timestamp='1000000000')
+        metrics = stats.flush()
+        metric = metrics[0]
+
+        nt.assert_equals(metric['metric'], 'gauge.with.timestamp')
+        nt.assert_equals(metric['points'][0][1], 1)
+        nt.assert_equals(metric['points'][0][0], 1000000000)
+        nt.assert_equals(metric['host'], 'myhost')
 
     def test_sets(self):
         stats = MetricsAggregator('myhost')
