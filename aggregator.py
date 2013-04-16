@@ -3,6 +3,8 @@ from time import time
 
 log = logging.getLogger(__name__)
 
+RECENT_POINT_THRESHOLD_DEFAULT = 30
+
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
 
@@ -237,7 +239,7 @@ class MetricsAggregator(object):
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
 
-    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=30):
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=RECENT_POINT_THRESHOLD_DEFAULT):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -253,6 +255,9 @@ class MetricsAggregator(object):
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or api_formatter
         self.interval = float(interval)
+
+        if recent_point_threshold is None:
+            recent_point_threshold = RECENT_POINT_THRESHOLD_DEFAULT
         self.recent_point_threshold = int(recent_point_threshold)
         self.num_discarded_old_points = 0
 
