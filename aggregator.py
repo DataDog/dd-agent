@@ -327,7 +327,7 @@ class MetricsAggregator(object):
                 hostname or self.hostname, device_name)
         cur_time = time()
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
-            self.num_discarded_old_points = self.num_discarded_old_points + 1
+            self.num_discarded_old_points += 1
         else:
             self.metrics[context].sample(value, sample_rate)
 
