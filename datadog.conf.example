@@ -20,6 +20,11 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Set the threshold for accepting points to allow anything
+# with recent_point_threshold seconds
+# Defaults to 30 seconds if no value is provided
+#recent_point_threshold: 30
+
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
