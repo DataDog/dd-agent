@@ -237,7 +237,7 @@ class MetricsAggregator(object):
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
 
-    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=30):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -253,6 +253,8 @@ class MetricsAggregator(object):
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or api_formatter
         self.interval = float(interval)
+        self.recent_point_threshold = int(recent_point_threshold)
+        self.num_discarded_old_points = 0
 
     def packets_per_second(self, interval):
         return round(float(self.count)/interval, 2)
@@ -318,7 +320,11 @@ class MetricsAggregator(object):
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
                 hostname or self.hostname, device_name)
-        self.metrics[context].sample(value, sample_rate)
+        cur_time = time()
+        if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
+            self.num_discarded_old_points = self.num_discarded_old_points + 1
+        else:
+            self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
@@ -351,6 +357,11 @@ class MetricsAggregator(object):
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp, self.interval)
+
+        # Log a warning regarding metrics with old timestamps being submitted
+        if self.num_discarded_old_points > 0:
+            log.warn('%s points were discarded as a result of having an old timestamp' % self.num_discarded_old_points)
+            self.num_discarded_old_points = 0
 
         # Save some stats.
         log.debug("received %s payloads since last flush" % self.count)

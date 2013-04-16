@@ -160,6 +160,19 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(second['metric'], 'my.second.gauge')
         nt.assert_equals(second['points'][0][1], 1.5)
 
+        # Ensure that old gauges get dropped due to old timestamps
+        stats.gauge('my.first.gauge', 5)
+        stats.gauge('my.first.gauge', 1, timestamp=1000000000)
+        stats.gauge('my.second.gauge', 20, timestamp=1000000000)
+
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 1
+
+        first = metrics[0]
+
+        nt.assert_equals(first['metric'], 'my.first.gauge')
+        nt.assert_equals(first['points'][0][1], 5)
+        nt.assert_equals(first['host'], 'myhost')
 
     def test_sets(self):
         stats = MetricsAggregator('myhost')
