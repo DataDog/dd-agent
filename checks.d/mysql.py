@@ -103,9 +103,8 @@ class MySql(AgentCheck):
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()
             del cursor
-        except:
-            if self.log is not None:
-                self.log.exception("While running %s" % query)
+        except Exception, e:
+            self.log.debug("Error while running %s" % query)
 
     def _get_version(self, db, host):
         if host in self.mysql_version:
@@ -293,6 +292,7 @@ class MySql(AgentCheck):
                 'sock': agentConfig.get('mysql_sock',''),
                 'user': agentConfig.get('mysql_user',''),
                 'pass': agentConfig.get('mysql_pass',''),
+                'options': {'replication': True},
             }]
         }
         

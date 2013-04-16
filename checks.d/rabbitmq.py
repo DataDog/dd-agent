@@ -31,6 +31,9 @@ NODE_ATTRIBUTES = [
 MAX_QUEUES = 5
 MAX_NODES = 3
 
+QUEUE_LIMIT = 100
+NODE_LIMIT = 100
+
 class RabbitMQ(AgentCheck):
     """This check is for gathering statistics from the RabbitMQ
     Management Plugin (http://www.rabbitmq.com/management.html)
@@ -124,17 +127,25 @@ class RabbitMQ(AgentCheck):
             # Others will be aggregated
 
         i = 0
+        queue_Limit_reached = False
         for queue in queues:
             name = queue.get('name')
             if name in allowed_queues:
                 self._get_metrics_for_queue(queue, is_gauge=True, send_histogram=len(queues) > MAX_QUEUES)
+                allowed_queues.remove(name)
+            elif queue_Limit_reached:
+                if not allowed_queues:
+                    # We have reached the limit and we have already processed the config specified queues
+                    break
+                # We have reached the limit but some queues specified in the config still haven't been processed
+                continue
             else:
                 self._get_metrics_for_queue(queue)
 
             i += 1
-            if i > 100:
-                self.log.debug("More than 100 queues are present. Only collecting data using the 100 first")
-                break
+            if i > QUEUE_LIMIT:
+                self.log.debug("More than %s queues are present. Only collecting data using the 100 first" % QUEUE_LIMIT)
+                queue_Limit_reached = True
                 
 
     def get_node_stats(self, instance, base_url):
@@ -154,15 +165,22 @@ class RabbitMQ(AgentCheck):
             # Others will be aggregated
 
         i = 0
+        node_limit_reached = False
         for node in nodes:
             name = node.get('name')
             if name in allowed_nodes:
                 self._get_metrics_for_node(node, is_gauge=True, send_histogram=len(nodes) > MAX_NODES)
+                allowed_nodes.remove(name)
+            elif node_limit_reached:
+                if not allowed_nodes:
+                    # We have reached the limit and we have already processed the config specified nodes
+                    break
+                # We have reached the limit but some nodes specified in the config still haven't been processed
+                continue
             else:
                 self._get_metrics_for_node(node)
 
             i += 1
-            if i > 100:
-                self.log.debug("More than 100 nodes are present. Only collecting data using the 100 first")
-                break
-                
+            if i > NODE_LIMIT:
+                self.log.debug("More than %s nodes are present. Only collecting data using the 100 first" % NODE_LIMIT)
+                node_limit_reached = True
