@@ -13,6 +13,9 @@ from util import Watchdog
 class TestWatchdog(unittest.TestCase):
     """Test watchdog in various conditions
     """
+
+    JITTER_FACTOR = 2
+
     def test_watchdog(self):
         """Verify that watchdog kills ourselves even when spinning
         Verify that watchdog kills ourselves when hanging
@@ -23,7 +26,7 @@ class TestWatchdog(unittest.TestCase):
             raise Exception("Should have died with an error")
         except subprocess.CalledProcessError:
             duration = int(time.time() - start)
-            self.assertEquals(duration, 5)
+            self.assertTrue(duration < self.JITTER_FACTOR * 5)
 
         # Start pseudo web server
         subprocess.Popen(["nc", "-l", "31834"])
@@ -33,14 +36,14 @@ class TestWatchdog(unittest.TestCase):
             raise Exception("Should have died with an error")
         except subprocess.CalledProcessError:
             duration = int(time.time() - start)
-            self.assertEquals(duration, 5)
+            self.assertTrue(duration < self.JITTER_FACTOR * 5)
 
         # Normal loop, should run 5 times
         start = time.time()
         try:
             subprocess.check_call(["python", "tests/test_watchdog.py", "normal"])
             duration = int(time.time() - start)
-            self.assertEquals(duration, 5)
+            self.assertTrue(duration < self.JITTER_FACTOR * 5)
         except subprocess.CalledProcessError:
             self.fail("Watchdog killed normal process after %s seconds" % int(time.time() - start))
 
@@ -50,14 +53,14 @@ class TestWatchdog(unittest.TestCase):
         p.wait()
         duration = int(time.time() - start)
         # should die as soon as flush_trs has been called
-        self.assertEquals(duration, 10)
+        self.assertTrue(duration, self.JITTER_FACTOR * 10)
 
         # Slow tornado, killed by the Watchdog
         start = time.time()
         p = subprocess.Popen(["python", "tests/test_watchdog.py", "slow"])
         p.wait()
         duration = int(time.time() - start)
-        self.assertEquals(duration, 4)
+        self.assertTrue(duration < self.JITTER_FACTOR * 4)
 
 class MockTxManager(object):
     def flush(self):
