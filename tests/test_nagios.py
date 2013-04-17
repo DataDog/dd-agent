@@ -43,12 +43,23 @@ class TestNagios(unittest.TestCase):
 
     def testParseLine(self):
         """Test line parser"""
-        self.check.event_count = 0
+        import imp
+
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        nagiospy_source_path = os.path.join(cur_path, os.pardir, 'checks.d', 'nagios.py')
+        nagios_module = imp.load_source('checksd_nagios', nagiospy_source_path)
+
+        # Instantiate a dummy nagios log parser
+        log_parser = nagios_module.NagiosLogParser(self.check.log, None)
+
         counters = {}
 
         for line in open(NAGIOS_TEST_LOG).readlines():
-            parsed = self.check._parse_line(line)
+            parsed = log_parser._parse_line(line)
             if parsed:
+                # Handle the event created by the log parser by passing it into
+                # the create_event method of the check and then retrieving the result
+                self.check.create_event(log_parser._get_events()[-1])
                 event = self.check.get_events()[-1]
                 t = event["event_type"]
                 assert t in line
@@ -135,7 +146,6 @@ class TestNagios(unittest.TestCase):
         f.close()
         f2.close()
 
-"""
     def test_service_perfdata(self):
         self.log_file = tempfile.NamedTemporaryFile()
 
@@ -165,53 +175,31 @@ class TestNagios(unittest.TestCase):
             "SERVICESTATETYPE::HARD",
         )]
 
-        expected_output = [
-            ('nagios.pgsql_backends.time', 1000000000, 0.06, {
-                'metric_type': 'gauge',
-                'host_name': 'myhost0',
-            }),
-            ('nagios.pgsql_backends.db0',  1000000000,   33., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost0',
-                'warn': '180',
-                'crit': '190',
-                'min':    '0',
-                'max':  '200',
-            }),
-            ('nagios.pgsql_backends.db1',  1000000000,    1., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost0',
-                'warn': '150',
-                'crit': '190',
-                'min':    '0',
-                'max':  '200',
-            }),
-            ('nagios.pgsql_backends.db2',  1000000000,    0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost0',
-                'warn': '120',
-                'crit': '290',
-                'min':    '1',
-                'max':  '200',
-            }),
-            ('nagios.pgsql_backends.db3',  1000000000,    0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost0',
-                'warn': '110',
-                'crit': '195',
-                'min':    '5',
-                'max':  '100',
-            }),
-        ]
-        expected_output.sort(key=self._point_sorter)
-
         self._write_log(('\t'.join(data) for data in log_data))
 
         self.check.check(instance)
         actual_output = self.check.get_metrics()
-        from pprint import pprint
-        pprint(actual_output)
+        flush_timestamp = actual_output[0][1]
         actual_output.sort(key=self._point_sorter)
+
+        expected_output = [
+            ('nagios.pgsql_backends.time', flush_timestamp, 0.06, {
+                'hostname': 'myhost0'
+            }),
+            ('nagios.pgsql_backends.db0', flush_timestamp, 33, {
+                'hostname': 'myhost0'
+            }),
+            ('nagios.pgsql_backends.db1', flush_timestamp, 1, {
+                'hostname': 'myhost0'
+            }),
+            ('nagios.pgsql_backends.db2', flush_timestamp, 0, {
+                'hostname': 'myhost0'
+            }),
+            ('nagios.pgsql_backends.db3', flush_timestamp, 0, {
+                'hostname': 'myhost0'
+            })
+        ]
+        expected_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
         self.log_file.close()
@@ -224,8 +212,7 @@ class TestNagios(unittest.TestCase):
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        dogstream = Dogstreams.init(self.logger, self.agent_config)
-        self.assertEquals([NagiosServicePerfData], [d.__class__ for d in dogstream.dogstreams])
+        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -249,94 +236,48 @@ class TestNagios(unittest.TestCase):
             "SERVICESTATETYPE::HARD",
         )]
 
-        expected_output = [
-            ('nagios.disk_space', 1000000000, 5477., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/',
-                'unit': 'MB',
-                'warn': '6450',
-                'crit': '7256',
-                'min': '0',
-                'max': '8063',
-            }),
-            ('nagios.disk_space', 1000000000, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/dev',
-                'unit': 'MB',
-                'warn': '2970',
-                'crit': '3341',
-                'min': '0',
-                'max': '3713',
-            }),
-            ('nagios.disk_space', 1000000000, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/dev/shm',
-                'unit': 'MB',
-                'warn': '3080',
-                'crit': '3465',
-                'min': '0',
-                'max': '3851',
-            }),
-            ('nagios.disk_space', 1000000000, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/var/run',
-                'unit': 'MB',
-                'warn': '3080',
-                'crit': '3465',
-                'min': '0',
-                'max': '3851',
-            }),
-            ('nagios.disk_space', 1000000000, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/var/lock',
-                'unit': 'MB',
-                'warn': '3080',
-                'crit': '3465',
-                'min': '0',
-                'max': '3851',
-            }),
-            ('nagios.disk_space', 1000000000, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/lib/init/rw',
-                'unit': 'MB',
-                'warn': '3080',
-                'crit': '3465',
-                'min': '0',
-                'max': '3851',
-            }),
-            ('nagios.disk_space', 1000000000, 290., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/mnt',
-                'unit': 'MB',
-                'warn': '338636',
-                'crit': '380966',
-                'min': '0',
-                'max': '423296',
-            }),
-            ('nagios.disk_space', 1000000000, 39812., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost2',
-                'device_name': '/data',
-                'unit': 'MB',
-                'warn': '40940',
-                'crit': '46057',
-                'min': '0',
-                'max': '51175',
-            }),
-        ]
-        expected_output.sort(key=self._point_sorter)
-
         self._write_log(('\t'.join(data) for data in log_data))
 
-        actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
+        self.check.check(instance)
+        actual_output = self.check.get_metrics()
+        flush_timestamp = actual_output[0][1]
         actual_output.sort(key=self._point_sorter)
+
+        expected_output = [
+            ('nagios.disk_space', flush_timestamp, 5477, {
+                'hostname': 'myhost2',
+                'device_name': '/'
+            }),
+            ('nagios.disk_space', flush_timestamp, 0, {
+                'hostname': 'myhost2',
+                'device_name': '/dev'
+            }),
+            ('nagios.disk_space', flush_timestamp, 0, {
+                'hostname': 'myhost2',
+                'device_name': '/dev/shm'
+            }),
+            ('nagios.disk_space', flush_timestamp, 0, {
+                'hostname': 'myhost2',
+                'device_name': '/var/run'
+            }),
+            ('nagios.disk_space', flush_timestamp, 0, {
+                'hostname': 'myhost2',
+                'device_name': '/var/lock'
+            }),
+            ('nagios.disk_space', flush_timestamp, 0, {
+                'hostname': 'myhost2',
+                'device_name': '/lib/init/rw'
+            }),
+            ('nagios.disk_space', flush_timestamp, 290, {
+                'hostname': 'myhost2',
+                'device_name': '/mnt'
+            }),
+            ('nagios.disk_space', flush_timestamp, 39812, {
+                'hostname': 'myhost2',
+                'device_name': '/data'
+            })
+        ]
+        expected_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
         self.log_file.close()
@@ -348,6 +289,8 @@ class TestNagios(unittest.TestCase):
             "host_perfdata_file=%s" % self.log_file.name,
             "host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$",
         ])
+
+        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::HOSTPERFDATA",
@@ -362,64 +305,83 @@ class TestNagios(unittest.TestCase):
             "HOSTSTATETYPE::HARD",
         )]
 
-        expected_output = [
-            ('nagios.host.rta', 1000000010, 0.978, {
-                'metric_type': 'gauge',
-                'host_name': 'myhost1',
-                'unit': 'ms',
-                'warn': '5000.000000',
-                'crit': '5000.000000',
-                'min': '0.000000'
-            }),
-            ('nagios.host.pl',  1000000010, 0., {
-                'metric_type': 'gauge',
-                'host_name': 'myhost1',
-                'unit': '%',
-                'warn': '100',
-                'crit': '100',
-                'min': '0'
-            }),
-        ]
-        expected_output.sort(key=self._point_sorter)
-
         self._write_log(('\t'.join(data) for data in log_data))
 
-        actual_output = dogstream.check(self.agent_config, move_end=False)['dogstream']
+        self.check.check(instance)
+        actual_output = self.check.get_metrics()
+        flush_timestamp = actual_output[0][1]
         actual_output.sort(key=self._point_sorter)
+
+        expected_output = [
+            ('nagios.host.rta', flush_timestamp, 0.978, {
+                'hostname': 'myhost1'
+            }),
+            ('nagios.host.pl', flush_timestamp, 0, {
+                'hostname': 'myhost1'
+            })
+        ]
+        expected_output.sort(key=self._point_sorter)
 
         self.assertEquals(expected_output, actual_output)
         self.log_file.close()
 
     def test_alt_service_perfdata(self):
-        from checks.datadog import NagiosServicePerfData
-
         self._write_nagios_config([
             "service_perfdata_file=%s" % NAGIOS_TEST_SVC,
             "service_perfdata_file_template=%s" % NAGIOS_TEST_SVC_TEMPLATE,
         ])
 
-        dogstream = Dogstreams.init(self.logger, self.agent_config)
-        self.assertEquals([NagiosServicePerfData], [d.__class__ for d in dogstream.dogstreams])
-        actual_output = dogstream.check(self.agent_config, move_end=False)
+        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
 
-        expected_output = {'dogstream': [('nagios.current_users.users', 1339511440, 1.0, {'metric_type': 'gauge', 'warn': '20', 'host_name': 'localhost', 'crit': '50', 'min': '0'}), ('nagios.ping.pl', 1339511500, 0.0, {'warn': '20', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '60', 'unit': '%'}), ('nagios.ping.rta', 1339511500, 0.065, {'warn': '100.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '500.000000', 'unit': 'ms'}), ('nagios.root_partition', 1339511560, 2470.0, {'min': '0', 'max': '7315', 'device_name': '/', 'warn': '5852', 'metric_type': 'gauge', 'host_name': 'localhost', 'crit': '6583', 'unit': 'MB'})]}
+        self.check.check(instance)
+        actual_output = self.check.get_metrics()
+        flush_timestamp = actual_output[0][1]
+        actual_output.sort(key=self._point_sorter)
+
+        expected_output = [
+            ('nagios.current_users.users', flush_timestamp, 1.0, {
+                'hostname': 'localhost'
+            }),
+            ('nagios.ping.pl', flush_timestamp, 0.0, {
+                'hostname': 'localhost'
+            }),
+            ('nagios.ping.rta', flush_timestamp, 0.065, {
+                'hostname': 'localhost'
+            }),
+            ('nagios.root_partition', flush_timestamp, 2470.0, {
+                'hostname': 'localhost',
+                'device_name': '/'
+            })
+        ]
+        expected_output.sort(key=self._point_sorter)
+
         self.assertEquals(expected_output, actual_output)
 
     def test_alt_host_perfdata(self):
-        from checks.datadog import NagiosHostPerfData
 
         self._write_nagios_config([
             "host_perfdata_file=%s" % NAGIOS_TEST_HOST,
             "host_perfdata_file_template=%s" % NAGIOS_TEST_HOST_TEMPLATE,
         ])
 
-        dogstream = Dogstreams.init(self.logger, self.agent_config)
-        self.assertEquals([NagiosHostPerfData], [d.__class__ for d in dogstream.dogstreams])
-        actual_output = dogstream.check(self.agent_config, move_end=False)
+        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
 
-        expected_output = {'dogstream': [('nagios.host.pl', 1339511440, 0.0, {'warn': '80', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0', 'crit': '100', 'unit': '%'}), ('nagios.host.rta', 1339511440, 0.048, {'warn': '3000.000000', 'metric_type': 'gauge', 'host_name': 'localhost', 'min': '0.000000', 'crit': '5000.000000', 'unit': 'ms'})]}
+        self.check.check(instance)
+        actual_output = self.check.get_metrics()
+        flush_timestamp = actual_output[0][1]
+        actual_output.sort(key=self._point_sorter)
+
+        expected_output = [
+            ('nagios.host.pl', flush_timestamp, 0.0, {
+                'hostname': 'localhost'
+            }),
+            ('nagios.host.rta', flush_timestamp, 0.048, {
+                'hostname': 'localhost'
+            })
+        ]
+        expected_output.sort(key=self._point_sorter)
+
         self.assertEquals(expected_output, actual_output)
-"""
 
 if __name__ == '__main__':
     unittest.main()

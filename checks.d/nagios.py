@@ -72,11 +72,8 @@ class Nagios(LogParserCheck):
                 self.create_event(event)
 
             metrics = parser._get_metrics()
-            from pprint import pprint
             for metric in metrics:
-                pprint(metric)
-
-                self.gauge(metric['metric'], metric['value'], tags=tags, hostname=metric['hostname'], device_name=metric['device_name'], timestamp=metric['timestamp'])
+                self.gauge(metric['metric'], float(metric['value']), tags=tags, hostname=metric['hostname'], device_name=metric['device_name'])
 
     @staticmethod
     def parse_agent_config(agentConfig):
@@ -285,12 +282,6 @@ class NagiosPerfData(LogParser):
                     metric = '.'.join(metric_prefix + [label])
 
                 host_name = data.get('HOSTNAME', None)
-
-                #optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
-                #for key in optional_keys:
-                #    attr_val = pair_data.get(key, None)
-                #    if attr_val is not None and attr_val != '':
-                #        attributes[key] = attr_val
 
                 self.metric_data.append({
                     'metric': metric,
