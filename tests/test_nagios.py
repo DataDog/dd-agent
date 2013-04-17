@@ -106,7 +106,12 @@ class TestNagios(unittest.TestCase):
         events = []
         ITERATIONS = 10
         f = tempfile.NamedTemporaryFile(mode="a+b")
-        new_conf = self.check.parse_agent_config({"nagios_log": f.name})
+
+        self._write_nagios_config([
+            "log_file=%s" % f.name,
+        ])
+
+        new_conf = self.check.parse_agent_config(self.agentConfig)
 
         for i in range(ITERATIONS):
             f.write(x)
@@ -121,18 +126,18 @@ class TestNagios(unittest.TestCase):
     def testMultiInstance(self):
         """Make sure the check can handle multiple instances"""
         x = open(NAGIOS_TEST_LOG).readlines()
-        f = tempfile.NamedTemporaryFile(mode="a+b")
-        f2 = tempfile.NamedTemporaryFile(mode="a+b")
+        log_f = tempfile.NamedTemporaryFile(mode="a+b")
+        log_f2 = tempfile.NamedTemporaryFile(mode="a+b")
 
-        files = [f, f2]
+        log_files = [log_f, log_f2]
 
         instances = [
-            {'log_file': f.name},
-            {'log_file': f2.name}
+            {'log_file': log_f.name},
+            {'log_file': log_f2.name}
         ]
 
         for index, instance in enumerate(instances):
-            cur_file = files[index]
+            cur_file = log_files[index]
 
             # Give each of the files a different number of lines
             for i in range(index):
@@ -143,18 +148,19 @@ class TestNagios(unittest.TestCase):
             events = self.check.get_events()
             assert len(events) == 503 * index
 
-        f.close()
-        f2.close()
+        log_f.close()
+        log_f2.close()
 
     def test_service_perfdata(self):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
+            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % self.log_file.name,
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
+        instance = {'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -208,11 +214,12 @@ class TestNagios(unittest.TestCase):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
+            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % self.log_file.name,
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
+        instance = {'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -286,11 +293,12 @@ class TestNagios(unittest.TestCase):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
+            "log_file=%s" % NAGIOS_TEST_LOG,
             "host_perfdata_file=%s" % self.log_file.name,
             "host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$",
         ])
 
-        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
+        instance = {'cfg_file': self.nagios_config.name}
 
         log_data = [(
             "DATATYPE::HOSTPERFDATA",
@@ -327,11 +335,12 @@ class TestNagios(unittest.TestCase):
 
     def test_alt_service_perfdata(self):
         self._write_nagios_config([
+            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % NAGIOS_TEST_SVC,
             "service_perfdata_file_template=%s" % NAGIOS_TEST_SVC_TEMPLATE,
         ])
 
-        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
+        instance = {'cfg_file': self.nagios_config.name}
 
         self.check.check(instance)
         actual_output = self.check.get_metrics()
@@ -360,6 +369,7 @@ class TestNagios(unittest.TestCase):
     def test_alt_host_perfdata(self):
 
         self._write_nagios_config([
+            "log_file=%s" % NAGIOS_TEST_LOG,
             "host_perfdata_file=%s" % NAGIOS_TEST_HOST,
             "host_perfdata_file_template=%s" % NAGIOS_TEST_HOST_TEMPLATE,
         ])

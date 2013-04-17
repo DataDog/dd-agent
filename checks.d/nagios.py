@@ -33,11 +33,11 @@ class Nagios(LogParserCheck):
     def check(self, instance):
 
         # Check arguments
-        log_path = instance.get('log_file', None)
-        if log_path is None:
-            raise Exception("Not checking nagios because 'log_file' is not set in nagios config")
-
         cfg_path = instance.get('cfg_file', None)
+        log_path = instance.get('log_file', None)
+        if cfg_path is None and log_path is None:
+            raise Exception("Not checking nagios because 'cfg_file' is not set in nagios config")
+
         tags = instance.get('tags', None)
 
         instance_key = self._instance_key(instance)
@@ -48,9 +48,7 @@ class Nagios(LogParserCheck):
 
         # Build our tail -f
         if len(parsers) == 0:
-            nagios_log_parser = NagiosLogParser(self.log, log_path)
-            parsers.append(nagios_log_parser)
-
+            nagios_config = {}
             if cfg_path:
                 nagios_config = self.parse_nagios_config(cfg_path)
 
@@ -61,6 +59,13 @@ class Nagios(LogParserCheck):
                 service_parser = NagiosServicePerfData(self.log, nagios_config)
                 if service_parser.tail:
                     parsers.append(service_parser)
+
+            log_file = nagios_config.get('log_file', log_path)
+            if not log_file:
+                raise Exception("Nagios configuration file does not have an entry for 'log_file'. Please ensure this is set.")
+
+            nagios_log_parser = NagiosLogParser(self.log, log_file)
+            parsers.append(nagios_log_parser)
 
             self.parsers[instance_key] = parsers
 
@@ -77,19 +82,29 @@ class Nagios(LogParserCheck):
 
     @staticmethod
     def parse_agent_config(agentConfig):
-        if not agentConfig.get('nagios_log'):
+        cfg_file = agentConfig.get('nagios_perf_cfg', None)
+        log_file = agentConfig.get('nagios_log', None)
+
+        if not log_file and not cfg_file:
             return False
 
+        instance = {}
+
+        if cfg_file:
+            instance['cfg_file'] = cfg_file
+
+        if log_file:
+            instance['log_file'] = log_file
+
         return {
-            'instances': [{
-                'log_file': agentConfig.get('nagios_log')
-            }]
+            'instances': [instance]
         }
 
     @classmethod
     def parse_nagios_config(cls, filename):
         output = {}
         keys = [
+            'log_file',
             'host_perfdata_file_template',
             'service_perfdata_file_template',
             'host_perfdata_file',

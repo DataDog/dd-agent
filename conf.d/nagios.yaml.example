@@ -3,17 +3,15 @@
 # For more information on perfdata configuration, please refer to
 # http://nagios.sourceforge.net/docs/3_0/perfdata.html
 #
-# Path to Nagios' ***configuration*** file where the properties
+# Path to Nagios' ***configuration*** file where the properties log_file,
 # host|service_perfdata_file and host|service_perfdata_file_template
 # are defined.
 
 init_config:
 
-# Each nagios log file must have a different path
+# Each nagios cfg file must have a different path
 instances:
-#   -   log_file: /var/log/nagios3/nagios.log
-#   -   log_file: /var/log/other_nagios3/nagios.log
 # (ubuntu 10.04)
-#       cfg_file: /etc/nagios3/nagios.cfg
+#   -   cfg_file: /etc/nagios3/nagios.cfg
 # (centos 5)
-#       cfg_file: /etc/nagios/nagios.cfg
+#   -   cfg_file: /etc/nagios/nagios.cfg
