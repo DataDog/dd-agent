@@ -239,7 +239,7 @@ class MetricsAggregator(object):
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
 
-    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=RECENT_POINT_THRESHOLD_DEFAULT):
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
