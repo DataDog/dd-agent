@@ -411,6 +411,9 @@ def get_system_stats():
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '')  # no codename for FreeBSD
 
+    elif sys.platform == 'win32':
+        systemStats['winV'] = platform.win32_ver()
+
     return systemStats
 
 
