@@ -2,7 +2,7 @@ import unittest
 import subprocess
 import os
 import sys
-from random import random
+from random import random, randrange
 import urllib as url
 import time
 sys.path.append(os.getcwd())
@@ -62,11 +62,25 @@ class TestWatchdog(unittest.TestCase):
         duration = int(time.time() - start)
         self.assertTrue(duration < self.JITTER_FACTOR * 4)
 
+        # Too much memory used, killed by Watchdog
+        start = time.time()
+        p = subprocess.Popen(["python", "tests/test_watchdog.py", "memory"])
+        p.wait()
+        duration = int(time.time() - start)
+        # process should be killed well before the restart interval of 30.
+        assert duration < 20
+
 class MockTxManager(object):
     def flush(self):
         "Pretend to flush for a long time"
         time.sleep(5)
         sys.exit(0)
+
+class MemoryHogTxManager(object):
+    def flush(self):
+        rand_data = []
+        while True:
+          rand_data.append('%030x' % randrange(256**15))
 
 class PseudoAgent(object):
     """Same logic as the agent, simplified"""
@@ -103,6 +117,12 @@ class PseudoAgent(object):
         a._tr_manager = MockTxManager()
         a.run()
 
+    def use_lots_of_memory(self):
+        a = Application(12345, {})
+        a._watchdog = Watchdog(30, 50)
+        a._tr_manager = MemoryHogTxManager()
+        a.run()
+
 if __name__ == "__main__":
     if sys.argv[1] == "busy":
         a = PseudoAgent()
@@ -122,3 +142,6 @@ if __name__ == "__main__":
     elif sys.argv[1] == "test":
         t = TestWatchdog()
         t.runTest()
+    elif sys.argv[1] == "memory":
+        a = PseudoAgent()
+        a.use_lots_of_memory()
