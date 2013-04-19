@@ -1,9 +1,7 @@
 import unittest
-import logging
 import os
 import time
 from subprocess import Popen, PIPE
-from nose.plugins.skip import SkipTest
 
 from tests.common import load_check
 
@@ -55,7 +53,7 @@ class TestMemCache(unittest.TestCase):
         instance = {
             'url': 'localhost',
             'port': 11211,
-            'tags': ['instance:mytag', 'regular_old_tag']
+            'tags': ['regular_old_tag']
         }
 
         self.c.check(instance)
@@ -66,12 +64,13 @@ class TestMemCache(unittest.TestCase):
         r = self.c.get_metrics()
 
         # Check the tags
-        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mytag", "regular_old_tag"]]), 21, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["regular_old_tag"]]), 21, r)
 
-        instance = {
-            'url': 'localhost',
-            'port': 11211
+        conf = {
+            'memcache_server': 'localhost',
+            'memcache_port': 11211
         }
+        instance = self.c.parse_agent_config(conf)['instances'][0]
 
         self.c.check(instance)
         # Sleep for 1 second so the rate interval >=1
@@ -106,7 +105,6 @@ class TestMemCache(unittest.TestCase):
             self.assertEquals(end - start, 0, gc.garbage)
         finally:
             gc.set_debug(0)
-
 
 
 if __name__ == '__main__':
