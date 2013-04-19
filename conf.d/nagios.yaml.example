@@ -9,7 +9,7 @@
 
 init_config:
 
-# Each nagios cfg file must have a different path
+# Each nagios config file must have a different path
 instances:
 # (ubuntu 10.04)
 #   -   cfg_file: /etc/nagios3/nagios.cfg
