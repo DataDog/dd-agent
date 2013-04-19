@@ -262,8 +262,7 @@ class MetricsAggregator(object):
         self.formatter = formatter or api_formatter
         self.interval = float(interval)
 
-        if recent_point_threshold is None:
-            recent_point_threshold = RECENT_POINT_THRESHOLD_DEFAULT
+        recent_point_threshold = recent_point_threshold or RECENT_POINT_THRESHOLD_DEFAULT
         self.recent_point_threshold = int(recent_point_threshold)
         self.num_discarded_old_points = 0
 
