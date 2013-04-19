@@ -70,21 +70,18 @@ class Memcache(AgentCheck):
     ]
 
     RATES = [
-        "rusage_user_rate",
-        "rusage_system_rate",
-        "cmd_get_rate",
-        "cmd_set_rate",
-        "cmd_flush_rate",
-        "get_hits_rate",
-        "get_misses_rate",
-        "evictions_rate",
-        "bytes_read_rate",
-        "bytes_written_rate",
-        "total_connections_rate"
+        "rusage_user",
+        "rusage_system",
+        "cmd_get",
+        "cmd_set",
+        "cmd_flush",
+        "get_hits",
+        "get_misses",
+        "evictions",
+        "bytes_read",
+        "bytes_written",
+        "total_connections"
     ]
-
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
 
     def _get_metrics(self, server, port, tags, memcache):
         mc = None  # client
@@ -104,7 +101,7 @@ class Memcache(AgentCheck):
 
                 # Tweak the name if it's a rate so that we don't use the exact
                 # same metric name as the memcache documentation
-                if metric + "_rate" in self.RATES:
+                if metric in self.RATES:
                     our_metric = self.normalize(metric.lower() + "_rate", 'memcache')
                     self.rate(our_metric, float(stats[metric]), tags=tags)
 
