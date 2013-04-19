@@ -104,18 +104,6 @@ use_mount: no
 #cassandra_port: 8080
 
 # -------------------------------------------------------------------------- #
-#  Memcache
-# -------------------------------------------------------------------------- #
-# You can set multiple memcache instances, using the schema below
-# You can set a tag (optional), your memcache metrics will then be tagged
-# instance:your_tag or instance:host_port if you don't specify one
-
-#memcache_instance_1: localhost:11211:first_tag
-#memcache_instance_2: second_host:second_port:second_tag
-#memcache_instance_3: third_host:third_port:third_tag
-# ...
-
-# -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)
 # -------------------------------------------------------------------------- #
 

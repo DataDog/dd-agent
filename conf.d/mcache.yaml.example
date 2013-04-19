@@ -1,0 +1,11 @@
+init_config:
+
+instances:
+#    - url: localhost  # url used to connect to the memcached instance
+#      port: 11211
+#      tags: 
+#        # In order to be able to continue using the old 'instance:tag', include it below it single quotes
+#        # Any other tags desired can simply be a string value
+#        # If no tags are passed in, a tag of 'instance:(url)_(port)' will be added
+#        - 'instance:instance_tag'
+#        - optional_regular_tag

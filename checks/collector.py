@@ -16,7 +16,6 @@ from config import get_version
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
-from checks.db.mcache import Memcache
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
@@ -80,10 +79,7 @@ class Collector(object):
         # Agent Metrics
         self._agent_metrics = CollectorMetrics(log)
 
-        # Metric Checks
-        self._metrics_checks = [
-            Memcache(log),
-        ]
+        self._metrics_checks = []
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:

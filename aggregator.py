@@ -3,10 +3,17 @@ from time import time
 
 log = logging.getLogger(__name__)
 
+# This is used to ensure that metrics with a timestamp older than
+# RECENT_POINT_THRESHOLD_DEFAULT seconds (or the value passed in to
+# the MetricsAggregator constructor) get discarded rather than being
+# input into the incorrect bucket. Currently, the MetricsAggregator
+# does not support submitting values for the past, and all values get
+# submitted for the timestamp passed into the flush() function.
 RECENT_POINT_THRESHOLD_DEFAULT = 30
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
+
 
 class Metric(object):
     """
@@ -230,7 +237,6 @@ class Rate(Metric):
             self.samples = self.samples[-1:]
 
 
-
 class MetricsAggregator(object):
     """
     A metric aggregator class.
@@ -247,8 +253,8 @@ class MetricsAggregator(object):
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram,
-            's'  : Set,
+            'ms': Histogram,
+            's': Set,
             '_dd-r': Rate,
         }
         self.hostname = hostname
@@ -256,8 +262,7 @@ class MetricsAggregator(object):
         self.formatter = formatter or api_formatter
         self.interval = float(interval)
 
-        if recent_point_threshold is None:
-            recent_point_threshold = RECENT_POINT_THRESHOLD_DEFAULT
+        recent_point_threshold = recent_point_threshold or RECENT_POINT_THRESHOLD_DEFAULT
         self.recent_point_threshold = int(recent_point_threshold)
         self.num_discarded_old_points = 0
 
@@ -377,6 +382,7 @@ class MetricsAggregator(object):
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
 
+
 def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
 
     # Workaround for a bug in minjson serialization
@@ -384,9 +390,9 @@ def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
         tags = list(tags)
     return {
-        'metric' : metric,
-        'points' : [(timestamp, value)],
-        'tags' : tags,
-        'host' : hostname,
+        'metric': metric,
+        'points': [(timestamp, value)],
+        'tags': tags,
+        'host': hostname,
         'device_name': device_name
     }
