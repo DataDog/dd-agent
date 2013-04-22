@@ -12,30 +12,30 @@ class IIS(AgentCheck):
         ('iis.net.bytes_rcvd', 'gauge', 'BytesReceivedPerSec'),
         ('iis.net.bytes_total', 'gauge', 'BytesTotalPerSec'),
         ('iis.net.num_connections', 'gauge', 'CurrentConnections'),
-        ('iis.net.files_sent', 'gauge', 'FilesSentPerSec'),
-        ('iis.net.files_rcvd', 'gauge', 'FilesReceivedPerSec'),
-        ('iis.net.connection_attempts', 'gauge', 'ConnectionAttemptsPerSec'),
+        ('iis.net.files_sent', 'rate', 'TotalFilesSent'),
+        ('iis.net.files_rcvd', 'rate', 'TotalFilesReceived'),
+        ('iis.net.connection_attempts', 'rate', 'TotalConnectionAttemptsAllInstances'),
 
         # HTTP Methods
-        ('iis.httpd_request_method.get', 'gauge', 'GetRequestsPerSec'),
-        ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),
-        ('iis.httpd_request_method.head', 'gauge', 'HeadRequestsPerSec'),
-        ('iis.httpd_request_method.put', 'gauge', 'PutRequestsPerSec'),
-        ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
-        ('iis.httpd_request_method.options', 'gauge', 'OptionsRequestsPerSec'),
-        ('iis.httpd_request_method.trace', 'gauge', 'TraceRequestsPerSec'),
+        ('iis.httpd_request_method.get', 'rate', 'TotalGetRequests'),
+        ('iis.httpd_request_method.post', 'rate', 'TotalPostRequests'),
+        ('iis.httpd_request_method.head', 'rate', 'TotalHeadRequests'),
+        ('iis.httpd_request_method.put', 'rate', 'TotalPutRequests'),
+        ('iis.httpd_request_method.delete', 'rate', 'TotalDeleteRequests'),
+        ('iis.httpd_request_method.options', 'rate', 'TotalOptionsRequests'),
+        ('iis.httpd_request_method.trace', 'rate', 'TotalTraceRequests'),
 
         # Errors
-        ('iis.errors.not_found', 'gauge', 'NotFoundErrorsPerSec'),
-        ('iis.errors.locked', 'gauge', 'LockedErrorsPerSec'),
+        ('iis.errors.not_found', 'rate', 'TotalNotFoundErrors'),
+        ('iis.errors.locked', 'rate', 'TotalLockedErrors'),
 
         # Users
-        ('iis.users.anon', 'gauge', 'AnonymousUsersPerSec'),
-        ('iis.users.nonanon', 'gauge', 'NonAnonymousUsersPerSec'),
+        ('iis.users.anon', 'rate', 'TotalAnonymousUsers'),
+        ('iis.users.nonanon', 'rate', 'TotalNonAnonymousUsers'),
 
         # Requests
-        ('iis.requests.cgi', 'gauge', 'CGIRequestsPerSec'),
-        ('iis.requests.isapi', 'gauge', 'ISAPIExtensionRequestsPerSec'),
+        ('iis.requests.cgi', 'rate', 'TotalCGIRequests'),
+        ('iis.requests.isapi', 'rate', 'TotalISAPIExtensionRequests'),
     ]
 
     def check(self, instance):
@@ -66,5 +66,8 @@ class IIS(AgentCheck):
                 self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
                     % (metric, wmi_val))
                 continue
+
+            # Submit the metric value with the correct type
             value = getattr(wmi_cls, wmi_val)
-            self.gauge(metric, value, tags=tags)
+            metric_func = getattr(self, mtype)
+            metric_func(metric, value, tags=tags)
