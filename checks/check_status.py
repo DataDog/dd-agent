@@ -94,6 +94,9 @@ class AgentStatus(object):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
 
+    def has_error(self):
+        raise NotImplementedError
+
     def persist(self):
         try:
             path = self._get_pickle_path()
@@ -191,10 +194,12 @@ class AgentStatus(object):
         message = cls._not_running_message()
         exit_code = -1
 
-        collector_status = cls.load_latest_status()
-        if collector_status:
-            message = collector_status.render()
+        module_status = cls.load_latest_status()
+        if module_status:
+            message = module_status.render()
             exit_code = 0
+            if module_status.has_error():
+                exit_code = 1
 
         sys.stdout.write(message)
         return exit_code
@@ -235,6 +240,10 @@ class CheckStatus(object):
                 return STATUS_ERROR
         return STATUS_OK
 
+    def has_error(self):
+        return self.status != STATUS_OK
+
+
 class EmitterStatus(object):
 
     def __init__(self, name, error=None):
@@ -263,6 +272,16 @@ class CollectorStatus(AgentStatus):
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
+
+    @property
+    def status(self):
+        for check_status in self.check_statuses:
+            if check_status.status == STATUS_ERROR:
+                return STATUS_ERROR
+        return STATUS_OK
+
+    def has_error(self):
+        return self.status != STATUS_OK
 
     def body_lines(self):
         # Metadata whitelist
@@ -359,7 +378,7 @@ class CollectorStatus(AgentStatus):
 class DogstatsdStatus(AgentStatus):
 
     NAME = 'Dogstatsd'
-    
+
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
@@ -367,6 +386,8 @@ class DogstatsdStatus(AgentStatus):
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
 
+    def has_error(self):
+        return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
 
     def body_lines(self):
         return [
@@ -393,3 +414,6 @@ class ForwarderStatus(AgentStatus):
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
+
+    def has_error(self):
+        return self.flush_count == 0
