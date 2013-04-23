@@ -107,11 +107,9 @@ class TestNagios(unittest.TestCase):
         ITERATIONS = 10
         f = tempfile.NamedTemporaryFile(mode="a+b")
 
-        self._write_nagios_config([
-            "log_file=%s" % f.name,
-        ])
+        new_agent_conf = {'nagios_log': f.name}
 
-        new_conf = self.check.parse_agent_config(self.agentConfig)
+        new_conf = self.check.parse_agent_config(new_agent_conf)
 
         for i in range(ITERATIONS):
             f.write(x)
@@ -155,12 +153,15 @@ class TestNagios(unittest.TestCase):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
-            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % self.log_file.name,
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        instance = {'cfg_file': self.nagios_config.name}
+        instance = {
+            'cfg_file': self.nagios_config.name,
+            'event_log': False,
+            'perf_data': True
+        }
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -214,12 +215,15 @@ class TestNagios(unittest.TestCase):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
-            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % self.log_file.name,
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ])
 
-        instance = {'cfg_file': self.nagios_config.name}
+        instance = {
+            'cfg_file': self.nagios_config.name,
+            'event_log': False,
+            'perf_data': True
+        }
 
         log_data = [(
             "DATATYPE::SERVICEPERFDATA",
@@ -293,12 +297,15 @@ class TestNagios(unittest.TestCase):
         self.log_file = tempfile.NamedTemporaryFile()
 
         self._write_nagios_config([
-            "log_file=%s" % NAGIOS_TEST_LOG,
             "host_perfdata_file=%s" % self.log_file.name,
             "host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$",
         ])
 
-        instance = {'cfg_file': self.nagios_config.name}
+        instance = {
+            'cfg_file': self.nagios_config.name,
+            'event_log': False,
+            'perf_data': True
+        }
 
         log_data = [(
             "DATATYPE::HOSTPERFDATA",
@@ -335,12 +342,15 @@ class TestNagios(unittest.TestCase):
 
     def test_alt_service_perfdata(self):
         self._write_nagios_config([
-            "log_file=%s" % NAGIOS_TEST_LOG,
             "service_perfdata_file=%s" % NAGIOS_TEST_SVC,
             "service_perfdata_file_template=%s" % NAGIOS_TEST_SVC_TEMPLATE,
         ])
 
-        instance = {'cfg_file': self.nagios_config.name}
+        instance = {
+            'cfg_file': self.nagios_config.name,
+            'event_log': False,
+            'perf_data': True
+        }
 
         self.check.check(instance)
         actual_output = self.check.get_metrics()
@@ -369,12 +379,15 @@ class TestNagios(unittest.TestCase):
     def test_alt_host_perfdata(self):
 
         self._write_nagios_config([
-            "log_file=%s" % NAGIOS_TEST_LOG,
             "host_perfdata_file=%s" % NAGIOS_TEST_HOST,
             "host_perfdata_file_template=%s" % NAGIOS_TEST_HOST_TEMPLATE,
         ])
 
-        instance = {'log_file': NAGIOS_TEST_LOG, 'cfg_file': self.nagios_config.name}
+        instance = {
+            'cfg_file': self.nagios_config.name,
+            'event_log': False,
+            'perf_data': True
+        }
 
         self.check.check(instance)
         actual_output = self.check.get_metrics()

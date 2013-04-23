@@ -35,6 +35,8 @@ class Nagios(LogParserCheck):
         # Check arguments
         cfg_path = instance.get('cfg_file', None)
         log_path = instance.get('log_file', None)
+        event_log = instance.get('event_log', True)
+        perf_data = instance.get('perf_data', False)
         if cfg_path is None and log_path is None:
             raise Exception("Not checking nagios because 'cfg_file' is not set in nagios config")
 
@@ -52,20 +54,25 @@ class Nagios(LogParserCheck):
             if cfg_path:
                 nagios_config = self.parse_nagios_config(cfg_path)
 
-                host_parser = NagiosHostPerfData(self.log, nagios_config)
-                if host_parser.tail:
-                    parsers.append(host_parser)
+                if perf_data:
+                    host_parser = NagiosHostPerfData(self.log, nagios_config)
+                    service_parser = NagiosServicePerfData(self.log, nagios_config)
 
-                service_parser = NagiosServicePerfData(self.log, nagios_config)
-                if service_parser.tail:
-                    parsers.append(service_parser)
+                    if not host_parser.tail and not service_parser.tail:
+                        raise Exception("The Nagios check is configured to check performance data, but failed to parse any of the perfdata files. Please ensure that the file and file_template fields for at least one of host or service perfdata is filled in correctly in the nagios config file.")
 
-            log_file = nagios_config.get('log_file', log_path)
-            if not log_file:
-                raise Exception("Nagios configuration file does not have an entry for 'log_file'. Please ensure this is set.")
+                    if host_parser.tail:
+                        parsers.append(host_parser)
+                    if service_parser.tail:
+                        parsers.append(service_parser)
 
-            nagios_log_parser = NagiosLogParser(self.log, log_file)
-            parsers.append(nagios_log_parser)
+            if event_log:
+                log_file = nagios_config.get('log_file', log_path)
+                if not log_file:
+                    raise Exception("Nagios check is configured to parse the event log, but failed to do so. Please ensure the value for log_file is correct.")
+
+                nagios_log_parser = NagiosLogParser(self.log, log_file)
+                parsers.append(nagios_log_parser)
 
             self.parsers[instance_key] = parsers
 
@@ -92,9 +99,11 @@ class Nagios(LogParserCheck):
 
         if cfg_file:
             instance['cfg_file'] = cfg_file
+            instance['perf_data'] = True
 
         if log_file:
             instance['log_file'] = log_file
+            instance['event_log'] = True
 
         return {
             'instances': [instance]
