@@ -140,9 +140,6 @@ class Nagios(LogParserCheck):
 
 class NagiosLogParser(LogParser):
 
-    # Event types we know about but decide to ignore in the parser
-    IGNORE_EVENT_TYPES = []
-
     # fields order for each event type, as named tuples
     EVENT_FIELDS = {
         'CURRENT HOST STATE':       namedtuple('E_CurrentHostState', 'host, event_state, event_soft_hard, return_code, payload'),
@@ -202,10 +199,6 @@ class NagiosLogParser(LogParser):
 
             (tstamp, event_type, remainder) = m.groups()
             tstamp = int(tstamp)
-
-            if event_type in self.IGNORE_EVENT_TYPES:
-                self.log.info("Ignoring nagios event of type %s" % (event_type))
-                return False
 
             # then retrieve the event format for each specific event type
             fields = self.EVENT_FIELDS.get(event_type, None)
