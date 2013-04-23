@@ -119,18 +119,22 @@ class Nagios(LogParserCheck):
             'service_perfdata_file',
         ]
 
-        f = open(filename)
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            for key in keys:
-                if line.startswith(key + '='):
-                    eq_pos = line.find('=')
-                    if eq_pos:
-                        output[key] = line[eq_pos + 1:]
-                        break
-        f.close()
+        f = None
+        try:
+            f = open(filename)
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                for key in keys:
+                    if line.startswith(key + '='):
+                        eq_pos = line.find('=')
+                        if eq_pos:
+                            output[key] = line[eq_pos + 1:]
+                            break
+        finally:
+            if f is not None:
+                f.close()
         return output
 
 
