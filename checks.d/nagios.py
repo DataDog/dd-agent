@@ -16,7 +16,6 @@ class Nagios(LogParserCheck):
 
     def create_event(self, event_data):
         timestamp, event_type, fields = event_data
-        hostname = get_hostname(self.agentConfig)
 
         # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
         # but couldn't think of anything smarter
@@ -25,7 +24,7 @@ class Nagios(LogParserCheck):
         # if host is localhost, turn that into the internal host name
         host = d.get('host', None)
         if host == "localhost":
-            d["host"] = hostname
+            d["host"] = get_hostname(self.agentConfig)
 
         self.log.debug("Nagios event: %s" % (d))
         self.event(d)
@@ -120,28 +119,19 @@ class Nagios(LogParserCheck):
             'service_perfdata_file',
         ]
 
-        f = None
-        try:
-            try:
-                f = open(filename)
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    for key in keys:
-                        if line.startswith(key + '='):
-                            eq_pos = line.find('=')
-                            if eq_pos:
-                                output[key] = line[eq_pos + 1:]
-                                break
-                return output
-            except:
-                # Can't parse, assume it's just not working
-                # Don't return an incomplete config
-                return {}
-        finally:
-            if f is not None:
-                f.close()
+        f = open(filename)
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            for key in keys:
+                if line.startswith(key + '='):
+                    eq_pos = line.find('=')
+                    if eq_pos:
+                        output[key] = line[eq_pos + 1:]
+                        break
+        f.close()
+        return output
 
 
 class NagiosLogParser(LogParser):
@@ -269,8 +259,7 @@ class NagiosPerfData(LogParser):
         return s.replace(' ', '_').lower()
 
     def _get_metric_prefix(self, data):
-        # Should be overridded by subclasses
-        return [self.metric_prefix]
+        raise NotImplementedError()
 
     def _parse_line(self, line):
         matched = self.line_pattern.match(line)
@@ -355,9 +344,3 @@ class NagiosServicePerfData(NagiosPerfData):
         if middle_name:
             metric.append(self.underscorize(middle_name))
         return metric
-
-if __name__ == "__main__":
-
-    nagios = Nagios('nagios', {'init_config': {}, 'instances': {}}, {'api_key': 'apikey_2', 'nagios_log': '/var/log/nagios3/nagios.log'})
-
-    config = {'api_key': 'apikey_2', 'nagios_log': '/var/log/nagios3/nagios.log'}

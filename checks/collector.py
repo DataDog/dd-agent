@@ -90,10 +90,6 @@ class Collector(object):
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
-        # Event Checks
-        self._event_checks = [
-        ]
-
         # Resource Checks
         self._resources_checks = [
             ResProcesses(log,self.agentConfig)
@@ -208,12 +204,6 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
- 
-        # Process the event checks. 
-        for event_check in self._event_checks:
-            event_data = event_check.check(log, self.agentConfig)
-            if event_data:
-                events[event_check.key] = event_data
 
         # Resources checks
         if self.os != 'windows':

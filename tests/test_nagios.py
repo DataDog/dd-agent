@@ -406,5 +406,13 @@ class TestNagios(unittest.TestCase):
 
         self.assertEquals(expected_output, actual_output)
 
+    def test_fake_config_file(self):
+
+        instance = {
+            'cfg_file': 'fake_config_file'
+        }
+
+        self.assertRaises(IOError, self.check.check, instance)
+
 if __name__ == '__main__':
     unittest.main()

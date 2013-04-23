@@ -28,15 +28,7 @@ class LogParser(object):
         self.event_data = []
 
     def _parse_line(self, line):
-        # Instances of this class must override
-        # this function. This function should save
-        # metrics and events in the appropriate
-        # class members
-
-        # This function should return True if a line
-        # is successfully processed, and False if an error
-        # or exception is encountered
-        return True
+        raise NotImplementedError()
 
     def parse_file(self):
         try:
