@@ -68,7 +68,7 @@ class Apache(AgentCheck):
         if metric_count == 0:
             if self.assumed_url.get(instance['apache_status_url'], None) is None and url[-5:] != '?auto':
                 self.assumed_url[instance['apache_status_url']]= '%s?auto' % url
-                self.log.debug("Assuming url was not correct. Trying to add ?auto suffix to the url")
+                self.warning("Assuming url was not correct. Trying to add ?auto suffix to the url")
                 self.check(instance)
             else:
                 raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['apache_status_url'])

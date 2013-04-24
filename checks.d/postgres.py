@@ -8,14 +8,11 @@ class PostgreSql(AgentCheck):
 
     def _get_version(self, key, db):
         if key not in self.versions:
-            try:
-                cursor = db.cursor()
-                cursor.execute('select version();')
-                result = cursor.fetchone()
-                self.versions[key] = result[0]
-                # FIXME parse or find the way to get the ints
-            except Exception, e:
-                self.log.exception('Error when fetching postgresql version')
+            cursor = db.cursor()
+            cursor.execute('select version();')
+            result = cursor.fetchone()
+            self.versions[key] = result[0]
+            # FIXME parse or find the way to get the ints
 
         return self.versions[key]
 
