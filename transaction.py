@@ -71,7 +71,10 @@ class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
-    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay):
+    def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay, 
+        info_page_handler):
+
+        self.info_page_handler = info_page_handler
 
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
@@ -157,7 +160,8 @@ class TransactionManager(object):
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
-            flush_count=self._flush_count).persist()
+            flush_count=self._flush_count,
+            last_logs=self.info_page_handler.get_logs()).persist()
 
     def flush_next(self):
 

@@ -250,6 +250,33 @@ class EC2(object):
         except:
             return None
 
+class InfoPageHandler(logging.StreamHandler):
+
+    MAX_STORED_LOGS = 10
+    RETRIEVED_LOGS = 5
+
+    def __init__(self, max_size=MAX_STORED_LOGS):
+        self.logs = []
+        self.max_size = max_size
+        logging.StreamHandler.__init__(self)
+
+    def emit(self,record):
+        record_dictionary = {
+            'asctime': record.asctime,
+            'levelname': record.levelname,
+            'name': record.name,
+            'filename': record.filename,
+            'lineno': record.lineno,
+            'message': record.message
+        }
+
+        self.logs.append(record_dictionary)
+        if len(self.logs) > self.max_size:
+            self.logs = self.logs[-self.max_size:]
+
+    def get_logs(self, last_n=RETRIEVED_LOGS):
+        return self.logs[-last_n:]
+
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
     if it has not been reset every N seconds, or if the processes exceeds

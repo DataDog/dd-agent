@@ -4,7 +4,9 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('dogstatsd')
+from util import InfoPageHandler
+INFO_PAGE_HANDLER = InfoPageHandler()
+from config import initialize_logging; initialize_logging('dogstatsd', INFO_PAGE_HANDLER)
 
 import os; os.umask(022)
 
@@ -115,7 +117,8 @@ class Reporter(threading.Thread):
                 flush_count=self.flush_count,
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
-                metric_count=count
+                metric_count=count,
+                last_logs=INFO_PAGE_HANDLER.get_logs()
             ).persist()
 
         except:

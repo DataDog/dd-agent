@@ -18,6 +18,7 @@ import config
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
+STATUS_WARNING = 'WARNING'
 
 
 log = logging.getLogger(__name__)
@@ -134,10 +135,18 @@ class AgentStatus(object):
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
+        if self.created_seconds_ago() > 120:
+            # We color it in red if the status is too old
+            fields = [(style("Status date",'red', 'bold'), 
+                       style("%s (%ss ago)" % 
+                            (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()), 'red', 'bold'))]
+        else:
+            fields = [("Status date", "%s (%ss ago)" % 
+                (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()))]
 
-        fields = [
-            ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago())),
+        fields += [
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
@@ -211,7 +220,7 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
@@ -221,9 +230,13 @@ class InstanceStatus(object):
         else:
             self.traceback = None
 
-    def has_error(self):
-        return self.status != STATUS_OK
+        self.warnings = warnings
 
+    def has_error(self):
+        return self.status == STATUS_ERROR
+
+    def has_warnings(self):
+        return self.status == STATUS_WARNING
 
 class CheckStatus(object):
     
@@ -241,7 +254,7 @@ class CheckStatus(object):
         return STATUS_OK
 
     def has_error(self):
-        return self.status != STATUS_OK
+        return self.status == STATUS_ERROR
 
 
 class EmitterStatus(object):
@@ -267,11 +280,13 @@ class CollectorStatus(AgentStatus):
 
     NAME = 'Collector'
 
-    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None,
+        last_logs=None):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
+        self.last_logs = last_logs or []
 
     @property
     def status(self):
@@ -325,14 +340,20 @@ class CollectorStatus(AgentStatus):
                 ]
                 for s in cs.instance_statuses:
                     c = 'green'
+                    if s.has_warnings():
+                        c = 'yellow'
                     if s.has_error():
                         c = 'red'
                     line =  "    - instance #%s [%s]" % (
                              s.instance_id, style(s.status, c))
                     if s.has_error():
                         line += u": %s" % s.error
+
                     check_lines.append(line)
-                
+
+                    if s.has_warnings():
+                        for warning in s.warnings:
+                            check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
 
                     if self.verbose and s.traceback is not None:
                         # Formatting the traceback to look like a python traceback
@@ -372,6 +393,17 @@ class CollectorStatus(AgentStatus):
                     line += ": %s" % es.error
                 lines.append(line)
 
+        if self.last_logs:
+            lines += [
+                "",
+                "Last logged lines",
+                "=================",
+                ""
+            ]
+            for log in self.last_logs:
+                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
+                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
+
         return lines
 
 
@@ -379,41 +411,66 @@ class DogstatsdStatus(AgentStatus):
 
     NAME = 'Dogstatsd'
 
-    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
+    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, 
+        metric_count=0, last_logs=None):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
+        self.last_logs = last_logs or []
 
     def has_error(self):
         return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
 
     def body_lines(self):
-        return [
+        lines = [
             "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
         ]
+        if self.last_logs:
+            lines += [
+                "",
+                "Last logged lines",
+                "=================",
+                ""
+            ]
+            for log in self.last_logs:
+                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
+                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
+        return lines
 
 
 class ForwarderStatus(AgentStatus):
 
     NAME = 'Forwarder'
 
-    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0, last_logs=None):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
         self.flush_count = flush_count
+        self.last_logs = last_logs or []
 
     def body_lines(self):
-        return [
+        lines = [
             "Queue Size: %s" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
+        if self.last_logs:
+            lines += [
+                "",
+                "Last logged lines",
+                "=================",
+                ""
+            ]
+            for log in self.last_logs:
+                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
+                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
+        return lines
 
     def has_error(self):
         return self.flush_count == 0
