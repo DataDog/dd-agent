@@ -261,6 +261,7 @@ class InfoPageHandler(logging.StreamHandler):
         logging.StreamHandler.__init__(self)
 
     def emit(self,record):
+        # We can't pickle a log record object, so we store only what we are interested in
         record_dictionary = {
             'asctime': record.asctime,
             'levelname': record.levelname,
