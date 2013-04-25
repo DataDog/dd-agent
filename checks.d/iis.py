@@ -50,6 +50,7 @@ class IIS(AgentCheck):
         user = instance.get('username', None)
         password = instance.get('password', None)
         instance_tags = instance.get('tags', [])
+        sites = instance.get('sites', ['_Total'])
         w = wmi.WMI(host, user=user, password=password)
 
         try:
@@ -62,11 +63,16 @@ class IIS(AgentCheck):
 
         # Iterate over every IIS site
         for iis_site in wmi_cls:
-            # Skip the aggregate value
-            if iis_site.Name == '_Total':
+            # Skip any sites we don't specifically want.
+            if iis_site.Name not in sites:
                 continue
 
-            tags = instance_tags + ['site:%s' % iis_site.Name]
+            # Tag with the site name if we're not using the aggregate
+            if iis_site.Name != '_Total':
+                tags = instance_tags + ['site:%s' % iis_site.Name]
+            else:
+                tags = instance_tags
+
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
                     self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
