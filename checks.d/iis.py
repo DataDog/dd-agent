@@ -68,6 +68,6 @@ class IIS(AgentCheck):
                 continue
 
             # Submit the metric value with the correct type
-            value = getattr(wmi_cls, wmi_val)
+            value = float(getattr(wmi_cls, wmi_val))
             metric_func = getattr(self, mtype)
             metric_func(metric, value, tags=tags)
