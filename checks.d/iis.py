@@ -66,15 +66,14 @@ class IIS(AgentCheck):
             if iis_site.Name == '_Total':
                 continue
 
-            norm_site = self.normalize_device_name(iis_site.Name)
-            tags = instance_tags + ['site:{0}'.format(norm_site)]
+            tags = instance_tags + ['site:%s' % iis_site.Name]
             for metric, mtype, wmi_val in self.METRICS:
-                if not hasattr(wmi_cls, wmi_val):
+                if not hasattr(iis_site, wmi_val):
                     self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
                         % (metric, wmi_val))
                     continue
 
                 # Submit the metric value with the correct type
-                value = float(getattr(wmi_cls, wmi_val))
+                value = float(getattr(iis_site, wmi_val))
                 metric_func = getattr(self, mtype)
                 metric_func(metric, value, tags=tags)
