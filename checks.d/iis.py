@@ -49,25 +49,32 @@ class IIS(AgentCheck):
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)
-        tags = instance.get('tags', None)
+        instance_tags = instance.get('tags', [])
         w = wmi.WMI(host, user=user, password=password)
 
         try:
-            wmi_cls = w.Win32_PerfFormattedData_W3SVC_WebService(name="_Total")
+            wmi_cls = w.Win32_PerfFormattedData_W3SVC_WebService()
             if not wmi_cls:
-                raise Exception('Missing _Total from Win32_PerfFormattedData_W3SVC_WebService')
+                raise Exception('Missing data from Win32_PerfFormattedData_W3SVC_WebService')
         except Exception:
             self.log.exception('Unable to fetch Win32_PerfFormattedData_W3SVC_WebService class')
             return
 
-        wmi_cls = wmi_cls[0]
-        for metric, mtype, wmi_val in self.METRICS:
-            if not hasattr(wmi_cls, wmi_val):
-                self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
-                    % (metric, wmi_val))
+        # Iterate over every IIS site
+        for iis_site in wmi_cls:
+            # Skip the aggregate value
+            if iis_site.Name == '_Total':
                 continue
 
-            # Submit the metric value with the correct type
-            value = float(getattr(wmi_cls, wmi_val))
-            metric_func = getattr(self, mtype)
-            metric_func(metric, value, tags=tags)
+            norm_site = self.normalize_device_name(iis_site.Name)
+            tags = instance_tags + ['site:{0}'.format(norm_site)]
+            for metric, mtype, wmi_val in self.METRICS:
+                if not hasattr(wmi_cls, wmi_val):
+                    self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                        % (metric, wmi_val))
+                    continue
+
+                # Submit the metric value with the correct type
+                value = float(getattr(wmi_cls, wmi_val))
+                metric_func = getattr(self, mtype)
+                metric_func(metric, value, tags=tags)
