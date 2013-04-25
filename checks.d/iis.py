@@ -8,9 +8,9 @@ class IIS(AgentCheck):
         ('iis.uptime', 'gauge', 'ServiceUptime'),
 
         # Network
-        ('iis.net.bytes_sent', 'gauge', 'BytesSentPerSec'),
-        ('iis.net.bytes_rcvd', 'gauge', 'BytesReceivedPerSec'),
-        ('iis.net.bytes_total', 'gauge', 'BytesTotalPerSec'),
+        ('iis.net.bytes_sent', 'rate', 'TotalBytesSent'),
+        ('iis.net.bytes_rcvd', 'rate', 'TotalBytesReceived'),
+        ('iis.net.bytes_total', 'rate', 'TotalBytesTransferred'),
         ('iis.net.num_connections', 'gauge', 'CurrentConnections'),
         ('iis.net.files_sent', 'rate', 'TotalFilesSent'),
         ('iis.net.files_rcvd', 'rate', 'TotalFilesReceived'),
