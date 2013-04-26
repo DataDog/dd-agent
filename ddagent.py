@@ -382,7 +382,7 @@ class Application(tornado.web.Application):
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = tornado.ioloop.IOLoop.instance()
+        self.mloop = tornado.ioloop.IOLoop.current()
 
         logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
