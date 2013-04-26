@@ -11,9 +11,6 @@ class Nagios(LogParserCheck):
 
     key = "Nagios"
 
-    def __init__(self, name, init_config, agentConfig):
-        LogParserCheck.__init__(self, name, init_config, agentConfig)
-
     def create_event(self, event_data):
         timestamp, event_type, fields = event_data
 
@@ -176,9 +173,6 @@ class NagiosLogParser(LogParser):
     # Regex alternation ends up being tricker than expected, and much less readable
     RE_LINE_REG = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
     RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
-
-    def __init__(self, logger, log_path):
-        LogParser.__init__(self, logger, log_path)
 
     def _parse_line(self, line):
         """Actual nagios parsing
