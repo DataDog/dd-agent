@@ -16,7 +16,6 @@ from config import get_version
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
-from checks.nagios import Nagios
 from checks.ganglia import Ganglia
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
@@ -90,11 +89,6 @@ class Collector(object):
                 log.info("Registered custom check %s" % module_spec)
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
-
-        # Event Checks
-        self._event_checks = [
-            Nagios(get_hostname()),
-        ]
 
         # Resource Checks
         self._resources_checks = [
@@ -210,12 +204,6 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
- 
-        # Process the event checks. 
-        for event_check in self._event_checks:
-            event_data = event_check.check(log, self.agentConfig)
-            if event_data:
-                events[event_check.key] = event_data
 
         # Resources checks
         if self.os != 'windows':
