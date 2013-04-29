@@ -4,4 +4,5 @@ instances:
   - server: localhost
     port: 4730
     tags:
-    options:
+        - optional_tag_1
+        - optional_tag_2
