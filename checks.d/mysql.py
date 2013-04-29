@@ -156,7 +156,7 @@ class MySql(AgentCheck):
             cursor.close()
             del cursor                      
         except Exception, e:
-            self.log.debug("Error while fetching pid of mysql.")
+            self.warning("Error while fetching pid of mysql.")
 
         if pid_file is not None:
             self.log.debug("pid file: %s" % str(pid_file))
@@ -166,7 +166,7 @@ class MySql(AgentCheck):
                 pid = int(f.readline())
                 f.close()
             except Exception:
-                self.log.debug("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
+                self.warning("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
 
         self.log.debug("pid: %s" % pid)
         # If pid has not been found (permission issue), read it from ps
@@ -196,7 +196,7 @@ class MySql(AgentCheck):
                 self.rate("mysql.performance.kernel_time", int((float(kcpu)/float(clk_tck)) * 100), tags=tags)
 
             except Exception:
-                self.log.debug("Error while reading mysql (pid: %s) procfs data" % pid)
+                self.warning("Error while reading mysql (pid: %s) procfs data" % pid)
 
     def _get_config(self, instance):
         host = instance['server']
@@ -242,7 +242,7 @@ class MySql(AgentCheck):
                 greater_502 = True
             
         except Exception, e:
-            self.log.debug("Cannot compute mysql version assuming older than 5.0.2: %s" % str(e))
+            self.warning("Cannot compute mysql version assuming older than 5.0.2: %s" % str(e))
 
         return greater_502
 

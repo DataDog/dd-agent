@@ -115,7 +115,7 @@ class RabbitMQ(AgentCheck):
         queues = self._get_data(url)
 
         if len(queues) > 100 and not instance.get('queues', None):
-            self.log.debug("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
+            self.warning("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
 
         allowed_queues = instance.get('queues', [])
         if len(allowed_queues) > MAX_QUEUES:
@@ -144,7 +144,7 @@ class RabbitMQ(AgentCheck):
 
             i += 1
             if i > QUEUE_LIMIT:
-                self.log.debug("More than %s queues are present. Only collecting data using the 100 first" % QUEUE_LIMIT)
+                self.warning("More than %s queues are present. Only collecting data using the 100 first" % QUEUE_LIMIT)
                 queue_Limit_reached = True
                 
 
@@ -153,7 +153,7 @@ class RabbitMQ(AgentCheck):
         nodes = self._get_data(url)
 
         if len(nodes) > 100 and not instance.get('nodes', None):
-            self.log.debug("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
+            self.warning("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
 
         allowed_nodes = instance.get('nodes', [])
         if len(allowed_nodes) > MAX_NODES:
@@ -182,5 +182,5 @@ class RabbitMQ(AgentCheck):
 
             i += 1
             if i > NODE_LIMIT:
-                self.log.debug("More than %s nodes are present. Only collecting data using the 100 first" % NODE_LIMIT)
+                self.warning("More than %s nodes are present. Only collecting data using the 100 first" % NODE_LIMIT)
                 node_limit_reached = True
