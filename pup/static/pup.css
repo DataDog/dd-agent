@@ -80,6 +80,13 @@ ul {
     font-style: normal;
 }
 
+@font-face {
+	font-family: 'Open Sans';
+	src: local("Open Sans"), url("./OpenSans-Bold-webfont.ttf") format("truetype");;
+	font-weight: bold;
+    font-style: normal;
+}
+
 /* layout */
 html {
 	height: 100%;
@@ -596,6 +603,46 @@ pre {
 	color: #6f56a2;
 }
 
+#status h4 {
+	font-weight: bold;
+}
+
+#status ul {
+	margin-bottom: 10px;
+}
+
+#status ul ul {
+	margin-left: 30px;
+}
+#status ul ul li {
+	list-style-type: square;
+}
+
 #status dt::after {
 	content: ':';
+}
+
+#status dt {
+	float: left;
+	width: 180px;
+	font-weight: bold;
+}
+
+#status ul dl {
+	margin: 0px;
+}
+
+#status ul dt {
+	width: 145px;
+	font-weight: normal;
+}
+
+#status .status-ok {
+	color: green;
+	font-weight: bold;
+}
+
+#status .status-error {
+	color: red;
+	font-weight: bold;
 }

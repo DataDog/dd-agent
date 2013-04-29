@@ -63,18 +63,20 @@
         {% if collector['checks'] %}
         <ul>
           {% for name, check in collector['checks'].iteritems() %}
-          <li><h4>{{ name }}</h4></li>
+          <li><h4>{{ name }}</h4>
           <ul>
           {% for id, instance in check['instances'].iteritems() %}
           <li>
-            Instance #{{ id }}, status <span class="{{ ['status-ok','status-error'][instance['has_error']] }}">{{ instance['status'] }}</span>
-            {% if instance['has_error'] %}
-            <br />Error: {{ instance['error'] }}
-            {% end %}
+            <dl>
+              <dt>Instance #{{ id }}</dt> <dd class="{{ ['status-ok','status-error'][instance['has_error']] }}">{{ instance['status'] }}</dd>
+              {% if instance['has_error'] %}
+              <dt>Error</dt> <dd>{{ instance['error'] }}</dd>
+              {% end %}
+            </dl>
           </li>
           {% end %}
-          </ul>
-          Collected {{ check['metric_count'] }} metrics and {{ check['event_count'] }} events
+          <li>Collected {{ check['metric_count'] }} metrics and {{ check['event_count'] }} events</li>
+          </ul></li>
           {% end %}
         </ul>
         {% end %}
