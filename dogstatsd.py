@@ -117,9 +117,7 @@ class Reporter(threading.Thread):
                 flush_count=self.flush_count,
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
-                metric_count=count,
-                last_logs=INFO_PAGE_HANDLER.get_logs()
-            ).persist()
+                metric_count=count).persist()
 
         except:
             log.exception("Error flushing metrics")

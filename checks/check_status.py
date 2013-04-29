@@ -280,13 +280,11 @@ class CollectorStatus(AgentStatus):
 
     NAME = 'Collector'
 
-    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None,
-        last_logs=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
-        self.last_logs = last_logs or []
 
     @property
     def status(self):
@@ -393,17 +391,6 @@ class CollectorStatus(AgentStatus):
                     line += ": %s" % es.error
                 lines.append(line)
 
-        if self.last_logs:
-            lines += [
-                "",
-                "Last logged lines",
-                "=================",
-                ""
-            ]
-            for log in self.last_logs:
-                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
-                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
-
         return lines
 
 
@@ -412,13 +399,12 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, 
-        metric_count=0, last_logs=None):
+        metric_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
-        self.last_logs = last_logs or []
 
     def has_error(self):
         return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
@@ -430,16 +416,6 @@ class DogstatsdStatus(AgentStatus):
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
         ]
-        if self.last_logs:
-            lines += [
-                "",
-                "Last logged lines",
-                "=================",
-                ""
-            ]
-            for log in self.last_logs:
-                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
-                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
         return lines
 
 
@@ -447,12 +423,11 @@ class ForwarderStatus(AgentStatus):
 
     NAME = 'Forwarder'
 
-    def __init__(self, queue_length=0, queue_size=0, flush_count=0, last_logs=None):
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
         self.flush_count = flush_count
-        self.last_logs = last_logs or []
 
     def body_lines(self):
         lines = [
@@ -460,16 +435,6 @@ class ForwarderStatus(AgentStatus):
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
-        if self.last_logs:
-            lines += [
-                "",
-                "Last logged lines",
-                "=================",
-                ""
-            ]
-            for log in self.last_logs:
-                lines.append('  - %s | %s | %s(%s:%s) | %s' % (log['asctime'], 
-                    log['levelname'], log['name'], log['filename'], log['lineno'], log['message']))
         return lines
 
     def has_error(self):

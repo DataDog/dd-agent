@@ -11,9 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from util import InfoPageHandler
-INFO_PAGE_HANDLER = InfoPageHandler()
-from config import initialize_logging; initialize_logging('forwarder', INFO_PAGE_HANDLER)
+from config import initialize_logging; initialize_logging('forwarder')
 from config import get_logging_config
 
 import os; os.umask(022)
@@ -306,7 +304,7 @@ class Application(tornado.web.Application):
         MetricTransaction.set_application(self)
         MetricTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
-            MAX_QUEUE_SIZE, THROTTLING_DELAY, INFO_PAGE_HANDLER)
+            MAX_QUEUE_SIZE, THROTTLING_DELAY)
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None

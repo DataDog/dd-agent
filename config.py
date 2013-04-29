@@ -746,7 +746,7 @@ def get_logging_config(cfg_path=None):
 
 
 
-def initialize_logging(logger_name, info_handler=None):
+def initialize_logging(logger_name):
 
     try:
         if get_os() == 'windows':
@@ -793,10 +793,6 @@ def initialize_logging(logger_name, info_handler=None):
                 except Exception, e:
                     sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
                     traceback.print_exc()
-
-            if info_handler is not None:
-                info_handler.setLevel(logging.INFO)
-                logging.getLogger().addHandler(info_handler)
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))

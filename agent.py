@@ -11,9 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from util import InfoPageHandler
-INFO_PAGE_HANDLER = InfoPageHandler()
-from config import initialize_logging; initialize_logging('collector', INFO_PAGE_HANDLER)
+from config import initialize_logging; initialize_logging('collector')
 
 import os; os.umask(022)
 
@@ -95,7 +93,7 @@ class Agent(Daemon):
         agentConfig = self._set_agent_config_hostname(config)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
-        self.collector = Collector(agentConfig, emitters, systemStats, INFO_PAGE_HANDLER)
+        self.collector = Collector(agentConfig, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
