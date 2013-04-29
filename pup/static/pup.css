@@ -584,3 +584,18 @@ pre {
 	fill: #6f56a2;
 	z-index: -1;
 }
+
+/* Status page */
+
+#status {
+	width: 600px;
+	margin: 50px auto 0 auto;
+}
+
+#status h1, #status h2, #status h3 {
+	color: #6f56a2;
+}
+
+#status dt::after {
+	content: ':';
+}

@@ -1,0 +1,135 @@
+<!doctype html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="description" content"">
+  <meta name="viewport" content="width=device-width">
+
+  <title>Datadog Agent information</title>
+
+  <link rel="stylesheet" href="./dark.css">
+  <link rel="stylesheet" href="./pup.css">
+</head>
+
+<body id="body">
+  <div id="container">
+    <div id="sidebar">
+      <header id="branding">
+      <img id="logo" src="/pup_logo-100.png" />
+
+      </header><!-- #branding -->
+
+      <p id="listening">Listening on port <span id="port">{{ port }}</span></p>
+      <hr class="break" />
+
+
+    </div><!-- #sidebar -->
+
+    <div id="content">
+      <div id="status">
+        <h1 id="status-header">Agent info</h1>
+
+        <!-- General information -->
+        <h2>General information</h2>
+
+        <dl>
+          <dt>Agent version</dt>    <dd>{{ agent_version }}</dd>
+          <dt>Platform</dt>         <dd>{{ platform }}</dd>
+          <dt>Python version</dt>   <dd>{{ python_version }}</dd>
+          <dt>Logger</dt>           <dd>{{ logger_info }}</dd>
+        </dl>
+
+        <!-- Collector -->
+        <h2>Collector</h2>
+
+        <dl>
+          <dt>Status date</dt>      <dd>{{ collector['status_date'] }}</dd>
+          <dt>Pid</dt>              <dd>{{ collector['pid'] }}</dd>
+        </dl>
+
+        <h3>Hostnames</h3>
+
+        {% if collector['hostnames'] %}
+        <dl>
+          {% for key, host in collector['hostnames'].iteritems() %}
+          <dt>{{ key }}</dt>      <dd>{{ host }}</dd>
+          {% end %}
+        </dl>
+        {% end %}
+
+        <h3>Checks</h3>
+
+        {% if collector['checks'] %}
+        <ul>
+          {% for name, check in collector['checks'].iteritems() %}
+          <li><h4>{{ name }}</h4></li>
+          <ul>
+          {% for id, instance in check['instances'].iteritems() %}
+          <li>
+            Instance #{{ id }}, status <span class="{{ ['status-ok','status-error'][instance['has_error']] }}">{{ instance['status'] }}</span>
+            {% if instance['has_error'] %}
+            <br />Error: {{ instance['error'] }}
+            {% end %}
+          </li>
+          {% end %}
+          </ul>
+          Collected {{ check['metric_count'] }} metrics and {{ check['event_count'] }} events
+          {% end %}
+        </ul>
+        {% end %}
+
+        <h3>Emitter</h3>
+
+        {% if collector['emitter'] %}
+        <dl>
+          {% for status in collector['emitter'] %}
+          <dt>{{ status['name'] }}</dt>
+          <dd>
+            <span class="{{ ['status-ok','status-error'][status['has_error']] }}">{{ status['status'] }}</span>
+            {% if status['has_error'] %}
+            <br />Error: {{ status['error'] }}
+            {% end %}
+          </dd>
+          {% end %}
+        </dl>
+        {% end %}
+
+
+        <!-- Forwarder -->
+        <h2>Forwarder</h2>
+
+        <dl>
+          <dt>Status date</dt>      <dd>{{ forwarder['status_date'] }}</dd>
+          <dt>Pid</dt>              <dd>{{ forwarder['pid'] }}</dd>
+        </dl>
+
+        <dl>
+          <dt>Flush count</dt>        <dd>{{ forwarder['flush_count'] }}</dd>
+          <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }}</dd>
+          <dt>Queue length</dt>       <dd>{{ forwarder['queue_length'] }}</dd>
+        </dl>
+
+        <!-- Dogstatsd -->
+        <h2>DogstatsD</h2>
+
+        <dl>
+          <dt>Status date</dt>      <dd>{{ dogstatsd['status_date'] }}</dd>
+          <dt>Pid</dt>              <dd>{{ dogstatsd['pid'] }}</dd>
+        </dl>
+
+        <dl>
+          <dt>Flush count</dt>        <dd>{{ dogstatsd['flush_count'] }}</dd>
+          <dt>Packet count</dt>       <dd>{{ dogstatsd['packet_count'] }}</dd>
+          <dt>Packets per second</dt> <dd>{{ dogstatsd['packets_per_second'] }}</dd>
+          <dt>Metric count</dt>       <dd>{{ dogstatsd['metric_count'] }}</dd>
+        </dl>
+
+      </div>
+
+        <h4 id="by">Powered by <a href="http://www.datadoghq.com/">Datadog</a></h4>
+    </div><!-- #content -->
+
+  </div><!-- #container -->
+</body>
+</html>
