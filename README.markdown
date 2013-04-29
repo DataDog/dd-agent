@@ -19,7 +19,7 @@ Please note that the agent is licensed for simplicity's sake
 under a simplified BSD license, as indicated in the `LICENSE` file.
 Exceptions are marked with LICENSE-xxx where xxx is the component name.
 If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
-please email us at [mailto:info@datadoghq.com](info@datadoghq.com) before submitting your
+please email us at <info@datadoghq.com> before submitting your
 pull request.
 
 # How to configure the agent
