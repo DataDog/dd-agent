@@ -1,6 +1,8 @@
+[![Build Status](https://secure.travis-ci.org/DataDog/dd-agent.png?branch=master)](http://travis-ci.org/DataDog/dd-agent)
+
 The Datadog agent faithfully collects events and metrics and brings
 them to [Datadog](https://app.datadoghq.com) on your behalf so that
-you can do something with your monitoring and performance data.
+you can do something useful with your monitoring and performance data.
 
 You're looking at the source code right now. We provide a number of
 [pre-packaged binaries](https://app.datadoghq.com/account/settings#agent) for your convenience.
@@ -9,10 +11,16 @@ You're looking at the source code right now. We provide a number of
 
 # How to contribute code
 
-Feel free to fork this repository and submit pull requests against the
-`master` branch.
+First of all and most importantly, **thank you** for sharing.
 
-[![Build Status](https://secure.travis-ci.org/DataDog/dd-agent.png?branch=master)](http://travis-ci.org/DataDog/dd-agent)
+If you want to submit code, please fork this repository and submit pull requests against the `master` branch.
+
+Please note that the agent is licensed for simplicity's sake
+under a simplified BSD license, as indicated in the `LICENSE` file.
+Exceptions are marked with LICENSE-xxx where xxx is the component name.
+If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
+please email us at [mailto:info@datadoghq.com](info@datadoghq.com) before submitting your
+pull request.
 
 # How to configure the agent
 
