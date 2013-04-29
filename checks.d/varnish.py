@@ -109,6 +109,7 @@ class Varnish(AgentCheck):
 
         if m1 is None and m2 is None:
             self.log.warn("Cannot determine the version of varnishstat, assuming 3 or greater")
+            self.warning("Cannot determine the version of varnishstat, assuming 3 or greater")
         else:
             if m1 is not None:
                 version = int(m1.group(1))

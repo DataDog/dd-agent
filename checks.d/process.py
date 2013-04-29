@@ -29,7 +29,7 @@ class ProcessCheck(AgentCheck):
                             if string in ' '.join(proc.cmdline):
                                 found = True
                         except psutil.NoSuchProcess:
-                            self.log.warning('Process disappeared while scanning')
+                            self.warning('Process disappeared while scanning')
                             pass
                         except psutil.AccessDenied, e:
                             self.log.error('Access denied to %s process' % string)
@@ -73,12 +73,3 @@ class ProcessCheck(AgentCheck):
         self.gauge('system.processes.mem.rss', rss, tags=[name])
         self.gauge('system.processes.mem.vms', vms, tags=[name])
         self.gauge('system.processes.mem.real', real, tags=[name])
-
-
-if __name__ == '__main__':
-    from pprint import pprint as pp
-    check, instances = ProcessCheck.from_yaml('../conf.d/process.yaml.example')
-    for instance in instances:
-        check.check(instance)
-    print 'Metrics:'
-    pp(check.get_metrics())

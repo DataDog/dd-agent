@@ -18,6 +18,7 @@ import config
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
+STATUS_WARNING = 'WARNING'
 
 
 log = logging.getLogger(__name__)
@@ -94,6 +95,9 @@ class AgentStatus(object):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
 
+    def has_error(self):
+        raise NotImplementedError
+
     def persist(self):
         try:
             path = self._get_pickle_path()
@@ -131,10 +135,18 @@ class AgentStatus(object):
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
-
+        styles = ['red','bold'] if self.created_seconds_ago() > 120 else []
+        # We color it in red if the status is too old
         fields = [
-            ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago())),
+            (
+                style("Status date", *styles),
+                style("%s (%ss ago)" %
+                    (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()), *styles)
+            )
+        ]
+
+        fields += [
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
@@ -191,10 +203,12 @@ class AgentStatus(object):
         message = cls._not_running_message()
         exit_code = -1
 
-        collector_status = cls.load_latest_status()
-        if collector_status:
-            message = collector_status.render()
+        module_status = cls.load_latest_status()
+        if module_status:
+            message = module_status.render()
             exit_code = 0
+            if module_status.has_error():
+                exit_code = 1
 
         sys.stdout.write(message)
         return exit_code
@@ -206,7 +220,7 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
@@ -216,9 +230,13 @@ class InstanceStatus(object):
         else:
             self.traceback = None
 
-    def has_error(self):
-        return self.status != STATUS_OK
+        self.warnings = warnings
 
+    def has_error(self):
+        return self.status == STATUS_ERROR
+
+    def has_warnings(self):
+        return self.status == STATUS_WARNING
 
 class CheckStatus(object):
     
@@ -234,6 +252,10 @@ class CheckStatus(object):
             if instance_status.status == STATUS_ERROR:
                 return STATUS_ERROR
         return STATUS_OK
+
+    def has_error(self):
+        return self.status == STATUS_ERROR
+
 
 class EmitterStatus(object):
 
@@ -263,6 +285,16 @@ class CollectorStatus(AgentStatus):
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
+
+    @property
+    def status(self):
+        for check_status in self.check_statuses:
+            if check_status.status == STATUS_ERROR:
+                return STATUS_ERROR
+        return STATUS_OK
+
+    def has_error(self):
+        return self.status != STATUS_OK
 
     def body_lines(self):
         # Metadata whitelist
@@ -306,14 +338,20 @@ class CollectorStatus(AgentStatus):
                 ]
                 for s in cs.instance_statuses:
                     c = 'green'
+                    if s.has_warnings():
+                        c = 'yellow'
                     if s.has_error():
                         c = 'red'
                     line =  "    - instance #%s [%s]" % (
                              s.instance_id, style(s.status, c))
                     if s.has_error():
                         line += u": %s" % s.error
+
                     check_lines.append(line)
-                
+
+                    if s.has_warnings():
+                        for warning in s.warnings:
+                            check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
 
                     if self.verbose and s.traceback is not None:
                         # Formatting the traceback to look like a python traceback
@@ -359,22 +397,26 @@ class CollectorStatus(AgentStatus):
 class DogstatsdStatus(AgentStatus):
 
     NAME = 'Dogstatsd'
-    
-    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
+
+    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, 
+        metric_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
 
+    def has_error(self):
+        return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
 
     def body_lines(self):
-        return [
+        lines = [
             "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
         ]
+        return lines
 
 
 class ForwarderStatus(AgentStatus):
@@ -388,8 +430,12 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
 
     def body_lines(self):
-        return [
+        lines = [
             "Queue Size: %s" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
+        return lines
+
+    def has_error(self):
+        return self.flush_count == 0

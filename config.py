@@ -704,7 +704,10 @@ def get_logging_config(cfg_path=None):
     config.readfp(skip_leading_wsp(open(config_path)))
 
     if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
-        sys.stderr.write("Python logging config is no longer supported and will be ignored.\nTo configure logging, update the logging portion of 'datadog.conf' to match:\n  'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.\n")
+        sys.stderr.write("""Python logging config is no longer supported and will be ignored.
+            To configure logging, update the logging portion of 'datadog.conf' to match:
+             'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.
+             """)
 
     for option in logging_config:
         if config.has_option('Main', option):
@@ -742,7 +745,9 @@ def get_logging_config(cfg_path=None):
     return logging_config
 
 
+
 def initialize_logging(logger_name):
+
     try:
         if get_os() == 'windows':
             logging.config.fileConfig(get_config_path())

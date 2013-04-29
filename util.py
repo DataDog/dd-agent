@@ -250,6 +250,7 @@ class EC2(object):
         except:
             return None
 
+
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
     if it has not been reset every N seconds, or if the processes exceeds
