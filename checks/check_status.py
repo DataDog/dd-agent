@@ -135,16 +135,16 @@ class AgentStatus(object):
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
-        if self.created_seconds_ago() > 120:
-            # We color it in red if the status is too old
-            fields = [(style("Status date",'red', 'bold'), 
-                       style("%s (%ss ago)" % 
-                            (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()), 'red', 'bold'))]
-        else:
-            fields = [("Status date", "%s (%ss ago)" % 
-                (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()))]
+        styles = ['red','bold'] if self.created_seconds_ago() > 120 else []
+        # We color it in red if the status is too old
+        fields = [
+            (
+                style("Status date", *styles),
+                style("%s (%ss ago)" %
+                    (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()), *styles)
+            )
+        ]
 
         fields += [
             ("Pid", self.created_by_pid),
