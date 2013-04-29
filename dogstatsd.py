@@ -4,9 +4,7 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from util import InfoPageHandler
-INFO_PAGE_HANDLER = InfoPageHandler()
-from config import initialize_logging; initialize_logging('dogstatsd', INFO_PAGE_HANDLER)
+from config import initialize_logging; initialize_logging('dogstatsd')
 
 import os; os.umask(022)
 
