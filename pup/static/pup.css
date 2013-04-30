@@ -122,7 +122,10 @@ html {
 
 #content {
 	height: 100%;
-	padding: 0 0 0 190px;	
+}
+
+#with-sidebar {
+	padding: 0 0 0 190px;
 }
 
 
@@ -329,6 +332,10 @@ pre {
 	margin-top: 20px;
 	text-align: center;
 	color: #aaa;
+}
+
+#agent-status {
+	text-align: center;
 }
 
 #port {

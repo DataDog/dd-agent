@@ -23,6 +23,9 @@
 	  <p id="listening">Listening on port <span id="port">{{ port }}</span></p>
       <hr class="break" />
 
+      <div id="agent-status"><a href="/status">Agent status</a></div>
+      <hr class="break" />
+
       <!-- If no data streaming -->
       <p id="no-metrics">No metrics to search through.</p>
 
@@ -69,7 +72,7 @@
       </div><!-- .data-streaming -->
     </div><!-- #sidebar -->
 
-	<div id="content">
+	<div id="content  with-sidebar">
 	  <!-- If disconnected -->
 	  <h3 id="disconnected" class="hidden">
 		  <span class="giant">Arf.</span> Pup has been disconnected. Please restart Pup and refresh the page.</h3>
