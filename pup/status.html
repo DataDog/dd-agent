@@ -70,9 +70,20 @@
           {% for id, instance in check['instances'].iteritems() %}
           <li>
             <dl>
-              <dt>Instance #{{ id }}</dt> <dd class="{{ ['status-ok','status-error'][instance['has_error']] }}">{{ instance['status'] }}</dd>
+              <dt>Instance #{{ id }}</dt> <dd class="{{ ['status-ok','status-warning','status-error', 'status-error'][2 * instance['has_error'] + 1 * instance['has_warnings']] }}">{{ instance['status'] }}</dd>
               {% if instance['has_error'] %}
               <dt>Error</dt> <dd>{{ instance['error'] }}</dd>
+              {% end %}
+              {% if instance['has_warnings'] %}
+              <dt>Warnings</dt>
+              <dd>
+                {% if len(instance['warnings']) > 1 %}
+                <br/>
+                {% end %}
+                {% for warning in instance['warnings'] %}
+                {{warning}}<br />
+                {% end %}
+              </dd>
               {% end %}
             </dl>
           </li>
