@@ -109,6 +109,20 @@ AGENT_IGNORE = [
     'events'
 ]
 
+# Define settings, path is different if using py2exe
+frozen = getattr(sys, 'frozen', '')
+if not frozen:
+    agent_root = os.path.join(os.path.dirname(__file__), '..')
+else:
+    # Using py2exe
+    agent_root = os.path.dirname(sys.executable)
+
+settings = {
+    "static_path": os.path.join(agent_root, "pup", "static"),
+    "cookie_secret": "61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
+    "xsrf_cookies": True,
+}
+
 # Check if using old version of Python. Pup's usage of defaultdict requires 2.5 or later,
 # and tornado only supports 2.5 or later. The agent supports 2.6 onwards it seems.
 if int(sys.version_info[1]) <= 5:
@@ -177,7 +191,7 @@ def agent_update(payload):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("pup.html",
+        self.render(os.path.join(agent_root, "pup", "pup.html"),
         title="Pup",
         port=port)
 
@@ -186,7 +200,7 @@ class StatusHandler(tornado.web.RequestHandler):
         dogstatsd_status = DogstatsdStatus.load_latest_status()
         forwarder_status = ForwarderStatus.load_latest_status()
         collector_status = CollectorStatus.load_latest_status()
-        self.render("status.html",
+        self.render(os.path.join(agent_root, "pup", "status.html"),
             port=port,
             platform=platform.platform(),
             agent_version=get_version(),
@@ -227,13 +241,6 @@ class PupSocket(websocket.WebSocketHandler):
     def on_close(self):
         del listeners[self]
 
-settings = {
-    "static_path": os.path.join(os.path.dirname(__file__), "static"),
-    "cookie_secret": "61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
-    "xsrf_cookies": True,
-}
-
-
 
 def tornado_logger(handler):
     """ Override the tornado logging method.
@@ -248,7 +255,6 @@ def tornado_logger(handler):
     request_time = 1000.0 * handler.request.request_time()
     log_method("%d %s %.2fms", handler.get_status(),
                handler._request_summary(), request_time)
-    
 
 
 application = tornado.web.Application([
@@ -279,6 +285,25 @@ def run_pup(config):
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
+
+def start_info_page(config):
+    global port
+    global application
+
+    application = tornado.web.Application([
+        (r"/", StatusHandler),
+        (r"/status", StatusHandler),
+    ], log_function=tornado_logger)
+
+    port = config.get('pup_port', 17125)
+    interface = config.get('pup_interface', 'localhost')
+
+    # localhost in lieu of 127.0.0.1 allows for ipv6
+    application.listen(port, address=interface)
+
+def stop_info_page():
+    """ Only used by the Windows service """
+    sys.exit(0)
 
 def main():
     """ Parses arguments and starts Pup server """
