@@ -82,7 +82,9 @@ class JmxConnector:
 
         self._jmx = None
 
-    def connect(self, connection, user=None, passwd=None, timeout=20, priority=DEFAULT_PRIORITY):
+    def connect(self, connection, user=None, passwd=None, timeout=20, 
+        priority=DEFAULT_PRIORITY, java_bin_path=None):
+
         import pexpect
         from pexpect import ExceptionPexpect
 
@@ -97,10 +99,15 @@ class JmxConnector:
                 # Figure out which path to the jar, __file__ is jmx.pyc
                 pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
                 # Only use nice is the requested priority warrants it
+
+
+                if java_bin_path is None:
+                    java_bin_path = 'java'
+
                 if priority == DO_NOT_NICE:
-                    cmd = "java -jar %s -l %s" % (pth, connection)
+                    cmd = "%s -jar %s -l %s" % (java_bin_path, pth, connection)
                 else:
-                    cmd = "nice -n %s java -jar %s -l %s" % (priority, pth, connection)
+                    cmd = "nice -n %s %s -jar %s -l %s" % (priority, java_bin_path, pth, connection)
                 if user is not None and passwd is not None:
                     cmd += " -u %s -p %s" % (user, passwd)
                 self.log.debug("Opening JMX connector with PATH=%s" % cmd)
@@ -109,6 +116,8 @@ class JmxConnector:
                 self._wait_prompt()
         except ExceptionPexpect, e:
             self.terminate()
+            if "The command was not found or was not executable" in str(e):
+                raise Exception("Java bin not found. You can manually set its location by using the java_bin_path parameter in the yaml config file.")
             raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
     def dump_domains(self, domains, values_only=True):
@@ -357,6 +366,7 @@ class JmxCheck(AgentCheck):
         user = instance.get('user', None)
         password = instance.get('password', None)
         instance_name = instance.get('name', "%s-%s-%s" % (self.name, host, port))
+        java_bin_path = instance.get('java_bin_path', None)
 
         if user is not None and len(user.strip()) == 0:
             user = None
@@ -382,7 +392,8 @@ class JmxCheck(AgentCheck):
             priority = int(instance.get('priority', DEFAULT_PRIORITY))
             if priority < 0:
                 priority = 0
-            jmx.connect("%s:%s" % (host, port), user, password, priority=priority)
+            jmx.connect("%s:%s" % (host, port), user, password, priority=priority,
+                java_bin_path=java_bin_path)
             
             
             # When the connection succeeds we set the watcher to these values that 

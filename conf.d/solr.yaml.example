@@ -4,6 +4,8 @@ instances:
 #        user: username
 #        password: password
 #        name: solr_instance
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
+
 
 
 # List of metrics to be collected by the integration

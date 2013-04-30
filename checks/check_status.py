@@ -135,7 +135,10 @@ class AgentStatus(object):
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
-        styles = ['red','bold'] if self.created_seconds_ago() > 120 else []
+        if self.created_seconds_ago() > 120:
+            styles = ['red','bold']
+        else:
+            styles = []
         # We color it in red if the status is too old
         fields = [
             (
