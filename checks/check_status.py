@@ -411,11 +411,12 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
-        for key, host in self.metadata.items():
-            for whitelist_item in metadata_whitelist:
-                if whitelist_item in key:
-                    status_info['hostnames'][key] = host
-                    break
+        if self.metadata:
+            for key, host in self.metadata.items():
+                for whitelist_item in metadata_whitelist:
+                    if whitelist_item in key:
+                        status_info['hostnames'][key] = host
+                        break
 
         # Checks.d Status
         status_info['checks'] = {}
@@ -427,7 +428,7 @@ class CollectorStatus(AgentStatus):
                     'has_error': s.has_error(),
                 }
                 if s.has_error():
-                    status_info['checks'][cs.name][s.instance_id]['instances']['error'] = s.error
+                    status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
             status_info['checks'][cs.name]['metric_count'] = cs.metric_count
             status_info['checks'][cs.name]['event_count'] = cs.event_count
 

@@ -56,6 +56,8 @@
           <dt>{{ key }}</dt>      <dd>{{ host }}</dd>
           {% end %}
         </dl>
+        {% else %}
+        <p>No host information available yet.</p>
         {% end %}
 
         <h3>Checks</h3>
@@ -79,6 +81,8 @@
           </ul></li>
           {% end %}
         </ul>
+        {% else %}
+        <p>No checks have run yet.</p>
         {% end %}
 
         <h3>Emitter</h3>
@@ -95,6 +99,8 @@
           </dd>
           {% end %}
         </dl>
+        {% else %}
+        <p>No emitters have run yet.</p>
         {% end %}
 
 
