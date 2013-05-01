@@ -33,3 +33,9 @@ that you can use as a template.
 
 Writing your own checks is easy using our checks.d interface. Read more about
 how to use it on our [Guide to Agent Checks](http://docs.datadoghq.com/guides/agent_checks/).
+
+# Contributors
+
+```bash
+git log --all | gawk '/Author/ {print}' | sort | uniq
+```
