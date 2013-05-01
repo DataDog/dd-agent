@@ -143,13 +143,12 @@ class DogstatsdThread(threading.Thread):
 class PupThread(threading.Thread):
     def __init__(self, agentConfig):
         threading.Thread.__init__(self)
-        self.config = agentConfig
-        self.is_enabled = self.config['use_web_info_page']
+        self.is_enabled = agentConfig.get('use_web_info_page', True)
         self.pup = pup
 
     def run(self):
         if self.is_enabled:
-            self.pup.run_info_page(self.config)
+            self.pup.run_info_page()
 
     def stop(self):
         if self.is_enabled:

@@ -291,24 +291,22 @@ def run_info_page():
 
     config = get_config(parse_args=False)
 
-    if config.get('use_web_info_page', True):
-        info_page_application = tornado.web.Application([
-            (r"/", StatusHandler),
-            (r"/status", StatusHandler),
-            (r"/(.*\..*$)", tornado.web.StaticFileHandler,
-                 dict(path=settings['static_path'])),
-        ], log_function=tornado_logger)
+    info_page_application = tornado.web.Application([
+        (r"/", StatusHandler),
+        (r"/status", StatusHandler),
+        (r"/(.*\..*$)", tornado.web.StaticFileHandler,
+             dict(path=settings['static_path'])),
+    ], log_function=tornado_logger)
 
-        port = config.get('pup_port', 17125)
-        interface = config.get('pup_interface', 'localhost')
+    port = config.get('pup_port', 17125)
+    interface = config.get('pup_interface', 'localhost')
 
-        info_page_application.listen(port, address=interface)
+    info_page_application.listen(port, address=interface)
 
-        io_loop = ioloop.IOLoop.instance().start()
+    io_loop = ioloop.IOLoop.instance().start()
 
 def stop_info_page():
     ioloop.IOLoop.instance().stop()
-    sys.exit(0)
 
 def main():
     """ Parses arguments and starts Pup server """
