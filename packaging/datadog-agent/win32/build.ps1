@@ -24,7 +24,6 @@ mkdir install_files\conf.d
 cp ..\..\..\conf.d\* install_files\conf.d
 
 # Copy the pup files into the install_files
-mkdir install_files\pup
 cp -R ..\..\..\dist\pup install_files\pup
 
 ## Generate the UI install with NSIS
