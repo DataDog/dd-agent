@@ -286,23 +286,28 @@ def run_pup(config):
     scheduler.start()
     io_loop.start()
 
-def start_info_page(config):
+def run_info_page():
     global port
-    global application
 
-    application = tornado.web.Application([
-        (r"/", StatusHandler),
-        (r"/status", StatusHandler),
-    ], log_function=tornado_logger)
+    config = get_config(parse_args=False)
 
-    port = config.get('pup_port', 17125)
-    interface = config.get('pup_interface', 'localhost')
+    if config.get('use_web_info_page', True):
+        info_page_application = tornado.web.Application([
+            (r"/", StatusHandler),
+            (r"/status", StatusHandler),
+            (r"/(.*\..*$)", tornado.web.StaticFileHandler,
+                 dict(path=settings['static_path'])),
+        ], log_function=tornado_logger)
 
-    # localhost in lieu of 127.0.0.1 allows for ipv6
-    application.listen(port, address=interface)
+        port = config.get('pup_port', 17125)
+        interface = config.get('pup_interface', 'localhost')
+
+        info_page_application.listen(port, address=interface)
+
+        io_loop = ioloop.IOLoop.instance().start()
 
 def stop_info_page():
-    """ Only used by the Windows service """
+    ioloop.IOLoop.instance().stop()
     sys.exit(0)
 
 def main():
