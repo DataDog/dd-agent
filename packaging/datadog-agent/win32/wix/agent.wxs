@@ -111,6 +111,7 @@
             <ComponentRef Id="datadog.conf" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
+            <ComponentGroupRef Id="pup" />
         </Feature>
 
         <InstallExecuteSequence>

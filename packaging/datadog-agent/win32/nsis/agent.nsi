@@ -157,6 +157,9 @@ Section "Datadog Agent" SecDummy
   ; Install all of the checks.d checks
   File /r "..\install_files\checks.d"
 
+  ; Install all of the info page web files
+  File /r "..\install_files\pup"
+
   ; Config does in App Data
   ; Only write the config if it doesn't exist yet
   ${IfNot} ${FileExists} "$0\Datadog\datadog.conf"
