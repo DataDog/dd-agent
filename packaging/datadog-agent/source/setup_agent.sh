@@ -63,7 +63,9 @@ fi
 sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf
 mkdir -p $dd_base/bin
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent
+cp $dd_base/agent/packaging/datadog-agent/source/info  $dd_base/bin/info
 chmod +x $dd_base/bin/agent
+chmod +x $dd_base/bin/info
 
 # This is the script that will be used by SMF
 if [ "$unamestr" = "SunOS" ]; then
