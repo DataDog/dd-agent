@@ -10,6 +10,7 @@ tag="3.6.3"
 dogweb_reporting_failure_url="https://datadoghq.com/agent_stats/report_failure"
 email_reporting_failure="help@datadoghq.com" 
 
+# Function to display a message passed as an argument in red and then exit
 quit_error() {
   printf "\033[31m"
   printf "$1" | tee -a $logfile
@@ -26,6 +27,8 @@ get_api_key_to_report() {
     fi
 }
 
+# Try to use curl to post the log in case of failure to an endpoint
+# Will try to send it by mail usint the mail function if curl failed 
 report() {
     get_api_key_to_report
     log=$(cat "$logfile")
@@ -45,6 +48,7 @@ and we'll do our very best to help you solve your problem\n\033[0m"
 
 }
 
+# If the user doesn't want to automatically report, display a message so he can reports manually
 report_manual() {
    
    printf "\033[31m
@@ -57,6 +61,8 @@ and we'll do our very best to help you solve your problem.
 
 }
 
+# Try to send the report using the mail function if curl failed, and display 
+# a message in case the mail function also failed
 report_using_mail() {
     log=$(cat "$logfile")
     notfication_message_manual="\033[31m
@@ -73,6 +79,8 @@ exit 1
 
 }
 
+# Will be called if an unknow error appears and that the agent is not running
+# It asks the user if he wants to automatically send a failure report
 unknown_error() {
   printf "\033[31m It looks like you hit an issue when trying to install the agent.\n\033[0m" | tee -a $logfile
   printf "$1" | tee -a $logfile
@@ -87,6 +95,8 @@ unknown_error() {
   done
 }
 
+
+# Small helper to display "Done"
 print_done() {
   printf "\033[32m  "
   printf "Done\n" | tee -a $logfile
@@ -349,12 +359,15 @@ else
       printf "\n\nWaiting for metrics..." | tee -a $logfile
     
         c=0
+        # Wait for 30 secs before checking if metrics have been submitted
         while [ "$c" -lt "30" ]; do
             sleep 1
             printf "."
             c=$(($c+1))
         done
     
+        # Hit this endpoint to check if the agent is submitting metrics
+        # and retry every sec for 60 more sec before failing 
         curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
         success=$?
         while [ "$success" -gt "0" ]; do
