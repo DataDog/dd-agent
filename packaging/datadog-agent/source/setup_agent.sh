@@ -204,9 +204,11 @@ else
     sed "s/api_key:.*/api_key: pup/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
 fi
 sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
+printf "disable_file_logging: True" >> $dd_base/agent/datadog.conf
+
 print_done
 
-printf "Setting up launching scripts....."
+printf "Setting up launching scripts....." | tee -a $logfile
 mkdir -p $dd_base/bin >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/info  $dd_base/bin/info >> $logfile 2>&1
