@@ -209,6 +209,8 @@ print_done
 printf "Setting up launching scripts....."
 mkdir -p $dd_base/bin >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent >> $logfile 2>&1
+cp $dd_base/agent/packaging/datadog-agent/source/info  $dd_base/bin/info >> $logfile 2>&1
+chmod +x $dd_base/bin/agent >> $logfile 2>&1
 chmod +x $dd_base/bin/agent >> $logfile 2>&1
 print_done
 
