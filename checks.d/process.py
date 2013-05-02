@@ -1,15 +1,19 @@
-import psutil
 from checks import AgentCheck
+import time
 
 class ProcessCheck(AgentCheck):
-    
-    def find_pids(self, processes, search_string, exact_match=True):
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
+        self.processes = None
+        self.last_process_collection = 0
+
+    def find_pids(self, search_string, exact_match=True):
         """
         Create a set of pids of selected processes.
         Search for search_string 
         """
         found_process_list = []
-        for proc in processes:
+        for proc in self.processes:
             found = False
             for string in search_string:
                 if exact_match:
@@ -51,22 +55,36 @@ class ProcessCheck(AgentCheck):
                 real += mem.rss - mem.shared
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
-                self.log.warning('Process %s disappeared while scanning' % pid)
+                self.warning('Process %s disappeared while scanning' % pid)
                 pass
         #Return value in Byte
         return (rss, vms, real)
+
+    def refresh_process_iter(self, psutil):
+        if time.time() - self.last_process_collection > 5 or self.processes is None:
+            self.last_process_collection = time.time()
+            self.processes = psutil.process_iter()
         
     def check(self, instance):
-        name = instance.get('name', False)
-        if not name:
-            raise KeyError('The "name" of process groups is mandatory')
+        try:
+            import psutil
+        except ImportError:
+            raise Exception('You need the "ps" package to run this check')
+
+        name = instance.get('name', None)
         exact_match = instance.get('exact_match', True)
-        search_string = instance.get('search_string', False)
-        if not search_string:
+        search_string = instance.get('search_string', None)
+
+        if name is None:
+            raise KeyError('The "name" of process groups is mandatory')
+
+        if search_string is None:
             raise KeyError('The "search_string" is mandatory')
         
-        processes = psutil.process_iter()
-        pids = self.find_pids(processes, search_string, exact_match)
+        self.refresh_process_iter(psutil)
+
+        pids = self.find_pids(search_string, exact_match)
+
         self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=[name])
         rss, vms, real = self.get_process_memory_size(pids)
