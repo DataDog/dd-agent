@@ -98,7 +98,7 @@ unknown_error() {
 
 # Small helper to display "Done"
 print_done() {
-  printf "\033[32m  "
+  printf "\033[32m"
   printf "Done\n" | tee -a $logfile
   printf "\033[0m"
 }
@@ -175,7 +175,7 @@ fi
 
 printf "Creating agent directory $dd_base....."
 mkdir -p $dd_base
-printf "\033[32m   Done\n\033[0m"
+printf "\033[32mDone\n\033[0m"
 
 logfile="$dd_base/ddagent-install.log"
 printf "Creating log file $logfile....." | tee -a $logfile
