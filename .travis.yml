@@ -24,6 +24,7 @@ before_install:
   - sudo apt-get install apache2
   - sudo apt-get install couchdb
   - sudo apt-get install lighttpd
+  - sudo apt-get install gearman
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
