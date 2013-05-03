@@ -258,7 +258,17 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_pup'] = True
 
-        if agentConfig['use_pup']:
+        # Concerns only Windows
+        if config.has_option('Main', 'use_web_info_page'):
+            agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
+        else:
+            agentConfig['use_web_info_page'] = True
+
+        # Pup doesn't work on Windows
+        if sys.platform == 'win32':
+            agentConfig['use_pup'] = False
+
+        if agentConfig['use_pup'] or agentConfig['use_web_info_page']:
             if config.has_option('Main', 'pup_url'):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:
