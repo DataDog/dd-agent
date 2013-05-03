@@ -7,3 +7,4 @@ python-memcached
 pyyaml
 simplejson
 psutil
+gearman
