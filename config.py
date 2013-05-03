@@ -742,6 +742,11 @@ def get_logging_config(cfg_path=None):
         except:
             logging_config['syslog_port'] = None
 
+    if config.has_option('Main', 'disable_file_logging'):
+        logging_config['disable_file_logging'] = config.get('Main', 'disable_file_logging').strip().lower() in ['yes', 'true', 1]
+    else:
+        logging_config['disable_file_logging'] = False
+
     return logging_config
 
 
@@ -762,7 +767,7 @@ def initialize_logging(logger_name):
 
             # set up file loggers
             log_file = logging_config.get('%s_log_file' % logger_name)
-            if log_file is not None:
+            if log_file is not None and not logging_config['disable_file_logging']:
                 # make sure the log directory is writeable
                 # NOTE: the entire directory needs to be writable so that rotation works
                 if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
