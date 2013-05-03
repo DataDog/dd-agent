@@ -81,6 +81,9 @@
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
                 </Component>
+                <Component Id="datadogagentstatus.url" Guid="B8F673AA-F5F7-4273-947A-21391678D6BD">
+                    <File Id="datadogagentstatus.url" Source="$(var.InstallFiles)\datadog-agent-status.url" KeyPath="yes"></File>
+                </Component>
                 <Component Id="Microsoft.VC90.CRT.manifest" Guid="491C4E02-10C9-11E2-AC50-DD0B6288709B">
                     <File Id="Microsoft.VC90.CRT.manifest" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\Microsoft.VC90.CRT.manifest" KeyPath="yes"></File>
                 </Component>
@@ -105,6 +108,7 @@
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="datadogcert.pem" />
             <ComponentRef Id="license.txt" />
+            <ComponentRef Id="datadogagentstatus.url" />
             <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
             <ComponentRef Id="msvcp90.dll" />
             <ComponentRef Id="msvcr90.dll" />
