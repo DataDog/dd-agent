@@ -161,6 +161,13 @@ class AgentStatus(object):
             lines.append(l)
         return lines + [""]
 
+    def to_dict(self):
+        return {
+            'pid': self.created_by_pid,
+            'status_date': "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()),
+            }
+
     @classmethod
     def _not_running_message(cls):
         lines = cls._title_lines() + [
@@ -396,6 +403,55 @@ class CollectorStatus(AgentStatus):
 
         return lines
 
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+
+        # Hostnames
+        status_info['hostnames'] = {}
+        metadata_whitelist = [
+            'hostname',
+            'fqdn',
+            'ipv4',
+            'instance-id'
+        ]
+        if self.metadata:
+            for key, host in self.metadata.items():
+                for whitelist_item in metadata_whitelist:
+                    if whitelist_item in key:
+                        status_info['hostnames'][key] = host
+                        break
+
+        # Checks.d Status
+        status_info['checks'] = {}
+        for cs in self.check_statuses:
+            status_info['checks'][cs.name] = {'instances': {}}
+            for s in cs.instance_statuses:
+                status_info['checks'][cs.name]['instances'][s.instance_id] = {
+                    'status': s.status,
+                    'has_error': s.has_error(),
+                    'has_warnings': s.has_warnings(),
+                }
+                if s.has_error():
+                    status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
+                if s.has_warnings():
+                    status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
+            status_info['checks'][cs.name]['metric_count'] = cs.metric_count
+            status_info['checks'][cs.name]['event_count'] = cs.event_count
+
+        # Emitter status
+        status_info['emitter'] = []
+        for es in self.emitter_statuses:
+            check_status = {
+                'name': es.name,
+                'status': es.status,
+                'has_error': es.has_error(),
+                }
+            if es.has_error():
+                check_status['error'] = es.error
+            status_info['emitter'].append(check_status)
+
+        return status_info
+
 
 class DogstatsdStatus(AgentStatus):
 
@@ -421,6 +477,16 @@ class DogstatsdStatus(AgentStatus):
         ]
         return lines
 
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        status_info.update({
+            'flush_count': self.flush_count,
+            'packet_count': self.packet_count,
+            'packets_per_second': self.packets_per_second,
+            'metric_count': self.metric_count,
+        })
+        return status_info
+
 
 class ForwarderStatus(AgentStatus):
 
@@ -442,3 +508,12 @@ class ForwarderStatus(AgentStatus):
 
     def has_error(self):
         return self.flush_count == 0
+
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        status_info.update({
+            'flush_count': self.flush_count,
+            'queue_length': self.queue_length,
+            'queue_size': self.queue_size,
+        })
+        return status_info

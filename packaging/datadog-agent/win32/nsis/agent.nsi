@@ -153,9 +153,13 @@ Section "Datadog Agent" SecDummy
   File "..\install_files\shell.exe"
   File "..\install_files\ca-certificates.crt"
   File "..\install_files\datadog-cert.pem"
+  File "..\install_files\datadog-agent-status.url"
 
   ; Install all of the checks.d checks
   File /r "..\install_files\checks.d"
+
+  ; Install all of the info page web files
+  File /r "..\install_files\pup"
 
   ; Config does in App Data
   ; Only write the config if it doesn't exist yet
@@ -202,6 +206,7 @@ Section "Uninstall"
   Delete "$INSTDIR\ca-certificates.crt"
   Delete "$INSTDIR\datadog-cert.pem"
   Delete "$INSTDIR\license.txt"
+  Delete "$INSTDIR\datadog-agent-status.url"
   Delete "$INSTDIR\Uninstall.exe"
 
   RMDir "$INSTDIR"

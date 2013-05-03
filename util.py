@@ -1,6 +1,5 @@
 import os
 import platform
-import resource
 import signal
 import socket
 import subprocess
@@ -259,8 +258,9 @@ class Watchdog(object):
     If you instantiate more than one, you're also asking for trouble.
     """
     def __init__(self, duration, max_mem_mb = 2000):
-        """Set the duration
-        """
+        import resource
+
+        #Set the duration
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
