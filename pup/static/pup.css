@@ -122,12 +122,8 @@ html {
 
 #content {
 	height: 100%;
-}
-
-#with-sidebar {
 	padding: 0 0 0 190px;
 }
-
 
 /* content area */
 #waiting {
