@@ -172,6 +172,8 @@ class AgentStatus(object):
     def _not_running_message(cls):
         lines = cls._title_lines() + [
             style("  %s is not running." % cls.NAME, 'red'),
+            style("""  You can get more informations in the logs: 
+    %s""" % logger_info(), 'red'),
             "",
             ""
         ]

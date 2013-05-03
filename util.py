@@ -192,7 +192,8 @@ def get_hostname(config=None):
             hostname = socket_hostname
 
     if hostname is None:
-        raise Exception('Unable to reliably determine host name')
+        log.critical('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
+        raise Exception('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
     else:
         return hostname
 
