@@ -200,7 +200,7 @@ print_done
 # set up the agent
 mkdir -p $dd_base/agent >> $logfile 2>&1
 
-printf "Downloading the latest version of the agent from github (~2.5 MB)" | tee -a $logfile
+printf "Downloading the latest version of the agent from github (~2.5 MB)....." | tee -a $logfile
 $dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag >> $logfile 2>&1
 print_done
 printf "Uncompressing the archive....." | tee -a $logfile
