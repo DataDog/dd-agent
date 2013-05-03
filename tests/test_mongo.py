@@ -41,7 +41,7 @@ class TestMongo(unittest.TestCase):
         dir1 = mkdtemp()
         dir2 = mkdtemp()
         try:
-            self.p1 = subprocess.Popen(["mongod", "--dbpath", dir1, "--port", str(PORT1), "--replSet", "testset/%s:%d" % ("127.0.0.1", PORT2), "--rest"],
+            self.p1 = subprocess.Popen(["mongod", "--dbpath", dir1, "--port", str(PORT1), "--replSet", "testset/%s:%d" % (socket.gethostname(), PORT2), "--rest"],
                                        executable="mongod",
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
@@ -49,8 +49,8 @@ class TestMongo(unittest.TestCase):
             self.wait4mongo(self.p1, PORT1)
             if self.p1:
                 # Set up replication
-                c1 = pymongo.Connection('127.0.0.1:%s' % PORT1, slave_okay=True)
-                self.p2 = subprocess.Popen(["mongod", "--dbpath", dir2, "--port", str(PORT2), "--replSet", "testset/%s:%d" % ("127.0.0.1", PORT1), "--rest"],
+                c1 = pymongo.Connection('localhost:%s' % PORT1, slave_okay=True)
+                self.p2 = subprocess.Popen(["mongod", "--dbpath", dir2, "--port", str(PORT2), "--replSet", "testset/%s:%d" % (socket.gethostname(), PORT1), "--rest"],
                                            executable="mongod",
                                            stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE)
@@ -61,7 +61,7 @@ class TestMongo(unittest.TestCase):
                 # Sleep for 15s until replication is stable
                 time.sleep(30)
                 x = c1.admin.command("replSetGetStatus")
-                assert pymongo.Connection('127.0.0.1:%s' % PORT2)
+                assert pymongo.Connection('localhost:%s' % PORT2)
         except:
             logging.getLogger().exception("Cannot instantiate mongod properly")
 
@@ -76,10 +76,10 @@ class TestMongo(unittest.TestCase):
 
         self.config = {
             'instances': [{
-                'server': "mongodb://127.0.0.1:%s/test" % PORT1
+                'server': "mongodb://localhost:%s/test" % PORT1
             },
             {
-                'server': "mongodb://127.0.0.1:%s/test" % PORT2
+                'server': "mongodb://localhost:%s/test" % PORT2
             }]
         }
 
@@ -142,13 +142,13 @@ class TestMongo(unittest.TestCase):
 
     def testMongoOldConfig(self):
         self.agentConfig1 = {
-            'mongodb_server': "mongodb://127.0.0.1:%s/test" % PORT1,
+            'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
             'version': '0.1',
             'api_key': 'toto'
         }
         conf1 = self.check.parse_agent_config(self.agentConfig1)
         self.agentConfig2 = {
-            'mongodb_server': "mongodb://127.0.0.1:%s/test" % PORT2,
+            'mongodb_server': "mongodb://localhost:%s/test" % PORT2,
             'version': '0.1',
             'api_key': 'toto'
         }
