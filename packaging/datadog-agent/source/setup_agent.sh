@@ -46,7 +46,7 @@ python $dd_base/virtualenv.py $dd_base/venv
 . $dd_base/venv/bin/activate
 
 # install dependencies
-pip install tornado
+pip install tornado==2.4.1
 
 # figure out where to pull from
 tag="3.6.3"
@@ -103,7 +103,7 @@ if [ "$unamestr" = "SunOS" ]; then
     svcadm enable site/datadog
     svcs datadog
 
-		printf "*** The agent is running. My work on this planet is done... ( ^_^)／ ***"
+		printf "*** The agent is running. My work on this planet is done... \(^_^)/ ***"
 		printf "
                                                                                 
                                          7           77II?+~,,,,,,              
