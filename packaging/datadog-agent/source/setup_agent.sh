@@ -105,7 +105,7 @@ if [ "$unamestr" = "SunOS" ]; then
     svcadm enable site/datadog
     svcs datadog
 
-		printf "*** The agent is running. My work on this planet is done... ( ^_^)／ ***"
+		printf "*** The agent is running. My work on this planet is done... ( ^_^) ***"
 		printf "
                                                                                 
                                          7           77II?+~,,,,,,              
