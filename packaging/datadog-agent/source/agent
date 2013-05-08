@@ -1,4 +1,46 @@
-#!/bin/sh
+#!/bin/bash
+# Relative cd to where this script resides
+# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+pushd $THIS_DIR/..
 
-. venv/bin/activate
-supervisord -c supervisord/supervisord.conf
+source venv/bin/activate
+
+# start supervisor if not running
+runningp=$(pgrep -f supervisord)
+if [ $runningp -lt 1 ]; then
+  echo "Starting supervisor"
+  supervisord -c supervisord/supervisord.conf
+fi
+
+action=$1
+
+if [ ! -n "$action" ]; then
+  action="start"
+fi
+
+case $action in
+  start)
+    supervisorctl -c supervisord/supervisord.conf start all
+  ;;
+
+  stop)
+    supervisorctl -c supervisord/supervisord.conf stop all
+  ;;
+
+  restart)
+    supervisorctl -c supervisord/supervisord.conf restart all
+  ;;
+
+  status)
+    supervisorctl -c supervisord/supervisord.conf status
+  ;;
+
+  info)
+    python agent/agent.py info
+    python agent/dogstatsd.py info
+    python agent/ddagent.py info
+  ;;
+esac
+
+popd
