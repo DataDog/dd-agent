@@ -84,9 +84,5 @@ class Apache(AgentCheck):
             return False
 
         return {
-            'instances': [{
-                'apache_status_url': agentConfig.get('apache_status_url'),
-                'apache_user': agentConfig.get('apache_user'),
-                'apache_password': agentConfig.get('apache_password')
-            }]
+            'instances': [{'apache_status_url': agentConfig.get('apache_status_url')}]
         }
