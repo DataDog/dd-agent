@@ -49,7 +49,7 @@ python $dd_base/virtualenv.py $dd_base/venv
 pip install tornado==2.4.1
 
 # figure out where to pull from
-tag="3.6.3"
+tag="3.7.0"
 
 # set up the agent
 mkdir -p $dd_base/agent
