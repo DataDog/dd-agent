@@ -112,7 +112,7 @@ AGENT_IGNORE = [
 # Define settings, path is different if using py2exe
 frozen = getattr(sys, 'frozen', '')
 if not frozen:
-    agent_root = os.path.join(os.path.dirname(__file__), '..')
+    agent_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 else:
     # Using py2exe
     agent_root = os.path.dirname(sys.executable)
