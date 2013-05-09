@@ -8,7 +8,7 @@ source venv/bin/activate
 
 # start supervisor if not running
 runningp=$(pgrep -f supervisord)
-if [ $runningp -lt 1 ]; then
+if [ -z $runningp ]; then
   echo "Starting supervisor"
   supervisord -c supervisord/supervisord.conf
 fi
