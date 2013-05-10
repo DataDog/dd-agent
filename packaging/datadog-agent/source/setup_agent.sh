@@ -7,7 +7,7 @@ tag="3.7.0"
 # Define some helpers #
 #######################
 
-dogweb_reporting_failure_url="https://datadoghq.com/agent_stats/report_failure"
+dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
 email_reporting_failure="help@datadoghq.com" 
 
 RED="\033[31m"
@@ -179,7 +179,7 @@ fi
 
 printf "Creating agent directory $dd_base....."
 mkdir -p $dd_base
-printf "$GREENDone\n$DEFAULT"
+printf "$GREEN Done\n$DEFAULT"
 
 logfile="$dd_base/ddagent-install.log"
 printf "Creating log file $logfile....." | tee -a $logfile
