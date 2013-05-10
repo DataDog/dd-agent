@@ -6,6 +6,7 @@ import time
 import socket
 
 import pymongo
+from nose.plugins.skip import SkipTest
 
 from tests.common import load_check
 
@@ -73,6 +74,7 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testMongoCheck(self):
+        raise SkipTest()
 
         self.config = {
             'instances': [{
@@ -141,6 +143,7 @@ class TestMongo(unittest.TestCase):
         self.assertTrue( replSetCheck )
 
     def testMongoOldConfig(self):
+        raise SkipTest()
         self.agentConfig1 = {
             'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
             'version': '0.1',

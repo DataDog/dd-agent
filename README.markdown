@@ -26,7 +26,7 @@ pull request.
 
 If you are using packages on linux, the main configuration file lives 
 in `/etc/dd-agent/datadog.conf`. Per-check configuration files are in
-`/etc/dd-agent/conf.d`. We provide and example in the same directory
+`/etc/dd-agent/conf.d`. We provide an example in the same directory
 that you can use as a template.
 
 # How to write your own checks

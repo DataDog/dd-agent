@@ -93,16 +93,6 @@ class Varnish(AgentCheck):
         arg = "-x" # varnishstat argument
         version = 3
 
-        # Get the varnish version from varnishstat
-        output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE).communicate()
-
-        # Assumptions regarding varnish's version
-        use_xml = True
-        arg = "-x" # varnishstat argument
-        version = 3
-
         m1 = re.search(r"varnish-(\d+)", output, re.MULTILINE)
         # v2 prints the version on stderr, v3 on stdout
         m2 = re.search(r"varnish-(\d+)", error, re.MULTILINE)

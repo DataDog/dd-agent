@@ -200,7 +200,6 @@ printf "Installing tornado 2.4.1 using pip....." | tee -a $logfile
 pip install tornado==2.4.1 >> $logfile 2>&1
 print_done
 
-
 # set up the agent
 mkdir -p $dd_base/agent >> $logfile 2>&1
 
@@ -274,7 +273,7 @@ if [ "$unamestr" = "SunOS" ]; then
     svcadm enable site/datadog >> $logfile 2>&1
     svcs datadog >> $logfile 2>&1
 
-		printf "*** The agent is running. My work on this planet is done... ( ^_^)／ ***" | tee -a $logfile
+		printf "*** The agent is running. My work on this planet is done... ( ^_^) ***" | tee -a $logfile
 		printf "
                                                                                 
                                          7           77II?+~,,,,,,              

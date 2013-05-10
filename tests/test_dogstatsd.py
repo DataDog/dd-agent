@@ -381,5 +381,15 @@ class TestUnitDogStatsd(unittest.TestCase):
             nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.counter'], [cnt * run])
             nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.hist.count'], [cnt * run])
 
+    def test_scientific_notation(self):
+        stats = MetricsAggregator('myhost', interval=10)
+
+        stats.submit_packets('test.scinot:9.512901e-05|g')
+        metrics = self.sort_metrics(stats.flush())
+
+        assert len(metrics) == 1
+        ts, val = metrics[0].get('points')[0]
+        nt.assert_almost_equal(val, 9.512901e-05)
+
 if __name__ == "__main__":
     unittest.main()
