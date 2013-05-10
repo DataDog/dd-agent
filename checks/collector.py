@@ -49,7 +49,8 @@ class Collector(object):
         self.run_count = 0
         self.continue_running = True
         self.metadata_cache = None
-        self.checks_d = []
+        self.initialized_checks_d = []
+        self.init_failed_checks_d = []
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -112,7 +113,7 @@ class Collector(object):
         # in which case we'll get a misleading error in the logs.
         # Best to not even try.
         self.continue_running = False
-        for check in self.checks_d:
+        for check in self.initialized_checks_d:
             check.stop()
     
     def run(self, checksd=None, start_event=True):
@@ -128,8 +129,9 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
-        self.checks_d = checksd
-
+        if checksd:
+            self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {exception, traceback}}
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -246,8 +248,7 @@ class Collector(object):
 
         # checks.d checks
         check_statuses = []
-        checksd = checksd or []
-        for check in checksd:
+        for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
             log.info("Running check %s" % check.name)
@@ -277,6 +278,15 @@ class Collector(object):
                 log.exception("Error running check %s" % check.name)
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
+
+        for check_name, info in self.init_failed_checks_d.iteritems():
+            if not self.continue_running:
+                return
+            check_status = CheckStatus(check_name, None, None, None, True,
+                                       init_failed_exception=info['exception'],
+                                       init_failed_traceback=info['traceback'])
+            check_statuses.append(check_status)
+
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics

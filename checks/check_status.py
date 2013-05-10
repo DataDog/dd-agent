@@ -251,15 +251,22 @@ class InstanceStatus(object):
         return self.status == STATUS_WARNING
 
 class CheckStatus(object):
-    
-    def __init__(self, check_name, instance_statuses, metric_count, event_count):
+
+    def __init__(self, check_name, instance_statuses, metric_count,
+                 event_count, init_failed=False, init_failed_exception=None,
+                 init_failed_traceback=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
+        self.init_failed = init_failed
+        self.init_failed_exception = init_failed_exception
+        self.init_failed_traceback = init_failed_traceback
 
     @property
     def status(self):
+        if self.init_failed:
+            return STATUS_ERROR
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
                 return STATUS_ERROR
@@ -348,39 +355,52 @@ class CollectorStatus(AgentStatus):
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
                 ]
-                for s in cs.instance_statuses:
-                    c = 'green'
-                    if s.has_warnings():
-                        c = 'yellow'
-                    if s.has_error():
-                        c = 'red'
-                    line =  "    - instance #%s [%s]" % (
-                             s.instance_id, style(s.status, c))
-                    if s.has_error():
-                        line += u": %s" % s.error
-
-                    check_lines.append(line)
-
-                    if s.has_warnings():
-                        for warning in s.warnings:
-                            check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
-
-                    if self.verbose and s.traceback is not None:
-                        # Formatting the traceback to look like a python traceback
-                        check_lines.append("    Traceback (most recent call last):")
-
-                        # Format the traceback lines to look good in the output
-                        for tb_line in s.traceback:
-                            lines = tb_line.split('\n')
-                            for line in lines:
-                                if line.strip() == '':
+                if cs.init_failed:
+                    check_lines.append("    - initialize check class [%s]: %s" %
+                            (style(STATUS_ERROR, 'red'), cs.init_failed_exception.__class__.__name__))
+                    if self.verbose and cs.init_failed_traceback:
+                        # Indenting the traceback for the info command:
+                        for line in cs.init_failed_traceback:
+                            for subline in line.split("\n"):
+                                if not subline.strip():
                                     continue
-                                check_lines.append('    ' + line)
+                                check_lines.append( '      ' + subline.replace("\n", ''))
+                else:
+                    check_lines.append("    - initialize check class [%s]" %
+                            style(STATUS_OK, 'green'))
+                    for s in cs.instance_statuses:
+                        c = 'green'
+                        if s.has_warnings():
+                            c = 'yellow'
+                        if s.has_error():
+                            c = 'red'
+                        line =  "    - instance #%s [%s]" % (
+                                 s.instance_id, style(s.status, c))
+                        if s.has_error():
+                            line += u": %s" % s.error
 
-                check_lines += [
-                    "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
-                    ""
-                ]
+                        check_lines.append(line)
+
+                        if s.has_warnings():
+                            for warning in s.warnings:
+                                check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
+
+                        if self.verbose and s.traceback is not None:
+                            # Formatting the traceback to look like a python traceback
+                            check_lines.append("      Traceback (most recent call last):")
+
+                            # Format the traceback lines to look good in the output
+                            for tb_line in s.traceback:
+                                lines = tb_line.split('\n')
+                                for line in lines:
+                                    if line.strip() == '':
+                                        continue
+                                    check_lines.append('      ' + line)
+
+                    check_lines += [
+                        "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                        ""
+                    ]
 
                 lines += check_lines
 
