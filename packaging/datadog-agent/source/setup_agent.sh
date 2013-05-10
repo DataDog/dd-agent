@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.6.3"
+tag="3.7.0"
 
 #######################
 # Define some helpers #
@@ -10,12 +10,16 @@ tag="3.6.3"
 dogweb_reporting_failure_url="https://datadoghq.com/agent_stats/report_failure"
 email_reporting_failure="help@datadoghq.com" 
 
+RED="\033[31m"
+GREEN="\033[32m"
+DEFAULT="\033[0m"
+
 # Function to display a message passed as an argument in red and then exit
 quit_error() {
-  printf "\033[31m"
+  printf "$RED"
   printf "$1" | tee -a $logfile
   printf "\nExiting...\n" | tee -a $logfile
-  printf "\033[0m"
+  printf "$DEFAULT"
   exit 1
 }
 
@@ -36,11 +40,11 @@ report() {
     OS=$(echo "$unamestr" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     key_to_report=$(echo "$key_to_report" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
     agent_version=$(echo "$tag" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
-    notification_message="\033[31m
+    notification_message="$RED
 A notification has been sent to Datadog with the content of $logfile.
 
 You can send an email to $email_reporting_failure if you need support
-and we'll do our very best to help you solve your problem\n\033[0m"
+and we'll do our very best to help you solve your problem\n$DEFAULT"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url >> $logfile 2>&1 && printf "$notification_message" || report_using_mail
 
@@ -51,11 +55,11 @@ and we'll do our very best to help you solve your problem\n\033[0m"
 # If the user doesn't want to automatically report, display a message so he can reports manually
 report_manual() {
    
-   printf "\033[31m
-You can send an email to $email_reporting_failure with the content of $logfile and any informations you think would be useful
+   printf "$RED
+You can send an email to $email_reporting_failure with the content of $logfile and any information you think would be useful
 and we'll do our very best to help you solve your problem.
 
-\n\033[0m "
+\n$DEFAULT "
 
  exit 1
 
@@ -65,13 +69,13 @@ and we'll do our very best to help you solve your problem.
 # a message in case the mail function also failed
 report_using_mail() {
     log=$(cat "$logfile")
-    notfication_message_manual="\033[31m
+    notfication_message_manual="$RED
 Unable to send the report (you need curl or mail to send the report).
-Please send an email to $email_reporting_failure with the content of $logfile and any informations you think would be useful
+Please send an email to $email_reporting_failure with the content of $logfile and any information you think would be useful
 and we'll do our very best to help you solve your problem.
 
 
-\n\033[0m "
+\n$DEFAULT "
 
     printf "$log" | mail -s "Agent source installation failure" $email_reporting_failure  2>> $logfile && printf "$notification_message" | tee -a $logfile || printf "$notfication_message_manual" | tee -a $logfile
     
@@ -79,14 +83,14 @@ exit 1
 
 }
 
-# Will be called if an unknow error appears and that the agent is not running
+# Will be called if an unknown error appears and that the agent is not running
 # It asks the user if he wants to automatically send a failure report
 unknown_error() {
-  printf "\033[31m It looks like you hit an issue when trying to install the agent.\n\033[0m" | tee -a $logfile
+  printf "$RED It looks like you hit an issue when trying to install the agent.\n$DEFAULT" | tee -a $logfile
   printf "$1" | tee -a $logfile
   
   while true; do
-    read -p "Do you want to send a failure report to Datadog ? (y/n)" yn
+    read -p "Do you want to send a failure report to Datadog (Content of the report is in $logfile)? (y/n)" yn
     case $yn in
         [Yy]* ) report; break;;
         [Nn]* ) report_manual; break;;
@@ -98,9 +102,9 @@ unknown_error() {
 
 # Small helper to display "Done"
 print_done() {
-  printf "\033[32m"
+  printf "$GREEN"
   printf "Done\n" | tee -a $logfile
-  printf "\033[0m"
+  printf "$DEFAULT"
 }
 
 unamestr=`uname`
@@ -175,7 +179,7 @@ fi
 
 printf "Creating agent directory $dd_base....."
 mkdir -p $dd_base
-printf "\033[32mDone\n\033[0m"
+printf "$GREENDone\n$DEFAULT"
 
 logfile="$dd_base/ddagent-install.log"
 printf "Creating log file $logfile....." | tee -a $logfile
@@ -349,12 +353,12 @@ else
     if [ $apikey ]; then
     
         # wait for metrics to be submitted
-        printf "\033[32m
+        printf "$GREEN
     Your agent has started up for the first time. We're currently
     verifying that data is being submitted. You should see your agent show
     up in Datadog within a few seconds at:
     
-        https://app.datadoghq.com/account/settings#agent\033[0m" | tee -a $logfile
+        https://app.datadoghq.com/account/settings#agent$DEFAULT" | tee -a $logfile
     
       printf "\n\nWaiting for metrics..." | tee -a $logfile
     
@@ -383,7 +387,7 @@ else
         done
     
         # print instructions
-        printf "\033[32m
+        printf "$GREEN
     
     Success! Your agent is functioning properly, and will continue to run
     in the foreground. To stop it, simply press CTRL-C. To start it back
@@ -404,13 +408,13 @@ else
     " | tee -a $logfile
         fi
     
-        printf "\033[0m"
+        printf "$DEFAULT"
     
     # pup install
     else
     
         # print instructions
-        printf "\033[32m
+        printf "$GREEN
     
     Success! Pup is installed and functioning properly, and will continue to
     run in the foreground. To stop it, simply press CTRL-C. To start it back
@@ -430,7 +434,7 @@ else
     " | tee -a $logfile
         fi
     
-        printf "\033[0m"
+        printf "$DEFAULT"
     fi
     
     wait $agent_pid
