@@ -236,12 +236,7 @@ class InstanceStatus(object):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
-
-        if (type(tb).__name__ == 'traceback'):
-            self.traceback = traceback.format_tb(tb)
-        else:
-            self.traceback = None
-
+        self.traceback = tb
         self.warnings = warnings
 
     def has_error(self):
@@ -357,14 +352,11 @@ class CollectorStatus(AgentStatus):
                 ]
                 if cs.init_failed:
                     check_lines.append("    - initialize check class [%s]: %s" %
-                            (style(STATUS_ERROR, 'red'), cs.init_failed_exception.__class__.__name__))
+                                       (style(STATUS_ERROR, 'red'),
+                                       repr(cs.init_failed_exception)))
                     if self.verbose and cs.init_failed_traceback:
-                        # Indenting the traceback for the info command:
-                        for line in cs.init_failed_traceback:
-                            for subline in line.split("\n"):
-                                if not subline.strip():
-                                    continue
-                                check_lines.append( '      ' + subline.replace("\n", ''))
+                        check_lines.extend('      ' + line for line in
+                                           cs.init_failed_traceback.split('\n'))
                 else:
                     check_lines.append("    - initialize check class [%s]" %
                             style(STATUS_OK, 'green'))
@@ -386,16 +378,8 @@ class CollectorStatus(AgentStatus):
                                 check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
 
                         if self.verbose and s.traceback is not None:
-                            # Formatting the traceback to look like a python traceback
-                            check_lines.append("      Traceback (most recent call last):")
-
-                            # Format the traceback lines to look good in the output
-                            for tb_line in s.traceback:
-                                lines = tb_line.split('\n')
-                                for line in lines:
-                                    if line.strip() == '':
-                                        continue
-                                    check_lines.append('      ' + line)
+                            check_lines.extend('      ' + line for line in
+                                           s.traceback.split('\n'))
 
                     check_lines += [
                         "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
