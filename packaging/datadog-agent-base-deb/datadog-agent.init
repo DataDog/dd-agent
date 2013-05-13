@@ -61,7 +61,7 @@ case "$1" in
 	    supervised=$(supervisorctl -c $SUPERVISOR_FILE avail | grep datadog-agent | wc -l)
 	    if [ $supervised -gt 1 ]; then
             	echo -n "(using supervisorctl) "
-            	supervisorctl stop datadog-agent:*
+            	supervisorctl -c $SUPERVISOR_FILE stop datadog-agent:*
 	    else
 		# Should have been
                 echo -n "(warning: datadog-agent supervisor config is missing) "
