@@ -74,10 +74,12 @@ case "$1" in
         echo "$NAME."
     ;;
   info)
-        su $AGENTUSER -c "$AGENTPATH info" || true
-        su $AGENTUSER -c "$DOGSTATSDPATH info" || true
+        shift # Shift 'info' out of args so we can pass any
+              # addtional options to the real command
+        su $AGENTUSER -c "$AGENTPATH info $@" || true
+        su $AGENTUSER -c "$DOGSTATSDPATH info $@" || true
         if [ -f $USE_SUPERVISOR ]; then
-            su $AGENTUSER -c "$USE_SUPERVISOR info" || true
+            su $AGENTUSER -c "$USE_SUPERVISOR info $@" || true
         fi
     ;;
   restart|force-reload)
