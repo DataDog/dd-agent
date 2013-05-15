@@ -85,26 +85,26 @@ class Redis(AgentCheck):
             self.log.exception("Cannot parse dictionary string: %s" % string)
             return default
 
-    def _get_conn(self, host, port, password):
+    def _get_conn(self, instance):
         import redis
-        key = (host, port)
+        key = (instance.get('host'), instance.get('port'), instance.get('db'))
         if key not in self.connections:
-            if password is not None and len(password) > 0:
-                try:
-                    self.connections[key] = redis.Redis(host=host, port=port, password=password)
-                except TypeError:
-                    self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
-                    raise
-            else:
-                self.connections[key] = redis.Redis(host=host, port=port)
+            try:
+                self.connections[key] = redis.Redis(**instance)
+            except TypeError:
+                self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
+                raise
 
         return self.connections[key]
 
-    def _check_db(self, host, port, password, custom_tags=None):
-        conn = self._get_conn(host, port, password)
+    def _check_db(self, instance, custom_tags=None):
+        conn = self._get_conn(instance)
         tags = set(custom_tags or [])
-        tags = sorted(tags.union(["redis_host:%s" % host,
-                                  "redis_port:%s" % port]))
+        tags = sorted(tags.union(["redis_host:%s" % instance.get('host'),
+                                  "redis_port:%s" % instance.get('port'),
+                                  ]))
+        if instance.get('db') is not None:
+            tags.append("db:%s" % instance.get('db'))
       
         # Ping the database for info, and track the latency.
         start = time.time()
@@ -146,13 +146,8 @@ class Redis(AgentCheck):
         except ImportError:
             raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
 
-        # Allow the default redis database to be overridden.
-        host = instance.get('host', 'localhost')
-        port = instance.get('port', 6379)
-        password = instance.get('password', None)
         custom_tags = instance.get('tags', [])
-
-        self._check_db(host, int(port), password, custom_tags)
+        self._check_db(instance,custom_tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
