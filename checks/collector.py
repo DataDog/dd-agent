@@ -282,7 +282,7 @@ class Collector(object):
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
-            check_status = CheckStatus(check_name, None, None, None, True,
+            check_status = CheckStatus(check_name, None, None, None,
                                        init_failed_exception=info['exception'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)

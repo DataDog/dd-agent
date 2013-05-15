@@ -28,7 +28,7 @@ class Stylizer(object):
 
     STYLES = {
         'bold'    : 1,
-        'grey'    : 30, 
+        'grey'    : 30,
         'red'     : 31,
         'green'   : 32,
         'yellow'  : 33,
@@ -85,12 +85,12 @@ def logger_info():
     return ', '.join(loggers)
 
 class AgentStatus(object):
-    """ 
+    """
     A small class used to load and save status messages to the filesystem.
     """
 
     NAME = None
-    
+
     def __init__(self):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
@@ -131,7 +131,7 @@ class AgentStatus(object):
             "",
         ]
         return lines
-        
+
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
@@ -172,7 +172,7 @@ class AgentStatus(object):
     def _not_running_message(cls):
         lines = cls._title_lines() + [
             style("  %s is not running." % cls.NAME, 'red'),
-            style("""  You can get more informations in the logs: 
+            style("""  You can get more informations in the logs:
     %s""" % logger_info(), 'red'),
             "",
             ""
@@ -248,19 +248,18 @@ class InstanceStatus(object):
 class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count,
-                 event_count, init_failed=False, init_failed_exception=None,
+                 event_count, init_failed_exception=None,
                  init_failed_traceback=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
-        self.init_failed = init_failed
         self.init_failed_exception = init_failed_exception
         self.init_failed_traceback = init_failed_traceback
 
     @property
     def status(self):
-        if self.init_failed:
+        if self.init_failed_exception:
             return STATUS_ERROR
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
@@ -350,7 +349,7 @@ class CollectorStatus(AgentStatus):
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
                 ]
-                if cs.init_failed:
+                if cs.init_failed_exception:
                     check_lines.append("    - initialize check class [%s]: %s" %
                                        (style(STATUS_ERROR, 'red'),
                                        repr(cs.init_failed_exception)))
@@ -463,7 +462,7 @@ class DogstatsdStatus(AgentStatus):
 
     NAME = 'Dogstatsd'
 
-    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, 
+    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
         metric_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
