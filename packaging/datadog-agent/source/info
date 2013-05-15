@@ -3,5 +3,5 @@
 # http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 pushd $THIS_DIR/..
-bin/agent info
+bin/agent info $@
 popd
