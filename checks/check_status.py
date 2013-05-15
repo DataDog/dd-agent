@@ -248,18 +248,18 @@ class InstanceStatus(object):
 class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count,
-                 event_count, init_failed_exception=None,
+                 event_count, init_failed_error=None,
                  init_failed_traceback=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
-        self.init_failed_exception = init_failed_exception
+        self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
 
     @property
     def status(self):
-        if self.init_failed_exception:
+        if self.init_failed_error:
             return STATUS_ERROR
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
@@ -349,10 +349,10 @@ class CollectorStatus(AgentStatus):
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
                 ]
-                if cs.init_failed_exception:
+                if cs.init_failed_error:
                     check_lines.append("    - initialize check class [%s]: %s" %
                                        (style(STATUS_ERROR, 'red'),
-                                       repr(cs.init_failed_exception)))
+                                       repr(cs.init_failed_error)))
                     if self.verbose and cs.init_failed_traceback:
                         check_lines.extend('      ' + line for line in
                                            cs.init_failed_traceback.split('\n'))

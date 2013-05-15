@@ -675,7 +675,7 @@ def load_check_directory(agentConfig):
         except Exception, e:
             log.exception('Unable to initialize check {0}'.format(check_name))
             traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'exception':e, 'traceback':traceback_message}
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
         else:
             initialized_checks[check_name] = c
 

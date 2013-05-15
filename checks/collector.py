@@ -131,7 +131,7 @@ class Collector(object):
         events = payload['events']
         if checksd:
             self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
-            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {exception, traceback}}
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -283,7 +283,7 @@ class Collector(object):
             if not self.continue_running:
                 return
             check_status = CheckStatus(check_name, None, None, None,
-                                       init_failed_exception=info['exception'],
+                                       init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
 
