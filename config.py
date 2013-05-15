@@ -371,6 +371,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             for key, value in config.items('WMI'):
                 agentConfig['WMI'][key] = value
 
+        if config.has_option("Main", "limit_memory_consumption") and \
+            config.get("Main", "limit_memory_consumption") is not None:
+            agentConfig["limit_memory_consumption"] = int(config.get("Main", "limit_memory_consumption"))
+        else:
+            agentConfig["limit_memory_consumption"] = None
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

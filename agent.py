@@ -139,7 +139,8 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER, 
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 

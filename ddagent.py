@@ -310,7 +310,8 @@ class Application(tornado.web.Application):
         self._watchdog = None
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
-            self._watchdog = Watchdog(watchdog_timeout)
+            self._watchdog = Watchdog(watchdog_timeout,
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
     def log_request(self, handler):
         """ Override the tornado logging method.
