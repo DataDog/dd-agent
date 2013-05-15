@@ -7,7 +7,7 @@ class ProcessCheck(AgentCheck):
         self.processes = None
         self.last_process_collection = 0
 
-    def find_pids(self, search_string, exact_match=True):
+    def find_pids(self, search_string, psutil, exact_match=True):
         """
         Create a set of pids of selected processes.
         Search for search_string 
@@ -45,18 +45,29 @@ class ProcessCheck(AgentCheck):
             
         return set(found_process_list)
         
-    def get_process_memory_size(self, pids):
-        rss = vms = real = 0
+    def get_process_memory_size(self, pids, psutil, extended_metrics=False):
+        rss = 0
+        vms = 0
+        if extended_metrics:
+            real = 0
+        else:
+            real = None
         for pid in set(pids):
             try:
-                mem = psutil.Process(pid).get_ext_memory_info()
+                if extended_metrics:
+                    mem = psutil.Process(pid).get_ext_memory_info()
+                    real += mem.rss - mem.shared
+                else:
+                    mem = psutil.Process(pid).get_memory_info()
+
                 rss += mem.rss
                 vms += mem.vms
-                real += mem.rss - mem.shared
+                
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % pid)
                 pass
+
         #Return value in Byte
         return (rss, vms, real)
 
@@ -64,6 +75,9 @@ class ProcessCheck(AgentCheck):
         if time.time() - self.last_process_collection > 5 or self.processes is None:
             self.last_process_collection = time.time()
             self.processes = psutil.process_iter()
+
+    def psutil_older_than_0_6_0(self, psutil):
+        return psutil.version_info[1] >= 6
         
     def check(self, instance):
         try:
@@ -83,11 +97,13 @@ class ProcessCheck(AgentCheck):
         
         self.refresh_process_iter(psutil)
 
-        pids = self.find_pids(search_string, exact_match)
+        pids = self.find_pids(search_string, psutil, exact_match=exact_match)
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=[name])
-        rss, vms, real = self.get_process_memory_size(pids)
+        rss, vms, real = self.get_process_memory_size(pids, psutil, 
+            extended_metrics=self.psutil_older_than_0_6_0(psutil))
         self.gauge('system.processes.mem.rss', rss, tags=[name])
         self.gauge('system.processes.mem.vms', vms, tags=[name])
-        self.gauge('system.processes.mem.real', real, tags=[name])
+        if real is not None:
+            self.gauge('system.processes.mem.real', real, tags=[name])
