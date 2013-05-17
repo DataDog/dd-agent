@@ -5,4 +5,4 @@ instances:
         # apache_user: example_user
         # apache_password: example_password
         tags:
-            -   instance: foo
+            -   optional_tag
