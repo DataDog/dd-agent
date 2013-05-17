@@ -2,10 +2,6 @@ from checks import AgentCheck
 import time
 
 class ProcessCheck(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
-        self.processes = None
-        self.last_process_collection = 0
 
     def find_pids(self, search_string, psutil, exact_match=True):
         """
@@ -13,7 +9,7 @@ class ProcessCheck(AgentCheck):
         Search for search_string 
         """
         found_process_list = []
-        for proc in self.processes:
+        for proc in psutil.process_iter():
             found = False
             for string in search_string:
                 if exact_match:
@@ -71,11 +67,6 @@ class ProcessCheck(AgentCheck):
         #Return value in Byte
         return (rss, vms, real)
 
-    def refresh_process_iter(self, psutil):
-        if time.time() - self.last_process_collection > 5 or self.processes is None:
-            self.last_process_collection = time.time()
-            self.processes = psutil.process_iter()
-
     def psutil_older_than_0_6_0(self, psutil):
         return psutil.version_info[1] >= 6
         
@@ -95,8 +86,6 @@ class ProcessCheck(AgentCheck):
         if search_string is None:
             raise KeyError('The "search_string" is mandatory')
         
-        self.refresh_process_iter(psutil)
-
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
