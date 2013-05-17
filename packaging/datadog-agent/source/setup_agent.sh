@@ -246,7 +246,7 @@ if [ "$unamestr" = "Darwin" ]; then
     # prepare launchd
     mkdir -p $dd_base/launchd/logs >> $logfile 2>&1
     touch $dd_base/launchd/logs/launchd.log >> $logfile 2>&1
-    sed "s|AGENT_BASE|$dd_base|; s|USER_NAME|$(whoami)|" $dd_base/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example > $dd_base/launchd/com.datadoghq.Agent.plist >> $logfile 2>&1
+    sed "s|AGENT_BASE|$dd_base|; s|USER_NAME|$(whoami)|" $dd_base/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example > $dd_base/launchd/com.datadoghq.Agent.plist
 fi
 
 # consolidate logging

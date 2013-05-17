@@ -236,7 +236,9 @@ def main():
             except Exception:
                 # If not an old-style check, try checks.d
                 checks = load_check_directory(agentConfig)
-                for check in checks:
+                initialized_checks = checks['initialized_checks']
+                init_failed_checks = checks['init_failed_checks']
+                for check in initialized_checks:
                     if check.name == check_name:
                         check.run()
                         print check.get_metrics()
@@ -247,6 +249,9 @@ def main():
                             check.run()
                         print check.get_metrics()
                         print check.get_events()
+                if check_name in init_failed_checks.keys():
+                    print "Error initializing check for %s:" % check_name
+                    print init_failed_checks[check_name]['traceback']
 
 
     # Commands that don't need the agent to be initialized.
