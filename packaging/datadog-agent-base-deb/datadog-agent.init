@@ -80,6 +80,44 @@ case "$1" in
             su $AGENTUSER -c "$USE_SUPERVISOR info" || true
         fi
     ;;
+  status)
+        if [ -f $USE_SUPERVISOR ]; then
+            # If we're using supervisor, check the number of datadog processes
+            # supervisor is currently controlling, and make sure that it's the
+            # same as the number of programs specified in the supervisor config
+            # file.
+
+            supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
+            datadog_supervisor_processes=$(echo "$supervisor_processes" |
+                                           grep -v pup |
+                                           grep $NAME |
+                                           grep -c RUNNING)
+            supervisor_config_programs=$(grep -v pup $DATADOG_SUPERVISOR_FILE |
+                                         grep -c '\[program:')
+
+            if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+                echo "$supervisor_processes"
+                echo "Datadog agent (supervisor) is NOT running all child processes"
+                exit 1
+            else
+                echo "Datadog agent (supervisor) is running all child processes"
+                exit 0
+            fi
+        else
+            # If we're not using supervisor, check to see if the agent and
+            # dogstatsd are running using ps
+
+            agent_running=$(ps aux| grep -v grep | grep dd-agent -c)
+            dogstatsd_running=$(ps aux| grep -v grep | grep dogstatsd -c)
+            if [ "$agent_running" -lt 1 ] || [ "$dogstatsd_running" -lt 1 ]; then
+                echo "Datadog agent is NOT running"
+                exit 1
+            else
+                echo "Datadog agent is running"
+                exit 0
+            fi
+        fi
+    ;;
   restart|force-reload)
         $0 stop
         $0 start
