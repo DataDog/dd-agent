@@ -11,6 +11,7 @@ import time
 import types
 import os
 import sys
+import traceback
 from pprint import pprint
 
 from util import LaconicFilter, get_os, get_hostname
@@ -451,11 +452,10 @@ class AgentCheck(object):
                     instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                # Send the traceback (located at sys.exc_info()[2]) into the InstanceStatus otherwise a traceback won't be able to be printed
                 instance_status = check_status.InstanceStatus(i, 
                     check_status.STATUS_ERROR, 
-                    error=e, 
-                    tb=sys.exc_info()[2]
+                    error=e,
+                    tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
         return instance_statuses
