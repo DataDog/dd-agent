@@ -23,6 +23,7 @@ PIDPATH="/var/run/dd-agent"
 NAME="datadog-agent"
 DESC="datadog agent"
 SUPERVISOR_FILE="/etc/supervisor/supervisord.conf"
+DATADOG_SUPERVISOR_FILE="/etc/supervisor/conf.d/ddagent.conf"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"
 
@@ -124,7 +125,7 @@ case "$1" in
     ;;
   *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info}"
+        echo "Usage: $N {start|stop|restart|info|status}"
         exit 1
     ;;
 esac
