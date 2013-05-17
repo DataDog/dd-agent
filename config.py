@@ -572,12 +572,14 @@ def get_ssl_certificate(osname, filename):
 
 
 def load_check_directory(agentConfig):
-    ''' Return the checks from checks.d. Only checks that have a configuration
+    ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
+    initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from util import yaml, yLoader
     from checks import AgentCheck
 
-    checks = {}
+    initialized_checks = {}
+    init_failed_checks = {}
 
     osname = get_os()
     checks_paths = (glob.glob(os.path.join(path, '*.py')) for path
@@ -592,7 +594,7 @@ def load_check_directory(agentConfig):
     # import the corresponding check module
     for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
-        if check_name in checks:
+        if check_name in initialized_checks or check_name in init_failed_checks:
             log.debug('Skipping check %s because it has already been loaded from another location', check)
             continue
         try:
@@ -667,16 +669,21 @@ def load_check_directory(agentConfig):
 
         instances = check_config['instances']
         try:
-            c = check_class(check_name, init_config=init_config,
-                            agentConfig=agentConfig, instances=instances)
-        except TypeError, e:
-            # Backwards compatibility for checks which don't support the
-            # instances argument in the constructor.
-            c = check_class(check_name, init_config=init_config,
-                            agentConfig=agentConfig)
-            c.instances = instances
-
-        checks[check_name] = c
+            try:
+                c = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig, instances=instances)
+            except TypeError, e:
+                # Backwards compatibility for checks which don't support the
+                # instances argument in the constructor.
+                c = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig)
+                c.instances = instances
+        except Exception, e:
+            log.exception('Unable to initialize check {0}'.format(check_name))
+            traceback_message = traceback.format_exc()
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+        else:
+            initialized_checks[check_name] = c
 
         # Add custom pythonpath(s) if available
         if 'pythonpath' in check_config:
@@ -687,8 +694,10 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
-    log.info('checks.d checks: %s' % checks.keys())
-    return checks.values()
+    log.info('initialized checks.d checks: %s' % initialized_checks.keys())
+    log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
+    return {'initialized_checks':initialized_checks.values(),
+            'init_failed_checks':init_failed_checks}
 
 
 #
