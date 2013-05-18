@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 
 # set up logging before importing any other components
