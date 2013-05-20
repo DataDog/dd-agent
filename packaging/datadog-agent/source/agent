@@ -9,6 +9,8 @@ sock_file='supervisord/agent-supervisor.sock'
 if [ ! -e $sock_file ]; then
     echo "Starting supervisor"
     supervisord -c supervisord/supervisord.conf
+else
+    echo "Supervisor is already running"
 fi
 
 action=$1
