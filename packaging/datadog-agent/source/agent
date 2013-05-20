@@ -7,10 +7,10 @@ pushd $THIS_DIR/..
 source venv/bin/activate
 
 # start supervisor if not running
-runningp=$(pgrep -f supervisord)
-if [ -z $runningp ]; then
-  echo "Starting supervisor"
-  supervisord -c supervisord/supervisord.conf
+sock_file='supervisord/agent-supervisor.sock'
+if [ ! -e $sock_file ]; then
+    echo "Starting supervisor"
+    supervisord -c supervisord/supervisord.conf
 fi
 
 action=$1
