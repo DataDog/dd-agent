@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 BASEDIR=$(dirname $0)
-cd BASEDIR/..
+cd "$BASEDIR/.."
 
 . venv/bin/activate
 
