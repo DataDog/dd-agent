@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.7.0"
+tag="3.7.1"
 
 #######################
 # Define some helpers #
