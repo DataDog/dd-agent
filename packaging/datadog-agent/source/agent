@@ -5,6 +5,7 @@ cd "$BASEDIR/.."
 . venv/bin/activate
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
+SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
 sock_file='supervisord/agent-supervisor.sock'
 action=$1
 
@@ -23,12 +24,25 @@ check_status() {
   fi
 }
 
+execute_if_running() {
+  # Executes `supervisord -c $SUPERVISOR_CONF_FILE $*`
+  # if the supervisor is running.
+  check_status
+  if [ "$?" -eq "0" ]; then
+    supervisorctl -c $SUPERVISOR_CONF_FILE "$*"
+    return 0
+  else
+    echo $SUPERVISOR_NOT_RUNNING
+    return 1
+  fi
+}
+
 case $action in
   start)
     check_status
     if [ "$?" -eq "1" ]; then
       echo "Starting supervisor"
-      supervisord -c supervisord/supervisord.conf
+      supervisord -c $SUPERVISOR_CONF_FILE
       # Since the supervisor currently runs in the foreground, we
       # don't need to worry about setting an exit status
     else
@@ -38,35 +52,41 @@ case $action in
   ;;
 
   stop)
-    check_status
-    if [ "$?" -eq "0" ]; then
-      supervisorctl -c supervisord/supervisord.conf stop all
-      exit 0
-    else
-      echo $SUPERVISOR_NOT_RUNNING
-      exit 1
-    fi
+    execute_if_running stop all
+    exit $?
   ;;
 
   restart)
-    check_status
-    if [ "$?" -eq "0" ]; then
-      supervisorctl -c supervisord/supervisord.conf restart all
-      exit 0
-    else
-      echo $SUPERVISOR_NOT_RUNNING
-      exit 1
-    fi
+    execute_if_running restart all
+    exit $?
   ;;
 
   status)
     check_status
-    if [ "$?" -eq "0" ]; then
-      supervisorctl -c supervisord/supervisord.conf status
-      exit 0
-    else
+    if [ "$?" -eq "1" ]; then
       echo $SUPERVISOR_NOT_RUNNING
       exit 1
+    else
+      # Check the number of datadog processes supervisor is
+      # currently controlling, and make sure that it's the
+      # same as the number of programs specified in the
+      # supervisor config file:
+      status_output=$(supervisorctl -c $SUPERVISOR_CONF_FILE status)
+      datadog_supervisor_processes=$(echo "$status_output" |
+                                     grep -v pup |
+                                     grep 'datadog-agent' |
+                                     grep -c RUNNING)
+      supervisor_config_programs=$(grep -v pup $SUPERVISOR_CONF_FILE |
+                                   grep -c '\[program:')
+
+      echo "$status_output"
+      if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+        echo "Supervisor is NOT running all child processes"
+        exit 1
+      else
+        echo "Supervisor is running all child processes"
+        exit 0
+      fi
     fi
   ;;
 
