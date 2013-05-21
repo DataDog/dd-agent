@@ -4,36 +4,70 @@ cd "$BASEDIR/.."
 
 . venv/bin/activate
 
-# start supervisor if not running
+SUPERVISOR_NOT_RUNNING="Supervisor is not running"
 sock_file='supervisord/agent-supervisor.sock'
-if [ ! -e $sock_file ]; then
-    echo "Starting supervisor"
-    supervisord -c supervisord/supervisord.conf
-else
-    echo "Supervisor is already running"
-fi
-
 action=$1
 
 if [ ! -n "$action" ]; then
   action="start"
 fi
 
+check_status() {
+  # Returns 0 if the supervisor is running, and 1 if not.
+  # We check if the supervisor is running by checking if
+  # sock_file exists.
+  if [ ! -e $sock_file ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
 case $action in
   start)
-    supervisorctl -c supervisord/supervisord.conf start all
+    check_status
+    if [ "$?" -eq "1" ]; then
+      echo "Starting supervisor"
+      supervisord -c supervisord/supervisord.conf
+      # Since the supervisor currently runs in the foreground, we
+      # don't need to worry about setting an exit status
+    else
+      echo "Supervisor is already running"
+      exit 1
+    fi
   ;;
 
   stop)
-    supervisorctl -c supervisord/supervisord.conf stop all
+    check_status
+    if [ "$?" -eq "0" ]; then
+      supervisorctl -c supervisord/supervisord.conf stop all
+      exit 0
+    else
+      echo $SUPERVISOR_NOT_RUNNING
+      exit 1
+    fi
   ;;
 
   restart)
-    supervisorctl -c supervisord/supervisord.conf restart all
+    check_status
+    if [ "$?" -eq "0" ]; then
+      supervisorctl -c supervisord/supervisord.conf restart all
+      exit 0
+    else
+      echo $SUPERVISOR_NOT_RUNNING
+      exit 1
+    fi
   ;;
 
   status)
-    supervisorctl -c supervisord/supervisord.conf status
+    check_status
+    if [ "$?" -eq "0" ]; then
+      supervisorctl -c supervisord/supervisord.conf status
+      exit 0
+    else
+      echo $SUPERVISOR_NOT_RUNNING
+      exit 1
+    fi
   ;;
 
   info)
@@ -41,4 +75,9 @@ case $action in
     python agent/dogstatsd.py info
     python agent/ddagent.py info
   ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|info|status}"
+    exit 2
 esac
+
