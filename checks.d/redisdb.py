@@ -90,7 +90,15 @@ class Redis(AgentCheck):
         key = (instance.get('host'), instance.get('port'), instance.get('db'))
         if key not in self.connections:
             try:
-                self.connections[key] = redis.Redis(**instance)
+                
+                # Only send useful parameters to the redis client constructor
+                list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
+                    'connection_pool', 'charset', 'errors', 'unix_socket_path']
+
+                connection_params = dict((k, instance[k]) for k in list_params if k in instance)
+
+                self.connections[key] = redis.Redis(**connection_params)
+
             except TypeError:
                 self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
                 raise
