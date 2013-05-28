@@ -221,6 +221,8 @@ class Dogstatsd(Daemon):
         self.reporter.start()
         try:
             self.server.start()
+        except Exception:
+            log.exception('Error starting server')
         finally:
             # The server will block until it's done. Once we're here, shutdown
             # the reporting thread.
