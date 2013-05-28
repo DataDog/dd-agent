@@ -220,9 +220,11 @@ class Dogstatsd(Daemon):
         signal.signal(signal.SIGINT, self._handle_sigterm)
         self.reporter.start()
         try:
-            self.server.start()
-        except Exception:
-            log.exception('Error starting server')
+            try:
+                self.server.start()
+            except Exception, e:
+                log.exception('Error starting server')
+                raise e
         finally:
             # The server will block until it's done. Once we're here, shutdown
             # the reporting thread.
