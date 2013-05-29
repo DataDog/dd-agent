@@ -148,7 +148,7 @@ class Daemon:
         from signal import SIGTERM
 
         log.info("Stopping...") 
-        pid = self.pid
+        pid = self.pid()
 
         # Clear the pid file
         if os.path.exists(self.pidfile):
@@ -188,18 +188,20 @@ class Daemon:
         You should override this method when you subclass Daemon. It will be called after the process has been
         daemonized by start() or restart().
         """
+        raise NotImplementedError
 
     def info(self):
         """
         You should override this method when you subclass Daemon. It will be
         called to provide information about the status of the process
         """
+        raise NotImplementedError
 
     def status(self):
         """
         Get the status of the daemon. Exits with 0 if running, 1 if not.
         """
-        pid = self.pid
+        pid = self.pid()
 
         if pid < 0:
             message = '%s is not running' % self.__class__.__name__
@@ -226,7 +228,6 @@ class Daemon:
         sys.stdout.write(message + "\n")
         sys.exit(exit_code)
 
-    @property
     def pid(self):
         # Get the pid from the pidfile
         try:
