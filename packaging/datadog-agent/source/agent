@@ -37,7 +37,8 @@ case $action in
   ;;
 
   info)
-    python agent/agent.py info
+    shift # shift to pass the remaining arguments to agent/agent.py info
+    python agent/agent.py info $@
     python agent/dogstatsd.py info
     python agent/ddagent.py info
   ;;
