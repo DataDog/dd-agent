@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Pup.py
@@ -7,7 +7,7 @@ Pup.py
     ---
     Make sense of your IT Data
 
-    (C) Datadog, Inc. 2012 all rights reserved
+    (C) Datadog, Inc. 2012-2013 all rights reserved
 """
 
 # set up logging before importing any other components

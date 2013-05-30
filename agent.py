@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 
 # set up logging before importing any other components
@@ -223,7 +223,6 @@ def main():
 
     elif 'foreground' == command:
         logging.info('Running in foreground')
-
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')

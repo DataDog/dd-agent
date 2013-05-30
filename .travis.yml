@@ -51,3 +51,6 @@ before_script:
 env:
   - DB=redis
 script: nosetests -A 'not windows' tests
+notifications:
+  webhooks:
+    - https://www.buildheroes.com/api/projects/1fa0bf90eb6f781bf067c82439775fd9d896c0ae/builds

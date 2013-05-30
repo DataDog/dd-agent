@@ -187,7 +187,7 @@ case "$1" in
         info
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|info}"
+        echo "Usage: $0 {start|stop|restart|info|status}"
         exit 2
 esac
 exit $?
