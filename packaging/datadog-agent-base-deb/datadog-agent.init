@@ -23,6 +23,7 @@ PIDPATH="/var/run/dd-agent"
 NAME="datadog-agent"
 DESC="datadog agent"
 SUPERVISOR_FILE="/etc/supervisor/supervisord.conf"
+DATADOG_SUPERVISOR_FILE="/etc/supervisor/conf.d/ddagent.conf"
 
 [ -x $AGENTPATH ] || echo "$AGENTPATH not found"
 
@@ -80,13 +81,54 @@ case "$1" in
             su $AGENTUSER -c "$USE_SUPERVISOR info" || true
         fi
     ;;
+  status)
+        set +e
+        if [ -f $USE_SUPERVISOR ]; then
+            # If we're using supervisor, check the number of datadog processes
+            # supervisor is currently controlling, and make sure that it's the
+            # same as the number of programs specified in the supervisor config
+            # file:
+
+            supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
+            datadog_supervisor_processes=$(echo "$supervisor_processes" |
+                                           grep -v pup |
+                                           grep $NAME |
+                                           grep -c RUNNING)
+            supervisor_config_programs=$(grep -v pup $DATADOG_SUPERVISOR_FILE |
+                                         grep -c '\[program:')
+
+            if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+                echo "$supervisor_processes"
+                echo "Datadog agent (supervisor) is NOT running all child processes"
+                exit 1
+            else
+                echo "Datadog agent (supervisor) is running all child processes"
+                exit 0
+            fi
+        else
+            # If we're not using supervisor, use the agent and dogstatsd status
+            # commands:
+
+            su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
+            agent_exit_code=$?
+            su $AGENTUSER -c "$DOGSTATSDPATH status > /dev/null 2>&1"
+            dogstatsd_exit_code=$?
+            if [ $agent_exit_code -ne 0 ] || [ $dogstatsd_exit_code -ne 0 ]; then
+               echo "Datadog agent is NOT running all child processes"
+               exit 1
+            else
+               echo "Datadog agent is running all child processes"
+               exit 0
+            fi
+        fi
+    ;;
   restart|force-reload)
         $0 stop
         $0 start
     ;;
   *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info}"
+        echo "Usage: $N {start|stop|restart|info|status}"
         exit 1
     ;;
 esac
