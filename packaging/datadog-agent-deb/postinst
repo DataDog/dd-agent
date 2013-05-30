@@ -14,20 +14,10 @@ case "$1" in
         chown -h root:root /usr/bin/dd-agent
         chown -h root:root /usr/bin/dd-forwarder
 
-        # Update the supervisor process group to ensure it has the proper
-        # configuration when we restart the datadog-agent.
-        echo "Reading supervisor configuration."
-        supervisorctl reread || echo "Error reading supervisor configuration. Please restart supervisor."
-
-        echo "Updating supervisor configuration."
-        sleep 8     # FIXME mattp: Supervisor seems to need this time.
-        supervisorctl update || echo "Error updating supervisor configuration. Please restart supervisor."
-
-        if which invoke-rc.d >/dev/null 2>&1; then
-            invoke-rc.d datadog-agent restart
-        else
-            /etc/init.d/datadog-agent restart
-        fi
+        # Since we call this script from install_agent.sh, we don't want to
+        # start the agent here. We need install_agent.sh to update datadog.conf before
+        # the agent will start successfully, which is done after this script is
+        # run.
     ;;
     abort-upgrade|abort-remove|abort-deconfigure)
     ;;
