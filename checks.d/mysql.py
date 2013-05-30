@@ -232,7 +232,7 @@ class MySql(AgentCheck):
         # so let's be careful when we compute the version number
         greater_502 = False
         try:
-            mysql_version = self.getVersion(db, host)
+            mysql_version = self._get_version(db, host)
             self.log.debug("MySQL version %s" % mysql_version)
             
             major = int(mysqlVersion[0])

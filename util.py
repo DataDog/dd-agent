@@ -258,7 +258,7 @@ class Watchdog(object):
     Can only be invoked once per process, so don't use with multiple threads.
     If you instantiate more than one, you're also asking for trouble.
     """
-    def __init__(self, duration, max_mem_mb = 2000):
+    def __init__(self, duration, max_mem_mb = None):
         import resource
 
         #Set the duration
@@ -266,9 +266,13 @@ class Watchdog(object):
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
         # cap memory usage
-        self._max_mem_kb = 1024 * max_mem_mb
-        max_mem_bytes = 1024 * self._max_mem_kb
-        resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
+        if max_mem_mb is not None:
+            self._max_mem_kb = 1024 * max_mem_mb
+            max_mem_bytes = 1024 * self._max_mem_kb
+            resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
+            self.memory_limit_enabled = True
+        else:
+            self.memory_limit_enabled = False
 
     @staticmethod
     def self_destruct(signum, frame):
@@ -283,7 +287,7 @@ class Watchdog(object):
     def reset(self):
         # self destruct if using too much memory, as tornado will swallow MemoryErrors
         mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
-        if mem_usage_kb > (0.95 * self._max_mem_kb):
+        if self.memory_limit_enabled and mem_usage_kb > (0.95 * self._max_mem_kb):
             Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
         log.debug("Resetting watchdog for %d" % self._duration)

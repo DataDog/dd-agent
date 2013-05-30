@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.7.0"
+tag="3.7.2"
 
 #######################
 # Define some helpers #
@@ -213,10 +213,11 @@ print_done
 printf "Configuring datadog.conf file......" | tee -a $logfile
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
+    sed "s/# use_pup:.*/use_pup: no/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
 else
     sed "s/api_key:.*/api_key: pup/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
+    sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
 fi
-sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
 printf "disable_file_logging: True" >> $dd_base/agent/datadog.conf
 
 print_done
@@ -246,7 +247,7 @@ if [ "$unamestr" = "Darwin" ]; then
     # prepare launchd
     mkdir -p $dd_base/launchd/logs >> $logfile 2>&1
     touch $dd_base/launchd/logs/launchd.log >> $logfile 2>&1
-    sed "s|AGENT_BASE|$dd_base|; s|USER_NAME|$(whoami)|" $dd_base/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example > $dd_base/launchd/com.datadoghq.Agent.plist >> $logfile 2>&1
+    sed "s|AGENT_BASE|$dd_base|; s|USER_NAME|$(whoami)|" $dd_base/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example > $dd_base/launchd/com.datadoghq.Agent.plist
 fi
 
 # consolidate logging

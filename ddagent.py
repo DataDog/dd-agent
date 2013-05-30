@@ -310,7 +310,8 @@ class Application(tornado.web.Application):
         self._watchdog = None
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
-            self._watchdog = Watchdog(watchdog_timeout)
+            self._watchdog = Watchdog(watchdog_timeout,
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
     def log_request(self, handler):
         """ Override the tornado logging method.
@@ -440,10 +441,17 @@ def init():
 
 def main():
     define("pycurl", default=1, help="Use pycurl")
+    define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     args = parse_command_line()
 
-    if options.pycurl == 0 or options.pycurl == "0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
+    if unicode(options.pycurl) == u"0":
+        os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
+
+    if unicode(options.sslcheck) == u"0":
+        # monkey-patch the AsyncHTTPClient code
+        import tornado.simple_httpclient
+        tornado.simple_httpclient.match_hostname = lambda x, y: None
+        print("Skipping SSL hostname validation, useful when using a transparent proxy")
 
     # If we don't have any arguments, run the server.
     if not args:

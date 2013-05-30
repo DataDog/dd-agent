@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 
 # set up logging before importing any other components
@@ -139,7 +139,8 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER, 
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -235,7 +236,9 @@ def main():
             except Exception:
                 # If not an old-style check, try checks.d
                 checks = load_check_directory(agentConfig)
-                for check in checks:
+                initialized_checks = checks['initialized_checks']
+                init_failed_checks = checks['init_failed_checks']
+                for check in initialized_checks:
                     if check.name == check_name:
                         check.run()
                         print check.get_metrics()
@@ -246,6 +249,9 @@ def main():
                             check.run()
                         print check.get_metrics()
                         print check.get_events()
+                if check_name in init_failed_checks.keys():
+                    print "Error initializing check for %s:" % check_name
+                    print init_failed_checks[check_name]['traceback']
 
 
     # Commands that don't need the agent to be initialized.
