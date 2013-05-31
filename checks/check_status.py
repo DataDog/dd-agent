@@ -357,8 +357,6 @@ class CollectorStatus(AgentStatus):
                         check_lines.extend('      ' + line for line in
                                            cs.init_failed_traceback.split('\n'))
                 else:
-                    check_lines.append("    - initialize check class [%s]" %
-                            style(STATUS_OK, 'green'))
                     for s in cs.instance_statuses:
                         c = 'green'
                         if s.has_warnings():

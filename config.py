@@ -58,7 +58,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.7.1"
+    return "3.7.2"
 
 
 def skip_leading_wsp(f):
