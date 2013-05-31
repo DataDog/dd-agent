@@ -25,7 +25,13 @@ SUPERVISOR_FILE="/etc/dd-agent/supervisor_ddagent.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
 SUPERVISORD="/usr/bin/supervisord"
 
-[ -x $AGENTPATH ] || echo "$AGENTPATH not found"
+# This script is considered a configuration file and will not be
+# removed by dpkg unless the --purge option it set. Therefore we
+# make sure that the agent is actually installed before we try to do anything:
+if [ ! -x $AGENTPATH ]; then
+    echo "$AGENTPATH not found. Exiting."
+    exit 0
+fi
 
 check_status() {
     if [ -f $USE_SUPERVISOR ]; then
@@ -81,47 +87,48 @@ case "$1" in
         check_status > /dev/null
         if [ $? -eq 0 ]; then
             echo "$DESC is already running"
-            exit 1
+            exit 0
         fi
 
-        echo -n "Starting $DESC"
-        set -e
+        echo -n "Starting $DESC: "
         if [ -f $USE_SUPERVISOR ]; then
-            # We don't need to check if the supervisor is already running, as
-            # the following command will error if the required port is in use
-            echo '(using supervisord):'
-            start-stop-daemon --start --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+            echo -n '(using supervisord) '
+            start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+            if [ $? -ne 0 ]; then
+                echo " ERROR"
+                exit 1
+            fi
         else
-            echo
+            set -e
             if [ ! -f $DDAGENT_PID_PATH ]; then
                 mkdir -p $DDAGENT_PID_PATH
             fi
             chown $AGENTUSER $DDAGENT_PID_PATH
-            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1"
-            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
+            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null"
+            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null"
         fi
 
-        SLEEP=7
-        echo "Waiting $SLEEP seconds to test for running child processes..."
-        sleep $SLEEP
-        check_status
-        exit $?
+	sleep 4 # wait for the services to start up
+        if check_status > /dev/null; then
+	    echo $NAME
+            exit 0
+        else
+            echo " ERROR"
+            exit 1
+        fi
         ;;
     stop)
-        echo -n "Stopping $DESC "
-        set -e
+        echo -n "Stopping $DESC: "
         if [ -f $USE_SUPERVISOR ]; then
-            echo "(stopping supervisord) "
-            # start-stop-daemon will notify the user if the supervisor isn't found,
-            # so we don't have to explicitly check
-            start-stop-daemon --stop --pidfile $SUPERVISOR_PIDFILE
+            echo -n "(stopping supervisord) "
+            start-stop-daemon --stop --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
         else
             echo
             su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1"
             su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
         fi
 
-        echo "$DESC stopped"
+        echo "$DESC"
         exit 0
 
         ;;
@@ -151,4 +158,3 @@ case "$1" in
 esac
 
 exit 0
-
