@@ -126,7 +126,7 @@ class Daemon:
         """
         
         log.info("Starting...")
-        pid = self.pid
+        pid = self.pid()
     
         if pid:
             message = "pidfile %s already exists. Is it already running?\n"
