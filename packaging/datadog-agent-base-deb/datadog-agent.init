@@ -80,7 +80,6 @@ check_status() {
     fi
 }
 
-
 # Action to take
 case "$1" in
     start)
@@ -129,8 +128,11 @@ case "$1" in
         ;;
 
     info)
-        su $AGENTUSER -c "$AGENTPATH info"
-        su $AGENTUSER -c "$DOGSTATSDPATH info"
+        shift # Shift 'info' out of args so we can pass any
+              # addtional options to the real command
+              # (right now only dd-agent supports additional flags)
+        su $AGENTUSER -c "$AGENTPATH info $@" || true
+        su $AGENTUSER -c "$DOGSTATSDPATH info" || true
         if [ -f $USE_SUPERVISOR ]; then
             su $AGENTUSER -c "$USE_SUPERVISOR info"
         fi
@@ -147,7 +149,7 @@ case "$1" in
         ;;
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info}"
+        echo "Usage: $N {start|stop|restart|info|status}"
         exit 1
         ;;
 esac
