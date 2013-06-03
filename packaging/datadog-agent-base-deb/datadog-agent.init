@@ -110,7 +110,7 @@ case "$1" in
         if check_status > /dev/null; then
             log_end_msg 0
         else
-            log_eng_msg 1
+            log_end_msg 1
         fi
         ;;
     stop)
