@@ -202,7 +202,7 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             {
                 'system.io.sectors': float(791),
                 'system.io.transfers': float(6),
-                'system.io.ms_per_seek': float(0),
+                'system.io.ms_per_transaction': float(0),
             }
         )
         self.assertEqual(
@@ -210,7 +210,7 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             {
                 'system.io.sectors': float(627),
                 'system.io.transfers': float(29),
-                'system.io.ms_per_seek': float(0),
+                'system.io.ms_per_transaction': float(0),
             }
         )
 

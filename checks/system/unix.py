@@ -190,7 +190,7 @@ class IO(Check):
             io[disk] = {
                 'system.io.sectors': sps,
                 'system.io.transfers': tps,
-                'system.io.ms_per_seek': msps,
+                'system.io.ms_per_transaction': msps, # called ms per seek 
             }
         return io
     
