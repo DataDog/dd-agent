@@ -186,11 +186,10 @@ class IO(Check):
         lastline = lines[-1]
         io = {}
         for idx, disk in enumerate(disks):
-            sps, tps, msps = map(float, lastline[(3 * idx):(3 * (idx + 1))]) # 3 cols at a time
+            sps, tps = map(float, lastline[(3 * idx):(3 * idx) + 2]) # 3 cols at a time
             io[disk] = {
-                'system.io.sectors': sps,
-                'system.io.transfers': tps,
-                'system.io.ms_per_transaction': msps, # called ms per seek 
+                'system.io.sectors_per_s': sps,
+                'system.io.transfers_per_s': tps,
             }
         return io
     

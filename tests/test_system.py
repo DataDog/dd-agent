@@ -200,17 +200,15 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
         self.assertEqual(
             results["disk0"],
             {
-                'system.io.sectors': float(791),
-                'system.io.transfers': float(6),
-                'system.io.ms_per_transaction': float(0),
+                'system.io.sectors_per_s': float(791),
+                'system.io.transfers_per_s': float(6),
             }
         )
         self.assertEqual(
             results["disk1"],
             {
-                'system.io.sectors': float(627),
-                'system.io.transfers': float(29),
-                'system.io.ms_per_transaction': float(0),
+                'system.io.sectors_per_s': float(627),
+                'system.io.transfers_per_s': float(29),
             }
         )
 
