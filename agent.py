@@ -71,6 +71,10 @@ class Agent(Daemon):
         self._handle_sigterm(signum, frame)
         self._do_restart()
 
+    def _handle_sighup(self, signum, frame):
+        log.info("Received SIGHUP, reloading configuration for checks")
+        self.checksd = load_check_directory(self.agentConfig)
+
     def info(self, verbose=None):
         logging.getLogger().setLevel(logging.ERROR)
         return CollectorStatus.print_latest_status(verbose=verbose)
@@ -87,6 +91,9 @@ class Agent(Daemon):
         # Handle Keyboard Interrupt
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
+        # Handle reload checks config on SIGHUP
+        signal.signal(signal.SIGHUP, self._handle_sighup)
+
         # Save the agent start-up stats.
         CollectorStatus().persist()
 
@@ -94,26 +101,27 @@ class Agent(Daemon):
         if not config:
             config = get_config(parse_args=True)
 
-        agentConfig = self._set_agent_config_hostname(config)
+        self.agentConfig = self._set_agent_config_hostname(config)
+
         systemStats = get_system_stats()
-        emitters = self._get_emitters(agentConfig)
-        self.collector = Collector(agentConfig, emitters, systemStats)
+        emitters = self._get_emitters(self.agentConfig)
+        self.collector = Collector(self.agentConfig, emitters, systemStats)
 
         # Load the checks.d checks
-        checksd = load_check_directory(agentConfig)
+        self.checksd = load_check_directory(self.agentConfig)
 
         # Configure the watchdog.
-        check_frequency = int(agentConfig['check_freq'])
-        watchdog = self._get_watchdog(check_frequency, agentConfig)
+        check_frequency = int(self.agentConfig['check_freq'])
+        watchdog = self._get_watchdog(check_frequency, self.agentConfig)
 
         # Initialize the auto-restarter
-        self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
+        self.restart_interval = int(self.agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
         # Run the main loop.
         while self.run_forever:
             # Do the work.
-            self.collector.run(checksd=checksd, start_event=self.start_event)
+            self.collector.run(checksd=self.checksd, start_event=self.start_event)
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
