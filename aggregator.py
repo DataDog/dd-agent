@@ -247,8 +247,10 @@ class MetricsAggregator(object):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         self.metrics = {}
+        self.events = []
         self.total_count = 0
         self.count = 0
+        self.event_count = 0
         self.metric_type_to_class = {
             'g': Gauge,
             'c': Counter,
@@ -269,55 +271,104 @@ class MetricsAggregator(object):
     def packets_per_second(self, interval):
         return round(float(self.count)/interval, 2)
 
+    def parse_metric_packet(self, packet):
+        name_and_metadata = packet.split(':', 1)
+
+        if len(name_and_metadata) != 2:
+            raise Exception('Unparseable metric packet: %s' % packet)
+
+        name = name_and_metadata[0]
+        metadata = name_and_metadata[1].split('|')
+
+        if len(metadata) < 2:
+            raise Exception('Unparseable metric packet: %s' % packet)
+        # Try to cast as an int first to avoid precision issues, then as a
+        # float.
+        try:
+            value = int(metadata[0])
+        except ValueError:
+            try:
+                value = float(metadata[0])
+            except ValueError:
+
+                # If the data type is Set, we will allow strings
+                if metadata[1] in self.ALLOW_STRINGS:
+                    value = metadata[0]
+                else:
+                    # Otherwise, raise an error saying it must be a number
+                    raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
+
+        # Parse the optional values - sample rate & tags.
+        sample_rate = 1
+        tags = None
+        for m in metadata[2:]:
+            # Parse the sample rate
+            if m[0] == '@':
+                sample_rate = float(m[1:])
+                assert 0 <= sample_rate <= 1
+            elif m[0] == '#':
+                tags = tuple(sorted(m[1:].split(',')))
+
+        # Submit the metric
+        mtype = metadata[1]
+
+        return name, value, mtype, tags, sample_rate
+
+    def _unescape_event_text(self, string):
+        return string.replace('\\n', '\n')
+
+    def parse_event_packet(self, packet):
+        try:
+            name_and_metadata = packet.split(':', 1)
+            if len(name_and_metadata) != 2:
+                raise Exception(u'Unparseable event packet: %s' % packet)
+            # Event syntax:
+            # _e{5,4}:title|body|meta
+            name = name_and_metadata[0]
+            metadata = unicode(name_and_metadata[1])
+            title_length, text_length = name.split(',')
+            title_length = int(title_length[3:])
+            text_length = int(text_length[:-1])
+
+            event = {
+                'title': metadata[:title_length],
+                'text': self._unescape_event_text(metadata[title_length+1:title_length+text_length+1])
+            }
+            meta = metadata[title_length+text_length+1:]
+            for m in meta.split('|')[1:]:
+                if m[0] == u't':
+                    event['alert_type'] = m[2:]
+                elif m[0] == u'k':
+                    event['aggregation_key'] = m[2:]
+                elif m[0] == u's':
+                    event['source_type_name'] = m[2:]
+                elif m[0] == u'd':
+                    event['date_happened'] = int(m[2:])
+                elif m[0] == u'p':
+                    event['priority'] = m[2:]
+                elif m[0] == u'h':
+                    event['hostname'] = m[2:]
+                elif m[0] == u'#':
+                    event['tags'] = sorted(m[1:].split(u','))
+            return event
+        except IndexError, ValueError:
+            raise Exception(u'Unparseable event packet: %s' % packet)
+
     def submit_packets(self, packets):
 
         for packet in packets.split("\n"):
-            self.count += 1
-            # We can have colons in tags, so split once.
-            name_and_metadata = packet.split(':', 1)
 
             if not packet.strip():
                 continue
 
-            if len(name_and_metadata) != 2:
-                raise Exception('Unparseable packet: %s' % packet)
-
-            name = name_and_metadata[0]
-            metadata = name_and_metadata[1].split('|')
-
-            if len(metadata) < 2:
-                raise Exception('Unparseable packet: %s' % packet)
-
-            # Try to cast as an int first to avoid precision issues, then as a
-            # float.
-            try:
-                value = int(metadata[0])
-            except ValueError:
-                try:
-                    value = float(metadata[0])
-                except ValueError:
-
-                    # If the data type is Set, we will allow strings
-                    if metadata[1] in self.ALLOW_STRINGS:
-                        value = metadata[0]
-                    else:
-                        # Otherwise, raise an error saying it must be a number
-                        raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
-
-            # Parse the optional values - sample rate & tags.
-            sample_rate = 1
-            tags = None
-            for m in metadata[2:]:
-                # Parse the sample rate
-                if m[0] == '@':
-                    sample_rate = float(m[1:])
-                    assert 0 <= sample_rate <= 1
-                elif m[0] == '#':
-                    tags = tuple(sorted(m[1:].split(',')))
-
-            # Submit the metric
-            mtype = metadata[1]
-            self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
+            if packet.startswith('_e'):
+                self.event_count += 1
+                event = self.parse_event_packet(packet)
+                self.events.append(event)
+            else:
+                self.count += 1
+                name, value, mtype, tags, sample_rate = self.parse_metric_packet(packet)
+                self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
@@ -354,6 +405,19 @@ class MetricsAggregator(object):
     def set(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 's', tags, hostname, device_name)
 
+    def event(self, title, text, date_happened=time(), alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
+        event = {'title': title,
+            'text': text,
+            'date_happened': date_happened,
+            'alert_type': alert_type,
+            'aggregation_key': aggregation_key,
+            'source_type_name': source_type_name,
+            'priority': priority,
+            'tags': sorted(tags) if tags is not None else None,
+            'hostname': hostname
+        }
+        self.events.append(event)
+
     def flush(self):
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
@@ -378,6 +442,17 @@ class MetricsAggregator(object):
         self.total_count += self.count
         self.count = 0
         return metrics
+
+    def flush_events(self):
+        events = self.events
+        self.events = []
+
+        self.total_count += self.event_count
+        self.event_count = 0
+
+        log.debug("Received %d events since last flush" % len(events))
+
+        return events
 
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
