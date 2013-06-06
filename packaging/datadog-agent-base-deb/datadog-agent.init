@@ -96,7 +96,6 @@ case "$1" in
                 log_end_msg 1
             fi
         else
-            set -e
             log_daemon_msg "Starting $DESC" "$NAME"
             if [ ! -f $DDAGENT_PID_PATH ]; then
                 mkdir -p $DDAGENT_PID_PATH
