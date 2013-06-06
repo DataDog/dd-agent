@@ -186,6 +186,32 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
             self.assertTrue(key in results['sda'], 'key %r not in results["sda"]' % key)
             self.assertEqual(results['sda'][key], '0.00')
 
+        # iostat -o -d -c 2 -w 1
+        # OS X 10.8.3 (internal SSD + USB flash attached)
+        darwin_iostat_output = """       disk0        disk1 
+ sps tps msps  sps tps msps 
+1157  31  0.0    1   0  0.0 
+ 791   6  0.0  627  29  0.0 """
+        checker = IO(logger)
+        results = checker._parse_darwin(darwin_iostat_output)
+        self.assertTrue("disk0" in results.keys())
+        self.assertTrue("disk1" in results.keys())
+
+        self.assertEqual(
+            results["disk0"],
+            {
+                'system.io.sectors_per_s': float(791),
+                'system.io.transfers_per_s': float(6),
+            }
+        )
+        self.assertEqual(
+            results["disk1"],
+            {
+                'system.io.sectors_per_s': float(627),
+                'system.io.transfers_per_s': float(29),
+            }
+        )
+
     def testNetwork(self):
         config = """
 init_config:

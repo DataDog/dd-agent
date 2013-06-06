@@ -179,7 +179,20 @@ class IO(Check):
                 ioStats[device][headerName] = values[headerIndex]
 
         return ioStats
-
+    
+    def _parse_darwin(self, output):
+        lines = [l.split() for l in output.split("\n") if len(l) > 0]
+        disks = lines[0]
+        lastline = lines[-1]
+        io = {}
+        for idx, disk in enumerate(disks):
+            sps, tps = map(float, lastline[(3 * idx):(3 * idx) + 2]) # 3 cols at a time
+            io[disk] = {
+                'system.io.sectors_per_s': sps,
+                'system.io.transfers_per_s': tps,
+            }
+        return io
+    
     def xlate(self, metric_name, os_name):
         """Standardize on linux metric names"""
         if os_name == "sunos":
@@ -291,6 +304,15 @@ class IO(Check):
                     io[cols[0]] = {}
                     for i in range(1, len(cols)):
                         io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
+            elif sys.platform == 'darwin':
+                iostat = subprocess.Popen(['iostat', '-o', '-d', '-c', '2', '-w', '1'], 
+                                          stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+                #        disk0        disk1     <-- number of disks
+                #  sps tps msps  sps tps msps 
+                # 1422  39  0.0    2   0  0.0 
+                #  104  13  0.0    0   0  0.0   <-- line of interest
+                return self._parse_darwin(iostat)
             else:
                 return False
             return io
