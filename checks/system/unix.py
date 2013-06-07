@@ -186,10 +186,9 @@ class IO(Check):
         lastline = lines[-1]
         io = {}
         for idx, disk in enumerate(disks):
-            sps, tps = map(float, lastline[(3 * idx):(3 * idx) + 2]) # 3 cols at a time
+            kb_t, tps, mb_s = map(float, lastline[(3 * idx):(3 * idx) + 3]) # 3 cols at a time
             io[disk] = {
-                'system.io.sectors_per_s': sps,
-                'system.io.transfers_per_s': tps,
+                'system.io.bytes_per_s': mb_s * 10**6,
             }
         return io
     
@@ -305,13 +304,13 @@ class IO(Check):
                     for i in range(1, len(cols)):
                         io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
             elif sys.platform == 'darwin':
-                iostat = subprocess.Popen(['iostat', '-o', '-d', '-c', '2', '-w', '1'], 
+                iostat = subprocess.Popen(['iostat', '-d', '-c', '2', '-w', '1'], 
                                           stdout=subprocess.PIPE,
                                           close_fds=True).communicate()[0]
-                #        disk0        disk1     <-- number of disks
-                #  sps tps msps  sps tps msps 
-                # 1422  39  0.0    2   0  0.0 
-                #  104  13  0.0    0   0  0.0   <-- line of interest
+                #          disk0           disk1          <-- number of disks
+                #    KB/t tps  MB/s     KB/t tps  MB/s  
+                #   21.11  23  0.47    20.01   0  0.00  
+                #    6.67   3  0.02     0.00   0  0.00    <-- line of interest
                 return self._parse_darwin(iostat)
             else:
                 return False
