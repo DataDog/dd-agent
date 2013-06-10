@@ -29,10 +29,10 @@ execute_if_supervisor_running() {
     # if the supervisor is running.
     if check_supervisor_status; then
         supervisorctl -c $SUPERVISOR_CONF_FILE "$*"
-        return 0
+        return $?
     else
         echo $SUPERVISOR_NOT_RUNNING
-        return 1
+        return 0
     fi
 }
 
@@ -79,7 +79,7 @@ case $action in
             # an exit code here.
         else
             echo "Supervisor is already running"
-            exit 1
+            exit 0
         fi
         ;;
 
@@ -108,6 +108,7 @@ case $action in
         python agent/agent.py info $@
         python agent/dogstatsd.py info
         python agent/ddagent.py info
+        exit 0
         ;;
 
     *)
