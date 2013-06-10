@@ -114,5 +114,6 @@ case $action in
     *)
         echo "Usage: $0 {start|stop|restart|info|status}"
         exit 2
+        ;;
 esac
 

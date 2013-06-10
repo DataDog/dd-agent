@@ -25,6 +25,7 @@ import os
 import sys
 import time
 import logging
+import errno
 
 from util import AgentSupervisor
 
@@ -125,15 +126,7 @@ class Daemon:
         """
         
         log.info("Starting...")
-        # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
+        pid = self.pid()
     
         if pid:
             message = "pidfile %s already exists. Is it already running?\n"
@@ -155,15 +148,7 @@ class Daemon:
         from signal import SIGTERM
 
         log.info("Stopping...") 
-        # Get the pid from the pidfile
-        try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except ValueError:
-            pid = None
+        pid = self.pid()
 
         # Clear the pid file
         if os.path.exists(self.pidfile):
@@ -203,4 +188,55 @@ class Daemon:
         You should override this method when you subclass Daemon. It will be called after the process has been
         daemonized by start() or restart().
         """
+        raise NotImplementedError
+
+    def info(self):
+        """
+        You should override this method when you subclass Daemon. It will be
+        called to provide information about the status of the process
+        """
+        raise NotImplementedError
+
+    def status(self):
+        """
+        Get the status of the daemon. Exits with 0 if running, 1 if not.
+        """
+        pid = self.pid()
+
+        if pid < 0:
+            message = '%s is not running' % self.__class__.__name__
+            exit_code = 1
+        else:
+            # Check for the existence of a process with the pid
+            try:
+                # os.kill(pid, 0) will raise an OSError exception if the process
+                # does not exist, or if access to the process is denied (access denied will be an EPERM error).
+                # If we get an OSError that isn't an EPERM error, the process
+                # does not exist.
+                # (from http://stackoverflow.com/questions/568271/check-if-pid-is-not-in-use-in-python,
+                #  Giampaolo's answer)
+                os.kill(pid, 0)
+            except OSError, e:
+                if e.errno != errno.EPERM:
+                    message = '%s pidfile contains pid %s, but no running process could be found' % (self.__class__.__name__, pid)
+                    exit_code = 1
+            else:
+                message = '%s is running with pid %s' % (self.__class__.__name__, pid)
+                exit_code = 0
+
+        log.info(message)
+        sys.stdout.write(message + "\n")
+        sys.exit(exit_code)
+
+    def pid(self):
+        # Get the pid from the pidfile
+        try:
+            pf = file(self.pidfile,'r')
+            pid = int(pf.read().strip())
+            pf.close()
+            return pid
+        except IOError:
+            return None
+        except ValueError:
+            return None
 
