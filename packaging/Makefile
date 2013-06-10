@@ -138,11 +138,7 @@ install_base_deb: install_base
 # Install the forwarder and supervisor on debian.
 install_full_deb: install_base_deb install_full
 	# Install supervisor config.
-	#   FIXME mattp: why do we need both of these?
-	mkdir -p $(BUILD)/etc/supervisor/conf.d
 	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
-	mkdir -p $(BUILD)/etc/supervisor/conf.d/
-	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
 
 
 # Make the datadog agent debian package that includes supervisor, the forwarder
