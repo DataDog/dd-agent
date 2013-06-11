@@ -17,5 +17,12 @@ if [ -f /etc/supervisor/conf.d/ddagent.conf ]; then
     rm /etc/supervisor/conf.d/ddagent.conf
 fi
 
+# Previous versions of dd-agent created this file but didn't do
+# anything with it.
+if [ -f /etc/dd-agent/supervisor_ddagent.conf ]; then
+    echo "Removing unused supervisor config file"
+    rm /etc/dd-agent/supervisor_ddagent.conf
+fi
+
 #DEBHELPER#
 exit 0
