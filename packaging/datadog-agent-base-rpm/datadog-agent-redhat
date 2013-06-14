@@ -36,11 +36,6 @@ else
     PYTHON="/usr/bin/python"
 fi
 
-if [ ! -f $AGENTCONF ]; then
-    echo "$AGENTCONF not found. Exiting."
-    exit 3
-fi
-
 # Source function library.
 . /etc/rc.d/init.d/functions
 
@@ -99,6 +94,11 @@ grab_status() {
 }
 
 start() {
+    if [ ! -f $AGENTCONF ]; then
+        echo "$AGENTCONF not found. Exiting."
+        exit 3
+    fi
+
     if [ -f $USE_SUPERVISOR ]; then
         # no need to test for status before daemon,
         # the daemon function does the right thing

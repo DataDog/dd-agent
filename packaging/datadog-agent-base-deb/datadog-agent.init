@@ -34,11 +34,6 @@ if [ ! -x $AGENTPATH ]; then
     exit 0
 fi
 
-if [ ! -f $AGENTCONF ]; then
-    echo "$AGENTCONF not found. Exiting."
-    exit 3
-fi
-
 check_status() {
     if [ -f $USE_SUPERVISOR ]; then
         # If the socket exists, we can use supervisorctl
@@ -89,6 +84,11 @@ check_status() {
 # Action to take
 case "$1" in
     start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting."
+            exit 3
+        fi
+
         check_status > /dev/null
         if [ $? -eq 0 ]; then
             echo "$DESC is already running"
@@ -139,13 +139,12 @@ case "$1" in
         su $AGENTUSER -c "$AGENTPATH info $@" || true
         su $AGENTUSER -c "$DOGSTATSDPATH info" || true
         if [ -f $USE_SUPERVISOR ]; then
-            su $AGENTUSER -c "$USE_SUPERVISOR info"
+            su $AGENTUSER -c "$USE_SUPERVISOR info" || true
         fi
         ;;
 
     status)
         check_status
-        exit $?
         ;;
 
     restart|force-reload)
@@ -159,4 +158,4 @@ case "$1" in
         ;;
 esac
 
-exit 0
+exit $?
