@@ -82,20 +82,20 @@ class Riak(AgentCheck):
 
         self.prev_coord_redirs_total = coord_redirs_total
 
-        def timeout_event(self, url, timeout, aggregation_key):
-            self.event({
-                'timestamp': int(time.time()),
-                'event_type': 'riak_check',
-                'msg_title': 'riak check timeout',
-                'msg_text': '%s timed out after %s seconds.' % (url, timeout),
-                'aggregation_key': aggregation_key
-            })
+    def timeout_event(self, url, timeout, aggregation_key):
+        self.event({
+            'timestamp': int(time.time()),
+            'event_type': 'riak_check',
+            'msg_title': 'riak check timeout',
+            'msg_text': '%s timed out after %s seconds.' % (url, timeout),
+            'aggregation_key': aggregation_key
+        })
 
-        def status_code_event(self, url, r, aggregation_key):
-            self.event({
-                'timestamp': int(time.time()),
-                'event_type': 'riak_check',
-                'msg_title': 'Invalid reponse code for riak check',
-                'msg_text': '%s returned a status of %s' % (url, r.status_code),
-                'aggregation_key': aggregation_key
-            })
+    def status_code_event(self, url, r, aggregation_key):
+        self.event({
+            'timestamp': int(time.time()),
+            'event_type': 'riak_check',
+            'msg_title': 'Invalid reponse code for riak check',
+            'msg_text': '%s returned a status of %s' % (url, r.status_code),
+            'aggregation_key': aggregation_key
+        })
