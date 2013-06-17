@@ -121,7 +121,7 @@ case "$1" in
     stop)
         if [ -f $USE_SUPERVISOR ]; then
             log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
-            start-stop-daemon --stop --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
+            start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
         else
             log_daemon_msg "Stopping $DESC" "$NAME"
             su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1" && \
