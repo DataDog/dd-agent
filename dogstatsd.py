@@ -178,7 +178,7 @@ class Reporter(threading.Thread):
             for event in events:
                 start_time = time()
                 body = serialize_event(event)
-                log.warn(body)
+                log.debug('Sending event: %s' % body)
                 conn.request(method, url, body, headers)
 
                 response = conn.getresponse()

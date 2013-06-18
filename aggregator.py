@@ -364,7 +364,7 @@ class MetricsAggregator(object):
             if packet.startswith('_e'):
                 self.event_count += 1
                 event = self.parse_event_packet(packet)
-                self.events.append(event)
+                self.event(**event)
             else:
                 self.count += 1
                 name, value, mtype, tags, sample_rate = self.parse_metric_packet(packet)
@@ -405,17 +405,28 @@ class MetricsAggregator(object):
     def set(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 's', tags, hostname, device_name)
 
-    def event(self, title, text, date_happened=time(), alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
-        event = {'title': title,
+    def event(self, title, text, date_happened=int(time()), alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
+        event = {
+            'title': title,
             'text': text,
-            'date_happened': date_happened,
-            'alert_type': alert_type,
-            'aggregation_key': aggregation_key,
-            'source_type_name': source_type_name,
-            'priority': priority,
-            'tags': sorted(tags) if tags is not None else None,
-            'hostname': hostname
         }
+        if date_happened is not None:
+            event['date_happened'] = date_happened
+        if alert_type is not None:
+            event['alert_type'] = alert_type
+        if aggregation_key is not None:
+            event['aggregation_key'] = aggregation_key
+        if source_type_name is not None:
+            event['source_type_name'] = source_type_name
+        if priority is not None:
+            event['priority'] = priority
+        if tags is not None:
+            event['tags'] = sorted(tags)
+        if hostname is not None:
+            event['host'] = hostname
+        else:
+            event['host'] = self.hostname
+
         self.events.append(event)
 
     def flush(self):
