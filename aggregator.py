@@ -405,13 +405,15 @@ class MetricsAggregator(object):
     def set(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 's', tags, hostname, device_name)
 
-    def event(self, title, text, date_happened=int(time()), alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
+    def event(self, title, text, date_happened=None, alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
         event = {
             'title': title,
             'text': text,
         }
         if date_happened is not None:
             event['date_happened'] = date_happened
+        else:
+            event['date_happened'] = int(time())
         if alert_type is not None:
             event['alert_type'] = alert_type
         if aggregation_key is not None:
