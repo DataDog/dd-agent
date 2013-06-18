@@ -1,0 +1,21 @@
+## Default configuration
+# core:
+#   schedule:
+#     timeout: 5
+#     period:  60
+#   notification: ""
+# checks:
+
+## Advanced example
+# core:
+#   schedule:
+#     timeout: 3
+#     period: 90
+#   notification: "@all"
+# checks:
+#   - path: /path2/default_checks/
+#   - path: /path1/my_checks/
+#     timeout: 2
+#     period: 50
+#     notification: "@my_email Take a look"
+

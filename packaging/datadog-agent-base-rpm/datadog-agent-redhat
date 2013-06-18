@@ -24,6 +24,7 @@
 
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 DOGSTATSDPATH="/usr/share/datadog/agent/dogstatsd.py"
+BERNARDPATH="/usr/share/datadog/agent/bernard.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
@@ -124,6 +125,8 @@ start() {
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $BERNARDPATH start > /dev/null 2>&1"
+        RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
         return $RETURNVALUE
@@ -151,6 +154,8 @@ stop() {
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $BERNARDPATH stop > /dev/null 2>&1"
+        RETURNVALUE=$(($RETURNVALUE || $?))
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
     fi
     return $RETURNVALUE
@@ -167,6 +172,7 @@ info() {
           # (right now only dd-agent supports additional flags)
     su $AGENTUSER -c "$AGENTPATH info $@" || true
     su $AGENTUSER -c "$DOGSTATSDPATH info" || true
+    su $AGENTUSER -c "$BERNARDPATH info" || true
     if [ -f $USE_SUPERVISOR ]; then
         su $AGENTUSER -c "$USE_SUPERVISOR info" || true
     fi

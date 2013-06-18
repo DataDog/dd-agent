@@ -66,6 +66,7 @@ install_base: source
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
+	ln -sf ../share/datadog/agent/bernard.py 	$(BUILD)/usr/bin/bernard
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/var/log/datadog

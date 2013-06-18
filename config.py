@@ -19,6 +19,7 @@ from util import get_os
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
+BERNARD_CONF = "bernard.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
@@ -87,9 +88,9 @@ def _windows_commondata_path():
     return path_buf.value
 
 
-def _windows_config_path():
+def _windows_config_path(filename):
     common_data = _windows_commondata_path()
-    path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
+    path = os.path.join(common_data, 'Datadog', filename)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -118,8 +119,8 @@ def _windows_checksd_path():
     raise PathNotFound(checksd_path)
 
 
-def _unix_config_path():
-    path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+def _unix_config_path(filename):
+    path = os.path.join('/etc/dd-agent', filename)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -147,7 +148,7 @@ def _is_affirmative(s):
     return s.lower() in ('yes', 'true')
 
 
-def get_config_path(cfg_path=None, os_name=None):
+def get_config_path(cfg_path=None, os_name=None, filename=DATADOG_CONF):
     # Check if there's an override and if it exists
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
@@ -159,13 +160,13 @@ def get_config_path(cfg_path=None, os_name=None):
     bad_path = ''
     if os_name == 'windows':
         try:
-            return _windows_config_path()
+            return _windows_config_path(filename)
         except PathNotFound, e:
             if len(e.args) > 0:
                 bad_path = e.args[0]
     else:
         try:
-            return _unix_config_path()
+            return _unix_config_path(filename)
         except PathNotFound, e:
             if len(e.args) > 0:
                 bad_path = e.args[0]
@@ -173,8 +174,8 @@ def get_config_path(cfg_path=None, os_name=None):
     # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
     path = os.path.dirname(path)
-    if os.path.exists(os.path.join(path, DATADOG_CONF)):
-        return os.path.join(path, DATADOG_CONF)
+    if os.path.exists(os.path.join(path, filename)):
+        return os.path.join(path, filename)
 
     # If all searches fail, exit the agent with an error
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
@@ -699,6 +700,86 @@ def load_check_directory(agentConfig):
     return {'initialized_checks':initialized_checks.values(),
             'init_failed_checks':init_failed_checks}
 
+def get_bernard_config():
+    from util import yaml, yLoader
+
+    osname = get_os()
+    config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
+
+    f = open(config_path)
+    try:
+        bernard_config = yaml.load(f.read(), Loader=yLoader)
+        assert bernard_config is not None
+        f.close()
+    except:
+        f.close()
+        log.exception("Unable to parse yaml config in %s" % config_path)
+        sys.exit(3)
+
+    return bernard_config
+
+def load_bernard_checks(bernard_config):
+    ''' Return the initialized checks of Bernard and its configuration.'''
+    from checks.bernard_check import BernardCheck
+    from dogstatsd_client import DogStatsd
+    from util import get_hostname
+
+    agent_config = get_config()
+
+    hostname = get_hostname(agent_config)
+    bernard_checks = []
+
+    DEFAULT_TIMEOUT = 5
+    DEFAULT_FREQUENCY = 60
+
+    schedule_config = bernard_config.get('core', {}).get('schedule', {})
+
+    default_check_parameter = {
+        'hostname': hostname,
+        'timeout': int(schedule_config.get('timeout', DEFAULT_TIMEOUT)),
+        'frequency': int(schedule_config.get('period', DEFAULT_FREQUENCY)),
+        'notification': bernard_config.get('core', {}).get('notification', None),
+    }
+
+    statsd_config = bernard_config.get('core', {}).get('dogstatsd', {})
+    statsd_host = statsd_config.get('host', 'localhost')
+    statsd_port = statsd_config.get('port', 8125)
+    dogstatsd = DogStatsd(host=statsd_host, port=statsd_port)
+
+    for check_config in bernard_config.get('checks', []):
+        path = check_config.get('path', '')
+        filenames = check_config.get('filenames', [])
+        notification = check_config.get('notification', '')
+        timeout = check_config.get('timeout', 0)
+        period = check_config.get('period', 0)
+        if path:
+            if not filenames:
+                try:
+                    filenames = os.listdir(path)
+                    check_paths = []
+                    for filename in filenames:
+                        # Filter hidden files
+                        if not filename.startswith('.'):
+                            check_path = os.path.join(path, filename)
+                            # Keep only executable files
+                            if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
+                                check_paths.append(check_path)
+                except OSError:
+                    log.exception('No such file or directory: %s' % path)
+                    continue
+
+            check_parameter = default_check_parameter.copy()
+            if notification:
+                check_parameter['notification'] = notification
+            if timeout:
+                check_parameter['timeout'] = timeout
+            if period:
+                check_parameter['period'] = period
+            for check_path in check_paths:
+                check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd)
+                bernard_checks.append(check)
+
+    return bernard_checks
 
 #
 # logging

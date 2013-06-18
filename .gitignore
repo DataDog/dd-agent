@@ -2,6 +2,7 @@
 *.*~
 build/*
 datadog.conf
+bernard.conf
 datadog_agent.egg-info/*
 artifacts/*
 node_modules/*

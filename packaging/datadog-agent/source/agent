@@ -41,5 +41,6 @@ case $action in
     python agent/agent.py info $@
     python agent/dogstatsd.py info
     python agent/ddagent.py info
+    python agent/bernard.py info
   ;;
 esac

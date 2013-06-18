@@ -523,3 +523,46 @@ class ForwarderStatus(AgentStatus):
             'queue_size': self.queue_size,
         })
         return status_info
+
+
+class BernardStatus(AgentStatus):
+
+    NAME = 'Bernard'
+
+    def __init__(self, checks=[], schedule_count=0):
+        from checks.bernard_check import S, R
+
+        AgentStatus.__init__(self)
+        self.check_stats = [check.get_status() for check in checks]
+        self.schedule_count = schedule_count
+
+    def body_lines(self):
+        lines = [
+            "Schedule count: %s" % self.schedule_count,
+            "Check count: %s" % len(self.check_stats),
+        ]
+
+        lines += [
+            "",
+            "Checks",
+            "======",
+            ""
+        ]
+
+        for check in self.check_stats:
+            lines += ['  %s: [%s] #%d run is %s: %s' % (check['check_name'], check['status'], check['run_count'], check['state'], check['message'])]
+
+        return lines
+
+    def has_error(self):
+        return False
+
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        check_stats = {
+            'checks': self.check_stats,
+            'schedule_count': self.schedule_count,
+        }
+        status_info.update(check_stats)
+
+        return status_info
