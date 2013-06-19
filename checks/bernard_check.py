@@ -1,5 +1,6 @@
 import time
 import os
+import signal
 import subprocess
 from util import namedtuple
 import logging
@@ -13,10 +14,12 @@ S = ExecutionStatus('ok','timeout','exception','invalid_output')
 ResultState = namedtuple('ResultState', ['NONE', 'OK', 'WARNING', 'CRITICAL', 'UNKNOWN'])
 R = ResultState('init','ok','warning','critical','unknown')
 
-CheckResult = namedtuple('CheckResult', ['timestamp', 'status', 'state', 'message'])
-
+CheckResult = namedtuple('CheckResult', ['status', 'state', 'message', 'execution_date', 'execution_time'])
 
 class InvalidCheckOutput(Exception):
+    pass
+
+class Timeout(Exception):
     pass
 
 class BernardCheck(object):
@@ -56,19 +59,22 @@ class BernardCheck(object):
 
     def _execute_check(self):
         timeout = self.config.get('timeout')
-        start = time.time()
-        process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        while process.poll() is None:
-          time.sleep(0.1)
-          now = time.time()
-          if (now - start) > timeout:
-            process.kill()
-            os.waitpid(-1, os.WNOHANG)
+        signal.signal(signal.SIGALRM, self.timeout_handler)
+        signal.alarm(timeout)
+        try:
+            process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = process.communicate()[0]
+            signal.alarm(0)
+            return output
+        except Timeout:
+            os.kill(process.pid, signal.SIGKILL)
             return None
-        return process.stdout.read()
+
+    def timeout_handler(self, signum, frame):
+        raise Timeout()
 
     def run(self):
-        self.execution_date = time.time()
+        execution_date = time.time()
         try:
             output = self._execute_check()
             if output is None:
@@ -90,12 +96,19 @@ class BernardCheck(object):
             message = u'Failed to execute the check: %s, exception: %s' % (self, e)
             log.warn(message)
 
-        self._commit_result(status, state, message)
+        execution_time = time.time() - execution_date
+        self._commit_result(status, state, message, execution_date, execution_time)
 
         self.run_count += 1
 
-    def _commit_result(self, status, state, message=None):
-        self.result_container.append(CheckResult(self.execution_date, status, state, message))
+    def _commit_result(self, status, state, message, execution_date, execution_time):
+        self.result_container.append(CheckResult(
+                status=status,
+                state=state,
+                message=message,
+                execution_date=execution_date,
+                execution_time=execution_time
+            ))
 
         if len(self.result_container) > self.CONTAINER_SIZE:
             del self.result_container[0]
@@ -182,7 +195,7 @@ class BernardCheck(object):
         elif position > self.CONTAINER_SIZE:
             raise Exception('Trying to get %dth result while container size is %d' % (position, self.CONTAINER_SIZE))
         else:
-            return CheckResult(timestamp=0, status=S.OK, state=R.NONE, message='Not runned yet')
+            return CheckResult(execution_date=0, status=S.OK, state=R.NONE, message='Not runned yet', execution_time=0)
 
     def get_status(self):
         result = self.get_last_result()
