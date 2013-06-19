@@ -34,10 +34,11 @@ log = logging.getLogger('bernard')
 
 class Bernard(Daemon):
     """
-    The agent class is a daemon that runs the scheduler in a background process.
+    The Bernard class is a daemon that runs the scheduler in a background process.
     """
 
     def __init__(self, pidfile, autorestart, start_event=True):
+        """ Initialization of the Dameon """
         Daemon.__init__(self, pidfile)
         self.run_forever = True
         self.scheduler = None
@@ -59,6 +60,8 @@ class Bernard(Daemon):
     def run(self):
         """Main loop of Bernard"""
 
+        simulated_time = True
+
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
@@ -72,6 +75,12 @@ class Bernard(Daemon):
         bernard_config = get_bernard_config()
         bernard_checks = load_bernard_checks(bernard_config)
 
+        # Exit Bernard if there is no check
+        if not bernard_checks:
+            log.info("No checks found, exiting.")
+            time.sleep(3)
+            sys.exit(0)
+
         # Save the agent start-up stats.
         BernardStatus(checks=bernard_checks).persist()
 
@@ -79,11 +88,13 @@ class Bernard(Daemon):
         self.restart_interval = int(RESTART_INTERVAL)
         self.agent_start = time.time()
 
-        self.scheduler = Scheduler(checks=bernard_checks, config=bernard_config)
+        # Initialize the Scheduler
+        self.scheduler = Scheduler(checks=bernard_checks, config=bernard_config,
+            simulated_time=simulated_time)
 
         # Run the main loop.
         while self.run_forever:
-            # Run one check
+            # Run the next scheduled check
             self.scheduler.process()
 
             # Check if we should restart.
@@ -92,13 +103,14 @@ class Bernard(Daemon):
 
             # Update status once every 1 times
             if self.scheduler.schedule_count % 1 == 0:
-                BernardStatus(checks=self.scheduler.checks, schedule_count=self.scheduler.schedule_count).persist()
+                BernardStatus(checks=self.scheduler.checks,
+                    schedule_count=self.scheduler.schedule_count).persist()
 
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.
             if self.run_forever:
-                # Maximum sleep of 5s not to block Bernard when stopping it
-                time.sleep(min(self.scheduler.wait_time(), 5))
+                # Sleep until the next task schedule
+                time.sleep(self.scheduler.wait_time())
 
         # Now clean-up.
         BernardStatus.remove_latest_status()
@@ -118,6 +130,7 @@ class Bernard(Daemon):
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
 def main():
+    """" Execution of Bernard"""
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)

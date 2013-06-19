@@ -8,14 +8,17 @@ import re
 from config import initialize_logging; initialize_logging('bernard')
 log = logging.getLogger('bernard')
 
+# Status of the execution of the check
 ExecutionStatus = namedtuple('ExecutionStatus',
     ['OK', 'TIMEOUT', 'EXCEPTION', 'INVALID_OUTPUT'])
 S = ExecutionStatus('ok', 'timeout', 'exception', 'invalid_output')
 
+# State of check
 ResultState = namedtuple('ResultState',
     ['NONE', 'OK', 'WARNING', 'CRITICAL', 'UNKNOWN'])
 R = ResultState('init', 'ok', 'warning', 'critical', 'unknown')
 
+# Represent the result of the execution of one check
 CheckResult = namedtuple('CheckResult',
     ['status', 'state', 'message', 'execution_date', 'execution_time'])
 
@@ -32,9 +35,7 @@ class BernardCheck(object):
             r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
             r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
         ]))
-
     CONTAINER_SIZE = 5
-
 
     def __init__(self, check, config, dogstatsd):
         self.check = check
@@ -44,6 +45,7 @@ class BernardCheck(object):
         self.run_count = 0
         self.event_count = 0
 
+        # Contains the result of #{CONTAINER_SIZE} last checks
         self.result_container = []
 
         # Set check_name
@@ -53,7 +55,6 @@ class BernardCheck(object):
         check_name = check_name.rsplit('.')[0]
 
         self.check_name = check_name.lower()
-        self.hostname = config['hostname']
 
     def __repr__(self):
         return self.check_name

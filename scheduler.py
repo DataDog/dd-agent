@@ -14,48 +14,54 @@ TransitionAction = namedtuple('ResultState',
 T = TransitionAction(0, 1, 2, 3)
 
 class Scheduler(object):
+    """
+    Schedule Bernard checks execution.
+    """
 
+    # Ratio of jitter to introduce in the scheduling
     JITTER_FACTOR = 0.1
 
     def __init__(self, checks, config, simulated_time=False):
+        """Initialize scheduler"""
         self.checks = checks
         self.config = config
-
         self.schedule_count = 0
+        self.notifier = Notifier(config)
 
         # Initialize schedule
         self.schedule = []
         for check in self.checks:
             self.schedule.append((0, check))
             check.last_notified_state = R.NONE
+
+        # Simulated time allow to run checks non-stop, for test use
+        # It only override methods, not to alter the normal code
+        if simulated_time:
+            self.virtual_time = time.time()
+            self.wait_time = lambda: 0
+
+            def reschedule_timestamp_simulated(check, waiting):
+                last_result = check.get_last_result()
+                timestamp = self.virtual_time + last_result.execution_time
+                self.virtual_time = timestamp
+                return timestamp + waiting
+            self._reschedule_timestamp = reschedule_timestamp_simulated
+
+            def pop_check_simulated():
+                self.virtual_time = max(self.schedule[0][0], self.virtual_time)
+                if self.schedule:
+                    return self.schedule.pop(0)[1]
+            self._pop_check = pop_check_simulated
+
+        # Scheduler doesn't need to be initialize if no check
+        assert self.checks
+        # Don't miss checks
         assert len(self.checks) == len(self.schedule)
 
-        if simulated_time:
-            self.wait_time = lambda: 0
-            def schedule_time_simulated(check, period):
-                last_result = check.get_last_result()
-                return last_result.execution_date + last_result.execution_time + period
-            self._schedule_time = schedule_time_simulated
-
-        self.notifier = Notifier(config)
-
-    def _schedule_after(self, check, period):
-        t = self._schedule_time(check, period)
-
-        i = 0
-        n = len(self.schedule)
-
-        while i < n and self.schedule[i][0] < t:
-            i += 1
-        self.schedule.insert(i, (t, check))
-        log.debug('%s scheduled in around %ds' %(check, period))
-
-    def _schedule_time(self, check, period):
-        jitter_range = self.JITTER_FACTOR * period
-        jitter = random.uniform(-jitter_range, jitter_range)
-        return time.time() + period + jitter
-
     def _pop_check(self):
+        """Return the next scheduled check
+        Because we call wait_time before it, no need to
+        check if the timestamp is in the past"""
         if self.schedule:
             return self.schedule.pop(0)[1]
 
@@ -77,29 +83,53 @@ class Scheduler(object):
             check.run()
             self.schedule_count += 1
 
+            # Create an event if needed
+            # need_confirmation allow a fast rescheduling
             need_confirmation = self.notifier.notify_change(check)
-            self._reschedule(check, need_confirmation)
+            # Get the duration to wait for the next scheduling
+            waiting = self._reschedule_waiting(check, need_confirmation)
+            timestamp = self._reschedule_timestamp(check, waiting)
+            # Reschedule the check
+            self._reschedule_at(check, timestamp)
+            log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
         assert len(self.checks) == len(self.schedule)
 
-    def _reschedule(self, check, fast_rescheduling=False):
-        frequency = check.config['frequency']
+    def _reschedule_waiting(self, check, fast_rescheduling=False):
+        waiting = check.config['frequency']
         status = check.get_last_result().status
         if fast_rescheduling:
-            frequency = frequency / 2
+            waiting = waiting / 2
         elif status == S.TIMEOUT:
-            frequency = frequency * 3
+            waiting = waiting * 3
         elif status == S.INVALID_OUTPUT:
-            frequency = frequency * 8
+            waiting = waiting * 8
         elif status == S.EXCEPTION:
-            frequency = frequency * 12
+            waiting = waiting * 12
 
+        jitter_range = self.JITTER_FACTOR * waiting
+        jitter = random.uniform(-jitter_range, jitter_range)
 
-        self._schedule_after(check, frequency)
+        return waiting + jitter
+
+    def _reschedule_at(self, check, timestamp):
+        i = 0
+        n = len(self.schedule)
+
+        while i < n and self.schedule[i][0] < timestamp:
+            i += 1
+        self.schedule.insert(i, (timestamp, check))
+
+    def _reschedule_timestamp(self, check, waiting):
+        """check attribute is needed for the simulated_time"""
+        return time.time() + waiting
 
 
 class Notifier(object):
-    ATTEMPTS_TO_CONFIRM = 4
+    """
+    Create events based on Bernard checks results
+    """
+    ATTEMPTS_TO_CONFIRM = 3
 
     def __init__(self, config):
         self.config = config
@@ -138,6 +168,7 @@ class Notifier(object):
 
             action = actions[0]
             state = check.get_last_result().state
+            hostname = check.config['hostname']
 
             if action == T.ok_event:
                 alert_type = 'success'
@@ -146,7 +177,7 @@ class Notifier(object):
             elif action == T.fail_event:
                 alert_type = 'error'
 
-            title = '%s is %s on %s' % (check.check_name, state, check.hostname)
+            title = '%s is %s on %s' % (check.check_name, state, hostname)
             text = check.get_result(0).message
             if check.config['notification']:
                 text = '%s\n%s' % (text, check.config['notification'])
@@ -155,7 +186,7 @@ class Notifier(object):
                 text=text,
                 alert_type=alert_type,
                 aggregation_key=check.check_name,
-                hostname=check.hostname,
+                hostname=hostname,
             )
             check.last_notified_state = state
 
@@ -163,7 +194,7 @@ class Notifier(object):
 
             return False
 
-
+# State transitions and corresponding events
 transitions = {
     (R.NONE, R.OK): T.no_event,
     (R.NONE, R.WARNING): T.no_event,

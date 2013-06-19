@@ -701,20 +701,25 @@ def load_check_directory(agentConfig):
             'init_failed_checks':init_failed_checks}
 
 def get_bernard_config():
+    """Return the configuration of Bernard"""
     from util import yaml, yLoader
 
     osname = get_os()
     config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
 
-    f = open(config_path)
+    try:
+        f = open(config_path)
+    except IOError:
+        log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
+        return {}
     try:
         bernard_config = yaml.load(f.read(), Loader=yLoader)
         assert bernard_config is not None
         f.close()
     except:
         f.close()
-        log.exception("Unable to parse yaml config in %s" % config_path)
-        sys.exit(3)
+        log.error("Unable to parse yaml config in %s" % config_path)
+        return {}
 
     return bernard_config
 
@@ -723,6 +728,10 @@ def load_bernard_checks(bernard_config):
     from checks.bernard_check import BernardCheck
     from dogstatsd_client import DogStatsd
     from util import get_hostname
+
+    # If the config does not exist or is empty
+    if not bernard_config:
+        return []
 
     agent_config = get_config()
 
@@ -736,8 +745,8 @@ def load_bernard_checks(bernard_config):
 
     default_check_parameter = {
         'hostname': hostname,
-        'timeout': int(schedule_config.get('timeout', DEFAULT_TIMEOUT)),
-        'frequency': int(schedule_config.get('period', DEFAULT_FREQUENCY)),
+        'timeout': schedule_config.get('timeout', DEFAULT_TIMEOUT),
+        'frequency': schedule_config.get('period', DEFAULT_FREQUENCY),
         'notification': bernard_config.get('core', {}).get('notification', None),
     }
 
@@ -765,7 +774,7 @@ def load_bernard_checks(bernard_config):
                             if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
                                 check_paths.append(check_path)
                 except OSError:
-                    log.exception('No such file or directory: %s' % path)
+                    log.warn('No such file or directory: %s' % path)
                     continue
 
             check_parameter = default_check_parameter.copy()
