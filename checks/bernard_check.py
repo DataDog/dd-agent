@@ -8,13 +8,16 @@ import re
 from config import initialize_logging; initialize_logging('bernard')
 log = logging.getLogger('bernard')
 
-ExecutionStatus = namedtuple('ExecutionStatus', ['OK', 'TIMEOUT', 'EXCEPTION', 'INVALID_OUTPUT'])
-S = ExecutionStatus('ok','timeout','exception','invalid_output')
+ExecutionStatus = namedtuple('ExecutionStatus',
+    ['OK', 'TIMEOUT', 'EXCEPTION', 'INVALID_OUTPUT'])
+S = ExecutionStatus('ok', 'timeout', 'exception', 'invalid_output')
 
-ResultState = namedtuple('ResultState', ['NONE', 'OK', 'WARNING', 'CRITICAL', 'UNKNOWN'])
-R = ResultState('init','ok','warning','critical','unknown')
+ResultState = namedtuple('ResultState',
+    ['NONE', 'OK', 'WARNING', 'CRITICAL', 'UNKNOWN'])
+R = ResultState('init', 'ok', 'warning', 'critical', 'unknown')
 
-CheckResult = namedtuple('CheckResult', ['status', 'state', 'message', 'execution_date', 'execution_time'])
+CheckResult = namedtuple('CheckResult',
+    ['status', 'state', 'message', 'execution_date', 'execution_time'])
 
 class InvalidCheckOutput(Exception):
     pass
@@ -43,16 +46,14 @@ class BernardCheck(object):
 
         self.result_container = []
 
-        self._set_check_name()
-        self.hostname = config['hostname']
-
-    def _set_check_name(self):
+        # Set check_name
         check_name = self.check.split('/')[-1]
         if check_name.startswith('check_'):
             check_name = check_name[6:]
         check_name = check_name.rsplit('.')[0]
 
         self.check_name = check_name.lower()
+        self.hostname = config['hostname']
 
     def __repr__(self):
         return self.check_name
@@ -90,10 +91,10 @@ class BernardCheck(object):
                     state = R.UNKNOWN
                     message = u'Failed to parse the output of the check: %s, output: %s' % (self, output)
                     log.warn(message)
-        except OSError, e:
+        except OSError, exception:
             state = R.UNKNOWN
             status = S.EXCEPTION
-            message = u'Failed to execute the check: %s, exception: %s' % (self, e)
+            message = u'Failed to execute the check: %s, exception: %s' % (self, exception)
             log.warn(message)
 
         execution_time = time.time() - execution_date
@@ -190,8 +191,8 @@ class BernardCheck(object):
 
     def get_result(self, position=0):
         if len(self.result_container) > position:
-            n = - (position + 1)
-            return self.result_container[n]
+            index = - (position + 1)
+            return self.result_container[index]
         elif position > self.CONTAINER_SIZE:
             raise Exception('Trying to get %dth result while container size is %d' % (position, self.CONTAINER_SIZE))
         else:

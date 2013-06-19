@@ -7,14 +7,11 @@ import os; os.umask(022)
 
 # Core modules
 import logging
-import modules
 import os
 import os.path
-import re
 import signal
 import sys
 import time
-import urllib
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -104,10 +101,7 @@ class Bernard(Daemon):
                 time.sleep(min(self.scheduler.wait_time(), 5))
 
         # Now clean-up.
-        try:
-            BernardStatus.remove_latest_status()
-        except:
-            pass
+        BernardStatus.remove_latest_status()
 
         # Explicitly kill the process, because it might be running
         # as a daemon.
@@ -121,8 +115,6 @@ class Bernard(Daemon):
 
     def _do_restart(self):
         log.info("Running an auto-restart.")
-        if self.collector:
-            self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
 def main():

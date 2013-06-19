@@ -5,13 +5,13 @@ import random
 from util import namedtuple
 
 from checks.bernard_check import S, R
-from dogstatsd_client import DogStatsd
 
 log = logging.getLogger('bernard')
 
 
-TransitionAction = namedtuple('ResultState', ['no_event', 'ok_event', 'warning_event', 'fail_event'])
-T = TransitionAction(0,1,2,3)
+TransitionAction = namedtuple('ResultState',
+    ['no_event', 'ok_event', 'warning_event', 'fail_event'])
+T = TransitionAction(0, 1, 2, 3)
 
 class Scheduler(object):
 
@@ -22,9 +22,13 @@ class Scheduler(object):
         self.config = config
 
         self.schedule_count = 0
-        self._initialize_schedule()
 
-        self.now = time.time
+        # Initialize schedule
+        self.schedule = []
+        for check in self.checks:
+            self.schedule.append((0, check))
+            check.last_notified_state = R.NONE
+        assert len(self.checks) == len(self.schedule)
 
         if simulated_time:
             self.wait_time = lambda: 0
@@ -35,19 +39,9 @@ class Scheduler(object):
 
         self.notifier = Notifier(config)
 
-    def _initialize_schedule(self):
-        self.schedule = []
-
-        for check in self.checks:
-            self.schedule.append((0, check))
-            check.last_notified_state = R.NONE
-
-        assert len(self.checks) == len(self.schedule)
-
     def _schedule_after(self, check, period):
         t = self._schedule_time(check, period)
 
-        b = True
         i = 0
         n = len(self.schedule)
 
@@ -79,8 +73,6 @@ class Scheduler(object):
         """ Execute the next scheduled check """
         check = self._pop_check()
         if check:
-            frequency = check.config.get('frequency')
-
             log.info('Run check %s' % check)
             check.run()
             self.schedule_count += 1
@@ -157,7 +149,7 @@ class Notifier(object):
             title = '%s is %s on %s' % (check.check_name, state, check.hostname)
             text = check.get_result(0).message
             if check.config['notification']:
-                text = '%s\n%s' %(text, check.config['notification'])
+                text = '%s\n%s' % (text, check.config['notification'])
             check.dogstatsd.event(
                 title=title,
                 text=text,
