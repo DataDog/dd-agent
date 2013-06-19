@@ -1,5 +1,6 @@
 import time
 import logging
+import random
 
 from util import namedtuple
 
@@ -14,13 +15,23 @@ T = TransitionAction(0,1,2,3)
 
 class Scheduler(object):
 
-    def __init__(self, checks, config):
+    JITTER_FACTOR = 0.1
+
+    def __init__(self, checks, config, simulated_time=False):
         self.checks = checks
         self.config = config
 
         self.schedule_count = 0
         self._initialize_schedule()
 
+        self.now = time.time
+
+        if simulated_time:
+            self.wait_time = lambda: 0
+            def schedule_time_simulated(check, period):
+                last_result = check.get_last_result()
+                return last_result.execution_date + last_result.execution_time + period
+            self._schedule_time = schedule_time_simulated
 
         self.notifier = Notifier(config)
 
@@ -28,13 +39,13 @@ class Scheduler(object):
         self.schedule = []
 
         for check in self.checks:
-            self._schedule_after(check, 0)
+            self.schedule.append((0, check))
             check.last_notified_state = R.NONE
 
         assert len(self.checks) == len(self.schedule)
 
     def _schedule_after(self, check, period):
-        t = time.time() + period
+        t = self._schedule_time(check, period)
 
         b = True
         i = 0
@@ -43,14 +54,16 @@ class Scheduler(object):
         while i < n and self.schedule[i][0] < t:
             i += 1
         self.schedule.insert(i, (t, check))
-        log.debug('%s scheduled in %ds' %(check, period))
+        log.debug('%s scheduled in around %ds' %(check, period))
+
+    def _schedule_time(self, check, period):
+        jitter_range = self.JITTER_FACTOR * period
+        jitter = random.uniform(-jitter_range, jitter_range)
+        return time.time() + period + jitter
 
     def _pop_check(self):
         if self.schedule:
-            if self.schedule[0][0] <= time.time():
-                return self.schedule.pop(0)[1]
-            else:
-                return None
+            return self.schedule.pop(0)[1]
 
     def wait_time(self):
         now = time.time()
