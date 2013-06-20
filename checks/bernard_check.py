@@ -63,14 +63,18 @@ class BernardCheck(object):
         timeout = self.config.get('timeout')
         signal.signal(signal.SIGALRM, self.timeout_handler)
         signal.alarm(timeout)
+        output = None
+        returncode = None
         try:
-            process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output = process.communicate()[0]
+            try:
+                process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                output = process.communicate()[0]
+                returncode = process.returncode
+            except Timeout:
+                os.kill(process.pid, signal.SIGKILL)
+        finally:
             signal.alarm(0)
-            return output, process.returncode
-        except Timeout:
-            os.kill(process.pid, signal.SIGKILL)
-            return None, None
+            return output, returncode
 
     def timeout_handler(self, signum, frame):
         raise Timeout()
