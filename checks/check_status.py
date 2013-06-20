@@ -536,6 +536,9 @@ class BernardStatus(AgentStatus):
         self.check_stats = [check.get_status() for check in checks]
         self.schedule_count = schedule_count
 
+        self.STATUS_COLOR = {S.OK: 'green', S.TIMEOUT: 'yellow', S.EXCEPTION: 'red', S.INVALID_OUTPUT: 'red'}
+        self.STATE_COLOR = {R.OK: 'green', R.WARNING: 'yellow', R.CRITICAL: 'red', R.UNKNOWN: 'yellow', R.NONE: 'white'}
+
     def body_lines(self):
         lines = [
             "Schedule count: %s" % self.schedule_count,
@@ -550,7 +553,11 @@ class BernardStatus(AgentStatus):
         ]
 
         for check in self.check_stats:
-            lines += ['  %s: [%s] #%d run is %s: %s' % (check['check_name'], check['status'], check['run_count'], check['state'], check['message'])]
+            status_color = self.STATUS_COLOR[check['status']]
+            state_color = self.STATE_COLOR[check['state']]
+            lines += ['  %s: [%s] #%d run is %s' % (check['check_name'], style(check['status'], status_color),
+                                                    check['run_count'], style(check['state'], state_color))]
+            lines += ['    %s' % (check['message'])]
 
         return lines
 

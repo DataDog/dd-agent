@@ -196,7 +196,7 @@ class BernardCheck(object):
     def get_status(self):
         result = self.get_last_result()
         state = result.state
-        status = result.state
+        status = result.status
         message = result.message
 
         return {
