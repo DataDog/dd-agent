@@ -60,7 +60,7 @@ class Bernard(Daemon):
     def run(self):
         """Main loop of Bernard"""
 
-        simulated_time = True
+        simulated_time = False
 
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)

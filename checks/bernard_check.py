@@ -67,10 +67,10 @@ class BernardCheck(object):
             process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             signal.alarm(0)
-            return output
+            return output, process.returncode
         except Timeout:
             os.kill(process.pid, signal.SIGKILL)
-            return None
+            return None, None
 
     def timeout_handler(self, signum, frame):
         raise Timeout()
@@ -78,14 +78,14 @@ class BernardCheck(object):
     def run(self):
         execution_date = time.time()
         try:
-            output = self._execute_check()
+            output, returncode = self._execute_check()
             if output is None:
                 status = S.TIMEOUT
                 state = R.UNKNOWN
                 message = 'Check %s timed out after %ds' % (self, self.config['timeout'])
             else:
                 try:
-                    state, message = self.parse_nagios(output)
+                    state, message = self.parse_nagios(output, returncode)
                     status = S.OK
                 except InvalidCheckOutput:
                     status = S.EXCEPTION
@@ -115,25 +115,19 @@ class BernardCheck(object):
         if len(self.result_container) > self.CONTAINER_SIZE:
             del self.result_container[0]
 
-    def parse_nagios(self, output):
-        output = output.strip()
-        try:
-            output_state, tail = output.split('-', 1)
-        except ValueError:
-            raise InvalidCheckOutput()
-
-        output_state = output_state.lower().strip().split(' ')
-        if 'ok' in output_state:
+    def parse_nagios(self, output, returncode):
+        if returncode == 0:
             state = R.OK
-        elif 'warning' in output_state:
+        elif returncode == 1:
             state = R.WARNING
-        elif 'critical' in output_state:
+        elif returncode == 2:
             state = R.CRITICAL
-        elif 'unknown' in output_state:
+        elif returncode == 3:
             state = R.UNKNOWN
         else:
             raise InvalidCheckOutput()
 
+        output = output.strip()
         try:
             message, tail = output.split('|', 1)
         except ValueError:

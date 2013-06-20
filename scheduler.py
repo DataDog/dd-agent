@@ -147,6 +147,11 @@ class Notifier(object):
 
         ref_state = check.last_notified_state
 
+        # Get the transitions between the last_notified_state and ATTEMPTS_TO_CONFIRM
+        # last results.
+        #   - If only no_event, nothing to do
+        #   - If contains no_event and *_event, need to confirm the transition
+        #   - If only *_event, do the state change
         for i in range(self.ATTEMPTS_TO_CONFIRM - 1):
             state = check.get_result(i).state
             try:
