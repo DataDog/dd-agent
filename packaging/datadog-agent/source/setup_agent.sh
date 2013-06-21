@@ -267,15 +267,18 @@ rm $dd_base/agent.tar.gz >> $logfile 2>&1
 rm $dd_base/agent/datadog.conf.1  >> $logfile 2>&1
 print_done
 
-# on solaris, skip the test
-# just svcadm
+# on solaris, skip the test, svcadm the Agent
 if [ "$unamestr" = "SunOS" ]; then
+    # Install pyexpat for our version of python, a dependency for xml parsing (varnish et al.)
+    # Tested with /bin/sh
+    python -V 2>&1 | awk '{split($2, arr, "."); printf("py%d%d-expat", arr[1], arr[2]);}' | xargs pkgin -y in
+    # SMF work now
     svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml >> $logfile 2>&1
     svcadm enable site/datadog >> $logfile 2>&1
     svcs datadog >> $logfile 2>&1
 
-		printf "*** The agent is running. My work on this planet is done... ( ^_^) ***" | tee -a $logfile
-		printf "
+    printf "*** The agent is running. My work here is done... ( ^_^) ***" | tee -a $logfile
+    printf "
                                                                                 
                                          7           77II?+~,,,,,,              
                                         77II?~:,,,,,,,,,,,,,,,,,,,              
@@ -326,9 +329,9 @@ if [ "$unamestr" = "SunOS" ]; then
                     I       7,,                                                 
                     I,,~++:,,,                                                  
                        ?:,:I 7                                                  
-         " | tee -a $logfile
-	  # kthxbye
-	  exit $?
+    " | tee -a $logfile
+    # kthxbye
+    exit $?
 else
     printf "Starting the agent....." | tee -a $logfile
     # run agent
