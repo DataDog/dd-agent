@@ -1,0 +1,6 @@
+init_config:
+# HDFS check does not require any init_config
+
+instances:
+# Each instance requires a namenode hostname:port
+- namenode: namenode.example.com:8020
