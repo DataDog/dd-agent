@@ -26,7 +26,6 @@ class Scheduler(object):
         self.checks = checks
         self.config = config
         self.schedule_count = 0
-        self.notifier = Notifier(config)
 
         # Initialize schedule
         self.schedule = []
@@ -38,9 +37,14 @@ class Scheduler(object):
         # It only override methods, not to alter the normal code
         if simulated_time:
             self.virtual_time = time.time()
+            # With simulated time, we don't wait
             self.wait_time = lambda: 0
 
             def reschedule_timestamp_simulated(check, waiting):
+                """
+                Set the virtual time at the end of the check execution
+                Reschedule the check on a timestamp based on this virtual time
+                """
                 last_result = check.get_last_result()
                 timestamp = self.virtual_time + last_result.execution_time
                 self.virtual_time = timestamp
@@ -48,6 +52,11 @@ class Scheduler(object):
             self._reschedule_timestamp = reschedule_timestamp_simulated
 
             def pop_check_simulated():
+                """
+                When going to run a next check in simulated time, move the
+                simulated time to the next scheduled timestamp if
+                it is in the future
+                """
                 self.virtual_time = max(self.schedule[0][0], self.virtual_time)
                 if self.schedule:
                     return self.schedule.pop(0)[1]
@@ -67,31 +76,27 @@ class Scheduler(object):
 
     def wait_time(self):
         now = time.time()
-        if not self.schedule:
-            return None
+        if self.schedule[0][0] <= now:
+            return 0
         else:
-            if self.schedule[0][0] <= now:
-                return 0
-            else:
-                return self.schedule[0][0] - now
+            return self.schedule[0][0] - now
 
     def process(self):
         """ Execute the next scheduled check """
         check = self._pop_check()
-        if check:
-            log.info('Run check %s' % check)
-            check.run()
-            self.schedule_count += 1
+        log.info('Run check %s' % check)
+        check.run()
+        self.schedule_count += 1
 
-            # Create an event if needed
-            # need_confirmation allow a fast rescheduling
-            need_confirmation = self.notifier.notify_change(check)
-            # Get the duration to wait for the next scheduling
-            waiting = self._reschedule_waiting(check, need_confirmation)
-            timestamp = self._reschedule_timestamp(check, waiting)
-            # Reschedule the check
-            self._reschedule_at(check, timestamp)
-            log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
+        # Create an event if needed
+        # need_confirmation allow a fast rescheduling
+        need_confirmation = Notifier.notify_change(check)
+        # Get the duration to wait for the next scheduling
+        waiting = self._reschedule_waiting(check, need_confirmation)
+        timestamp = self._reschedule_timestamp(check, waiting)
+        # Reschedule the check
+        self._reschedule_at(check, timestamp)
+        log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
         assert len(self.checks) == len(self.schedule)
 
@@ -121,7 +126,10 @@ class Scheduler(object):
         self.schedule.insert(i, (timestamp, check))
 
     def _reschedule_timestamp(self, check, waiting):
-        """check attribute is needed for the simulated_time"""
+        """Give the rescheduled timestamp
+
+        To have a function for that allow the simulated_time
+        to override it"""
         return time.time() + waiting
 
 
@@ -129,11 +137,8 @@ class Notifier(object):
     """
     Create events based on Bernard checks results
     """
-    ATTEMPTS_TO_CONFIRM = 3
 
-    def __init__(self, config):
-        self.config = config
-
+    @classmethod
     def notify_change(self, check):
         """
         Analyze last check results and create an event if needed
@@ -147,12 +152,12 @@ class Notifier(object):
 
         ref_state = check.last_notified_state
 
-        # Get the transitions between the last_notified_state and ATTEMPTS_TO_CONFIRM
+        # Get the transitions between the last_notified_state and #{config['attempts']}
         # last results.
         #   - If only no_event, nothing to do
         #   - If contains no_event and *_event, need to confirm the transition
         #   - If only *_event, do the state change
-        for i in range(self.ATTEMPTS_TO_CONFIRM - 1):
+        for i in range(check.config['attempts'] - 1):
             state = check.get_result(i).state
             try:
                 actions.append(transitions[(ref_state, state)])
@@ -165,7 +170,7 @@ class Notifier(object):
         if actions_set == set([T.no_event]):
             return False
 
-        elif T.no_event in actions_set:
+        if T.no_event in actions_set:
             return True
 
         if T.no_event not in actions_set:
@@ -197,7 +202,7 @@ class Notifier(object):
 
             log.info('Event "%s" sent' % title)
 
-            return False
+        return False
 
 # State transitions and corresponding events
 transitions = {

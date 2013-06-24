@@ -83,6 +83,7 @@ class Bernard(Daemon):
 
         # Save the agent start-up stats.
         BernardStatus(checks=bernard_checks).persist()
+        self.last_info_update = time.time()
 
         # Initialize the auto-restarter
         self.restart_interval = int(RESTART_INTERVAL)
@@ -101,10 +102,11 @@ class Bernard(Daemon):
             if self.autorestart and self._should_restart():
                 self._do_restart()
 
-            # Update status once every 1 times
-            if self.scheduler.schedule_count % 1 == 0:
+            # Update status only if more than 10s old
+            if time.time() > self.last_info_update + 10:
                 BernardStatus(checks=self.scheduler.checks,
                     schedule_count=self.scheduler.schedule_count).persist()
+                self.last_info_update = time.time()
 
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.

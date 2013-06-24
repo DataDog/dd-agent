@@ -740,6 +740,7 @@ def load_bernard_checks(bernard_config):
 
     DEFAULT_TIMEOUT = 5
     DEFAULT_FREQUENCY = 60
+    DEFAULT_ATTEMPTS = 3
 
     schedule_config = bernard_config.get('core', {}).get('schedule', {})
 
@@ -747,6 +748,7 @@ def load_bernard_checks(bernard_config):
         'hostname': hostname,
         'timeout': schedule_config.get('timeout', DEFAULT_TIMEOUT),
         'frequency': schedule_config.get('period', DEFAULT_FREQUENCY),
+        'attempts': schedule_config.get('period', DEFAULT_ATTEMPTS),
         'notification': bernard_config.get('core', {}).get('notification', None),
     }
 
@@ -761,6 +763,7 @@ def load_bernard_checks(bernard_config):
         notification = check_config.get('notification', '')
         timeout = check_config.get('timeout', 0)
         period = check_config.get('period', 0)
+        attempts = check_config.get('attempts', 0)
         if path:
             if not filenames:
                 try:
@@ -784,6 +787,8 @@ def load_bernard_checks(bernard_config):
                 check_parameter['timeout'] = timeout
             if period:
                 check_parameter['period'] = period
+            if attempts:
+                check_parameter['attempts'] = attempts
             for check_path in check_paths:
                 check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd)
                 bernard_checks.append(check)

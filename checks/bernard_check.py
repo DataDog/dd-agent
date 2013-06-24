@@ -35,7 +35,6 @@ class BernardCheck(object):
             r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
             r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
         ]))
-    CONTAINER_SIZE = 5
 
     def __init__(self, check, config, dogstatsd):
         self.check = check
@@ -45,10 +44,12 @@ class BernardCheck(object):
         self.run_count = 0
         self.event_count = 0
 
-        # Contains the result of #{CONTAINER_SIZE} last checks
+        self.container_size = self.config['attempts'] + 1
+
+        # Contains the result of #{container_size} last checks
         self.result_container = []
 
-        # Set check_name
+        # Set check_name, remove file extension and "check_" prefix
         check_name = self.check.split('/')[-1]
         if check_name.startswith('check_'):
             check_name = check_name[6:]
@@ -116,7 +117,7 @@ class BernardCheck(object):
                 execution_time=execution_time
             ))
 
-        if len(self.result_container) > self.CONTAINER_SIZE:
+        if len(self.result_container) > self.container_size:
             del self.result_container[0]
 
     def parse_nagios(self, output, returncode):
@@ -177,8 +178,7 @@ class BernardCheck(object):
                 dd_metric = self._metric_name(label)
 
                 self.dogstatsd.gauge(dd_metric, value)
-                log.debug('%s:%.2f' % (dd_metric, value))
-
+                log.debug('Saved metric: %s:%.2f' % (dd_metric, value))
 
         return state, message
 
@@ -192,8 +192,8 @@ class BernardCheck(object):
         if len(self.result_container) > position:
             index = - (position + 1)
             return self.result_container[index]
-        elif position > self.CONTAINER_SIZE:
-            raise Exception('Trying to get %dth result while container size is %d' % (position, self.CONTAINER_SIZE))
+        elif position > self.container_size:
+            raise Exception('Trying to get %dth result while container size is %d' % (position, self.container_size))
         else:
             return CheckResult(execution_date=0, status=S.OK, state=R.NONE, message='Not runned yet', execution_time=0)
 
@@ -202,6 +202,7 @@ class BernardCheck(object):
         state = result.state
         status = result.status
         message = result.message
+        execution_time = result.execution_time
 
         return {
             'check_name': self.check_name,
@@ -209,4 +210,5 @@ class BernardCheck(object):
             'status': status,
             'state': state,
             'message': message,
+            'execution_time': execution_time,
         }
