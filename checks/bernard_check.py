@@ -5,6 +5,8 @@ import subprocess
 from util import namedtuple
 import logging
 import re
+
+from util import StaticWatchdog
 from config import initialize_logging; initialize_logging('bernard')
 log = logging.getLogger('bernard')
 
@@ -62,10 +64,11 @@ class BernardCheck(object):
 
     def _execute_check(self):
         timeout = self.config.get('timeout')
-        signal.signal(signal.SIGALRM, self.timeout_handler)
-        signal.alarm(timeout)
         output = None
         returncode = None
+        # This is going to disable the StaticWatchdog
+        signal.signal(signal.SIGALRM, self.timeout_handler)
+        signal.alarm(timeout)
         try:
             try:
                 process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -75,6 +78,8 @@ class BernardCheck(object):
                 os.kill(process.pid, signal.SIGKILL)
         finally:
             signal.alarm(0)
+            # Re enable the StaticWatchdog
+            StaticWatchdog.reset()
 
         return output, returncode
 

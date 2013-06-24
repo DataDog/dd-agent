@@ -23,7 +23,7 @@ if int(sys.version_info[1]) <= 3:
 from checks.check_status import BernardStatus
 from config import get_config, get_parsed_args, load_bernard_checks, get_bernard_config
 from daemon import Daemon
-from util import PidFile, AgentSupervisor
+from util import PidFile, AgentSupervisor, StaticWatchdog
 from scheduler import Scheduler
 
 # Constants
@@ -44,6 +44,7 @@ class Bernard(Daemon):
         self.scheduler = None
         self.autorestart = autorestart
         self.start_event = start_event
+        StaticWatchdog.reset()
 
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
