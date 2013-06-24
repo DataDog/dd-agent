@@ -75,7 +75,8 @@ class BernardCheck(object):
                 os.kill(process.pid, signal.SIGKILL)
         finally:
             signal.alarm(0)
-            return output, returncode
+
+        return output, returncode
 
     def timeout_handler(self, signum, frame):
         raise Timeout()
@@ -93,7 +94,7 @@ class BernardCheck(object):
                     state, message = self.parse_nagios(output, returncode)
                     status = S.OK
                 except InvalidCheckOutput:
-                    status = S.EXCEPTION
+                    status = S.INVALID_OUTPUT
                     state = R.UNKNOWN
                     message = u'Failed to parse the output of the check: %s, output: %s' % (self, output)
                     log.warn(message)
@@ -161,7 +162,7 @@ class BernardCheck(object):
                     # We should do a rate but dogstated_client can't so we drop this metric
                     continue
                 elif unit == '%':
-                    value = value / 100
+                    value = value / 100.0
                 elif unit == 'KB':
                     value = 1024 * value
                 elif unit == 'MB':
@@ -199,16 +200,12 @@ class BernardCheck(object):
 
     def get_status(self):
         result = self.get_last_result()
-        state = result.state
-        status = result.status
-        message = result.message
-        execution_time = result.execution_time
 
         return {
             'check_name': self.check_name,
             'run_count': self.run_count,
-            'status': status,
-            'state': state,
-            'message': message,
-            'execution_time': execution_time,
+            'status': result.status,
+            'state': result.state,
+            'message': result.message,
+            'execution_time': result.execution_time,
         }
