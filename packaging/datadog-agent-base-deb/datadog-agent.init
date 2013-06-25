@@ -10,87 +10,35 @@
 # Default-Stop: 0 1 6
 ### END INIT INFO
 
-set -e
-
 . /lib/lsb/init-functions
+PATH=$PATH:/sbin # add the location of start-stop-daemon on Debian
 
 AGENTPATH="/usr/bin/dd-agent"
+AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/usr/bin/dogstatsd"
 BERNARDPATH="/usr/bin/bernard"
 AGENTUSER="dd-agent"
-AGENTCONF="/etc/dd-agent/datadog.conf"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
-PIDPATH="/var/run/dd-agent"
 NAME="datadog-agent"
-DESC="datadog agent"
-SUPERVISOR_FILE="/etc/supervisor/supervisord.conf"
-DATADOG_SUPERVISOR_FILE="/etc/supervisor/conf.d/ddagent.conf"
+DESC="Datadog agent"
+DDAGENT_PID_PATH="/var/run/dd-agent"
+SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
+SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
+SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
+SUPERVISORD="/usr/bin/supervisord"
 
-[ -x $AGENTPATH ] || echo "$AGENTPATH not found"
+# This script is considered a configuration file and will not be
+# removed by dpkg unless the --purge option it set. Therefore we
+# make sure that the agent is actually installed before we try to do anything:
+if [ ! -x $AGENTPATH ]; then
+    echo "$AGENTPATH not found. Exiting."
+    exit 0
+fi
 
-# Action to take
-case "$1" in
-  start)
-        if [ ! -f $AGENTCONF ]; then
-            echo "$AGENTCONF not found. Exiting"
-            exit 0;
-        fi
-        echo -n "Starting $DESC: "
-
-
-        if [ -f $USE_SUPERVISOR ]; then
-            echo -n "(using supervisorctl) "
-            supervisorctl -c $SUPERVISOR_FILE start datadog-agent:*
-        else
-            if [ ! -f $PIDPATH ]; then
-                mkdir -p $PIDPATH
-            fi
-            chown $AGENTUSER $PIDPATH
-            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1"
-            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
-            su $AGENTUSER -c "env LANG=POSIX $BERNARDPATH start > /dev/null 2>&1"
-        fi
-        echo "$NAME."
-    ;;
-  stop)
-        if [ ! -f $AGENTCONF ]; then
-            echo "$AGENTCONF not found. Exiting"
-            exit 0;
-        fi
-
-        echo -n "Stopping $DESC: "
-        if [ -f $USE_SUPERVISOR ]; then
-	    # Prevent errors if not under actual supervision
-	    supervised=$(supervisorctl -c $SUPERVISOR_FILE avail | grep datadog-agent | wc -l)
-	    if [ $supervised -gt 1 ]; then
-            	echo -n "(using supervisorctl) "
-            	supervisorctl -c $SUPERVISOR_FILE stop datadog-agent:*
-	    else
-		# Should have been
-                echo -n "(warning: datadog-agent supervisor config is missing) "
-            fi
-        else
-            su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1"
-            su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
-            su $AGENTUSER -c "$BERNARDPATH stop > /dev/null 2>&1"
-        fi
-
-        echo "$NAME."
-    ;;
-  info)
-        shift # Shift 'info' out of args so we can pass any
-              # addtional options to the real command
-              # (right now only dd-agent supports additional flags)
-        su $AGENTUSER -c "$AGENTPATH info $@" || true
-        su $AGENTUSER -c "$DOGSTATSDPATH info" || true
-        su $AGENTUSER -c "$BERNARDPATH info" || true
-        if [ -f $USE_SUPERVISOR ]; then
-            su $AGENTUSER -c "$USE_SUPERVISOR info" || true
-        fi
-    ;;
-  status)
-        set +e
-        if [ -f $USE_SUPERVISOR ]; then
+check_status() {
+    if [ -f $USE_SUPERVISOR ]; then
+        # If the socket exists, we can use supervisorctl
+        if [ -e $SUPERVISOR_SOCK ]; then
             # If we're using supervisor, check the number of datadog processes
             # supervisor is currently controlling, and make sure that it's the
             # same as the number of programs specified in the supervisor config
@@ -101,45 +49,119 @@ case "$1" in
                                            grep -v pup |
                                            grep $NAME |
                                            grep -c RUNNING)
-            supervisor_config_programs=$(grep -v pup $DATADOG_SUPERVISOR_FILE |
+            supervisor_config_programs=$(grep -v pup $SUPERVISOR_FILE |
                                          grep -c '\[program:')
 
             if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
                 echo "$supervisor_processes"
-                echo "Datadog agent (supervisor) is NOT running all child processes"
-                exit 1
+                echo "$DESC (supervisor) is NOT running all child processes"
+                return 1
             else
-                echo "Datadog agent (supervisor) is running all child processes"
-                exit 0
+                echo "$DESC (supervisor) is running all child processes"
+                return 0
             fi
         else
-            # If we're not using supervisor, use the agent and dogstatsd status
-            # commands:
-
-            su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
-            agent_exit_code=$?
-            su $AGENTUSER -c "$DOGSTATSDPATH status > /dev/null 2>&1"
-            dogstatsd_exit_code=$?
-            su $AGENTUSER -c "$BERNARDPATH status > /dev/null 2>&1"
-            bernard_exit_code=$?
-            if [ $agent_exit_code -ne 0 ] || [ $dogstatsd_exit_code -ne 0 ] || [ $bernard_exit_code -ne 0 ]; then
-               echo "Datadog agent is NOT running all child processes"
-               exit 1
-            else
-               echo "Datadog agent is running all child processes"
-               exit 0
-            fi
+            echo "$DESC (supervisor) is not running"
+            return 1
         fi
-    ;;
-  restart|force-reload)
+    else
+        # If we're not using supervisor, use the agent and dogstatsd status
+        # commands:
+
+        su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
+        agent_exit_code=$?
+        su $AGENTUSER -c "$DOGSTATSDPATH status > /dev/null 2>&1"
+        dogstatsd_exit_code=$?
+        su $AGENTUSER -c "$BERNARDPATH status > /dev/null 2>&1"
+        bernard_exit_code=$?
+        if [ $agent_exit_code -eq 1 ] && [ $dogstatsd_exit_code -eq 1 ] && [ $bernard_exit_code -eq 1 ]; then
+            echo "$DESC is NOT running all child processes"
+            return 1
+        else
+            echo "$DESC is running all child processes"
+            return 0
+        fi
+    fi
+}
+
+# Action to take
+case "$1" in
+    start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting."
+            exit 3
+        fi
+
+        check_status > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "$DESC is already running"
+            exit 0
+        fi
+
+        if [ -f $USE_SUPERVISOR ]; then
+            log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
+            start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+            if [ $? -ne 0 ]; then
+                log_end_msg 1
+            fi
+        else
+            log_daemon_msg "Starting $DESC" "$NAME"
+            if [ ! -f $DDAGENT_PID_PATH ]; then
+                mkdir -p $DDAGENT_PID_PATH
+            fi
+            chown $AGENTUSER $DDAGENT_PID_PATH
+            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1" && \
+            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
+            su $AGENTUSER -c "env LANG=POSIX $BERNARDPATH start > /dev/null 2>&1"
+        fi
+
+        sleep 4 # wait for the services to start up
+        if check_status > /dev/null; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+        fi
+        ;;
+
+    stop)
+        if [ -f $USE_SUPERVISOR ]; then
+            log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
+            start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
+        else
+            log_daemon_msg "Stopping $DESC" "$NAME"
+            su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1" && \
+            su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
+            su $AGENTUSER -c "$BERNARDPATH stop > /dev/null 2>&1"
+        fi
+
+        log_end_msg $?
+        ;;
+
+    info)
+        shift # Shift 'info' out of args so we can pass any
+              # addtional options to the real command
+              # (right now only dd-agent supports additional flags)
+        su $AGENTUSER -c "$AGENTPATH info $@" || true
+        su $AGENTUSER -c "$DOGSTATSDPATH info" || true
+        su $AGENTUSER -c "$BERNARDPATH info" || true
+        if [ -f $USE_SUPERVISOR ]; then
+            su $AGENTUSER -c "$USE_SUPERVISOR info" || true
+        fi
+        ;;
+
+    status)
+        check_status
+        ;;
+
+    restart|force-reload)
         $0 stop
         $0 start
-    ;;
-  *)
+        ;;
+    *)
         N=/etc/init.d/$NAME
         echo "Usage: $N {start|stop|restart|info|status}"
         exit 1
-    ;;
+        ;;
 esac
 
-exit 0
+exit $?
