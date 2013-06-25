@@ -98,8 +98,8 @@ class Scheduler(object):
         self._reschedule_at(check, timestamp)
 
         # Each check has dogstatsd as an attribute, so we use it
-        check.dogstatsd.increment('bernard.schedule.count')
-        check.dogstatsd.gauge('bernard.check.count', len(self.checks))
+        check.dogstatsd.increment('bernard.scheduler.runs')
+        check.dogstatsd.gauge('bernard.scheduler.check_count', len(self.checks))
 
         log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
@@ -205,7 +205,7 @@ class Notifier(object):
             )
             check.last_notified_state = state
 
-            check.dogstatsd.increment('bernard.check.event')
+            check.dogstatsd.increment('bernard.check.events')
 
             log.info('Event "%s" sent' % title)
 

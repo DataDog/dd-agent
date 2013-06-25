@@ -60,6 +60,12 @@ class DogStatsd(object):
         self._send(metric, 'c', -value, tags, sample_rate)
 
     def rate(self, metric, value, tags=None, sample_rate=1):
+        """
+        Record the value of a counter, DogStatsd will report its rate.
+
+        >>> statsd.rate('page.total_views', 29841651)
+        >>> statsd.rate('sys.net.bytes_sent', 84184874045, tags=["interface:eth0"])
+        """
         return self._send(metric, '_dd-r', value, tags, sample_rate)
 
     def histogram(self, metric, value, tags=None, sample_rate=1):
@@ -136,6 +142,13 @@ class DogStatsd(object):
         return string.replace('\n', '\\n')
 
     def event(self, title, text, alert_type=None, aggregation_key=None, source_type_name=None, date_happened=None, priority=None, tags=None, hostname=None):
+        """
+        Send an event. Attributes are the same as the Event API.
+            http://docs.datadoghq.com/api/
+
+        >>> statsd.event('Man down!', 'This server needs assistance.')
+        >>> statsd.event('The web server restarted', 'The web server is up again', alert_type='success')
+        """
         title = unicode(self._escape(title))
         text = unicode(self._escape(text))
         string = '_e{%d,%d}:%s|%s' % (len(title), len(text), title, text)
@@ -155,9 +168,9 @@ class DogStatsd(object):
             string = '%s|#%s' % (string, ','.join(tags))
 
         if len(string) > 8 * 1024:
-            raise Exception('Event payload is too big (more that 8KB), event discarded')
+            raise Exception(u'Event "%s" payload is too big (more that 8KB), event discarded' % title)
 
         try:
             self.socket.sendto(string, (self.host, self.port))
         except Exception:
-            logger.exception("Error submitting event")
+            logger.exception(u'Error submitting event "%s"' % title)
