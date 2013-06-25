@@ -59,6 +59,9 @@ class DogStatsd(object):
         """
         self._send(metric, 'c', -value, tags, sample_rate)
 
+    def rate(self, metric, value, tags=None, sample_rate=1):
+        return self._send(metric, '_dd-r', value, tags, sample_rate)
+
     def histogram(self, metric, value, tags=None, sample_rate=1):
         """
         Sample a histogram value, optionally setting tags and a sample rate.

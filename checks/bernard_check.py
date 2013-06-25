@@ -163,10 +163,10 @@ class BernardCheck(object):
                         continue
                 unit = metric.group('unit')
 
-                if unit == 'c':
-                    # We should do a rate but dogstated_client can't so we drop this metric
-                    continue
-                elif unit == '%':
+                dd_metric = self._metric_name(label)
+
+
+                if unit == '%':
                     value = value / 100.0
                 elif unit == 'KB':
                     value = 1024 * value
@@ -180,8 +180,10 @@ class BernardCheck(object):
                     value = value / 1000.0
                 elif unit == 'us':
                     value = value / 1000000.0
-
-                dd_metric = self._metric_name(label)
+                elif unit == 'c':
+                    self.dogstatsd.rate(dd_metric, value)
+                    log.debug('Saved rate: %s:%.2f' % (dd_metric, value))
+                    continue
 
                 self.dogstatsd.gauge(dd_metric, value)
                 log.debug('Saved metric: %s:%.2f' % (dd_metric, value))
