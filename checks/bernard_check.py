@@ -164,6 +164,7 @@ class BernardCheck(object):
                 unit = metric.group('unit')
 
                 dd_metric = self._metric_name(label)
+                self.dogstatsd.increment('bernard.check.metric')
 
 
                 if unit == '%':
