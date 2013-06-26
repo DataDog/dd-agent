@@ -32,6 +32,19 @@ instances:
 
 #        include_content: true
 
+         # The (optional) headers parameter allows you to send extra headers
+         # with the request. This is useful for explicitly specifying the host
+         # header or perhaps adding headers for authorisation purposes. Note
+         # that the http client library converts all headers to lowercase.
+         # This is legal according to RFC2616
+         # (See: http://tools.ietf.org/html/rfc2616#section-4.2)
+         # but may be problematic with some HTTP servers 
+         # (See: https://code.google.com/p/httplib2/issues/detail?id=169)
+
+#        headers:
+#           Host: alternative.host.example.com
+#           X-Auth-Token: SOME-AUTH-TOKEN 
+
 #    -   name: My second service
 #        url: https://another.url.example.com
 
