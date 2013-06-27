@@ -191,7 +191,7 @@ class BernardCheck(object):
         return state, message
 
     def _metric_name(self, label):
-        return 'nagios.%s.%s' % (self.check_name, label)
+        return 'bernard.%s.%s' % (self.check_name, label)
 
     def get_last_result(self):
         return self.get_result(0)

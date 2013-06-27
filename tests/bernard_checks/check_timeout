@@ -2,6 +2,6 @@
 import sys
 import time
 
-time.sleep(2)
+time.sleep(5)
 print "TEST CHECK OK - everything is fine"
 sys.exit(0)

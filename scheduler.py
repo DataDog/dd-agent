@@ -29,8 +29,11 @@ class Scheduler(object):
 
         # Initialize schedule
         self.schedule = []
+        # Allow checks to be initially schedule in the same order
+        position = 0
         for check in self.checks:
-            self.schedule.append((0, check))
+            self.schedule.append((position, check))
+            position += 1
             check.last_notified_state = R.NONE
 
         # Simulated time allow to run checks non-stop, for test use
