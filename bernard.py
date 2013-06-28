@@ -112,6 +112,9 @@ class Bernard(Daemon):
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.
             if self.run_forever:
+                wait_time = self.scheduler.wait_time()
+                # Give more time to the Watchdog because of the sleep
+                StaticWatchdog.reset(wait_time + 20)
                 # Sleep until the next task schedule
                 time.sleep(self.scheduler.wait_time())
 

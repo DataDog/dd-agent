@@ -308,7 +308,7 @@ class StaticWatchdog(object):
             os.kill(os.getpid(), signal.SIGKILL)
 
     @staticmethod
-    def reset(duration=5):
+    def reset(duration=20):
         log.debug("Resetting static watchdog for %d" % duration)
         signal.signal(signal.SIGALRM, StaticWatchdog.self_destruct)
         signal.alarm(duration)
