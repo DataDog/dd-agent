@@ -59,7 +59,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.8.0"
+    return "3.99.0"
 
 
 def skip_leading_wsp(f):
@@ -710,7 +710,7 @@ def get_bernard_config():
 
     try:
         f = open(config_path)
-    except IOError:
+    except IOError, TypeError:
         log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
         return {}
     try:
