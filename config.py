@@ -178,8 +178,9 @@ def get_config_path(cfg_path=None, os_name=None, filename=DATADOG_CONF):
         return os.path.join(path, filename)
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
-    sys.exit(3)
+    if filename == DATADOG_CONF:
+        sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
+        sys.exit(3)
 
 
 def get_config(parse_args=True, cfg_path=None, options=None):
@@ -757,41 +758,45 @@ def load_bernard_checks(bernard_config):
     statsd_port = statsd_config.get('port', 8125)
     dogstatsd = DogStatsd(host=statsd_host, port=statsd_port)
 
-    for check_config in bernard_config.get('checks', []):
-        path = check_config.get('path', '')
-        filenames = check_config.get('filenames', [])
-        notification = check_config.get('notification', '')
-        timeout = check_config.get('timeout', 0)
-        period = check_config.get('period', 0)
-        attempts = check_config.get('attempts', 0)
-        if path:
-            if not filenames:
-                try:
-                    filenames = os.listdir(path)
-                    check_paths = []
-                    for filename in filenames:
-                        # Filter hidden files
-                        if not filename.startswith('.'):
-                            check_path = os.path.join(path, filename)
-                            # Keep only executable files
-                            if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
-                                check_paths.append(check_path)
-                except OSError:
-                    log.warn('No such file or directory: %s' % path)
-                    continue
+    try:
+        for check_config in bernard_config.get('checks', []):
+            path = check_config.get('path', '')
+            filenames = check_config.get('filenames', [])
+            notification = check_config.get('notification', '')
+            timeout = check_config.get('timeout', 0)
+            period = check_config.get('period', 0)
+            attempts = check_config.get('attempts', 0)
+            if path:
+                if not filenames:
+                    try:
+                        filenames = os.listdir(path)
+                        check_paths = []
+                        for filename in filenames:
+                            # Filter hidden files
+                            if not filename.startswith('.'):
+                                check_path = os.path.join(path, filename)
+                                # Keep only executable files
+                                if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
+                                    check_paths.append(check_path)
+                    except OSError:
+                        log.warn('No such file or directory: %s' % path)
+                        continue
 
-            check_parameter = default_check_parameter.copy()
-            if notification:
-                check_parameter['notification'] = notification
-            if timeout:
-                check_parameter['timeout'] = timeout
-            if period:
-                check_parameter['period'] = period
-            if attempts:
-                check_parameter['attempts'] = attempts
-            for check_path in check_paths:
-                check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd)
-                bernard_checks.append(check)
+                check_parameter = default_check_parameter.copy()
+                if notification:
+                    check_parameter['notification'] = notification
+                if timeout:
+                    check_parameter['timeout'] = timeout
+                if period:
+                    check_parameter['period'] = period
+                if attempts:
+                    check_parameter['attempts'] = attempts
+                for check_path in check_paths:
+                    check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd)
+                    bernard_checks.append(check)
+    except AttributeError:
+        log.info("Error while parsing Bernard configuration file. Be sure the structure is valid.")
+        return []
 
     return bernard_checks
 
@@ -813,6 +818,7 @@ def get_logging_config(cfg_path=None):
         'collector_log_file': '/var/log/datadog/collector.log',
         'forwarder_log_file': '/var/log/datadog/forwarder.log',
         'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
+        'bernard_log_file': '/var/log/datadog/bernard.log',
         'pup_log_file': '/var/log/datadog/pup.log',
         'log_to_syslog': True,
         'syslog_host': None,

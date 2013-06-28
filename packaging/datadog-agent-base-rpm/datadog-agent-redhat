@@ -57,8 +57,8 @@ check_status() {
             # number of RUNNING supervisord programs (ignoring pup)
             p=`echo "$s" | grep -v pup | grep -c RUNNING`
 
-            # number of expected running supervisord programs (ignoring pup)
-            c=`grep -v pup $SUPERVISOR_CONF | grep -c '\[program:'`
+            # number of expected running supervisord programs (ignoring pup and bernard)
+            c=`grep -v pup $SUPERVISOR_CONF | grep -v bernard | grep -c '\[program:'`
             if [ "$p" -ne "$c" ]; then
                 echo "$s"
                 echo -n "Datadog agent (supervisor) is NOT running all child processes" && failure && echo

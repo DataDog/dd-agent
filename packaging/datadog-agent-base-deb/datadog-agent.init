@@ -47,9 +47,11 @@ check_status() {
             supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
             datadog_supervisor_processes=$(echo "$supervisor_processes" |
                                            grep -v pup |
+                                           grep -v bernard |
                                            grep $NAME |
                                            grep -c RUNNING)
             supervisor_config_programs=$(grep -v pup $SUPERVISOR_FILE |
+                                         grep -v bernard |
                                          grep -c '\[program:')
 
             if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
@@ -72,9 +74,7 @@ check_status() {
         agent_exit_code=$?
         su $AGENTUSER -c "$DOGSTATSDPATH status > /dev/null 2>&1"
         dogstatsd_exit_code=$?
-        su $AGENTUSER -c "$BERNARDPATH status > /dev/null 2>&1"
-        bernard_exit_code=$?
-        if [ $agent_exit_code -eq 1 ] && [ $dogstatsd_exit_code -eq 1 ] && [ $bernard_exit_code -eq 1 ]; then
+        if [ $agent_exit_code -eq 1 ] && [ $dogstatsd_exit_code -eq 1 ]; then
             echo "$DESC is NOT running all child processes"
             return 1
         else
@@ -112,7 +112,6 @@ case "$1" in
             chown $AGENTUSER $DDAGENT_PID_PATH
             su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1" && \
             su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
-            su $AGENTUSER -c "env LANG=POSIX $BERNARDPATH start > /dev/null 2>&1"
         fi
 
         sleep 4 # wait for the services to start up

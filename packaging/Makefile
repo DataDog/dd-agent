@@ -45,6 +45,7 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	cp -r $(SRC)/bernard.conf.example $(ROOT)/
 	cp -r $(SRC)/datadog-cert.pem $(ROOT)/
 	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
