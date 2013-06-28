@@ -55,7 +55,7 @@ check_status() {
             s=`supervisorctl -c $SUPERVISOR_CONF status`
 
             # number of RUNNING supervisord programs (ignoring pup)
-            p=`echo "$s" | grep -v pup | grep -c RUNNING`
+            p=`echo "$s" | grep -v pup | grep -v bernard | grep -c RUNNING`
 
             # number of expected running supervisord programs (ignoring pup and bernard)
             c=`grep -v pup $SUPERVISOR_CONF | grep -v bernard | grep -c '\[program:'`
