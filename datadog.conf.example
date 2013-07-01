@@ -1,6 +1,6 @@
 [Main]
 
-# The host of the Datadog intake server to send agent data to
+# The host of the Datadog intake server to send Agent data to
 dd_url: https://app.datadoghq.com
 
 # If you need a proxy to connect to the Internet, provide the settings here
@@ -9,7 +9,7 @@ dd_url: https://app.datadoghq.com
 # proxy_user: user
 # proxy_password: password
 
-# The Datadog api key to associate your agent's data with your organization.
+# The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
 api_key:
@@ -28,7 +28,7 @@ api_key:
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
-# Change port the agent is listening to
+# Change port the Agent is listening to
 # listen_port: 17123
 
 # Start a graphite listener on this port
@@ -37,8 +37,8 @@ use_mount: no
 # Additional directory to look for Datadog checks
 # additional_checksd: /etc/dd-agent/checks.d/
 
-# Allow non-local traffic to this agent
-# This is required when using this agent as a proxy for other agents
+# Allow non-local traffic to this Agent
+# This is required when using this Agent as a proxy for other Agents
 # that might not have an internet connection
 # For more information, please see
 # https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
@@ -48,7 +48,7 @@ use_mount: no
 # Pup configuration
 # ========================================================================== #
 
-# Pup is a small server that displays metric data collected by the agent.
+# Pup is a small server that displays metric data collected by the Agent.
 # Think of it as a fancy status page or a toe dip into the world of
 # datadog. It can be connected to on the port below.
 
@@ -67,7 +67,7 @@ use_mount: no
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
-# By default dogstatsd will post aggregate metrics to the agent (which handles
+# By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
 # dogstatsd_target : http://localhost:17123
@@ -151,8 +151,8 @@ use_mount: no
 # whether the given metric is a 'counter' or 'gauge'.
 #
 # Unless parsers are specified with an absolute path, the modules must exist in
-# the agent's PYTHONPATH. You can set this as an environment variable when
-# starting the agent. If the name of the custom parser function is not passed,
+# the Agent's PYTHONPATH. You can set this as an environment variable when
+# starting the Agent. If the name of the custom parser function is not passed,
 # 'parser' is assumed.
 #
 # If this value isn't specified, the default parser assumes this log format:

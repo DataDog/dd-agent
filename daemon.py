@@ -162,7 +162,7 @@ class Daemon:
                     time.sleep(0.1)
             except OSError, err:
                 if str(err).find("No such process") <= 0:
-                    log.exception("Cannot kill agent daemon at pid %s" % pid)
+                    log.exception("Cannot kill Agent daemon at pid %s" % pid)
                     sys.stderr.write(str(err) + "\n")
         else:
             message = "Pidfile %s does not exist. Not running?\n" % self.pidfile

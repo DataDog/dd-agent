@@ -24,7 +24,7 @@ trap "rm -f $npipe" EXIT
 
 function on_error() {
     printf "\033[31m
-It looks like you hit an issue when trying to install the agent.
+It looks like you hit an issue when trying to install the Agent.
 
 Please send an email to help@datadoghq.com with the contents of ddagent-install.log
 and we'll do our very best to help you solve your problem\n\033[0m\n"
@@ -103,13 +103,13 @@ elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     fi
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
-Please follow the instructions on the agent setup pa.ge:
+Please follow the instructions on the Agent setup pa.ge:
 
     https://app.datadoghq.com/account/settings#agent\033[0m\n"
     exit;
 fi
 
-printf "\033[34m\n* Adding your API key to the agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
+printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
 
 if $DDBASE; then
     sudo sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example | sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' > /etc/dd-agent/datadog.conf"
@@ -117,19 +117,19 @@ else
     sudo sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 fi
 
-printf "\033[34m* Starting the agent...\n\033[0m\n"
+printf "\033[34m* Starting the Agent...\n\033[0m\n"
 sudo /etc/init.d/datadog-agent restart
 
 # Datadog "base" installs don't have a forwarder, so we can't use the same
 # check for the initial payload being sent.
 if $DDBASE; then
 printf "\033[32m
-Your agent has started up for the first time and is submitting metrics to
-Datadog. You should see your agent show up in Datadog within a few seconds at:
+Your Agent has started up for the first time and is submitting metrics to
+Datadog. You should see your Agent show up in Datadog within a few seconds at:
 
     https://app.datadoghq.com/account/settings#agent\033[0m
 
-If you ever want to stop the agent, run:
+If you ever want to stop the Agent, run:
 
     sudo /etc/init.d/datadog-agent stop
 
@@ -142,8 +142,8 @@ fi
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
-Your agent has started up for the first time. We're currently
-verifying that data is being submitted. You should see your agent show
+Your Agent has started up for the first time. We're currently
+verifying that data is being submitted. You should see your Agent show
 up in Datadog within a few seconds at:
 
     https://app.datadoghq.com/account/settings#agent\033[0m
@@ -169,10 +169,10 @@ done
 # Metrics are submitted, echo some instructions and exit
 printf "\033[32m
 
-Your agent is running and functioning properly. It will continue to run in the
+Your Agent is running and functioning properly. It will continue to run in the
 background and submit metrics to Datadog.
 
-If you ever want to stop the agent, run:
+If you ever want to stop the Agent, run:
 
     sudo /etc/init.d/datadog-agent stop
 

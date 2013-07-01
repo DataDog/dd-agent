@@ -3,7 +3,7 @@
 ### BEGIN INIT INFO
 # Provides: dd-agent
 # Short-Description: Start and start dd-agent
-# Description: dd-agent is the monitoring agent component for Datadog
+# Description: dd-agent is the monitoring Agent component for Datadog
 # Required-Start: $remote_fs
 # Required-Stop: $remote_fs
 # Default-Start: 2 3 4 5
@@ -19,7 +19,7 @@ DOGSTATSDPATH="/usr/bin/dogstatsd"
 AGENTUSER="dd-agent"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 NAME="datadog-agent"
-DESC="Datadog agent"
+DESC="Datadog Agent"
 DDAGENT_PID_PATH="/var/run/dd-agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
 SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
@@ -28,7 +28,7 @@ SUPERVISORD="/usr/bin/supervisord"
 
 # This script is considered a configuration file and will not be
 # removed by dpkg unless the --purge option it set. Therefore we
-# make sure that the agent is actually installed before we try to do anything:
+# make sure that the Agent is actually installed before we try to do anything:
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
     exit 0
@@ -64,7 +64,7 @@ check_status() {
             return 1
         fi
     else
-        # If we're not using supervisor, use the agent and dogstatsd status
+        # If we're not using supervisor, use the Agent and dogstatsd status
         # commands:
 
         su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
