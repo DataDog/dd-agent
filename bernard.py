@@ -114,7 +114,7 @@ class Bernard(Daemon):
             if self.run_forever:
                 wait_time = self.scheduler.wait_time()
                 # Give more time to the Watchdog because of the sleep
-                StaticWatchdog.reset(int(wait_time + 20))
+                StaticWatchdog.reset(int(wait_time))
                 # Sleep until the next task schedule
                 time.sleep(self.scheduler.wait_time())
 

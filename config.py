@@ -19,7 +19,7 @@ from util import get_os
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
-BERNARD_CONF = "bernard.conf"
+BERNARD_CONF = "bernard.yaml"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
