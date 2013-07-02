@@ -101,7 +101,8 @@ class BernardCheck(object):
                 except InvalidCheckOutput:
                     status = S.INVALID_OUTPUT
                     state = R.UNKNOWN
-                    message = u'Failed to parse the output of the check: %s, output: %s' % (self, output)
+                    message = u'Failed to parse the output of the check: %s, returncode: %d, output: %s' % (
+                        self, returncode, output)
                     log.warn(message)
         except OSError, exception:
             state = R.UNKNOWN

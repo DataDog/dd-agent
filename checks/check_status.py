@@ -557,7 +557,7 @@ class BernardStatus(AgentStatus):
             state_color = self.STATE_COLOR[check['state']]
             lines += ['  %s: [%s] #%d run is %s' % (check['check_name'], style(check['status'], status_color),
                                                     check['run_count'], style(check['state'], state_color))]
-            lines += ['    %s' % (check['message'])]
+            lines += ['    %s' % ((check['message'] or ' ').splitlines()[0])]
 
         return lines
 
