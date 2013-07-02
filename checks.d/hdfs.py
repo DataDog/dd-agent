@@ -14,13 +14,10 @@ class HDFSCheck(AgentCheck):
         if 'namenode' not in instance:
             raise ValueError('Missing key \'namenode\' in HDFSCheck config')
 
-        hostport = instance['namenode']
-        if ':' in hostport:
-            host, _, port = hostport.partition(':')
-            port = int(port)
-        else:
-            host = hostport
-            port = 8020
+        host, port = instance['namenode'], instance.get('port', 8020)
+        if not isinstance(port, int):
+            # PyYAML converts the number to an int for us
+            raise ValueError('Port %r is not an integer' % port)
 
         hdfs = snakebite.client.Client(host, port)
         stats = hdfs.df()
