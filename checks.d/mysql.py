@@ -33,7 +33,7 @@ QUERIES_OLDER_502 = [
     ('mysql.performance.questions', "SHOW STATUS LIKE 'Questions'", RATE),
     ('mysql.performance.queries', "SHOW STATUS LIKE 'Queries'", RATE),
 ]
-    
+
 
 class VersionNotFound(Exception):
     pass
@@ -45,7 +45,7 @@ class MySql(AgentCheck):
 
     def check(self, instance):
         host, user, password, mysql_sock, tags, options = self._get_config(instance)
-        
+
         if not host or not user:
             raise Exception("Mysql host and user are needed.")
 
@@ -111,7 +111,7 @@ class MySql(AgentCheck):
             return self.mysql_version[host]
 
         # Get MySQL version
-        cursor = self.db.cursor()
+        cursor = db.cursor()
         cursor.execute('SELECT VERSION()')
         result = cursor.fetchone()
         version = result[0].split('-') # Case 31237. Might include a description e.g. 4.1.26-log. See http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
@@ -120,12 +120,12 @@ class MySql(AgentCheck):
         return version
 
     def _get_server_pid(self):
- 
+
         pid = None
 
         try:
             if sys.platform.startswith("linux"):
-                ps = subprocess.Popen(['ps','-C','mysqld','-o','pid'], stdout=subprocess.PIPE, 
+                ps = subprocess.Popen(['ps','-C','mysqld','-o','pid'], stdout=subprocess.PIPE,
                                       close_fds=True).communicate()[0]
                 pslines = ps.split('\n')
                 # First line is header, second line is mysql pid
@@ -134,14 +134,14 @@ class MySql(AgentCheck):
 
             elif sys.platform.startswith("darwin") or sys.platform.startswith("freebsd"):
                 # Get all processes, filter in python then
-                procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE, 
+                procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE,
                                          close_fds=True).communicate()[0]
                 ps = [p for p in procs.split("\n") if "mysqld" in p]
                 if len(ps) > 0:
                     return int(ps[0].split()[0])
         except Exception, e:
             self.log.exception("Error while fetching mysql pid from ps")
-            
+
         return pid
 
     def _collect_procfs(self, tags, cursor):
@@ -154,13 +154,13 @@ class MySql(AgentCheck):
             cursor.execute("SHOW VARIABLES LIKE 'pid_file'")
             pid_file = cursor.fetchone()[1]
             cursor.close()
-            del cursor                      
+            del cursor
         except Exception, e:
             self.warning("Error while fetching pid of mysql.")
 
         if pid_file is not None:
             self.log.debug("pid file: %s" % str(pid_file))
- 
+
             try:
                 f = open(pid_file)
                 pid = int(f.readline())
@@ -234,15 +234,16 @@ class MySql(AgentCheck):
         try:
             mysql_version = self._get_version(db, host)
             self.log.debug("MySQL version %s" % mysql_version)
-            
-            major = int(mysqlVersion[0])
-            patchlevel = int(re.match(r"([0-9]+)", mysqlVersion[2]).group(1))
-            
-            if major > 5 or  major == 5 and patchlevel >= 2: 
+
+            major = int(mysql_version[0])
+            minor = int(mysql_version[1])
+            patchlevel = int(re.match(r"([0-9]+)", mysql_version[2]).group(1))
+
+            if (major, minor, patchlevel) > (5, 0, 2):
                 greater_502 = True
-            
+
         except Exception, e:
-            self.warning("Cannot compute mysql version assuming older than 5.0.2: %s" % str(e))
+            self.warning("Cannot compute mysql version, assuming older than 5.0.2: %s" % str(e))
 
         return greater_502
 
@@ -259,19 +260,19 @@ class MySql(AgentCheck):
                     self.rate(metric_name, value, tags=tags)
                 elif metric_type == GAUGE:
                     self.gauge(metric_name, self._collect_scalar(query, db.cursor()), tags=tags)
-        
+
         page_size = self._collect_scalar("SHOW STATUS LIKE 'Innodb_page_size'", db.cursor())
         innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db.cursor())
         innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db.cursor())
         innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size;
         innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size;
-        innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free 
+        innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
 
         self.log.debug("bufer_pool_stats: total %s free %s used %s" % (innodb_buffer_pool_pages_total,innodb_buffer_pool_pages_free, innodb_buffer_pool_pages_used))
         self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
         self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
         self.gauge("mysql.innodb.buffer_pool_total",innodb_buffer_pool_pages_total, tags=tags)
-        
+
         self.log.debug("Collect cpu stats")
         self._collect_procfs(tags, db.cursor())
 
@@ -295,4 +296,4 @@ class MySql(AgentCheck):
                 'options': {'replication': True},
             }]
         }
-        
+
