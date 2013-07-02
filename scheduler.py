@@ -238,7 +238,7 @@ transitions = {
     (R.CRITICAL, R.WARNING): T.warning_event,
     (R.CRITICAL, R.CRITICAL): T.no_event,
     (R.CRITICAL, R.UNKNOWN): T.warning_event,
-    (R.WARNING, R.NONE): T.no_event,
+    (R.CRITICAL, R.NONE): T.no_event,
 
     (R.UNKNOWN, R.OK): T.ok_event,
     (R.UNKNOWN, R.WARNING): T.no_event,
