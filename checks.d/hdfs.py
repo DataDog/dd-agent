@@ -1,12 +1,16 @@
 from checks import AgentCheck
 
-import snakebite.client
 
 class HDFSCheck(AgentCheck):
     """Report on free space and space used in HDFS.
     """
 
     def check(self, instance):
+        try:
+            import snakebite.client
+        except ImportError:
+            raise ImportError('HDFSCheck requires the snakebite module')
+
         if 'namenode' not in instance:
             self.log.info('Missing key \'namenode\' in HDFSCheck config')
             return
