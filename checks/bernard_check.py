@@ -7,7 +7,6 @@ import logging
 import re
 
 from util import StaticWatchdog
-from config import initialize_logging; initialize_logging('bernard')
 log = logging.getLogger('bernard')
 
 # Status of the execution of the check
