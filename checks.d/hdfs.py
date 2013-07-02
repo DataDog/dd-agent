@@ -12,8 +12,7 @@ class HDFSCheck(AgentCheck):
             raise ImportError('HDFSCheck requires the snakebite module')
 
         if 'namenode' not in instance:
-            self.log.info('Missing key \'namenode\' in HDFSCheck config')
-            return
+            raise ValueError('Missing key \'namenode\' in HDFSCheck config')
 
         hostport = instance['namenode']
         if ':' in hostport:
