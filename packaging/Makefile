@@ -63,6 +63,7 @@ install_base: source
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
+	cp    $(ROOT)/bernard.yaml.example $(BUILD)/etc/dd-agent
 	cp -r $(ROOT)/conf.d/* $(BUILD)/etc/dd-agent/conf.d/
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
