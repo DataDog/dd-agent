@@ -43,4 +43,3 @@ if __name__ == '__main__':
         check.check(instance)
         print "Events: %r" % check.get_events()
         print "Metrics: %r" % check.get_metrics()
-
