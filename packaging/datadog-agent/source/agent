@@ -33,7 +33,7 @@ execute_if_supervisor_running() {
 }
 
 check_agent_status() {
-    # Returns 0 if the agent is running, and 1 if not.
+
 
     # First, we check if supervisor is running:
     if ! supervisor_running; then
@@ -74,7 +74,7 @@ case $action in
             echo "Starting supervisor"
             supervisord -c $SUPERVISOR_CONF_FILE
             # Since the above command currently runs in the foreground, we don't
-            # have to worry about checking the status of the agent and setting
+            # have to worry about checking the status of the Agent and setting
             # an exit code here.
         fi
         ;;
@@ -87,7 +87,7 @@ case $action in
     restart)
         # FIXME: This command won't do anything if the supervisor isn't running.
         # The restart command should just call stop and then start so it doesn't
-        # rely on the supervisor running. Once we stop starting the agent in the
+        # rely on the supervisor running. Once we stop starting the Agent in the
         # foreground we should fix this.
         execute_if_supervisor_running restart all
         exit $?

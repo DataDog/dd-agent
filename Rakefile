@@ -26,7 +26,7 @@ task "test:profile:pstats" => ["test:profile"] do
   sh("python -m pstats stats.dat")
 end
 
-desc "Run the agent locally"
+desc "Run the Agent locally"
 task "run" do
   sh("supervisord -n -c supervisord.dev.conf")
 end

@@ -83,10 +83,10 @@ exit 1
 
 }
 
-# Will be called if an unknown error appears and that the agent is not running
+# Will be called if an unknown error appears and that the Agent is not running
 # It asks the user if he wants to automatically send a failure report
 unknown_error() {
-  printf "$RED It looks like you hit an issue when trying to install the agent.\n$DEFAULT" | tee -a $logfile
+  printf "$RED It looks like you hit an issue when trying to install the Agent.\n$DEFAULT" | tee -a $logfile
   printf "$1" | tee -a $logfile
   
   while true; do
@@ -143,7 +143,7 @@ fi
 python -c "import sys; exit_code = 0 if sys.version_info[0]==2 and sys.version_info[1] > 5 else 66 ; sys.exit(exit_code)" > /dev/null 2>&1
 success=$?
 if [ $success != 0 ]; then
-  quit_error "Python 2.6 or 2.7 is required to install the agent from source."
+  quit_error "Python 2.6 or 2.7 is required to install the Agent from source."
 fi
 
 # Determining which command to use to download files
@@ -153,7 +153,7 @@ else
     dl_cmd="wget -O"
 fi
 
-# create home base for the agent
+# create home base for the Agent
 if [ $apikey ]; then
     if [ $dd_home ]; then
   dd_base=$dd_home
@@ -177,7 +177,7 @@ else
 fi
 
 
-printf "Creating agent directory $dd_base....."
+printf "Creating Agent directory $dd_base....."
 mkdir -p $dd_base
 printf "$GREEN Done\n$DEFAULT"
 
@@ -200,10 +200,10 @@ printf "Installing tornado 2.4.1 using pip....." | tee -a $logfile
 pip install tornado==2.4.1 >> $logfile 2>&1
 print_done
 
-# set up the agent
+# set up the Agent
 mkdir -p $dd_base/agent >> $logfile 2>&1
 
-printf "Downloading the latest version of the agent from github (~2.5 MB)....." | tee -a $logfile
+printf "Downloading the latest version of the Agent from github (~2.5 MB)....." | tee -a $logfile
 $dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag >> $logfile 2>&1
 print_done
 printf "Uncompressing the archive....." | tee -a $logfile
@@ -277,7 +277,7 @@ if [ "$unamestr" = "SunOS" ]; then
     svcadm enable site/datadog >> $logfile 2>&1
     svcs datadog >> $logfile 2>&1
 
-    printf "*** The agent is running. My work here is done... ( ^_^) ***" | tee -a $logfile
+    printf "*** The Agent is running. My work here is done... ( ^_^) ***" | tee -a $logfile
     printf "
                                                                                 
                                          7           77II?+~,,,,,,              
@@ -333,8 +333,8 @@ if [ "$unamestr" = "SunOS" ]; then
     # kthxbye
     exit $?
 else
-    printf "Starting the agent....." | tee -a $logfile
-    # run agent
+    printf "Starting the Agent....." | tee -a $logfile
+    # run Agent
     cd $dd_base >> $logfile 2>&1
     supervisord -c $dd_base/supervisord/supervisord.conf >> $logfile 2>&1 &
     agent_pid=$!
@@ -352,13 +352,13 @@ else
     print_done
 
     
-    # regular agent install
+    # regular Agent install
     if [ $apikey ]; then
     
         # wait for metrics to be submitted
         printf "$GREEN
-    Your agent has started up for the first time. We're currently
-    verifying that data is being submitted. You should see your agent show
+    Your Agent has started up for the first time. We're currently
+    verifying that data is being submitted. You should see your Agent show
     up in Datadog within a few seconds at:
     
         https://app.datadoghq.com/account/settings#agent$DEFAULT" | tee -a $logfile
@@ -373,7 +373,7 @@ else
             c=$(($c+1))
         done
     
-        # Hit this endpoint to check if the agent is submitting metrics
+        # Hit this endpoint to check if the Agent is submitting metrics
         # and retry every sec for 60 more sec before failing 
         curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
         success=$?
@@ -392,7 +392,7 @@ else
         # print instructions
         printf "$GREEN
     
-    Success! Your agent is functioning properly, and will continue to run
+    Success! Your Agent is functioning properly, and will continue to run
     in the foreground. To stop it, simply press CTRL-C. To start it back
     up again in the foreground, run:
     
