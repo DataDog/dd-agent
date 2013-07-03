@@ -120,6 +120,7 @@ class TestBernardCheck(unittest.TestCase):
             'attempts': 3,
             'timeout': 1,
             'notification': '',
+            'notify_startup': 'none',
         }
 
         return path, config, dogstatsd

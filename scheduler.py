@@ -147,7 +147,7 @@ class Notifier(object):
     """
 
     @classmethod
-    def notify_change(self, check):
+    def notify_change(cls, check):
         """
         Analyze last check results and create an event if needed
         Return if a transition confirmation is needed
@@ -156,7 +156,20 @@ class Notifier(object):
 
         # Initialize the last_notified_state with the first result state
         if check.last_notified_state == R.NONE:
-            check.last_notified_state = check.get_last_result().state
+            state = check.get_last_result().state
+            check.last_notified_state = state
+
+            # Notify, depending on notify_startup configuration
+            notify_startup = check.config['notify_startup']
+
+            if notify_startup == 'none':
+                pass
+            elif state == R.OK and notify_startup in ['all']:
+                cls.send_event(T.ok_event, check)
+            elif state == R.WARNING and notify_startup in ['all', 'warning']:
+                cls.send_event(T.warning_event, check)
+            elif state == R.CRITICAL and notify_startup in ['all', 'warning', 'critical']:
+                cls.send_event(T.fail_event, check)
 
         ref_state = check.last_notified_state
 
@@ -182,37 +195,43 @@ class Notifier(object):
             return True
 
         if T.no_event not in actions_set:
-            alert_type = None
-
+            # Notify the last state reported
             action = actions[0]
-            state = check.get_last_result().state
-            hostname = check.config['hostname']
-
-            if action == T.ok_event:
-                alert_type = 'success'
-            elif action == T.warning_event:
-                alert_type = 'warning'
-            elif action == T.fail_event:
-                alert_type = 'error'
-
-            title = '%s is %s on %s' % (check.check_name, state, hostname)
-            text = check.get_result(0).message
-            if check.config['notification']:
-                text = '%s\n%s' % (text, check.config['notification'])
-            check.dogstatsd.event(
-                title=title,
-                text=text,
-                alert_type=alert_type,
-                aggregation_key=check.check_name,
-                hostname=hostname,
-            )
-            check.last_notified_state = state
-
-            check.dogstatsd.increment('bernard.check.events')
-
-            log.info('Event "%s" sent' % title)
+            cls.send_event(action, check)
 
         return False
+
+    @classmethod
+    def send_event(cls, action, check):
+        alert_type = None
+
+        state = check.get_last_result().state
+        hostname = check.config['hostname']
+
+        if action == T.ok_event:
+            alert_type = 'success'
+        elif action == T.warning_event:
+            alert_type = 'warning'
+        elif action == T.fail_event:
+            alert_type = 'error'
+
+        title = '%s is %s on %s' % (check.check_name, state, hostname)
+        text = check.get_result(0).message
+        if check.config['notification']:
+            text = '%s\n%s' % (text, check.config['notification'])
+        check.dogstatsd.event(
+            title=title,
+            text=text,
+            alert_type=alert_type,
+            aggregation_key=check.check_name,
+            hostname=hostname,
+        )
+        check.last_notified_state = state
+
+        check.dogstatsd.increment('bernard.check.events')
+
+        log.info('Event "%s" sent' % title)
+
 
 # State transitions and corresponding events
 transitions = {
