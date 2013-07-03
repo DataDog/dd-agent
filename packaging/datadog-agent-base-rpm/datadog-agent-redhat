@@ -171,11 +171,15 @@ info() {
     shift # Shift 'info' out of the args so we can pass any
           # additional options to the real command
           # (right now only dd-agent supports additional flags)
-    su $AGENTUSER -c "$AGENTPATH info $@" || true
-    su $AGENTUSER -c "$DOGSTATSDPATH info" || true
+    su $AGENTUSER -c "$AGENTPATH info $@"
+    RETURN_VALUE=$?
+    su $AGENTUSER -c "$DOGSTATSDPATH info"
+    RETURN_VALUE=$(($RETURN_VALUE || $?))
     if [ -f $USE_SUPERVISOR ]; then
-        su $AGENTUSER -c "$USE_SUPERVISOR info" || true
+        su $AGENTUSER -c "$USE_SUPERVISOR info"
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
     fi
+    exit $RETURN_VALUE
 }
 
 
