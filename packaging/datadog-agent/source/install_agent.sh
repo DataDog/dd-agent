@@ -103,7 +103,7 @@ elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     fi
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
-Please follow the instructions on the Agent setup pa.ge:
+Please follow the instructions on the Agent setup page:
 
     https://app.datadoghq.com/account/settings#agent\033[0m\n"
     exit;
