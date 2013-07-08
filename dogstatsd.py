@@ -12,7 +12,6 @@ import os; os.umask(022)
 import httplib as http_client
 import logging
 import optparse
-from random import randrange
 import re
 import select
 import signal
@@ -26,7 +25,7 @@ from urllib import urlencode
 from aggregator import MetricsAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
-from daemon import Daemon
+from daemon import Daemon, AgentSupervisor
 from util import json, PidFile, get_hostname
 
 log = logging.getLogger('dogstatsd')
@@ -121,7 +120,7 @@ class Reporter(threading.Thread):
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
-        # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
+        # Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
         body = serialize(metrics)
         headers = {'Content-Type':'application/json'}
@@ -208,17 +207,27 @@ class Server(object):
 class Dogstatsd(Daemon):
     """ This class is the dogstats daemon. """
 
-    def __init__(self, pid_file, server, reporter):
-        Daemon.__init__(self, pid_file)
+    def __init__(self, pid_file, server, reporter, autorestart):
+        Daemon.__init__(self, pid_file, autorestart=autorestart)
         self.server = server
         self.reporter = reporter
 
+
+    def _handle_sigterm(self, signum, frame):
+        log.debug("Caught sigterm. Stopping run loop.")
+        self.server.stop()
+
+
     def run(self):
         # Gracefully exit on sigterm.
-        log.info("Adding sig handler")
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+
+        # Handle Keyboard Interrupt
         signal.signal(signal.SIGINT, self._handle_sigterm)
+
+        # Start the reporting thread before accepting data
         self.reporter.start()
+
         try:
             try:
                 self.server.start()
@@ -230,11 +239,10 @@ class Dogstatsd(Daemon):
             # the reporting thread.
             self.reporter.stop()
             self.reporter.join()
-            log.info("Stopped")
-
-    def _handle_sigterm(self, signum, frame):
-        log.info("Caught sigterm. Stopping run loop.")
-        self.server.stop()
+            log.info("Dogstatsd is stopped")
+            # Restart if asked to restart
+            if self.autorestart:
+                sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
     def info(self):
         logging.getLogger().setLevel(logging.ERROR)
@@ -247,9 +255,9 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     port      = c['dogstatsd_port']
     interval  = int(c['dogstatsd_interval'])
-    normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
+    autorestart = c.get('autorestart', False)
 
     target = c['dd_url']
     if use_forwarder:
@@ -273,7 +281,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     if non_local_traffic:
         server_host = ''
 
-    server = Server(aggregator, server_host, port)
+    server = Server(aggregator, server_host, port, autorestart)
 
     return reporter, server
 

@@ -36,9 +36,9 @@ if int(sys.version_info[1]) <= 3:
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
-from daemon import Daemon
+from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, AgentSupervisor, EC2
+from util import Watchdog, PidFile, EC2
 
 
 # Constants
@@ -55,10 +55,9 @@ class Agent(Daemon):
     """
 
     def __init__(self, pidfile, autorestart, start_event=True):
-        Daemon.__init__(self, pidfile)
+        Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
-        self.autorestart = autorestart
         self.start_event = start_event
 
     def _handle_sigterm(self, signum, frame):

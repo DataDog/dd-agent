@@ -8,7 +8,7 @@ import signal
 
 from nose.plugins.skip import SkipTest
 
-from util import AgentSupervisor
+from daemon import AgentSupervisor
 
 class TestAutoRestart(unittest.TestCase):
     """ Test the auto-restart and forking of the agent """
@@ -25,12 +25,12 @@ class TestAutoRestart(unittest.TestCase):
 
     def _start_foreground(self):
         # Run the agent in the foreground with auto-restarting on.
-        args = shlex.split('python agent.py --autorestart foreground')
+        args = shlex.split('python agent.py foreground')
         self.agent_foreground = subprocess.Popen(args)
         time.sleep(5)
 
     def _start_daemon(self):
-        args = shlex.split('python agent.py --autorestart start')
+        args = shlex.split('python agent.py  start')
         self.agent_daemon = subprocess.Popen(args)
         time.sleep(5)
 
@@ -44,10 +44,11 @@ class TestAutoRestart(unittest.TestCase):
         return sorted([int(p) for p in pids], reverse=True)
 
     def test_foreground(self):
-        raise SkipTest('Autorestart tests don\'t work on travis')
+        if os.environ.get('TRAVIS', False):
+            raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_foreground()
 
-        grep_str = 'agent.py --autorestart foreground'
+        grep_str = 'agent.py foreground'
         child_pid, parent_pid = self._get_child_parent_pids(grep_str)
 
         # Try killing the parent proc, confirm that the child is killed as well.
@@ -72,10 +73,11 @@ class TestAutoRestart(unittest.TestCase):
         self.agent_foreground = None
 
     def test_daemon(self):
-        raise SkipTest('Autorestart tests don\'t work on travis')
+        if os.environ.get('TRAVIS', False):
+            raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_daemon()
 
-        grep_str = 'agent.py --autorestart start'
+        grep_str = 'agent.py start'
         child_pid, parent_pid = self._get_child_parent_pids(grep_str)
 
         # Try killing the parent proc, confirm that the child is killed as well.
