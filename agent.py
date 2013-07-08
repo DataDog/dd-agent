@@ -242,7 +242,7 @@ def main():
         except Exception:
             # If not an old-style check, try checks.d
             checks = load_check_directory(agentConfig)
-            for check in checks:
+            for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
                     print check.get_metrics()
