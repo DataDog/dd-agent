@@ -166,7 +166,7 @@ class Notifier(object):
                 pass
             elif state == R.OK and notify_startup in ['all']:
                 cls.send_event(T.ok_event, check)
-            elif state == R.WARNING and notify_startup in ['all', 'warning']:
+            elif state in [R.WARNING, R.UNKNOWN] and notify_startup in ['all', 'warning']:
                 cls.send_event(T.warning_event, check)
             elif state == R.CRITICAL and notify_startup in ['all', 'warning', 'critical']:
                 cls.send_event(T.fail_event, check)
