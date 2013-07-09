@@ -32,10 +32,14 @@ class PostgreSql(AgentCheck):
         while result is not None:
             (dbname, backends, commits, rollbacks, read, hit,
              ret, fetch, ins, upd, deleted) = result
-            tags = ['db:%s' % dbname] + tags
+            try:
+                tags = ['db:%s' % dbname] + tags
+            except Exception:
+                # if tags is none or is not of the right type
+                tags = ['db:%s' % dbname]
             self.gauge('postgresql.connections', backends, tags=tags)
             self.rate('postgresql.commits', commits, tags=tags)
-            self.rate('postgresql.rollbacks', backends, tags=tags)
+            self.rate('postgresql.rollbacks', rollbacks, tags=tags)
             self.rate('postgresql.disk_read', read, tags=tags)
             self.rate('postgresql.buffer_hit', hit, tags=tags)
             self.rate('postgresql.rows_returned', ret, tags=tags)
@@ -52,6 +56,10 @@ class PostgreSql(AgentCheck):
         user = instance.get('username', '')
         passwd = instance.get('password', '')
         tags = instance.get('tags', [])
+        # Clean up tags in case there was a None entry in the instance
+        # e.g. if the yaml contains tags: but no actual tags
+        if tags is None:
+            tags = []
         key = '%s:%s' % (host, port)
 
         if key in self.dbs:
