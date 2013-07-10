@@ -761,29 +761,33 @@ def load_bernard_checks(bernard_config):
 
     try:
         for check_config in bernard_config.get('checks', []):
+            check_paths = []
             path = check_config.get('path', '')
-            filenames = check_config.get('filenames', [])
+            filename = check_config.get('filename', '')
             notification = check_config.get('notification', '')
             timeout = check_config.get('timeout', 0)
             period = check_config.get('period', 0)
             attempts = check_config.get('attempts', 0)
+            args = check_config.get('args', [])
             notify_startup = check_config.get('notify_startup', None)
             if path:
-                if not filenames:
-                    try:
-                        filenames = os.listdir(path)
-                        check_paths = []
-                        for filename in filenames:
-                            # Filter hidden files
-                            if not filename.startswith('.'):
-                                check_path = os.path.join(path, filename)
-                                # Keep only executable files
-                                if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
-                                    check_paths.append(check_path)
-                    except OSError:
-                        log.warn('No such file or directory: %s' % path)
-                        continue
+                try:
+                    filenames = os.listdir(path)
+                    check_paths = []
+                    for filename in filenames:
+                        # Filter hidden files
+                        if not filename.startswith('.'):
+                            check_path = os.path.join(path, filename)
+                            # Keep only executable files
+                            if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
+                                check_paths.append(check_path)
+                except OSError:
+                    log.warn('No such file or directory: %s' % path)
+                    continue
+            if filename:
+                check_paths.append(filename)
 
+            if check_paths:
                 check_parameter = default_check_parameter.copy()
                 if notification:
                     check_parameter['notification'] = notification
@@ -796,7 +800,7 @@ def load_bernard_checks(bernard_config):
                 if notify_startup:
                     check_parameter['notify_startup'] = notify_startup
                 for check_path in check_paths:
-                    check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd)
+                    check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd, args=args)
                     bernard_checks.append(check)
     except AttributeError:
         log.info("Error while parsing Bernard configuration file. Be sure the structure is valid.")

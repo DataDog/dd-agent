@@ -37,10 +37,12 @@ class BernardCheck(object):
             r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
         ]))
 
-    def __init__(self, check, config, dogstatsd):
+    def __init__(self, check, config, dogstatsd, args=[]):
         self.check = check
         self.config = config
         self.dogstatsd = dogstatsd
+        self.args = args
+        self.command = [self.check] + args
 
         self.run_count = 0
         self.event_count = 0
@@ -70,7 +72,7 @@ class BernardCheck(object):
         signal.alarm(timeout)
         try:
             try:
-                process = subprocess.Popen(self.check, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 output = process.communicate()[0]
                 returncode = process.returncode
             except Timeout:
