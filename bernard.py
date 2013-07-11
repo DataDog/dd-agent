@@ -99,12 +99,14 @@ class Bernard(Daemon):
             # Run the next scheduled check
             self.scheduler.process()
 
+            wait_time = self.scheduler.wait_time()
+
             # Check if we should restart.
             if self.autorestart and self._should_restart():
                 self._do_restart()
 
-            # Update status only if more than 10s old
-            if time.time() > self.last_info_update + 10:
+            # Update status only if more than 10s or before a long sleep
+            if time.time() > self.last_info_update + 10 or wait_time > 10:
                 BernardStatus(checks=self.scheduler.checks,
                     schedule_count=self.scheduler.schedule_count).persist()
                 self.last_info_update = time.time()
@@ -112,7 +114,6 @@ class Bernard(Daemon):
             # Only plan for the next loop if we will continue,
             # otherwise just exit quickly.
             if self.run_forever:
-                wait_time = self.scheduler.wait_time()
                 # Give more time to the Watchdog because of the sleep
                 StaticWatchdog.reset(int(wait_time))
                 # Sleep until the next task schedule
