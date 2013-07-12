@@ -26,8 +26,12 @@ function on_error() {
     printf "\033[31m
 It looks like you hit an issue when trying to install the Agent.
 
-Please send an email to help@datadoghq.com with the contents of ddagent-install.log
-and we'll do our very best to help you solve your problem\n\033[0m\n"
+Troubleshooting and basic usage information for the Agent are available at:
+http://docs.datadoghq.com/guides/basic_agent_usage/
+
+If you're still having problems, please send an email to support@datadoghq.com
+with the contents of ddagent-install.log and we'll do our very best to help you
+solve your problem\n\033[0m\n"
 }
 trap on_error ERR
 
@@ -127,7 +131,7 @@ printf "\033[32m
 Your Agent has started up for the first time and is submitting metrics to
 Datadog. You should see your Agent show up in Datadog within a few seconds at:
 
-    https://app.datadoghq.com/account/settings#agent\033[0m
+    https://app.datadoghq.com/infrastructure\033[0m
 
 If you ever want to stop the Agent, run:
 
@@ -146,7 +150,7 @@ Your Agent has started up for the first time. We're currently
 verifying that data is being submitted. You should see your Agent show
 up in Datadog within a few seconds at:
 
-    https://app.datadoghq.com/account/settings#agent\033[0m
+    https://app.datadoghq.com/infrastructure\033[0m
 
 Waiting for metrics..."
 
