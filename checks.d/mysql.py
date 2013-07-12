@@ -41,12 +41,12 @@ class MySql(AgentCheck):
         self.greater_502 = {}
 
     def check(self, instance):
-        host, user, password, mysql_sock, tags, options = self._get_config(instance)
+        host, port, user, password, mysql_sock, tags, options = self._get_config(instance)
 
         if not host or not user:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, mysql_sock, user, password)
+        db = self._connect(host, port, mysql_sock, user, password)
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
@@ -54,14 +54,15 @@ class MySql(AgentCheck):
     def _get_config(self, instance):
         host = instance['server']
         user = instance['user']
+        port = int(instance.get('port', 0))
         password = instance.get('pass', '')
         mysql_sock = instance.get('sock', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
 
-        return host, user, password, mysql_sock, tags, options
+        return host, port, user, password, mysql_sock, tags, options
 
-    def _connect(self, host, mysql_sock, user, password):
+    def _connect(self, host, port, mysql_sock, user, password):
         try:
             import MySQLdb
         except ImportError:
@@ -70,6 +71,11 @@ class MySql(AgentCheck):
 
         if  mysql_sock != '':
             db = MySQLdb.connect(unix_socket=mysql_sock,
+                                    user=user,
+                                    passwd=password)
+        elif port:
+            db = MySQLdb.connect(host=host,
+                                    port=port,
                                     user=user,
                                     passwd=password)
         else:
