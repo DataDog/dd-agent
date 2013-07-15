@@ -49,7 +49,6 @@ class Nginx(AgentCheck):
         parsed = re.search(r'Reading: (\d+)\s+Writing: (\d+)\s+Waiting: (\d+)', response)
         if parsed:
             reading, writing, waiting = map(int, parsed.groups())
-            assert connections == reading + writing + waiting
             self.gauge("nginx.net.reading", reading, tags=tags)
             self.gauge("nginx.net.writing", writing, tags=tags)
             self.gauge("nginx.net.waiting", waiting, tags=tags)
