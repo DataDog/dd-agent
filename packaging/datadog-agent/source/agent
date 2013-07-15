@@ -102,9 +102,12 @@ case $action in
         shift # shift to pass the remaining arguments to agent/agent.py info.
               # Currently only agent.py takes additional arguments
         python agent/agent.py info $@
+        RETURN_VALUE=$?
         python agent/dogstatsd.py info
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
         python agent/ddagent.py info
-        exit 0
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        exit $RETURN_VALUE
         ;;
 
     *)

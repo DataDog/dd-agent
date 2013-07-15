@@ -218,7 +218,7 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        agent.info(verbose=options.verbose)
+        return agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')

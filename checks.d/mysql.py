@@ -96,15 +96,17 @@ class MySql(AgentCheck):
 
         # Compute InnoDB buffer metrics
         page_size = self._collect_scalar("SHOW STATUS LIKE 'Innodb_page_size'", db)
-        innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db)
-        innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db)
-        innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
-        innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
-        innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
+        # Be sure InnoDB is enabled
+        if page_size:
+            innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db)
+            innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db)
+            innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
+            innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
+            innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
 
-        self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
-        self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
-        self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
 
         # Compute CPU metrics
         self._collect_procfs(tags, db)

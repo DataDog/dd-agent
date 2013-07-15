@@ -202,6 +202,7 @@ class EC2(object):
     """
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
+    metadata = {}
 
     @staticmethod
     def get_metadata():
@@ -214,7 +215,6 @@ class EC2(object):
         # 'ami-id\nami-launch-index\nami-manifest-path\nhostname\ninstance-id\nlocal-ipv4\npublic-keys/\nreservation-id\nsecurity-groups'
         # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data/instance-id', timeout=1).read()
         # 'i-deadbeef'
-        metadata = {}
 
         # Every call may add TIMEOUT seconds in latency so don't abuse this call
         # python 2.4 does not support an explicit timeout argument so force it here
@@ -230,7 +230,7 @@ class EC2(object):
             try:
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
-                metadata[k] = v
+                EC2.metadata[k] = v
             except:
                 pass
 
@@ -241,7 +241,7 @@ class EC2(object):
         except:
             pass
 
-        return metadata
+        return EC2.metadata
 
     @staticmethod
     def get_instance_id():

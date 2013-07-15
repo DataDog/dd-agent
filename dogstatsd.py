@@ -314,7 +314,7 @@ def main(config_path=None):
         elif command == 'status':
             daemon.status()
         elif command == 'info':
-            daemon.info()
+            return daemon.info()
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()
