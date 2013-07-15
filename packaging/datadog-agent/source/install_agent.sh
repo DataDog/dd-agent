@@ -129,7 +129,7 @@ sudo /etc/init.d/datadog-agent restart
 if $DDBASE; then
 printf "\033[32m
 Your Agent has started up for the first time and is submitting metrics to
-Datadog. You should see your Agent show up in Datadog within a few seconds at:
+Datadog. You should see your Agent show up in Datadog shortly at:
 
     https://app.datadoghq.com/infrastructure\033[0m
 
@@ -148,7 +148,7 @@ fi
 printf "\033[32m
 Your Agent has started up for the first time. We're currently
 verifying that data is being submitted. You should see your Agent show
-up in Datadog within a few seconds at:
+up in Datadog shortly at:
 
     https://app.datadoghq.com/infrastructure\033[0m
 

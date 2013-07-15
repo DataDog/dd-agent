@@ -371,7 +371,7 @@ else
         printf "$GREEN
     Your Agent has started up for the first time. We're currently
     verifying that data is being submitted. You should see your Agent show
-    up in Datadog within a few seconds at:
+    up in Datadog shortly at:
     
         $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
     
