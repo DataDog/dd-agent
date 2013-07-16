@@ -8,6 +8,8 @@ from util import EC2
 class TestEC2(unittest.TestCase):
 
     def test_metadata(self):
+        # Skip this step on travis
+        if os.environ.get('TRAVIS', False): return
         # Test gathering metadata from ec2
         start = time.time()
         d = EC2.get_metadata()
