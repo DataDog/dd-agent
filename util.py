@@ -6,6 +6,8 @@ import subprocess
 import sys
 import math
 import time
+import types
+import urllib2
 import uuid
 
 try:
@@ -15,21 +17,27 @@ except ImportError:
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
+def generate_minjson_adapter():
+    import minjson
+    class json(object):
+        @staticmethod
+        def dumps(data):
+            return minjson.write(data)
+
+        @staticmethod
+        def loads(data):
+            return minjson.safeRead(data)
+    return json
+
 try:
     import simplejson as json
 except ImportError:
     try:
         import json
     except ImportError:
-        import minjson
-        class json(object):
-            @staticmethod
-            def dumps(data):
-                return minjson.write(data)
+        json = generate_minjson_adapter()
 
-            @staticmethod
-            def loads(data):
-                return minjson.safeRead(data)
+
 
 import yaml
 try:
@@ -158,9 +166,7 @@ def get_hostname(config=None):
                 p = subprocess.Popen(['/bin/hostname', '-f'], stdout=subprocess.PIPE)
                 out, err = p.communicate()
                 if p.returncode == 0:
-                    hostname = out.strip()
-                    if is_valid_hostname(hostname):
-                        return hostname
+                    return out.strip()
             except:
                 return None
 
@@ -169,6 +175,12 @@ def get_hostname(config=None):
             unix_hostname = _get_hostname_unix()
             if unix_hostname and is_valid_hostname(unix_hostname):
                 hostname = unix_hostname
+
+    # if we have an ec2 default hostname, see if there's an instance-id available
+    if hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
+        instanceid = EC2.get_instance_id()
+        if instanceid:
+            hostname = instanceid
 
     # fall back on socket.gethostname(), socket.getfqdn() is too unreliable
     if hostname is None:
@@ -180,22 +192,87 @@ def get_hostname(config=None):
             hostname = socket_hostname
 
     if hostname is None:
-        raise Exception('Unable to reliably determine host name')
+        log.critical('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
+        raise Exception('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
     else:
         return hostname
 
+class EC2(object):
+    """Retrieve EC2 metadata
+    """
+    URL = "http://169.254.169.254/latest/meta-data"
+    TIMEOUT = 0.1 # second
+    metadata = {}
+
+    @staticmethod
+    def get_metadata():
+        """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
+        """
+        # >>> import urllib2
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/', timeout=1).read()
+        # 'meta-data\nuser-data'
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data', timeout=1).read()
+        # 'ami-id\nami-launch-index\nami-manifest-path\nhostname\ninstance-id\nlocal-ipv4\npublic-keys/\nreservation-id\nsecurity-groups'
+        # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data/instance-id', timeout=1).read()
+        # 'i-deadbeef'
+
+        # Every call may add TIMEOUT seconds in latency so don't abuse this call
+        # python 2.4 does not support an explicit timeout argument so force it here
+        # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(EC2.TIMEOUT)
+        except:
+            pass
+
+        for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
+            try:
+                v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
+                assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
+                EC2.metadata[k] = v
+            except:
+                pass
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except:
+            pass
+
+        return EC2.metadata
+
+    @staticmethod
+    def get_instance_id():
+        try:
+            return EC2.get_metadata().get("instance-id", None)
+        except:
+            return None
+
+
 class Watchdog(object):
     """Simple signal-based watchdog that will scuttle the current process
-    if it has not been reset every N seconds.
+    if it has not been reset every N seconds, or if the processes exceeds
+    a specified memory threshold.
     Can only be invoked once per process, so don't use with multiple threads.
     If you instantiate more than one, you're also asking for trouble.
     """
-    def __init__(self, duration):
-        """Set the duration
-        """
+    def __init__(self, duration, max_mem_mb = None):
+        import resource
+
+        #Set the duration
         self._duration = int(duration)
         signal.signal(signal.SIGALRM, Watchdog.self_destruct)
 
+        # cap memory usage
+        if max_mem_mb is not None:
+            self._max_mem_kb = 1024 * max_mem_mb
+            max_mem_bytes = 1024 * self._max_mem_kb
+            resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))
+            self.memory_limit_enabled = True
+        else:
+            self.memory_limit_enabled = False
 
     @staticmethod
     def self_destruct(signum, frame):
@@ -208,6 +285,11 @@ class Watchdog(object):
 
 
     def reset(self):
+        # self destruct if using too much memory, as tornado will swallow MemoryErrors
+        mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
+        if self.memory_limit_enabled and mem_usage_kb > (0.95 * self._max_mem_kb):
+            Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)
 

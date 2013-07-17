@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 A Python Statsd implementation with some datadog special sauce.
 """
@@ -36,6 +36,8 @@ WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
 LOGGING_INTERVAL = 10
 
+def serialize(metrics):
+    return json.dumps({"series" : metrics})
 
 class Reporter(threading.Thread):
     """
@@ -113,8 +115,7 @@ class Reporter(threading.Thread):
                 flush_count=self.flush_count,
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
-                metric_count=count
-            ).persist()
+                metric_count=count).persist()
 
         except:
             log.exception("Error flushing metrics")
@@ -122,7 +123,7 @@ class Reporter(threading.Thread):
     def submit(self, metrics):
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        body = json.dumps({"series" : metrics})
+        body = serialize(metrics)
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
@@ -219,7 +220,11 @@ class Dogstatsd(Daemon):
         signal.signal(signal.SIGINT, self._handle_sigterm)
         self.reporter.start()
         try:
-            self.server.start()
+            try:
+                self.server.start()
+            except Exception, e:
+                log.exception('Error starting server')
+                raise e
         finally:
             # The server will block until it's done. Once we're here, shutdown
             # the reporting thread.
@@ -230,6 +235,10 @@ class Dogstatsd(Daemon):
     def _handle_sigterm(self, signum, frame):
         log.info("Caught sigterm. Stopping run loop.")
         self.server.stop()
+
+    def info(self):
+        logging.getLogger().setLevel(logging.ERROR)
+        return DogstatsdStatus.print_latest_status()
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False):
@@ -251,7 +260,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # Create the aggregator (which is the point of communication between the
     # server and reporting threads.
     assert 0 < interval
-    aggregator = MetricsAggregator(hostname, interval)
+
+    aggregator = MetricsAggregator(hostname, interval, recent_point_threshold=c.get('recent_point_threshold', None))
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
@@ -274,22 +284,6 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    # commands that don't need the daemon
-    if args and args[0] in ['info', 'status']:
-        command = args[0]
-        if command == 'info':
-            logging.getLogger().setLevel(logging.ERROR)
-            return DogstatsdStatus.print_latest_status()
-        elif command == 'status':
-            pid = pid_file.get_pid()
-            if pid:
-                message = 'dogstatsd is running with pid %s' % pid
-            else:
-                message = 'dogstatsd is not running'
-            log.info(message)
-            sys.stdout.write(message + "\n")
-            return 0
-
     reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
     pid_file = PidFile('dogstatsd')
     daemon = Dogstatsd(pid_file.get_path(), server, reporter)
@@ -309,6 +303,10 @@ def main(config_path=None):
             daemon.stop()
         elif command == 'restart':
             daemon.restart()
+        elif command == 'status':
+            daemon.status()
+        elif command == 'info':
+            return daemon.info()
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()

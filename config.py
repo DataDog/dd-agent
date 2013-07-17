@@ -1,5 +1,6 @@
 import ConfigParser
 import os
+import itertools
 import logging
 import logging.config
 import logging.handlers
@@ -57,7 +58,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.6.1"
+    return "3.8.0"
 
 
 def skip_leading_wsp(f):
@@ -106,13 +107,15 @@ def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        path = os.path.join(prog_path, 'checks.d')
+        checksd_path = os.path.join(prog_path, 'checks.d')
     else:
+
         cur_path = os.path.dirname(__file__)
-        path = os.path.join(cur_path, 'checks.d')
-    if os.path.exists(path):
-        return path
-    raise PathNotFound(path)
+        checksd_path = os.path.join(cur_path, 'checks.d')
+
+    if os.path.exists(checksd_path):
+        return checksd_path
+    raise PathNotFound(checksd_path)
 
 
 def _unix_config_path():
@@ -127,6 +130,17 @@ def _unix_confd_path():
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
+
+
+def _unix_checksd_path():
+    # Unix only will look up based on the current directory
+    # because checks.d will hang with the other python modules
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+    checksd_path = os.path.join(cur_path, 'checks.d')
+
+    if os.path.exists(checksd_path):
+        return checksd_path
+    raise PathNotFound(checksd_path)
 
 
 def _is_affirmative(s):
@@ -163,7 +177,7 @@ def get_config_path(cfg_path=None, os_name=None):
         return os.path.join(path, DATADOG_CONF)
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
@@ -185,6 +199,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
         'watchdog': True,
+        'additional_checksd': '/etc/dd-agent/checks.d/',
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
@@ -228,13 +243,32 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if agentConfig['dd_url'].endswith('/'):
             agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
 
+        # Extra checks.d path
+        # the linux directory is set by default
+        if config.has_option('Main', 'additional_checksd'):
+            agentConfig['additional_checksd'] = config.get('Main', 'additional_checksd')
+        elif get_os() == 'windows':
+            # default windows location
+            common_path = _windows_commondata_path()
+            agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
+
         # Whether also to send to Pup
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
             agentConfig['use_pup'] = True
 
-        if agentConfig['use_pup']:
+        # Concerns only Windows
+        if config.has_option('Main', 'use_web_info_page'):
+            agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
+        else:
+            agentConfig['use_web_info_page'] = True
+
+        # Pup doesn't work on Windows
+        if sys.platform == 'win32':
+            agentConfig['use_pup'] = False
+
+        if agentConfig['use_pup'] or agentConfig['use_web_info_page']:
             if config.has_option('Main', 'pup_url'):
                 agentConfig['pup_url'] = config.get('Main', 'pup_url')
             else:
@@ -337,6 +371,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             for key, value in config.items('WMI'):
                 agentConfig['WMI'][key] = value
 
+        if config.has_option("Main", "limit_memory_consumption") and \
+            config.get("Main", "limit_memory_consumption") is not None:
+            agentConfig["limit_memory_consumption"] = int(config.get("Main", "limit_memory_consumption"))
+        else:
+            agentConfig["limit_memory_consumption"] = None
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
@@ -347,18 +387,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     except ConfigParser.NoOptionError, e:
         sys.stderr.write('There are some items missing from your config file, but nothing fatal [%s]' % e)
-
-    if 'mysql_server' in agentConfig and agentConfig['mysql_server'] != '' and 'mysql_user' in agentConfig and agentConfig['mysql_user'] != '' and 'mysql_pass' in agentConfig:
-        try:
-            import MySQLdb
-        except ImportError:
-            log.error('You have configured MySQL for monitoring, but the MySQLdb module is not installed. For more info, see: http://help.datadoghq.com.\n')
-
-    if 'mongodb_server' in agentConfig and agentConfig['mongodb_server'] != '':
-        try:
-            import pymongo
-        except ImportError:
-            log.error('You have configured MongoDB for monitoring, but the pymongo module is not installed.\n')
 
     # Storing proxy settings in the agentConfig
     agentConfig['proxy_settings'] = get_proxy(agentConfig)
@@ -399,6 +427,9 @@ def get_system_stats():
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '')  # no codename for FreeBSD
 
+    elif sys.platform == 'win32':
+        systemStats['winV'] = platform.win32_ver()
+
     return systemStats
 
 
@@ -421,12 +452,12 @@ def set_win32_cert_path():
     import tornado.simple_httpclient
     tornado.simple_httpclient._DEFAULT_CA_CERTS = crt_path
 
-def get_proxy(agentConfig):
+def get_proxy(agentConfig, use_system_settings=False):
     proxy_settings = {}
-    
+
     # First we read the proxy configuration from datadog.conf
     proxy_host = agentConfig.get('proxy_host', None)
-    if proxy_host is not None:
+    if proxy_host is not None and not use_system_settings:
         proxy_settings['host'] = proxy_host
         try:
             proxy_settings['port'] = int(agentConfig.get('proxy_port', 3128))
@@ -497,29 +528,23 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
+    log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
 def get_checksd_path(osname):
-    # Unix only will look up based on the current directory
-    # because checks.d will hang with the other python modules
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    checksd_path = os.path.join(cur_path, 'checks.d')
-    if os.path.exists(checksd_path):
-        return checksd_path
-
-    if osname == 'windows':
-        try:
+    try:
+        if osname == 'windows':
             return _windows_checksd_path()
-        except PathNotFound, e:
-            if len(e.args) > 0:
-                log.error("No checks.d folder found in '%s'.\n" % e.args[0])
-            else:
-                log.error("No checks.d folder found.\n")
-
-    log.error("No checks.d folder at '%s'.\n" % checksd_path)
+        else:
+            return _unix_checksd_path()
+    except PathNotFound, e:
+        if len(e.args) > 0:
+            log.error("No checks.d folder found in '%s'.\n" % e.args[0])
+        else:
+            log.error("No checks.d folder found.\n")
     sys.exit(3)
+
 
 def get_ssl_certificate(osname, filename):
     # The SSL certificate is needed by tornado in case of connection through a proxy
@@ -546,19 +571,20 @@ def get_ssl_certificate(osname, filename):
     return None
 
 
-
 def load_check_directory(agentConfig):
-    ''' Return the checks from checks.d. Only checks that have a configuration
+    ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
+    initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from util import yaml, yLoader
     from checks import AgentCheck
 
-    checks = []
+    initialized_checks = {}
+    init_failed_checks = {}
 
     osname = get_os()
-    checks_path = get_checksd_path(osname)
+    checks_paths = (glob.glob(os.path.join(path, '*.py')) for path
+                    in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
-    check_glob = os.path.join(checks_path, '*.py')
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
@@ -566,8 +592,11 @@ def load_check_directory(agentConfig):
     #
     # Once old-style checks aren't supported, we'll just read the configs and
     # import the corresponding check module
-    for check in glob.glob(check_glob):
+    for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
+        if check_name in initialized_checks or check_name in init_failed_checks:
+            log.debug('Skipping check %s because it has already been loaded from another location', check)
+            continue
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except:
@@ -640,16 +669,21 @@ def load_check_directory(agentConfig):
 
         instances = check_config['instances']
         try:
-            c = check_class(check_name, init_config=init_config,
-                            agentConfig=agentConfig, instances=instances)
-        except TypeError, e:
-            # Backwards compatibility for checks which don't support the
-            # instances argument in the constructor.
-            c = check_class(check_name, init_config=init_config,
-                            agentConfig=agentConfig)
-            c.instances = instances
-
-        checks.append(c)
+            try:
+                c = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig, instances=instances)
+            except TypeError, e:
+                # Backwards compatibility for checks which don't support the
+                # instances argument in the constructor.
+                c = check_class(check_name, init_config=init_config,
+                                agentConfig=agentConfig)
+                c.instances = instances
+        except Exception, e:
+            log.exception('Unable to initialize check %s' % check_name)
+            traceback_message = traceback.format_exc()
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+        else:
+            initialized_checks[check_name] = c
 
         # Add custom pythonpath(s) if available
         if 'pythonpath' in check_config:
@@ -660,8 +694,10 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
-    log.info('checks.d checks: %s' % [c.name for c in checks])
-    return checks
+    log.info('initialized checks.d checks: %s' % initialized_checks.keys())
+    log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
+    return {'initialized_checks':initialized_checks.values(),
+            'init_failed_checks':init_failed_checks}
 
 
 #
@@ -693,7 +729,10 @@ def get_logging_config(cfg_path=None):
     config.readfp(skip_leading_wsp(open(config_path)))
 
     if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
-        sys.stderr.write("Python logging config is no longer supported and will be ignored.\nTo configure logging, update the logging portion of 'datadog.conf' to match:\n  'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.\n")
+        sys.stderr.write("""Python logging config is no longer supported and will be ignored.
+            To configure logging, update the logging portion of 'datadog.conf' to match:
+             'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.
+             """)
 
     for option in logging_config:
         if config.has_option('Main', option):
@@ -728,10 +767,17 @@ def get_logging_config(cfg_path=None):
         except:
             logging_config['syslog_port'] = None
 
+    if config.has_option('Main', 'disable_file_logging'):
+        logging_config['disable_file_logging'] = config.get('Main', 'disable_file_logging').strip().lower() in ['yes', 'true', 1]
+    else:
+        logging_config['disable_file_logging'] = False
+
     return logging_config
 
 
+
 def initialize_logging(logger_name):
+
     try:
         if get_os() == 'windows':
             logging.config.fileConfig(get_config_path())
@@ -746,7 +792,7 @@ def initialize_logging(logger_name):
 
             # set up file loggers
             log_file = logging_config.get('%s_log_file' % logger_name)
-            if log_file is not None:
+            if log_file is not None and not logging_config['disable_file_logging']:
                 # make sure the log directory is writeable
                 # NOTE: the entire directory needs to be writable so that rotation works
                 if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):

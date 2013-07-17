@@ -1,9 +1,8 @@
 #! /bin/sh
 
-set -e 
-
 if which invoke-rc.d >/dev/null 2>&1; then
-    invoke-rc.d datadog-agent stop
+    invoke-rc.d datadog-agent stop || true
 else
-    /etc/init.d/datadog-agent stop
+    /etc/init.d/datadog-agent stop || true
 fi
+

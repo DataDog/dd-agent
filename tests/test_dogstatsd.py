@@ -83,6 +83,15 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(third['points'][0][1], 16)
         nt.assert_equal(third['host'], 'myhost')
 
+    def test_tags_gh442(self):
+        import util
+        import dogstatsd
+        from aggregator import api_formatter
+
+        json = util.generate_minjson_adapter()
+        dogstatsd.json = json
+        serialized = dogstatsd.serialize([api_formatter("foo", 12, 1, ('tag',), 'host')])
+        assert '"tags": ["tag"]' in serialized
 
     def test_counter(self):
         stats = MetricsAggregator('myhost')
@@ -151,6 +160,19 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(second['metric'], 'my.second.gauge')
         nt.assert_equals(second['points'][0][1], 1.5)
 
+        # Ensure that old gauges get dropped due to old timestamps
+        stats.gauge('my.first.gauge', 5)
+        stats.gauge('my.first.gauge', 1, timestamp=1000000000)
+        stats.gauge('my.second.gauge', 20, timestamp=1000000000)
+
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 1
+
+        first = metrics[0]
+
+        nt.assert_equals(first['metric'], 'my.first.gauge')
+        nt.assert_equals(first['points'][0][1], 5)
+        nt.assert_equals(first['host'], 'myhost')
 
     def test_sets(self):
         stats = MetricsAggregator('myhost')
@@ -358,6 +380,16 @@ class TestUnitDogStatsd(unittest.TestCase):
 
             nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.counter'], [cnt * run])
             nt.assert_equal([m['points'][0][1] for m in metrics if m['metric'] == 'test.hist.count'], [cnt * run])
+
+    def test_scientific_notation(self):
+        stats = MetricsAggregator('myhost', interval=10)
+
+        stats.submit_packets('test.scinot:9.512901e-05|g')
+        metrics = self.sort_metrics(stats.flush())
+
+        assert len(metrics) == 1
+        ts, val = metrics[0].get('points')[0]
+        nt.assert_almost_equal(val, 9.512901e-05)
 
 if __name__ == "__main__":
     unittest.main()

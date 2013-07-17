@@ -70,7 +70,7 @@ class GraphiteConnection(object):
         
             return metric, host, device
         except Exception, e:
-            log.exception("Unparsable metric: {0}".format(metric))
+            log.exception("Unparsable metric: %s" % metric)
             return None, None, None
 
     def _postMetric(self, name, host, device, datapoint):

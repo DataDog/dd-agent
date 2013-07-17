@@ -22,32 +22,32 @@ class Lighttpd(AgentCheck):
         'Uptime': 'lighttpd.performance.uptime',
         'Total kBytes': 'lighttpd.net.bytes',
         'Total Accesses': 'lighttpd.net.hits',
-        'memory_usage': 'lighttpd2.performance.memory_usage',
-        'requests_avg': 'lighttpd2.net.requests_avg',
-        'traffic_out_avg': 'lighttpd2.net.bytes_out_avg',
-        'traffic_in_avg': 'lighttpd2.net.bytes_in_avg',
-        'connections_avg': 'lighttpd2.net.connections_avg',
-        'connection_state_start': 'lighttpd2.connections.state_start',
-        'connection_state_read_header': 'lighttpd2.connections.state_read_header',
-        'connection_state_handle_request': 'lighttpd2.connections.state_handle_request',
-        'connection_state_write_response': 'lighttpd2.connections.state_write_response',
-        'connection_state_keep_alive': 'lighttpd2.connections.state_keep_alive',
-        'requests_avg_5sec': 'lighttpd2.net.requests_avg_5sec',
-        'traffic_out_avg_5sec': 'lighttpd2.net.bytes_out_avg_5sec',
-        'traffic_in_avg_5sec': 'lighttpd2.net.bytes_in_avg_5sec',
-        'connections_avg_5sec': 'lighttpd2.net.connections_avg_5sec',
+        'memory_usage': 'lighttpd.performance.memory_usage',
+        'requests_avg': 'lighttpd.net.requests_avg',
+        'traffic_out_avg': 'lighttpd.net.bytes_out_avg',
+        'traffic_in_avg': 'lighttpd.net.bytes_in_avg',
+        'connections_avg': 'lighttpd.net.connections_avg',
+        'connection_state_start': 'lighttpd.connections.state_start',
+        'connection_state_read_header': 'lighttpd.connections.state_read_header',
+        'connection_state_handle_request': 'lighttpd.connections.state_handle_request',
+        'connection_state_write_response': 'lighttpd.connections.state_write_response',
+        'connection_state_keep_alive': 'lighttpd.connections.state_keep_alive',
+        'requests_avg_5sec': 'lighttpd.net.requests_avg_5sec',
+        'traffic_out_avg_5sec': 'lighttpd.net.bytes_out_avg_5sec',
+        'traffic_in_avg_5sec': 'lighttpd.net.bytes_in_avg_5sec',
+        'connections_avg_5sec': 'lighttpd.net.connections_avg_5sec',
     }
 
     COUNTERS = {
-        'requests_abs': 'lighttpd2.net.requests_total',
-        'traffic_out_abs': 'lighttpd2.net.bytes_out',
-        'traffic_in_abs': 'lighttpd2.net.bytes_in',
-        'connections_abs': 'lighttpd2.net.connections_total',
-        'status_1xx': 'lighttpd2.response.status_1xx',
-        'status_2xx': 'lighttpd2.response.status_2xx',
-        'status_3xx': 'lighttpd2.response.status_3xx',
-        'status_4xx': 'lighttpd2.response.status_4xx',
-        'status_5xx': 'lighttpd2.response.status_5xx',
+        'requests_abs': 'lighttpd.net.requests_total',
+        'traffic_out_abs': 'lighttpd.net.bytes_out',
+        'traffic_in_abs': 'lighttpd.net.bytes_in',
+        'connections_abs': 'lighttpd.net.connections_total',
+        'status_1xx': 'lighttpd.response.status_1xx',
+        'status_2xx': 'lighttpd.response.status_2xx',
+        'status_3xx': 'lighttpd.response.status_3xx',
+        'status_4xx': 'lighttpd.response.status_4xx',
+        'status_5xx': 'lighttpd.response.status_5xx',
     }
 
     RATES = {
@@ -111,7 +111,7 @@ class Lighttpd(AgentCheck):
             url_suffix = self.URL_SUFFIX_PER_VERSION[server_version]
             if self.assumed_url.get(instance['lighttpd_status_url'], None) is None and url[-len(url_suffix):] != url_suffix:
                 self.assumed_url[instance['lighttpd_status_url']] = '%s%s' % (url, url_suffix)
-                self.log.debug("Assuming url was not correct. Trying to add %s suffix to the url" % url_suffix)
+                self.warning("Assuming url was not correct. Trying to add %s suffix to the url" % url_suffix)
                 self.check(instance)
             else:
                 raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['lighttpd_status_url'])

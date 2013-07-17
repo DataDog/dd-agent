@@ -49,11 +49,7 @@ class Solr(JmxCheck):
 
     @staticmethod
     def parse_agent_config(agentConfig):
-
         return JmxCheck.parse_agent_config(agentConfig, 'solr', INIT_CONFIG)
-
-
-
 
 
 INIT_CONFIG = {

@@ -6,8 +6,9 @@ instances:
 #        name: jmx_instance
 #        user: username
 #        password: password
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 #        conf:
-#            -include: 
+#            - include: 
 #               domain: my_domain
 #               bean: my_bean
 #               attribute:

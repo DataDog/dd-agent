@@ -82,29 +82,20 @@ class Riak(AgentCheck):
 
         self.prev_coord_redirs_total = coord_redirs_total
 
-        def timeout_event(self, url, timeout, aggregation_key):
-            self.event({
-                'timestamp': int(time.time()),
-                'event_type': 'riak_check',
-                'msg_title': 'riak check timeout',
-                'msg_text': '%s timed out after %s seconds.' % (url, timeout),
-                'aggregation_key': aggregation_key
-            })
+    def timeout_event(self, url, timeout, aggregation_key):
+        self.event({
+            'timestamp': int(time.time()),
+            'event_type': 'riak_check',
+            'msg_title': 'riak check timeout',
+            'msg_text': '%s timed out after %s seconds.' % (url, timeout),
+            'aggregation_key': aggregation_key
+        })
 
-        def status_code_event(self, url, r, aggregation_key):
-            self.event({
-                'timestamp': int(time.time()),
-                'event_type': 'riak_check',
-                'msg_title': 'Invalid reponse code for riak check',
-                'msg_text': '%s returned a status of %s' % (url, r.status_code),
-                'aggregation_key': aggregation_key
-            })
-
-if __name__ == '__main__':
-    check, instances = Riak.from_yaml('/etc/dd-agent/conf.d/riak.yaml')
-    for instance in instances:
-        print "\nRunning the check against url: %s" % (instance['url'])
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-        print 'Metrics: %s' % (check.get_metrics())
+    def status_code_event(self, url, r, aggregation_key):
+        self.event({
+            'timestamp': int(time.time()),
+            'event_type': 'riak_check',
+            'msg_title': 'Invalid reponse code for riak check',
+            'msg_text': '%s returned a status of %s' % (url, r.status_code),
+            'aggregation_key': aggregation_key
+        })

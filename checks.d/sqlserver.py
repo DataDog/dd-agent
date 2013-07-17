@@ -95,6 +95,7 @@ class SQLServer(AgentCheck):
                     self._fetch_all_instances(metric, cursor)
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
             else:
                 try:
                     cursor.execute("""
@@ -106,6 +107,7 @@ class SQLServer(AgentCheck):
                     (value,) = cursor.fetchone()
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
                     continue
 
                 # Save the metric
@@ -128,8 +130,3 @@ class SQLServer(AgentCheck):
             metric_func = getattr(self, mtype)
             metric_func(mname, value, tags=tags)
 
-if __name__ == "__main__":
-    check, instances = SQLServer.from_yaml('conf.d/sqlserver.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()

@@ -10,20 +10,16 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname
+from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
 from config import get_version
 
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
-from checks.nagios import Nagios
-from checks.db.mysql import MySql
-from checks.db.mcache import Memcache
-from checks.queue import RabbitMq
 from checks.ganglia import Ganglia
+from checks.nagios import Nagios
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
-from checks.ec2 import EC2
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
@@ -53,7 +49,8 @@ class Collector(object):
         self.run_count = 0
         self.continue_running = True
         self.metadata_cache = None
-        self.checks_d = []
+        self.initialized_checks_d = []
+        self.init_failed_checks_d = []
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -76,21 +73,15 @@ class Collector(object):
         }
 
         # Old-style metric checks
-        self._mysql = MySql(log)
-        self._rabbitmq = RabbitMq()
         self._ganglia = Ganglia(log)
         self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
-        self._ec2 = EC2(log)
 
         # Agent Metrics
         self._agent_metrics = CollectorMetrics(log)
 
-        # Metric Checks
-        self._metrics_checks = [
-            Memcache(log),
-        ]
+        self._metrics_checks = []
 
         # Custom metric checks
         for module_spec in [s.strip() for s in self.agentConfig.get('custom_checks', '').split(',')]:
@@ -122,7 +113,7 @@ class Collector(object):
         # in which case we'll get a misleading error in the logs.
         # Best to not even try.
         self.continue_running = False
-        for check in self.checks_d:
+        for check in self.initialized_checks_d:
             check.stop()
     
     def run(self, checksd=None, start_event=True):
@@ -138,8 +129,9 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
-        self.checks_d = checksd
-
+        if checksd:
+            self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -194,8 +186,6 @@ class Collector(object):
                 payload.update(cpuStats)
 
         # Run old-style checks
-        mysqlStatus = self._mysql.check(self.agentConfig)
-        rabbitmq = self._rabbitmq.check(log, self.agentConfig)
         gangliaData = self._ganglia.check(self.agentConfig)
         cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
@@ -206,14 +196,6 @@ class Collector(object):
            
         if cassandraData is not False and cassandraData is not None:
             payload['cassandra'] = cassandraData
-            
-        # MySQL Status
-        if mysqlStatus:
-            payload.update(mysqlStatus)
-       
-        # RabbitMQ
-        if rabbitmq:
-            payload['rabbitMQ'] = rabbitmq
             
         # dogstream
         if dogstreamData:
@@ -230,7 +212,7 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
- 
+
         # Process the event checks. 
         for event_check in self._event_checks:
             event_data = event_check.check(log, self.agentConfig)
@@ -266,8 +248,7 @@ class Collector(object):
 
         # checks.d checks
         check_statuses = []
-        checksd = checksd or []
-        for check in checksd:
+        for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
             log.info("Running check %s" % check.name)
@@ -297,6 +278,15 @@ class Collector(object):
                 log.exception("Error running check %s" % check.name)
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
+
+        for check_name, info in self.init_failed_checks_d.iteritems():
+            if not self.continue_running:
+                return
+            check_status = CheckStatus(check_name, None, None, None,
+                                       init_failed_error=info['error'],
+                                       init_failed_traceback=info['traceback'])
+            check_statuses.append(check_status)
+
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
@@ -400,7 +390,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = self._ec2.get_metadata()
+        metadata = EC2.get_metadata()
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']

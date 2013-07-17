@@ -1,6 +1,6 @@
 [Main]
 
-# The host of the Datadog intake server to send agent data to
+# The host of the Datadog intake server to send Agent data to
 dd_url: https://app.datadoghq.com
 
 # If you need a proxy to connect to the Internet, provide the settings here
@@ -9,7 +9,7 @@ dd_url: https://app.datadoghq.com
 # proxy_user: user
 # proxy_password: password
 
-# The Datadog api key to associate your agent's data with your organization.
+# The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
 api_key:
@@ -20,17 +20,25 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Set the threshold for accepting points to allow anything
+# with recent_point_threshold seconds
+# Defaults to 30 seconds if no value is provided
+#recent_point_threshold: 30
+
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
-# Change port the agent is listening to
+# Change port the Agent is listening to
 # listen_port: 17123
 
 # Start a graphite listener on this port
 # graphite_listen_port: 17124
 
-# Allow non-local traffic to this agent
-# This is required when using this agent as a proxy for other agents
+# Additional directory to look for Datadog checks
+# additional_checksd: /etc/dd-agent/checks.d/
+
+# Allow non-local traffic to this Agent
+# This is required when using this Agent as a proxy for other Agents
 # that might not have an internet connection
 # For more information, please see
 # https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
@@ -40,7 +48,7 @@ use_mount: no
 # Pup configuration
 # ========================================================================== #
 
-# Pup is a small server that displays metric data collected by the agent.
+# Pup is a small server that displays metric data collected by the Agent.
 # Think of it as a fancy status page or a toe dip into the world of
 # datadog. It can be connected to on the port below.
 
@@ -59,7 +67,7 @@ use_mount: no
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
-# By default dogstatsd will post aggregate metrics to the agent (which handles
+# By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
 # dogstatsd_target : http://localhost:17123
@@ -84,29 +92,6 @@ use_mount: no
 
 # Ganglia port where gmetad is running
 #ganglia_port: 8651
-
-
-# -------------------------------------------------------------------------- #
-#   MySQL                                                                    #
-# -------------------------------------------------------------------------- #
-
-# MySQL host
-#mysql_server:
-
-# (Alternative connection via unix sockets)
-#mysql_sock:
-
-# MySQL user. It runs "SHOW STATUS" and "SHOW SLAVE STATUS" queries.
-# You should consider creating a separate user, e.g. datadog.
-# CREATE USER 'datadog'@'localhost' identified by 'my_password';
-# The latter requires the "REPLICATION CLIENT" privileges using a command like:
-# GRANT REPLICATION CLIENT ON *.* TO 'datadog'@'localhost';
-# http://dev.mysql.com/doc/refman/5.1/en/privileges-provided.html#priv_replication-client
-#mysql_user:
-
-# MySQL user's password
-#mysql_pass:
-
 
 # -------------------------------------------------------------------------- #
 #   Cassandra                                                                #
@@ -142,20 +127,6 @@ use_mount: no
 # (centos 5)
 #nagios_perf_cfg: /etc/nagios/nagios.cfg
 
-
-
-# -------------------------------------------------------------------------- #
-#  Memcache
-# -------------------------------------------------------------------------- #
-# You can set multiple memcache instances, using the schema below
-# You can set a tag (optional), your memcache metrics will then be tagged
-# instance:your_tag or instance:host_port if you don't specify one
-
-#memcache_instance_1: localhost:11211:first_tag
-#memcache_instance_2: second_host:second_port:second_tag
-#memcache_instance_3: third_host:third_port:third_tag
-# ...
-
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)
 # -------------------------------------------------------------------------- #
@@ -180,14 +151,13 @@ use_mount: no
 # whether the given metric is a 'counter' or 'gauge'.
 #
 # Unless parsers are specified with an absolute path, the modules must exist in
-# the agent's PYTHONPATH. You can set this as an environment variable when
-# starting the agent. If the name of the custom parser function is not passed,
+# the Agent's PYTHONPATH. You can set this as an environment variable when
+# starting the Agent. If the name of the custom parser function is not passed,
 # 'parser' is assumed.
 #
 # If this value isn't specified, the default parser assumes this log format:
 #     metric timestamp value key0=val0 key1=val1 ...
 #
-
 
 # ========================================================================== #
 # Custom Emitters                                                            #
@@ -202,19 +172,6 @@ use_mount: no
 #
 # If the name of the emitter function is not specified, 'emitter' is assumed.
 
-
-# ========================================================================== #
-# Custom Checks
-# ========================================================================== #
-
-# Comma-separated list of additional metric checks
-#
-# Expected to be passed as a comma-separated list of colon-delimited
-# name/object pairs.
-#
-# custom_checks: /usr/local/my-code/checks/foo.py:FooCheck
-#
-# If the name of the check is not specified, 'Check' is assumed.
 
 # ========================================================================== #
 # Logging

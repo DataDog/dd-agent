@@ -24,6 +24,7 @@ before_install:
   - sudo apt-get install apache2
   - sudo apt-get install couchdb
   - sudo apt-get install lighttpd
+  - sudo apt-get install gearman
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
@@ -50,3 +51,6 @@ before_script:
 env:
   - DB=redis
 script: nosetests -A 'not windows' tests
+notifications:
+  webhooks:
+    - https://www.buildheroes.com/api/projects/1fa0bf90eb6f781bf067c82439775fd9d896c0ae/builds

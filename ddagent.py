@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2012 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 
 # set up logging before importing any other components
@@ -44,6 +44,7 @@ from transaction import Transaction, TransactionManager
 import modules
 
 log = logging.getLogger('forwarder')
+log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -221,7 +222,7 @@ class MetricTransaction(Transaction):
 
     def on_response(self, response):
         if response.error:
-            log.error("Response: %s" % response.error)
+            log.error("Response: %s" % response)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -309,7 +310,22 @@ class Application(tornado.web.Application):
         self._watchdog = None
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
-            self._watchdog = Watchdog(watchdog_timeout)
+            self._watchdog = Watchdog(watchdog_timeout,
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+
+    def log_request(self, handler):
+        """ Override the tornado logging method.
+        If everything goes well, log level is DEBUG.
+        Otherwise it's WARNING or ERROR depending on the response code. """
+        if handler.get_status() < 400:
+            log_method = log.debug
+        elif handler.get_status() < 500:
+            log_method = log.warning
+        else:
+            log_method = log.error
+        request_time = 1000.0 * handler.request.request_time()
+        log_method("%d %s %.2fms", handler.get_status(),
+                   handler._request_summary(), request_time)
 
     def appendMetric(self, prefix, name, host, device, ts, value):
 
@@ -345,20 +361,13 @@ class Application(tornado.web.Application):
             cookie_secret="12oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             xsrf_cookies=False,
             debug=False,
+            log_function=self.log_request
         )
 
         non_local_traffic = self._agentConfig.get("non_local_traffic", False)
 
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
-
-        # set the root logger to warn so tornado is less chatty
-        logging.getLogger().setLevel(logging.WARNING)
-
-        # but keep the forwarder logger at the original level
-        forwarder_logger = logging.getLogger('forwarder')
-        log_config = get_logging_config()
-        forwarder_logger.setLevel(log_config['log_level'] or logging.INFO)
 
         # non_local_traffic must be == True to match, not just some non-false value
         if non_local_traffic is True:
@@ -375,6 +384,8 @@ class Application(tornado.web.Application):
 
         # Register callbacks
         self.mloop = tornado.ioloop.IOLoop.instance()
+
+        logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
         def flush_trs():
             if self._watchdog:
@@ -430,10 +441,17 @@ def init():
 
 def main():
     define("pycurl", default=1, help="Use pycurl")
+    define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     args = parse_command_line()
 
-    if options.pycurl == 0 or options.pycurl == "0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
+    if unicode(options.pycurl) == u"0":
+        os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
+
+    if unicode(options.sslcheck) == u"0":
+        # monkey-patch the AsyncHTTPClient code
+        import tornado.simple_httpclient
+        tornado.simple_httpclient.match_hostname = lambda x, y: None
+        print("Skipping SSL hostname validation, useful when using a transparent proxy")
 
     # If we don't have any arguments, run the server.
     if not args:

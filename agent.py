@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 '''
     Datadog
     www.datadoghq.com
@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
 
 # set up logging before importing any other components
@@ -29,17 +29,16 @@ import urllib
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
 if int(sys.version_info[1]) <= 3:
-    sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
+    sys.stderr.write("Datadog Agent requires python 2.4 or later.\n")
     sys.exit(2)
 
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from checks.ec2 import EC2
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
 from daemon import Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, AgentSupervisor
+from util import Watchdog, PidFile, AgentSupervisor, EC2
 
 
 # Constants
@@ -71,6 +70,10 @@ class Agent(Daemon):
     def _handle_sigusr1(self, signum, frame):
         self._handle_sigterm(signum, frame)
         self._do_restart()
+
+    def info(self, verbose=None):
+        logging.getLogger().setLevel(logging.ERROR)
+        return CollectorStatus.print_latest_status(verbose=verbose)
 
     def run(self, config=None):
         """Main loop of the collector"""
@@ -140,7 +143,8 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER)
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER, 
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -180,6 +184,7 @@ def main():
         'foreground',
         'status',
         'info',
+        'check',
     ]
 
     if len(args) < 1:
@@ -193,53 +198,61 @@ def main():
 
     pid_file = PidFile('dd-agent')
 
-    # Only initialize the Agent if we're starting or stopping it.
-    if command in ['start', 'stop', 'restart', 'foreground']:
+    if options.clean:
+        pid_file.clean()
 
-        if options.clean:
-            pid_file.clean()
+    agent = Agent(pid_file.get_path(), autorestart)
 
-        agent = Agent(pid_file.get_path(), autorestart)
+    if 'start' == command:
+        log.info('Start daemon')
+        agent.start()
 
-        if 'start' == command:
-            log.info('Start daemon')
-            agent.start()
+    elif 'stop' == command:
+        log.info('Stop daemon')
+        agent.stop()
 
-        elif 'stop' == command:
-            log.info('Stop daemon')
-            agent.stop()
+    elif 'restart' == command:
+        log.info('Restart daemon')
+        agent.restart()
 
-        elif 'restart' == command:
-            log.info('Restart daemon')
-            agent.restart()
+    elif 'status' == command:
+        agent.status()
 
-        elif 'foreground' == command:
-            logging.info('Running in foreground')
+    elif 'info' == command:
+        return agent.info(verbose=options.verbose)
 
-            if autorestart:
-                # Set-up the supervisor callbacks and fork it.
-                logging.info('Running Agent with auto-restart ON')
-                def child_func(): agent.run()
-                def parent_func(): agent.start_event = False
-                AgentSupervisor.start(parent_func, child_func)
-            else:
-                # Run in the standard foreground.
-                agent.run(config=agentConfig)
+    elif 'foreground' == command:
+        logging.info('Running in foreground')
+        if autorestart:
+            # Set-up the supervisor callbacks and fork it.
+            logging.info('Running Agent with auto-restart ON')
+            def child_func(): agent.run()
+            def parent_func(): agent.start_event = False
+            AgentSupervisor.start(parent_func, child_func)
+        else:
+            # Run in the standard foreground.
+            agent.run(config=agentConfig)
 
-    # Commands that don't need the agent to be initialized.
-    else:
-        if 'status' == command:
-            pid = pid_file.get_pid()
-            if pid is not None:
-                sys.stdout.write('dd-agent is running as pid %s.\n' % pid)
-                log.info("dd-agent is running as pid %s." % pid)
-            else:
-                sys.stdout.write('dd-agent is not running.\n')
-                log.info("dd-agent is not running.")
-
-        elif 'info' == command:
-            logging.getLogger().setLevel(logging.ERROR)
-            return CollectorStatus.print_latest_status(verbose=options.verbose)
+    elif 'check' == command:
+        check_name = args[1]
+        try:
+            import checks.collector
+            # Try the old-style check first
+            print getattr(checks.collector, check_name)(log).check(agentConfig)
+        except Exception:
+            # If not an old-style check, try checks.d
+            checks = load_check_directory(agentConfig)
+            for check in checks['initialized_checks']:
+                if check.name == check_name:
+                    check.run()
+                    print check.get_metrics()
+                    print check.get_events()
+                    if len(args) == 3 and args[2] == 'check_rate':
+                        print "Running 2nd iteration to capture rate metrics"
+                        time.sleep(1)
+                        check.run()
+                    print check.get_metrics()
+                    print check.get_events()
 
     return 0
 
@@ -250,7 +263,8 @@ if __name__ == '__main__':
     except StandardError:
         # Try our best to log the error.
         try:
-            log.exception("Uncaught error running the agent")
+            log.exception("Uncaught error running the Agent")
         except:
             pass
         raise
+

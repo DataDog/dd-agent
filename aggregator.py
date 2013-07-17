@@ -3,8 +3,17 @@ from time import time
 
 log = logging.getLogger(__name__)
 
+# This is used to ensure that metrics with a timestamp older than
+# RECENT_POINT_THRESHOLD_DEFAULT seconds (or the value passed in to
+# the MetricsAggregator constructor) get discarded rather than being
+# input into the incorrect bucket. Currently, the MetricsAggregator
+# does not support submitting values for the past, and all values get
+# submitted for the timestamp passed into the flush() function.
+RECENT_POINT_THRESHOLD_DEFAULT = 30
+
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
+
 
 class Metric(object):
     """
@@ -228,7 +237,6 @@ class Rate(Metric):
             self.samples = self.samples[-1:]
 
 
-
 class MetricsAggregator(object):
     """
     A metric aggregator class.
@@ -237,7 +245,7 @@ class MetricsAggregator(object):
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
 
-    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         self.metrics = {}
         self.total_count = 0
         self.count = 0
@@ -245,14 +253,18 @@ class MetricsAggregator(object):
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram,
-            's'  : Set,
+            'ms': Histogram,
+            's': Set,
             '_dd-r': Rate,
         }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
-        self.formatter = formatter or self.api_formatter
+        self.formatter = formatter or api_formatter
         self.interval = float(interval)
+
+        recent_point_threshold = recent_point_threshold or RECENT_POINT_THRESHOLD_DEFAULT
+        self.recent_point_threshold = int(recent_point_threshold)
+        self.num_discarded_old_points = 0
 
     def packets_per_second(self, interval):
         return round(float(self.count)/interval, 2)
@@ -318,7 +330,11 @@ class MetricsAggregator(object):
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
                 hostname or self.hostname, device_name)
-        self.metrics[context].sample(value, sample_rate)
+        cur_time = time()
+        if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
+            self.num_discarded_old_points += 1
+        else:
+            self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
@@ -352,6 +368,11 @@ class MetricsAggregator(object):
             else:
                 metrics += metric.flush(timestamp, self.interval)
 
+        # Log a warning regarding metrics with old timestamps being submitted
+        if self.num_discarded_old_points > 0:
+            log.warn('%s points were discarded as a result of having an old timestamp' % self.num_discarded_old_points)
+            self.num_discarded_old_points = 0
+
         # Save some stats.
         log.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
@@ -361,11 +382,17 @@ class MetricsAggregator(object):
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
 
-    def api_formatter(self, metric, value, timestamp, tags, hostname, device_name=None):
-        return {
-            'metric' : metric,
-            'points' : [(timestamp, value)],
-            'tags' : tags,
-            'host' : hostname,
-            'device_name': device_name
-        }
+
+def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+
+    # Workaround for a bug in minjson serialization
+    # (https://github.com/DataDog/dd-agent/issues/422)
+    if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
+        tags = list(tags)
+    return {
+        'metric': metric,
+        'points': [(timestamp, value)],
+        'tags': tags,
+        'host': hostname,
+        'device_name': device_name
+    }

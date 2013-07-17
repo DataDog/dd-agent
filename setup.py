@@ -50,7 +50,7 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree',
+        'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
 
@@ -82,7 +82,11 @@ if sys.platform == 'win32':
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'zipfile': None,
-        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))],
+        'data_files': [
+            ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
+            ('pup', glob('pup/status.html')),
+            ('pup/static', glob('pup/static/*.*')),
+        ],
     }
 
 setup(

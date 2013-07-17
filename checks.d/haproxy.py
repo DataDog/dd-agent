@@ -7,6 +7,11 @@ from util import json, headers
 
 import time
 
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
+
 STATS_URL = ";csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
@@ -20,7 +25,7 @@ class HAProxy(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
         # Host status needs to persist across all checks
-        self.host_status = {}
+        self.host_status = defaultdict(lambda: defaultdict(lambda: None))
 
     METRICS = {
         "qcur": ("gauge", "queue.current"),
@@ -48,13 +53,13 @@ class HAProxy(AgentCheck):
        
         data = self._fetch_data(url, username, password)
 
-        if instance.get('status_check', self.init_config.get('status_check', True)):
+        if instance.get('status_check', self.init_config.get('status_check', False)):
             events_cb = self._process_events
         else:
             events_cb = None
 
         self._process_data(data, self.hostname, self._process_metrics,
-            events_cb)
+            events_cb, url)
 
     def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''
@@ -75,7 +80,7 @@ class HAProxy(AgentCheck):
         # Split the data by line
         return response.split('\n')
 
-    def _process_data(self, data, my_hostname, metric_cb=None, event_cb=None):
+    def _process_data(self, data, my_hostname, metric_cb=None, event_cb=None, url=None):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -113,7 +118,7 @@ class HAProxy(AgentCheck):
                 if metric_cb:
                     metric_cb(data_list, service, my_hostname)
                 if event_cb:
-                    event_cb(data_list)
+                    event_cb(data_list, url)
 
                 # Clear out the event list for the next service
                 data_list = []
@@ -207,23 +212,24 @@ class HAProxy(AgentCheck):
 
         self._process_metrics(aggr_list, service, my_hostname)
 
-    def _process_events(self, data_list):
+    def _process_events(self, data_list, url):
         ''' Main event processing loop. Events will be created for a service
         status change '''
         for data in data_list:
             hostname = data['svname']
             service_name = data['pxname']
-            status = self.host_status.get("%s:%s" % (hostname,service_name), None)
+            key = "%s:%s" % (hostname,service_name)
+            status = self.host_status[url][key]
 
             if status is None:
-                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
+                self.host_status[url][key] = data['status']
                 continue
 
             if status != data['status'] and data['status'] in ('UP', 'DOWN'):
                 # If the status of a host has changed, we trigger an event
                 try:
                     lastchg = int(data['lastchg'])
-                except:
+                except Exception:
                     lastchg = 0
 
                 # Create the event object
@@ -232,7 +238,7 @@ class HAProxy(AgentCheck):
                 self.event(ev)
 
                 # Store this host status so we can check against it later
-                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
+                self.host_status[url][key] = data['status']
 
     def _create_event(self, api_key, status, hostname, lastchg, service_name):
         if status == "DOWN":

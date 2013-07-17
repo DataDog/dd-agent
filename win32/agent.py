@@ -21,6 +21,7 @@ from ddagent import Application
 from config import (get_config, set_win32_cert_path, get_system_stats,
     load_check_directory)
 from win32.common import handle_exe_click
+from pup import pup
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "ddagent"
@@ -33,6 +34,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         config = get_config(parse_args=False)
         self.forwarder = DDForwarder(config)
         self.dogstatsd = DogstatsdThread(config)
+        self.pup = PupThread(config)
 
         # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
@@ -52,6 +54,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.forwarder.stop()
         self.agent.stop()
         self.dogstatsd.stop()
+        self.pup.stop()
         self.running = False
 
     def SvcDoRun(self):
@@ -62,6 +65,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.forwarder.start()
         self.agent.start()
         self.dogstatsd.start()
+        self.pup.start()
 
         # Loop to keep the service running since all DD services are
         # running in separate threads
@@ -118,7 +122,7 @@ class DDForwarder(threading.Thread):
         self.forwarder = Application(port, agentConfig, watchdog=False)
 
     def run(self):
-        self.forwarder.run()        
+        self.forwarder.run()
 
     def stop(self):
         self.forwarder.stop()
@@ -136,6 +140,19 @@ class DogstatsdThread(threading.Thread):
         self.server.stop()
         self.reporter.stop()
 
+class PupThread(threading.Thread):
+    def __init__(self, agentConfig):
+        threading.Thread.__init__(self)
+        self.is_enabled = agentConfig.get('use_web_info_page', True)
+        self.pup = pup
+
+    def run(self):
+        if self.is_enabled:
+            self.pup.run_info_page()
+
+    def stop(self):
+        if self.is_enabled:
+            self.pup.stop_info_page()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
