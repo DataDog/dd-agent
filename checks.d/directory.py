@@ -28,12 +28,12 @@ class DirectoryCheck(AgentCheck):
         recursive = instance.get("recursive") or False
 
         if not exists(abs_directory):
-            raise Exception("DirectoryCheck: the directory ({0}) does not exist".format(abs_directory))
+            raise Exception("DirectoryCheck: the directory (%s) does not exist" % abs_directory)
 
         self._get_stats(abs_directory, name, pattern, recursive)
 
     def _get_stats(self, directory, name, pattern, recursive):
-        tags = ["name:{0}".format(name)]
+        tags = ["name:%s" % name]
         directory_bytes = 0
         directory_files = 0
         for root, dirs, files in walk(directory):
@@ -46,7 +46,7 @@ class DirectoryCheck(AgentCheck):
                     file_stat = stat(filename)
 
                 except OSError, ose:
-                    self.warning("DirectoryCheck: could not stat file {0} - {1}".format(filename, ose))
+                    self.warning("DirectoryCheck: could not stat file %s - %s" % (filename, ose))
                 else:
                     directory_files += 1
                     directory_bytes += file_stat.st_size
