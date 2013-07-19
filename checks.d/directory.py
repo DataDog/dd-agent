@@ -51,9 +51,9 @@ class DirectoryCheck(AgentCheck):
                     directory_files += 1
                     directory_bytes += file_stat.st_size
                     # file specific metrics
-                    self.histogram("directory.file.bytes", file_stat.st_size, tags=tags)
-                    self.histogram("directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=tags)
-                    self.histogram("directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=tags)
+                    self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=tags)
+                    self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=tags)
+                    self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=tags)
 
             # os.walk gives us all sub-directories and their files
             # if we do not want to do this recursively and just want
@@ -62,6 +62,6 @@ class DirectoryCheck(AgentCheck):
                 break
 
         # number of files
-        self.gauge("directory.files", directory_files, tags=tags)
+        self.gauge("system.disk.directory.files", directory_files, tags=tags)
         # total file size
-        self.gauge("directory.bytes", directory_bytes, tags=tags)
+        self.gauge("system.disk.directory.bytes", directory_bytes, tags=tags)
