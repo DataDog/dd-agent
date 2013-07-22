@@ -41,27 +41,29 @@ class MySql(AgentCheck):
         self.greater_502 = {}
 
     def check(self, instance):
-        host, user, password, mysql_sock, tags, options = self._get_config(instance)
+        host, port, user, password, mysql_sock, tags, options = self._get_config(instance)
 
         if not host or not user:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, mysql_sock, user, password)
+        db = self._connect(host, port, mysql_sock, user, password)
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
+        self._collect_system_metrics(host, db, tags)
 
     def _get_config(self, instance):
         host = instance['server']
         user = instance['user']
+        port = int(instance.get('port', 0))
         password = instance.get('pass', '')
         mysql_sock = instance.get('sock', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
 
-        return host, user, password, mysql_sock, tags, options
+        return host, port, user, password, mysql_sock, tags, options
 
-    def _connect(self, host, mysql_sock, user, password):
+    def _connect(self, host, port, mysql_sock, user, password):
         try:
             import MySQLdb
         except ImportError:
@@ -70,6 +72,11 @@ class MySql(AgentCheck):
 
         if  mysql_sock != '':
             db = MySQLdb.connect(unix_socket=mysql_sock,
+                                    user=user,
+                                    passwd=password)
+        elif port:
+            db = MySQLdb.connect(host=host,
+                                    port=port,
                                     user=user,
                                     passwd=password)
         else:
@@ -107,9 +114,6 @@ class MySql(AgentCheck):
             self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
-
-        # Compute CPU metrics
-        self._collect_procfs(tags, db)
 
         if 'galera_cluster' in options.keys() and options['galera_cluster']:
             value = self._collect_scalar("SHOW STATUS LIKE 'wsrep_cluster_size'", db)
@@ -212,12 +216,13 @@ class MySql(AgentCheck):
         except Exception:
             self.log.debug("Error while running %s" % query)
 
-    def _collect_procfs(self, tags, db):
-        pid = self._get_server_pid(db)
+    def _collect_system_metrics(self, host, db, tags):
+        pid = None
+        # The server needs to run locally, accessed by TCP or socket
+        if host in ["localhost", "127.0.0.1"] or db.port == long(0):
+            pid = self._get_server_pid(db)
 
-        if pid is None:
-            self.warning("Cannot compute advanced MySQL metrics; cannot find mysql pid")
-        else:
+        if pid:
             self.log.debug("pid: %s" % pid)
             # At last, get mysql cpu data out of procfs
             try:
@@ -269,18 +274,10 @@ class MySql(AgentCheck):
                 if sys.platform.startswith("linux"):
                     ps = subprocess.Popen(['ps', '-C', 'mysqld', '-o', 'pid'], stdout=subprocess.PIPE,
                                           close_fds=True).communicate()[0]
-                    pslines = ps.split('\n')
+                    pslines = ps.strip().split('\n')
                     # First line is header, second line is mysql pid
-                    if len(pslines) > 1 and pslines[1] != '':
+                    if len(pslines) == 2 and pslines[1] != '':
                         pid = int(pslines[1])
-
-                elif sys.platform.startswith("darwin") or sys.platform.startswith("freebsd"):
-                    # Get all processes, filter in python then
-                    procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE,
-                                             close_fds=True).communicate()[0]
-                    ps = [p for p in procs.split("\n") if "mysqld" in p]
-                    if len(ps) > 0:
-                        pid = int(ps[0].split()[0])
             except Exception:
                 self.log.exception("Error while fetching mysql pid from ps")
 
