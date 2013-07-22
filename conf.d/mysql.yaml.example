@@ -2,11 +2,12 @@ init_config:
 
 instances:
 #  - server: localhost
-#    user: my_username 
-#    pass: my_password 
-#    tags:
+#    user: my_username
+#    pass: my_password
+#    port: 3306             # Optional
+#    tags:                  # Optional
 #        - optional_tag1
 #	     - optional_tag2
-#    options:
+#    options:               # Optional
 #        replication: 0
-#        galera_cluster: 1          
+#        galera_cluster: 1
