@@ -46,10 +46,11 @@ report() {
 A notification has been sent to Datadog with the content of $logfile.
 
 Troubleshooting and basic usage information for the Agent are available at:
-$agent_help_page
+
+    $agent_help_page
 
 If you're still having problem please send an email to $email_reporting_failure
-and we'll do our very best to help you solve your problem\n$DEFAULT"
+and we'll do our very best to help you solve your problem.\n$DEFAULT"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url >> $logfile 2>&1 && printf "$notification_message" || report_using_mail
 
@@ -62,7 +63,8 @@ report_manual() {
    
    printf "$RED
 Troubleshooting and basic usage information for the Agent are available at:
-$agent_help_page
+
+    $agent_help_page
 
 If you're still having problems, please send an email to $email_reporting_failure
 with the content of $logfile and any information you think would be useful
@@ -80,8 +82,11 @@ report_using_mail() {
     log=$(cat "$logfile")
     notfication_message_manual="$RED
 Unable to send the report (you need curl or mail to send the report).
+
 Troubleshooting and basic usage information for the Agent are available at:
-$agent_help_page
+
+    $agent_help_page
+
 Please send an email to $email_reporting_failure with the content of
 $logfile and any information you think would be useful and we'll do our
 very best to help you solve your problem.
@@ -369,9 +374,9 @@ else
     
         # wait for metrics to be submitted
         printf "$GREEN
-    Your Agent has started up for the first time. We're currently
-    verifying that data is being submitted. You should see your Agent show
-    up in Datadog shortly at:
+    Your Agent has started up for the first time. We're currently verifying
+    that data is being submitted. You should see your Agent show up in Datadog
+    shortly at:
     
         $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
     

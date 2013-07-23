@@ -27,11 +27,12 @@ function on_error() {
 It looks like you hit an issue when trying to install the Agent.
 
 Troubleshooting and basic usage information for the Agent are available at:
-http://docs.datadoghq.com/guides/basic_agent_usage/
+
+    http://docs.datadoghq.com/guides/basic_agent_usage/
 
 If you're still having problems, please send an email to support@datadoghq.com
 with the contents of ddagent-install.log and we'll do our very best to help you
-solve your problem\n\033[0m\n"
+solve your problem.\n\033[0m\n"
 }
 trap on_error ERR
 
@@ -146,9 +147,9 @@ fi
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
-Your Agent has started up for the first time. We're currently
-verifying that data is being submitted. You should see your Agent show
-up in Datadog shortly at:
+Your Agent has started up for the first time. We're currently verifying that
+data is being submitted. You should see your Agent show up in Datadog shortly
+at:
 
     https://app.datadoghq.com/infrastructure\033[0m
 
