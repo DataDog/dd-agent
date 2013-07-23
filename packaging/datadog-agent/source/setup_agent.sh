@@ -49,7 +49,7 @@ Troubleshooting and basic usage information for the Agent are available at:
 
     $agent_help_page
 
-If you're still having problem please send an email to $email_reporting_failure
+If you're still having problems please send an email to $email_reporting_failure
 and we'll do our very best to help you solve your problem.\n$DEFAULT"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url >> $logfile 2>&1 && printf "$notification_message" || report_using_mail
@@ -67,10 +67,11 @@ Troubleshooting and basic usage information for the Agent are available at:
     $agent_help_page
 
 If you're still having problems, please send an email to $email_reporting_failure
-with the content of $logfile and any information you think would be useful
-and we'll do our very best to help you solve your problem.
+with the content of $logfile and any
+information you think would be useful and we'll do our very best to help you 
+solve your problem.
 
-\n$DEFAULT "
+\n$DEFAULT"
 
  exit 1
 
@@ -87,12 +88,13 @@ Troubleshooting and basic usage information for the Agent are available at:
 
     $agent_help_page
 
-Please send an email to $email_reporting_failure with the content of
-$logfile and any information you think would be useful and we'll do our
-very best to help you solve your problem.
+If you're still having problems, please send an email to $email_reporting_failure
+with the content of $logfile and any
+information you think would be useful and we'll do our very best to help you 
+solve your problem.
 
 
-\n$DEFAULT "
+\n$DEFAULT"
 
     printf "$log" | mail -s "Agent source installation failure" $email_reporting_failure  2>> $logfile && printf "$notification_message" | tee -a $logfile || printf "$notfication_message_manual" | tee -a $logfile
     
