@@ -239,7 +239,7 @@ fi
 # set up supervisor
 printf "Setting up supervisor....." | tee -a $logfile
 mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
-pip install supervisor >> $logfile 2>&1
+pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
 print_done
 
