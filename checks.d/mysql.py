@@ -41,36 +41,39 @@ class MySql(AgentCheck):
         self.greater_502 = {}
 
     def check(self, instance):
-        host, port, user, password, mysql_sock, tags, options = self._get_config(instance)
+        host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
 
-        if not host or not user:
+        if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, port, mysql_sock, user, password)
+        db = self._connect(host, port, mysql_sock, user, password, defaults_file)
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
         self._collect_system_metrics(host, db, tags)
 
     def _get_config(self, instance):
-        host = instance['server']
-        user = instance['user']
+        host = instance.get('server', '')
+        user = instance.get('user', '')
         port = int(instance.get('port', 0))
         password = instance.get('pass', '')
         mysql_sock = instance.get('sock', '')
+        defaults_file = instance.get('defaults_file', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
 
-        return host, port, user, password, mysql_sock, tags, options
+        return host, port, user, password, mysql_sock, defaults_file, tags, options
 
-    def _connect(self, host, port, mysql_sock, user, password):
+    def _connect(self, host, port, mysql_sock, user, password, defaults_file):
         try:
             import MySQLdb
         except ImportError:
             raise Exception("Cannot import MySQLdb module. Check the instructions "
                 "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
 
-        if  mysql_sock != '':
+        if defaults_file != '':
+            db = MySQLdb.connect(read_default_file=defaults_file)
+        elif  mysql_sock != '':
             db = MySQLdb.connect(unix_socket=mysql_sock,
                                     user=user,
                                     passwd=password)
@@ -294,6 +297,7 @@ class MySql(AgentCheck):
                 'sock': agent_config.get('mysql_sock',''),
                 'user': agent_config.get('mysql_user',''),
                 'pass': agent_config.get('mysql_pass',''),
+                'defaults_file': agent_config.get('defaults_file',''),
                 'options': {'replication': True},
             }]
         }
