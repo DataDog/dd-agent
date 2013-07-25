@@ -7,7 +7,7 @@ instances:
 #    port: 3306             # Optional
 #    tags:                  # Optional
 #        - optional_tag1
-#	     - optional_tag2
+#        - optional_tag2
 #    options:               # Optional
 #        replication: 0
 #        galera_cluster: 1
