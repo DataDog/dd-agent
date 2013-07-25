@@ -178,7 +178,7 @@ class Notifier(object):
         #   - If only no_event, nothing to do
         #   - If contains no_event and *_event, need to confirm the transition
         #   - If only *_event, do the state change
-        for i in range(check.config['attempts'] - 1):
+        for i in range(check.config['attempts']):
             state = check.get_result(i).state
             try:
                 actions.append(transitions[(ref_state, state)])
