@@ -65,6 +65,7 @@ class Agent(Daemon):
         self.run_forever = False
         if self.collector:
             self.collector.stop()
+        log.debug("Collector is stopped.")
 
     def _handle_sigusr1(self, signum, frame):
         self._handle_sigterm(signum, frame)

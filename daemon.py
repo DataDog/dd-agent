@@ -107,8 +107,8 @@ class Daemon(object):
         os.setsid() 
 
         if self.autorestart:
-            # Set-up the supervisor callbacks and put a fork in it.
-            logging.info('Running Agent with auto-restart ON')
+            # Set up the supervisor callbacks and put a fork in it.
+            logging.info('Running with auto-restart ON')
             AgentSupervisor.start(parent_func=None, child_func=None)
         else:
             # Do second fork
@@ -152,7 +152,7 @@ class Daemon(object):
 
 
     def start(self):
-        log.info("Starting daemon...")
+        log.info("Starting daemon")
         pid = self.pid()
     
         if pid:
@@ -254,7 +254,7 @@ class Daemon(object):
     def pid(self):
         # Get the pid from the pidfile
         try:
-            pf = file(self.pidfile,'r')
+            pf = file(self.pidfile, 'r')
             pid = int(pf.read().strip())
             pf.close()
             return pid

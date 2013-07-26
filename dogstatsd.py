@@ -116,7 +116,7 @@ class Reporter(threading.Thread):
                 packets_per_second=packets_per_second,
                 metric_count=count).persist()
 
-        except:
+        except Exception, e:
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
@@ -161,15 +161,14 @@ class Server(object):
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024
 
-        # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setblocking(0)
-
         self.running = False
 
     def start(self):
         """ Run the server. """
         # Bind to the UDP socket.
+        # IPv4 only
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
         log.info('Listening on host & port: %s' % str(self.address))
@@ -205,7 +204,7 @@ class Server(object):
 
 
 class Dogstatsd(Daemon):
-    """ This class is the dogstats daemon. """
+    """ This class is the dogstatsd daemon. """
 
     def __init__(self, pid_file, server, reporter, autorestart):
         Daemon.__init__(self, pid_file, autorestart=autorestart)
@@ -250,6 +249,8 @@ class Dogstatsd(Daemon):
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False):
+    """Configure the server and the reporting thread.
+    """
     c = get_config(parse_args=False, cfg_path=config_path)
     log.debug("Configuration dogstatsd")
 
@@ -257,7 +258,6 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     interval  = int(c['dogstatsd_interval'])
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
-    autorestart = c.get('autorestart', False)
 
     target = c['dd_url']
     if use_forwarder:
@@ -281,9 +281,9 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     if non_local_traffic:
         server_host = ''
 
-    server = Server(aggregator, server_host, port, autorestart)
+    server = Server(aggregator, server_host, port)
 
-    return reporter, server
+    return reporter, server, c
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
@@ -292,9 +292,9 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
+    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
     pid_file = PidFile('dogstatsd')
-    daemon = Dogstatsd(pid_file.get_path(), server, reporter)
+    daemon = Dogstatsd(pid_file.get_path(), server, reporter, cnf.get('autorestart', True))
 
     # If no args were passed in, run the server in the foreground.
     if not args:

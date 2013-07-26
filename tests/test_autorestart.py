@@ -18,7 +18,7 @@ class TestAutoRestart(unittest.TestCase):
 
     def tearDown(self):
         if self.agent_foreground:
-            self.agent_foreground.terminate()
+            self.agent_foreground.kill()
         if self.agent_daemon:
             args = shlex.split('python agent.py stop')
             subprocess.Popen(args).communicate()
@@ -30,7 +30,7 @@ class TestAutoRestart(unittest.TestCase):
         time.sleep(5)
 
     def _start_daemon(self):
-        args = shlex.split('python agent.py  start')
+        args = shlex.split('python agent.py start')
         self.agent_daemon = subprocess.Popen(args)
         time.sleep(5)
 
