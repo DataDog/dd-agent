@@ -119,8 +119,8 @@ class PseudoAgent(object):
         a.run()
 
     def use_lots_of_memory(self):
-        if os.environ.get('TRAVIS', False):
-            raise SkipTest("Memory tests don't work on travis")
+        # Skip this step on travis
+        if os.environ.get('TRAVIS', False): return
         a = Application(12345, {})
         a._watchdog = Watchdog(30, 50)
         a._tr_manager = MemoryHogTxManager()

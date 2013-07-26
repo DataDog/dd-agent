@@ -8,7 +8,9 @@ tag="3.8.0"
 #######################
 
 dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
-email_reporting_failure="help@datadoghq.com" 
+email_reporting_failure="support@datadoghq.com"
+agent_help_page="http://docs.datadoghq.com/guides/basic_agent_usage/"
+see_agent_on_datadog_page="https://app.datadoghq.com/infrastructure"
 
 RED="\033[31m"
 GREEN="\033[32m"
@@ -43,8 +45,12 @@ report() {
     notification_message="$RED
 A notification has been sent to Datadog with the content of $logfile.
 
-You can send an email to $email_reporting_failure if you need support
-and we'll do our very best to help you solve your problem\n$DEFAULT"
+Troubleshooting and basic usage information for the Agent are available at:
+
+    $agent_help_page
+
+If you're still having problems please send an email to $email_reporting_failure
+and we'll do our very best to help you solve your problem.\n$DEFAULT"
 
     curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url >> $logfile 2>&1 && printf "$notification_message" || report_using_mail
 
@@ -56,10 +62,16 @@ and we'll do our very best to help you solve your problem\n$DEFAULT"
 report_manual() {
    
    printf "$RED
-You can send an email to $email_reporting_failure with the content of $logfile and any information you think would be useful
-and we'll do our very best to help you solve your problem.
+Troubleshooting and basic usage information for the Agent are available at:
 
-\n$DEFAULT "
+    $agent_help_page
+
+If you're still having problems, please send an email to $email_reporting_failure
+with the content of $logfile and any
+information you think would be useful and we'll do our very best to help you 
+solve your problem.
+
+\n$DEFAULT"
 
  exit 1
 
@@ -71,11 +83,18 @@ report_using_mail() {
     log=$(cat "$logfile")
     notfication_message_manual="$RED
 Unable to send the report (you need curl or mail to send the report).
-Please send an email to $email_reporting_failure with the content of $logfile and any information you think would be useful
-and we'll do our very best to help you solve your problem.
+
+Troubleshooting and basic usage information for the Agent are available at:
+
+    $agent_help_page
+
+If you're still having problems, please send an email to $email_reporting_failure
+with the content of $logfile and any
+information you think would be useful and we'll do our very best to help you 
+solve your problem.
 
 
-\n$DEFAULT "
+\n$DEFAULT"
 
     printf "$log" | mail -s "Agent source installation failure" $email_reporting_failure  2>> $logfile && printf "$notification_message" | tee -a $logfile || printf "$notfication_message_manual" | tee -a $logfile
     
@@ -239,7 +258,7 @@ fi
 # set up supervisor
 printf "Setting up supervisor....." | tee -a $logfile
 mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
-pip install supervisor >> $logfile 2>&1
+pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
 print_done
 
@@ -357,11 +376,11 @@ else
     
         # wait for metrics to be submitted
         printf "$GREEN
-    Your Agent has started up for the first time. We're currently
-    verifying that data is being submitted. You should see your Agent show
-    up in Datadog within a few seconds at:
+    Your Agent has started up for the first time. We're currently verifying
+    that data is being submitted. You should see your Agent show up in Datadog
+    shortly at:
     
-        https://app.datadoghq.com/account/settings#agent$DEFAULT" | tee -a $logfile
+        $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
     
       printf "\n\nWaiting for metrics..." | tee -a $logfile
     

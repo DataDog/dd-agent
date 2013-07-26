@@ -24,7 +24,7 @@ DDAGENT_PID_PATH="/var/run/dd-agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
 SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
-SUPERVISORD="/usr/bin/supervisord"
+SUPERVISORD=$(which supervisord)
 
 # This script is considered a configuration file and will not be
 # removed by dpkg unless the --purge option it set. Therefore we
