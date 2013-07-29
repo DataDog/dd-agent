@@ -768,6 +768,7 @@ def load_bernard_checks(bernard_config):
             timeout = int(check_config.get('timeout', 0))
             period = int(check_config.get('period', 0))
             attempts = int(check_config.get('attempts', 0))
+            name = check_config.get('name', None)
             args = check_config.get('args', [])
             notify_startup = check_config.get('notify_startup', None)
             if path:
@@ -799,6 +800,8 @@ def load_bernard_checks(bernard_config):
                     check_parameter['attempts'] = attempts
                 if notify_startup:
                     check_parameter['notify_startup'] = notify_startup
+                if name:
+                    check_parameter['name'] = name
                 for check_path in check_paths:
                     check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd, args=args)
                     bernard_checks.append(check)

@@ -53,10 +53,13 @@ class BernardCheck(object):
         self.result_container = []
 
         # Set check_name, remove file extension and "check_" prefix
-        check_name = self.check.split('/')[-1]
-        if check_name.startswith('check_'):
-            check_name = check_name[6:]
-        check_name = check_name.rsplit('.')[0]
+        if 'name' in config:
+            check_name = config['name']
+        else:
+            check_name = self.check.split('/')[-1]
+            if check_name.startswith('check_'):
+                check_name = check_name[6:]
+            check_name = check_name.rsplit('.')[0]
 
         self.check_name = check_name.lower()
 
