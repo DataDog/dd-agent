@@ -60,10 +60,10 @@ check_status() {
             c=`grep -v pup $SUPERVISOR_CONF | grep -c '\[program:'`
             if [ "$p" -ne "$c" ]; then
                 echo "$s"
-                echo -n "Datadog Agent (supervisor) is NOT running all child processes" && failure && echo
+                echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
                 return 1
             else
-                echo -n "Datadog Agent (supervisor) is running all child processes" && success && echo
+                echo -n "Datadog Agent (supervisor) is running all child processes"; success; echo
                 return 0
             fi
         else
@@ -72,19 +72,19 @@ check_status() {
             status -p $SUPERVISOR_PIDFILE $PROG
             RETVAL=$?
             if [ $RETVAL -eq 0 ]; then
-                echo -n "Datadog Agent (supervisor) is running." && success && echo
+                echo -n "Datadog Agent (supervisor) is running."; success; echo
             else
-                echo -n "Datadog Agent (supervisor) is NOT running." && failure && echo
+                echo -n "Datadog Agent (supervisor) is NOT running."; failure; echo
             fi
             return $RETVAL
         fi
     fi
 
     if [ -f "$LOCKFILE" ]; then
-        echo -n 'Datadog Agent is running'  && success && echo
+        echo -n 'Datadog Agent is running'; success; echo
         return 0
     else
-        echo -n 'Datadog Agent is NOT running' && failure && echo
+        echo -n 'Datadog Agent is NOT running'; failure; echo
         return 1
     fi
 }
@@ -103,25 +103,27 @@ start() {
         # no need to test for status before daemon,
         # the daemon function does the right thing
         echo -n "Starting Datadog Agent (using supervisord):"
-        daemon --pidfile=$SUPERVISOR_PIDFILE supervisord -c $SUPERVISOR_CONF
-        echo
-        SLEEP=7
-        echo Waiting $SLEEP seconds to test for running child processes...
-        sleep $SLEEP
-        check_status
-        RETURNVALUE=$?
-        if [ "$RETURNVALUE" -eq "1" ]; then
-            stop
-        else
-            touch $LOCKFILE
-        fi
-
-        echo
-        return $RETURNVALUE
+        daemon --pidfile=$SUPERVISOR_PIDFILE supervisord -c $SUPERVISOR_CONF > /dev/null
+        # check if the agent is running once per second for 10 seconds
+        retries=10
+        while [ $retries -gt 1 ]; do
+            if grab_status; then
+                touch $LOCKFILE
+                success; echo
+                return 0
+            else
+                retries=$(($retries - 1))
+                sleep 1
+            fi
+        done
+        # after 10 tries the agent didn't start. Report the error and stop
+        failure; echo
+        stop > /dev/null 2>&1
+        return 1
     else
         grab_status
         if [ "$?" -eq "0" ]; then
-            echo -n 'Datadog Agent is already running' && warning && echo
+            echo -n 'Datadog Agent is already running'; warning; echo
             return
         fi
         echo -n 'Starting Datadog Agent: '
@@ -149,7 +151,7 @@ stop() {
     else
         grab_status
         if [ "$?" -eq "1" ]; then
-            echo -n 'Datadog Agent is NOT running' && warning && echo
+            echo -n 'Datadog Agent is NOT running'; warning; echo
             return
         fi
         echo -n 'Stopping Datadog Agent: '
