@@ -23,6 +23,7 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
+JMX_CHECKS_FILES = "tomcat.yaml,activemq.yaml,solr.yaml,cassandra.yaml,jmx.yaml"
 
 log = logging.getLogger(__name__)
 
@@ -586,6 +587,44 @@ def load_check_directory(agentConfig):
                     in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
 
+    jmx_check_configured = False
+    for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
+        check_name = os.path.basename(conf).split('.')[0]
+        if check_name in ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']:
+            jmx_check_configured = True
+            break
+
+        if os.path.exists(conf):
+            f = open(conf)
+            try:
+                check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
+                f.close()
+            except:
+                f.close()
+                log.exception("Unable to parse yaml config in %s" % conf_path)
+                continue
+            if check_config.get('init_config', {}) \
+                and check_config.get('is_jmx', False):
+                jmx_check_configured = True
+                break
+
+    if jmx_check_configured:
+        log.info("Starting jmxfetch")
+        jmxfetch = subprocess.Popen([
+                'java', 
+                '-jar', 
+                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
+                confd_path,
+                str(agentConfig.get('dogstatsd_port', "8125")), 
+                str(DEFAULT_CHECK_FREQUENCY * 1000), 
+                get_logging_config().get('jmxfetch_log_file'),
+                "FINE", 
+                JMX_CHECKS_FILES,
+                ], 
+                    stdout=subprocess.PIPE, close_fds=True)
+        
+
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
     # config will "activate" the check.
@@ -718,6 +757,7 @@ def get_logging_config(cfg_path=None):
         'collector_log_file': '/var/log/datadog/collector.log',
         'forwarder_log_file': '/var/log/datadog/forwarder.log',
         'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
+        'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
         'pup_log_file': '/var/log/datadog/pup.log',
         'log_to_syslog': True,
         'syslog_host': None,

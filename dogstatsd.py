@@ -28,6 +28,7 @@ from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon
 from util import json, PidFile, get_hostname
+from compat.defaultdict import defaultdict
 
 log = logging.getLogger('dogstatsd')
 
@@ -100,6 +101,18 @@ class Reporter(threading.Thread):
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
+
+            metrics_dic = defaultdict(int)
+
+            for m in metrics:
+                tags = m['tags']
+                if tags:
+                    for tag in tags:
+                        if tag.startswith("instance:"):
+                            instance = tag.split(":")[1]
+                            metrics_dic[instance] +=1
+            
+
             should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0
             if not count:
                 if should_log:
@@ -115,7 +128,8 @@ class Reporter(threading.Thread):
                 flush_count=self.flush_count,
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
-                metric_count=count).persist()
+                metric_count=count,
+                metrics_dic=metrics_dic).persist()
 
         except:
             log.exception("Error flushing metrics")

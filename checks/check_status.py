@@ -461,12 +461,13 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-        metric_count=0):
+        metric_count=0, metrics_dic=None):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
+        self.metrics_dic = metrics_dic
 
     def has_error(self):
         return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
@@ -478,6 +479,10 @@ class DogstatsdStatus(AgentStatus):
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
         ]
+
+        for instance in self.metrics_dic:
+            lines.append("Instance: %s returned %s metrics" % (instance, self.metrics_dic[instance]))
+
         return lines
 
     def to_dict(self):
@@ -487,6 +492,7 @@ class DogstatsdStatus(AgentStatus):
             'packet_count': self.packet_count,
             'packets_per_second': self.packets_per_second,
             'metric_count': self.metric_count,
+            'metrics_dic': self.metrics_dic
         })
         return status_info
 
