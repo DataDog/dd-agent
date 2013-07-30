@@ -60,10 +60,10 @@ check_status() {
             c=`grep -v pup $SUPERVISOR_CONF | grep -c '\[program:'`
             if [ "$p" -ne "$c" ]; then
                 echo "$s"
-                echo -n "Datadog Agent (supervisor) is NOT running all child processes" && failure && echo
+                echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
                 return 1
             else
-                echo -n "Datadog Agent (supervisor) is running all child processes" && success && echo
+                echo -n "Datadog Agent (supervisor) is running all child processes"; success; echo
                 return 0
             fi
         else
@@ -72,19 +72,19 @@ check_status() {
             status -p $SUPERVISOR_PIDFILE $PROG
             RETVAL=$?
             if [ $RETVAL -eq 0 ]; then
-                echo -n "Datadog Agent (supervisor) is running." && success && echo
+                echo -n "Datadog Agent (supervisor) is running."; success; echo
             else
-                echo -n "Datadog Agent (supervisor) is NOT running." && failure && echo
+                echo -n "Datadog Agent (supervisor) is NOT running."; failure; echo
             fi
             return $RETVAL
         fi
     fi
 
     if [ -f "$LOCKFILE" ]; then
-        echo -n 'Datadog Agent is running'  && success && echo
+        echo -n 'Datadog Agent is running'; success; echo
         return 0
     else
-        echo -n 'Datadog Agent is NOT running' && failure && echo
+        echo -n 'Datadog Agent is NOT running'; failure; echo
         return 1
     fi
 }
@@ -121,7 +121,7 @@ start() {
     else
         grab_status
         if [ "$?" -eq "0" ]; then
-            echo -n 'Datadog Agent is already running' && warning && echo
+            echo -n 'Datadog Agent is already running'; warning; echo
             return
         fi
         echo -n 'Starting Datadog Agent: '
@@ -149,7 +149,7 @@ stop() {
     else
         grab_status
         if [ "$?" -eq "1" ]; then
-            echo -n 'Datadog Agent is NOT running' && warning && echo
+            echo -n 'Datadog Agent is NOT running'; warning; echo
             return
         fi
         echo -n 'Stopping Datadog Agent: '
