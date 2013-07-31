@@ -1,0 +1,20 @@
+init_config:
+
+instances:
+    # This config is for the DirectoryCheck which is used to report metrics
+    # for the files in a given directory
+    #
+    # For each instance you *must* provide at least a "directory"
+    #
+    # WARNING: the user/group that dd-agent runs as must have access to stat the files in the desired directory
+    #
+    # The following options are available:
+    # "directory" - string, the directory to gather stats for. required
+    # "name" - string, the name to use when tagging the metrics. defaults to the "directory"
+    # "pattern" - string, the `fnmatch` pattern to use when reading the "directory"'s files. default "*"
+    # "recursive" - boolean, when true the stats will recurse into directories. default False
+
+    -  directory: "/tmp"
+       name: "tmp"
+       pattern: "*.log"
+       recursive: True
