@@ -620,7 +620,7 @@ def load_check_directory(agentConfig):
                 str(agentConfig.get('dogstatsd_port', "8125")), 
                 str(DEFAULT_CHECK_FREQUENCY * 1000), 
                 get_logging_config().get('jmxfetch_log_file'),
-                "FINE", 
+                "INFO", 
                 JMX_CHECKS_FILES,
                 ], 
                     stdout=subprocess.PIPE, close_fds=True)
