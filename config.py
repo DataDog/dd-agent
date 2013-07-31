@@ -588,6 +588,7 @@ def load_check_directory(agentConfig):
     confd_path = get_confd_path(osname)
 
     jmx_check_configured = False
+    jmx_connector_pid = None
     for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
         check_name = os.path.basename(conf).split('.')[0]
         if check_name in ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']:
@@ -623,6 +624,7 @@ def load_check_directory(agentConfig):
                 JMX_CHECKS_FILES,
                 ], 
                     stdout=subprocess.PIPE, close_fds=True)
+        jmx_connector_pid = jmxfetch.pid
         
 
     # For backwards-compatability with old style checks, we have to load every
@@ -736,7 +738,8 @@ def load_check_directory(agentConfig):
     log.info('initialized checks.d checks: %s' % initialized_checks.keys())
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
-            'init_failed_checks':init_failed_checks}
+            'init_failed_checks':init_failed_checks,
+            'jmx_connector_pid':jmx_connector_pid}
 
 
 #

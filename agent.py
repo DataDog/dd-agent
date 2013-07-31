@@ -97,10 +97,12 @@ class Agent(Daemon):
         agentConfig = self._set_agent_config_hostname(config)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
-        self.collector = Collector(agentConfig, emitters, systemStats)
-
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
+
+        self.collector = Collector(agentConfig, emitters, systemStats, checksd['jmx_connector_pid'])
+
+        
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
