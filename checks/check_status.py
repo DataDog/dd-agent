@@ -480,8 +480,9 @@ class DogstatsdStatus(AgentStatus):
             "Metric count: %s" % self.metric_count,
         ]
 
-        for instance in self.metrics_dic:
-            lines.append("Instance: %s returned %s metrics" % (instance, self.metrics_dic[instance]))
+        if self.metrics_dic is not None:
+            for instance in self.metrics_dic:
+                lines.append("Instance: %s returned %s metrics" % (instance, self.metrics_dic[instance]))
 
         return lines
 
