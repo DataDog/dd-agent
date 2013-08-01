@@ -17,11 +17,16 @@
         <Media Id="1" Cabinet="agent.cab" EmbedCab="yes" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Datadog"/>
+            </Directory>
             <Directory Id="ProgramFilesFolder">
                 <Directory Id="APPLICATIONROOTDIRECTORY" Name="Datadog"/>
             </Directory>
             <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
-                <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog"/>
+                <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog">
+                    <Directory Id="DATADOGLOGDIRECTORY" Name="logs"/>
+                </Directory>
             </Directory>
         </Directory>
 
@@ -50,6 +55,18 @@
             Return="check"
             Impersonate="no" />
 
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="326651ad-1960-4685-8e13-426416302f85">
+                <Shortcut Id="ApplicationStartMenuShortcut" 
+                          Name="Configuration directory"
+                          Description="Configuration Directory"
+                          Target="[CommonAppDataFolder]\Datadog\"
+                          WorkingDirectory="[CommonAppDataFolder]\Datadog\"/>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\Microsoft\MyApplicationName" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>z
+
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
                 <Component Id="ddagent.exe" Guid="2831233C-01A8-11E2-ACDB-89E86088709B">
@@ -77,6 +94,9 @@
                 </Component>
                 <Component Id="datadogcert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
                     <File Id="datadogcert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
+                </Component>
+                <Component Id="win32service.pyd" Guid="6461bf25-672c-4227-8c08-24014cb9f7f3">
+                    <File Id="win32service.pyd" Name="win32service.pyd" Source="$(var.InstallFiles)\win32service.pyd" KeyPath="yes"></File>
                 </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
@@ -113,9 +133,11 @@
             <ComponentRef Id="msvcp90.dll" />
             <ComponentRef Id="msvcr90.dll" />
             <ComponentRef Id="datadog.conf" />
+            <ComponentRef Id="win32service.pyd" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
             <ComponentGroupRef Id="pup" />
+            <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
         <InstallExecuteSequence>

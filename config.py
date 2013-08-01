@@ -546,6 +546,29 @@ def get_checksd_path(osname):
     sys.exit(3)
 
 
+def get_win32service_file(osname, filename):
+    # This file is needed to log in the event viewer for windows
+    if osname == 'windows':
+        if hasattr(sys, 'frozen'):
+            # we're frozen - from py2exe
+            prog_path = os.path.dirname(sys.executable)
+            path = os.path.join(prog_path, filename)
+        else:
+            cur_path = os.path.dirname(__file__)
+            path = os.path.join(cur_path, filename)
+        if os.path.exists(path):
+            log.debug("Certificate file found at %s" % str(path))
+            return path
+
+    else:
+        cur_path = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(cur_path, filename)
+        if os.path.exists(path):
+            return path
+
+    return None
+
+
 def get_ssl_certificate(osname, filename):
     # The SSL certificate is needed by tornado in case of connection through a proxy
     if osname == 'windows':
@@ -713,26 +736,49 @@ def get_syslog_format(logger_name):
 
 
 def get_logging_config(cfg_path=None):
-    logging_config = {
-        'log_level': None,
-        'collector_log_file': '/var/log/datadog/collector.log',
-        'forwarder_log_file': '/var/log/datadog/forwarder.log',
-        'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
-        'pup_log_file': '/var/log/datadog/pup.log',
-        'log_to_syslog': True,
-        'syslog_host': None,
-        'syslog_port': None,
-    }
+    os = get_os()
+    if os != 'windows':
+        logging_config = {
+            'log_level': None,
+            'collector_log_file': '/var/log/datadog/collector.log',
+            'forwarder_log_file': '/var/log/datadog/forwarder.log',
+            'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
+            'pup_log_file': '/var/log/datadog/pup.log',
+            'log_to_event_viewer': False,
+            'log_to_syslog': True,
+            'syslog_host': None,
+            'syslog_port': None,
+        }
+    else:
+        all_users_directory = os.environ['ALLUSERSPROFILE']
+        logging_config = {
+            'log_level': None,
+            'collector_log_file': os.path.join(all_users_directory, 'Datadog\logs\collector.log'),
+            'forwarder_log_file': os.path.join(all_users_directory, 'Datadog\logs\forwareder.log'),
+            'dogstatsd_log_file': os.path.join(all_users_directory, 'Datadog\logs\dogstatsd.log'),
+            'pup_log_file': os.path.join(all_users_directory, 'Datadog\log\info_page.log'),
+            'log_to_event_viewer': True,
+            'log_to_syslog': False,
+            'syslog_host': None,
+            'syslog_port': None,
+
+
+        }
 
     config_path = get_config_path(cfg_path, os_name=get_os())
     config = ConfigParser.ConfigParser()
     config.readfp(skip_leading_wsp(open(config_path)))
 
     if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
+        if os == 'windows':
+            config_example_file = "https://github.com/DataDog/dd-agent/blob/master/packaging/datadog-agent/win32/install_files/datadog_win32.conf"
+        else:
+            config_example_file = "https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example"
+
         sys.stderr.write("""Python logging config is no longer supported and will be ignored.
             To configure logging, update the logging portion of 'datadog.conf' to match:
-             'https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example'.
-             """)
+             '%s'.
+             """ % config_example_file)
 
     for option in logging_config:
         if config.has_option('Main', option):
@@ -752,6 +798,9 @@ def get_logging_config(cfg_path=None):
 
     if config.has_option('Main', 'log_to_syslog'):
         logging_config['log_to_syslog'] = config.get('Main', 'log_to_syslog').strip().lower() in ['yes', 'true', 1]
+
+    if config.has_option('Main', 'log_to_event_viewer'):
+        logging_config['log_to_event_viewer'] = config.get('Main', 'log_to_event_viewer').strip().lower() in ['yes', 'true', 1]
 
     if config.has_option('Main', 'syslog_host'):
         host = config.get('Main', 'syslog_host').strip()
@@ -779,50 +828,55 @@ def get_logging_config(cfg_path=None):
 def initialize_logging(logger_name):
 
     try:
-        if get_os() == 'windows':
-            logging.config.fileConfig(get_config_path())
+        logging_config = get_logging_config()
 
-        else:
-            logging_config = get_logging_config()
+        logging.basicConfig(
+            format=get_log_format(logger_name),
+            level=logging_config['log_level'] or logging.INFO,
+        )
 
-            logging.basicConfig(
-                format=get_log_format(logger_name),
-                level=logging_config['log_level'] or logging.INFO,
-            )
+        # set up file loggers
+        log_file = logging_config.get('%s_log_file' % logger_name)
+        if log_file is not None and not logging_config['disable_file_logging']:
+            # make sure the log directory is writeable
+            # NOTE: the entire directory needs to be writable so that rotation works
+            if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
+                file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
+                file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
+                root_log = logging.getLogger()
+                root_log.addHandler(file_handler)
+            else:
+                sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
 
-            # set up file loggers
-            log_file = logging_config.get('%s_log_file' % logger_name)
-            if log_file is not None and not logging_config['disable_file_logging']:
-                # make sure the log directory is writeable
-                # NOTE: the entire directory needs to be writable so that rotation works
-                if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
-                    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                    file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
-                    root_log = logging.getLogger()
-                    root_log.addHandler(file_handler)
+        # set up syslog
+        if logging_config['log_to_syslog']:
+            try:
+                from logging.handlers import SysLogHandler
+
+                if logging_config['syslog_host'] is not None and logging_config['syslog_port'] is not None:
+                    sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
                 else:
-                    sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
+                    sys_log_addr = "/dev/log"
+                    # Special-case macs
+                    if sys.platform == 'darwin':
+                        sys_log_addr = "/var/run/syslog"
 
-            # set up syslog
-            if logging_config['log_to_syslog']:
-                try:
-                    from logging.handlers import SysLogHandler
+                handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
+                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                root_log = logging.getLogger()
+                root_log.addHandler(handler)
+            except Exception, e:
+                sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
+                traceback.print_exc()
 
-                    if logging_config['syslog_host'] is not None and logging_config['syslog_port'] is not None:
-                        sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
-                    else:
-                        sys_log_addr = "/dev/log"
-                        # Special-case macs
-                        if sys.platform == 'darwin':
-                            sys_log_addr = "/var/run/syslog"
-
-                    handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
-                    handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
-                    root_log = logging.getLogger()
-                    root_log.addHandler(handler)
-                except Exception, e:
-                    sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
-                    traceback.print_exc()
+        # Setting up logging in the event viewer for windows
+        if get_os() == 'windows' and logging_config['log_to_event_viewer']:
+            try:
+                from logging.handlers import NTEventLogHandler
+                nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd', 'Application'))
+            except Exception, e:
+                sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
+                traceback.print_exc()
 
     except Exception, e:
         sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
