@@ -60,7 +60,7 @@
                 <Shortcut Id="ApplicationStartMenuShortcut" 
                           Name="Configuration directory"
                           Description="Configuration Directory"
-                          Target="[CommonAppDataFolder]\Datadog\"
+                          Target="[CommonAppDataFolder]\Datadog"
                           WorkingDirectory="APPLIDATIONDATADIRECTORY"/>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
