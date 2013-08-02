@@ -736,8 +736,8 @@ def get_syslog_format(logger_name):
 
 
 def get_logging_config(cfg_path=None):
-    os = get_os()
-    if os != 'windows':
+    system_os = get_os()
+    if system_os != 'windows':
         logging_config = {
             'log_level': None,
             'collector_log_file': '/var/log/datadog/collector.log',
@@ -765,12 +765,12 @@ def get_logging_config(cfg_path=None):
 
         }
 
-    config_path = get_config_path(cfg_path, os_name=get_os())
+    config_path = get_config_path(cfg_path, os_name=system_os)
     config = ConfigParser.ConfigParser()
     config.readfp(skip_leading_wsp(open(config_path)))
 
     if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
-        if os == 'windows':
+        if system_os == 'windows':
             config_example_file = "https://github.com/DataDog/dd-agent/blob/master/packaging/datadog-agent/win32/install_files/datadog_win32.conf"
         else:
             config_example_file = "https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example"
