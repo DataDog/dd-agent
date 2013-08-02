@@ -237,6 +237,10 @@ else
     sed "s/api_key:.*/api_key: pup/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
     sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
 fi
+if [ "$unamestr" = "SunOS" ]; then
+    # disable syslog by default on SunOS as it causes errors
+    sed -i "s/# log_to_syslog: yes/log_to_syslog: no/" $dd_base/agent/datadog.conf 2>> $logfile
+fi
 printf "disable_file_logging: True" >> $dd_base/agent/datadog.conf
 
 print_done
