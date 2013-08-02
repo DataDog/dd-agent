@@ -2,7 +2,7 @@ import zlib
 import sys
 from pprint import pformat as pp
 from util import json, md5, get_os
-from config import get_ssl_certificate, get_proxy
+from config import get_ssl_certificate
 
 def get_http_library(proxy_settings, use_forwarder):
     #There is a bug in the https proxy connection in urllib2 on python < 2.6.3
@@ -49,7 +49,7 @@ def http_emitter(message, logger, agentConfig):
     url = "%s/intake?api_key=%s" % (agentConfig['dd_url'], apiKey)
     headers = post_headers(agentConfig, postBackData)
 
-    proxy_settings = get_proxy(agentConfig)
+    proxy_settings = agentConfig.get('proxy_settings', None)
     urllib2 = get_http_library(proxy_settings, agentConfig['use_forwarder'])
 
     try:
