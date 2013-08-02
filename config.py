@@ -612,19 +612,24 @@ def load_check_directory(agentConfig):
 
     if jmx_check_configured:
         log.info("Starting jmxfetch")
-        jmxfetch = subprocess.Popen([
-                'java', 
-                '-jar', 
-                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
-                confd_path,
-                str(agentConfig.get('dogstatsd_port', "8125")), 
-                str(DEFAULT_CHECK_FREQUENCY * 1000), 
-                get_logging_config().get('jmxfetch_log_file'),
-                "INFO", 
-                JMX_CHECKS_FILES,
-                ], 
-                    stdout=subprocess.PIPE, close_fds=True)
-        jmx_connector_pid = jmxfetch.pid
+        try:
+            jmxfetch = subprocess.Popen([
+                    'java', 
+                    '-jar', 
+                    os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
+                    confd_path,
+                    str(agentConfig.get('dogstatsd_port', "8125")), 
+                    str(DEFAULT_CHECK_FREQUENCY * 1000), 
+                    get_logging_config().get('jmxfetch_log_file'),
+                    "INFO", 
+                    JMX_CHECKS_FILES,
+                    ], 
+                        stdout=subprocess.PIPE, close_fds=True)
+            jmx_connector_pid = jmxfetch.pid
+        except OSError, e:
+            log.error("Couldn't launch JMXTerm. Is java in your PATH? %s" % str(e))
+        except Exception, e:
+            log.error("Couldn't launch JMXTerm: %s" % str(e))
         
 
     # For backwards-compatability with old style checks, we have to load every
