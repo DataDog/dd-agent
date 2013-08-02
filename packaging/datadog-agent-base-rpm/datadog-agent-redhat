@@ -117,8 +117,7 @@ start() {
             fi
         done
         # after 10 tries the agent didn't start. Report the error and stop
-        failure; echo
-        stop > /dev/null 2>&1
+        echo; check_status # check status will show us the error and take care of calling `failure`
         return 1
     else
         grab_status

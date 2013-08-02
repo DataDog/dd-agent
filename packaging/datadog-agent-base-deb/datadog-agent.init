@@ -125,6 +125,7 @@ case "$1" in
         done
         # After 10 tries the agent didn't start. Report an error
         log_end_msg 1
+        check_status # report what went wrong
         exit 1
         ;;
     stop)
