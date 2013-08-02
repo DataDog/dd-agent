@@ -26,11 +26,6 @@ cp ..\..\..\conf.d\* install_files\conf.d
 # Copy the pup files into the install_files
 cp -R ..\..\..\dist\pup install_files\pup
 
-## Generate the UI install with NSIS
-
-    # Assumes makensis.exe is within the PATH
-    makensis /DVersion="$version" nsis/agent.nsi
-    mv nsis/DDAgentInstall.exe ..\..\..\build\
 
 ## Generate the CLI installer with WiX
 
