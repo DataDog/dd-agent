@@ -26,7 +26,7 @@
             <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
                 <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog">
                     <Directory Id="logs" Name="logs">
-                        <Component Id="logs" Guid="YOURGUID-4884-4A01-AA04-84B92D222428"
+                        <Component Id="logs" Guid="e194d05a-6dc7-40be-a626-6a15b43c456b"
                         SharedDllRefCount="no" KeyPath="no" NeverOverwrite="no" Permanent="no" Transitive="no"
                         Win64="no" Location="either">
                         <CreateFolder/>
