@@ -145,7 +145,7 @@
             <ComponentRef Id="datadog.conf" />
             <ComponentRef Id="win32service.pyd" />
             <ComponentRef Id="config_icon.ico" />
-            <ComponentRef Id="dd_agent-win-256.ico" />
+            <ComponentRef Id="dd_agent_win_256.ico" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
             <ComponentGroupRef Id="pup" />
