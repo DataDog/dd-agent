@@ -709,7 +709,7 @@ def get_log_format(logger_name):
 
 
 def get_syslog_format(logger_name):
-    return '%%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+    return 'dd.%s[%%(process)d]: %%(levelname)s (%%(filename)s:%%(lineno)s): %%(message)s' % logger_name
 
 
 def get_logging_config(cfg_path=None):
