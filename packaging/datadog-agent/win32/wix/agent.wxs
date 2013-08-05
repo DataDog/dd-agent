@@ -70,7 +70,7 @@
                           WorkingDirectory="APPLIDATIONDATADIRECTORY">
 
                           <Icon Id="ConfIcon"
-                                SourceFile='[APPLICATIONROOTDIRECTORY]\config_icon.ico'/>
+                                SourceFile='[INSTALLDIR]\config_icon.ico'/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
