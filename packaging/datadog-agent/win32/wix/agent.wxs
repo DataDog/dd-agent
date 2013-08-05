@@ -59,8 +59,7 @@
                           Name="Configuration directory"
                           Description="Configuration Directory"
                           Target="APPLIDATIONDATADIRECTORY"
-                          WorkingDirectory="APPLIDATIONDATADIRECTORY">
-                </Shortcut>
+                          WorkingDirectory="APPLIDATIONDATADIRECTORY"/>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
             </Component>
