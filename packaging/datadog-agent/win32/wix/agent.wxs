@@ -108,6 +108,12 @@
                 <Component Id="win32service.pyd" Guid="6461bf25-672c-4227-8c08-24014cb9f7f3">
                     <File Id="win32service.pyd" Name="win32service.pyd" Source="$(var.InstallFiles)\win32service.pyd" KeyPath="yes"></File>
                 </Component>
+                <Component Id="dd_agent_win_256.ico" Guid="026b0f76-4bfb-45fd-b9db-8bd0fff336ab">
+                    <File Id="dd_agent_win_256.ico" Name="dd_agent_win_256.ico" Source="$(var.InstallFiles)\dd_agent_win_256.ico" KeyPath="yes"></File>
+                </Component>
+                <Component Id="config_icon.ico" Guid="ce61131a-ed9d-46ca-bd70-7baaa02c9fa9">
+                    <File Id="config_icon.ico" Name="config_icon.ico" Source="$(var.InstallFiles)\config_icon.ico" KeyPath="yes"></File>
+                </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
                 </Component>
