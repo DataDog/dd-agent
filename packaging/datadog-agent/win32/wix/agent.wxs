@@ -3,7 +3,7 @@
     <Product Name="Datadog Agent" Id="*" UpgradeCode="82210ed1-bbe4-4051-aa15-002ea31dde15"
     Language="1033" Codepage="1252" Version="$(var.AgentVersion)" Manufacturer="Datadog Inc.">
         <Package Id="*" Keywords="Installer" Description="Datadog Agent Installer"
-          Comments="Copyright 2012 Datadog, Inc." Manufacturer="Datadog Inc."
+          Comments="Copyright 2013 Datadog, Inc." Manufacturer="Datadog Inc."
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
         <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
@@ -25,7 +25,13 @@
             </Directory>
             <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
                 <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog">
-                    <Directory Id="DATADOGLOGDIRECTORY" Name="logs"/>
+                    <Directory Id="logs" Name="logs">
+                        <Component Id="logs" Guid="YOURGUID-4884-4A01-AA04-84B92D222428"
+                        SharedDllRefCount="no" KeyPath="no" NeverOverwrite="no" Permanent="no" Transitive="no"
+                        Win64="no" Location="either">
+                        <CreateFolder/>
+                        </Component>
+                    </Directory>
                 </Directory>
             </Directory>
         </Directory>
@@ -60,8 +66,12 @@
                 <Shortcut Id="ApplicationStartMenuShortcut" 
                           Name="Configuration directory"
                           Description="Configuration Directory"
-                          Target="[CommonAppDataFolder]\Datadog"
-                          WorkingDirectory="APPLIDATIONDATADIRECTORY"/>
+                          Target="APPLIDATIONDATADIRECTORY"
+                          WorkingDirectory="APPLIDATIONDATADIRECTORY">
+
+                          <Icon Id="ConfIcon"
+                                SourceFile='[APPLICATIONROOTDIRECTORY]\config_icon.ico'/>
+                </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
             </Component>
@@ -134,6 +144,8 @@
             <ComponentRef Id="msvcr90.dll" />
             <ComponentRef Id="datadog.conf" />
             <ComponentRef Id="win32service.pyd" />
+            <ComponentRef Id="config_icon.ico" />
+            <ComponentRef Id="dd_agent-win-256.ico" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
             <ComponentGroupRef Id="pup" />
