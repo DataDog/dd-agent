@@ -24,15 +24,7 @@
                 <Directory Id="APPLICATIONROOTDIRECTORY" Name="Datadog"/>
             </Directory>
             <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
-                <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog">
-                    <Directory Id="logs" Name="logs">
-                        <Component Id="logs" Guid="e194d05a-6dc7-40be-a626-6a15b43c456b"
-                        SharedDllRefCount="no" KeyPath="no" NeverOverwrite="no" Permanent="no" Transitive="no"
-                        Win64="no" Location="either">
-                        <CreateFolder/>
-                        </Component>
-                    </Directory>
-                </Directory>
+                <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog" />
             </Directory>
         </Directory>
 
@@ -68,9 +60,6 @@
                           Description="Configuration Directory"
                           Target="APPLIDATIONDATADIRECTORY"
                           WorkingDirectory="APPLIDATIONDATADIRECTORY">
-
-                          <Icon Id="ConfIcon"
-                                SourceFile='[INSTALLDIR]\config_icon.ico'/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
@@ -136,6 +125,13 @@
             <Component Id="datadog.conf" Guid="83461594-01AC-11E2-BE35-37EC6088709B" NeverOverwrite="yes" Permanent="yes">
                 <File Id="datadog.conf" Name="datadog.conf" Source="$(var.InstallFiles)\datadog_win32.conf"></File>
             </Component>
+            <Directory Id="logs" Name="logs">
+                        <Component Id="logs" Guid="e194d05a-6dc7-40be-a626-6a15b43c456b"
+                        SharedDllRefCount="no" KeyPath="no" NeverOverwrite="no" Permanent="no" Transitive="no"
+                        Win64="no" Location="either">
+                        <CreateFolder/>
+                        </Component>
+                    </Directory>
         </DirectoryRef>
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
