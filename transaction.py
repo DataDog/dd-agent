@@ -181,7 +181,7 @@ class TransactionManager(object):
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.instance().running():
+                if  tornado.ioloop.IOLoop.instance()._running:
                     tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
