@@ -151,6 +151,7 @@
             <ComponentGroupRef Id="conf.d" />
             <ComponentGroupRef Id="pup" />
             <ComponentRef Id="ApplicationShortcut" />
+            <ComponentRef Id="logs" />
         </Feature>
 
         <InstallExecuteSequence>

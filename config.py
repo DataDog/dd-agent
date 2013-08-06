@@ -754,9 +754,9 @@ def get_logging_config(cfg_path=None):
         logging_config = {
             'log_level': None,
             'collector_log_file': os.path.join(all_users_directory, 'Datadog\logs\collector.log'),
-            'forwarder_log_file': os.path.join(all_users_directory, 'Datadog\logs\forwareder.log'),
+            'forwarder_log_file': os.path.join(all_users_directory, 'Datadog\logs\forwarder.log'),
             'dogstatsd_log_file': os.path.join(all_users_directory, 'Datadog\logs\dogstatsd.log'),
-            'pup_log_file': os.path.join(all_users_directory, 'Datadog\log\info_page.log'),
+            'pup_log_file': os.path.join(all_users_directory, 'Datadog\logs\info_page.log'),
             'log_to_event_viewer': True,
             'log_to_syslog': False,
             'syslog_host': None,
