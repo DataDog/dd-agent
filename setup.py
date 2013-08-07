@@ -1,4 +1,4 @@
-import platform
+itomport platform
 import sys
 from config import *
 
@@ -74,7 +74,7 @@ if sys.platform == 'win32':
         'options': {
             'py2exe': {
                 'includes': ','.join(include_modules),
-                'optimize': 2,
+                'optimize': 0,
                 'compressed': 1,
                 'bundle_files': 1,
             },
