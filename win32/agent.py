@@ -19,7 +19,7 @@ from win32.common import handle_exe_click
 import dogstatsd
 from ddagent import Application
 from config import (get_config, set_win32_cert_path, get_system_stats,
-    load_check_directory)
+    load_check_directory, get_win32service_file)
 from win32.common import handle_exe_click
 from pup import pup
 
@@ -60,7 +60,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
                                 servicemanager.PYS_SERVICE_STARTED,
-                                (self._svc_name_, ''))
+                                (self._svc_name_, get_win32service_file('windows', 'win32service.pyd')))
         # Start all services
         self.forwarder.start()
         self.agent.start()
