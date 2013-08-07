@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+    - directory: /var/spool/postfix
+      queues:
+          - incoming
+          - active
+          - deferred
+      timeout: 45
+
