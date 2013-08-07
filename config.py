@@ -874,6 +874,9 @@ def initialize_logging(logger_name):
             try:
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
+                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                root_log = logging.getLogger()
+                root_log.addHandler(nt_event_handler)
             except Exception, e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()
