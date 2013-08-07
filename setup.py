@@ -1,4 +1,4 @@
-itomport platform
+import platform
 import sys
 from config import *
 
