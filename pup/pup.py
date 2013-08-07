@@ -281,7 +281,7 @@ def run_pup(config):
         application.listen(port, address=interface)
 
     interval_ms = 2000
-    io_loop = ioloop.IOLoop.instance()
+    io_loop = ioloop.IOLoop.current()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
@@ -303,10 +303,10 @@ def run_info_page():
 
     info_page_application.listen(port, address=interface)
 
-    io_loop = ioloop.IOLoop.instance().start()
+    io_loop = ioloop.IOLoop.current().start()
 
 def stop_info_page():
-    ioloop.IOLoop.instance().stop()
+    ioloop.IOLoop.current().stop()
 
 def main():
     """ Parses arguments and starts Pup server """
