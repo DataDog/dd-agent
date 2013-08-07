@@ -744,8 +744,8 @@ def get_logging_config(cfg_path=None):
             'forwarder_log_file': '/var/log/datadog/forwarder.log',
             'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
             'pup_log_file': '/var/log/datadog/pup.log',
-            'log_to_event_viewer': False,
-            'log_to_syslog': True,
+            'log_to_event_viewer': True,
+            'log_to_syslog': False,
             'syslog_host': None,
             'syslog_port': None,
         }
