@@ -4,6 +4,7 @@ from config import initialize_logging; initialize_logging('collector')
 import win32serviceutil
 import win32service
 import win32event
+import win32evtlogutil
 import servicemanager
 import sys
 import logging
@@ -58,9 +59,11 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.running = False
 
     def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                servicemanager.PYS_SERVICE_STARTED,
-                                (self._svc_name_, get_win32service_file('windows', 'win32service.pyd')))
+        win32evtlogutil.ReportEvent(self._svc_name_,
+                                    servicemanager.PYS_SERVICE_STARTED,
+                                    0, # category
+                                    servicemanager.EVENTLOG_INFORMATION_TYPE,
+                                    (self._svc_name_, ''))
         # Start all services
         self.forwarder.start()
         self.agent.start()

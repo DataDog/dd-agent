@@ -11,7 +11,6 @@ import sys
 import glob
 import inspect
 import traceback
-import threading
 import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
@@ -26,7 +25,7 @@ PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
-
+windows_file_handler_added = False
 
 class PathNotFound(Exception):
     pass
@@ -754,10 +753,7 @@ def get_logging_config(cfg_path=None):
         all_users_directory = os.environ['ALLUSERSPROFILE']
         logging_config = {
             'log_level': None,
-            'collector_log_file': os.path.join(all_users_directory, 'Datadog\\logs\\collector.log'),
-            'forwarder_log_file': os.path.join(all_users_directory, 'Datadog\logs\\forwarder.log'),
-            'dogstatsd_log_file': os.path.join(all_users_directory, 'Datadog\\logs\\dogstatsd.log'),
-            'pup_log_file': os.path.join(all_users_directory, 'Datadog\logs\info_page.log'),
+            'ddagent_log_file': os.path.join(all_users_directory, 'Datadog\\logs\\ddagent.log'),
             'log_to_event_viewer': True,
             'log_to_syslog': False,
             'syslog_host': None,
@@ -835,22 +831,17 @@ def initialize_logging(logger_name):
         )
 
         # set up file loggers
+        if get_os() == 'windows' and not windows_file_handler_added:
+            logger_name = 'ddagent'
+            windows_file_handler_added = True
+
         log_file = logging_config.get('%s_log_file' % logger_name)
         if log_file is not None and not logging_config['disable_file_logging']:
             # make sure the log directory is writeable
             # NOTE: the entire directory needs to be writable so that rotation works
             if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                 file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                
-                if get_os() == 'windows':
-                    # On windows, everything runs in the same process, in different threads.
-                    # Therefore adding multiple handler files to the
-                    # root logger results in having multiple log files with the same content
-                    # We "fix" this by adding a custom formatter that will log only if the thread is the same thread
-                    # that was used to initiate the formatter
-                    formatter = ThreadLogFormatter(threading.current_thread().ident, get_log_format(logger_name))
-                else:
-                    formatter = logging.Formatter(get_log_format(logger_name))
+                formatter = logging.Formatter(get_log_format(logger_name))
                 file_handler.setFormatter(formatter)
 
                 root_log = logging.getLogger()
@@ -904,14 +895,3 @@ def initialize_logging(logger_name):
     # re-get the log after logging is initialized
     global log
     log = logging.getLogger(__name__)
-
-class ThreadLogFormatter(logging.Formatter):
-    def __init__(self, thread_id, format):
-        logging.Formatter.__init__(self, format)
-        self.thread_id = thread_id
-
-    def format(self, record):
-        if threading.current_thread().ident == self.thread_id:
-            return logging.Formatter.format(self, record)
-        return ''
-
