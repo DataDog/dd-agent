@@ -68,9 +68,9 @@ class SQLServer(AgentCheck):
                 conn_str = self._conn_string(host, username, password, database)
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
-            except:
-                raise Exception("Unable to connect to SQL Server for instance %s" \
-                    % instance)
+            except Exception, e:
+                raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
+                    % (instance, str(e))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
