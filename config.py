@@ -761,8 +761,6 @@ def get_logging_config(cfg_path=None):
             'log_to_syslog': False,
             'syslog_host': None,
             'syslog_port': None,
-
-
         }
 
     config_path = get_config_path(cfg_path, os_name=system_os)
@@ -842,11 +840,19 @@ def initialize_logging(logger_name):
             # NOTE: the entire directory needs to be writable so that rotation works
             if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                 file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                file_handler.setFormatter(logging.Formatter(get_log_format(logger_name)))
+                
                 if get_os() == 'windows':
-                    root_log = logging.getLogger(logger_name)
+                    # On windows, everything runs in the same process, in different threads.
+                    # Therefore adding multiple handler files to the
+                    # root logger results in having multiple log files with the same content
+                    # We "fix" this by adding a custom formatter that will log only if the thread is the same thread
+                    # that was used to initiate the formatter
+                    formatter = ThreadLogFormatter(threading.current_thread().ident, get_log_format(logger_name))
                 else:
-                    root_log = logging.getLogger()
+                    formatter = logging.Formatter(get_log_format(logger_name))
+                file_handler.setFormatter(formatter)
+
+                root_log = logging.getLogger()
                 root_log.addHandler(file_handler)
             else:
                 sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
@@ -897,3 +903,14 @@ def initialize_logging(logger_name):
     # re-get the log after logging is initialized
     global log
     log = logging.getLogger(__name__)
+
+class ThreadLogFormatter(logging.formatter):
+    def __init__(self, thread_id, format):
+        logging.formatter.__init__(self, format)
+        self.thread_id = thread_id
+
+    def format(self, record):
+        if threading.current_thread().ident == self.thread_id:
+            return logging.formatter.format(self, record)
+        return ''
+
