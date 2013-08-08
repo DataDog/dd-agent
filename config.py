@@ -904,13 +904,13 @@ def initialize_logging(logger_name):
     global log
     log = logging.getLogger(__name__)
 
-class ThreadLogFormatter(logging.formatter):
+class ThreadLogFormatter(logging.Formatter):
     def __init__(self, thread_id, format):
-        logging.formatter.__init__(self, format)
+        logging.Formatter.__init__(self, format)
         self.thread_id = thread_id
 
     def format(self, record):
         if threading.current_thread().ident == self.thread_id:
-            return logging.formatter.format(self, record)
+            return logging.Formatter.format(self, record)
         return ''
 
