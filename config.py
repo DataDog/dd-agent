@@ -821,7 +821,7 @@ def get_logging_config(cfg_path=None):
 
 
 def initialize_logging(logger_name):
-
+    global windows_file_handler_added
     try:
         logging_config = get_logging_config()
 
