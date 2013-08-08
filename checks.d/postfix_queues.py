@@ -21,7 +21,7 @@ class PostfixQueuesCheck(AgentCheck):
         required = ['directory', 'queues', 'timeout']
         for param in required:
             if not instance.get(param):
-                raise Exception("PostfixQueuesCheck: missing (%s) in yaml configuration" % param)
+                raise Exception("PostfixQueuesCheck: missing (%s) in yaml config file" % param)
 
         directory = instance.get('directory')
         queues = instance.get('queues')
