@@ -53,6 +53,7 @@ if sys.platform == 'win32':
         'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
+        'pymongo',
 
         # agent
         'checks.services_checks',
