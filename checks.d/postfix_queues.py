@@ -1,52 +1,51 @@
-import os
-import sys
-import signal
+from os import walk, system, geteuid, popen
+from os.path import exists, join
+from collections import namedtuple
 
 from checks import AgentCheck
 
 class PostfixQueuesCheck(AgentCheck):
     def check(self, instance):
-        config = self.get_config(instance)
+        config = self._get_config(instance)
 
         directory = config.directory
         queues = config.queues
-        timeout = config.timeout
 
-        if not exists(directory):
-            raise Exception("PostfixQueuesCheck: (%s) does not exist on disk" % directory)
+        self._get_queue_count(directory, queues)
 
-        self.get_queue_sizes(directory, queues, timeout)
-
-    def get_config(self, instance):
-        required = ['directory', 'queues', 'timeout']
+    def _get_config(self, instance):
+        required = ['directory', 'queues']
         for param in required:
             if not instance.get(param):
-                raise Exception("PostfixQueuesCheck: missing (%s) in yaml config file" % param)
+                raise Exception("PostfixQueuesCheck: (%s) is missing from yaml config" % param)
 
         directory = instance.get('directory')
         queues = instance.get('queues')
-        timeout = instance.get('timeout')
 
         instance_config = namedtuple('instance_config', [
             'directory',
-            'queues',
-            'timeout']
+            'queues']
         )
 
-        return instance_config(directory, queues, timeout)
+        return instance_config(directory, queues)
 
-    def signal_handler(signum, frame):
-        raise Exception("Timed out while walking queue directories!")
+    def _get_queue_count(self, directory, queues):
+        for queue in queues:
+            queue_path = '/'.join([directory, queue])
+            if not exists(queue_path):
+                raise Exception("PostfixQueuesCheck: (%s) queue directory does not exist" % queue_path)
 
-    def get_queue_sizes(self, directory, queues, timeout):
-        for queue in queues
-            signal.signal(signal.SIGALRM, signal_handler)
+            metric_name = '.'.join(['postfix.queues', queue])
 
-            try:
-                signal.alarm(timeout)
-                queue_size = len(os.walk(join(directory, queue)).next()[2])
-            except Exception, msg:
-                print "Timed out while walking queue directories!"
+            count = 0
+            if geteuid() == 0:
+                # dd-agent must be running as root user
+                count = sum(len(files) for root, dirs, files in walk(queue_path))
+            else:
+                # only postfix or root user can access postfix queues :(
+                # user 'dd-agent' must be in sudoers (w/ ALL & NOPASSWD)
+                count = popen("sudo find %s -type f | wc -l" % queue_path)
+                count = count.readlines()[0].strip()
 
-            self.gauge(join('postfix.queues.', queue), queue_size)
+            self.gauge(metric_name, count)
 

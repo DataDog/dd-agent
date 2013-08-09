@@ -6,5 +6,4 @@ instances:
           - incoming
           - active
           - deferred
-      timeout: 45
 
