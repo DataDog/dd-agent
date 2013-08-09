@@ -1,4 +1,4 @@
-from os import walk, system, geteuid, popen
+from os import walk, geteuid, popen
 from os.path import exists, join
 from collections import namedtuple
 
