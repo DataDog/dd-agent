@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+    -   apache_status_url: http://example.com/server-status?auto
+        # apache_user: example_user
+        # apache_password: example_password
+        tags:
+            -   optional_tag
