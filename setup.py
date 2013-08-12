@@ -83,7 +83,7 @@ if sys.platform == 'win32':
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'windows': [{'script': 'win32\gui.py',
-                     'dest_base': "agent_manager",}]
+                     'dest_base': "agent_manager",}],
         'zipfile': None,
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
