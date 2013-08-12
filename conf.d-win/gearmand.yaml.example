@@ -1,8 +1,0 @@
-init_config:
-
-instances:
-  - server: localhost
-    port: 4730
-    tags:
-        - optional_tag_1
-        - optional_tag_2

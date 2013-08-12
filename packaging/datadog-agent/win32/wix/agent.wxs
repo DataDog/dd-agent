@@ -150,7 +150,6 @@
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
             <ComponentGroupRef Id="pup" />
-            <ComponentGroupRef Id="files" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
         </Feature>
