@@ -108,7 +108,7 @@ class PropertiesWidget(QWidget):
         self.save_button = QPushButton(get_icon("filesave.png"),
                                       "Save", self)
 
-        self.edit_datadog_conf_button = QPushButton(get_icon("edit.png"),
+        self.edit_datadog_conf_button = QPushButton(get_icon("settings.png"),
                                       "Edit agent settings", self)
 
         self.disable_button = QPushButton(get_icon("delete.png"),
@@ -198,12 +198,12 @@ class AgentManagerFrame(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self, parent)
 
-        self.stop_button = QPushButton(get_icon("apply.png"),
+        self.stop_button = QPushButton(get_icon("stop.png"),
                                       "Stop agent", self)
-        self.start_button = QPushButton(get_icon("apply.png"),
+        self.start_button = QPushButton(get_icon("start.png"),
                                       "Start agent", self)
 
-        self.restart_button = QPushButton(get_icon("apply.png"),
+        self.restart_button = QPushButton(get_icon("restart.png"),
                                       "Restart agent", self)
 
         layout = QHBoxLayout()
@@ -251,7 +251,7 @@ class MainWindow(QSplitter):
         
         start_action = self.sysTrayMenu.addAction("Start Agent")
         stop_action = self.sysTrayMenu.addAction("Stop Agent")
-        restart_action = self.sysTrayMenu.addAction("RestartService Agent")
+        restart_action = self.sysTrayMenu.addAction("Restart Agent")
         status_page_action = self.sysTrayMenu.addAction("Status page")
         exit_manager_action = self.sysTrayMenu.addAction("Exit Agent Manager")
         
