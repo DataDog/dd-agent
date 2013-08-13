@@ -69,21 +69,21 @@ if sys.platform == 'win32':
             self.copyright = 'Copyright 2013 Datadog, Inc.'
             self.cmdline_style = 'pywin32'
 
-    agent_svc = Target(name='Datadog Agent', modules='win32.agent')
+    agent_svc = Target(name='Datadog Agent', modules='win32.agent', dest_base='ddagent')
 
     extra_args = {
         'options': {
             'py2exe': {
                 'includes': ','.join(include_modules),
                 'optimize': 0,
-                'compressed': 1,
+                'compressed': True,
                 'bundle_files': 3,
             },
         },
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'windows': [{'script': 'win32\gui.py',
-                     'dest_base': "agent_manager",}],
+                     'dest_base': "agent-manager",}],
         'zipfile': None,
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),

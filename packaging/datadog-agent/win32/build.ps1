@@ -2,13 +2,14 @@
 $version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
 
 # Remove old artifacts
-rm build/*.exe
-rm build/*.msi
+rm -r build/*
 
 # Build the agent.exe service
-python setup.py py2exe
-mkdir packaging\datadog-agent\win32\install_files\files
-cp -r dist\* packaging\datadog-agent\win32\install_files\files
+python setup.py py2exe 
+mkdir packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT
+
+cp dist\*.* packaging\datadog-agent\win32\install_files\files
+cp dist\Microsoft.VC90.CRT\* packaging\datadog-agent\win32\install_files\Microsoft.VC90.CRT\
 
 # Change to the packaging directory
 cd packaging\datadog-agent\win32
@@ -28,13 +29,13 @@ cp -R ..\..\..\dist\pup install_files\pup
 ## Generate the CLI installer with WiX
 
     # Generate fragments for the files in checks.d, conf.d and pup
-    heat dir install_files\files -gg -dr INSTALLDIR -var var.InstallFilesBins -cg files -o wix\files.wxs
+    heat dir install_files\files -gg -dr INSTALLDIR -t wix\files.xslt -var var.InstallFilesBins -cg files -o wix\files.wxs
     heat dir install_files\checks.d -gg -dr INSTALLDIR -var var.InstallFilesChecksD -cg checks.d -o wix\checksd.wxs
     heat dir install_files\pup -gg -dr INSTALLDIR -var var.InstallFilesPup -cg pup -o wix\pup.wxs
     heat dir install_files\conf.d -gg -dr APPLIDATIONDATADIRECTORY -t wix\confd.xslt -var var.InstallFilesConfD -cg conf.d -o wix\confd.wxs
 
     # Create .wixobj files from agent.wxs, confd.wxs, checksd.wxs
-    $opts = '-dInstallFiles=install_files', '-dWixRoot=wix', '-dInstallFilesChecksD=install_files\checks.d', '-dInstallFilesConfD=install_files\conf.d', '-dInstallFilesPup=install_files\pup', "-dAgentVersion=$version"
+    $opts = '-dInstallFiles=install_files', '-dWixRoot=wix', '-dInstallFilesChecksD=install_files\checks.d', '-dInstallFilesConfD=install_files\conf.d', '-dInstallFilesPup=install_files\pup', '-dInstallFilesBins=install_files\files', "-dAgentVersion=$version"
     candle $opts wix\agent.wxs wix\checksd.wxs wix\confd.wxs wix\pup.wxs wix\files.wxs
 
     # Light to create the msi
@@ -42,7 +43,11 @@ cp -R ..\..\..\dist\pup install_files\pup
 
 # Clean up
 rm *wixobj*
-rm -r install_files\*
+rm install_files\files\*.*
+rm -r install_files\conf.d
+rm -r install_files\checks.d
+rm -r install_files\pup
+rm -r install_files\Microsoft.VC90.CRT
 
 # Move back to the root workspace
 cd ..\..\..\
