@@ -27,88 +27,33 @@ class Disk(Check):
 
     def check(self, agentConfig):
         """Get disk space/inode stats"""
+        # First get the configuration.
+        use_mount = agentConfig.get("use_mount", False)
+        blacklist_re = agentConfig.get('device_blacklist_re', None)
+
         try:
-            # Collect disk metrics.
-            use_mount = agentConfig.get("use_mount", False)
             dfk_out = _get_subprocess_output(['df', '-k'])
-            disks =  self._parse_df(dfk_out, use_mount=use_mount)
+            disks = self._parse_df(
+                dfk_out,
+                use_mount=use_mount,
+                blacklist_re=blacklist_re
+            )
 
             # Collect inode metrics.
             dfi_out = _get_subprocess_output(['df', '-i'])
-            inodes = self._parse_df(dfi_out, inodes=True, use_mount=use_mount)
+            inodes = self._parse_df(
+                dfi_out,
+                inodes=True,
+                use_mount=use_mount,
+                blacklist_re=blacklist_re
+            )
             return (disks, inodes)
 
         except Exception:
             self.logger.exception('Error collecting disk stats')
             return False
 
-    @staticmethod
-    def _is_number(a_string):
-        try:
-            float(a_string)
-        except ValueError:
-            return False
-        return True
-
-    def _should_track_device(self, device):
-        """
-        Return true if we should track the given device name and false otherwise.
-        """
-        # First, skip empty lines.
-        if not device:
-            return False
-
-        # Filter out fake devices.
-        device_name = device[0]
-        if device_name == 'none':
-            return False
-
-        # Now filter our fake hosts like 'map -hosts'. For example:
-        #       Filesystem    1024-blocks     Used Available Capacity  Mounted on
-        #       /dev/disk0s2    244277768 88767396 155254372    37%    /
-        #       map -hosts              0        0         0   100%    /net
-        blocks = device[1]
-        if not self._is_number(blocks):
-            return False
-
-        # Filter out user configured devices.
-
-        return True
-
-    def _flatten_devices(self, devices):
-        # Some volumes are stored on their own line. Rejoin them here.
-        previous = None
-        for parts in devices:
-            if len(parts) == 1:
-                previous = parts[0]
-            elif previous and self._is_number(parts[0]):
-                # collate with previous line
-                parts.insert(0, previous)
-                previous = None
-            else:
-                previous = None
-        return devices
-
-    def _transform_df_output(self, df_output):
-        """
-        Given raw output for the df command, transform it into a normalized
-        list devices. A 'device' is a list with fields corresponding to the
-        output of df output on each platform.
-        """
-        all_devices = [l.strip().split() for l in df_output.split("\n")]
-
-        # Skip the header row and empty lines.
-        raw_devices = [l for l in all_devices[1:] if l]
-
-        # Flatten the disks that appear in the mulitple lines.
-        flattened_devices = self._flatten_devices(raw_devices)
-
-        # Filter fake disks.
-        devices = filter(self._should_track_device, flattened_devices)
-
-        return devices
-
-    def _parse_df(self, df_output, inodes=False, use_mount=False):
+    def _parse_df(self, df_output, inodes=False, use_mount=False, blacklist_re=None):
         """
         Parse the output of the df command. If use_volume is true the volume rather 
         than the mount point is used to anchor the metric. If false the mount 
@@ -122,7 +67,7 @@ class Disk(Check):
         usageData = []
 
         # Transform the raw output into tuples of the df data.
-        devices = self._transform_df_output(df_output)
+        devices = self._transform_df_output(df_output, blacklist_re)
     
         # If we want to use the mount point, replace the volume name on each
         # line.
@@ -169,6 +114,77 @@ class Disk(Check):
 
             usageData.append(parts)
         return usageData
+
+
+    @staticmethod
+    def _is_number(a_string):
+        try:
+            float(a_string)
+        except ValueError:
+            return False
+        return True
+
+    def _is_real_device(self, device):
+        """
+        Return true if we should track the given device name and false otherwise.
+        """
+        # First, skip empty lines.
+        if not device:
+            return False
+
+        # Filter out fake devices.
+        device_name = device[0]
+        if device_name == 'none':
+            return False
+
+        # Now filter our fake hosts like 'map -hosts'. For example:
+        #       Filesystem    1024-blocks     Used Available Capacity  Mounted on
+        #       /dev/disk0s2    244277768 88767396 155254372    37%    /
+        #       map -hosts              0        0         0   100%    /net
+        blocks = device[1]
+        if not self._is_number(blocks):
+            return False
+        return True
+
+    def _flatten_devices(self, devices):
+        # Some volumes are stored on their own line. Rejoin them here.
+        previous = None
+        for parts in devices:
+            if len(parts) == 1:
+                previous = parts[0]
+            elif previous and self._is_number(parts[0]):
+                # collate with previous line
+                parts.insert(0, previous)
+                previous = None
+            else:
+                previous = None
+        return devices
+
+    def _transform_df_output(self, df_output, blacklist_re):
+        """
+        Given raw output for the df command, transform it into a normalized
+        list devices. A 'device' is a list with fields corresponding to the
+        output of df output on each platform.
+        """
+        all_devices = [l.strip().split() for l in df_output.split("\n")]
+
+        # Skip the header row and empty lines.
+        raw_devices = [l for l in all_devices[1:] if l]
+
+        # Flatten the disks that appear in the mulitple lines.
+        flattened_devices = self._flatten_devices(raw_devices)
+
+        # Filter fake disks.
+        def keep_device(device):
+            if not self._is_real_device(device):
+                return False
+            if blacklist_re and blacklist_re.match(device[0]):
+                return False
+            return True
+                   
+        devices = filter(keep_device, flattened_devices)
+
+        return devices
 
 
 class IO(Check):
@@ -878,6 +894,7 @@ if __name__ == '__main__':
     import logging
     import time
     import pprint
+    import re
     
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
     log = logging.getLogger()
@@ -888,7 +905,7 @@ if __name__ == '__main__':
     mem = Memory(log)
     proc = Processes(log)
 
-    config = {"api_key": "666"}
+    config = {"api_key": "666"} #, "device_blacklist_re":re.compile('devfs.*')}
     while True:
         print("--- Disk ---")
         print(disk.check(config))

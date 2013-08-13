@@ -144,7 +144,7 @@ def _unix_checksd_path():
 
 
 def _is_affirmative(s):
-    return s.lower() in ('yes', 'true')
+    return s.lower() in ('yes', 'true', '1')
 
 
 def get_config_path(cfg_path=None, os_name=None):
@@ -343,10 +343,16 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Optional config
         # FIXME not the prettiest code ever...
         if config.has_option('Main', 'use_mount'):
-            agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
+            agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
         if config.has_option('Main', 'autorestart'):
-            agentConfig['autorestart'] = config.get('Main', 'autorestart').lower() in ("yes", "true", "1")
+            agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
+
+        try:
+            filter_device_re = config.get('Main', 'device_blacklist_re')
+            agentConfig['device_blacklist_re'] = re.compile(filter_device_re)
+        except ConfigParser.NoOptionError:
+            pass
 
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
