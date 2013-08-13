@@ -70,7 +70,7 @@ class SQLServer(AgentCheck):
                 self.connections[conn_key] = conn
             except Exception, e:
                 raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
-                    % (instance, str(e))
+                    % (instance, str(e)))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
