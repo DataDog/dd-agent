@@ -14,6 +14,7 @@ import time
 
 # project
 from checks import Check, UnknownValue
+from checks.system import Platform
 from util import get_hostname
 
 
@@ -41,65 +42,97 @@ class Disk(Check):
             self.logger.exception('Error collecting disk stats')
             return False
 
-    def _parse_df(self, lines, inodes=False, use_mount=False):
-        """Multi-platform df output parser
-        
-        If use_volume is true the volume rather than the mount point is used
-        to anchor the metric. If false the mount point is used.
+    @staticmethod
+    def _is_number(a_string):
+        try:
+            float(a_string)
+        except ValueError:
+            return False
+        return True
+
+    def _should_track_device(self, device):
+        """
+        Return true if we should track the given device name and false otherwise.
+        """
+        # First, skip empty lines.
+        if not device:
+            return False
+
+        # Filter out fake devices.
+        device_name = device[0]
+        if device_name == 'none':
+            return False
+
+        # Now filter our fake hosts like 'map -hosts'. For example:
+        #       Filesystem    1024-blocks     Used Available Capacity  Mounted on
+        #       /dev/disk0s2    244277768 88767396 155254372    37%    /
+        #       map -hosts              0        0         0   100%    /net
+        blocks = device[1]
+        if not self._is_number(blocks):
+            return False
+
+        # Filter out user configured devices.
+
+        return True
+
+    def _flatten_devices(self, devices):
+        # Some volumes are stored on their own line. Rejoin them here.
+        previous = None
+        for parts in devices:
+            if len(parts) == 1:
+                previous = parts[0]
+            elif previous and self._is_number(parts[0]):
+                # collate with previous line
+                parts.insert(0, previous)
+                previous = None
+            else:
+                previous = None
+        return devices
+
+    def _transform_df_output(self, df_output):
+        """
+        Given raw output for the df command, transform it into a normalized
+        list devices. A 'device' is a list with fields corresponding to the
+        output of df output on each platform.
+        """
+        all_devices = [l.strip().split() for l in df_output.split("\n")]
+
+        # Skip the header row and empty lines.
+        raw_devices = [l for l in all_devices[1:] if l]
+
+        # Flatten the disks that appear in the mulitple lines.
+        flattened_devices = self._flatten_devices(raw_devices)
+
+        # Filter fake disks.
+        devices = filter(self._should_track_device, flattened_devices)
+
+        return devices
+
+    def _parse_df(self, df_output, inodes=False, use_mount=False):
+        """
+        Parse the output of the df command. If use_volume is true the volume rather 
+        than the mount point is used to anchor the metric. If false the mount 
+        point is used.
 
         e.g. /dev/sda1 .... /my_mount
         _parse_df picks /dev/sda1 if use_volume, /my_mount if not
 
-        If inodes is True, count inodes instead
+        If inodes is True, count inodes instead.
         """
-
-        # Simple list-oriented processing
-        # No exec-time optimal but simpler code
-        # 1. filter out the header line (once)
-        # 2. ditch fake volumes (dev fs, etc.) starting with a none volume
-        #    when the volume is too long it sits on a line by itself so collate back
-        # 3. if we want to use the mount point, replace the volume name on each line
-        # 4. extract interesting metrics
-
         usageData = []
 
-        # 1.
-        lines = map(string.strip, lines.split("\n"))[1:]
-
-        numbers = re.compile(r'([0-9]+)')
-        previous = None
-        
-        for line in lines:
-            parts = line.split()
-
-            # skip empty lines
-            if len(parts) == 0: continue
-
+        # Transform the raw output into tuples of the df data.
+        devices = self._transform_df_output(df_output)
+    
+        # If we want to use the mount point, replace the volume name on each
+        # line.
+        for parts in devices:
             try:
-
-                # 2.
-                if len(parts) == 1:
-                    # volume on a line by itself
-                    previous = parts[0]
-                    continue
-                elif parts[0] == "none":
-                    # this is a "fake" volume
-                    continue
-                elif not numbers.match(parts[1]):
-                    # this is a volume like "map auto_home"
-                    continue
-                else:
-                    if previous and numbers.match(parts[0]):
-                        # collate with previous line
-                        parts.insert(0, previous)
-                        previous = None
-                # 3.
                 if use_mount:
                     parts[0] = parts[-1]
             
-                # 4.
                 if inodes:
-                    if sys.platform == "darwin":
+                    if Platform.is_darwin():
                         # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
@@ -108,7 +141,7 @@ class Disk(Check):
                         parts[2] = int(parts[5])
                         # Available
                         parts[3] = int(parts[6])
-                    elif sys.platform.startswith("freebsd"):
+                    elif Platform.is_freebsd():
                         # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
@@ -857,14 +890,14 @@ if __name__ == '__main__':
 
     config = {"api_key": "666"}
     while True:
+        print("--- Disk ---")
+        print(disk.check(config))
         print("--- CPU ---")
         print(cpu.check(config))
         print("--- Load ---")
         print(load.check(config))
         print("--- Memory ---")
         print(mem.check(config))
-        print("--- Disk ---")
-        print(disk.check(config))
         print("--- IO ---")
         print(io.check(config))
         print("\n\n\n")
