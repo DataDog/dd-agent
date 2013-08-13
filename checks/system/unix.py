@@ -1,11 +1,18 @@
+"""
+Unix system checks.
+"""
+
+# stdlib
 import operator
 import platform
 import re
 import socket
 import string
-import subprocess
+import subprocess as sp
 import sys
 import time
+
+# project
 from checks import Check, UnknownValue
 from util import get_hostname
 
@@ -15,9 +22,24 @@ to_float = lambda s: float(s.replace(",", "."))
 
 
 class Disk(Check):
+    """ Collects metrics about the machine's disks. """
 
-    def __init__(self, logger):
-        Check.__init__(self, logger)
+    def check(self, agentConfig):
+        """Get disk space/inode stats"""
+        try:
+            # Collect disk metrics.
+            use_mount = agentConfig.get("use_mount", False)
+            dfk_out = _get_subprocess_output(['df', '-k'])
+            disks =  self._parse_df(dfk_out, use_mount=use_mount)
+
+            # Collect inode metrics.
+            dfi_out = _get_subprocess_output(['df', '-i'])
+            inodes = self._parse_df(dfi_out, inodes=True, use_mount=use_mount)
+            return (disks, inodes)
+
+        except Exception:
+            self.logger.exception('Error collecting disk stats')
+            return False
 
     def _parse_df(self, lines, inodes = False, use_mount=False):
         """Multi-platform df output parser
@@ -114,27 +136,6 @@ class Disk(Check):
 
             usageData.append(parts)
         return usageData
-    
-    def check(self, agentConfig):
-        """Get disk space/inode stats"""
-
-        # Check test_system for some examples of output
-        try:
-            df = subprocess.Popen(['df', '-k'],
-                                  stdout=subprocess.PIPE,
-                                  close_fds=True)
-
-            use_mount = agentConfig.get("use_mount", False)
-            disks =  self._parse_df(df.stdout.read(), use_mount=use_mount)
-
-            df = subprocess.Popen(['df', '-i'],
-                                  stdout=subprocess.PIPE,
-                                  close_fds=True)
-            inodes = self._parse_df(df.stdout.read(), inodes=True, use_mount=use_mount)
-            return (disks, inodes)
-        except:
-            self.logger.exception('getDiskUsage')
-            return False
 
 
 class IO(Check):
@@ -225,8 +226,8 @@ class IO(Check):
         io = {}
         try:
             if sys.platform == 'linux2':
-                stdout = subprocess.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
-                                          stdout=subprocess.PIPE,
+                stdout = sp.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
+                                          stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
 
                 #                 Linux 2.6.32-343-ec2 (ip-10-35-95-10)   12/11/2012      _x86_64_        (2 CPU)  
@@ -247,8 +248,8 @@ class IO(Check):
                 io.update(self._parse_linux2(stdout))
 
             elif sys.platform == "sunos5":
-                iostat = subprocess.Popen(["iostat", "-x", "-d", "1", "2"],
-                                          stdout=subprocess.PIPE,
+                iostat = sp.Popen(["iostat", "-x", "-d", "1", "2"],
+                                          stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
 
                 #                   extended device statistics <-- since boot
@@ -278,8 +279,8 @@ class IO(Check):
                         io[cols[0]][self.xlate(headers[i], "sunos")] = cols[i]
                         
             elif sys.platform.startswith("freebsd"):
-                iostat = subprocess.Popen(["iostat", "-x", "-d", "1", "2"],
-                                          stdout=subprocess.PIPE,
+                iostat = sp.Popen(["iostat", "-x", "-d", "1", "2"],
+                                          stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
 
                 # Be careful! 
@@ -306,8 +307,8 @@ class IO(Check):
                     for i in range(1, len(cols)):
                         io[cols[0]][self.xlate(headers[i], "freebsd")] = cols[i]
             elif sys.platform == 'darwin':
-                iostat = subprocess.Popen(['iostat', '-d', '-c', '2', '-w', '1'], 
-                                          stdout=subprocess.PIPE,
+                iostat = sp.Popen(['iostat', '-d', '-c', '2', '-w', '1'], 
+                                          stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
                 #          disk0           disk1          <-- number of disks
                 #    KB/t tps  MB/s     KB/t tps  MB/s  
@@ -340,8 +341,8 @@ class Load(Check):
         elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
             try:
-                uptime = subprocess.Popen(['uptime'],
-                                          stdout=subprocess.PIPE,
+                uptime = sp.Popen(['uptime'],
+                                          stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
             except:
                 self.logger.exception('Cannot extract load')
@@ -384,8 +385,8 @@ class Memory(Check):
         self.pagesize = 0
         if sys.platform == 'sunos5':
             try:
-                pgsz = subprocess.Popen(['pagesize'],
-                                        stdout=subprocess.PIPE,
+                pgsz = sp.Popen(['pagesize'],
+                                        stdout=sp.PIPE,
                                         close_fds=True).communicate()[0]
                 self.pagesize = int(pgsz.strip())
             except:
@@ -493,8 +494,8 @@ class Memory(Check):
             
         elif sys.platform == 'darwin':
             try:
-                top = subprocess.Popen(['top', '-l 1'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-                sysctl = subprocess.Popen(['sysctl', 'vm.swapusage'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                top = sp.Popen(['top', '-l 1'], stdout=sp.PIPE, close_fds=True).communicate()[0]
+                sysctl = sp.Popen(['sysctl', 'vm.swapusage'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             except StandardError:
                 self.logger.exception('getMemoryUsage')
                 return False
@@ -510,7 +511,7 @@ class Memory(Check):
             
         elif sys.platform.startswith("freebsd"):
             try:
-                sysctl = subprocess.Popen(['sysctl', 'vm.stats.vm'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                sysctl = sp.Popen(['sysctl', 'vm.stats.vm'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             except:
                 self.logger.exception('getMemoryUsage')
                 return False
@@ -567,7 +568,7 @@ class Memory(Check):
 
             # Swap
             try:
-                sysctl = subprocess.Popen(['swapinfo', '-m'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                sysctl = sp.Popen(['swapinfo', '-m'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             except:
                 self.logger.exception('getMemoryUsage')
                 return False
@@ -597,8 +598,8 @@ class Memory(Check):
         elif sys.platform == 'sunos5':
             try:
                 memData = {}
-                kmem = subprocess.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
-                                        stdout=subprocess.PIPE,
+                kmem = sp.Popen(["kstat", "-c", "zone_memory_cap", "-p"],
+                                        stdout=sp.PIPE,
                                         close_fds=True).communicate()[0]
 
                 # memory_cap:360:53aa9b7e-48ba-4152-a52b-a6368c:anon_alloc_fail   0
@@ -648,7 +649,7 @@ class Processes(Check):
     def check(self, agentConfig):
         # Get output from ps
         try:
-            ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            ps = sp.Popen(['ps', 'auxww'], stdout=sp.PIPE, close_fds=True).communicate()[0]
         except StandardError:
             self.logger.exception('getProcesses')
             return False
@@ -690,7 +691,7 @@ class Cpu(Check):
                 return 0.0
 
         if sys.platform == 'linux2':
-            mpstat = subprocess.Popen(['mpstat', '1', '3'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            mpstat = sp.Popen(['mpstat', '1', '3'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             # topdog@ip:~$ mpstat 1 3
             # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)
             #
@@ -745,7 +746,7 @@ class Cpu(Check):
         elif sys.platform == 'darwin':
             # generate 3 seconds of data
             # ['          disk0           disk1       cpu     load average', '    KB/t tps  MB/s     KB/t tps  MB/s  us sy id   1m   5m   15m', '   21.23  13  0.27    17.85   7  0.13  14  7 79  1.04 1.27 1.31', '    4.00   3  0.01     5.00   8  0.04  12 10 78  1.04 1.27 1.31', '']   
-            iostats = subprocess.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            iostats = sp.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             lines = [l for l in iostats.split("\n") if len(l) > 0]
             legend = [l for l in lines if "us" in l]
             if len(legend) == 1:
@@ -767,7 +768,7 @@ class Cpu(Check):
             # tin  tout  KB/t tps  MB/s   KB/t tps  MB/s   KB/t tps  MB/s  us ni sy in id
             # 0    69 26.71   0  0.01   0.00   0  0.00   0.00   0  0.00   2  0  0  1 97
             # 0    78  0.00   0  0.00   0.00   0  0.00   0.00   0  0.00   0  0  0  0 100
-            iostats = subprocess.Popen(['iostat', '-w', '3', '-c', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            iostats = sp.Popen(['iostat', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             lines = [l for l in iostats.split("\n") if len(l) > 0]
             legend = [l for l in lines if "us" in l]
             if len(legend) == 1:
@@ -798,7 +799,7 @@ class Cpu(Check):
             #
             # Will aggregate over all processor sets
             try:
-                mpstat = subprocess.Popen(['mpstat', '-aq', '1', '2'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+                mpstat = sp.Popen(['mpstat', '-aq', '1', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
                 lines = [l for l in mpstat.split("\n") if len(l) > 0]
                 # discard the first len(lines)/2 lines
                 lines = lines[len(lines)/2:]
@@ -829,6 +830,16 @@ class Cpu(Check):
             self.logger.warn("CPUStats: unsupported platform")
             return False
 
+
+def _get_subprocess_output(command):
+    """
+    Run the given subprocess command and return it's output. Raise an Exception
+    if an error occurs.
+    """
+    proc = sp.Popen(command, stdout=sp.PIPE, close_fds=True)
+    return proc.stdout.read()
+
+
 if __name__ == '__main__':
     # 1s loop with results
     import logging
@@ -843,7 +854,6 @@ if __name__ == '__main__':
     load = Load(log)
     mem = Memory(log)
     proc = Processes(log)
-    net = Network(log)
 
     config = {"api_key": "666"}
     while True:
@@ -853,12 +863,13 @@ if __name__ == '__main__':
         print(load.check(config))
         print("--- Memory ---")
         print(mem.check(config))
-        print("--- Network ---")
-        print(net.check(config))
         print("--- Disk ---")
         print(disk.check(config))
         print("--- IO ---")
         print(io.check(config))
-        print("--- Processes ---")
-        print(proc.check(config))
+        print("\n\n\n")
+        #print("--- Processes ---")
+        #print(proc.check(config))
         time.sleep(1)
+
+
