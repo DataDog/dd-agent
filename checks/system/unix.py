@@ -351,13 +351,26 @@ class IO(Check):
                 #    KB/t tps  MB/s     KB/t tps  MB/s  
                 #   21.11  23  0.47    20.01   0  0.00  
                 #    6.67   3  0.02     0.00   0  0.00    <-- line of interest
-                return self._parse_darwin(iostat)
+                io = self._parse_darwin(iostat)
             else:
                 return False
-            return io
+
+
+            # If we filter devices, do it know.
+            device_blacklist_re = agentConfig.get('device_blacklist_re', None)
+            if device_blacklist_re:
+                filtered_io = {}
+                for device, stats in io.iteritems():
+                    if not device_blacklist_re.match(device):
+                        filtered_io[device] = stats
+            else:
+                filtered_io = io
+            return filtered_io
+
         except Exception:
             self.logger.exception("Cannot extract IO statistics")
             return False
+
 
 class Load(Check):
     def __init__(self, logger):
@@ -893,7 +906,7 @@ if __name__ == '__main__':
     mem = Memory(log)
     proc = Processes(log)
 
-    config = {"api_key": "666"} #, "device_blacklist_re":re.compile('/dev/d.*')}
+    config = {"api_key": "666", "device_blacklist_re":re.compile('.*disk0.*')}
     while True:
         print("=" * 10)
         print("--- IO ---")
