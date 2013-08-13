@@ -11,6 +11,7 @@ import sys
 import glob
 import inspect
 import traceback
+import re
 import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
