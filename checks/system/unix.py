@@ -41,7 +41,7 @@ class Disk(Check):
             self.logger.exception('Error collecting disk stats')
             return False
 
-    def _parse_df(self, lines, inodes = False, use_mount=False):
+    def _parse_df(self, lines, inodes=False, use_mount=False):
         """Multi-platform df output parser
         
         If use_volume is true the volume rather than the mount point is used
@@ -318,7 +318,7 @@ class IO(Check):
             else:
                 return False
             return io
-        except:
+        except Exception:
             self.logger.exception("Cannot extract IO statistics")
             return False
 
@@ -332,7 +332,7 @@ class Load(Check):
                 loadAvrgProc = open('/proc/loadavg', 'r')
                 uptime = loadAvrgProc.readlines()
                 loadAvrgProc.close()
-            except:
+            except Exception:
                 self.logger.exception('Cannot extract load')
                 return False
             
@@ -344,7 +344,7 @@ class Load(Check):
                 uptime = sp.Popen(['uptime'],
                                           stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
-            except:
+            except Exception:
                 self.logger.exception('Cannot extract load')
                 return False
                 
@@ -362,7 +362,7 @@ class Load(Check):
                     'system.load.norm.5': float(load[1])/cores,
                     'system.load.norm.15': float(load[2])/cores,
                     }
-        except:
+        except Exception:
             # No normalized load available
             return {'system.load.1': float(load[0]),
                     'system.load.5': float(load[1]),
@@ -389,7 +389,7 @@ class Memory(Check):
                                         stdout=sp.PIPE,
                                         close_fds=True).communicate()[0]
                 self.pagesize = int(pgsz.strip())
-            except:
+            except Exception:
                 # No page size available
                 pass
     
@@ -399,7 +399,7 @@ class Memory(Check):
                 meminfoProc = open('/proc/meminfo', 'r')
                 lines = meminfoProc.readlines()
                 meminfoProc.close()
-            except:
+            except Exception:
                 self.logger.exception('Cannot get memory metrics from /proc/meminfo')
                 return False
             
@@ -454,7 +454,7 @@ class Memory(Check):
                     match = re.search(regexp, line)
                     if match is not None:
                         meminfo[match.group(1)] = match.group(2)
-                except:
+                except Exception:
                     self.logger.exception("Cannot parse /proc/meminfo")
                     
             memData = {}
@@ -474,7 +474,7 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
-            except:
+            except Exception:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
             
             # Swap
@@ -487,7 +487,7 @@ class Memory(Check):
                 
                 if memData['swapTotal'] > 0:
                     memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
-            except:
+            except Exception:
                 self.logger.exception('Cannot compute swap stats')
             
             return memData  
@@ -512,7 +512,7 @@ class Memory(Check):
         elif sys.platform.startswith("freebsd"):
             try:
                 sysctl = sp.Popen(['sysctl', 'vm.stats.vm'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-            except:
+            except Exception:
                 self.logger.exception('getMemoryUsage')
                 return False
 
@@ -537,7 +537,7 @@ class Memory(Check):
                     match = re.search(regexp, line)
                     if match is not None:
                         meminfo[match.group(1)] = match.group(2)
-                except:
+                except Exception:
                     self.logger.exception("Cannot parse sysctl vm.stats.vm output")
 
             memData = {}
@@ -562,14 +562,14 @@ class Memory(Check):
 
                 if memData['physTotal'] > 0:
                     memData['physPctUsable'] = float(memData['physUsable']) / float(memData['physTotal'])
-            except:
+            except Exception:
                 self.logger.exception('Cannot compute stats from /proc/meminfo')
 
 
             # Swap
             try:
                 sysctl = sp.Popen(['swapinfo', '-m'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-            except:
+            except Exception:
                 self.logger.exception('getMemoryUsage')
                 return False
 
@@ -591,7 +591,7 @@ class Memory(Check):
                     memData['swapTotal'] += int(line[1])
                     memData['swapFree']  += int(line[3])
                     memData['swapUsed'] += int(line[2])
-            except:
+            except Exception:
                 self.logger.exception('Cannot compute stats from swapinfo')
             
             return memData;
@@ -636,7 +636,7 @@ class Memory(Check):
                 if memData['swapTotal'] > 0:
                     memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
                 return memData
-            except:
+            except Exception:
                 self.logger.exception("Cannot compute mem stats from kstat -c zone_memory_cap")
                 return False
         else:
@@ -823,7 +823,7 @@ class Cpu(Check):
                                           dot(wait, rel_size),
                                           dot(idle, rel_size),
                                           0.0)
-            except:
+            except Exception:
                 self.logger.exception("Cannot compute CPU stats")
                 return False
         else:
