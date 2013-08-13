@@ -30,19 +30,22 @@ class Disk(Check):
         # First get the configuration.
         use_mount = agentConfig.get("use_mount", False)
         blacklist_re = agentConfig.get('device_blacklist_re', None)
+        platform_name = sys.platform
 
         try:
             dfk_out = _get_subprocess_output(['df', '-k'])
-            disks = self._parse_df(
+            disks = self.parse_df_output(
                 dfk_out,
+                platform_name,
                 use_mount=use_mount,
                 blacklist_re=blacklist_re
             )
 
             # Collect inode metrics.
             dfi_out = _get_subprocess_output(['df', '-i'])
-            inodes = self._parse_df(
+            inodes = self.parse_df_output(
                 dfi_out,
+                platform_name,
                 inodes=True,
                 use_mount=use_mount,
                 blacklist_re=blacklist_re
@@ -53,31 +56,25 @@ class Disk(Check):
             self.logger.exception('Error collecting disk stats')
             return False
 
-    def _parse_df(self, df_output, inodes=False, use_mount=False, blacklist_re=None):
+    def parse_df_output(self, df_output, platform_name, inodes=False, use_mount=False, blacklist_re=None):
         """
-        Parse the output of the df command. If use_volume is true the volume rather 
-        than the mount point is used to anchor the metric. If false the mount 
-        point is used.
-
-        e.g. /dev/sda1 .... /my_mount
-        _parse_df picks /dev/sda1 if use_volume, /my_mount if not
-
-        If inodes is True, count inodes instead.
+        Parse the output of the df command. If use_volume is true the volume
+        is used to anchor the metric, otherwise false the mount 
+        point is used. Returns a tuple of (disk, inode).
         """
-        usageData = []
+        usage_data = []
 
         # Transform the raw output into tuples of the df data.
         devices = self._transform_df_output(df_output, blacklist_re)
-    
+
         # If we want to use the mount point, replace the volume name on each
         # line.
         for parts in devices:
             try:
                 if use_mount:
                     parts[0] = parts[-1]
-            
                 if inodes:
-                    if Platform.is_darwin():
+                    if Platform.is_darwin(platform_name):
                         # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
@@ -86,7 +83,7 @@ class Disk(Check):
                         parts[2] = int(parts[5])
                         # Available
                         parts[3] = int(parts[6])
-                    elif Platform.is_freebsd():
+                    elif Platform.is_freebsd(platform_name):
                         # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
@@ -112,8 +109,9 @@ class Disk(Check):
             except IndexError:
                 self.logger.exception("Cannot parse %s" % (parts,))
 
-            usageData.append(parts)
-        return usageData
+            usage_data.append(parts)
+
+        return usage_data
 
 
     @staticmethod
@@ -129,7 +127,7 @@ class Disk(Check):
         Return true if we should track the given device name and false otherwise.
         """
         # First, skip empty lines.
-        if not device:
+        if not device or len(device) <= 1:
             return False
 
         # Filter out fake devices.
