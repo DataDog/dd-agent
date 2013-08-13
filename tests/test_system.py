@@ -33,12 +33,6 @@ class TestSystem(unittest.TestCase):
         assert 'system.load.1' in res
         assert 'system.load.norm.1' not in res
 
-    def testDisk(self):
-        """Testing disk stats gathering"""
-        global logger
-        disk = Disk(logger)
-        res = disk.check({})
-
     lion_df_i = """Filesystem                        512-blocks      Used Available Capacity  iused    ifree %iused  Mounted onto
 /dev/disk1                         487932936 220080040 267340896    46% 27574003 33417612   45%   /
 devfs                                    374       374         0   100%      648        0  100%   /dev
@@ -134,6 +128,15 @@ none                  985964       1  985963    1% /lib/init/rw
         assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
         assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
         
+    def test_collecting_disk_metrics(self):
+        """Testing disk stats gathering"""
+        if Platform.is_unix():
+            disk = Disk(logger)
+            res = disk.check({})
+            # Assert we have disk & inode stats
+            assert len(res) == 2
+            assert res[0]
+            assert res[1]
 
     def testMemory(self):
         global logger
