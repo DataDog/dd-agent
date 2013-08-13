@@ -78,34 +78,23 @@ class Disk(Check):
                         # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
-                        parts[1] = int(parts[5]) + int(parts[6])
-                        # Used
-                        parts[2] = int(parts[5])
-                        # Available
-                        parts[3] = int(parts[6])
+                        parts[1] = int(parts[5]) + int(parts[6]) # Total
+                        parts[2] = int(parts[5]) # Used
+                        parts[3] = int(parts[6]) # Available
                     elif Platform.is_freebsd(platform_name):
                         # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
-                        # Total
-                        parts[1] = int(parts[5]) + int(parts[6])
-                        # Used
-                        parts[2] = int(parts[5])
-                        # Available
-                        parts[3] = int(parts[6])
+                        parts[1] = int(parts[5]) + int(parts[6]) # Total
+                        parts[2] = int(parts[5]) # Used
+                        parts[3] = int(parts[6]) # Available
                     else:
-                        # Total
-                        parts[1] = int(parts[1])
-                        # Used
-                        parts[2] = int(parts[2])
-                        # Available
-                        parts[3] = int(parts[3])
+                        parts[1] = int(parts[1]) # Total
+                        parts[2] = int(parts[2]) # Used
+                        parts[3] = int(parts[3]) # Available
                 else:
-                    # Total
-                    parts[1] = int(parts[1])
-                    # Used
-                    parts[2] = int(parts[2])
-                    # Available
-                    parts[3] = int(parts[3])
+                    parts[1] = int(parts[1]) # Total
+                    parts[2] = int(parts[2]) # Used
+                    parts[3] = int(parts[3]) # Available
             except IndexError:
                 self.logger.exception("Cannot parse %s" % (parts,))
 
@@ -186,6 +175,7 @@ class Disk(Check):
 
 
 class IO(Check):
+
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.header_re = re.compile(r'([%\\/\-_a-zA-Z0-9]+)[\s+]?')
@@ -905,6 +895,9 @@ if __name__ == '__main__':
 
     config = {"api_key": "666"} #, "device_blacklist_re":re.compile('/dev/d.*')}
     while True:
+        print("=" * 10)
+        print("--- IO ---")
+        print(io.check(config))
         print("--- Disk ---")
         print(disk.check(config))
         print("--- CPU ---")
@@ -913,8 +906,6 @@ if __name__ == '__main__':
         print(load.check(config))
         print("--- Memory ---")
         print(mem.check(config))
-        print("--- IO ---")
-        print(io.check(config))
         print("\n\n\n")
         #print("--- Processes ---")
         #print(proc.check(config))
