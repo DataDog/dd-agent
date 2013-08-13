@@ -903,7 +903,7 @@ if __name__ == '__main__':
     mem = Memory(log)
     proc = Processes(log)
 
-    config = {"api_key": "666"} #, "device_blacklist_re":re.compile('devfs.*')}
+    config = {"api_key": "666"} #, "device_blacklist_re":re.compile('/dev/d.*')}
     while True:
         print("--- Disk ---")
         print(disk.check(config))
