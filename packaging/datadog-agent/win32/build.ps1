@@ -25,6 +25,9 @@ cp ..\..\..\conf.d\* install_files\conf.d
 # Copy the pup files into the install_files
 cp -R ..\..\..\dist\pup install_files\files\pup
 
+# Move the images neede for the gui
+mv install_files\guidata install_files\files
+
 
 ## Generate the CLI installer with WiX
 
@@ -43,6 +46,7 @@ cp -R ..\..\..\dist\pup install_files\files\pup
 # Clean up
 rm *wixobj*
 rm -r install_files\files\pup
+rm -r install_files\files\guidata
 rm install_files\files\*.*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
