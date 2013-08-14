@@ -24,6 +24,17 @@ class Platform(object):
         return 'linux' in name
 
     @staticmethod
+    def is_bsd(name=None):
+        """ Return true if this is a BSD like operarting system. """
+        name = name or sys.platform
+        return Platform.is_darwin(name) or Platform.is_freebsd(name)
+
+    @staticmethod
+    def is_solaris(name=None):
+        name = name or sys.platform
+        return name == "sunos5"
+
+    @staticmethod
     def is_unix(name=None):
         """ Return true if the platform is a unix, False otherwise. """
         name = name or sys.platform

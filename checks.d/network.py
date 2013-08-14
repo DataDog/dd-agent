@@ -1,8 +1,16 @@
-from checks import AgentCheck
+"""
+Collects network metrics.
+"""
 
+# stdlib
 import platform
 import subprocess
 import sys
+import re
+
+# project
+from checks import AgentCheck
+from checks.system import Platform
 
 
 class Network(AgentCheck):
@@ -39,17 +47,28 @@ class Network(AgentCheck):
     def check(self, instance):
         if instance is None:
             instance = {}
-        self.excluded_interfaces = instance.get('excluded_interfaces', [])
-        self.collect_connection_state = instance.get('collect_connection_state', False)
 
-        if sys.platform == 'linux2':
+        self._excluded_ifaces = instance.get('excluded_interfaces', [])
+        self._collect_cx_state = instance.get('collect_connection_state', False)
+
+        self._exclude_iface_re = None
+        exclude_re = instance.get('excluded_interface_re', None)
+        if exclude_re:
+            self.log.debug("Excluding network devices matching: %s" % exclude_re)
+            self._exclude_iface_re = re.compile(exclude_re)
+
+        if Platform.is_linux():
             self._check_linux(instance)
-        elif sys.platform == "darwin" or sys.platform.startswith("freebsd"):
+        elif Platform.is_bsd():
             self._check_bsd(instance)
-        elif sys.platform == "sunos5":
+        elif Plaform.is_solaris():
             self._check_solaris(instance)
 
-    def _submit_metrics(self, iface, vals_by_metric):
+    def _submit_devicemetrics(self, iface, vals_by_metric):
+        if self._exclude_iface_re and self._exclude_iface_re.match(iface):
+            # Skip this network interface.
+            return False
+
         expected_metrics = [
             'bytes_rcvd',
             'bytes_sent',
@@ -73,11 +92,15 @@ class Network(AgentCheck):
             'packets_out.error',
         ]
 
+        count = 0
         for metric, val in vals_by_metric.iteritems():
-            if iface in self.excluded_interfaces and metric in exclude_iface_metrics:
+            if iface in self._excluded_ifaces and metric in exclude_iface_metrics:
                 # skip it!
                 continue
             self.rate('system.net.%s' % metric, val, device_name=iface)
+            count += 1
+        self.log.debug("tracked %s network metrics for interface %s" % (count, iface))
+
 
     def _parse_value(self, v):
         if v == "-":
@@ -89,7 +112,7 @@ class Network(AgentCheck):
                 return 0
 
     def _check_linux(self, instance):
-        if self.collect_connection_state:
+        if self._collect_cx_state:
             netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
                                        stdout=subprocess.PIPE,
                                        close_fds=True).communicate()[0]
@@ -148,7 +171,7 @@ class Network(AgentCheck):
                     'packets_out.count': self._parse_value(x[9]),
                     'packets_out.error':self._parse_value(x[10]) + self._parse_value(x[11]),
                 }
-                self._submit_metrics(iface, metrics)
+                self._submit_devicemetrics(iface, metrics)
 
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
@@ -214,7 +237,7 @@ class Network(AgentCheck):
                     'packets_out.count': self._parse_value(x[-4]),
                     'packets_out.error':self._parse_value(x[-3]),
                 }
-                self._submit_metrics(iface, metrics)
+                self._submit_devicemetrics(iface, metrics)
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -224,7 +247,7 @@ class Network(AgentCheck):
                                    close_fds=True).communicate()[0]
         metrics_by_interface = self._parse_solaris_netstat(netstat)
         for interface, metrics in metrics_by_interface.iteritems():
-            self._submit_metrics(interface, metrics)
+            self._submit_devicemetrics(interface, metrics)
 
     def _parse_solaris_netstat(self, netstat_output):
         """
@@ -328,7 +351,6 @@ if __name__ == '__main__':
     for instance in instances:
         check.check(instance)
         check.check(instance)
-    import time; time.sleep(20)
     if check.has_events():
         print 'Events: %s' % (check.get_events())
     print 'Metrics: %s' % (check.get_metrics())
