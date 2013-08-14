@@ -49,6 +49,36 @@ class Network(AgentCheck):
         elif sys.platform == "sunos5":
             self._check_solaris(instance)
 
+    def _submit_metrics(self, iface, vals_by_metric):
+        expected_metrics = [
+            'bytes_rcvd',
+            'bytes_sent',
+            'packets_in.count',
+            'packets_in.error',
+            'packets_out.count',
+            'packets_out.error',
+        ]
+        for m in expected_metrics:
+            assert m in vals_by_metric
+        assert len(vals_by_metric) == len(expected_metrics)
+
+        # For reasons i don't understand only these metrics are skipped if a
+        # particular interface is in the `excluded_interfaces` config list.
+        # Not sure why the others aren't included. Until I understand why, I'm 
+        # going to keep the same behaviour.
+        exclude_iface_metrics = [
+            'packets_in.count',
+            'packets_in.error',
+            'packets_out.count',
+            'packets_out.error',
+        ]
+
+        for metric, val in vals_by_metric.iteritems():
+            if iface in self.excluded_interfaces and metric in exclude_iface_metrics:
+                # skip it!
+                continue
+            self.rate('system.net.%s' % metric, val, device_name=iface)
+
     def _parse_value(self, v):
         if v == "-":
             return 0
@@ -95,8 +125,10 @@ class Network(AgentCheck):
 
 
         proc = open('/proc/net/dev', 'r')
-        lines = proc.readlines()
-        proc.close()
+        try:
+            lines = proc.readlines()
+        finally:
+            proc.close()
         # Inter-|   Receive                                                 |  Transmit
         #  face |bytes     packets errs drop fifo frame compressed multicast|bytes       packets errs drop fifo colls carrier compressed
         #     lo:45890956   112797   0    0    0     0          0         0    45890956   112797    0    0    0     0       0          0
@@ -108,13 +140,15 @@ class Network(AgentCheck):
             # Filter inactive interfaces
             if self._parse_value(x[0]) or self._parse_value(x[8]):
                 iface = cols[0].strip()
-                self.rate('system.net.bytes_rcvd', self._parse_value(x[0]), device_name=iface)
-                self.rate('system.net.bytes_sent', self._parse_value(x[8]), device_name=iface)
-                if iface not in self.excluded_interfaces:
-                    self.rate('system.net.packets_in.count', self._parse_value(x[1]), device_name=iface)
-                    self.rate('system.net.packets_in.error', self._parse_value(x[2]) + self._parse_value(x[3]), device_name=iface)
-                    self.rate('system.net.packets_out.count', self._parse_value(x[9]), device_name=iface)
-                    self.rate('system.net.packets_out.error', self._parse_value(x[10]) + self._parse_value(x[11]), device_name=iface)
+                metrics = {
+                    'bytes_rcvd': self._parse_value(x[0]),
+                    'bytes_sent': self._parse_value(x[8]),
+                    'packets_in.count': self._parse_value(x[1]),
+                    'packets_in.error': self._parse_value(x[2]) + self._parse_value(x[3]),
+                    'packets_out.count': self._parse_value(x[9]),
+                    'packets_out.error':self._parse_value(x[10]) + self._parse_value(x[11]),
+                }
+                self._submit_metrics(iface, metrics)
 
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
@@ -171,13 +205,16 @@ class Network(AgentCheck):
 
             # Filter inactive interfaces
             if self._parse_value(x[-5]) or self._parse_value(x[-2]):
-                self.rate('system.net.bytes_rcvd', self._parse_value(x[-5]), device_name=iface)
-                self.rate('system.net.bytes_sent', self._parse_value(x[-2]), device_name=iface)
-                if iface not in self.excluded_interfaces:
-                    self.rate('system.net.packets_in.count', self._parse_value(x[-7]), device_name=iface)
-                    self.rate('system.net.packets_in.error', self._parse_value(x[-6]), device_name=iface)
-                    self.rate('system.net.packets_out.count', self._parse_value(x[-4]), device_name=iface)
-                    self.rate('system.net.packets_out.error', self._parse_value(x[-3]), device_name=iface)
+                iface = current
+                metrics = {
+                    'bytes_rcvd': self._parse_value(x[-5]),
+                    'bytes_sent': self._parse_value(x[-2]),
+                    'packets_in.count': self._parse_value(x[-7]),
+                    'packets_in.error': self._parse_value(x[-6]), 
+                    'packets_out.count': self._parse_value(x[-4]),
+                    'packets_out.error':self._parse_value(x[-3]),
+                }
+                self._submit_metrics(iface, metrics)
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -185,6 +222,23 @@ class Network(AgentCheck):
         netstat = subprocess.Popen(["kstat", "-p", "link:0:"],
                                    stdout=subprocess.PIPE,
                                    close_fds=True).communicate()[0]
+        metrics_by_interface = self._parse_solaris_netstat(netstat)
+        for interface, metrics in metrics_by_interface.iteritems():
+            self._submit_metrics(interface, metrics)
+
+    def _parse_solaris_netstat(self, netstat_output):
+        """
+        Return a mapping of network metrics by interface. For example:
+            { interface:
+                {'bytes_sent': 0,
+                  'bytes_rcvd': 0,
+                  'bytes_rcvd': 0,
+                  ...
+                }
+            }
+        """
+        # Here's an example of the netstat output:
+        #
         # link:0:net0:brdcstrcv   527336
         # link:0:net0:brdcstxmt   1595
         # link:0:net0:class       net
@@ -236,23 +290,45 @@ class Network(AgentCheck):
         # link:0:net1:unknowns    0
         # link:0:net1:zonename    53aa9b7e-48ba-4152-a52b-a6368c3d9e7c
 
-        lines = [l for l in netstat.split("\n") if len(l) > 0]
+        # A mapping of solaris names -> datadog names
+        metric_by_solaris_name = {
+            'rbytes64':'bytes_rcvd',
+            'obytes64':'bytes_rcvd',
+            'ipackets64':'packets_in.count',
+            'ierrors':'packets_in.error',
+            'opackets64':'packets_out.count',
+            'oerrors':'packets_out.error',
+        }
+
+        lines = [l for l in netstat_output.split("\n") if len(l) > 0]
+
+        metrics_by_interface = {}
+
         for l in lines:
+            # Parse the metric & interface.
             cols = l.split()
             link, n, iface, name = cols[0].split(":")
             assert link == "link"
 
-            if name == "rbytes64":
-                self.rate('system.net.bytes_rcvd', self._parse_value(cols[1]), device_name=iface)
-            elif name == "obytes64":
-                self.rate('system.net.bytes_sent', self._parse_value(cols[1]), device_name=iface)
-            elif iface not in self.excluded_interfaces:
-                if name == "ipackets64":
-                    self.rate('system.net.packets_in.count', self._parse_value(cols[1]), device_name=iface)
-                elif name == "ierrors":
-                    self.rate('system.net.packets_in.error', self._parse_value(cols[1]), device_name=iface)
-                elif name == "opackets64":
-                    self.rate('system.net.packets_out.count', self._parse_value(cols[1]), device_name=iface)
-                elif name == "oerrors":
-                    self.rate('system.net.packets_out.error', self._parse_value(cols[1]), device_name=iface)
+            # Get the datadog metric name.
+            ddname = metric_by_solaris_name.get(name, None)
+            if ddname is None:
+                continue
 
+            # Add it to this interface's list of metrics.
+            metrics = metrics_by_interface.get(iface, {})
+            metrics[ddname] = self._parse_value(cols[1])
+            metrics_by_interface[iface] = metrics
+
+        return metrics_by_interface
+
+
+if __name__ == '__main__':
+    check, instances = Network.from_yaml('conf.d/network.yaml')
+    for instance in instances:
+        check.check(instance)
+        check.check(instance)
+    import time; time.sleep(20)
+    if check.has_events():
+        print 'Events: %s' % (check.get_events())
+    print 'Metrics: %s' % (check.get_metrics())
