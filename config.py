@@ -107,7 +107,7 @@ def _windows_checksd_path():
     if hasattr(sys, 'frozen'):
         # we're frozen - from py2exe
         prog_path = os.path.dirname(sys.executable)
-        checksd_path = os.path.join(prog_path, 'checks.d')
+        checksd_path = os.path.join(prog_path, '..', 'checks.d')
     else:
 
         cur_path = os.path.dirname(__file__)
