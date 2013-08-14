@@ -67,37 +67,34 @@
 
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
-                <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
-                    <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
-                </Component>
-                <Component Id="datadogcert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
-                    <File Id="datadogcert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
-                </Component>
-                <Component Id="win32service.pyd" Guid="6461bf25-672c-4227-8c08-24014cb9f7f3">
-                    <File Id="win32service.pyd" Name="win32service.pyd" Source="$(var.InstallFiles)\win32service.pyd" KeyPath="yes"></File>
-                </Component>
-                <Component Id="dd_agent_win_256.ico" Guid="026b0f76-4bfb-45fd-b9db-8bd0fff336ab">
-                    <File Id="dd_agent_win_256.ico" Name="dd_agent_win_256.ico" Source="$(var.InstallFiles)\dd_agent_win_256.ico" KeyPath="yes"></File>
-                </Component>
-                <Component Id="config_icon.ico" Guid="ce61131a-ed9d-46ca-bd70-7baaa02c9fa9">
-                    <File Id="config_icon.ico" Name="config_icon.ico" Source="$(var.InstallFiles)\config_icon.ico" KeyPath="yes"></File>
-                </Component>
                 <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
                     <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
                 </Component>
                 <Component Id="datadogagentstatus.url" Guid="B8F673AA-F5F7-4273-947A-21391678D6BD">
                     <File Id="datadogagentstatus.url" Source="$(var.InstallFiles)\datadog-agent-status.url" KeyPath="yes"></File>
                 </Component>
-                <Component Id="Microsoft.VC90.CRT.manifest" Guid="491C4E02-10C9-11E2-AC50-DD0B6288709B">
+                <Directory Id="FILESDIR" Name="files">
+                    <Component Id="cacertificates.crt" Guid="514F0A5A-01AC-11E2-B0F9-2CEC6088709B">
+                        <File Id="cacertificates.crt" Name="ca-certificates.crt" Source="$(var.InstallFiles)\ca-certificates.crt" KeyPath="yes"></File>
+                    </Component>
+                    <Component Id="datadogcert.pem" Guid="9d2c44f7-21b2-45c6-a05f-e544d5f7d239">
+                        <File Id="datadogcert.pem" Name="datadog-cert.pem" Source="$(var.InstallFiles)\datadog-cert.pem" KeyPath="yes"></File>
+                    </Component>
+
+                    <Component Id="Microsoft.VC90.CRT.manifest" Guid="491C4E02-10C9-11E2-AC50-DD0B6288709B">
                     <File Id="Microsoft.VC90.CRT.manifest" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\Microsoft.VC90.CRT.manifest" KeyPath="yes"></File>
-                </Component>
-                <Component Id="msvcp90.dll" Guid="9142E11E-10C9-11E2-94FC-4B0C6288709B">
-                    <File Id="msvcp90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcp90.dll" KeyPath="yes"></File>
-                </Component>
-                <Component Id="msvcr90.dll" Guid="9A9A9342-10C9-11E2-A0B9-4D0C6288709B">
-                    <File Id="msvcr90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcr90.dll" KeyPath="yes"></File>
-                </Component>
+                    </Component>
+                    <Component Id="msvcp90.dll" Guid="9142E11E-10C9-11E2-94FC-4B0C6288709B">
+                        <File Id="msvcp90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcp90.dll" KeyPath="yes"></File>
+                    </Component>
+                    <Component Id="msvcr90.dll" Guid="9A9A9342-10C9-11E2-A0B9-4D0C6288709B">
+                        <File Id="msvcr90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcr90.dll" KeyPath="yes"></File>
+                    </Component>
+                </Directory>
+
+
             </Directory>
+
         </DirectoryRef>
 
         <DirectoryRef Id="APPLIDATIONDATADIRECTORY">
@@ -122,12 +119,8 @@
             <ComponentRef Id="msvcp90.dll" />
             <ComponentRef Id="msvcr90.dll" />
             <ComponentRef Id="datadog.conf" />
-            <ComponentRef Id="win32service.pyd" />
-            <ComponentRef Id="config_icon.ico" />
-            <ComponentRef Id="dd_agent_win_256.ico" />
             <ComponentGroupRef Id="checks.d" />
             <ComponentGroupRef Id="conf.d" />
-            <ComponentGroupRef Id="pup" />
             <ComponentGroupRef Id="files" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
