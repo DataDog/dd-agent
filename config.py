@@ -606,7 +606,9 @@ def load_check_directory(agentConfig):
             continue
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
-        except:
+        except Exception, e:
+            traceback_message = traceback.format_exc()
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
             log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
