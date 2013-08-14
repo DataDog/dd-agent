@@ -5,74 +5,147 @@
 # Licensed under the terms of the CECILL License
 # Modified for Datadog
 
-"""
-GUI-based test launcher
-"""
-
 import sys
 import os
 import os.path as osp
 import webbrowser
 
-import win32serviceutil
-from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
-# Local imports
+import win32serviceutil
+import win32service
+
+# GUI Imports
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
-                              QHBoxLayout, QMessageBox,
+                              QHBoxLayout, QMessageBox, QInputDialog,
                               QSystemTrayIcon, QIcon, QMenu)
-from guidata.qt.QtCore import SIGNAL, Qt, QSize
+from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
+from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
-import yaml
-from yaml import Loader as yLoader
 
-CHECK_DIRECTORY = "C:\ProgramData\Datadog\conf.d"
-DATADOG_CONF = "C:\ProgramData\Datadog\datadog.conf"
+# Datadog
+from util import yaml, yLoader
+from util import get_os
+from config import get_confd_path, get_config_path, get_config
+
+MAIN_WINDOW_TITLE = "Datadog Agent Manager"
+
+DATADOG_SERVICE = "DatadogAgent"
+DATADOG_MACHINE = "localhost"
+
+STATUS_PAGE_URL = "http://localhost:17125/status"
+AGENT_LOG_FILE = osp.join(os.environ['ALLUSERSPROFILE'], 'Datadog\\logs\\ddagent.log')
+
+HUMAN_SERVICE_STATUS = {
+    win32service.SERVICE_RUNNING : 'Service is running',
+    win32service.SERVICE_START_PENDING : 'Service is starting',
+    win32service.SERVICE_STOP_PENDING : 'Service is stopping',
+    win32service.SERVICE_STOPPED : 'Service is stopped',
+}
+
+
+START_AGENT = "Start Agent"
+STOP_AGENT = "Stop Agent"
+RESTART_AGENT = "Restart Agent"
+STATUS_PAGE = "Status page"
+EXIT_MANAGER = "Exit Agent Manager"
+OPEN_LOG = "Open log file"
+
+SYSTEM_TRAY_MENU = [
+    (START_AGENT, lambda: service_manager("start")),
+    (STOP_AGENT, lambda: service_manager("stop")),
+    (RESTART_AGENT, lambda: service_manager("restart")),
+    (STATUS_PAGE, lambda: webbrowser.open(STATUS_PAGE_URL)),
+    (OPEN_LOG, lambda: os.startfile(AGENT_LOG_FILE)),
+    (EXIT_MANAGER, lambda: sys.exit(0)),
+]
 
 def get_checks():
     checks = []
+    conf_d_directory = get_confd_path(get_os())
 
-    for fname in sorted(os.listdir(CHECK_DIRECTORY)):
-        module_name, ext = osp.splitext(fname)
+    for filename in sorted(os.listdir(conf_d_directory)):
+        module_name, ext = osp.splitext(filename)
         if ext not in ('.yaml', '.example'):
             continue
 
-        agent_check = AgentCheck(fname, ext)
+        agent_check = AgentCheck(filename, ext, conf_d_directory)
         checks.append(agent_check)
     return checks
 
-class AgentCheck(object):
-    def __init__(self, fname, ext, parse_yaml=True):
-        self.filename = fname
-        self.module_name = fname.split('.')[0]
-        self.enabled = ext == '.yaml'
-        self.path = osp.join(CHECK_DIRECTORY, fname)
-        self.enabled_name = osp.join(CHECK_DIRECTORY, "{0}.yaml".format(self.module_name))
-        self.disabled_name = "{0}.example".format(self.enabled_name)
-        self.current_file_name = self.path
-        self.parse_yaml = parse_yaml
+class ConfigFile(object):
+    def __init__(self, file_path, description):
+        self.file_path = file_path
+        self.description = description
 
     def get_description(self):
-        return self.module_name
+        return self.description
+
+    def save(self, content):
+        try:
+            f = open(self.file_path,'w')
+            f.write(content)
+            self.content = content
+            QMessageBox.information(None, 'Message',
+            "File saved.", QMessageBox.Ok)
+        except Exception, e:
+            QMessageBox.warning(None, 'Message',
+            "Unable to save file: \n %s" % str(e), QMessageBox.Ok)
+            raise
+
+class DatadogConf(ConfigFile):
+
+    @property
+    def api_key(self):
+        config = get_config(parse_args=False, cfg_path=self.file_path)
+        api_key = config.get('api_key', None)
+        if not api_key or api_key == 'APIKEYHERE':
+            return None
+        return api_key
+
+    def check_api_key(self, editor):
+        if self.api_key is None:
+            api_key, ok = QInputDialog.getText(None, "Add your API KEY",
+            "You must first set your api key in this file. You can find it here: https://app.datadoghq.com/account/settings#api")
+            if ok and api_key:
+                new_content = ""
+                for line in self.content.split('\n'):
+                    if "api_key:" in line:
+                        new_content += "api_key: %s \n" % str(api_key)
+                    else:
+                        new_content += "%s \n" % line
+                self.save(new_content)
+                editor.set_text(new_content)
+            else:
+                self.check_api_key()
+
+class AgentCheck(ConfigFile):
+    def __init__(self, filename, ext, conf_d_directory):
+        file_path = osp.join(conf_d_directory, filename)
+        self.module_name = filename.split('.')[0]
+
+        ConfigFile.__init__(self, file_path, description=self.module_name)
+        
+        self.enabled = ext == '.yaml'
+        self.enabled_name = osp.join(conf_d_directory, "%s.yaml" % self.module_name)
+        self.disabled_name = "%s.example" % self.enabled_name
 
     def enable(self):
         self.enabled = True
         os.rename(self.disabled_name, self.enabled_name)
-        self.current_file_name = self.enabled_name
+        self.file_path = self.enabled_name
 
     def disable(self):
         self.enabled = False
         os.rename(self.enabled_name, self.disabled_name)
-        self.current_file_name = self.disabled_name
+        self.file_path = self.disabled_name
 
     def save(self, content):
-        f = open(self.current_file_name,'w')
-        f.write(content)
-
+        check_yaml_syntax(content)
+        ConfigFile.save(self, content)
 
 class PropertiesWidget(QWidget):
     def __init__(self, parent):
@@ -108,11 +181,14 @@ class PropertiesWidget(QWidget):
         self.save_button = QPushButton(get_icon("filesave.png"),
                                       "Save", self)
 
-        self.edit_datadog_conf_button = QPushButton(get_icon("settings.png"),
+        self.edit_datadog_conf_button = QPushButton(get_icon("edit.png"),
                                       "Edit agent settings", self)
 
         self.disable_button = QPushButton(get_icon("delete.png"),
                                       "Disable", self)
+
+        self.menu_button = QPushButton(get_icon("settings.png"),
+                                      "Manager", self)
 
 
         hlayout = QHBoxLayout()
@@ -123,6 +199,8 @@ class PropertiesWidget(QWidget):
         hlayout.addWidget(self.disable_button)
         hlayout.addStretch()
         hlayout.addWidget(self.edit_datadog_conf_button)
+        hlayout.addStretch()
+        hlayout.addWidget(self.menu_button)
         
         vlayout = QVBoxLayout()
         vlayout.addWidget(group_desc)
@@ -130,12 +208,12 @@ class PropertiesWidget(QWidget):
         vlayout.addLayout(hlayout)
         self.setLayout(vlayout)
 
-        self.current_check = None
+        self.current_file = None
         
     def set_item(self, check):
-        self.current_check = check
+        self.current_file = check
         self.desc_label.setText(check.get_description())
-        self.editor.set_text_from_file(check.path)
+        self.editor.set_text_from_file(check.file_path)
         check.content = self.editor.toPlainText().__str__()
         if check.enabled:
             self.disable_button.setEnabled(True)
@@ -145,19 +223,28 @@ class PropertiesWidget(QWidget):
             self.enable_button.setEnabled(True)
 
     def set_datadog_conf(self, datadog_conf):
-        self.current_check = datadog_conf
+        self.current_file = datadog_conf
         self.desc_label.setText(datadog_conf.get_description())
-        self.editor.set_text_from_file(datadog_conf.path)
+        self.editor.set_text_from_file(datadog_conf.file_path)
         datadog_conf.content = self.editor.toPlainText().__str__()
         self.disable_button.setEnabled(False)
         self.enable_button.setEnabled(False)
 
-class EditChecksFrame(QSplitter):
+        datadog_conf.check_api_key(self.editor)
+
+
+class MainWindow(QSplitter):
     def __init__(self, parent=None):
         QSplitter.__init__(self, parent)
+        self.setWindowTitle(MAIN_WINDOW_TITLE)
+        self.setWindowIcon(get_icon("agent.svg"))
+        
+        self.sysTray = SystemTray(self)
+
+        self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.__icon_activated)
 
         checks = get_checks()
-        datadog_conf = AgentCheck(DATADOG_CONF, '.conf', parse_yaml=False)
+        datadog_conf = DatadogConf(get_config_path(), description="Agent settings file: datadog.conf")
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name) for check in checks])
@@ -168,13 +255,13 @@ class EditChecksFrame(QSplitter):
         self.addWidget(self.properties)
         
         self.connect(self.properties.enable_button, SIGNAL("clicked()"),
-                     lambda: enable_check(self.properties, self))
+                     lambda: enable_check(self.properties))
 
         self.connect(self.properties.disable_button, SIGNAL("clicked()"),
-                     lambda: disable_check(self.properties, self))
+                     lambda: disable_check(self.properties))
 
         self.connect(self.properties.save_button, SIGNAL("clicked()"),
-                     lambda: save_check(self.properties, self))
+                     lambda: save_file(self.properties))
 
         self.connect(listwidget, SIGNAL('currentRowChanged(int)'),
                      lambda row: self.properties.set_item(checks[row]))
@@ -186,98 +273,72 @@ class EditChecksFrame(QSplitter):
                      lambda: checks[listwidget.currentRow()].run())
 
 
+        self.manager_menu = Menu(self)
+        self.connect(self.properties.menu_button, SIGNAL("clicked()"),
+            lambda: self.manager_menu.popup(self.properties.menu_button.mapToGlobal(QPoint(0,0))))
+
+
         listwidget.setCurrentRow(0)
         
-        self.properties.set_item(checks[0])
-
         self.setSizes([150, 1])
         self.setStretchFactor(1, 1)
         self.resize(QSize(950, 600))
+        self.properties.set_datadog_conf(datadog_conf)
 
-class AgentManagerFrame(QWidget):
-    def __init__(self, parent):
-        QWidget.__init__(self, parent)
-
-        self.stop_button = QPushButton(get_icon("stop.png"),
-                                      "Stop agent", self)
-        self.start_button = QPushButton(get_icon("start.png"),
-                                      "Start agent", self)
-
-        self.restart_button = QPushButton(get_icon("restart.png"),
-                                      "Restart agent", self)
-
-        layout = QHBoxLayout()
-        layout.addWidget(self.stop_button)
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.restart_button)
-
-        self.connect(self.stop_button, SIGNAL("clicked()"),
-                     lambda: service_manager("stop"))
-
-        self.connect(self.start_button, SIGNAL("clicked()"),
-                     lambda: service_manager("start"))
-
-        self.connect(self.restart_button, SIGNAL("clicked()"),
-                     lambda: service_manager("restart"))
-
-        self.setLayout(layout)
-
-class MainWindow(QSplitter):
-
-    def __init__(self, parent=None):
-        QSplitter.__init__(self, parent)
-        self.setWindowTitle("Datadog Agent Manager")
-        self.setWindowIcon(get_icon("agent.svg"))
-        self.setOrientation(Qt.Vertical)
-        self.setSizes([150, 1])
-        self.setStretchFactor(1, 1)
-        self.resize(QSize(950, 600))
-
-        self.addWidget(EditChecksFrame(self))
-        self.addWidget(AgentManagerFrame(self))
-
-        self.create_sys_tray()
-
-        traySignal = "activated(QSystemTrayIcon::ActivationReason)"
-        self.connect(self.sysTray, SIGNAL(traySignal), self.__icon_activated)
-
-    def create_sys_tray(self):
-        self.sysTray = QSystemTrayIcon(self)
-        self.sysTray.setIcon( get_icon("agent.png") )
-        self.sysTray.setVisible(True)
-        self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.on_sys_tray_activated)
-
-        self.sysTrayMenu = QMenu(self)
-        
-        start_action = self.sysTrayMenu.addAction("Start Agent")
-        stop_action = self.sysTrayMenu.addAction("Stop Agent")
-        restart_action = self.sysTrayMenu.addAction("Restart Agent")
-        status_page_action = self.sysTrayMenu.addAction("Status page")
-        exit_manager_action = self.sysTrayMenu.addAction("Exit Agent Manager")
-        
-        self.sysTray.setContextMenu(self.sysTrayMenu)
-
-        self.sysTrayMenu.connect(start_action, SIGNAL('triggered()'), lambda: service_manager("start"))
-        self.sysTrayMenu.connect(stop_action, SIGNAL('triggered()'), lambda: service_manager("stop"))
-        self.sysTrayMenu.connect(restart_action, SIGNAL('triggered()'), lambda: service_manager("restart"))
-        self.sysTrayMenu.connect(status_page_action, SIGNAL('triggered()'), lambda: webbrowser.open("http://localhost:17125/status"))
-        self.sysTrayMenu.connect(exit_manager_action, SIGNAL('triggered()'), lambda: sys.exit(0))
-
-    def on_sys_tray_activated(self, reason):
-        print "reason-=" , reason
 
     def closeEvent(self, event):
-        #"minimize"
         self.hide()
-        self.sysTray.show() #thanks @mojo
+        self.sysTray.show() 
         event.ignore()
 
     def __icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             self.show()
 
-def disable_check(properties, parent):
-    check = properties.current_check
+class Menu(QMenu):
+
+    def __init__(self, parent=None, ):
+        QMenu.__init__(self, parent)
+        self.options = {}
+
+        for name, action in SYSTEM_TRAY_MENU:
+            menu_action = self.addAction(name)
+            self.connect(menu_action, SIGNAL('triggered()'), action)
+            self.options[name] = menu_action
+
+        self.connect(self, SIGNAL("aboutToShow()"), lambda: self.update_options())
+
+
+
+    def update_options(self):
+        if is_service_running():
+            self.options[START_AGENT].setEnabled(False)
+            self.options[RESTART_AGENT].setEnabled(True)
+            self.options[STOP_AGENT].setEnabled(True)
+        elif is_service_stopped():
+            self.options[START_AGENT].setEnabled(True)
+            self.options[RESTART_AGENT].setEnabled(False)
+            self.options[STOP_AGENT].setEnabled(False)
+        elif is_service_pending():
+            self.options[START_AGENT].setEnabled(False)
+            self.options[RESTART_AGENT].setEnabled(False)
+            self.options[STOP_AGENT].setEnabled(False)
+
+
+class SystemTray(QSystemTrayIcon):
+
+    def __init__(self, parent=None):
+        QSystemTrayIcon.__init__(self, parent)
+        self.setIcon(get_icon("agent.png"))
+        self.setVisible(True)
+        self.options = {}
+
+        menu = Menu(self.parent())
+        self.setContextMenu(menu)
+
+    
+def disable_check(properties):
+    check = properties.current_file
     new_content = properties.editor.toPlainText().__str__()
 
     if check.content != new_content:
@@ -289,8 +350,8 @@ def disable_check(properties, parent):
     properties.disable_button.setEnabled(False)
     check.disable()
     
-def enable_check(properties, check, parent):
-    check = properties.current_check
+def enable_check(properties):
+    check = properties.current_file
 
     new_content = properties.editor.toPlainText().__str__()
     if check.content != new_content:
@@ -303,20 +364,10 @@ def enable_check(properties, check, parent):
     check.enable()
     
 
-def save_check(properties, parent):
-    check = properties.current_check
-
+def save_file(properties):
+    current_file = properties.current_file
     new_content = properties.editor.toPlainText().__str__()
-    if check.parse_yaml:
-        check_yaml_syntax(new_content)
-    try:
-        check.save(new_content)
-        QMessageBox.information(None, 'Message',
-            "File saved", QMessageBox.Ok)
-    except Exception, e:
-        QMessageBox.warning(None, 'Message',
-            "Unable to save file: \n %s" % str(e), QMessageBox.Ok)
-        raise
+    current_file.save(new_content)
     
 def check_yaml_syntax(content):
     try:
@@ -327,15 +378,24 @@ def check_yaml_syntax(content):
         raise
     
 def service_manager(action):
-    service = "DatadogAgent"
-    machine = "localhost"
     if action == 'stop':
-        win32serviceutil.StopService(service, machine)
+        win32serviceutil.StopService(DATADOG_SERVICE, DATADOG_MACHINE)
     elif action == 'start':
-        win32serviceutil.StartService(service, machine)
+        win32serviceutil.StartService(DATADOG_SERVICE, DATADOG_MACHINE)
     elif action == 'restart':
-        win32serviceutil.RestartService(service, machine)
-   
+        win32serviceutil.RestartService(DATADOG_SERVICE, DATADOG_MACHINE)
+
+def get_service_status():
+    return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE, DATADOG_MACHINE)[1]
+
+def is_service_running():
+    return get_service_status() == win32service.SERVICE_RUNNING
+
+def is_service_pending():
+    return get_service_status() in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
+
+def is_service_stopped():
+    return get_service_status() == win32service.SERVICE_STOPPED
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
