@@ -204,3 +204,6 @@ tmp:
 	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm
+
+lint:
+	find .. -name \*.py -type f -not -path \*tests\* -exec pylint --rcfile=../.pylintrc --reports=n --output-format=parseable {} \;

@@ -301,7 +301,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     target = c['dd_url']
     if use_forwarder:
-        target = c['dogstatsd_target'] 
+        target = c['dogstatsd_target']
 
     hostname = get_hostname(c)
 
