@@ -131,6 +131,8 @@
         </Feature>
 
         <Property Id="WixShellExecTarget" Value="[#agentmanager.exe]" />
+        <Binary Id="Wixca" src="wixca.dll"/>
+
         <CustomAction Id="LaunchManager" 
             BinaryKey="WixCA" 
             DllEntry="WixShellExec"
