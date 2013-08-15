@@ -876,7 +876,7 @@ def initialize_logging(logger_name):
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
                 nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
-                nt_event_handler.setLevel(logging.WARNING)
+                nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
                 app_log.addHandler(nt_event_handler)    
             except Exception, e:
