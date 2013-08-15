@@ -7,6 +7,8 @@
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
         <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
+        <Property Id="AUTOSTART_MANAGER">1</Property>
+
         <Upgrade Id="82210ed1-bbe4-4051-aa15-002ea31dde15">
            <UpgradeVersion
               Minimum="1.0.0.0" Maximum="99.0.0.0"
@@ -17,14 +19,14 @@
         <Media Id="1" Cabinet="agent.cab" EmbedCab="yes" />
 
         <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="Datadog"/>
-            </Directory>
             <Directory Id="ProgramFilesFolder">
                 <Directory Id="APPLICATIONROOTDIRECTORY" Name="Datadog"/>
             </Directory>
             <Directory Id="CommonAppDataFolder" SourceName="CommonAppData">
                 <Directory Id="APPLIDATIONDATADIRECTORY" Name="Datadog" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Datadog"/>
             </Directory>
         </Directory>
 
@@ -52,18 +54,6 @@
             Execute="deferred"
             Return="check"
             Impersonate="no" />
-
-        <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="326651ad-1960-4685-8e13-426416302f85">
-                <Shortcut Id="ApplicationStartMenuShortcut" 
-                          Name="Configuration directory"
-                          Description="Configuration Directory"
-                          Target="APPLIDATIONDATADIRECTORY"
-                          WorkingDirectory="APPLIDATIONDATADIRECTORY"/>
-                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\Datadog\Agent" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
-            </Component>
-        </DirectoryRef>
 
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
@@ -97,6 +87,18 @@
 
         </DirectoryRef>
 
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="05206095-f4a0-4bb7-9ebd-80c7488dd7f9">
+                <Shortcut Id="ApplicationStartMenuShortcut" 
+                          Name="Agent Manager"
+                          Description="Manage your Datadog Agent"
+                          Target="[FILESDIR]agent-manager.exe"
+                          WorkingDirectory="FILESDIR"/>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\Microsoft\Datadog" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+
         <DirectoryRef Id="APPLIDATIONDATADIRECTORY">
             <Component Id="datadog.conf" Guid="83461594-01AC-11E2-BE35-37EC6088709B" NeverOverwrite="yes" Permanent="yes">
                 <File Id="datadog.conf" Name="datadog.conf" Source="$(var.InstallFiles)\datadog_win32.conf"></File>
@@ -109,6 +111,15 @@
                         </Component>
                     </Directory>
         </DirectoryRef>
+
+        <Component Id="ManagerAutoStart" Guid="5f883750-0597-11e3-8ffd-0800200c9a66">
+            <Registry Id="AgentManagerStart.rst" Root="HKMU" Action="write"
+                          Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                          Name="Agent Manager"
+                          Value="[FILESDIR]agent-manager.exe"
+                          Type="string" />
+            <Condition>ASSISTANCE_START_VIA_REGISTRY</Condition>
+        </Component>
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="cacertificates.crt" />
@@ -124,6 +135,8 @@
             <ComponentGroupRef Id="files" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
+            <ComponentRef Id="ApplicationShortcut" />
+            <ComponentRef Id="ManagerAutoStart" />
         </Feature>
 
         <InstallExecuteSequence>
