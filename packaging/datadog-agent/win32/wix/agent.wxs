@@ -147,5 +147,13 @@
             <Custom Action="ReplaceHostname" Before="StartServices" />
         </InstallExecuteSequence>
 
+        <Binary Id="AgentManager" SourceFile="[FILESDIR]agent-manager.exe" />
+        <CustomAction
+            Id="LaunchManager"
+            BinaryKey="AgentManager"
+            Execute="commit"
+            Return="asyncNoWait"
+            Impersonate="no" />
+
     </Product>
 </Wix>
