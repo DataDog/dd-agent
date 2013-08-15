@@ -134,8 +134,7 @@
         <CustomAction Id="LaunchManager" 
             BinaryKey="WixCA" 
             DllEntry="WixShellExec"
-            Impersonate="no"
-            Return="asyncNoWait" />
+            Impersonate="no" />
 
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
