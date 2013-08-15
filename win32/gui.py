@@ -74,7 +74,7 @@ def get_checks():
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)
-        if module_name in EXCLUDED_WINDOWS_CHECKS:
+        if filename.split('.')[0] in EXCLUDED_WINDOWS_CHECKS:
             continue
         if ext not in ('.yaml', '.example'):
             continue
