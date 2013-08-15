@@ -34,7 +34,6 @@ from config import get_confd_path, get_config_path, get_config
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
 DATADOG_SERVICE = "DatadogAgent"
-DATADOG_MACHINE = "localhost"
 
 STATUS_PAGE_URL = "http://localhost:17125/status"
 AGENT_LOG_FILE = osp.join(os.environ['ALLUSERSPROFILE'], 'Datadog\\logs\\ddagent.log')
@@ -379,14 +378,14 @@ def check_yaml_syntax(content):
     
 def service_manager(action):
     if action == 'stop':
-        win32serviceutil.StopService(DATADOG_SERVICE, DATADOG_MACHINE)
+        win32serviceutil.StopService(DATADOG_SERVICE)
     elif action == 'start':
-        win32serviceutil.StartService(DATADOG_SERVICE, DATADOG_MACHINE)
+        win32serviceutil.StartService(DATADOG_SERVICE)
     elif action == 'restart':
-        win32serviceutil.RestartService(DATADOG_SERVICE, DATADOG_MACHINE)
+        win32serviceutil.RestartService(DATADOG_SERVICE)
 
 def get_service_status():
-    return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE, DATADOG_MACHINE)[1]
+    return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
 
 def is_service_running():
     return get_service_status() == win32service.SERVICE_RUNNING
