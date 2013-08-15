@@ -83,7 +83,9 @@ if sys.platform == 'win32':
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'windows': [{'script': 'win32\gui.py',
-                     'dest_base': "agent-manager",}],
+                     'dest_base': "agent-manager",
+                     'uac_info': "requireAdministrator" # The manager needs to be administrator to stop/start the service
+                     }],
         'zipfile': None,
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
