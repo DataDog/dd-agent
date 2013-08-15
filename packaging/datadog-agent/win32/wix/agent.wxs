@@ -97,6 +97,14 @@
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Microsoft\Datadog" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
             </Component>
+            <Component Id="ManagerAutoStart" Guid="5f883750-0597-11e3-8ffd-0800200c9a66">
+                <Registry Id="AgentManagerStart.rst" Root="HKMU" Action="write"
+                          Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                          Name="Agent Manager"
+                          Value="[FILESDIR]agent-manager.exe"
+                          Type="string" />
+                <Condition>AUTOSTART_MANAGER</Condition>
+            </Component>
         </DirectoryRef>
 
         <DirectoryRef Id="APPLIDATIONDATADIRECTORY">
@@ -112,14 +120,7 @@
                     </Directory>
         </DirectoryRef>
 
-        <Component Id="ManagerAutoStart" Guid="5f883750-0597-11e3-8ffd-0800200c9a66">
-            <Registry Id="AgentManagerStart.rst" Root="HKMU" Action="write"
-                          Key="Software\Microsoft\Windows\CurrentVersion\Run"
-                          Name="Agent Manager"
-                          Value="[FILESDIR]agent-manager.exe"
-                          Type="string" />
-            <Condition>ASSISTANCE_START_VIA_REGISTRY</Condition>
-        </Component>
+
 
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="cacertificates.crt" />
