@@ -130,14 +130,12 @@
             <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
-        <Binary Id="AgentManager" SourceFile="$(var.InstallFilesBins)\agent-manager.exe" />
-        <CustomAction
-            Id="LaunchManager"
-            BinaryKey="AgentManager"
-            ExeCommand=''
-            Execute="commit"
-            Return="asyncNoWait"
-            Impersonate="no" />
+        <Property Id="WixShellExecTarget" Value="[FILESDIR]agent-manager.exe" />
+        <CustomAction Id="LaunchManager" 
+            BinaryKey="WixCA" 
+            DllEntry="WixShellExec"
+            Impersonate="no"
+            Return="asyncNoWait" />
 
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
