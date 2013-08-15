@@ -130,7 +130,7 @@
             <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
-        <Property Id="WixShellExecTarget" Value="[FILESDIR]agent-manager.exe" />
+        <Property Id="WixShellExecTarget" Value="[#agentmanager.exe]" />
         <CustomAction Id="LaunchManager" 
             BinaryKey="WixCA" 
             DllEntry="WixShellExec"

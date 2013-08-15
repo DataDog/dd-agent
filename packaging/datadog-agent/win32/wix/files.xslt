@@ -22,4 +22,14 @@
             <wix:ServiceControl Id="StartService" Name="DatadogAgent" Start="install" Stop="both" Remove="uninstall" Wait="no" />
         </xsl:copy>
     </xsl:template>
+
+    <xsl:template match="wix:Component[wix:File[@Source='$(var.InstallFilesBins)\agent-manager.exe']]">
+        <xsl:copy>
+            <xsl:apply-templates select="@*"/>
+            <xsl:attribute name="Id">
+                <xsl:text>agentmanager.exe</xsl:text>
+            </xsl:attribute>
+        </xsl:copy>
+    </xsl:template>
+
 </xsl:stylesheet>
