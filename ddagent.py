@@ -190,24 +190,28 @@ class MetricTransaction(Transaction):
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
             ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
 
-            req = tornado.httpclient.HTTPRequest(url, method="POST",
-                body=self._data, 
-                headers=self._headers, 
-                # The settings below will just be used if we use the CurlAsyncHttpClient of tornado
-                # i.e. in case of connection using a proxy
-                proxy_host=proxy_settings['host'], 
-                proxy_port=proxy_settings['port'],
-                proxy_username=proxy_settings['user'],
-                proxy_password=proxy_settings['password'],
-                ca_certs=ssl_certificate
-                )
+            tornado_client_params = {
+                'url': url,
+                'method': 'POST',
+                'body': self._data,
+                'headers': self._headers
+            }
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
+                tornado_client_params['proxy_host'] = proxy_settings['host']
+                tornado_client_params['proxy_port'] = proxy_settings['port']
+                tornado_client_params['proxy_username'] = proxy_settings['user']
+                tornado_client_params['proxy_password'] = proxy_settings['password']
+                tornado_client_params['ca_certs'] = ssl_certificate
+
+                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 tornado.httpclient.AsyncHTTPClient().configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             else:
+                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 log.debug("Using Tornado simple HTTP Client")
+                
             http = tornado.httpclient.AsyncHTTPClient()
             
 
