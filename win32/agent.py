@@ -5,7 +5,6 @@ import win32serviceutil
 import win32service
 import win32event
 import win32evtlogutil
-import servicemanager
 import sys
 import logging
 import tornado.httpclient
@@ -25,7 +24,7 @@ from win32.common import handle_exe_click
 from pup import pup
 
 class AgentSvc(win32serviceutil.ServiceFramework):
-    _svc_name_ = "ddagent"
+    _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
 
@@ -59,11 +58,11 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.running = False
 
     def SvcDoRun(self):
-        win32evtlogutil.ReportEvent(self._svc_name_,
-                                    servicemanager.PYS_SERVICE_STARTED,
-                                    0, # category
-                                    servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                    (self._svc_name_, ''))
+        import servicemanager
+        servicemanager.LogMsg(
+                servicemanager.EVENTLOG_INFORMATION_TYPE, 
+                servicemanager.PYS_SERVICE_STARTED,
+                (self._svc_name_, ''))
         # Start all services
         self.forwarder.start()
         self.agent.start()
