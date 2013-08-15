@@ -131,7 +131,6 @@
         </Feature>
 
         <Property Id="WixShellExecTarget" Value="[#agentmanager.exe]" />
-        <Binary Id="Wixca" src="wixca.dll"/>
 
         <CustomAction Id="LaunchManager" 
             BinaryKey="WixCA" 
@@ -143,7 +142,7 @@
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
             <Custom Action="ReplaceTags" Before="StartServices" />
             <Custom Action="ReplaceHostname" Before="StartServices" />
-            <Custom Action="LaunchManager" After='InstallFiles' />  
+            <Custom Action="LaunchManager" OnExit="success">CLIENTUILEVEL = 2 AND NOT Installed</Custom>
         </InstallExecuteSequence>
 
 

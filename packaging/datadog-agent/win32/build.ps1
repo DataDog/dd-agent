@@ -38,10 +38,10 @@ cp -R install_files\guidata install_files\files
 
     # Create .wixobj files from agent.wxs, confd.wxs, checksd.wxs
     $opts = '-dInstallFiles=install_files', '-dWixRoot=wix', '-dInstallFilesChecksD=install_files\checks.d', '-dInstallFilesConfD=install_files\conf.d', '-dInstallFilesBins=install_files\files', "-dAgentVersion=$version"
-    candle $opts wix\agent.wxs wix\checksd.wxs wix\confd.wxs wix\files.wxs
+    candle $opts wix\agent.wxs wix\checksd.wxs wix\confd.wxs wix\files.wxs -ext WixUIExtension -ext WixUtilExtension
 
     # Light to create the msi
-    light agent.wixobj checksd.wixobj confd.wixobj files.wixobj -o ..\..\..\build\ddagent.msi
+    light agent.wixobj checksd.wixobj confd.wixobj files.wixobj -o ..\..\..\build\ddagent.msi -ext WixUIExtension -ext WixUtilExtension
 
 # Clean up
 rm *wixobj*
