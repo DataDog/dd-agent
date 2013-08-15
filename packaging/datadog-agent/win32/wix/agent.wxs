@@ -130,22 +130,15 @@
             <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
-        <Property Id="WixShellExecTarget" Value="[#agentmanager.exe]" />
-
-        <CustomAction Id="LaunchManager" 
-            BinaryKey="WixCA" 
-            DllEntry="WixShellExec"
-            Impersonate="no" />
 
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
             <Custom Action="ReplaceTags" Before="StartServices" />
             <Custom Action="ReplaceHostname" Before="StartServices" />
-            <Custom Action="LaunchManager" OnExit="success">CLIENTUILEVEL = 2 AND NOT Installed</Custom>
+           <Custom Action='LaunchApp' After='InstallFinalize'>CLIENTUILEVEL = 2 AND NOT Installed</Custom>
         </InstallExecuteSequence>
 
-
-
+<CustomAction Id="LaunchApp" Directory="FILESDIR" ExeCommand="[SystemFolder]cmd.exe /C start agent-manager.exe" />
     </Product>
 </Wix>
