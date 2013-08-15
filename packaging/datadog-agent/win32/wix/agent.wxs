@@ -7,7 +7,6 @@
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
         <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
-        <Property Id="AUTOSTART_MANAGER">1</Property>
 
         <Upgrade Id="82210ed1-bbe4-4051-aa15-002ea31dde15">
            <UpgradeVersion
@@ -97,14 +96,6 @@
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\Microsoft\Datadog" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
             </Component>
-            <Component Id="ManagerAutoStart" Guid="5f883750-0597-11e3-8ffd-0800200c9a66">
-                <Registry Id="AgentManagerStart.rst" Root="HKMU" Action="write"
-                          Key="Software\Microsoft\Windows\CurrentVersion\Run"
-                          Name="Agent Manager"
-                          Value="[FILESDIR]agent-manager.exe"
-                          Type="string" />
-                <Condition>AUTOSTART_MANAGER</Condition>
-            </Component>
         </DirectoryRef>
 
         <DirectoryRef Id="APPLIDATIONDATADIRECTORY">
@@ -137,15 +128,7 @@
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
             <ComponentRef Id="ApplicationShortcut" />
-            <ComponentRef Id="ManagerAutoStart" />
         </Feature>
-
-        <InstallExecuteSequence>
-            <RemoveExistingProducts Before="InstallInitialize" />
-            <Custom Action="ReplaceAPIKey" Before="StartServices" />
-            <Custom Action="ReplaceTags" Before="StartServices" />
-            <Custom Action="ReplaceHostname" Before="StartServices" />
-        </InstallExecuteSequence>
 
         <Binary Id="AgentManager" SourceFile="$(var.InstallFilesBins)\agent-manager.exe" />
         <CustomAction
@@ -155,6 +138,16 @@
             Execute="commit"
             Return="asyncNoWait"
             Impersonate="no" />
+
+        <InstallExecuteSequence>
+            <RemoveExistingProducts Before="InstallInitialize" />
+            <Custom Action="ReplaceAPIKey" Before="StartServices" />
+            <Custom Action="ReplaceTags" Before="StartServices" />
+            <Custom Action="ReplaceHostname" Before="StartServices" />
+            <Custom Action="LaunchManager" After='InstallFiles' />  
+        </InstallExecuteSequence>
+
+
 
     </Product>
 </Wix>
