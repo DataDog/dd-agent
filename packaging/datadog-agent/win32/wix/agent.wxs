@@ -147,7 +147,7 @@
             <Custom Action="ReplaceHostname" Before="StartServices" />
         </InstallExecuteSequence>
 
-        <Binary Id="AgentManager" SourceFile="[FILESDIR]agent-manager.exe" />
+        <Binary Id="AgentManager" SourceFile="$(var.InstallFilesBins)\agent-manager.exe" />
         <CustomAction
             Id="LaunchManager"
             BinaryKey="AgentManager"
