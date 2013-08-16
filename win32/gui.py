@@ -292,7 +292,7 @@ class MainWindow(QSplitter):
         self.log_file = LogFile()
 
         listwidget = QListWidget(self)
-        listwidget.addItems([osp.basename(check.module_name) for check in checks])
+        listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
         
         self.properties = PropertiesWidget(self)
         
