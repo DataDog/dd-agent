@@ -36,8 +36,11 @@ WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
 LOGGING_INTERVAL = 10
 
-def serialize(metrics):
+def serialize_metrics(metrics):
     return json.dumps({"series" : metrics})
+
+def serialize_event(event):
+    return json.dumps(event)
 
 class Reporter(threading.Thread):
     """
@@ -109,13 +112,23 @@ class Reporter(threading.Thread):
                     log.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
                 self.submit(metrics)
 
+            events = self.metrics_aggregator.flush_events()
+            event_count = len(events)
+            if not event_count:
+                    log.info("Flush #%s: No events to flush." % self.flush_count)
+            else:
+                log.info("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
+                self.submit_events(events)
+
             # Persist a status message.
             packet_count = self.metrics_aggregator.total_count
             DogstatsdStatus(
                 flush_count=self.flush_count,
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
-                metric_count=count).persist()
+                metric_count=count,
+                event_count=event_count
+            ).persist()
 
         except:
             log.exception("Error flushing metrics")
@@ -123,7 +136,7 @@ class Reporter(threading.Thread):
     def submit(self, metrics):
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        body = serialize(metrics)
+        body = serialize_metrics(metrics)
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
@@ -150,6 +163,33 @@ class Reporter(threading.Thread):
                         status, method, self.api_host, url, duration))
         return duration
 
+    def submit_events(self, events):
+        headers = {'Content-Type':'application/json'}
+        method = 'POST'
+
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
+        url = '/api/v1/events?%s' % urlencode(params)
+
+        status = None
+        conn = self.http_conn_cls(self.api_host)
+        try:
+            for event in events:
+                start_time = time()
+                body = serialize_event(event)
+                log.debug('Sending event: %s' % body)
+                conn.request(method, url, body, headers)
+
+                response = conn.getresponse()
+                status = response.status
+                response.close()
+                duration = round((time() - start_time) * 1000.0, 4)
+                log.debug("%s %s %s%s (%sms)" % (
+                                status, method, self.api_host, url, duration))
+        finally:
+            conn.close()
+
 class Server(object):
     """
     A statsd udp server.
@@ -160,7 +200,7 @@ class Server(object):
         self.port = int(port)
         self.address = (self.host, self.port)
         self.metrics_aggregator = metrics_aggregator
-        self.buffer_size = 1024
+        self.buffer_size = 1024 * 8
 
         # IPv4 only
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
