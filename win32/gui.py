@@ -131,6 +131,11 @@ class DatadogConf(EditorFile):
                 new_content = "\n".join(new_content)
                 self.save(new_content)
                 editor.set_text(new_content)
+
+                if not is_service_stopped():
+                    service_manager("restart")
+                else:
+                    service_manager("start")
             else:
                 self.check_api_key()
 
@@ -328,10 +333,12 @@ class MainWindow(QSplitter):
 
     def do_refresh(self):
         try:
-            self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[get_service_status()])
+            if self.isVisible():
+                service_status = get_service_status()
+                self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[service_status])
 
-            if self.properties.current_file == self.log_file:
-                self.properties.set_log_file(self.log_file)
+                if not is_service_stopped(service_status) and self.properties.current_file == self.log_file:
+                    self.properties.set_log_file(self.log_file)
         finally:
             QTimer.singleShot(REFRESH_PERIOD, self.do_refresh)
 
@@ -359,15 +366,16 @@ class Menu(QMenu):
 
 
     def update_options(self):
-        if is_service_running():
+        status = get_service_status()
+        if is_service_running(status):
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(True)
             self.options[STOP_AGENT].setEnabled(True)
-        elif is_service_stopped():
+        elif is_service_stopped(status):
             self.options[START_AGENT].setEnabled(True)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
-        elif is_service_pending():
+        elif is_service_pending(status):
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
@@ -436,14 +444,20 @@ def service_manager(action):
 def get_service_status():
     return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
 
-def is_service_running():
-    return get_service_status() == win32service.SERVICE_RUNNING
+def is_service_running(status = None):
+    if status = None:
+        status = get_service_status()
+    return status == win32service.SERVICE_RUNNING
 
-def is_service_pending():
-    return get_service_status() in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
+def is_service_pending(status = None):
+    if status = None:
+        status = get_service_status()
+    return status in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
 
-def is_service_stopped():
-    return get_service_status() == win32service.SERVICE_STOPPED
+def is_service_stopped(status = None):
+    if status = None:
+        status = get_service_status()
+    return status == win32service.SERVICE_STOPPED
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
