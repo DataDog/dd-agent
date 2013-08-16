@@ -144,7 +144,7 @@ class AgentCheck(EditorFile):
         file_path = osp.join(conf_d_directory, filename)
         self.module_name = filename.split('.')[0]
 
-        EditorFile.__init__(self, file_path, description=self.module_name)
+        EditorFile.__init__(self, file_path, description=self.module_name.replace("_", " ").title())
         
         self.enabled = ext == '.yaml'
         self.enabled_name = osp.join(conf_d_directory, "%s.yaml" % self.module_name)
