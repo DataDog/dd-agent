@@ -114,9 +114,15 @@ class Reporter(threading.Thread):
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
             if not event_count:
+                if should_log:
                     log.info("Flush #%s: No events to flush." % self.flush_count)
+                else:
+                    log.debug("Flush #%s: No events to flush." % self.flush_count)
             else:
-                log.info("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
+                if should_log:
+                    log.info("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
+                else:
+                    log.debug("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
                 self.submit_events(events)
 
             # Persist a status message.
