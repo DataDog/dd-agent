@@ -727,7 +727,9 @@ def load_check_directory(agentConfig):
 
 
 def get_log_format(logger_name):
-    return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+    if get_os() != 'windows':
+        return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+    return '%%(asctime)s | %%(levelname)s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s'
 
 
 def get_syslog_format(logger_name):
