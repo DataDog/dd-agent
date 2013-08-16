@@ -10,7 +10,6 @@ import os
 import os.path as osp
 import webbrowser
 
-
 import win32serviceutil
 import win32service
 
@@ -19,7 +18,7 @@ from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
                               QSystemTrayIcon, QIcon, QMenu)
-from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint
+from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
@@ -51,6 +50,7 @@ HUMAN_SERVICE_STATUS = {
     win32service.SERVICE_STOPPED : 'Service is stopped',
 }
 
+REFRESH_PERIOD = 5000
 
 START_AGENT = "Start Agent"
 STOP_AGENT = "Stop Agent"
@@ -64,7 +64,6 @@ SYSTEM_TRAY_MENU = [
     (STOP_AGENT, lambda: service_manager("stop")),
     (RESTART_AGENT, lambda: service_manager("restart")),
     (STATUS_PAGE, lambda: webbrowser.open(STATUS_PAGE_URL)),
-    (OPEN_LOG, lambda: os.startfile(AGENT_LOG_FILE)),
     (EXIT_MANAGER, lambda: sys.exit(0)),
 ]
 
@@ -83,7 +82,7 @@ def get_checks():
         checks.append(agent_check)
     return checks
 
-class ConfigFile(object):
+class EditorFile(object):
     def __init__(self, file_path, description):
         self.file_path = file_path
         self.description = description
@@ -103,7 +102,12 @@ class ConfigFile(object):
             "Unable to save file: \n %s" % str(e), QMessageBox.Ok)
             raise
 
-class DatadogConf(ConfigFile):
+class LogFile(EditorFile):
+    def __init__(self):
+        EditorFile.__init__(self, AGENT_LOG_FILE, "Agent log file")
+    
+
+class DatadogConf(EditorFile):
 
     @property
     def api_key(self):
@@ -118,23 +122,24 @@ class DatadogConf(ConfigFile):
             api_key, ok = QInputDialog.getText(None, "Add your API KEY",
             "You must first set your api key in this file. You can find it here: https://app.datadoghq.com/account/settings#api")
             if ok and api_key:
-                new_content = ""
-                for line in self.content.split('\n'):
+                new_content = []
+                for line in self.content.splitlines():
                     if "api_key:" in line:
-                        new_content += "api_key: %s \n" % str(api_key)
+                        new_content.append("api_key: %s" % str(api_key))
                     else:
-                        new_content += "%s \n" % line
+                        new_content.append("%s" % line)
+                new_content = "\n".join(new_content)
                 self.save(new_content)
                 editor.set_text(new_content)
             else:
                 self.check_api_key()
 
-class AgentCheck(ConfigFile):
+class AgentCheck(EditorFile):
     def __init__(self, filename, ext, conf_d_directory):
         file_path = osp.join(conf_d_directory, filename)
         self.module_name = filename.split('.')[0]
 
-        ConfigFile.__init__(self, file_path, description=self.module_name)
+        EditorFile.__init__(self, file_path, description=self.module_name)
         
         self.enabled = ext == '.yaml'
         self.enabled_name = osp.join(conf_d_directory, "%s.yaml" % self.module_name)
@@ -152,7 +157,7 @@ class AgentCheck(ConfigFile):
 
     def save(self, content):
         check_yaml_syntax(content)
-        ConfigFile.save(self, content)
+        EditorFile.save(self, content)
 
 class PropertiesWidget(QWidget):
     def __init__(self, parent):
@@ -164,14 +169,24 @@ class PropertiesWidget(QWidget):
         info_icon.setPixmap(icon)
         info_icon.setFixedWidth(32)
         info_icon.setAlignment(Qt.AlignTop)
+
+        self.service_status_label = QLabel()
+        self.service_status_label.setWordWrap(True)
+        self.service_status_label.setAlignment(Qt.AlignTop)
+        self.service_status_label.setFont(font)
+
         self.desc_label = QLabel()
         self.desc_label.setWordWrap(True)
         self.desc_label.setAlignment(Qt.AlignTop)
         self.desc_label.setFont(font)
+
         group_desc = QGroupBox("Description", self)
         layout = QHBoxLayout()
         layout.addWidget(info_icon)
         layout.addWidget(self.desc_label)
+        layout.addStretch()
+        layout.addWidget(self.service_status_label  )
+
         group_desc.setLayout(layout)
         
         self.editor = CodeEditor(self)
@@ -194,8 +209,13 @@ class PropertiesWidget(QWidget):
         self.disable_button = QPushButton(get_icon("delete.png"),
                                       "Disable", self)
 
+
+        self.view_log_button = QPushButton(get_icon("txt.png"), 
+                                      "View log", self)
+
         self.menu_button = QPushButton(get_icon("settings.png"),
                                       "Manager", self)
+
 
 
         hlayout = QHBoxLayout()
@@ -206,6 +226,8 @@ class PropertiesWidget(QWidget):
         hlayout.addWidget(self.disable_button)
         hlayout.addStretch()
         hlayout.addWidget(self.edit_datadog_conf_button)
+        hlayout.addStretch()
+        hlayout.addWidget(self.view_log_button)
         hlayout.addStretch()
         hlayout.addWidget(self.menu_button)
         
@@ -239,9 +261,19 @@ class PropertiesWidget(QWidget):
 
         datadog_conf.check_api_key(self.editor)
 
+    def set_log_file(self, log_file):
+        self.current_file = log_file
+        self.desc_label.setText(log_file.get_description())
+        self.editor.set_text_from_file(log_file.file_path)
+        log_file.content = self.editor.toPlainText().__str__()
+        self.disable_button.setEnabled(False)
+        self.enable_button.setEnabled(False)
+        self.editor.go_to_line(len(log_file.content.splitlines()))
+
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
+
         QSplitter.__init__(self, parent)
         self.setWindowTitle(MAIN_WINDOW_TITLE)
         self.setWindowIcon(get_icon("agent.svg"))
@@ -252,6 +284,7 @@ class MainWindow(QSplitter):
 
         checks = get_checks()
         datadog_conf = DatadogConf(get_config_path(), description="Agent settings file: datadog.conf")
+        self.log_file = LogFile()
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name) for check in checks])
@@ -276,9 +309,8 @@ class MainWindow(QSplitter):
         self.connect(self.properties.edit_datadog_conf_button, SIGNAL('clicked()'),
                      lambda: self.properties.set_datadog_conf(datadog_conf))
 
-        self.connect(listwidget, SIGNAL('itemActivated(QListWidgetItem*)'),
-                     lambda: checks[listwidget.currentRow()].run())
-
+        self.connect(self.properties.view_log_button, SIGNAL('clicked()'),
+                     lambda: self.properties.set_log_file(self.log_file))
 
         self.manager_menu = Menu(self)
         self.connect(self.properties.menu_button, SIGNAL("clicked()"),
@@ -292,6 +324,16 @@ class MainWindow(QSplitter):
         self.resize(QSize(950, 600))
         self.properties.set_datadog_conf(datadog_conf)
 
+        self.do_refresh()
+
+    def do_refresh(self):
+        try:
+            self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[get_service_status()])
+
+            if self.properties.current_file == self.log_file:
+                self.properties.set_log_file(self.log_file)
+        finally:
+            QTimer.singleShot(REFRESH_PERIOD, self.do_refresh)
 
     def closeEvent(self, event):
         self.hide()
@@ -314,7 +356,6 @@ class Menu(QMenu):
             self.options[name] = menu_action
 
         self.connect(self, SIGNAL("aboutToShow()"), lambda: self.update_options())
-
 
 
     def update_options(self):
