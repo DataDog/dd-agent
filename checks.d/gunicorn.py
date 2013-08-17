@@ -18,17 +18,15 @@ from checks import AgentCheck
 
 class GUnicornCheck(AgentCheck):
 
-    # configuration
+    # Config
     PROC_NAME = 'proc_name'
-    PID = 'pid_file'
 
-    # number of seconds to sleep 
+    # Number of seconds to sleep between cpu time checks.
     CPU_SLEEP_SECS = 0.1
 
-
+    # Worker state tags.
     IDLE_TAGS = ["state:idle"]
     WORKING_TAGS = ["state:working"]
-
 
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """
