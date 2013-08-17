@@ -1,0 +1,6 @@
+init_config:
+
+instances:
+    # The name of the gunicorn group (for example,
+    # `gunicorn --name my_web_app my_web_app_config.ini
+    # - proc_name: my_web_app
