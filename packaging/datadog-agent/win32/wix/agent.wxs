@@ -89,7 +89,7 @@
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="ApplicationShortcut" Guid="05206095-f4a0-4bb7-9ebd-80c7488dd7f9">
                 <Shortcut Id="ApplicationStartMenuShortcut" 
-                          Name="Agent Manager"
+                          Name="Datadog Agent Manager"
                           Description="Manage your Datadog Agent"
                           Target="[FILESDIR]agent-manager.exe"
                           WorkingDirectory="FILESDIR"/>
@@ -127,7 +127,6 @@
             <ComponentGroupRef Id="files" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="logs" />
-            <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
 
