@@ -11,14 +11,16 @@ class HTTPCheck(ServicesCheck):
         username = instance.get('username', None)
         password = instance.get('password', None)
         timeout = int(instance.get('timeout', 10))
+        headers = instance.get('headers',{})
         url = instance.get('url', None)
+        response_time = instance.get('collect_response_time', False)
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
-        return url, username, password, timeout, include_content
+        return url, username, password, timeout, include_content, headers, response_time
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, response_time = self._load_conf(instance)
         content = ''
         start = time.time()
         try:
@@ -26,7 +28,7 @@ class HTTPCheck(ServicesCheck):
             h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
-            resp, content = h.request(addr, "GET")
+            resp, content = h.request(addr, "GET", headers=headers)
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
@@ -47,6 +49,9 @@ class HTTPCheck(ServicesCheck):
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms" % (str(e), length))
             raise
+
+        if response_time:
+            self.gauge('network.http.response_time', time.time() - start, tags=['url:%s' % addr])
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))

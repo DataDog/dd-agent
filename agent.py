@@ -29,7 +29,7 @@ import urllib
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
 if int(sys.version_info[1]) <= 3:
-    sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
+    sys.stderr.write("Datadog Agent requires python 2.4 or later.\n")
     sys.exit(2)
 
 # Custom modules
@@ -221,7 +221,7 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        agent.info(verbose=options.verbose)
+        return agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')
@@ -244,7 +244,7 @@ def main():
         except Exception:
             # If not an old-style check, try checks.d
             checks = load_check_directory(agentConfig)
-            for check in checks:
+            for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
                     print check.get_metrics()
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     except StandardError:
         # Try our best to log the error.
         try:
-            log.exception("Uncaught error running the agent")
+            log.exception("Uncaught error running the Agent")
         except:
             pass
         raise

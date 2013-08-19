@@ -59,7 +59,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.8.0"
+    return "3.9.0"
 
 
 def skip_leading_wsp(f):
@@ -178,7 +178,7 @@ def get_config_path(cfg_path=None, os_name=None):
         return os.path.join(path, DATADOG_CONF)
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the agent is currently deployed.\n" % bad_path)
+    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
@@ -529,7 +529,7 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the agent is currently deployed.\n" % bad_path)
+    log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
 
@@ -756,7 +756,7 @@ def get_log_format(logger_name):
 
 
 def get_syslog_format(logger_name):
-    return '%%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
+    return 'dd.%s[%%(process)d]: %%(levelname)s (%%(filename)s:%%(lineno)s): %%(message)s' % logger_name
 
 
 def get_logging_config(cfg_path=None):

@@ -3,7 +3,7 @@
 ### BEGIN INIT INFO
 # Provides: dd-agent
 # Short-Description: Start and start dd-agent
-# Description: dd-agent is the monitoring agent component for Datadog
+# Description: dd-agent is the monitoring Agent component for Datadog
 # Required-Start: $remote_fs
 # Required-Stop: $remote_fs
 # Default-Start: 2 3 4 5
@@ -19,16 +19,16 @@ DOGSTATSDPATH="/usr/bin/dogstatsd"
 AGENTUSER="dd-agent"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 NAME="datadog-agent"
-DESC="Datadog agent"
+DESC="Datadog Agent"
 DDAGENT_PID_PATH="/var/run/dd-agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
 SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
-SUPERVISORD="/usr/bin/supervisord"
+SUPERVISORD=$(which supervisord)
 
 # This script is considered a configuration file and will not be
 # removed by dpkg unless the --purge option it set. Therefore we
-# make sure that the agent is actually installed before we try to do anything:
+# make sure that the Agent is actually installed before we try to do anything:
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
     exit 0
@@ -64,7 +64,7 @@ check_status() {
             return 1
         fi
     else
-        # If we're not using supervisor, use the agent and dogstatsd status
+        # If we're not using supervisor, use the Agent and dogstatsd status
         # commands:
 
         su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
@@ -111,12 +111,23 @@ case "$1" in
             su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
         fi
 
-        sleep 4 # wait for the services to start up
-        if check_status > /dev/null; then
-            log_end_msg 0
-        else
-            log_end_msg 1
-        fi
+        # check if the agent is running once per second for 10 seconds
+        retries=10
+        while [ $retries -gt 1 ]; do
+          if check_status > /dev/null; then
+              # We've started up successfully. Exit cleanly
+              log_end_msg 0
+              exit 0
+          else
+              retries=$(($retries - 1))
+              sleep 1
+          fi
+        done
+        # After 10 tries the agent didn't start. Report an error
+        log_end_msg 1
+        check_status # report what went wrong
+        $0 stop
+        exit 1
         ;;
     stop)
         if [ -f $USE_SUPERVISOR ]; then
@@ -136,11 +147,15 @@ case "$1" in
         shift # Shift 'info' out of args so we can pass any
               # addtional options to the real command
               # (right now only dd-agent supports additional flags)
-        su $AGENTUSER -c "$AGENTPATH info $@" || true
-        su $AGENTUSER -c "$DOGSTATSDPATH info" || true
+        su $AGENTUSER -c "$AGENTPATH info $@"
+        RETURN_VALUE=$?
+        su $AGENTUSER -c "$DOGSTATSDPATH info"
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
         if [ -f $USE_SUPERVISOR ]; then
-            su $AGENTUSER -c "$USE_SUPERVISOR info" || true
+            su $AGENTUSER -c "$USE_SUPERVISOR info"
+            RETURN_VALUE=$(($RETURN_VALUE || $?))
         fi
+        exit $RETURN_VALUE
         ;;
 
     status)
