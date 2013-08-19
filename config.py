@@ -23,8 +23,7 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
-JMX_CHECKS_FILES = "tomcat.yaml,activemq.yaml,solr.yaml,cassandra.yaml,jmx.yaml"
-
+JMX_CHECKS = ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']
 log = logging.getLogger(__name__)
 
 
@@ -591,7 +590,7 @@ def load_check_directory(agentConfig):
     jmx_connector_pid = None
     for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
         check_name = os.path.basename(conf).split('.')[0]
-        if check_name in ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']:
+        if check_name in JMX_CHECKS:
             jmx_check_configured = True
             break
 
@@ -622,7 +621,7 @@ def load_check_directory(agentConfig):
                     str(DEFAULT_CHECK_FREQUENCY * 1000), 
                     get_logging_config().get('jmxfetch_log_file'),
                     "INFO", 
-                    JMX_CHECKS_FILES,
+                    ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
                     ], 
                         stdout=subprocess.PIPE, close_fds=True)
             jmx_connector_pid = jmxfetch.pid
@@ -673,7 +672,7 @@ def load_check_directory(agentConfig):
                 check_config = yaml.load(f.read(), Loader=yLoader)
                 assert check_config is not None
                 f.close()
-            except:
+            except Exception:
                 f.close()
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue

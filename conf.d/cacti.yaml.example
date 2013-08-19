@@ -36,8 +36,8 @@ instances:
         mysql_user: MYSQL_USER
         mysql_password: MYSQL_PASSWORD
         rrd_path: /path/to/cacti/rra
-        #field_names:
-        #    - ifName
-        #    - dskDevice
-        #    - ifIndex       
+        field_names:
+            - ifName
+            - dskDevice
+            - ifIndex       
         #rrd_whitelist: /path/to/rrd_whitelist.txt
