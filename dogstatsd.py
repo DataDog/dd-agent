@@ -260,7 +260,7 @@ class Dogstatsd(Daemon):
         if self.autorestart:
             parent_pid = os.getpgid(self.pid())
             os.kill(parent_pid, signal.SIGTERM)
-        Daemon.stop(self)
+        super(Dogstatsd, self).stop()
 
     def run(self):
         # Gracefully exit on sigterm.
