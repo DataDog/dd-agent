@@ -48,7 +48,8 @@ class SQLServer(AgentCheck):
             conn_str += 'User ID=%s;' % (username)
         if password:
             conn_str += 'Password=%s;' % (password)
-
+        if not username and not password:
+            conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
     def check(self, instance):
