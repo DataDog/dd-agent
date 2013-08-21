@@ -26,6 +26,8 @@ from resources.processes import Processes as ResProcesses
 
 
 log = logging.getLogger(__name__)
+
+
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 

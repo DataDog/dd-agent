@@ -10,7 +10,10 @@ import sys
 import time
 
 # 3p
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 # project
 from checks import AgentCheck
@@ -30,6 +33,9 @@ class GUnicornCheck(AgentCheck):
 
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """
+        if not psutil:
+            raise GUnicornCheckError("gunicorn check requires the psutil python package")
+
         self.log.debug("Running instance: %s", instance)
 
         # Validate the config.

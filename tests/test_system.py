@@ -6,6 +6,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 from checks.system.unix import *
+from checks.system import Platform
 from common import get_check
 from config import get_system_stats
 
@@ -22,7 +23,7 @@ class TestSystem(unittest.TestCase):
         load = Load(logger)
         res = load.check({'system_stats': get_system_stats()})
         assert 'system.load.1' in res
-        if sys.platform == "linux2":
+        if Platform.is_linux():
             cores = int(get_system_stats().get('cpuCores'))
             assert 'system.load.norm.1' in res
             assert abs(res['system.load.1'] - cores * res['system.load.norm.1']) <= 0.1, (res['system.load.1'], cores * res['system.load.norm.1'])
@@ -31,12 +32,6 @@ class TestSystem(unittest.TestCase):
         res = load.check({})
         assert 'system.load.1' in res
         assert 'system.load.norm.1' not in res
-
-    def testDisk(self):
-        """Testing disk stats gathering"""
-        global logger
-        disk = Disk(logger)
-        res = disk.check({})
 
     lion_df_i = """Filesystem                        512-blocks      Used Available Capacity  iused    ifree %iused  Mounted onto
 /dev/disk1                         487932936 220080040 267340896    46% 27574003 33417612   45%   /
@@ -100,33 +95,48 @@ none                  985964       1  985963    1% /lib/init/rw
         global logger
         disk = Disk(logger)
 
-        if sys.platform == 'darwin':
-            res = disk._parse_df(TestSystem.lion_df_k)
-            assert res[0][:4] == ["/dev/disk1", 243966468, 110040020, 133670448], res[0]
-            assert res[3][:4] == ["/dev/disk2s1", 31154688, 2506560, 28648128], res[3]
+        res = disk.parse_df_output(TestSystem.lion_df_k, 'darwin')
+        assert res[0][:4] == ["/dev/disk1", 243966468, 110040020, 133670448], res[0]
+        assert res[3][:4] == ["/dev/disk2s1", 31154688, 2506560, 28648128], res[3]
 
-            res = disk._parse_df(TestSystem.lion_df_i, inodes = True)
-            assert res[0][:4] == ["/dev/disk1", 60991615, 27574003, 33417612], res[0]
+        res = disk.parse_df_output(TestSystem.lion_df_i, 'darwin', inodes=True)
+        assert res[0][:4] == ["/dev/disk1", 60991615, 27574003, 33417612], res[0]
 
-        if sys.platform == 'linux2':
-            res = disk._parse_df(TestSystem.linux_df_k)
-            assert res[0][:4] == ["/dev/sda1", 8256952, 5600592,  2236932], res[0]
-            assert res[2][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[2]
-            assert res[3][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[3]
-            assert res[4][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[4]
-    
-            res = disk._parse_df(TestSystem.linux_df_i, inodes = True)
-            assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
-            assert res[1][:4] == ["/dev/sdb", 27525120, 147, 27524973], res[1]
-            assert res[2][:4] == ["/dev/sdf", 46474080, 478386, 45995694], res[2]
-    
-            res = disk._parse_df(TestSystem.linux_df_k, use_mount = True)
-            assert res[0][:4] == ["/", 8256952, 5600592,  2236932], res[0]
-            assert res[2][:4] == ["/data", 52403200, 40909112, 11494088], res[2]
-            assert res[3][:4] == ["/data2", 52403200, 40909112, 11494088], res[3]
-            assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
-            assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
+        # Test parsing linux output.
+        res = disk.parse_df_output(TestSystem.linux_df_k, 'linux2')
+        assert len(res) == 22
+        assert res[0][:4] == ["/dev/sda1", 8256952, 5600592,  2236932], res[0]
+        assert res[2][:4] == ["/dev/sdf", 52403200, 40909112, 11494088], res[2]
+        assert res[3][:4] == ["nfs:/abc/def/ghi/jkl/mno/pqr", 52403200, 40909112, 11494088], res[3]
+        assert res[4][:4] == ["/dev/sdg", 52403200, 40909112, 11494088], res[4]
+
+        # Test parsing linux output but filter some of the nodes.
+        blacklist_re = re.compile('/dev/xvdi.*')
+        res = disk.parse_df_output(TestSystem.linux_df_k, 'linux2', blacklist_re=blacklist_re)
+        assert res[0][:4] == ["/dev/sda1", 8256952, 5600592,  2236932], res[0]
+        assert len(res) == 15, len(res)
+
+        res = disk.parse_df_output(TestSystem.linux_df_i, 'linux2', inodes = True)
+        assert res[0][:4] == ["/dev/sda1", 524288, 171642, 352646], res[0]
+        assert res[1][:4] == ["/dev/sdb", 27525120, 147, 27524973], res[1]
+        assert res[2][:4] == ["/dev/sdf", 46474080, 478386, 45995694], res[2]
+
+        res = disk.parse_df_output(TestSystem.linux_df_k, 'linux2', use_mount = True)
+        assert res[0][:4] == ["/", 8256952, 5600592,  2236932], res[0]
+        assert res[2][:4] == ["/data", 52403200, 40909112, 11494088], res[2]
+        assert res[3][:4] == ["/data2", 52403200, 40909112, 11494088], res[3]
+        assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
+        assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
         
+    def test_collecting_disk_metrics(self):
+        """Testing disk stats gathering"""
+        if Platform.is_unix():
+            disk = Disk(logger)
+            res = disk.check({})
+            # Assert we have disk & inode stats
+            assert len(res) == 2
+            assert res[0]
+            assert res[1]
 
     def testMemory(self):
         global logger

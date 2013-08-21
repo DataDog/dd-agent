@@ -4,6 +4,10 @@ init_config:
     # `sys.dm_os_performance_counters` table. You can easily add additional
     # metrics by following the custom_metrics structure shown below.
     #
+    # In order to connect to SQL Server either enable SQL Authentication and
+    # specify a username or password below. If you do not specify a username 
+    # or password then we will connect using integrated authentication.
+    #
     #custom_metrics:
     #
     #    This is a basic custom metric. There is not instance assicated with
