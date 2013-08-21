@@ -372,8 +372,12 @@ class CollectorStatus(AgentStatus):
 
                         if s.has_warnings():
                             for warning in s.warnings:
-                                check_lines.append(u"         %s: %s" % (style("Warning", 'yellow'), warning))
-
+                                warn = warning.split('\n')
+                                if not len(warn): continue
+                                check_lines.append(u"        %s: %s" %
+                                    (style("Warning", 'yellow'), warn[0]))
+                                check_lines.extend(u"        %s" % l for l in
+                                            warn[1:])
                         if self.verbose and s.traceback is not None:
                             check_lines.extend('      ' + line for line in
                                            s.traceback.split('\n'))
