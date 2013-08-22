@@ -17,14 +17,10 @@ import os; os.umask(022)
 
 # Core modules
 import logging
-import modules
-import os
 import os.path
-import re
 import signal
 import sys
 import time
-import urllib
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
