@@ -61,7 +61,7 @@ class Network(AgentCheck):
             self._check_linux(instance)
         elif Platform.is_bsd():
             self._check_bsd(instance)
-        elif Plaform.is_solaris():
+        elif Platform.is_solaris():
             self._check_solaris(instance)
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
