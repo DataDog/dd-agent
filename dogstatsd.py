@@ -24,7 +24,7 @@ from urllib import urlencode
 
 # project
 from aggregator import MetricsAggregator
-from checks.check_status import DogstatsdStatus
+from checks.check_status import DogstatsdStatus, JMXStatus, InstanceStatus, CheckStatus, STATUS_OK
 from config import get_config
 from daemon import Daemon
 from util import json, PidFile, get_hostname
@@ -140,9 +140,16 @@ class Reporter(threading.Thread):
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
                 metric_count=count,
-                metrics_dic=metrics_dic,
                 event_count=event_count,
             ).persist()
+
+            check_statuses = []
+            for instance, metric_count in metrics_dic.iteritems():
+                check_statuses.append(CheckStatus("JMX: %s" % instance, 
+                        [InstanceStatus(0, STATUS_OK)], 
+                        metric_count, 0))
+
+            JMXStatus(check_statuses=check_statuses).persist()
 
         except Exception, e:
             log.exception("Error flushing metrics \n %s" % str(e))

@@ -229,6 +229,12 @@ class AgentStatus(object):
     def _get_pickle_path(cls):
         return os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
 
+class JMXStatus(AgentStatus):
+    NAME = 'JMX'
+
+    def __init__(self, check_statuses=None):
+        AgentStatus.__init__(self)
+        self.check_statuses = check_statuses or []
 
 class InstanceStatus(object):
 
@@ -310,6 +316,13 @@ class CollectorStatus(AgentStatus):
         return self.status != STATUS_OK
 
     def body_lines(self):
+
+        jmx_status = JMXStatus.load_latest_status()
+        if jmx_status is None:
+            jmx_statuses = []
+        else:
+            jmx_statuses = jmx_status.check_statuses
+
         # Metadata whitelist
         metadata_whitelist = [
             'hostname',
@@ -341,10 +354,11 @@ class CollectorStatus(AgentStatus):
             '======',
             ''
         ]
-        if not self.check_statuses:
+        check_statuses = self.check_statuses + jmx_statuses
+        if not check_statuses:
             lines.append("  No checks have run yet.")
         else:
-            for cs in self.check_statuses:
+            for cs in check_statuses:
                 check_lines = [
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
@@ -461,14 +475,13 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-        metric_count=0, metrics_dic=None, event_count=0):
+        metric_count=0, event_count=0):
 
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
-        self.metrics_dic = metrics_dic
         self.event_count = event_count
 
     def has_error(self):
@@ -483,10 +496,6 @@ class DogstatsdStatus(AgentStatus):
             "Event count: %s" % self.event_count,
         ]
 
-        if self.metrics_dic is not None:
-            for instance in self.metrics_dic:
-                lines.append("Instance: %s returned %s metrics" % (instance, self.metrics_dic[instance]))
-
         return lines
 
     def to_dict(self):
@@ -496,7 +505,6 @@ class DogstatsdStatus(AgentStatus):
             'packet_count': self.packet_count,
             'packets_per_second': self.packets_per_second,
             'metric_count': self.metric_count,
-            'metrics_dic': self.metrics_dic,
             'event_count': self.event_count,
         })
         return status_info
