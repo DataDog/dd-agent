@@ -316,7 +316,7 @@ class Network(AgentCheck):
         # A mapping of solaris names -> datadog names
         metric_by_solaris_name = {
             'rbytes64':'bytes_rcvd',
-            'obytes64':'bytes_rcvd',
+            'obytes64':'bytes_sent',
             'ipackets64':'packets_in.count',
             'ierrors':'packets_in.error',
             'opackets64':'packets_out.count',
