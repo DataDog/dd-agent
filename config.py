@@ -24,7 +24,7 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
-JMX_CHECKS = ['tomcat44', 'activemq', 'solr', 'cassandra', 'jmx']
+JMX_CHECKS = ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']
 JMX_FETCH_JAR_NAME = "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar"
 log = logging.getLogger(__name__)
 
