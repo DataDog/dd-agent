@@ -33,13 +33,12 @@ class AgentSupervisor(object):
             `child_func` is a function that should be run by the forked child
             that will auto-restart with the RESTART_EXIT_STATUS.
         '''
-        cls.running = True
         exit_code = cls.RESTART_EXIT_STATUS
 
         # Allow the child process to die on SIGTERM
         signal.signal(signal.SIGTERM, cls._handle_sigterm)
 
-        while cls.running and exit_code == cls.RESTART_EXIT_STATUS:
+        while True:
             try:
                 pid = os.fork()
                 if pid > 0:
@@ -140,8 +139,8 @@ class Daemon(object):
         atexit.register(self.delpid) # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         try:
-            fp = os.fdopen(os.open(self.pidfile, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0644), 'w+')
-            fp.write("%s\n" % pid)
+            fp = open(self.pidfile, 'w+')
+            fp.write(str(pid))
             fp.close()
             os.chmod(self.pidfile, 0644)
         except Exception, e:
