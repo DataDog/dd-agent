@@ -577,6 +577,30 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
+def is_jmx_check_configured(confd_path):
+    from util import yaml, yLoader
+    for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
+        check_name = os.path.basename(conf).split('.')[0]
+        if check_name in JMX_CHECKS:
+            return True
+
+        if os.path.exists(conf):
+            f = open(conf)
+            try:
+                check_config = yaml.load(f.read(), Loader=yLoader)
+                assert check_config is not None
+                f.close()
+            except Exception:
+                f.close()
+                log.exception("Unable to parse yaml config in %s" % conf)
+                continue
+            if check_config.get('init_config', {}) \
+                and check_config.get('is_jmx', False):
+                return True
+
+    return False
+
+
 def start_jmx_connector(confd_path, agentConfig, statsd_port=None):
     if statsd_port is None:
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
@@ -622,33 +646,9 @@ def load_check_directory(agentConfig):
                     in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
 
-    jmx_check_configured = False
-    for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
-        check_name = os.path.basename(conf).split('.')[0]
-        if check_name in JMX_CHECKS:
-            jmx_check_configured = True
-            break
-
-        if os.path.exists(conf):
-            f = open(conf)
-            try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-                assert check_config is not None
-                f.close()
-            except:
-                f.close()
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                continue
-            if check_config.get('init_config', {}) \
-                and check_config.get('is_jmx', False):
-                jmx_check_configured = True
-                break
-
-    if jmx_check_configured:
+    if is_jmx_check_configured(confd_path):
         jmx_connector_pid = start_jmx_connector(confd_path, agentConfig)
         
-        
-
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
     # config will "activate" the check.
