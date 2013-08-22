@@ -8,6 +8,7 @@ from config import start_jmx_connector
 import os
 import signal   
 
+STATSD_PORT = 8129
 class DummyReporter(threading.Thread):
     def __init__(self, metrics_aggregator):
         threading.Thread.__init__(self)
@@ -32,7 +33,7 @@ class DummyReporter(threading.Thread):
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
-        self.server = Server(aggregator, "localhost", 8125)
+        self.server = Server(aggregator, "localhost", STATSD_PORT)
         pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
         
@@ -40,7 +41,7 @@ class JMXTestCase(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
-        self.jmxfetch_pid = start_jmx_connector(confd_path, {})
+        self.jmxfetch_pid = start_jmx_connector(confd_path, {}, statsd_port=STATSD_PORT)
 
 
 

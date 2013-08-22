@@ -577,7 +577,10 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
-def start_jmx_connector(confd_path, agentConfig):
+def start_jmx_connector(confd_path, agentConfig, statsd_port=None):
+    if statsd_port is None:
+        statsd_port = agentConfig.get('dogstatsd_port', "8125")
+
     log.info("Starting jmxfetch")
     try:
         jmxfetch = subprocess.Popen([
@@ -585,10 +588,10 @@ def start_jmx_connector(confd_path, agentConfig):
                 '-jar', 
                 os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
                 confd_path,
-                str(agentConfig.get('dogstatsd_port', "8125")), 
+                str(statsd_port), 
                 str(DEFAULT_CHECK_FREQUENCY * 1000), 
                 get_logging_config().get('jmxfetch_log_file'),
-                "ALL", 
+                "INFO", 
                 ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
                 ], 
                     stdout=subprocess.PIPE, close_fds=True)
