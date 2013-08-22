@@ -577,6 +577,32 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
+def start_jmx_connector(confd_path, agentConfig):
+    log.info("Starting jmxfetch")
+    try:
+        jmxfetch = subprocess.Popen([
+                'java', 
+                '-jar', 
+                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
+                confd_path,
+                str(agentConfig.get('dogstatsd_port', "8125")), 
+                str(DEFAULT_CHECK_FREQUENCY * 1000), 
+                get_logging_config().get('jmxfetch_log_file'),
+                "ALL", 
+                ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
+                ], 
+                    stdout=subprocess.PIPE, close_fds=True)
+        jmx_connector_pid = jmxfetch.pid
+    except OSError, e:
+        jmx_connector_pid = None
+        log.error("Couldn't launch JMXTerm. Is java in your PATH? %s" % str(e))
+    except Exception, e:
+        jmx_connector_pid = None
+        log.error("Couldn't launch JMXTerm: %s" % str(e))
+
+    return jmx_connector_pid
+
+
 
 def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -594,7 +620,6 @@ def load_check_directory(agentConfig):
     confd_path = get_confd_path(osname)
 
     jmx_check_configured = False
-    jmx_connector_pid = None
     for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
         check_name = os.path.basename(conf).split('.')[0]
         if check_name in JMX_CHECKS:
@@ -617,25 +642,8 @@ def load_check_directory(agentConfig):
                 break
 
     if jmx_check_configured:
-        log.info("Starting jmxfetch")
-        try:
-            jmxfetch = subprocess.Popen([
-                    'java', 
-                    '-jar', 
-                    os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
-                    confd_path,
-                    str(agentConfig.get('dogstatsd_port', "8125")), 
-                    str(DEFAULT_CHECK_FREQUENCY * 1000), 
-                    get_logging_config().get('jmxfetch_log_file'),
-                    "INFO", 
-                    ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-                    ], 
-                        stdout=subprocess.PIPE, close_fds=True)
-            jmx_connector_pid = jmxfetch.pid
-        except OSError, e:
-            log.error("Couldn't launch JMXTerm. Is java in your PATH? %s" % str(e))
-        except Exception, e:
-            log.error("Couldn't launch JMXTerm: %s" % str(e))
+        jmx_connector_pid = start_jmx_connector(confd_path, agentConfig)
+        
         
 
     # For backwards-compatability with old style checks, we have to load every

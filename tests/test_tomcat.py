@@ -1,112 +1,73 @@
 import unittest
-from checks.jmx_connector import JmxCheck
-import logging
-import subprocess
 import time
-import urllib2
-from nose.plugins.skip import SkipTest
+import threading
+from aggregator import MetricsAggregator
+from dogstatsd import Dogstatsd, init, Server
+from util import PidFile
+from config import start_jmx_connector
+import os
+import signal   
 
-from tests.common import kill_subprocess, load_check
+
+class DummyReporter(threading.Thread):
+    def __init__(self, metrics_aggregator):
+        threading.Thread.__init__(self)
+        self.finished = threading.Event()
+        self.metrics_aggregator = metrics_aggregator
+        self.interval = 4
+        self.metrics = None
+        self.finished = False
+        self.start()
 
 
+    def run(self):
+        while not self.finished:
+            time.sleep(self.interval)
+            self.flush()
+
+    def flush(self):
+        metrics = self.metrics_aggregator.flush()
+        if metrics:
+            self.metrics = metrics
 
 
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
-        pass
+        aggregator = MetricsAggregator("test_host")
+        self.server = Server(aggregator, "localhost", 8125)
+        pid_file = PidFile('dogstatsd')
+        self.reporter = DummyReporter(aggregator)
+        
+        self.t1 = threading.Thread(target=self.server.start)
+        self.t1.start()
+
+        confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
+        self.jmxfetch_pid = start_jmx_connector(confd_path, {})
+
+
 
     def tearDown(self):
-        pass
-    
+        self.server.stop()
+        self.reporter.finished = True
+        os.kill(self.jmxfetch_pid, signal.SIGKILL)
+
 
     def testTomcatMetrics(self):
-        agentConfig = {
-            'tomcat_jmx_instance_1': 'localhost:8090:first_instance',
-            'tomcat_jmx_instance_2': 'dummyurl:4444:fake_url',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
+        count = 0
+        while self.reporter.metrics is None:
+            time.sleep(1)
+            count += 1
+            if count > 20:
+                raise Exception("No metrics were received in 20 seconds")
 
-        config = JmxCheck.parse_agent_config(agentConfig, 'tomcat')
-        config['init_config'] = TOMCAT_CONFIG
-        metrics_check = load_check('tomcat', config, agentConfig)
-        
+        metrics = self.reporter.metrics
 
-        timers_first_check = []
-
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_first_check.append(time.time() - start)
-            except Exception,e:
-                #print e
-                continue
-
-        metrics = metrics_check.get_metrics()
-        
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
-        self.assertEquals(len([t for t in metrics if t[0] == "tomcat.threads.busy"]), 2, metrics)
-        self.assertEquals(len([t for t in metrics if t[0] == "tomcat.bytes_sent"]), 0, metrics)
-        self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, [t for t in metrics if "jvm." in t[0]])
+        self.assertEquals(len([t for t in metrics if t['metric'] == "tomcat.threads.busy" and "instance:tomcat_instance" in t['tags']]), 2, metrics)
+        self.assertEquals(len([t for t in metrics if t['metric'] == "tomcat.bytes_sent" and "instance:tomcat_instance" in t['tags']]), 0, metrics)
+        self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and "instance:tomcat_instance" in t['tags']]) > 4, metrics)
 
-        timers_second_check = []
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_second_check.append(time.time() - start)
-            except Exception,e:
-                print e
-                continue
-
-        metrics = metrics_check.get_metrics()
-        self.assertEquals(len([t for t in metrics if t[0] == "tomcat.bytes_sent"]), 2, metrics)
-        self.assertEquals(len([t for t in timers_first_check if t > 10]), 0, timers_first_check)
-        self.assertEquals(len([t for t in timers_second_check if t > 2]), 0, timers_second_check)
-
-
-        metrics_check.kill_jmx_connectors()
-
-
-TOMCAT_CONFIG = {'conf': [{'include': {'attribute': {'currentThreadCount': {'alias': 'tomcat.threads.count',
-        'metric_type': 'gauge'},
-        'currentThreadsBusy': {'alias': 'tomcat.threads.busy',
-        'metric_type': 'gauge'},
-        'maxThreads': {'alias': 'tomcat.threads.max',
-        'metric_type': 'gauge'}},
-        'type': 'ThreadPool'}},
-        {'include': {'attribute': {'bytesReceived': {'alias': 'tomcat.bytes_rcvd',
-        'metric_type': 'counter'},
-        'bytesSent': {'alias': 'tomcat.bytes_sent',
-        'metric_type': 'counter'},
-        'errorCount': {'alias': 'tomcat.error_count',
-        'metric_type': 'counter'},
-        'maxTime': {'alias': 'tomcat.max_time',
-        'metric_type': 'gauge'},
-        'processingTime': {'alias': 'tomcat.processing_time',
-        'metric_type': 'counter'},
-        'requestCount': {'alias': 'tomcat.request_count',
-        'metric_type': 'counter'}},
-        'type': 'GlobalRequestProcessor'}},
-        {'include': {'attribute': {'errorCount': {'alias': 'tomcat.servlet.error_count',
-        'metric_type': 'counter'},
-        'processingTime': {'alias': 'tomcat.servlet.processing_time',
-        'metric_type': 'counter'},
-        'requestCount': {'alias': 'tomcat.servlet.request_count',
-        'metric_type': 'counter'}},
-        'j2eeType': 'Servlet'}},
-        {'include': {'accessCount': {'alias': 'tomcat.cache.access_count',
-        'metric_type': 'counter'},
-        'hitsCounts': {'alias': 'tomcat.cache.hits_count',
-        'metric_type': 'counter'},
-        'type': 'Cache'}},
-        {'include': {'jspCount': {'alias': 'tomcat.jsp.count',
-        'metric_type': 'counter'},
-        'jspReloadCount': {'alias': 'tomcat.jsp.reload_count',
-        'metric_type': 'counter'},
-        'type': 'JspMonitor'}}]}
 
 if __name__ == "__main__":
     unittest.main()

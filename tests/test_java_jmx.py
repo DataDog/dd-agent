@@ -1,154 +1,71 @@
 import unittest
-from checks.jmx_connector import JmxCheck
-import logging
-import subprocess
 import time
-import urllib2
-from nose.plugins.skip import SkipTest
+import threading
+from aggregator import MetricsAggregator
+from dogstatsd import Dogstatsd, init, Server
+from util import PidFile
+from config import start_jmx_connector
+import os
+import signal   
 
-from tests.common import kill_subprocess, load_check
+class DummyReporter(threading.Thread):
+    def __init__(self, metrics_aggregator):
+        threading.Thread.__init__(self)
+        self.finished = threading.Event()
+        self.metrics_aggregator = metrics_aggregator
+        self.interval = 4
+        self.metrics = None
+        self.finished = False
+        self.start()
 
 
+    def run(self):
+        while not self.finished:
+            time.sleep(self.interval)
+            self.flush()
 
+    def flush(self):
+        metrics = self.metrics_aggregator.flush()
+        if metrics:
+            self.metrics = metrics
 
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
-        pass
+        aggregator = MetricsAggregator("test_host")
+        self.server = Server(aggregator, "localhost", 8125)
+        pid_file = PidFile('dogstatsd')
+        self.reporter = DummyReporter(aggregator)
+        
+        self.t1 = threading.Thread(target=self.server.start)
+        self.t1.start()
+
+        confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
+        self.jmxfetch_pid = start_jmx_connector(confd_path, {})
+
+
 
     def tearDown(self):
-        pass
+        self.server.stop()
+        self.reporter.finished = True
+        os.kill(self.jmxfetch_pid, signal.SIGKILL)
 
 
     def testCustomJMXMetric(self):
-        #raise SkipTest()
-        agentConfig = {
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-        config = {}
-        
-        config['instances'] = [
-    {
-        "host": "localhost",
-        "port": 8090,
-        "conf": 
-        [
-            {"include":{
-                "domain" : "Catalina",
-                "type": "Connector",
-                "port": "8009",
-                "attribute": 
-                    {"bufferSize": 
-                        {"alias": "my.metric.buf",
-                         "metric_type": "gauge"}
-                    }
-                }
-            },
-            {"include":{
-                "domain": "Catalina",
-                "type": "ThreadPool",
-                "name": "http-8080"
-                }
-            },
-            {"include":{
-                "domain": "java.lang"
-                }
-            }
-        ]
-    }
-]
+        count = 0
+        while self.reporter.metrics is None:
+            time.sleep(1)
+            count += 1
+            if count > 20:
+                raise Exception("No metrics were received in 20 seconds")
 
-
-            
-
-
-        metrics_check = load_check('jmx', config, agentConfig)
-
-        timers_first_check = []
-
-        for instance in config['instances']:
-            start = time.time()
-            metrics_check.check(instance)
-            timers_first_check.append(time.time() - start)
-
-        metrics = metrics_check.get_metrics()
-        
-
+        metrics = self.reporter.metrics
 
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
-        self.assertEquals(len([t for t in metrics if t[0] == "my.metric.buf"]), 1, metrics)
-        self.assertTrue(len([t for t in metrics if t[3]['tags'][1] == 'type:ThreadPool' and "jmx.catalina" in t[0]]) > 8, metrics)
-        self.assertTrue(len([t for t in metrics if "jmx.java.lang" in t[0]]) > 50, metrics)
-        self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, metrics)
-
-
-        timers_second_check = []
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_second_check.append(time.time() - start)
-            except Exception,e:
-                print e
-                continue
-
-        metrics_check.kill_jmx_connectors()
-
-
-        self.assertEquals(len([t for t in timers_first_check if t > 10]), 0, timers_first_check)
-        self.assertEquals(len([t for t in timers_second_check if t > 2]), 0, timers_second_check)
-
-        
-        time.sleep(2)
-
-        
-
-
-    def testJavaMetric(self):
-        agentConfig = {
-            'java_jmx_instance_1': 'localhost:8090',
-            'java_jmx_instance_2': 'dummyhost:9999:dummy',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-
-        config = JmxCheck.parse_agent_config(agentConfig, 'java')
-
-        metrics_check = load_check('jmx', config, agentConfig)
-
-
-        timers_first_check = []
-
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_first_check.append(time.time() - start)
-            except Exception,e:
-                print e
-                continue
-
-        metrics = metrics_check.get_metrics()
-        
-        self.assertTrue(type(metrics) == type([]))
-        self.assertTrue(len(metrics) > 0)
-        self.assertEquals(len([t for t in metrics if t[0] == "jvm.thread_count"]), 1, metrics)
-        self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, [t for t in metrics if "jvm." in t[0]])
-
-        timers_second_check = []
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_second_check.append(time.time() - start)
-            except Exception,e:
-                print e
-                continue
-        metrics_check.kill_jmx_connectors()
-
-        self.assertEquals(len([t for t in timers_first_check if t > 10]), 0, timers_first_check)
-        self.assertEquals(len([t for t in timers_second_check if t > 2]), 0, timers_second_check)
+        self.assertEquals(len([t for t in metrics if t['metric'] == "my.metric.buf" and "instance:jmx_instance1" in t['tags']]), 1, metrics)
+        self.assertTrue(len([t for t in metrics if 'type:ThreadPool' in t['tags'] and "instance:jmx_instance1" in t['tags'] and "jmx.catalina" in t['metric']]) > 8, metrics)
+        self.assertTrue(len([t for t in metrics if "jmx.java.lang" in t['metric'] and "instance:jmx_instance1" in t['tags']]) > 40, metrics)
+        self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and "instance:jmx_instance1" in t['tags']]) == 6, metrics)
 
         
 
