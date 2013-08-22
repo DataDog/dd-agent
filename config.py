@@ -24,7 +24,8 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
-JMX_CHECKS = ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']
+JMX_CHECKS = ['tomcat44', 'activemq', 'solr', 'cassandra', 'jmx']
+JMX_FETCH_JAR_NAME = "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar"
 log = logging.getLogger(__name__)
 
 
@@ -579,10 +580,12 @@ def get_ssl_certificate(osname, filename):
 
 def is_jmx_check_configured(confd_path):
     from util import yaml, yLoader
+
+    jmx_check_configured = False
+    java_bin_path = None
+
     for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
         check_name = os.path.basename(conf).split('.')[0]
-        if check_name in JMX_CHECKS:
-            return True
 
         if os.path.exists(conf):
             f = open(conf)
@@ -594,23 +597,38 @@ def is_jmx_check_configured(confd_path):
                 f.close()
                 log.exception("Unable to parse yaml config in %s" % conf)
                 continue
-            if check_config.get('init_config', {}) \
-                and check_config.get('is_jmx', False):
-                return True
-
-    return False
 
 
-def start_jmx_connector(confd_path, agentConfig, statsd_port=None):
+            if check_config.get('init_config') and check_config.get('instances'):
+                if type(check_config.get('instances')) != type([]) or len(check_config.get('instances')) == 0:
+                    continue
+
+                # We get the java bin path from the yaml file for backward compatibility purposes
+                if check_config.get('init_config').get('java_bin_path'):
+                    java_bin_path = check_config.get('init_config').get('java_bin_path')
+
+                for instance in check_config.get('instances'):
+                    if instance.get('java_bin_path'):
+                        java_bin_path = instance.get('java_bin_path')
+                
+                if check_config.get('init_config').get('is_jmx') or check_name in JMX_CHECKS:
+                    jmx_check_configured = True
+
+    return (jmx_check_configured, java_bin_path)
+
+
+def start_jmx_connector(confd_path, agentConfig, statsd_port=None, path_to_java=None):
     if statsd_port is None:
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
+
+    path_to_java = path_to_java or "java"
 
     log.info("Starting jmxfetch")
     try:
         jmxfetch = subprocess.Popen([
-                'java', 
+                path_to_java, 
                 '-jar', 
-                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar")),
+                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME)),
                 confd_path,
                 str(statsd_port), 
                 str(DEFAULT_CHECK_FREQUENCY * 1000), 
@@ -646,8 +664,10 @@ def load_check_directory(agentConfig):
                     in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
 
-    if is_jmx_check_configured(confd_path):
-        jmx_connector_pid = start_jmx_connector(confd_path, agentConfig)
+    jmx_check_configured, path_to_java = is_jmx_check_configured(confd_path)
+    jmx_connector_pid = None
+    if jmx_check_configured:
+        jmx_connector_pid = start_jmx_connector(confd_path, agentConfig, path_to_java=path_to_java)
         
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
