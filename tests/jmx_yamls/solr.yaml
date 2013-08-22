@@ -1,5 +1,5 @@
 instances:
-    -   host: remihakim.fr
+    -   host: localhost
         port: 8090
         name: solr_instance
 
