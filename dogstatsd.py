@@ -114,6 +114,7 @@ class Reporter(threading.Thread):
                         if tag.startswith("instance:"):
                             instance = tag.split(":")[1]
                             metrics_dic[instance] +=1
+                            break
             
 
             should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0

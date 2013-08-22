@@ -476,7 +476,6 @@ class DogstatsdStatus(AgentStatus):
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
         metric_count=0, event_count=0):
-
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
@@ -495,7 +494,6 @@ class DogstatsdStatus(AgentStatus):
             "Metric count: %s" % self.metric_count,
             "Event count: %s" % self.event_count,
         ]
-
         return lines
 
     def to_dict(self):

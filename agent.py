@@ -102,8 +102,6 @@ class Agent(Daemon):
 
         self.collector = Collector(agentConfig, emitters, systemStats, checksd['jmx_connector_pid'])
 
-        
-
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
         watchdog = self._get_watchdog(check_frequency, agentConfig)
