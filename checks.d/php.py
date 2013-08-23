@@ -22,108 +22,86 @@ class Php(AgentCheck):
     See http://www.php.net/manual/de/install.fpm.configuration.php#pm.status-path for more details
 
     """
+
+    GAUGES = {
+        'listen_queue': 'php.listen_queue',
+        'max_listen_queue': 'php.max_listen_queue',
+        'listen_queue_len': 'php.listen_queue_len',
+        'idle_processes': 'php.idle_processes',
+        'active_processes': 'php.active_processes',
+        'total_processes': 'php.total_processes',
+        'max_active_processes': 'php.max_active_processes',
+        'max_children_reached': 'php.max_children_reached'
+    }
+
+    RATES = {
+        
+    }
+
+    COUNTERS = {
+        'accepted_conn': 'php.accepted_conn',
+        'slow_requests': 'php.slow_requests'
+    }
+
     def check(self, instance):
         if 'php_status_url' not in instance:
             raise Exception('php instance missing "php_status_url" value.')
+
+        url = self.assumed_url.get(instance['php_status_url'], instance['php_status_url'])
+
         tags = instance.get('tags', [])
 
-        self._get_metrics(instance['php_status_url'], tags)
-
-    def _get_metrics(self, url, tags):
-        req = urllib2.Request(url, None, headers(self.agentConfig))
+        req = urllib2.Request(url, None,
+            headers(self.agentConfig))
+        if 'php_status_user' in instance and 'php_status_password' in instance:
+            auth_str = '%s:%s' % (instance['php_status_user'], instance['php_status_password'])
+            encoded_auth_str = base64.encodestring(auth_str)
+            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
         request = urllib2.urlopen(req)
         response = request.read()
 
-        # accepted conn
-        parsed = re.search(r'accepted conn:\s+(\d+)', response)
-        if parsed:
-            accepted_conn = int(parsed.group(1))
-            self.increment("php.accepted_conn", accepted_conn, tags=tags)
+        metric_count = 0
+        # Loop through and extract the numerical values
+        for line in response.split('\n'):
+            values = line.split(': ')
+            if len(values) == 2: # match
+                metric, value = values
+                try:
+                    value = float(value)
+                except ValueError:
+                    continue
 
-        # listen queue
-        parsed = re.search(r'listen queue:\s+(\d+)', response)
-        if parsed:
-            listen_queue = int(parsed.group(1))
-            self.gauge("php.listen_queue", listen_queue, tags=tags)
+                # Send metric as a gauge, if applicable
+                if metric in self.GAUGES:
+                    metric_count += 1
+                    metric_name = self.GAUGES[metric]
+                    self.gauge(metric_name, value, tags=tags)
 
-        # max listen queue
-        parsed = re.search(r'max listen queue:\s+(\d+)', response)
-        if parsed:
-            max_listen_queue = int(parsed.group(1))
-            self.gauge("php.max_listen_queue", max_listen_queue, tags=tags)
+                # Send metric as a rate, if applicable
+                if metric in self.RATES:
+                    metric_count += 1
+                    metric_name = self.RATES[metric]
+                    self.rate(metric_name, value, tags=tags)
 
-        # listen queue len
-        parsed = re.search(r'listen queue len:\s+(\d+)', response)
-        if parsed:
-            listen_queue_len = int(parsed.group(1))
-            self.gauge("php.listen_queue_len", listen_queue_len, tags=tags)
+                # Send metric as a increment, if applicable
+                if metric in self.COUNTERS:
+                    metric_count += 1
+                    metric_name = self.COUNTERS[metric]
+                    self.increment(metric_name, value, tags=tags)
 
-        # idle processes
-        parsed = re.search(r'idle processes:\s+(\d+)', response)
-        if parsed:
-            idle_processes = int(parsed.group(1))
-            self.gauge("php.idle_processes", idle_processes, tags=tags)
-
-        # active processes
-        parsed = re.search(r'active processes:\s+(\d+)', response)
-        if parsed:
-            active_processes = int(parsed.group(1))
-            self.gauge("php.active_processes", active_processes, tags=tags)
-
-        # total processes
-        parsed = re.search(r'total processes:\s+(\d+)', response)
-        if parsed:
-            total_processes = int(parsed.group(1))
-            self.gauge("php.total_processes", total_processes, tags=tags)
-
-        # max active processes
-        parsed = re.search(r'max active processes:\s+(\d+)', response)
-        if parsed:
-            max_active_processes = int(parsed.group(1))
-            self.gauge("php.max_active_processes", max_active_processes, tags=tags)
-
-        # max children reached
-        parsed = re.search(r'max children reached:\s+(\d+)', response)
-        if parsed:
-            max_children_reached = int(parsed.group(1))
-            self.gauge("php.max_children_reached", max_children_reached, tags=tags)
-
-        # slow requests
-        parsed = re.search(r'slow requests:\s+(\d+)', response)
-        if parsed:
-            slow_requests = int(parsed.group(1))
-            self.increment("php.slow_requests", slow_requests, tags=tags)
+        if metric_count == 0:
+            if self.assumed_url.get(instance['php_status_url'], None) is None and url[-5:] != '?auto':
+                self.assumed_url[instance['php_status_url']]= '%s?auto' % url
+                self.warning("Assuming url was not correct. Trying to add ?auto suffix to the url")
+                self.check(instance)
+            else:
+                raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['php_status_url'])
 
     @staticmethod
     def parse_agent_config(agentConfig):
-        instances = []
-
-        # Try loading from the very old format
-        php_url = agentConfig.get("php_status_url", None)
-        if php_url is not None:
-            instances.append({
-                'php_status_url': php_url
-            })
-
-        # Try the older multi-instance style
-        # php_status_url_1: http://www.example.com/php_status:first_tag
-        # php_status_url_2: http://www.example2.com/php_status:8080:second_tag
-        # php_status_url_2: http://www.example3.com/php_status:third_tag
-        def load_conf(index=1):
-            instance = agentConfig.get("php_status_url_%s" % index, None)
-            if instance is not None:
-                instance = instance.split(":")
-                instances.append({
-                    'php_status_url': ":".join(instance[:-1]),
-                    'tags': ['instance:%s' % instance[-1]]
-                })
-                load_conf(index+1)
-
-        load_conf()
-
-        if not instances:
+        if not agentConfig.get('php_status_url'):
             return False
 
         return {
-            'instances': instances
+            'instances': [{'php_status_url': agentConfig.get('php_status_url')}]
         }
