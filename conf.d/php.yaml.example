@@ -1,0 +1,13 @@
+init_config:
+
+instances:
+    # For every instance, you have an `php_status_url` and (optionally)
+    # a list of tags.
+
+    -   php_status_url: http://example.com/php_status/
+        tags:
+            -   instance:foo
+
+    -   php_status_url: http://example2.com:1234/php_status/
+        tags:
+            -   instance:bar
