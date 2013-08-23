@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+    -   php_status_url: http://example.com/php_status
+        # php_status_user: example_user
+        # php_status_password: example_password
+        tags:
+            -   instance:foo
