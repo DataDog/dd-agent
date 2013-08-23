@@ -33,17 +33,17 @@ load-plugins=
 # can either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once).
-#disable=
+disable=C0301, C0103, C0111, C0321
 
 
 [REPORTS]
 
 # Set the output format. Available formats are text, parseable, colorized, msvs
 # (visual studio) and html
-output-format=text
+output-format=colorized
 
 # Include message's id in output
-include-ids=no
+include-ids=yes
 
 # Put messages in a separate file for each module / package specified on the
 # command line instead of printing them on stdout. Reports (if any) will be
@@ -71,7 +71,7 @@ comment=no
 required-attributes=
 
 # List of builtins function names that should not be used, separated by a comma
-bad-functions=map,filter,apply,input
+bad-functions=input
 
 # Regular expression which should only match correct module names
 module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
@@ -115,7 +115,7 @@ no-docstring-rgx=__.*__
 [FORMAT]
 
 # Maximum number of characters on a single line.
-max-line-length=80
+max-line-length=132
 
 # Maximum number of lines in a module
 max-module-lines=1000
@@ -193,7 +193,7 @@ valid-classmethod-first-arg=cls
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=5
+max-args=10
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore

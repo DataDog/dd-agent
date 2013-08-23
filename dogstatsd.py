@@ -12,7 +12,6 @@ import os; os.umask(022)
 import httplib as http_client
 import logging
 import optparse
-from random import randrange
 import re
 import select
 import signal
@@ -26,7 +25,7 @@ from urllib import urlencode
 from aggregator import MetricsAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
-from daemon import Daemon
+from daemon import Daemon, AgentSupervisor
 from util import json, PidFile, get_hostname
 
 log = logging.getLogger('dogstatsd')
@@ -130,11 +129,11 @@ class Reporter(threading.Thread):
                 event_count=event_count
             ).persist()
 
-        except:
+        except Exception, e:
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
-        # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
+        # Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
         body = serialize_metrics(metrics)
         headers = {'Content-Type':'application/json'}
@@ -202,15 +201,14 @@ class Server(object):
         self.metrics_aggregator = metrics_aggregator
         self.buffer_size = 1024 * 8
 
-        # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setblocking(0)
-
         self.running = False
 
     def start(self):
         """ Run the server. """
         # Bind to the UDP socket.
+        # IPv4 only
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
         self.socket.bind(self.address)
 
         log.info('Listening on host & port: %s' % str(self.address))
@@ -246,19 +244,34 @@ class Server(object):
 
 
 class Dogstatsd(Daemon):
-    """ This class is the dogstats daemon. """
+    """ This class is the dogstatsd daemon. """
 
-    def __init__(self, pid_file, server, reporter):
-        Daemon.__init__(self, pid_file)
+    def __init__(self, pid_file, server, reporter, autorestart):
+        Daemon.__init__(self, pid_file, autorestart=autorestart)
         self.server = server
         self.reporter = reporter
 
+
+    def _handle_sigterm(self, signum, frame):
+        log.debug("Caught sigterm. Stopping run loop.")
+        self.server.stop()
+
+    def stop(self):
+        if self.autorestart:
+            parent_pid = os.getpgid(self.pid())
+            os.kill(parent_pid, signal.SIGTERM)
+        super(Dogstatsd, self).stop()
+
     def run(self):
         # Gracefully exit on sigterm.
-        log.info("Adding sig handler")
         signal.signal(signal.SIGTERM, self._handle_sigterm)
+
+        # Handle Keyboard Interrupt
         signal.signal(signal.SIGINT, self._handle_sigterm)
+
+        # Start the reporting thread before accepting data
         self.reporter.start()
+
         try:
             try:
                 self.server.start()
@@ -270,11 +283,10 @@ class Dogstatsd(Daemon):
             # the reporting thread.
             self.reporter.stop()
             self.reporter.join()
-            log.info("Stopped")
-
-    def _handle_sigterm(self, signum, frame):
-        log.info("Caught sigterm. Stopping run loop.")
-        self.server.stop()
+            log.info("Dogstatsd is stopped")
+            # Restart if asked to restart
+            if self.autorestart:
+                sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
     def info(self):
         logging.getLogger().setLevel(logging.ERROR)
@@ -282,18 +294,19 @@ class Dogstatsd(Daemon):
 
 
 def init(config_path=None, use_watchdog=False, use_forwarder=False):
+    """Configure the server and the reporting thread.
+    """
     c = get_config(parse_args=False, cfg_path=config_path)
     log.debug("Configuration dogstatsd")
 
     port      = c['dogstatsd_port']
     interval  = int(c['dogstatsd_interval'])
-    normalize = c['dogstatsd_normalize']
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
 
     target = c['dd_url']
     if use_forwarder:
-        target = c['dogstatsd_target'] 
+        target = c['dogstatsd_target']
 
     hostname = get_hostname(c)
 
@@ -315,7 +328,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     server = Server(aggregator, server_host, port)
 
-    return reporter, server
+    return reporter, server, c
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
@@ -324,9 +337,10 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
+    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
     pid_file = PidFile('dogstatsd')
-    daemon = Dogstatsd(pid_file.get_path(), server, reporter)
+    daemon = Dogstatsd(pid_file.get_path(), server, reporter,
+            cnf.get('autorestart', False))
 
     # If no args were passed in, run the server in the foreground.
     if not args:

@@ -88,7 +88,6 @@ class ProcessCheck(AgentCheck):
         
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
 
-        self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=[name])
         rss, vms, real = self.get_process_memory_size(pids, psutil, 
             extended_metrics=self.psutil_older_than_0_6_0(psutil))
