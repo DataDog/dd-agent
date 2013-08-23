@@ -173,8 +173,8 @@ class Pagespeed(AgentCheck):
     * pcache-cohorts-dom_misses
     * child_shutdown_count
 
-    Requires php-fpm pools to have the status option.
-    See http://www.php.net/manual/de/install.fpm.configuration.php#pm.status-path for more details
+    Requires pagespeed to have the status option.
+    See https://developers.google.com/speed/pagespeed/module/configuration for more details
 
     """
 
