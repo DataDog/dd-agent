@@ -339,7 +339,8 @@ def main(config_path=None):
 
     reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
     pid_file = PidFile('dogstatsd')
-    daemon = Dogstatsd(pid_file.get_path(), server, reporter, cnf.get('autorestart', True))
+    daemon = Dogstatsd(pid_file.get_path(), server, reporter,
+            cnf.get('autorestart', False))
 
     # If no args were passed in, run the server in the foreground.
     if not args:
