@@ -10,7 +10,7 @@ def get_http_library(proxy_settings, use_forwarder):
         # We are using the forwarder, so it's local trafic. We don't use the proxy
         import urllib2
 
-    elif proxy_settings['host'] is None or int(sys.version_info[1]) >= 7\
+    elif proxy_settings.get('host') is None or int(sys.version_info[1]) >= 7\
         or (int(sys.version_info[1]) == 6 and int(sys.version_info[2]) >= 3):
         # Python version >= 2.6.3
         import urllib2
