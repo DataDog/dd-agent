@@ -1,6 +1,5 @@
-import re
-import time
 import urllib2
+import base64
 
 from util import headers
 from checks import AgentCheck
