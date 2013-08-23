@@ -16,7 +16,7 @@ import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
-from util import get_os
+from util import get_os, yaml, yLoader
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -579,12 +579,28 @@ def get_ssl_certificate(osname, filename):
     return None
 
 def is_jmx_check_configured(confd_path):
-    from util import yaml, yLoader
+    """
+    Return a tuple (jmx_check_configured, java_bin_path)
+
+    jmx_check_configured: boolean that shows that either one of the 
+    check in JMX_CHECKS is enabled or there is a configured check 
+    that have the "is_jmx" flag enabled in its init_config
+
+    java_bin_path: is the path to the java executable. It was 
+    previously set in the "instance" part of the yaml file of the
+    jmx check. So we need to parse yaml files to get it.
+    We assume that this value is alwayws the same for every jmx check
+    so we can return the first value returned
+    """
 
     jmx_check_configured = False
     java_bin_path = None
 
     for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
+
+        if jmx_check_configured and java_bin_path is not None:
+            return (jmx_check_configured, java_bin_path)
+
         check_name = os.path.basename(conf).split('.')[0]
 
         if os.path.exists(conf):
@@ -595,23 +611,29 @@ def is_jmx_check_configured(confd_path):
                 f.close()
             except Exception:
                 f.close()
-                log.exception("Unable to parse yaml config in %s" % conf)
+                log.error("Unable to parse yaml config in %s" % conf)
                 continue
 
+            init_config = check_config.get('init_config', {})
+            instances = check_config.get('instances', [])
 
-            if check_config.get('init_config') and check_config.get('instances'):
-                if type(check_config.get('instances')) != type([]) or len(check_config.get('instances')) == 0:
+            if init_config and instances:
+                if type(instances) != list or len(instances) == 0:
                     continue
 
-                # We get the java bin path from the yaml file for backward compatibility purposes
-                if check_config.get('init_config').get('java_bin_path'):
-                    java_bin_path = check_config.get('init_config').get('java_bin_path')
+                init_config = check_config.get('init_config', {})
+                instances = check_config.get('instances', {})
 
-                for instance in check_config.get('instances'):
-                    if instance.get('java_bin_path'):
-                        java_bin_path = instance.get('java_bin_path')
+                if java_bin_path is None:
+                    if init_config.get('java_bin_path'):
+                    # We get the java bin path from the yaml file for backward compatibility purposes
+                        java_bin_path = check_config.get('init_config').get('java_bin_path')
+
+                    for instance in instances:
+                        if instance and instance.get('java_bin_path'):
+                            java_bin_path = instance.get('java_bin_path')
                 
-                if check_config.get('init_config').get('is_jmx') or check_name in JMX_CHECKS:
+                if not jmx_check_configured and (init_config.get('is_jmx') or check_name in JMX_CHECKS):
                     jmx_check_configured = True
 
     return (jmx_check_configured, java_bin_path)
@@ -621,29 +643,33 @@ def start_jmx_connector(confd_path, agentConfig, statsd_port=None, path_to_java=
     if statsd_port is None:
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
-    path_to_java = path_to_java or "java"
-
-    log.info("Starting jmxfetch")
+    log.info("Starting jmxfetch:")
     try:
-        jmxfetch = subprocess.Popen([
-                path_to_java, 
+
+        path_to_java = path_to_java or "java"
+        path_to_jmxfetch = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
+
+        subprocess_args = [
+                path_to_java,
                 '-jar', 
-                os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME)),
+                path_to_jmxfetch,
                 confd_path,
                 str(statsd_port), 
                 str(DEFAULT_CHECK_FREQUENCY * 1000), 
                 get_logging_config().get('jmxfetch_log_file'),
                 "INFO", 
                 ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-                ], 
-                    stdout=subprocess.PIPE, close_fds=True)
+            ]
+
+        log.info("Running %s" % " ".join(subprocess_args))
+        jmxfetch = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, close_fds=True)
         jmx_connector_pid = jmxfetch.pid
     except OSError, e:
         jmx_connector_pid = None
-        log.error("Couldn't launch JMXTerm. Is java in your PATH? %s" % str(e))
+        log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
     except Exception, e:
         jmx_connector_pid = None
-        log.error("Couldn't launch JMXTerm: %s" % str(e))
+        log.exception("Couldn't launch JMXTerm")
 
     return jmx_connector_pid
 
@@ -653,7 +679,6 @@ def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from util import yaml, yLoader
     from checks import AgentCheck
 
     initialized_checks = {}
@@ -742,7 +767,7 @@ def load_check_directory(agentConfig):
 
         # Accept instances as a list, as a single dict, or as non-existant
         instances = check_config.get('instances', {})
-        if type(instances) != type([]):
+        if type(instances) != list:
             instances = [instances]
 
         # Init all of the check's classes with

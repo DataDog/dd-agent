@@ -15,6 +15,7 @@ import traceback
 
 # project
 import config
+from compat.defaultdict import defaultdict
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -232,9 +233,25 @@ class AgentStatus(object):
 class JMXStatus(AgentStatus):
     NAME = 'JMX'
 
-    def __init__(self, check_statuses=None):
+    def __init__(self, metrics=None):
         AgentStatus.__init__(self)
-        self.check_statuses = check_statuses or []
+
+        metrics_dic = defaultdict(int)
+        for m in metrics:
+            tags = m['tags']
+            if tags:
+                for tag in tags:
+                    if tag.startswith("instance:"):
+                        instance = tag.split(":")[1]
+                        metrics_dic[instance] +=1
+                        break
+
+        self.check_statuses = []
+        for instance, metric_count in metrics_dic.iteritems():
+            self.check_statuses.append(CheckStatus(instance, 
+                    [InstanceStatus(0, STATUS_OK)], 
+                    metric_count, 0))
+
 
 class InstanceStatus(object):
 

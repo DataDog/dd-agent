@@ -24,11 +24,10 @@ from urllib import urlencode
 
 # project
 from aggregator import MetricsAggregator
-from checks.check_status import DogstatsdStatus, JMXStatus, InstanceStatus, CheckStatus, STATUS_OK
+from checks.check_status import DogstatsdStatus, JMXStatus
 from config import get_config
 from daemon import Daemon
 from util import json, PidFile, get_hostname
-from compat.defaultdict import defaultdict
 
 log = logging.getLogger('dogstatsd')
 
@@ -105,18 +104,6 @@ class Reporter(threading.Thread):
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
 
-            metrics_dic = defaultdict(int)
-
-            for m in metrics:
-                tags = m['tags']
-                if tags:
-                    for tag in tags:
-                        if tag.startswith("instance:"):
-                            instance = tag.split(":")[1]
-                            metrics_dic[instance] +=1
-                            break
-            
-
             should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0
             if not count:
                 if should_log:
@@ -144,16 +131,10 @@ class Reporter(threading.Thread):
                 event_count=event_count,
             ).persist()
 
-            check_statuses = []
-            for instance, metric_count in metrics_dic.iteritems():
-                check_statuses.append(CheckStatus("JMX: %s" % instance, 
-                        [InstanceStatus(0, STATUS_OK)], 
-                        metric_count, 0))
-
-            JMXStatus(check_statuses=check_statuses).persist()
+            JMXStatus(metrics=metrics).persist()
 
         except Exception, e:
-            log.exception("Error flushing metrics \n %s" % str(e))
+            log.exception("Error flushing metrics")
 
     def submit(self, metrics):
         # HACK - Copy and pasted from dogapi, because it's a bit of a pain to distribute python
