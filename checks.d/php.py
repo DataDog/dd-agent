@@ -43,6 +43,10 @@ class Php(AgentCheck):
         'slow_requests': 'php.slow_requests'
     }
 
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.assumed_url = {}
+
     def check(self, instance):
         if 'php_status_url' not in instance:
             raise Exception('php instance missing "php_status_url" value.')
