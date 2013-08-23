@@ -176,9 +176,10 @@ class Daemon(object):
         if pid > 1:
             # Try killing the daemon process    
             try:
-                while True:
+                if self.autorestart:
                     os.kill(os.getpgid(pid), signal.SIGTERM)
-                    time.sleep(0.1)
+                else:
+                    os.kill(pid, signal.SIGTERM)
                 log.info("Daemon is stopped")
             except OSError, err:
                 if str(err).find("No such process") <= 0:

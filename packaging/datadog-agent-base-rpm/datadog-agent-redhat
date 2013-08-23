@@ -147,21 +147,14 @@ stop() {
         killproc -p $SUPERVISOR_PIDFILE
         rm -f $LOCKFILE
         echo
-        RETURNVALUE=0
     else
-        grab_status
-        if [ "$?" -eq "1" ]; then
-            echo -n 'Datadog Agent is NOT running'; warning; echo
-            return
-        fi
         echo -n 'Stopping Datadog Agent: '
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop > /dev/null 2>&1"
-        RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
-        RETURNVALUE=$(($RETURNVALUE || $?))
-        [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
+        rm -f $LOCKFILE
+        rm -f $PIDFILE
     fi
-    return $RETURNVALUE
+    return 0
 }
 
 restart() {
