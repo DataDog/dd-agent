@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+    -   pagespeed_status_url: http://example.com/ngx_pagespeed_global_statistics
+        # pagespeed_status_user: example_user
+        # pagespeed_status_password: example_password
+        tags:
+            -   optional_tag
