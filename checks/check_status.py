@@ -530,6 +530,20 @@ class ForwarderStatus(AgentStatus):
         return status_info
 
 def get_jmx_status():
+    """This function tries to read the jmxfetch status file which is a yaml file
+    located in the same directory as the jmxfetch jar file.
+    Its format is as the following:
+    
+    ###
+
+    timestamp: 1377303057441
+    instances:
+          cassandra_localhost: {message: null, metric_count: 40}
+          tomcat: {message: null, metric_count: 57}
+          instance_name: {message: 'Cannot connect to instance localhost:3033. Is a JMX Server running at this address?', metric_count: 0}
+
+    ###
+    """
     check_statuses = []
     try:
         stream = file(os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmx_status.yaml")))
