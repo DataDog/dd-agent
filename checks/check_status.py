@@ -12,10 +12,12 @@ import platform
 import sys
 import tempfile
 import traceback
+import time
 
 # project
 import config
 from compat.defaultdict import defaultdict
+from util import get_os, yaml, yLoader
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -230,28 +232,6 @@ class AgentStatus(object):
     def _get_pickle_path(cls):
         return os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
 
-class JMXStatus(AgentStatus):
-    NAME = 'JMX'
-
-    def __init__(self, metrics=None):
-        AgentStatus.__init__(self)
-
-        metrics_dic = defaultdict(int)
-        for m in metrics:
-            tags = m['tags']
-            if tags:
-                for tag in tags:
-                    if tag.startswith("instance:"):
-                        instance = tag.split(":")[1]
-                        metrics_dic[instance] +=1
-                        break
-
-        self.check_statuses = []
-        for instance, metric_count in metrics_dic.iteritems():
-            self.check_statuses.append(CheckStatus(instance, 
-                    [InstanceStatus(0, STATUS_OK)], 
-                    metric_count, 0))
-
 
 class InstanceStatus(object):
 
@@ -334,12 +314,6 @@ class CollectorStatus(AgentStatus):
 
     def body_lines(self):
 
-        jmx_status = JMXStatus.load_latest_status()
-        if jmx_status is None:
-            jmx_statuses = []
-        else:
-            jmx_statuses = jmx_status.check_statuses
-
         # Metadata whitelist
         metadata_whitelist = [
             'hostname',
@@ -371,7 +345,7 @@ class CollectorStatus(AgentStatus):
             '======',
             ''
         ]
-        check_statuses = self.check_statuses + jmx_statuses
+        check_statuses = self.check_statuses + get_jmx_status()
         if not check_statuses:
             lines.append("  No checks have run yet.")
         else:
@@ -554,3 +528,39 @@ class ForwarderStatus(AgentStatus):
             'queue_size': self.queue_size,
         })
         return status_info
+
+def get_jmx_status():
+    check_statuses = []
+    try:
+        stream = file(os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmx_status.yaml")))
+        jmx_stats = yaml.load(stream)
+
+        status_age = time.time() - jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
+        jmx_instances = jmx_stats.get('instances', {})
+
+        if status_age > 60:
+            check_statuses.append(CheckStatus("jmx", [InstanceStatus(
+                                                0, 
+                                                STATUS_ERROR, 
+                                                error="JMXfetch didn't return any metrics during the last minute"
+                                                )], 0, 0))
+            return check_statuses
+
+        for instance, status in jmx_instances.iteritems():
+            message = status.get('message', None)
+            metric_count = status.get('metric_count', 0)
+
+            if message is not None:
+                instance_status = InstanceStatus(0, STATUS_ERROR, error=message)
+                check_status = CheckStatus(instance, [instance_status], 0, 0)
+            else:
+                instance_status = InstanceStatus(0, STATUS_OK)
+                check_status = CheckStatus(instance, [instance_status], metric_count, 0)
+
+            check_statuses.append(check_status)
+
+        return check_statuses
+
+    except Exception:
+        log.error("Couldn't load latest jmx status")
+        return []

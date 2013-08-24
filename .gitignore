@@ -23,3 +23,5 @@ conf.d/*.yaml
 !conf.d/network.yaml
 packaging/build/
 packaging/root/
+
+checks/libs/jmx_status.yaml
