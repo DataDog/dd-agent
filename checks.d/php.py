@@ -23,14 +23,14 @@ class Php(AgentCheck):
     """
 
     GAUGES = {
-        'listen_queue': 'php.listen_queue',
-        'max_listen_queue': 'php.max_listen_queue',
-        'listen_queue_len': 'php.listen_queue_len',
-        'idle_processes': 'php.idle_processes',
-        'active_processes': 'php.active_processes',
-        'total_processes': 'php.total_processes',
-        'max_active_processes': 'php.max_active_processes',
-        'max_children_reached': 'php.max_children_reached'
+        'listen queue': 'php.listen_queue',
+        'max listen queue': 'php.max_listen_queue',
+        'listen queue len': 'php.listen_queue_len',
+        'idle processes': 'php.idle_processes',
+        'active processes': 'php.active_processes',
+        'total processes': 'php.total_processes',
+        'max active processes': 'php.max_active_processes',
+        'max children reached': 'php.max_children_reached'
     }
 
     RATES = {
@@ -38,8 +38,8 @@ class Php(AgentCheck):
     }
 
     COUNTERS = {
-        'accepted_conn': 'php.accepted_conn',
-        'slow_requests': 'php.slow_requests'
+        'accepted conn': 'php.accepted_conn',
+        'slow requests': 'php.slow_requests'
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
