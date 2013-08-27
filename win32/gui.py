@@ -83,7 +83,10 @@ def get_checks():
             (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
             checks[agent_check.module_name] = agent_check
 
-    return checks.values()
+    checks_list = checks.values()
+    checks_list.sort(key=lambda c: c.module_name)
+
+    return checks_list
 
 class EditorFile(object):
     def __init__(self, file_path, description):
