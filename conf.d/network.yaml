@@ -5,3 +5,6 @@ instances:
       excluded_interfaces:
         - lo
         - lo0
+      # Optionally completely ignore any network interface
+      # matching the given regex:
+      #excluded_interface_re: my-network-interface.*

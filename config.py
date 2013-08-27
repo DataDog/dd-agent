@@ -11,6 +11,7 @@ import sys
 import glob
 import inspect
 import traceback
+import re
 import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
@@ -51,14 +52,13 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'dd_url': None,
                                 'clean': False,
-                                'use_forwarder':False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
     return options, args
 
 
 def get_version():
-    return "3.8.0"
+    return "3.9.0"
 
 
 def skip_leading_wsp(f):
@@ -144,7 +144,7 @@ def _unix_checksd_path():
 
 
 def _is_affirmative(s):
-    return s.lower() in ('yes', 'true')
+    return s.lower() in ('yes', 'true', '1')
 
 
 def get_config_path(cfg_path=None, os_name=None):
@@ -183,7 +183,7 @@ def get_config_path(cfg_path=None, os_name=None):
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
-        options, args = get_parsed_args()
+        options, _ = get_parsed_args()
 
     # General config
     agentConfig = {
@@ -274,7 +274,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             else:
                 agentConfig['pup_url'] = 'http://localhost:17125'
 
-            pup_port = 17125
             if config.has_option('Main', 'pup_port'):
                 agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
 
@@ -343,10 +342,16 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Optional config
         # FIXME not the prettiest code ever...
         if config.has_option('Main', 'use_mount'):
-            agentConfig['use_mount'] = config.get('Main', 'use_mount').lower() in ("yes", "true", "1")
+            agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
         if config.has_option('Main', 'autorestart'):
-            agentConfig['autorestart'] = config.get('Main', 'autorestart').lower() in ("yes", "true", "1")
+            agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
+
+        try:
+            filter_device_re = config.get('Main', 'device_blacklist_re')
+            agentConfig['device_blacklist_re'] = re.compile(filter_device_re)
+        except ConfigParser.NoOptionError:
+            pass
 
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
@@ -477,21 +482,22 @@ def get_proxy(agentConfig, use_system_settings=False):
         import urllib
         proxies = urllib.getproxies()
         proxy = proxies.get('https', None)
-        try:
-            proxy = proxy.split('://')[1]
-        except Exception:
-            pass
-        split = proxy.split(':')
-        proxy_settings['host'] = split[0]
-        proxy_settings['port'] = split[1]
-        proxy_settings['user'] = None
-        proxy_settings['password'] = None
-        proxy_settings['system_settings'] = True
-        if '@' in proxy_settings['host']:
-            split = proxy_settings['host'].split('@')[0].split(':')
-            proxy_settings['user'] = split[0]
-            if len(split) == 2:
-                proxy_settings['password'] = split[1]
+        if proxy is not None:
+            try:
+                proxy = proxy.split('://')[1]
+            except Exception:
+                pass
+            px = proxy.split(':')
+            proxy_settings['host'] = px[0]
+            proxy_settings['port'] = px[1]
+            proxy_settings['user'] = None
+            proxy_settings['password'] = None
+            proxy_settings['system_settings'] = True
+            if '@' in proxy_settings['host']:
+                creds = proxy_settings['host'].split('@')[0].split(':')
+                proxy_settings['user'] = creds[0]
+                if len(creds) == 2:
+                    proxy_settings['password'] = creds[1]
 
         log.debug("Proxy Settings %s" % str(proxy_settings))
         return proxy_settings
@@ -599,13 +605,15 @@ def load_check_directory(agentConfig):
             continue
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
-        except:
+        except Exception, e:
+            traceback_message = traceback.format_exc()
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
             log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
-        for name, clsmember in classes:
+        for _, clsmember in classes:
             if clsmember == AgentCheck:
                 continue
             if issubclass(clsmember, AgentCheck):

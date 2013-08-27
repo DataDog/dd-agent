@@ -46,15 +46,15 @@ if [ ! $apikey ]; then
 fi
 
 # OS/Distro Detection
-if [ -f /etc/lsb-release ]; then
-    . /etc/lsb-release
-    OS=$DISTRIB_ID
-elif [ -f /etc/debian_version ]; then
+if [ -f /etc/debian_version ]; then
     OS=Debian
 elif [ -f /etc/redhat-release ]; then
     # Just mark as RedHat and we'll use Python version detection
     # to know what to install
     OS=RedHat
+elif [ -f /etc/lsb-release ]; then
+    . /etc/lsb-release
+    OS=$DISTRIB_ID
 else
     OS=$(uname -s)
 fi
