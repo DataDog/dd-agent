@@ -68,19 +68,22 @@ SYSTEM_TRAY_MENU = [
 ]
 
 def get_checks():
-    checks = []
+    checks = {}
     conf_d_directory = get_confd_path(get_os())
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)
         if filename.split('.')[0] in EXCLUDED_WINDOWS_CHECKS:
             continue
-        if ext not in ('.yaml', '.example'):
+        if ext not in ('.yaml', '.example', '.disabled'):
             continue
 
         agent_check = AgentCheck(filename, ext, conf_d_directory)
-        checks.append(agent_check)
-    return checks
+        if (agent_check.enabled or agent_check.module_name not in checks or 
+            (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
+            checks[agent_check.module_name] = agent_check
+
+    return checks.values()
 
 class EditorFile(object):
     def __init__(self, file_path, description):
@@ -147,8 +150,9 @@ class AgentCheck(EditorFile):
         EditorFile.__init__(self, file_path, description=self.module_name.replace("_", " ").title())
         
         self.enabled = ext == '.yaml'
+        self.is_example = ext == '.example'
         self.enabled_name = osp.join(conf_d_directory, "%s.yaml" % self.module_name)
-        self.disabled_name = "%s.example" % self.enabled_name
+        self.disabled_name = "%s.disabled" % self.enabled_name
 
     def enable(self):
         self.enabled = True
