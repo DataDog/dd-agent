@@ -159,12 +159,12 @@ class AgentCheck(EditorFile):
 
     def enable(self):
         self.enabled = True
-        os.rename(self.disabled_name, self.enabled_name)
+        os.rename(self.file_path, self.enabled_name)
         self.file_path = self.enabled_name
 
     def disable(self):
         self.enabled = False
-        os.rename(self.enabled_name, self.disabled_name)
+        os.rename(self.file_path, self.disabled_name)
         self.file_path = self.disabled_name
 
     def save(self, content):
