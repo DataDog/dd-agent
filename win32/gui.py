@@ -105,6 +105,7 @@ class EditorFile(object):
             info_popup("File saved.")
         except Exception, e:
             warning_popup("Unable to save file: \n %s" % str(e))
+            raise
 
 class LogFile(EditorFile):
     def __init__(self):
@@ -433,6 +434,7 @@ def check_yaml_syntax(content):
         yaml.load(content, Loader=yLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
+        raise
     
 def service_manager(action):
     try:
