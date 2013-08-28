@@ -48,6 +48,7 @@ HUMAN_SERVICE_STATUS = {
     win32service.SERVICE_START_PENDING : 'Service is starting',
     win32service.SERVICE_STOP_PENDING : 'Service is stopping',
     win32service.SERVICE_STOPPED : 'Service is stopped',
+    "Unknown" : "Cannot get service status",
 }
 
 REFRESH_PERIOD = 5000
@@ -101,12 +102,9 @@ class EditorFile(object):
             f = open(self.file_path,'w')
             f.write(content)
             self.content = content
-            QMessageBox.information(None, 'Message',
-            "File saved.", QMessageBox.Ok)
+            info_popup("File saved.")
         except Exception, e:
-            QMessageBox.warning(None, 'Message',
-            "Unable to save file: \n %s" % str(e), QMessageBox.Ok)
-            raise
+            warning_popup("Unable to save file: \n %s" % str(e))
 
 class LogFile(EditorFile):
     def __init__(self):
@@ -405,8 +403,7 @@ def disable_check(properties):
     new_content = properties.editor.toPlainText().__str__()
 
     if check.content != new_content:
-        QMessageBox.warning(None, 'Message',
-            "You must first save the file", QMessageBox.Ok)
+        warning_popup("You must first save the file.")
         return
 
     properties.enable_button.setEnabled(True)
@@ -418,8 +415,7 @@ def enable_check(properties):
 
     new_content = properties.editor.toPlainText().__str__()
     if check.content != new_content:
-        QMessageBox.warning(None, 'Message',
-            "You must first save the file", QMessageBox.Ok)
+        warning_popup("You must first save the file")
         return
 
     properties.enable_button.setEnabled(False)
@@ -436,20 +432,24 @@ def check_yaml_syntax(content):
     try:
         yaml.load(content, Loader=yLoader)
     except Exception, e:
-        QMessageBox.warning(None, 'Message',
-            "Unable to parse yaml: \n %s" % str(e), QMessageBox.Ok)
-        raise
+        warning_popup("Unable to parse yaml: \n %s" % str(e))
     
 def service_manager(action):
-    if action == 'stop':
-        win32serviceutil.StopService(DATADOG_SERVICE)
-    elif action == 'start':
-        win32serviceutil.StartService(DATADOG_SERVICE)
-    elif action == 'restart':
-        win32serviceutil.RestartService(DATADOG_SERVICE)
+    try:
+        if action == 'stop':
+            win32serviceutil.StopService(DATADOG_SERVICE)
+        elif action == 'start':
+            win32serviceutil.StartService(DATADOG_SERVICE)
+        elif action == 'restart':
+            win32serviceutil.RestartService(DATADOG_SERVICE)
+    except Exception, e:
+        warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
 def get_service_status():
-    return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+    try:
+        return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+    except Exception:
+        return "Unknown"
 
 def is_service_running(status = None):
     if status == None:
@@ -465,6 +465,12 @@ def is_service_stopped(status = None):
     if status == None:
         status = get_service_status()
     return status == win32service.SERVICE_STOPPED
+
+def warning_popup(message, parent=None):
+    QMessageBox.warning(parent, 'Message', message, QMessageBox.Ok)
+
+def info_popup(message, parent=None):
+     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
