@@ -376,6 +376,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig["limit_memory_consumption"] = None
 
+        if config.has_option("Main", "skip_ssl_validation"):
+            agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)

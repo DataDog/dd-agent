@@ -194,7 +194,8 @@ class MetricTransaction(Transaction):
                 'url': url,
                 'method': 'POST',
                 'body': self._data,
-                'headers': self._headers
+                'headers': self._headers,
+                'validate_cert': not self._application.skip_ssl_validation,
             }
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
@@ -301,7 +302,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig, watchdog=True):
+    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -312,6 +313,10 @@ class Application(tornado.web.Application):
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
+        self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False):
+        if self.skip_ssl_hostname_validation:
+            log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
+
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
             self._watchdog = Watchdog(watchdog_timeout,
@@ -422,7 +427,7 @@ class Application(tornado.web.Application):
     def stop(self):
         self.mloop.stop()
 
-def init():
+def init(skip_ssl_validation=False):
     agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', 17123)
@@ -431,7 +436,7 @@ def init():
     else:
         port = int(port)
 
-    app = Application(port, agentConfig)
+    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation)
 
     def sigterm_handler(signum, frame):
         log.info("caught sigterm. stopping")
@@ -447,20 +452,18 @@ def main():
     define("pycurl", default=1, help="Use pycurl")
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     args = parse_command_line()
+    skip_ssl_validation = False
 
     if unicode(options.pycurl) == u"0":
         os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
 
     if unicode(options.sslcheck) == u"0":
-        # monkey-patch the AsyncHTTPClient code
-        import tornado.simple_httpclient
-        tornado.simple_httpclient.match_hostname = lambda x, y: None
-        print("Skipping SSL hostname validation, useful when using a transparent proxy")
+        skip_ssl_validation = True
 
     # If we don't have any arguments, run the server.
     if not args:
         import tornado.httpclient
-        app = init()
+        app = init(skip_ssl_validation)
         try:
             app.run()
         finally:
