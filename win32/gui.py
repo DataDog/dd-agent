@@ -472,7 +472,7 @@ def warning_popup(message, parent=None):
     QMessageBox.warning(parent, 'Message', message, QMessageBox.Ok)
 
 def info_popup(message, parent=None):
-     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
+    QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
