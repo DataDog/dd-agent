@@ -44,20 +44,25 @@ class ProcessCheck(AgentCheck):
     def get_process_memory_size(self, pids, psutil, extended_metrics=False):
         rss = 0
         vms = 0
+        cpu = 0
+        thr = 0
         if extended_metrics:
             real = 0
         else:
             real = None
         for pid in set(pids):
             try:
+                p = psutil.Process(pid)
                 if extended_metrics:
-                    mem = psutil.Process(pid).get_ext_memory_info()
+                    mem = p.get_ext_memory_info()
                     real += mem.rss - mem.shared
                 else:
-                    mem = psutil.Process(pid).get_memory_info()
+                    mem = p.get_memory_info()
 
                 rss += mem.rss
                 vms += mem.vms
+                thr += p.get_num_threads()
+                cpu += p.get_cpu_percent()
                 
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
@@ -65,7 +70,7 @@ class ProcessCheck(AgentCheck):
                 pass
 
         #Return value in Byte
-        return (rss, vms, real)
+        return (thr, cpu, rss, vms, real)
 
     def psutil_older_than_0_6_0(self, psutil):
         return psutil.version_info[1] >= 6
@@ -89,9 +94,11 @@ class ProcessCheck(AgentCheck):
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
 
         self.gauge('system.processes.number', len(pids), tags=[name])
-        rss, vms, real = self.get_process_memory_size(pids, psutil, 
+        thr, cpu, rss, vms, real = self.get_process_memory_size(pids, psutil, 
             extended_metrics=self.psutil_older_than_0_6_0(psutil))
         self.gauge('system.processes.mem.rss', rss, tags=[name])
         self.gauge('system.processes.mem.vms', vms, tags=[name])
+        self.gauge('system.processes.cpu.pct', cpu, tags=[name])
+        self.gauge('system.processes.threads', thr, tags=[name])
         if real is not None:
             self.gauge('system.processes.mem.real', real, tags=[name])
