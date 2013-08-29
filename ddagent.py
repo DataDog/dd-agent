@@ -313,7 +313,7 @@ class Application(tornado.web.Application):
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
-        self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False):
+        self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
