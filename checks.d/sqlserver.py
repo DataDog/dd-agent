@@ -2,6 +2,7 @@
 Check the performance counters from SQL Server
 '''
 from checks import AgentCheck
+import traceback
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
