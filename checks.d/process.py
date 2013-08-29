@@ -62,7 +62,7 @@ class ProcessCheck(AgentCheck):
                 rss += mem.rss
                 vms += mem.vms
                 thr += p.get_num_threads()
-                cpu += p.get_cpu_percent()
+                cpu += p.get_cpu_percent(0.4)
                 
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
