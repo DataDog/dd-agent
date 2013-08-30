@@ -53,7 +53,6 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'dd_url': None,
                                 'clean': False,
-                                'use_forwarder':False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
     return options, args
@@ -185,7 +184,7 @@ def get_config_path(cfg_path=None, os_name=None):
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
-        options, args = get_parsed_args()
+        options, _ = get_parsed_args()
 
     # General config
     agentConfig = {
@@ -276,7 +275,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             else:
                 agentConfig['pup_url'] = 'http://localhost:17125'
 
-            pup_port = 17125
             if config.has_option('Main', 'pup_port'):
                 agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
 
@@ -476,7 +474,7 @@ def get_proxy(agentConfig, use_system_settings=False):
         proxy_settings['user'] = agentConfig.get('proxy_user', None)
         proxy_settings['password'] = agentConfig.get('proxy_password', None)
         proxy_settings['system_settings'] = False
-        log.debug("Proxy Settings %s" % str(proxy_settings))
+        log.debug("Proxy Settings: %s:%s@%s:%s" % (proxy_settings['user'], "*****", proxy_settings['host'], proxy_settings['port']))
         return proxy_settings
 
     # If no proxy configuration was specified in datadog.conf
@@ -485,33 +483,32 @@ def get_proxy(agentConfig, use_system_settings=False):
         import urllib
         proxies = urllib.getproxies()
         proxy = proxies.get('https', None)
-        try:
-            proxy = proxy.split('://')[1]
-        except Exception:
-            pass
-        split = proxy.split(':')
-        proxy_settings['host'] = split[0]
-        proxy_settings['port'] = split[1]
-        proxy_settings['user'] = None
-        proxy_settings['password'] = None
-        proxy_settings['system_settings'] = True
-        if '@' in proxy_settings['host']:
-            split = proxy_settings['host'].split('@')[0].split(':')
-            proxy_settings['user'] = split[0]
-            if len(split) == 2:
-                proxy_settings['password'] = split[1]
+        if proxy is not None:
+            try:
+                proxy = proxy.split('://')[1]
+            except Exception:
+                pass
+            px = proxy.split(':')
+            proxy_settings['host'] = px[0]
+            proxy_settings['port'] = px[1]
+            proxy_settings['user'] = None
+            proxy_settings['password'] = None
+            proxy_settings['system_settings'] = True
+            if '@' in proxy_settings['host']:
+                creds = proxy_settings['host'].split('@')[0].split(':')
+                proxy_settings['user'] = creds[0]
+                if len(creds) == 2:
+                    proxy_settings['password'] = creds[1]
 
-        log.debug("Proxy Settings %s" % str(proxy_settings))
-        return proxy_settings
+            log.debug("Proxy Settings: %s:%s@%s:%s" % (proxy_settings['user'], "*****", proxy_settings['host'], proxy_settings['port']))
+            return proxy_settings
+
     except Exception, e:
         log.debug("Error while trying to fetch proxy settings using urllib %s. Proxy is probably not set" % str(e))
 
-    return {'host': None,
-            'port': None,
-            'user': None,
-            'password': None,
-            'system_settings': False
-            }
+    log.debug("No proxy configured")
+
+    return None
 
 
 def get_confd_path(osname):
@@ -715,7 +712,7 @@ def load_check_directory(agentConfig):
 
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
-        for name, clsmember in classes:
+        for _, clsmember in classes:
             if clsmember == AgentCheck:
                 continue
             if issubclass(clsmember, AgentCheck):

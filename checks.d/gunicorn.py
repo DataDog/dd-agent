@@ -61,13 +61,17 @@ class GUnicornCheck(AgentCheck):
         idle = 0
 
         if not worker_procs:
-            working, idle
+            return working, idle
 
         # Count how much sleep time is used by the workers.
         cpu_time_by_pid = {}
         for proc in worker_procs:
             # cpu time is the sum of user + system time.
-            cpu_time_by_pid[proc.pid] = sum(proc.get_cpu_times())
+            try:
+                cpu_time_by_pid[proc.pid] = sum(proc.get_cpu_times())
+            except psutil.NoSuchProcess:
+                self.warning('Process %s disappeared while scanning' % proc.name)
+                continue
         
         # Let them do a little bit more work.
         time.sleep(cls.CPU_SLEEP_SECS)
@@ -75,6 +79,10 @@ class GUnicornCheck(AgentCheck):
         # Processes which have used more CPU are considered active (this is a very 
         # naive check, but gunicorn exposes no stats API)
         for proc in worker_procs:
+            if proc.pid not in cpu_time_by_pid:
+                # The process is not running anymore, we didn't collect initial cpu times
+                continue
+
             try:
                 cpu_time = sum(proc.get_cpu_times())
             except Exception:
@@ -112,18 +120,4 @@ class GUnicornCheck(AgentCheck):
 
 class GUnicornCheckError(Exception):
     pass
-
-
-if __name__ == '__main__':
-    from config import initialize_logging
-    initialize_logging('collector')
-
-    config_file = sys.argv[1]
-    check, instances = GUnicornCheck.from_yaml(config_file)
-    if not instances:
-        raise Exception("No instances!")
-    for instance in instances:
-        check.check(instance)
-        print "Events: %r" % check.get_events()
-        print "Metrics: %r" % check.get_metrics() 
 

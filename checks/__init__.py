@@ -191,7 +191,7 @@ class Check(object):
 
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) < 2:
-           raise UnknownValue()
+            raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
             res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])

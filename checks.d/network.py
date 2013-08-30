@@ -61,7 +61,7 @@ class Network(AgentCheck):
             self._check_linux(instance)
         elif Platform.is_bsd():
             self._check_bsd(instance)
-        elif Plaform.is_solaris():
+        elif Platform.is_solaris():
             self._check_solaris(instance)
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
@@ -316,7 +316,7 @@ class Network(AgentCheck):
         # A mapping of solaris names -> datadog names
         metric_by_solaris_name = {
             'rbytes64':'bytes_rcvd',
-            'obytes64':'bytes_rcvd',
+            'obytes64':'bytes_sent',
             'ipackets64':'packets_in.count',
             'ierrors':'packets_in.error',
             'opackets64':'packets_out.count',
