@@ -8,7 +8,6 @@ class HTTPCheck(ServicesCheck):
 
     def _load_conf(self, instance):
         # Fetches the conf
-        name = instance.get('name', None)
         tags = instance.get('tags', [])
         username = instance.get('username', None)
         password = instance.get('password', None)
@@ -19,10 +18,10 @@ class HTTPCheck(ServicesCheck):
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
-        return url, username, password, timeout, include_content, headers, response_time
+        return url, username, password, timeout, include_content, headers, response_time, tags
 
     def _check(self, instance):
-        name, tags, addr, username, password, timeout, include_content, headers, response_time = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, response_time, tags = self._load_conf(instance)
         content = ''
         start = time.time()
         try:
@@ -53,6 +52,7 @@ class HTTPCheck(ServicesCheck):
             raise
 
         if response_time:
+            tags.append('url:%s' % addr)
             self.gauge('network.http.response_time', time.time() - start, tags=tags)
 
         if int(resp.status) >= 400:
