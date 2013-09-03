@@ -550,7 +550,7 @@ def get_jmx_status():
     """
     check_statuses = []
     try:
-        stream = file(os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmx_status.yaml")))
+        stream = file(os.path.join(tempfile.gettempdir(), "jmx_status.yaml"))
         jmx_stats = yaml.load(stream)
 
         status_age = time.time() - jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds

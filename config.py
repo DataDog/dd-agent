@@ -1,5 +1,6 @@
 import ConfigParser
 import os
+import tempfile
 import itertools
 import logging
 import logging.config
@@ -642,20 +643,32 @@ def start_jmx_connector(confd_path, agentConfig, statsd_port=None, path_to_java=
 
     log.info("Starting jmxfetch:")
     try:
-
+        logging_config = get_logging_config()
         path_to_java = path_to_java or "java"
         path_to_jmxfetch = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
+        path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+        java_logging_level = {
+            logging.CRITICAL : "SEVERE",
+            logging.DEBUG : "ALL",
+            logging.ERROR : "WARNING",
+            logging.FATAL : "SEVERE",
+            logging.INFO : "INFO",
+            logging.WARN : "WARNING",
+            logging.WARNING : "WARNING",
+        }
+
 
         subprocess_args = [
-                path_to_java,
+                path_to_java, # Path to the java bin
                 '-jar', 
-                path_to_jmxfetch,
-                confd_path,
-                str(statsd_port), 
-                str(DEFAULT_CHECK_FREQUENCY * 1000), 
-                get_logging_config().get('jmxfetch_log_file'),
-                "INFO", 
+                path_to_jmxfetch, # Path to the jmxfetch jar
+                confd_path, # Path of the conf.d directory that will be read by jmxfetch
+                str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
+                str(DEFAULT_CHECK_FREQUENCY * 1000),  # Period of the main loop of jmxfetch in ms
+                logging_config.get('jmxfetch_log_file'), # Path of the log file
+                java_logging_level.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
                 ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
+                path_to_status_file,
             ]
 
         log.info("Running %s" % " ".join(subprocess_args))
