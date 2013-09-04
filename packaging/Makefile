@@ -45,24 +45,30 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	cp -r $(SRC)/datadog-cert.pem $(ROOT)/
+	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
-# Layout all of the files common to both versions of the agent in
+# Layout all of the files common to both versions of the Agent in
 # the build directory.
 install_base: source
 	mkdir -p $(BUILD)
 	mkdir -p $(BUILD)/usr/share/datadog/agent
 	mkdir -p $(BUILD)/etc/dd-agent
 	mkdir -p $(BUILD)/etc/dd-agent/conf.d
+	mkdir -p $(BUILD)/etc/dd-agent/checks.d
 	mkdir -p $(BUILD)/usr/bin
+	mkdir -p $(BUILD)/var/log/datadog
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
+	cp -r $(ROOT)/conf.d/* $(BUILD)/etc/dd-agent/conf.d/
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
+	chmod 755 $(BUILD)/var/log/datadog
 
 install_full: source
 	# Install the forwarder.
@@ -93,7 +99,7 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 -d "pexpect" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
 --pre-uninstall datadog-agent-base-rpm/pre_uninstall \
@@ -108,9 +114,10 @@ $(FPM_BUILD) -t rpm \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
 -d "pexpect" \
+-d "python-pycurl" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
---replaces "datadog-agent-lib  < 3.4.0" \
+--replaces "datadog-agent-lib  < $(VERSION)" \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
@@ -131,11 +138,7 @@ install_base_deb: install_base
 # Install the forwarder and supervisor on debian.
 install_full_deb: install_base_deb install_full
 	# Install supervisor config.
-	#   FIXME mattp: why do we need both of these?
-	mkdir -p $(BUILD)/etc/supervisor/conf.d
-	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
-	mkdir -p $(BUILD)/etc/supervisor/conf.d/
-	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
+	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor.conf
 
 
 # Make the datadog agent debian package that includes supervisor, the forwarder
@@ -150,7 +153,7 @@ $(FPM_BUILD) -t deb \
 -d "adduser" \
 -d "sysstat" \
 -d "python-pexpect" \
---config-files "/etc/dd-agent/supervisor_ddagent.conf" \
+-d "python-pycurl" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
 --pre-uninstall  datadog-agent-deb/prerm \
@@ -197,7 +200,7 @@ deb_repo:
 	sudo dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
 
 tmp:
-	cp *.deb /tmp/shared || true
-	cp *.rpm /tmp/shared || true
+	cp ../artifacts/*.deb /tmp/shared || true
+	cp ../dist/*.rpm /tmp/shared || true
 
 all: clean deb rpm

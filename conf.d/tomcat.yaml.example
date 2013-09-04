@@ -4,7 +4,11 @@ instances:
 #        user: username
 #        password: password
 #        name: tomcat_instance
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 
+
+# List of metrics to be collected by the integration
+# You should not need to modify this.
 init_config:
   conf:
     - include:

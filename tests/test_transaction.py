@@ -89,7 +89,8 @@ class TestTransaction(unittest.TestCase):
         before = datetime.now()
         trManager.flush()
         after = datetime.now()
-        self.assertTrue( (after-before) > 3 * THROTTLING_DELAY)
+        self.assertTrue( (after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000), 
+            "before = %s after = %s" % (before, after))
             
 
 if __name__ == '__main__':

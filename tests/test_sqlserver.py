@@ -2,7 +2,6 @@ import unittest
 import logging
 from nose.plugins.attrib import attr
 
-from checks import gethostname
 from tests.common import get_check
 
 logging.basicConfig()

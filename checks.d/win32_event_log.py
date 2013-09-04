@@ -18,8 +18,7 @@ class Win32EventLog(AgentCheck):
         try:
             import wmi
         except ImportError:
-            self.log.error("Unable to import 'wmi' module")
-            return
+            raise Exception("Unable to import 'wmi' module")
 
         host = instance.get('host')
         user = instance.get('username')
@@ -68,7 +67,7 @@ class Win32EventLog(AgentCheck):
         ''' Return the timezone offset for the current local time
         '''
         if time.daylight == 0:
-            offest = time.timezone
+            offset = time.localtime().tm_isdst
         else:
             offset = time.altzone
         return offset / 60 / 60 * -1
@@ -183,11 +182,3 @@ class LogEvent(object):
 
     def _aggregation_key(self, event):
         return event.SourceName
-
-if __name__ == "__main__":
-    check, instances = Win32EventLog.from_yaml('conf.d/win32_event_log.yaml')
-    for instance in instances:
-        check.check(instance)
-        # Run check again so "last time" is populated
-        check.check(instance)
-    print check.get_events()

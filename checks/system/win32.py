@@ -16,7 +16,19 @@ class Processes(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        try:
+            os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.' \
+                             ' No process metrics will be returned.')
+            return
+
+        try:
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+                             ' No process metrics will be returned.')
+            return
         if os.ProcessorQueueLength is not None:
             self.save_sample('system.proc.queue_length', os.ProcessorQueueLength)
         if os.Processes is not None:
@@ -39,8 +51,12 @@ class Memory(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        os = w.Win32_OperatingSystem()[0]
-        mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
+        try:
+            os = w.Win32_OperatingSystem()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_OperatingSystem. No memory metrics will be returned.')
+            return
+
         if os.TotalVisibleMemorySize is not None and os.FreePhysicalMemory is not None:
             total = int(os.TotalVisibleMemorySize) / KB2MB
             free = int(os.FreePhysicalMemory) / KB2MB
@@ -48,6 +64,7 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
+        mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
         if mem.CacheBytes is not None:
             self.save_sample('system.mem.cached', int(mem.CacheBytes) / B2MB)
         if mem.CommittedBytes is not None:
@@ -71,18 +88,51 @@ class Cpu(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+        try:
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+                             ' No CPU metrics will be returned.')
+            return
 
-        if cpu.PercentUserTime is not None:
-            self.save_sample('system.cpu.user', cpu.PercentUserTime)
-        if cpu.PercentIdleTime is not None:
-            self.save_sample('system.cpu.idle', cpu.PercentIdleTime)
-        if cpu.PercentInterruptTime is not None:
-            self.save_sample('system.cpu.interrupt', cpu.PercentInterruptTime)
-        if cpu.PercentPrivilegedTime is not None:
-            self.save_sample('system.cpu.system', cpu.PercentPrivilegedTime)
+        cpu_user = self._average_metric(cpu, 'PercentUserTime')
+        if cpu_user:
+            self.save_sample('system.cpu.user', cpu_user)
+
+        cpu_idle = self._average_metric(cpu, 'PercentIdleTime')
+        if cpu_idle:
+            self.save_sample('system.cpu.idle', cpu_idle)
+
+        cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
+        if cpu_interrupt is not None:
+            self.save_sample('system.cpu.interrupt', cpu_interrupt)
+
+        cpu_privileged = self._average_metric(cpu, 'PercentPrivilegedTime')
+        if cpu_privileged is not None:
+            self.save_sample('system.cpu.system', cpu_privileged)
 
         return self.get_metrics()
+
+    def _average_metric(self, wmi_class, wmi_prop):
+        ''' Sum all of the values of a metric from a WMI class object, excluding
+            the value for "_Total"
+        '''
+        val = 0
+        counter = 0
+        for wmi_object in wmi_class:
+            if wmi_object.Name == '_Total':
+                # Skip the _Total value
+                continue
+
+            if getattr(wmi_object, wmi_prop) is not None:
+                counter += 1
+                val += float(getattr(wmi_object, wmi_prop))
+
+        if counter > 0:
+            return val / counter
+
+        return val
+
 
 class Network(Check):
     def __init__(self, logger):
@@ -94,7 +144,12 @@ class Network(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
+        try:
+            net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class.' \
+                             ' No network metrics will be returned')
+            return
 
         for iface in net:
             name = self.normalize_device_name(iface.name)
@@ -118,7 +173,12 @@ class Disk(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        disk = w.Win32_LogicalDisk()
+        try:
+            disk = w.Win32_LogicalDisk()
+        except AttributeError:
+            self.logger.info('Missing Win32_LogicalDisk WMI class.'  \
+                             ' No disk metrics will be returned.')
+            return
 
         for device in disk:
             name = self.normalize_device_name(device.name)
@@ -148,7 +208,12 @@ class IO(Check):
     def check(self, agentConfig):
         import wmi
         w = wmi.WMI()
-        disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
+        try:
+            disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.' \
+                             ' No I/O metrics will be returned.')
+            return
 
         for device in disk:
             name = self.normalize_device_name(device.name)

@@ -22,8 +22,7 @@ class Nginx(AgentCheck):
     """
     def check(self, instance):
         if 'nginx_status_url' not in instance:
-            self.log.error('NginX instance missing "nginx_status_url" value.')
-            return
+            raise Exception('NginX instance missing "nginx_status_url" value.')
         tags = instance.get('tags', [])
 
         self._get_metrics(instance['nginx_status_url'], tags)
@@ -50,7 +49,6 @@ class Nginx(AgentCheck):
         parsed = re.search(r'Reading: (\d+)\s+Writing: (\d+)\s+Waiting: (\d+)', response)
         if parsed:
             reading, writing, waiting = map(int, parsed.groups())
-            assert connections == reading + writing + waiting
             self.gauge("nginx.net.reading", reading, tags=tags)
             self.gauge("nginx.net.writing", writing, tags=tags)
             self.gauge("nginx.net.waiting", waiting, tags=tags)

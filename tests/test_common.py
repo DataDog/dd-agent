@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger()
 from checks import Check, CheckException, UnknownValue, CheckException, Infinity
 from checks.collector import Collector
+from aggregator import MetricsAggregator
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -90,8 +91,20 @@ class TestCore(unittest.TestCase):
 
     def test_metadata(self):
         c = Collector({}, None, {})
-        assert "hostname" in c._get_metadata(), c.get_metadata()
-        assert "fqdn" in c._get_metadata(), c.get_metadata()
+        assert "hostname" in c._get_metadata()
+        assert "socket-fqdn" in c._get_metadata()
+        assert "socket-hostname" in c._get_metadata()
+
+class TestAggregator(unittest.TestCase):
+    def setUp(self):
+        self.aggr = MetricsAggregator('test-aggr')
+
+    def test_dupe_tags(self):
+        self.aggr.increment('test-counter', 1, tags=['a', 'b'])
+        self.aggr.increment('test-counter', 1, tags=['a', 'b', 'b'])
+        self.assertEquals(len(self.aggr.metrics), 1, self.aggr.metrics)
+        metric = self.aggr.metrics.values()[0]
+        self.assertEquals(metric.value, 2)
 
 if __name__ == '__main__':
     unittest.main()

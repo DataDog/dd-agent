@@ -38,7 +38,8 @@ if sys.platform == 'win32':
         'python-memcached==1.48',
         'redis==2.6.2',
         'adodbapi'
-        'elementtree'
+        'elementtree',
+        'pycurl',
     ])
 
     # Modules to force-include in the exe
@@ -49,11 +50,14 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree',
+        'elementtree.ElementTree',
+        'pycurl',
+        'tornado.curl_httpclient',
 
         # agent
         'checks.services_checks',
         'checks.libs.httplib2',
+        'checks.jmx_connector',
     ]
 
     class Target(object):
@@ -78,7 +82,11 @@ if sys.platform == 'win32':
         'console': ['win32\shell.py'],
         'service': [agent_svc],
         'zipfile': None,
-        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))],
+        'data_files': [
+            ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
+            ('pup', glob('pup/status.html')),
+            ('pup/static', glob('pup/static/*.*')),
+        ],
     }
 
 setup(

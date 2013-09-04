@@ -1,6 +1,6 @@
 import time
 import re
-from util import namedtuple
+from util import namedtuple, get_hostname
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser
@@ -153,10 +153,8 @@ def parse_log(api_key, log_file):
     import socket
     import sys
 
-    logger = logging.getLogger("nagios")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
-    nagios = Nagios(socket.gethostname())
+    logger = logging.getLogger("ddagent.checks.nagios")
+    nagios = Nagios(get_hostname())
 
     events = nagios.check(logger, {'api_key': api_key, 'nagios_log': log_file}, move_end=False)
     for e in events:
@@ -165,10 +163,9 @@ def parse_log(api_key, log_file):
 if __name__ == "__main__":
     import logging
     import socket
-    logger = logging.getLogger("nagios")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
-    nagios = Nagios(socket.gethostname())
+
+    logger = logging.getLogger("ddagent.checks.nagios")
+    nagios = Nagios(get_hostname())
 
     config = {'api_key':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}
     events = nagios.check(logger, config,move_end = False)

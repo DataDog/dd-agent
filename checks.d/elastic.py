@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 import time
 
-from checks import Check, gethostname
+from checks import AgentCheck
 from util import json, headers
 
 HEALTH_URL = "/_cluster/health?pretty=true"
@@ -23,70 +23,14 @@ def _get_data(agentConfig, url):
 
 class NodeNotFound(Exception): pass
 
-class ElasticSearchClusterStatus(Check):
-    key = "ElasticSearch"
-
-    def __init__(self, logger):
-        Check.__init__(self, logger)
-        self.cluster_status = None
-
-    def check(self, logger, config, data=None):
-        config_url = config.get("elasticsearch", None)
-
-        # Check if we are configured properly
-        if config_url is None:
-            return False
-
-        url = urlparse.urljoin(config_url, HEALTH_URL)
-        self.logger.info("Fetching elasticsearch data from: %s" % url)
-
-        try:
-            if not data:
-                data = _get_data(config, url)
-            if not self.cluster_status:
-                self.cluster_status = data['status']
-                if data['status'] in ["yellow", "red"]:
-                    event = self._create_event(config)
-                    return [event]
-                return []
-            if data['status'] != self.cluster_status:
-                self.cluster_status = data['status']
-                event = self._create_event(config)
-                return [event]
-            return []
-
-        except:
-            self.logger.exception('Unable to get elasticsearch statistics')
-            return False
 
 
+class ElasticSearch(AgentCheck):
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
 
-    def _create_event(self, agentConfig):
-        hostname = gethostname(agentConfig).decode('utf-8')
-        if self.cluster_status == "red" or self.cluster_status=="yellow":
-            alert_type = "error"
-            msg_title = "%s is %s" % (hostname, self.cluster_status)
-        else:
-            # then it should be green
-            alert_type == "info"
-            msg_title = "%s recovered as %s" % (hostname, self.cluster_status)
-
-        msg = "ElasticSearch: %s just reported as %s" % (hostname, self.cluster_status)
-
-        return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
-                 'event_type': 'elasticsearch',
-                 'host': hostname,
-                 'api_key': agentConfig['api_key'],
-                 'msg_text':msg,
-                 'msg_title': msg_title,
-                 "alert_type": alert_type,
-                 "source_type_name": "elasticsearch",
-                 "event_object": hostname
-            }
-
-
-class ElasticSearch(Check):
-
+        # Host status needs to persist across all checks
+        self.cluster_status = {}
 
 
     METRICS = {
@@ -195,63 +139,72 @@ class ElasticSearch(Check):
         "elasticsearch.unassigned_shards": ("gauge", "unassigned_shards"),
     }
 
-    @classmethod
-    def _map_metric(cls, func):
-        """Apply a function to all known metrics.
-        Used to create and sample metrics.
-        """
-        for metric in cls.METRICS:
-            # metric description
-            desc = cls.METRICS[metric]
-            func(metric, *desc)
 
-    def __init__(self, logger):
-        Check.__init__(self, logger)
+    def check(self, instance):
+        config_url = instance.get('url')
+        if config_url is None:
+            raise Exception("An url must be specified")
 
-        def generate_metric(name, xtype, *args):
-            if xtype == "counter":
-                self.counter(name)
-            else:
-                self.gauge(name)
+        tags = ['url:%s' % config_url]
+        self.load_url(config_url, instance, tags=tags, url_suffix=STATS_URL)
 
-        self._map_metric(generate_metric)
+    def check_status(self, data, url):
+        if self.cluster_status.get(url, None) is None:
+            self.cluster_status[url] = data['status']
+            if data['status'] in ["yellow", "red"]:
+                event = self._create_event(data['status'])
+                self.event(event)
+        if data['status'] != self.cluster_status.get(url):
+            self.cluster_status[url] = data['status']
+            event = self._create_event(data['status'])
+            self.event(event)
 
+        
+    def load_url(self, config_url, instance, tags=None, url_suffix=STATS_URL):
 
-    def _metric_not_found(self, metric, path):
-        self.logger.warning("Metric not found: %s -> %s", path, metric)
-
-    def _process_metric(self, data, metric, path, xform=None):
-        """data: dictionary containing all the stats
-        metric: datadog metric
-        path: corresponding path in data, flattened, e.g. thread_pool.bulk.queue
-        xfom: a lambda to apply to the numerical value
-        """
-        value = data
-        # Traverse the nested dictionaries
-        for key in path.split('.'):
-            if value is not None:
-                value = value.get(key, None)
-            else:
-                break
-
-        if value is not None:
-            if xform: value = xform(value)
-            self.save_sample(metric, value)
+        # Try to fetch data from the stats URL
+        # If only the hostname was passed, accept that and add our stats_url
+        # Else use the full URL as provided
+        if urlparse.urlparse(config_url).path == "":
+            url = urlparse.urljoin(config_url, url_suffix)
         else:
-            self._metric_not_found(metric, path)
+            url = config_url
 
-    def _process_data(self, agentConfig, data):
+        self.log.debug("Fetching elasticsearch data from: %s" % url)
+
+        try:
+            data = _get_data(self.agentConfig, url)
+
+            if url_suffix==STATS_URL:
+                self._process_data(data, tags=tags, instance=instance)
+                self.load_url(config_url, instance, tags=tags, url_suffix=HEALTH_URL)
+
+            else:
+                self.check_status(data, config_url)
+                self._process_health_data(data, tags=tags)
+
+        except Exception, e:
+            self.log.exception('Unable to get elasticsearch statistics %s' % str(e))
+            raise
+
+    def _base_es_url(self, config_url):
+        parsed = urlparse.urlparse(config_url)
+        if parsed.path == "":
+            return config_url
+        return "%s://%s" % (parsed.scheme, parsed.netloc)
+
+    def _process_data(self, data, tags=None, instance=None):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
             def process_metric(metric, xtype, path, xform=None):
                 # closure over node_data
-                self._process_metric(node_data, metric, path, xform)
+                self._process_metric(node_data, metric, path, xform, tags=tags)
 
             if 'hostname' in node_data:
                 # For ES >= 0.19
                 hostnames = (
-                    gethostname(agentConfig).decode('utf-8'),
+                    self.hostname.decode('utf-8'),
                     socket.gethostname().decode('utf-8'),
                     socket.getfqdn().decode('utf-8')
                 )
@@ -262,21 +215,14 @@ class ElasticSearch(Check):
                 # Fetch interface address from ifconfig or ip addr and check
                 # against the primary IP from ES
                 try:
-                    base_url = self._base_es_url(agentConfig['elasticsearch'])
+                    base_url = self._base_es_url(instance['url'])
                     url = "%s%s" % (base_url, NODES_URL)
-                    primary_addr = self._get_primary_addr(agentConfig, url, node)
+                    primary_addr = self._get_primary_addr(self.agentConfig, url, node)
                 except NodeNotFound:
                     # Skip any nodes that aren't found
                     continue
                 if self._host_matches_node(primary_addr):
                     self._map_metric(process_metric)
-
-    def _process_health_data(self, agentConfig, data):
-            def process_metric(metric, xtype, path, xform=None):
-                # closure over node_data
-                self._process_metric(data, metric, path, xform)
-            self._map_metric(process_metric)
-
 
     def _get_primary_addr(self, agentConfig, url, node_name):
         ''' Returns a list of primary interface addresses as seen by ES.
@@ -321,56 +267,85 @@ class ElasticSearch(Check):
         # Check the interface addresses against the primary address
         return primary_addrs in ips
 
-    def _base_es_url(self, config_url):
-        parsed = urlparse.urlparse(config_url)
-        if parsed.path == "":
-            return config_url
-        return "%s://%s" % (parsed.scheme, parsed.netloc)
-
-    def check(self, config, url_suffix=STATS_URL):
-        """Extract data from stats URL
-http://www.elasticsearch.org/guide/reference/api/admin-cluster-nodes-stats.html
+    def _process_metric(self, data, metric, path, xform=None, tags=None):
+        """data: dictionary containing all the stats
+        metric: datadog metric
+        path: corresponding path in data, flattened, e.g. thread_pool.bulk.queue
+        xfom: a lambda to apply to the numerical value
         """
-
-        config_url = config.get("elasticsearch", None)
-
-        # Check if we are configured properly
-        if config_url is None:
-            return False
-
-        # Try to fetch data from the stats URL
-        # If only the hostname was passed, accept that and add our stats_url
-        # Else use the full URL as provided
-        if urlparse.urlparse(config_url).path == "":
-            url = urlparse.urljoin(config_url, url_suffix)
-        else:
-            url = config_url
-
-        self.logger.info("Fetching elasticsearch data from: %s" % url)
-
-        try:
-            data = _get_data(config, url)
-
-            if url_suffix==STATS_URL:
-                self._process_data(config, data)
-                self.check(config, HEALTH_URL)
-
+        value = data
+        # Traverse the nested dictionaries
+        for key in path.split('.'):
+            if value is not None:
+                value = value.get(key, None)
             else:
-                self._process_health_data(config, data)
+                break
 
-            return self.get_metrics()
-        except:
-            self.logger.exception('Unable to get elasticsearch statistics')
+        if value is not None:
+            if xform: value = xform(value)
+            if self.METRICS[metric][0] == "gauge":
+
+                self.gauge(metric, value, tags=tags)
+            else:
+                self.rate(metric, value, tags=tags)
+        else:
+            self._metric_not_found(metric, path)
+
+    def _process_health_data(self, data, tags=None):
+            def process_metric(metric, xtype, path, xform=None):
+                # closure over node_data
+                self._process_metric(data, metric, path, xform, tags=tags)
+            self._map_metric(process_metric)
+
+    @classmethod
+    def _map_metric(cls, func):
+        """Apply a function to all known metrics.
+        Used to create and sample metrics.
+        """
+        for metric in cls.METRICS:
+            # metric description
+            desc = cls.METRICS[metric]
+            func(metric, *desc)
+
+    def _metric_not_found(self, metric, path):
+        self.log.debug("Metric not found: %s -> %s", path, metric)
+
+    def _create_event(self, status):
+        hostname = self.hostname.decode('utf-8')
+        if status == "red":
+            alert_type = "error"
+            msg_title = "%s is %s" % (hostname, status)
+
+        elif status == "yellow":
+            alert_type = "warning"
+            msg_title = "%s is %s" % (hostname, status)
+
+        else:
+            # then it should be green
+            alert_type = "info"
+            msg_title = "%s recovered as %s" % (hostname, status)
+
+        msg = "ElasticSearch: %s just reported as %s" % (hostname, status)
+
+        return { 'timestamp': int(time.mktime(datetime.utcnow().timetuple())),
+                 'event_type': 'elasticsearch',
+                 'host': hostname,
+                 'api_key': self.agentConfig['api_key'],
+                 'msg_text':msg,
+                 'msg_title': msg_title,
+                 "alert_type": alert_type,
+                 "source_type_name": "elasticsearch",
+                 "event_object": hostname
+            }
+
+    @staticmethod
+    def parse_agent_config(agentConfig):
+        if not agentConfig.get('elasticsearch'):
             return False
 
-
-if __name__ == "__main__":
-    import pprint
-    import logging
-    from config import get_version
-    logging.basicConfig()
-    logger = logging.getLogger()
-    c = ElasticSearch(logger)
-    config = {"elasticsearch": "http://localhost:9200", "version": get_version(), "api_key":"apiKey 2"}
-    pprint.pprint(c.check(config))
+        return {
+            'instances': [{
+                'url': agentConfig.get('elasticsearch'),
+            }]
+        }
 

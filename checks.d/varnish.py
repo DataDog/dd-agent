@@ -80,18 +80,8 @@ class Varnish(AgentCheck):
         """
         # Not configured? Not a problem.
         if instance.get("varnishstat", None) is None:
-            return
+            raise Exception("varnishstat is not configured")
         tags = instance.get('tags', [])
-
-        # Get the varnish version from varnishstat
-        output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE).communicate()
-
-        # Assumptions regarding varnish's version
-        use_xml = True
-        arg = "-x" # varnishstat argument
-        version = 3
 
         # Get the varnish version from varnishstat
         output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
@@ -109,6 +99,7 @@ class Varnish(AgentCheck):
 
         if m1 is None and m2 is None:
             self.log.warn("Cannot determine the version of varnishstat, assuming 3 or greater")
+            self.warning("Cannot determine the version of varnishstat, assuming 3 or greater")
         else:
             if m1 is not None:
                 version = int(m1.group(1))

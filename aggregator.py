@@ -1,12 +1,19 @@
 import logging
 from time import time
 
+log = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
+# This is used to ensure that metrics with a timestamp older than
+# RECENT_POINT_THRESHOLD_DEFAULT seconds (or the value passed in to
+# the MetricsAggregator constructor) get discarded rather than being
+# input into the incorrect bucket. Currently, the MetricsAggregator
+# does not support submitting values for the past, and all values get
+# submitted for the timestamp passed into the flush() function.
+RECENT_POINT_THRESHOLD_DEFAULT = 30
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
+
 
 class Metric(object):
     """
@@ -199,15 +206,15 @@ class Rate(Metric):
     def _rate(self, sample1, sample2):
         interval = sample2[0] - sample1[0]
         if interval == 0:
-            logger.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
+            log.warn('Metric %s has an interval of 0. Not flushing.' % self.name)
             raise Infinity()
 
         delta = sample2[1] - sample1[1]
         if delta < 0:
-            logger.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
+            log.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
             raise UnknownValue()
 
-        return (delta / interval)
+        return (delta / float(interval))
 
     def flush(self, timestamp, interval):
         if len(self.samples) < 2:
@@ -230,84 +237,155 @@ class Rate(Metric):
             self.samples = self.samples[-1:]
 
 
-
 class MetricsAggregator(object):
     """
     A metric aggregator class.
     """
 
-    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None):
+    # Types of metrics that allow strings
+    ALLOW_STRINGS = ['s', ]
+
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         self.metrics = {}
+        self.events = []
         self.total_count = 0
         self.count = 0
+        self.event_count = 0
         self.metric_type_to_class = {
             'g': Gauge,
             'c': Counter,
             'h': Histogram,
-            'ms' : Histogram,
-            's'  : Set,
+            'ms': Histogram,
+            's': Set,
             '_dd-r': Rate,
         }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
-        self.formatter = formatter or self.api_formatter
+        self.formatter = formatter or api_formatter
         self.interval = float(interval)
+
+        recent_point_threshold = recent_point_threshold or RECENT_POINT_THRESHOLD_DEFAULT
+        self.recent_point_threshold = int(recent_point_threshold)
+        self.num_discarded_old_points = 0
 
     def packets_per_second(self, interval):
         return round(float(self.count)/interval, 2)
 
+    def parse_metric_packet(self, packet):
+        name_and_metadata = packet.split(':', 1)
+
+        if len(name_and_metadata) != 2:
+            raise Exception('Unparseable metric packet: %s' % packet)
+
+        name = name_and_metadata[0]
+        metadata = name_and_metadata[1].split('|')
+
+        if len(metadata) < 2:
+            raise Exception('Unparseable metric packet: %s' % packet)
+        # Try to cast as an int first to avoid precision issues, then as a
+        # float.
+        try:
+            value = int(metadata[0])
+        except ValueError:
+            try:
+                value = float(metadata[0])
+            except ValueError:
+
+                # If the data type is Set, we will allow strings
+                if metadata[1] in self.ALLOW_STRINGS:
+                    value = metadata[0]
+                else:
+                    # Otherwise, raise an error saying it must be a number
+                    raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
+
+        # Parse the optional values - sample rate & tags.
+        sample_rate = 1
+        tags = None
+        for m in metadata[2:]:
+            # Parse the sample rate
+            if m[0] == '@':
+                sample_rate = float(m[1:])
+                assert 0 <= sample_rate <= 1
+            elif m[0] == '#':
+                tags = tuple(sorted(m[1:].split(',')))
+
+        # Submit the metric
+        mtype = metadata[1]
+
+        return name, value, mtype, tags, sample_rate
+
+    def _unescape_event_text(self, string):
+        return string.replace('\\n', '\n')
+
+    def parse_event_packet(self, packet):
+        try:
+            name_and_metadata = packet.split(':', 1)
+            if len(name_and_metadata) != 2:
+                raise Exception(u'Unparseable event packet: %s' % packet)
+            # Event syntax:
+            # _e{5,4}:title|body|meta
+            name = name_and_metadata[0]
+            metadata = unicode(name_and_metadata[1])
+            title_length, text_length = name.split(',')
+            title_length = int(title_length[3:])
+            text_length = int(text_length[:-1])
+
+            event = {
+                'title': metadata[:title_length],
+                'text': self._unescape_event_text(metadata[title_length+1:title_length+text_length+1])
+            }
+            meta = metadata[title_length+text_length+1:]
+            for m in meta.split('|')[1:]:
+                if m[0] == u't':
+                    event['alert_type'] = m[2:]
+                elif m[0] == u'k':
+                    event['aggregation_key'] = m[2:]
+                elif m[0] == u's':
+                    event['source_type_name'] = m[2:]
+                elif m[0] == u'd':
+                    event['date_happened'] = int(m[2:])
+                elif m[0] == u'p':
+                    event['priority'] = m[2:]
+                elif m[0] == u'h':
+                    event['hostname'] = m[2:]
+                elif m[0] == u'#':
+                    event['tags'] = sorted(m[1:].split(u','))
+            return event
+        except IndexError, ValueError:
+            raise Exception(u'Unparseable event packet: %s' % packet)
+
     def submit_packets(self, packets):
 
         for packet in packets.split("\n"):
-            self.count += 1
-            # We can have colons in tags, so split once.
-            name_and_metadata = packet.split(':', 1)
 
             if not packet.strip():
                 continue
 
-            if len(name_and_metadata) != 2:
-                raise Exception('Unparseable packet: %s' % packet)
-
-            name = name_and_metadata[0]
-            metadata = name_and_metadata[1].split('|')
-
-            if len(metadata) < 2:
-                raise Exception('Unparseable packet: %s' % packet)
-
-            # Try to cast as an int first to avoid precision issues, then as a
-            # float.
-            try:
-                value = int(metadata[0])
-            except ValueError:
-                try:
-                    value = float(metadata[0])
-                except ValueError:
-                    raise Exception('Metric value must be a number: %s, %s' % name, metadata[0])
-
-            # Parse the optional values - sample rate & tags.
-            sample_rate = 1
-            tags = None
-            for m in metadata[2:]:
-                # Parse the sample rate
-                if m[0] == '@':
-                    sample_rate = float(m[1:])
-                    assert 0 <= sample_rate <= 1
-                elif m[0] == '#':
-                    tags = tuple(sorted(m[1:].split(',')))
-
-            # Submit the metric
-            mtype = metadata[1]
-            self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
+            if packet.startswith('_e'):
+                self.event_count += 1
+                event = self.parse_event_packet(packet)
+                self.event(**event)
+            else:
+                self.count += 1
+                name, value, mtype, tags, sample_rate = self.parse_metric_packet(packet)
+                self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
-        context = (name, tuple(tags or []), hostname, device_name)
+        # Avoid calling extra functions to dedupe tags if there are none
+        if tags is None:
+            context = (name, tuple(), hostname, device_name)
+        else:
+            context = (name, tuple(sorted(set(tags))), hostname, device_name)
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
                 hostname or self.hostname, device_name)
-        self.metrics[context].sample(value, sample_rate)
+        cur_time = time()
+        if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
+            self.num_discarded_old_points += 1
+        else:
+            self.metrics[context].sample(value, sample_rate)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
@@ -327,6 +405,32 @@ class MetricsAggregator(object):
     def set(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 's', tags, hostname, device_name)
 
+    def event(self, title, text, date_happened=None, alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
+        event = {
+            'title': title,
+            'text': text,
+        }
+        if date_happened is not None:
+            event['date_happened'] = date_happened
+        else:
+            event['date_happened'] = int(time())
+        if alert_type is not None:
+            event['alert_type'] = alert_type
+        if aggregation_key is not None:
+            event['aggregation_key'] = aggregation_key
+        if source_type_name is not None:
+            event['source_type_name'] = source_type_name
+        if priority is not None:
+            event['priority'] = priority
+        if tags is not None:
+            event['tags'] = sorted(tags)
+        if hostname is not None:
+            event['host'] = hostname
+        else:
+            event['host'] = self.hostname
+
+        self.events.append(event)
+
     def flush(self):
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
@@ -336,25 +440,47 @@ class MetricsAggregator(object):
         metrics = []
         for context, metric in self.metrics.items():
             if metric.last_sample_time < expiry_timestamp:
-                logger.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                 del self.metrics[context]
             else:
                 metrics += metric.flush(timestamp, self.interval)
 
+        # Log a warning regarding metrics with old timestamps being submitted
+        if self.num_discarded_old_points > 0:
+            log.warn('%s points were discarded as a result of having an old timestamp' % self.num_discarded_old_points)
+            self.num_discarded_old_points = 0
+
         # Save some stats.
-        logger.debug("received %s payloads since last flush" % self.count)
+        log.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
         return metrics
 
+    def flush_events(self):
+        events = self.events
+        self.events = []
+
+        self.total_count += self.event_count
+        self.event_count = 0
+
+        log.debug("Received %d events since last flush" % len(events))
+
+        return events
+
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
 
-    def api_formatter(self, metric, value, timestamp, tags, hostname, device_name=None):
-        return {
-            'metric' : metric,
-            'points' : [(timestamp, value)],
-            'tags' : tags,
-            'host' : hostname,
-            'device_name': device_name
-        }
+
+def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+
+    # Workaround for a bug in minjson serialization
+    # (https://github.com/DataDog/dd-agent/issues/422)
+    if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
+        tags = list(tags)
+    return {
+        'metric': metric,
+        'points': [(timestamp, value)],
+        'tags': tags,
+        'host': hostname,
+        'device_name': device_name
+    }

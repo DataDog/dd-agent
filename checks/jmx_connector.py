@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -39,6 +38,10 @@ all_cap_re = re.compile('([a-z0-9])([A-Z])')
 metric_replacement = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
 metric_dotunderscore_cleanup = re.compile(r'_*\._*')
 
+DO_NOT_NICE = 0
+DEFAULT_PRIORITY = 0
+MAX_JMX_RETRIES = 10
+
 def convert(name):
     """Convert from CamelCase to camel_case
     And substitute illegal metric characters
@@ -65,10 +68,23 @@ class JmxConnector:
         return self._jmx is not None and self._jmx.isalive()
 
     def terminate(self):
-        self._jmx.sendline("bye")
-        self._jmx.terminate(force=True)
+        from pexpect import ExceptionPexpect
+        if self._jmx is not None:
+            try:
+                self._jmx.sendline("bye")
+            except ExceptionPexpect, e:
+                pass
 
-    def connect(self, connection, user=None, passwd=None, timeout=20):
+            try:
+                self._jmx.terminate(force=True)
+            except ExceptionPexpect, e:
+                pass
+
+        self._jmx = None
+
+    def connect(self, connection, user=None, passwd=None, timeout=20, 
+        priority=DEFAULT_PRIORITY, java_bin_path=None):
+
         import pexpect
         from pexpect import ExceptionPexpect
 
@@ -82,25 +98,42 @@ class JmxConnector:
             if self._jmx is None or not self._jmx.isalive():
                 # Figure out which path to the jar, __file__ is jmx.pyc
                 pth = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "libs", "jmxterm-1.0-DATADOG-uber.jar"))
-                cmd = "java -jar %s -l %s" % (pth, connection)
+                # Only use nice is the requested priority warrants it
+
+
+                if java_bin_path is None:
+                    java_bin_path = 'java'
+
+                if priority == DO_NOT_NICE:
+                    cmd = "%s -jar %s -l %s" % (java_bin_path, pth, connection)
+                else:
+                    cmd = "nice -n %s %s -jar %s -l %s" % (priority, java_bin_path, pth, connection)
                 if user is not None and passwd is not None:
                     cmd += " -u %s -p %s" % (user, passwd)
-                self.log.debug("PATH=%s" % cmd)
+                self.log.debug("Opening JMX connector with PATH=%s" % cmd)
                 self._jmx = pexpect.spawn(cmd, timeout = timeout)
                 self._jmx.delaybeforesend = 0
                 self._wait_prompt()
-        except:
-            if self._jmx:
-                try:
-                    self._jmx.terminate(force=True)
-                except ExceptionPexpect:
-                    self.log.error("Cannot terminate process %s" % self._jmx)
-            self._jmx = None
-            self.log.critical('Error while fetching JVM metrics %s' % sys.exc_info()[0])
-            raise Exception('Error while fetching JVM metrics at attdress: %s:%s' % (connection, passwd))
+        except ExceptionPexpect, e:
+            self.terminate()
+            if "The command was not found or was not executable" in str(e):
+                raise Exception("Java bin not found. You can manually set its location by using the java_bin_path parameter in the yaml config file.")
+            raise Exception('Error when connecting to JMX Service at address %s. JMX Connector will be relaunched.\n%s' % (connection, str(e)))
 
-    def dump(self):
+    def dump_domains(self, domains, values_only=True):
+        d = {}
+        for domain in domains:
+            d.update(self.dump(domain, values_only))
+        return d
+
+    def dump(self, domain=None, values_only=True):
+        from pexpect import ExceptionPexpect
         """Returns a dictionnary of all beans and attributes
+
+        If values_only parameter is true, only numeric values will be fetched by 
+        the jmx connector.
+
+        If domain is None, all attributes from all domains will be fetched
         
         keys are bean's names
         values are bean's attributes in json format
@@ -123,11 +156,33 @@ class JmxConnector:
         }
 
         """
+        msg = "Dumping"
+        if domain is not None:
+            msg = "%s domain: %s" % (msg, domain)
+        self.log.debug(msg)
+        
+        cmd = "dump"
+        if domain is not None:
+            cmd = "%s -d %s" % (cmd, domain)
+        if values_only:
+            cmd = "%s -v true" % cmd
+        
+        try:
+            self._jmx.sendline(cmd)
+            self._wait_prompt()
+            content = self._jmx.before.replace(cmd,'').strip()
+        except ExceptionPexpect, e:
+            self.log.critical("POPEN error while dumping data. \n JMX Connector will be relaunched  \n %s" % str(e))
+            self.terminate()
+            raise
 
-        self._jmx.sendline("dump")
-        self._wait_prompt()
-        content = self._jmx.before.replace('dump','').strip()
-        jsonvar = json.loads(content)
+        try:
+            jsonvar = json.loads(content)
+        except Exception, e:
+            self.log.error("Couldn't decode JSON %s. %s \n JMX Connector will be relaunched" % (str(e), content))
+            self.terminate()
+            raise
+
         return jsonvar
 
 class JMXMetric:
@@ -207,6 +262,8 @@ class JMXMetric:
                         if attr.has_key('alias'):
                             self._metric_name = attr['alias']
                         if attr.has_key('type'):
+                            self._metric_type = attr['type']
+                        if attr.has_key('metric_type'):
                             self._metric_type = attr['metric_type']
                     attributes_ok = True
                     break
@@ -267,10 +324,6 @@ class JMXMetric:
     def device(self):
         return None
 
-    def __str__(self):
-        return "Domain:{0},  bean_name:{1}, {2}={3} tags={4}, fields={5}".format(self.domain,
-            self.bean_name, self.attribute_name, self.value, self.tags, self.fields)
-
     def filter_tags(self, keys_to_remove=[], values_to_remove=[]):
         for k in keys_to_remove:
             if self.tags.has_key(k):
@@ -292,6 +345,17 @@ class JmxCheck(AgentCheck):
         self.jmx_metrics = []
         self.init_config = init_config
 
+        # Used to store the number of times we opened a new jmx connector for this instance
+        # keys of the dict will be (host, port) (so it characterizes an instance)
+        # Values are a list of 2 ints, the first one will be a counter that will be decremented 
+        # each time we skip an instance
+        # the second one is used to store how many instances should be skipped.
+        self.jmx_connections_watcher = {}
+
+    def stop(self):
+        self.kill_jmx_connectors()
+
+
     def kill_jmx_connectors(self):
         for key in self.jmxs.keys():
             self.jmxs[key].terminate()
@@ -302,13 +366,41 @@ class JmxCheck(AgentCheck):
         user = instance.get('user', None)
         password = instance.get('password', None)
         instance_name = instance.get('name', "%s-%s-%s" % (self.name, host, port))
+        java_bin_path = instance.get('java_bin_path', None)
+
+        if user is not None and len(user.strip()) == 0:
+            user = None
+        if password is not None and len(password.strip()) == 0:
+            password = None
 
         key = (host,port)
 
         def connect():
+            if key in self.jmx_connections_watcher:
+                self.jmx_connections_watcher[key][0] -= 1
+            else:
+                self.jmx_connections_watcher[key] = [0,1]
+
+            if self.jmx_connections_watcher[key][0] > 0:
+                raise Exception("""JMX Connection failed during last collection.
+                 Skipping instance name: %s. Next retry in %s iteration(s)"""  
+                 % (instance_name,self.jmx_connections_watcher[key][0]))
+
             jmx = JmxConnector(self.log)
-            jmx.connect("%s:%s" % (host, port), user, password)
             self.jmxs[key] = jmx
+
+            priority = int(instance.get('priority', DEFAULT_PRIORITY))
+            if priority < 0:
+                priority = 0
+            jmx.connect("%s:%s" % (host, port), user, password, priority=priority,
+                java_bin_path=java_bin_path)
+            
+            
+            # When the connection succeeds we set the watcher to these values that 
+            # resets the "watcher".
+            if jmx.connected():
+                self.jmx_connections_watcher[key] = [1,2]
+
             return jmx
 
         if not self.jmxs.has_key(key):
@@ -318,6 +410,18 @@ class JmxCheck(AgentCheck):
             jmx = self.jmxs[key]
 
         if not jmx.connected():
+            
+            # This case happens when the previous collection failed
+            if self.jmx_connections_watcher[key][0] == 0:
+                # The "watcher" is used to prevent from trying to reconnect at 
+                # each collection. 
+                # At first fail, we will retry at next collection. 
+                # Then it would retry, 2, 6 collections later, and then, every 9 
+                # collections.
+                self.jmx_connections_watcher[key] = [
+                    min(self.jmx_connections_watcher[key][1]*2, MAX_JMX_RETRIES)-1,
+                    min(self.jmx_connections_watcher[key][1]*2, MAX_JMX_RETRIES)
+                ]
             jmx = connect()
 
         return (host, port, user, password, jmx, instance_name)
@@ -341,10 +445,12 @@ class JmxCheck(AgentCheck):
                     
             elif type(val) == type({}):
                 for subattr in val.keys():
+                    if subattr == 'null':
+                        continue
                     subval = val[subattr]
                     create_metric(subval, subattr)
 
-            elif type(val) == type("") and val != "NaN":
+            elif (type(val) == type("") or type(val) == type(u"")) and val != "NaN":
                 # This is a workaround for solr as every attribute is a string...
                 try:
                     val = float(val)
@@ -396,21 +502,18 @@ class JmxCheck(AgentCheck):
 
         """
 
-        def in_domains(domain):
-            if domain in domains:
-                return True
+        def in_domains(dom, doms, approx):
             if approx:
-                for d in domains:
-                    regex = re.compile(r"(.*)%s(\.*)" % d)
-                    m = regex.match(domain)
-                    if m is not None:
-                        return True
-            return False
+                return len([d for d in doms if d in dom]) > 0
+            else:
+                return dom in doms
 
         if domains is None:
             return dump
         else:
-            beans = dict((k,dump[k]) for k in [ke for ke in dump.keys() if in_domains(ke.split(':')[0])] if k in dump)
+            beans = dict((k,dump[k]) for k in [ke for ke in dump.keys() \
+                                                   if in_domains(ke.split(':')[0], domains, approx)] \
+                             if k in dump)
             return beans
 
     @staticmethod
@@ -457,7 +560,7 @@ class JmxCheck(AgentCheck):
 
         # If there is no old configuration, don't try to run these
         # integrations.
-        if not (connections and user and passwords):
+        if not (connections and users and passwords):
             return None
 
         config = {}
@@ -477,6 +580,7 @@ class JmxCheck(AgentCheck):
         if init_config is not None:
             config['init_config'] = init_config
         return config
+
 
 
 

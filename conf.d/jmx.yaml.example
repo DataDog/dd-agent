@@ -6,18 +6,19 @@ instances:
 #        name: jmx_instance
 #        user: username
 #        password: password
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 #        conf:
-#            - white: 
-#                domain: my_domain
+#            - include: 
+#               domain: my_domain
 #               bean: my_bean
-#                attribute:
+#               attribute:
 #                    attribute1:
 #                        metric_type: counter
 #                        alias: jmx.my_metric_name
 #                    attribute2:
 #                        metric_type: gauge
 #                        alias: jmx.my2ndattribute
-#            - white:
+#            - include:
 #                domain: 2nd_domain
-#              black:
-#                bean: black_listed_bean
+#            - exclude:
+#                bean: excluded_bean

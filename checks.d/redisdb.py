@@ -67,12 +67,6 @@ class Redis(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-
-        try:
-            import redis
-        except ImportError:
-            self.log.error('redisdb.yaml exists but redis module can not be imported. Skipping check.')
-
         self.previous_total_commands = {}
         self.connections = {}
 
@@ -91,25 +85,34 @@ class Redis(AgentCheck):
             self.log.exception("Cannot parse dictionary string: %s" % string)
             return default
 
-    def _get_conn(self, host, port, password):
+    def _get_conn(self, instance):
         import redis
-        key = (host, port)
+        key = (instance.get('host'), instance.get('port'), instance.get('db'))
         if key not in self.connections:
-            if password is not None and len(password) > 0:
-                try:
-                    self.connections[key] = redis.Redis(host=host, port=port, password=password)
-                except TypeError:
-                    self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
-                    raise
-            else:
-                self.connections[key] = redis.Redis(host=host, port=port)
+            try:
+                
+                # Only send useful parameters to the redis client constructor
+                list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
+                    'connection_pool', 'charset', 'errors', 'unix_socket_path']
+
+                connection_params = dict((k, instance[k]) for k in list_params if k in instance)
+
+                self.connections[key] = redis.Redis(**connection_params)
+
+            except TypeError:
+                self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
+                raise
 
         return self.connections[key]
 
-    def _check_db(self, host, port, password, custom_tags=None):
-        conn = self._get_conn(host, port, password)
-        tags = custom_tags or []
-        tags += ["redis_host:%s" % host, "redis_port:%s" % port]
+    def _check_db(self, instance, custom_tags=None):
+        conn = self._get_conn(instance)
+        tags = set(custom_tags or [])
+        tags = sorted(tags.union(["redis_host:%s" % instance.get('host'),
+                                  "redis_port:%s" % instance.get('port'),
+                                  ]))
+        if instance.get('db') is not None:
+            tags.append("db:%s" % instance.get('db'))
       
         # Ping the database for info, and track the latency.
         start = time.time()
@@ -146,13 +149,13 @@ class Redis(AgentCheck):
         self.previous_total_commands[tuple_tags] = total_commands
 
     def check(self, instance):
-        # Allow the default redis database to be overridden.
-        host = instance.get('host', 'localhost')
-        port = instance.get('port', 6379)
-        password = instance.get('password', None)
-        custom_tags = instance.get('tags', [])
+        try:
+            import redis
+        except ImportError:
+            raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
 
-        self._check_db(host, int(port), password, custom_tags)
+        custom_tags = instance.get('tags', [])
+        self._check_db(instance,custom_tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
@@ -171,7 +174,7 @@ class Redis(AgentCheck):
 
             instances.append({
                 'host': host,
-                'port': port,
+                'port': int(port),
                 'password': password
             })
 

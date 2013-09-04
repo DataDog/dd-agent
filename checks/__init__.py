@@ -10,9 +10,15 @@ import socket
 import time
 import types
 import os
+import sys
+import traceback
+from pprint import pprint
 
-from util import LaconicFilter
+from util import LaconicFilter, get_os, get_hostname
+from config import get_confd_path
 from checks import check_status
+
+log = logging.getLogger(__name__)
 
 # Konstants
 class CheckException(Exception): pass
@@ -185,7 +191,7 @@ class Check(object):
 
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) < 2:
-           raise UnknownValue()
+            raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
             res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
@@ -271,11 +277,14 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
-        self.hostname = gethostname(agentConfig)
-        self.log = logging.getLogger('checks.%s' % name)
-        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
+        self.hostname = get_hostname(agentConfig)
+        self.log = logging.getLogger('%s.%s' % (__name__, name))
+
+        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter, recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+
         self.events = []
         self.instances = instances or []
+        self.warnings = []
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -408,16 +417,46 @@ class AgentCheck(object):
         self.events = []
         return events
 
+    def has_warnings(self):
+        """
+        Check whether the instance run created any warnings
+        """
+        return len(self.warnings) > 0
+
+    def warning(self, warning_message):
+        """ Add a warning message that will be printed in the info page 
+        :param warning_message: String. Warning message to be displayed
+        """
+        self.warnings.append(warning_message)
+
+    def get_warnings(self):
+        """
+        Return the list of warnings messages to be displayed in the info page
+        """
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
+
     def run(self):
         """ Run all instances. """
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
                 self.check(instance)
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+                if self.has_warnings():
+                    instance_status = check_status.InstanceStatus(i, 
+                        check_status.STATUS_WARNING, 
+                        warnings=self.get_warnings()
+                    )
+                else:
+                    instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
+                instance_status = check_status.InstanceStatus(i, 
+                    check_status.STATUS_ERROR, 
+                    error=e,
+                    tb=traceback.format_exc()
+                )
             instance_statuses.append(instance_status)
         return instance_statuses
 
@@ -429,6 +468,12 @@ class AgentCheck(object):
         depending on your config structure.
         """
         raise NotImplementedError()
+
+    def stop(self):
+        """
+        To be executed when the agent is being stopped to clean ressources
+        """
+        pass
 
     @classmethod
     def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
@@ -473,14 +518,6 @@ class AgentCheck(object):
         else:
             return name
 
-def gethostname(agentConfig):
-    if agentConfig.get("hostname") is not None:
-        return agentConfig["hostname"]
-    else:
-        try:
-            return socket.getfqdn()
-        except socket.error, e:
-            logging.debug("processes: unable to get hostname: " + str(e))
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
@@ -496,3 +533,30 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)
+
+
+def run_check(name, path=None):
+    from tests.common import get_check
+
+    # Read the config file
+    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
+
+    try:
+        f = open(confd_path)
+    except IOError:
+        raise Exception('Unable to open configuration at %s' % confd_path)
+
+    config_str = f.read()
+    f.close()
+
+    # Run the check
+    check, instances = get_check(name, config_str)
+    if not instances:
+        raise Exception('YAML configuration returned no instances.')
+    for instance in instances:
+        check.check(instance)
+        if check.has_events():
+            print "Events:\n"
+            pprint(check.get_events(), indent=4)
+        print "Metrics:\n"
+        pprint(check.get_metrics(), indent=4)

@@ -8,34 +8,34 @@ class IIS(AgentCheck):
         ('iis.uptime', 'gauge', 'ServiceUptime'),
 
         # Network
-        ('iis.net.bytes_sent', 'gauge', 'BytesSentPerSec'),
-        ('iis.net.bytes_rcvd', 'gauge', 'BytesReceivedPerSec'),
-        ('iis.net.bytes_total', 'gauge', 'BytesTotalPerSec'),
+        ('iis.net.bytes_sent', 'rate', 'TotalBytesSent'),
+        ('iis.net.bytes_rcvd', 'rate', 'TotalBytesReceived'),
+        ('iis.net.bytes_total', 'rate', 'TotalBytesTransferred'),
         ('iis.net.num_connections', 'gauge', 'CurrentConnections'),
-        ('iis.net.files_sent', 'gauge', 'FilesSentPerSec'),
-        ('iis.net.files_rcvd', 'gauge', 'FilesReceivedPerSec'),
-        ('iis.net.connection_attempts', 'gauge', 'ConnectionAttemptsPerSec'),
+        ('iis.net.files_sent', 'rate', 'TotalFilesSent'),
+        ('iis.net.files_rcvd', 'rate', 'TotalFilesReceived'),
+        ('iis.net.connection_attempts', 'rate', 'TotalConnectionAttemptsAllInstances'),
 
         # HTTP Methods
-        ('iis.httpd_request_method.get', 'gauge', 'GetRequestsPerSec'),
-        ('iis.httpd_request_method.post', 'gauge', 'PostRequestsPerSec'),
-        ('iis.httpd_request_method.head', 'gauge', 'HeadRequestsPerSec'),
-        ('iis.httpd_request_method.put', 'gauge', 'PutRequestsPerSec'),
-        ('iis.httpd_request_method.delete', 'gauge', 'DeleteRequestsPerSec'),
-        ('iis.httpd_request_method.options', 'gauge', 'OptionsRequestsPerSec'),
-        ('iis.httpd_request_method.trace', 'gauge', 'TraceRequestsPerSec'),
+        ('iis.httpd_request_method.get', 'rate', 'TotalGetRequests'),
+        ('iis.httpd_request_method.post', 'rate', 'TotalPostRequests'),
+        ('iis.httpd_request_method.head', 'rate', 'TotalHeadRequests'),
+        ('iis.httpd_request_method.put', 'rate', 'TotalPutRequests'),
+        ('iis.httpd_request_method.delete', 'rate', 'TotalDeleteRequests'),
+        ('iis.httpd_request_method.options', 'rate', 'TotalOptionsRequests'),
+        ('iis.httpd_request_method.trace', 'rate', 'TotalTraceRequests'),
 
         # Errors
-        ('iis.errors.not_found', 'gauge', 'NotFoundErrorsPerSec'),
-        ('iis.errors.locked', 'gauge', 'LockedErrorsPerSec'),
+        ('iis.errors.not_found', 'rate', 'TotalNotFoundErrors'),
+        ('iis.errors.locked', 'rate', 'TotalLockedErrors'),
 
         # Users
-        ('iis.users.anon', 'gauge', 'AnonymousUsersPerSec'),
-        ('iis.users.nonanon', 'gauge', 'NonAnonymousUsersPerSec'),
+        ('iis.users.anon', 'rate', 'TotalAnonymousUsers'),
+        ('iis.users.nonanon', 'rate', 'TotalNonAnonymousUsers'),
 
         # Requests
-        ('iis.requests.cgi', 'gauge', 'CGIRequestsPerSec'),
-        ('iis.requests.isapi', 'gauge', 'ISAPIExtensionRequestsPerSec'),
+        ('iis.requests.cgi', 'rate', 'TotalCGIRequests'),
+        ('iis.requests.isapi', 'rate', 'TotalISAPIExtensionRequests'),
     ]
 
     def check(self, instance):
@@ -49,29 +49,37 @@ class IIS(AgentCheck):
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)
-        tags = instance.get('tags', None)
+        instance_tags = instance.get('tags', [])
+        sites = instance.get('sites', ['_Total'])
         w = wmi.WMI(host, user=user, password=password)
 
         try:
-            wmi_cls = w.Win32_PerfFormattedData_W3SVC_WebService(name="_Total")
+            wmi_cls = w.Win32_PerfFormattedData_W3SVC_WebService()
             if not wmi_cls:
-                raise Exception('Missing _Total from Win32_PerfFormattedData_W3SVC_WebService')
+                raise Exception('Missing data from Win32_PerfFormattedData_W3SVC_WebService')
         except Exception:
             self.log.exception('Unable to fetch Win32_PerfFormattedData_W3SVC_WebService class')
             return
 
-        wmi_cls = wmi_cls[0]
-        for metric, mtype, wmi_val in self.METRICS:
-            if not hasattr(wmi_cls, wmi_val):
-                self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
-                    % (metric, wmi_val))
+        # Iterate over every IIS site
+        for iis_site in wmi_cls:
+            # Skip any sites we don't specifically want.
+            if iis_site.Name not in sites:
                 continue
-            value = getattr(wmi_cls, wmi_val)
-            self.gauge(metric, value, tags=tags)
 
+            # Tag with the site name if we're not using the aggregate
+            if iis_site.Name != '_Total':
+                tags = instance_tags + ['site:%s' % iis_site.Name]
+            else:
+                tags = instance_tags
 
-if __name__ == "__main__":
-    check, instances = IIS.from_yaml('conf.d/iis.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()
+            for metric, mtype, wmi_val in self.METRICS:
+                if not hasattr(iis_site, wmi_val):
+                    self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                        % (metric, wmi_val))
+                    continue
+
+                # Submit the metric value with the correct type
+                value = float(getattr(iis_site, wmi_val))
+                metric_func = getattr(self, mtype)
+                metric_func(metric, value, tags=tags)

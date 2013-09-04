@@ -1,13 +1,13 @@
 from checks import AgentCheck
-from config import get_checksd_path
-from util import getOS
+from config import get_checksd_path, get_confd_path
+from util import get_os
 import sys
 import inspect
 import os
 import signal
 
 def load_check(name, config, agentConfig):
-    checksd_path = get_checksd_path(getOS())
+    checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
         sys.path.append(checksd_path)
 
@@ -44,7 +44,7 @@ def kill_subprocess(process_obj):
         process_obj.terminate()
     except AttributeError:
         # py < 2.6 doesn't support process.terminate()
-        if getOS() == 'windows':
+        if get_os() == 'windows':
             import ctypes
             PROCESS_TERMINATE = 1
             handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False,
@@ -55,7 +55,7 @@ def kill_subprocess(process_obj):
             os.kill(process_obj.pid, signal.SIGKILL)
 
 def get_check(name, config_str):
-    checksd_path = get_checksd_path(getOS())
+    checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
         sys.path.append(checksd_path)
     check_module = __import__(name)

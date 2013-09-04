@@ -110,7 +110,7 @@
 
     ${NSD_GetState} $Checkbox $1
     ${IF} $1 == ${BST_CHECKED}
-      ; Install and start the agent
+      ; Install and start the Agent
       Exec "$INSTDIR\ddagent.exe --startup auto install"
       Sleep 2000
       Exec "$INSTDIR\ddagent.exe start"
@@ -152,9 +152,14 @@ Section "Datadog Agent" SecDummy
   File /oname=ddagent.exe "..\install_files\agent.exe"
   File "..\install_files\shell.exe"
   File "..\install_files\ca-certificates.crt"
+  File "..\install_files\datadog-cert.pem"
+  File "..\install_files\datadog-agent-status.url"
 
   ; Install all of the checks.d checks
   File /r "..\install_files\checks.d"
+
+  ; Install all of the info page web files
+  File /r "..\install_files\pup"
 
   ; Config does in App Data
   ; Only write the config if it doesn't exist yet
@@ -191,7 +196,7 @@ Section "Uninstall"
   StrCpy $0 $APPDATA
   SetShellVarContext current
 
-  ; Remove the agent service
+  ; Remove the Agent service
   Exec "$INSTDIR\ddagent.exe stop"
   Exec "$INSTDIR\ddagent.exe remove"
 
@@ -199,7 +204,9 @@ Section "Uninstall"
   Delete "$INSTDIR\shell.exe"
   Delete "$0\Datadog\datadog.conf"
   Delete "$INSTDIR\ca-certificates.crt"
+  Delete "$INSTDIR\datadog-cert.pem"
   Delete "$INSTDIR\license.txt"
+  Delete "$INSTDIR\datadog-agent-status.url"
   Delete "$INSTDIR\Uninstall.exe"
 
   RMDir "$INSTDIR"

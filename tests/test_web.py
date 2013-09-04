@@ -11,7 +11,7 @@ class TestWeb(unittest.TestCase):
 init_config:
 
 instances:
-    -   apache_status_url: http://localhost:9444/server-status?auto
+    -   apache_status_url: http://localhost:9444/server-status
         tags:
             - instance:first
     -   apache_status_url: http://localhost:9444/server-status?auto
@@ -35,6 +35,18 @@ instances:
             - second
 """
 
+        self.lighttpd_config = """
+init_config:
+
+instances:
+    -   lighttpd_status_url: http://localhost:9449/server-status
+        tags:
+            - instance:first
+    -   lighttpd_status_url: http://localhost:9449/server-status?auto
+        tags:
+            - instance:second
+"""
+
     def testApache(self):
         a, instances = get_check('apache', self.apache_config)
 
@@ -45,7 +57,6 @@ instances:
         a.check(instances[1])
         metrics = a.get_metrics()
         self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
-
 
     def testApacheOldConfig(self):
         a, _ = get_check('apache', self.apache_config)
@@ -76,6 +87,18 @@ instances:
         self.assertEquals(len(instances), 3)
         for i, instance in enumerate(instances):
             assert ':'.join(config.values()[i].split(':')[:-1]) == instance['nginx_status_url']
+
+    def testLighttpd(self):
+        l, instances = get_check('lighttpd', self.lighttpd_config)
+
+        l.check(instances[0])
+        metrics = l.get_metrics()
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:first'])
+
+        l.check(instances[1])
+        metrics = l.get_metrics()
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
+
 
 if __name__ == '__main__':
     unittest.main()

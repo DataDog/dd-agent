@@ -48,15 +48,15 @@ class SQLServer(AgentCheck):
             conn_str += 'User ID=%s;' % (username)
         if password:
             conn_str += 'Password=%s;' % (password)
-
+        if not username and not password:
+            conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
     def check(self, instance):
         try:
             import adodbapi
         except ImportError:
-            self.log.error("Unable to import adodbapi module.")
-            return
+            raise Exception("Unable to import adodbapi module.")
 
         host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
@@ -70,9 +70,8 @@ class SQLServer(AgentCheck):
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
             except:
-                self.log.exception("Unable to connect to SQL Server for instance %s" \
+                raise Exception("Unable to connect to SQL Server for instance %s" \
                     % instance)
-                return
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
@@ -97,6 +96,7 @@ class SQLServer(AgentCheck):
                     self._fetch_all_instances(metric, cursor)
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
             else:
                 try:
                     cursor.execute("""
@@ -108,6 +108,7 @@ class SQLServer(AgentCheck):
                     (value,) = cursor.fetchone()
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
                     continue
 
                 # Save the metric
@@ -130,8 +131,3 @@ class SQLServer(AgentCheck):
             metric_func = getattr(self, mtype)
             metric_func(mname, value, tags=tags)
 
-if __name__ == "__main__":
-    check, instances = SQLServer.from_yaml('conf.d/sqlserver.yaml')
-    for instance in instances:
-        check.check(instance)
-        print check.get_metrics()
