@@ -164,7 +164,7 @@ case "$1" in
 
     restart|force-reload)
         $0 stop
-        sleep 5 # Restarting too quickly may result in zombie process
+        sleep 3 # Restarting too quickly may result in zombie process
         $0 start
         ;;
     *)
