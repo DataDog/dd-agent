@@ -137,6 +137,7 @@ case "$1" in
             log_daemon_msg "Stopping $DESC" "$NAME"
             su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1" && \
             su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
+            sleep 5 # Restarting too quickly may result in zombie process
         fi
 
         log_end_msg $?
@@ -164,7 +165,6 @@ case "$1" in
 
     restart|force-reload)
         $0 stop
-        sleep 3 # Restarting too quickly may result in zombie process
         $0 start
         ;;
     *)
