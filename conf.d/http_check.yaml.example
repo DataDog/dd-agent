@@ -51,6 +51,11 @@ instances:
 #           Host: alternative.host.example.com
 #           X-Auth-Token: SOME-AUTH-TOKEN
 
+#        tags:
+#            - url:http://alternative.host.example.com
+#            - env:production
+
+
 #    -   name: My second service
 #        url: https://another.url.example.com
 
