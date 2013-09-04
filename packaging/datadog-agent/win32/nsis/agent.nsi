@@ -110,7 +110,7 @@
 
     ${NSD_GetState} $Checkbox $1
     ${IF} $1 == ${BST_CHECKED}
-      ; Install and start the agent
+      ; Install and start the Agent
       Exec "$INSTDIR\ddagent.exe --startup auto install"
       Sleep 2000
       Exec "$INSTDIR\ddagent.exe start"
@@ -196,7 +196,7 @@ Section "Uninstall"
   StrCpy $0 $APPDATA
   SetShellVarContext current
 
-  ; Remove the agent service
+  ; Remove the Agent service
   Exec "$INSTDIR\ddagent.exe stop"
   Exec "$INSTDIR\ddagent.exe remove"
 

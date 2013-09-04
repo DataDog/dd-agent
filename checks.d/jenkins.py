@@ -53,6 +53,20 @@ class Jenkins(AgentCheck):
             d = dict([(k, v.text)
                         for k, v in kv_pairs
                         if v is not None])
+
+            try:
+                d['branch'] = tree.find('actions')\
+                    .find('hudson.plugins.git.util.BuildData')\
+                    .find('buildsByBranchName')\
+                    .find('entry')\
+                    .find('hudson.plugins.git.util.Build')\
+                    .find('revision')\
+                    .find('branches')\
+                    .find('hudson.plugins.git.Branch')\
+                    .find('name')\
+                    .text
+            except Exception:
+                pass
             return d
 
     def _get_build_results(self, instance_key, job_dir):
@@ -106,6 +120,9 @@ class Jenkins(AgentCheck):
 
         job_dirs = glob(os.path.join(jenkins_home, 'jobs', '*'))
 
+        if not job_dirs:
+            raise Exception("Jobs directory is empty! Make sure the jenkins_home path is correct")
+
         build_events = []
 
         for job_dir in job_dirs:
@@ -115,6 +132,16 @@ class Jenkins(AgentCheck):
                 if create_event:
                     self.log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)
+
+                    tags = ['job_name:%s' % output['job_name']]
+                    if 'branch' in output:
+                        tags.append('branch:%s' % output['branch'])
+                    self.gauge("jenkins.job.duration", float(output['duration'])/1000.0, tags=tags)
+
+                    if output['result'] == 'SUCCESS':
+                        self.increment('jenkins.job.success', tags=tags)
+                    else:
+                        self.increment('jenkins.job.failure', tags=tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):

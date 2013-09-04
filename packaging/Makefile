@@ -50,7 +50,7 @@ source:
 	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
-# Layout all of the files common to both versions of the agent in
+# Layout all of the files common to both versions of the Agent in
 # the build directory.
 install_base: source
 	mkdir -p $(BUILD)

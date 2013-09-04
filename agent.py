@@ -17,28 +17,24 @@ import os; os.umask(022)
 
 # Core modules
 import logging
-import modules
-import os
 import os.path
-import re
 import signal
 import sys
 import time
-import urllib
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
 if int(sys.version_info[1]) <= 3:
-    sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
+    sys.stderr.write("Datadog Agent requires python 2.4 or later.\n")
     sys.exit(2)
 
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory
-from daemon import Daemon
+from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, AgentSupervisor, EC2
+from util import Watchdog, PidFile, EC2
 
 
 # Constants
@@ -55,10 +51,9 @@ class Agent(Daemon):
     """
 
     def __init__(self, pidfile, autorestart, start_event=True):
-        Daemon.__init__(self, pidfile)
+        Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
-        self.autorestart = autorestart
         self.start_event = start_event
 
     def _handle_sigterm(self, signum, frame):
@@ -66,6 +61,7 @@ class Agent(Daemon):
         self.run_forever = False
         if self.collector:
             self.collector.stop()
+        log.debug("Collector is stopped.")
 
     def _handle_sigusr1(self, signum, frame):
         self._handle_sigterm(signum, frame)
@@ -219,7 +215,7 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        agent.info(verbose=options.verbose)
+        return agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')
@@ -242,7 +238,7 @@ def main():
         except Exception:
             # If not an old-style check, try checks.d
             checks = load_check_directory(agentConfig)
-            for check in checks:
+            for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
                     print check.get_metrics()
@@ -263,7 +259,7 @@ if __name__ == '__main__':
     except StandardError:
         # Try our best to log the error.
         try:
-            log.exception("Uncaught error running the agent")
+            log.exception("Uncaught error running the Agent")
         except:
             pass
         raise
