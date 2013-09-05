@@ -782,10 +782,10 @@ def load_bernard_checks(bernard_config):
                 try:
                     filenames = os.listdir(path)
                     check_paths = []
-                    for filename in filenames:
+                    for fname in filenames:
                         # Filter hidden files
-                        if not filename.startswith('.'):
-                            check_path = os.path.join(path, filename)
+                        if not fname.startswith('.'):
+                            check_path = os.path.join(path, fname)
                             # Keep only executable files
                             if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
                                 check_paths.append(check_path)
