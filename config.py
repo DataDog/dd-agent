@@ -766,7 +766,8 @@ def load_bernard_checks(bernard_config):
     dogstatsd = DogStatsd(host=statsd_host, port=statsd_port)
 
     try:
-        for check_config in bernard_config.get('checks', []):
+        check_configs = bernard_config.get('checks') or []
+        for check_config in check_configs:
             check_paths = []
             path = check_config.get('path', '')
             filename = check_config.get('filename', '')
