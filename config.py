@@ -716,7 +716,7 @@ def get_bernard_config():
 
     try:
         f = open(config_path)
-    except IOError, TypeError:
+    except (IOError, TypeError):
         log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
         return {}
     try:
