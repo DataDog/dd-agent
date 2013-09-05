@@ -126,6 +126,11 @@ class MongoDb(AgentCheck):
                 parsed = {}
         username = parsed.get('username')
         password = parsed.get('password')
+        db_name = parsed.get('database')
+
+        if not db_name:
+            self.log.info('No MongoDB database found in URI. Defaulting to admin.')
+            db_name = 'admin'
 
         do_auth = True
         if username is None or password is None:
@@ -133,7 +138,7 @@ class MongoDb(AgentCheck):
             do_auth = False
 
         conn = Connection(instance['server'], network_timeout=DEFAULT_TIMEOUT)
-        db = conn['admin']
+        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
                 self.log.error("Mongo: cannot connect with config %s" % instance['server'])
