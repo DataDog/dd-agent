@@ -56,11 +56,15 @@ class PostgreSql(AgentCheck):
         user = instance.get('username', '')
         passwd = instance.get('password', '')
         tags = instance.get('tags', [])
+        dbname = instance.get('database', '')
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
         key = '%s:%s' % (host, port)
+
+        if dbname == '':
+            dbname = 'postgres'
 
         if key in self.dbs:
             db = self.dbs[key]
@@ -68,13 +72,13 @@ class PostgreSql(AgentCheck):
             import psycopg2 as pg
             if host == 'localhost' and passwd == '':
                 # Use ident method
-                db = pg.connect("user=%s dbname=postgres" % user)
+                db = pg.connect("user=%s dbname=%s" % (user, dbname))
             elif port != '':
                 db = pg.connect(host=host, port=port, user=user,
-                    password=passwd, database='postgres')
+                    password=passwd, database=dbname)
             else:
                 db = pg.connect(host=host, user=user, password=passwd,
-                    database='postgres')
+                    database=dbname)
 
         # Check version
         version = self._get_version(key, db)
