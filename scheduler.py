@@ -87,7 +87,6 @@ class Scheduler(object):
     def process(self):
         """ Execute the next scheduled check """
         check = self._pop_check()
-        log.info('Run check %s' % check)
         check.run()
         self.schedule_count += 1
 

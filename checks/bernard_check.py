@@ -29,6 +29,9 @@ class InvalidCheckOutput(Exception):
 class Timeout(Exception):
     pass
 
+class InvalidPath(Exception):
+    pass
+
 class BernardCheck(object):
     RE_NAGIOS_PERFDATA = re.compile(r"".join([
             r"'?(?P<label>[^=']+)'?=",
@@ -36,6 +39,53 @@ class BernardCheck(object):
             r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
             r"(;[^;]*;[^;]*;[^;]*;[^;]*;)?", # warn, crit, min, max
         ]))
+
+    @classmethod
+    def from_config(cls, check_config, dogstatsd, defaults):
+        check_paths = []
+        path = check_config.get('path', '')
+        filename = check_config.get('filename', '')
+        notification = check_config.get('notification', '')
+        timeout = int(check_config.get('timeout', 0))
+        period = int(check_config.get('period', 0))
+        attempts = int(check_config.get('attempts', 0))
+        name = check_config.get('name', None)
+        args = check_config.get('args', [])
+        notify_startup = check_config.get('notify_startup', None)
+        if path:
+            try:
+                filenames = os.listdir(path)
+                check_paths = []
+                for fname in filenames:
+                    # Filter hidden files
+                    if not fname.startswith('.'):
+                        check_path = os.path.join(path, fname)
+                        # Keep only executable files
+                        if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
+                            check_paths.append(check_path)
+            except OSError, e:
+                raise InvalidPath(str(e))
+        if filename:
+            check_paths.append(filename)
+
+        checks = []
+        if check_paths:
+            check_parameter = defaults.copy()
+            if notification:
+                check_parameter['notification'] = notification
+            if timeout:
+                check_parameter['timeout'] = timeout
+            if period:
+                check_parameter['period'] = period
+            if attempts:
+                check_parameter['attempts'] = attempts
+            if notify_startup:
+                check_parameter['notify_startup'] = notify_startup
+            if name:
+                check_parameter['name'] = name
+            for check_path in check_paths:
+                checks.append(cls(check=check_path, config=check_parameter, dogstatsd=dogstatsd, args=args))
+        return checks
 
     def __init__(self, check, config, dogstatsd, args=[]):
         self.check = check
@@ -62,6 +112,7 @@ class BernardCheck(object):
             check_name = check_name.rsplit('.')[0]
 
         self.check_name = check_name.lower()
+        log.debug(u"Initialized check %s (%s)" % (self.check_name, ' '.join(self.command)))
 
     def __repr__(self):
         return self.check_name
@@ -76,8 +127,18 @@ class BernardCheck(object):
         try:
             try:
                 process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output = process.communicate()[0]
+                output = process.communicate()[0].strip()
                 returncode = process.returncode
+                if len(output) > 20:
+                    truncated_output = output[0:17] + u'...'
+                else:
+                    truncated_output = output
+                log.info(u"Check[%s]: %s => %s (%s)" % (
+                    self.check_name,
+                    u' '.join(self.command),
+                    returncode,
+                    truncated_output
+                ))
             except Timeout:
                 os.kill(process.pid, signal.SIGKILL)
         finally:
@@ -111,8 +172,8 @@ class BernardCheck(object):
         except OSError, exception:
             state = R.UNKNOWN
             status = S.EXCEPTION
-            message = u'Failed to execute the check: %s, exception: %s' % (self, exception)
-            log.warn(message)
+            message = u'Failed to execute the check: %s' % self
+            log.warn(message, exc_info=True)
 
         execution_time = time.time() - execution_date
         self._commit_result(status, state, message, execution_date, execution_time)
@@ -221,3 +282,32 @@ class BernardCheck(object):
             'message': result.message,
             'execution_time': result.execution_time,
         }
+
+class RemoteBernardCheck(BernardCheck):
+    @classmethod
+    def from_config(cls, remote_check):
+        return cls(remote_check.name, remote_check.command)
+
+    def __init__(self, name, command):
+        self.command = command.split(' ')
+        self.result_container = []
+        self.container_size = 1
+        self.check_name = name
+        self.run_count = 0
+        self.config = {
+            'timeout': 10,
+            'notify_startup': False,
+            'attempts': 1,
+            'frequency': 60
+        }
+        self.dogstatsd = Null()
+
+class Null(object):
+    def __init__(self):
+        pass
+
+    def nothing(self, *args, **kwargs):
+        pass
+
+    def __getattr__(self, key):
+        return self.nothing

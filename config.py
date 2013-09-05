@@ -732,14 +732,24 @@ def get_bernard_config():
 
 def load_bernard_checks(bernard_config):
     ''' Return the initialized checks of Bernard and its configuration.'''
-    from checks.bernard_check import BernardCheck
-    from dogstatsd_client import DogStatsd
-    from util import get_hostname
-
     # If the config does not exist or is empty
     if not bernard_config:
         return []
 
+    remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule')
+
+    if remote_schedule_config is None:
+        schedule_config = bernard_config.get('core', {}).get('schedule', {})
+        return _load_local_bernard_checks(bernard_config)
+    else:
+        return _load_remote_bernard_checks(bernard_config)
+
+def _load_local_bernard_checks(bernard_config):
+    from checks.bernard_check import BernardCheck
+    from dogstatsd_client import DogStatsd
+    from util import get_hostname
+
+    schedule_config = bernard_config.get('core', {}).get('schedule', {})
     agent_config = get_config()
 
     hostname = get_hostname(agent_config)
@@ -748,8 +758,6 @@ def load_bernard_checks(bernard_config):
     DEFAULT_TIMEOUT = 5
     DEFAULT_FREQUENCY = 60
     DEFAULT_ATTEMPTS = 3
-
-    schedule_config = bernard_config.get('core', {}).get('schedule', {})
 
     default_check_parameter = {
         'hostname': hostname,
@@ -768,55 +776,31 @@ def load_bernard_checks(bernard_config):
     try:
         check_configs = bernard_config.get('checks') or []
         for check_config in check_configs:
-            check_paths = []
-            path = check_config.get('path', '')
-            filename = check_config.get('filename', '')
-            notification = check_config.get('notification', '')
-            timeout = int(check_config.get('timeout', 0))
-            period = int(check_config.get('period', 0))
-            attempts = int(check_config.get('attempts', 0))
-            name = check_config.get('name', None)
-            args = check_config.get('args', [])
-            notify_startup = check_config.get('notify_startup', None)
-            if path:
-                try:
-                    filenames = os.listdir(path)
-                    check_paths = []
-                    for fname in filenames:
-                        # Filter hidden files
-                        if not fname.startswith('.'):
-                            check_path = os.path.join(path, fname)
-                            # Keep only executable files
-                            if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
-                                check_paths.append(check_path)
-                except OSError:
-                    log.warn('No such file or directory: %s' % path)
-                    continue
-            if filename:
-                check_paths.append(filename)
+            try:
+                bernard_checks.extend(BernardCheck.from_config(check_config,
+                                       dogstatsd, default_check_parameter))
+            except Exception, e:
+                log.exception(e)
 
-            if check_paths:
-                check_parameter = default_check_parameter.copy()
-                if notification:
-                    check_parameter['notification'] = notification
-                if timeout:
-                    check_parameter['timeout'] = timeout
-                if period:
-                    check_parameter['period'] = period
-                if attempts:
-                    check_parameter['attempts'] = attempts
-                if notify_startup:
-                    check_parameter['notify_startup'] = notify_startup
-                if name:
-                    check_parameter['name'] = name
-                for check_path in check_paths:
-                    check = BernardCheck(check=check_path, config=check_parameter, dogstatsd=dogstatsd, args=args)
-                    bernard_checks.append(check)
     except AttributeError:
         log.info("Error while parsing Bernard configuration file. Be sure the structure is valid.")
         return []
 
     return bernard_checks
+
+def _load_remote_bernard_checks(bernard_config):
+    from checks.bernard_check import RemoteBernardCheck
+    import checkserve.client
+    checks = []
+
+    chksrv = checkserve.client.connect('http://localhost:8000')
+    host_name = 'ccabanilla-imac'
+    tags = ['test']
+    checks_available = ['bernard-test-check']
+    schedule = chksrv.register_agent(host_name, tags, checks_available)
+    for check in schedule.checks:
+        checks.append(RemoteBernardCheck.from_config(check))
+    return checks
 
 #
 # logging
