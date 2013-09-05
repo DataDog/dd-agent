@@ -24,7 +24,7 @@ from checks.check_status import BernardStatus
 from config import get_config, get_parsed_args, load_bernard_checks, get_bernard_config
 from daemon import Daemon, AgentSupervisor
 from util import PidFile, StaticWatchdog
-from scheduler import Scheduler
+from scheduler import Scheduler, RemoteScheduler
 
 # Constants
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
@@ -91,7 +91,11 @@ class Bernard(Daemon):
         self.agent_start = time.time()
 
         # Initialize the Scheduler
-        self.scheduler = Scheduler(checks=bernard_checks, config=bernard_config,
+        if bernard_config.get('core', {}).get('remote_schedule'):
+            SchedulerClass = RemoteScheduler
+        else:
+            SchedulerClass = Scheduler
+        self.scheduler = SchedulerClass(checks=bernard_checks, config=bernard_config,
             simulated_time=simulated_time)
 
         # Run the main loop.

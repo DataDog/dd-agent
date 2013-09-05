@@ -286,12 +286,13 @@ class BernardCheck(object):
 class RemoteBernardCheck(BernardCheck):
     @classmethod
     def from_config(cls, remote_check):
-        return cls(remote_check.name, remote_check.command)
+        return cls(remote_check.name, remote_check.command, remote_check)
 
-    def __init__(self, name, command):
+    def __init__(self, name, command, remote_check):
+        self.remote_check = remote_check
         self.command = command.split(' ')
         self.result_container = []
-        self.container_size = 1
+        self.container_size = 3
         self.check_name = name
         self.run_count = 0
         self.config = {

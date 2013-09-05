@@ -231,6 +231,32 @@ class Notifier(object):
 
         log.info('Event "%s" sent' % title)
 
+class RemoteScheduler(Scheduler):
+    def process(self):
+        """ Execute the next scheduled check """
+        check = self._pop_check()
+        check.run()
+        self.schedule_count += 1
+
+        self._send_check_runs(check)
+
+        # Get the duration to wait for the next scheduling
+        waiting = self._reschedule_waiting(check, fast_rescheduling=False)
+        timestamp = self._reschedule_timestamp(check, waiting)
+        # Reschedule the check
+        self._reschedule_at(check, timestamp)
+
+        log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
+
+        assert len(self.checks) == len(self.schedule)
+
+    def _send_check_runs(self, check):
+        import checkserve.client
+        chksrv = checkserve.client.connect('http://localhost:8000')
+
+        while len(check.result_container) > 0:
+            result = check.result_container.pop()
+            chksrv.post_check_run(check.remote_check, status=R.index(result.status), output=result.message, timestamp=result.execution_date)
 
 # State transitions and corresponding events
 transitions = {
