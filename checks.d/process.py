@@ -84,13 +84,17 @@ class ProcessCheck(AgentCheck):
         name = instance.get('name', None)
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string', None)
-        cpu_check_interval = instance.get('cpu_check_interval',0.1)
+        cpu_check_interval = instance.get('cpu_check_interval', 0.1)
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
 
         if search_string is None:
             raise KeyError('The "search_string" is mandatory')
+
+        if not isinstance(cpu_check_interval, (int, long, float)):
+            self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
+            cpu_check_interval = 0.1
 
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
 
