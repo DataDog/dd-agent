@@ -10,4 +10,10 @@ instances:
 #        - optional_tag2
 #    options:               # Optional
 #        replication: 0
+
+         # replication_notify is only used when "replication: 1", these are
+         # the users/services which are notified of any MySQL Slave errors
+#        replication_notify:
+#          - user1@domain.com
+#          - pagerduty
 #        galera_cluster: 1

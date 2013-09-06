@@ -2,6 +2,7 @@ import subprocess
 import os
 import sys
 import re
+import time
 import traceback
 
 from checks import AgentCheck
@@ -41,6 +42,7 @@ class MySql(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.mysql_version = {}
         self.greater_502 = {}
+        self.slave_replicating = True
 
     def check(self, instance):
         host, port, user, password, mysql_sock, tags, options = self._get_config(instance)
@@ -54,6 +56,9 @@ class MySql(AgentCheck):
         self._collect_metrics(host, db, tags, options)
         self._collect_system_metrics(host, db, tags)
 
+        # Check for alerts
+        self._check_slave_status(host, db, tags, options)
+
     def _get_config(self, instance):
         host = instance['server']
         user = instance['user']
@@ -62,6 +67,10 @@ class MySql(AgentCheck):
         mysql_sock = instance.get('sock', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
+
+        # make sure to default the replication_notify to a list and prepend @ to all names
+        replication_notify = set("@%s" % notify for notify in options.get("replication_notify", []))
+        options["replication_notify"] = replication_notify
 
         return host, port, user, password, mysql_sock, tags, options
 
@@ -88,6 +97,68 @@ class MySql(AgentCheck):
         self.log.debug("Connected to MySQL")
 
         return db
+
+    def _check_slave_status(self, host, db, tags, options):
+        if 'replication' not in options.keys() or not options['replication']:
+            return
+
+        error_message = ""
+        try:
+            cursor = db.cursor()
+            cursor.execute("SHOW SLAVE STATUS")
+            result = cursor.fetchone()
+            if result is None:
+                self.log.debug("SHOW SLAVE STATUS returned None")
+                return
+            fields = [field[0].lower() for field in cursor.description]
+            last_io_errno = result[fields.index("last_io_errno")]
+            last_io_error = result[fields.index("last_io_error")]
+            last_sql_errno = result[fields.index("last_sql_errno")]
+            last_sql_error = result[fields.index("last_sql_error")]
+            cursor.close()
+            del cursor
+
+            if last_sql_errno and last_sql_error:
+                error_message += "Last SQL Errno: %s\r\n" % last_sql_errno
+                error_message += "Last SQL Error: %s\r\n" % last_sql_error
+            if last_io_errno and last_io_error:
+                error_message += "Last IO Errno: %s\r\n" % last_io_errno
+                error_message += "Last IO Error: %s\r\n" % last_io_error
+        except Exception:
+            self.log.exception("Error while running SHOW SLAVE STATUS")
+            return
+
+        if error_message:
+            # only alert if the status has changed
+            if self.slave_replicating:
+                title = "MySQL Replication Failing"
+                if options["replication_notify"]:
+                    error_message += "\r\n%s\r\n" % " ".join(options["replication_notify"])
+
+                self._create_event(title, error_message, "error", host, tags)
+            self.slave_replicating = False
+        else:
+            # only alert if the status has changed
+            if not self.slave_replicating:
+                title = "MySQL Replication Recovered"
+                recovered_message = title
+                if options["replication_notify"]:
+                    recovered_message += "\r\n%s\r\n" % " ".join(options["replication_notify"])
+                self._create_event(title, recovered_message, "success", host, tags)
+            self.slave_replicating = True
+
+    def _create_event(self, title, message, alert_type, host, tags):
+        self.event({
+            "timestamp": time.time(),
+            "event_type": "mysql",
+            "api_key": self.agentConfig["api_key"],
+            "msg_title": title,
+            "msg_text": message,
+            "alert_type": alert_type,
+            "source_type_name": "mysql",
+            "host": host,
+            "tags": tags,
+        })
 
     def _collect_metrics(self, host, db, tags, options):
         if self._version_greater_502(db, host):
