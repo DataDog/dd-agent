@@ -300,7 +300,6 @@ class MySql(AgentCheck):
                 'sock': agent_config.get('mysql_sock',''),
                 'user': agent_config.get('mysql_user',''),
                 'pass': agent_config.get('mysql_pass',''),
-                'defaults_file': agent_config.get('defaults_file',''),
                 'options': {'replication': True},
             }]
         }
