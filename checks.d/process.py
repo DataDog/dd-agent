@@ -41,7 +41,7 @@ class ProcessCheck(AgentCheck):
 
         return set(found_process_list)
 
-    def get_process_memory_size(self, pids, psutil, cpu_check_interval, extended_metrics=False):
+    def get_process_metrics(self, pids, psutil, cpu_check_interval, extended_metrics=False):
         rss = 0
         vms = 0
         cpu = 0
@@ -69,7 +69,7 @@ class ProcessCheck(AgentCheck):
                 self.warning('Process %s disappeared while scanning' % pid)
                 pass
 
-        #Return value in Byte
+        #Memory values are in Byte
         return (thr, cpu, rss, vms, real)
 
     def psutil_older_than_0_6_0(self, psutil):
@@ -100,7 +100,7 @@ class ProcessCheck(AgentCheck):
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=[name])
-        thr, cpu, rss, vms, real = self.get_process_memory_size(pids, psutil, cpu_check_interval,
+        thr, cpu, rss, vms, real = self.get_process_metrics(pids, psutil, cpu_check_interval,
             extended_metrics=self.psutil_older_than_0_6_0(psutil))
         self.gauge('system.processes.mem.rss', rss, tags=[name])
         self.gauge('system.processes.mem.vms', vms, tags=[name])
