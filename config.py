@@ -793,13 +793,16 @@ def _load_remote_bernard_checks(bernard_config):
     import checkserve.client
     checks = []
 
-    chksrv = checkserve.client.connect('http://localhost:8000')
+    # fixme: use the same value as the agent
     host_name = 'ccabanilla-imac'
-    tags = ['test']
+    remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule', {})
+    base_url = remote_schedule_config.get('base_url', 'https://app.datadoghq.com')
+    chksrv = checkserve.client.connect(base_url)
+    tags = remote_schedule_config.get('tags', [])
     checks_available = ['bernard-test-check']
     schedule = chksrv.register_agent(host_name, tags, checks_available)
     for check in schedule.checks:
-        checks.append(RemoteBernardCheck.from_config(check))
+        checks.append(RemoteBernardCheck.from_config(check, chksrv))
     return checks
 
 #

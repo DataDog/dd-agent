@@ -251,14 +251,9 @@ class RemoteScheduler(Scheduler):
         assert len(self.checks) == len(self.schedule)
 
     def _send_check_runs(self, check):
-        import checkserve.client
-        chksrv = checkserve.client.connect('http://localhost:8000')
-
         while len(check.result_container) > 0:
             result = check.result_container.pop()
-            chksrv.post_check_run(check.remote_check,
-                status=R.index(result.status), output=result.message,
-                timestamp=result.execution_date)
+            check.post_run(result)
 
 # State transitions and corresponding events
 transitions = {

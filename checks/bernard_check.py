@@ -285,15 +285,17 @@ class BernardCheck(object):
 
 class RemoteBernardCheck(BernardCheck):
     @classmethod
-    def from_config(cls, remote_check):
-        return cls(remote_check.name, remote_check.command, remote_check)
+    def from_config(cls, remote_check, checkserve):
+        return cls(remote_check.name, remote_check.command, remote_check,
+                   checkserve)
 
-    def __init__(self, name, command, remote_check):
-        self.remote_check = remote_check
+    def __init__(self, name, command, remote_check, checkserve):
+        self.check_name = name
         self.command = command.split(' ')
+        self.remote_check = remote_check
+        self.checkserve = checkserve
         self.result_container = []
         self.container_size = 3
-        self.check_name = name
         self.run_count = 0
         self.config = {
             'timeout': 10,
@@ -302,6 +304,12 @@ class RemoteBernardCheck(BernardCheck):
             'frequency': 60
         }
         self.dogstatsd = Null()
+
+    def post_run(self, result):
+        return self.checkserve.post_check_run(self.remote_check,
+                status=R.index(result.status),
+                output=result.message,
+                timestamp=result.execution_date)
 
 class Null(object):
     def __init__(self):
