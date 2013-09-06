@@ -256,7 +256,9 @@ class RemoteScheduler(Scheduler):
 
         while len(check.result_container) > 0:
             result = check.result_container.pop()
-            chksrv.post_check_run(check.remote_check, status=R.index(result.status), output=result.message, timestamp=result.execution_date)
+            chksrv.post_check_run(check.remote_check,
+                status=R.index(result.status), output=result.message,
+                timestamp=result.execution_date)
 
 # State transitions and corresponding events
 transitions = {
