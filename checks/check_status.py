@@ -515,7 +515,7 @@ class ForwarderStatus(AgentStatus):
 
     def body_lines(self):
         lines = [
-            "Queue Size: %s" % self.queue_size,
+            "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]

@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 # input into the incorrect bucket. Currently, the MetricsAggregator
 # does not support submitting values for the past, and all values get
 # submitted for the timestamp passed into the flush() function.
-RECENT_POINT_THRESHOLD_DEFAULT = 30
+RECENT_POINT_THRESHOLD_DEFAULT = 3600
 
 class Infinity(Exception): pass
 class UnknownValue(Exception): pass
@@ -41,16 +41,19 @@ class Gauge(Metric):
         self.hostname = hostname
         self.device_name = device_name
         self.last_sample_time = None
+        self.timestamp = time()
 
-    def sample(self, value, sample_rate):
+    def sample(self, value, sample_rate, timestamp=None):
         self.value = value
         self.last_sample_time = time()
+        self.timestamp = timestamp
+
 
     def flush(self, timestamp, interval):
         if self.value is not None:
             res = [self.formatter(
                 metric=self.name,
-                timestamp=timestamp,
+                timestamp=self.timestamp or timestamp,
                 value=self.value,
                 tags=self.tags,
                 hostname=self.hostname,
@@ -73,7 +76,7 @@ class Counter(Metric):
         self.hostname = hostname
         self.device_name = device_name
 
-    def sample(self, value, sample_rate):
+    def sample(self, value, sample_rate, timestamp=None):
         self.value += value * int(1 / sample_rate)
         self.last_sample_time = time()
 
@@ -105,7 +108,7 @@ class Histogram(Metric):
         self.hostname = hostname
         self.device_name = device_name
 
-    def sample(self, value, sample_rate):
+    def sample(self, value, sample_rate, timestamp=None):
         self.count += int(1 / sample_rate)
         self.samples.append(value)
         self.last_sample_time = time()
@@ -167,7 +170,7 @@ class Set(Metric):
         self.device_name = device_name
         self.values = set()
 
-    def sample(self, value, sample_rate):
+    def sample(self, value, sample_rate, timestamp=None):
         self.values.add(value)
         self.last_sample_time = time()
 
@@ -198,7 +201,7 @@ class Rate(Metric):
         self.device_name = device_name
         self.samples = []
 
-    def sample(self, value, sample_rate):
+    def sample(self, value, sample_rate, timestamp=None):
         ts = time()
         self.samples.append((int(ts), value))
         self.last_sample_time = ts
@@ -383,9 +386,10 @@ class MetricsAggregator(object):
                 hostname or self.hostname, device_name)
         cur_time = time()
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
+            log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))
             self.num_discarded_old_points += 1
         else:
-            self.metrics[context].sample(value, sample_rate)
+            self.metrics[context].sample(value, sample_rate, timestamp)
 
     def gauge(self, name, value, tags=None, hostname=None, device_name=None, timestamp=None):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)

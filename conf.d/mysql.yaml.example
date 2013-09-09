@@ -5,6 +5,7 @@ instances:
 #    user: my_username
 #    pass: my_password
 #    port: 3306             # Optional
+#    defaults_file: my.cnf  # Alternate configuration mechanism
 #    tags:                  # Optional
 #        - optional_tag1
 #        - optional_tag2

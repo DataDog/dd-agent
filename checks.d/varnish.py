@@ -80,7 +80,7 @@ class Varnish(AgentCheck):
         """
         # Not configured? Not a problem.
         if instance.get("varnishstat", None) is None:
-            return
+            raise Exception("varnishstat is not configured")
         tags = instance.get('tags', [])
 
         # Get the varnish version from varnishstat
