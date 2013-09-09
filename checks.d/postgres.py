@@ -56,15 +56,12 @@ class PostgreSql(AgentCheck):
         user = instance.get('username', '')
         passwd = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('database', '')
+        dbname = instance.get('database', 'postgres')
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
         key = '%s:%s' % (host, port)
-
-        if dbname == '':
-            dbname = 'postgres'
 
         if key in self.dbs:
             db = self.dbs[key]
