@@ -35,6 +35,7 @@ from config import get_config, get_system_stats, get_parsed_args, load_check_dir
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
 from util import Watchdog, PidFile, EC2
+from jmxfetch import JMXFetch
 
 
 # Constants
@@ -59,6 +60,10 @@ class Agent(Daemon):
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
+
+        if JMXFetch.is_running():
+            JMXFetch.stop()
+        
         if self.collector:
             self.collector.stop()
         log.debug("Collector is stopped.")
@@ -96,7 +101,7 @@ class Agent(Daemon):
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
 
-        self.collector = Collector(agentConfig, emitters, systemStats, checksd['jmx_connector_pid'])
+        self.collector = Collector(agentConfig, emitters, systemStats)
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])

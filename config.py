@@ -1,6 +1,5 @@
 import ConfigParser
 import os
-import tempfile
 import itertools
 import logging
 import logging.config
@@ -18,6 +17,7 @@ from optparse import OptionParser, Values
 from cStringIO import StringIO
 
 from util import get_os, yaml, yLoader
+from jmxfetch import JMXFetch
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -25,8 +25,7 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
-JMX_CHECKS = ['tomcat', 'activemq', 'solr', 'cassandra', 'jmx']
-JMX_FETCH_JAR_NAME = "jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar"
+
 log = logging.getLogger(__name__)
 
 
@@ -576,113 +575,6 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
-def is_jmx_check_configured(confd_path):
-    """
-    Return a tuple (jmx_check_configured, java_bin_path)
-
-    jmx_check_configured: boolean that shows that either one of the 
-    check in JMX_CHECKS is enabled or there is a configured check 
-    that have the "is_jmx" flag enabled in its init_config
-
-    java_bin_path: is the path to the java executable. It was 
-    previously set in the "instance" part of the yaml file of the
-    jmx check. So we need to parse yaml files to get it.
-    We assume that this value is alwayws the same for every jmx check
-    so we can return the first value returned
-    """
-
-    jmx_check_configured = False
-    java_bin_path = None
-
-    for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
-
-        if jmx_check_configured and java_bin_path is not None:
-            return (jmx_check_configured, java_bin_path)
-
-        check_name = os.path.basename(conf).split('.')[0]
-
-        if os.path.exists(conf):
-            f = open(conf)
-            try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-                assert check_config is not None
-                f.close()
-            except Exception:
-                f.close()
-                log.error("Unable to parse yaml config in %s" % conf)
-                continue
-
-            init_config = check_config.get('init_config', {})
-            instances = check_config.get('instances', [])
-
-            if init_config and instances:
-                if type(instances) != list or len(instances) == 0:
-                    continue
-
-                init_config = check_config.get('init_config', {})
-                instances = check_config.get('instances', {})
-
-                if java_bin_path is None:
-                    if init_config.get('java_bin_path'):
-                    # We get the java bin path from the yaml file for backward compatibility purposes
-                        java_bin_path = check_config.get('init_config').get('java_bin_path')
-
-                    for instance in instances:
-                        if instance and instance.get('java_bin_path'):
-                            java_bin_path = instance.get('java_bin_path')
-                
-                if not jmx_check_configured and (init_config.get('is_jmx') or check_name in JMX_CHECKS):
-                    jmx_check_configured = True
-
-    return (jmx_check_configured, java_bin_path)
-
-
-def start_jmx_connector(confd_path, agentConfig, statsd_port=None, path_to_java=None):
-    if statsd_port is None:
-        statsd_port = agentConfig.get('dogstatsd_port', "8125")
-
-    log.info("Starting jmxfetch:")
-    try:
-        logging_config = get_logging_config()
-        path_to_java = path_to_java or "java"
-        path_to_jmxfetch = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
-        path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
-        java_logging_level = {
-            logging.CRITICAL : "SEVERE",
-            logging.DEBUG : "ALL",
-            logging.ERROR : "WARNING",
-            logging.FATAL : "SEVERE",
-            logging.INFO : "INFO",
-            logging.WARN : "WARNING",
-            logging.WARNING : "WARNING",
-        }
-
-
-        subprocess_args = [
-                path_to_java, # Path to the java bin
-                '-jar', 
-                path_to_jmxfetch, # Path to the jmxfetch jar
-                confd_path, # Path of the conf.d directory that will be read by jmxfetch
-                str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
-                str(DEFAULT_CHECK_FREQUENCY * 1000),  # Period of the main loop of jmxfetch in ms
-                logging_config.get('jmxfetch_log_file'), # Path of the log file
-                java_logging_level.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
-                ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-                path_to_status_file,
-            ]
-
-        log.info("Running %s" % " ".join(subprocess_args))
-        jmxfetch = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, close_fds=True)
-        jmx_connector_pid = jmxfetch.pid
-    except OSError, e:
-        jmx_connector_pid = None
-        log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
-    except Exception, e:
-        jmx_connector_pid = None
-        log.exception("Couldn't launch JMXTerm")
-
-    return jmx_connector_pid
-
 
 
 def load_check_directory(agentConfig):
@@ -699,11 +591,8 @@ def load_check_directory(agentConfig):
                     in [agentConfig['additional_checksd'], get_checksd_path(osname)])
     confd_path = get_confd_path(osname)
 
-    jmx_check_configured, path_to_java = is_jmx_check_configured(confd_path)
-    jmx_connector_pid = None
-    if jmx_check_configured:
-        jmx_connector_pid = start_jmx_connector(confd_path, agentConfig, path_to_java=path_to_java)
-        
+    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
+
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
     # config will "activate" the check.
@@ -818,7 +707,7 @@ def load_check_directory(agentConfig):
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
             'init_failed_checks':init_failed_checks,
-            'jmx_connector_pid':jmx_connector_pid}
+            }
 
 
 #

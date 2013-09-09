@@ -312,7 +312,7 @@ class PidFile(object):
             if os.access(self.pid_dir, os.W_OK):
                 log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
-        except:
+        except Exception:
             log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
 
         # if all else fails
@@ -332,7 +332,7 @@ class PidFile(object):
             log.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
-        except:
+        except Exception:
             log.warn("Could not clean up pid file")
             return False
 
@@ -345,7 +345,7 @@ class PidFile(object):
             pf.close()
 
             return int(pid_s.strip())
-        except:
+        except Exception:
             return None
 
 
