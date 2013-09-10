@@ -1,10 +1,6 @@
 from common import get_check
 from random import shuffle, sample
 
-# run/execute unittest for dd-agent (for example, a test as defined in https://github.com/DataDog/dd-agent/tree/master/tests) ??
-# @conorb: Using nosetests, you can runs something like nosetests -v —tests=path/to/test_file.py
-# @conorb: you'll have to easy_install/pip install nosetests first
-
 import unittest
 import os
 import binascii
@@ -16,6 +12,13 @@ import shutil
 log = logging.getLogger()
 
 class TestPostfix(unittest.TestCase):
+    #
+    # you can execute this dd-agent unit test via python's nose tool
+    #
+    # example:
+    #
+    #     nosetests --nocapture --tests=dd-agent/tests/test_postfix.py
+    #
     def setUp(self):
         self.queue_root = '/tmp/dd-postfix-test/var/spool/postfix'
 
@@ -27,14 +30,13 @@ class TestPostfix(unittest.TestCase):
             'deferred'
         ]
 
-        self.tally = {}
+        self.in_count = {}
 
         # create test queues
         for queue in self.queues:
           try:
-              os.makedirs(queue)
-              # init tally dictionary
-              self.tally[queue] = [0, 0]
+              os.makedirs(os.path.join(self.queue_root, queue))
+              self.in_count[queue] = [0, 0]
           except Exception:
               pass
 
@@ -42,13 +44,13 @@ class TestPostfix(unittest.TestCase):
         # clean up test queues
         shutil.rmtree('/tmp/dd-postfix-test')
 
-    def strip_heredoc(text):
+    def stripHeredoc(self, text):
         indent = len(min(re.findall('\n[ \t]*(?=\S)', text) or ['']))
         pattern = r'\n[ \t]{%d}' % (indent - 1)
         return re.sub(pattern, '\n', text)
 
     def testChecks(self):
-        self.config = strip_heredoc("""init_config:
+        self.config = self.stripHeredoc("""init_config:
 
         instances:
             - directory: %s
@@ -60,7 +62,7 @@ class TestPostfix(unittest.TestCase):
                   - deferred
         """ % (self.queue_root) )
 
-        # stuff 10K files in random queues
+        # stuff 10K msgs in random queues
         for _ in xrange(1, 10000):
             shuffle(self.queues)
             rand_queue = sample(self.queues, 1)[0]
@@ -68,18 +70,29 @@ class TestPostfix(unittest.TestCase):
 
             open(os.path.join(self.queue_root, rand_queue, queue_file), 'w')
 
-            # keep track of generated counts
-            self.tally[rand_queue][0] += 1
-
-        # set self.tally[rand_queue][1] to out_count (need to parse this into an integer for each queue)
-        # compare self.tally[rand_queue][0] and self.tally[rand_queue][1] - if not equal, report failure
+            # keep track of what we put in
+            self.in_count[rand_queue][0] += 1
 
         check, instances = get_check('postfix', self.config)
 
         check.check(instances[0])
         out_count = check.get_metrics()
 
-        print out_count
+        # output what went in... per queue
+        print
+        for queue in self.in_count:
+            print 'Test messges put into', queue, '= ', self.in_count[queue][0]
+
+        # output postfix.py dd-agent plugin counts... per queue
+        print
+        for tuple in out_count:
+            queue = tuple[3]['tags'][0].split(':')[1]
+            print 'Test messages counted by dd-agent for', queue, '= ', tuple[2]
+
+        #
+        # uncomment this to see the raw dd-agent metric output
+        #
+        #print out_count
 
     if __name__ == '__main__':
         unittest.main()
