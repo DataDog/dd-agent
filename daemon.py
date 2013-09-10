@@ -1,23 +1,14 @@
-'''
+"""
     ***
     Modified generic daemon class
     ***
     
     Author:     http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
                 www.boxedice.com
+                www.datadoghq.com
     
     License:    http://creativecommons.org/licenses/by-sa/3.0/
-    
-    Changes:    23rd Jan 2009 (David Mytton <david@boxedice.com>)
-                - Replaced hard coded '/dev/null in __init__ with os.devnull
-                - Added OS check to conditionally remove code that doesn't work on OS X
-                - Added output to console on completion
-                - Tidied up formatting 
-                11th Mar 2009 (David Mytton <david@boxedice.com>)
-                - Fixed problem with daemon exiting on Python 2.4 (before SystemExit was part of the Exception base)
-                13th Aug 2010 (David Mytton <david@boxedice.com>
-                - Fixed unhandled exception if PID file is empty
-'''
+"""
 
 # Core modules
 import atexit
@@ -26,19 +17,66 @@ import sys
 import time
 import logging
 import errno
-
-from util import AgentSupervisor
+import signal
 
 log = logging.getLogger(__name__)
 
-class Daemon:
+class AgentSupervisor(object):
+    ''' A simple supervisor to keep a restart a child on expected auto-restarts
+    '''
+    RESTART_EXIT_STATUS = 5
+
+    @classmethod
+    def start(cls, parent_func, child_func=None):
+        ''' `parent_func` is a function that's called every time the child
+            process dies.
+            `child_func` is a function that should be run by the forked child
+            that will auto-restart with the RESTART_EXIT_STATUS.
+        '''
+        exit_code = cls.RESTART_EXIT_STATUS
+
+        # Allow the child process to die on SIGTERM
+        signal.signal(signal.SIGTERM, cls._handle_sigterm)
+
+        while True:
+            try:
+                pid = os.fork()
+                if pid > 0:
+                    # The parent waits on the child.
+                    cls.child_pid = pid
+                    _, status = os.waitpid(pid, 0)
+                    exit_code = status >> 8
+                    if parent_func is not None:
+                        parent_func()
+                else:
+                    # The child will call our given function
+                    if child_func is not None:
+                        child_func()
+                    else:
+                        break
+            except OSError, e:
+                msg = "Agent fork failed: %d (%s)" % (e.errno, e.strerror)
+                logging.error(msg)
+                sys.stderr.write(msg + "\n")
+                sys.exit(1)
+
+        # Exit from the parent cleanly
+        if pid > 0:
+            sys.exit(0)
+
+    @classmethod
+    def _handle_sigterm(cls, signum, frame):
+        os.kill(cls.child_pid, signal.SIGTERM)
+
+
+class Daemon(object):
     """
     A generic daemon class.
     
     Usage: subclass the Daemon class and override the run() method
     """
-    def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
-        self.autorestart = False
+    def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull, autorestart=False):
+        self.autorestart = autorestart
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -68,11 +106,9 @@ class Daemon:
         os.setsid() 
 
         if self.autorestart:
-            # Set-up the supervisor callbacks and put a fork in it.
-            logging.info('Running Agent with auto-restart ON')
-            def parent_func():
-                self.start_event = False
-            AgentSupervisor.start(parent_func)
+            # Set up the supervisor callbacks and put a fork in it.
+            logging.info('Running with auto-restart ON')
+            AgentSupervisor.start(parent_func=None, child_func=None)
         else:
             # Do second fork
             try:
@@ -86,7 +122,6 @@ class Daemon:
                 sys.stderr.write(msg + "\n")
                 sys.exit(1)
 
-
         if sys.platform != 'darwin': # This block breaks on OS X
             # Redirect standard file descriptors
             sys.stdout.flush()
@@ -98,14 +133,14 @@ class Daemon:
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
         
-        log.info("Started")
+        log.info("Daemon started")
     
         # Write pidfile
         atexit.register(self.delpid) # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         try:
-            fp = os.fdopen(os.open(self.pidfile, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0644), 'w+')
-            fp.write("%s\n" % pid)
+            fp = open(self.pidfile, 'w+')
+            fp.write(str(pid))
             fp.close()
             os.chmod(self.pidfile, 0644)
         except Exception, e:
@@ -114,18 +149,9 @@ class Daemon:
             sys.stderr.write(msg + "\n")
             sys.exit(1)
 
-    def delpid(self):
-        try:
-            os.remove(self.pidfile)
-        except OSError:
-            pass
 
     def start(self):
-        """
-        Start the daemon
-        """
-        
-        log.info("Starting...")
+        log.info("Starting daemon")
         pid = self.pid()
     
         if pid:
@@ -134,20 +160,13 @@ class Daemon:
             sys.stderr.write(message % self.pidfile)
             sys.exit(1)
 
-        # Start the daemon
-        log.info("Pidfile: %s" % self.pidfile)
+        log.info("Daemon pidfile: %s" % self.pidfile)
         self.daemonize()        
-        log.debug("Calling run method")
         self.run()
 
+
     def stop(self):
-        """
-        Stop the daemon
-        """
-
-        from signal import SIGTERM
-
-        log.info("Stopping...") 
+        log.info("Stopping daemon") 
         pid = self.pid()
 
         # Clear the pid file
@@ -155,11 +174,14 @@ class Daemon:
             os.remove(self.pidfile)
 
         if pid > 1:
-            # Try killing the daemon process    
             try:
-                while 1:
-                    os.kill(pid, SIGTERM)
-                    time.sleep(0.1)
+                if self.autorestart:
+                    # Try killing the supervising process
+                    os.kill(os.getpgid(pid), signal.SIGTERM)
+                else:
+                    # No supervising process present
+                    os.kill(pid, signal.SIGTERM)
+                log.info("Daemon is stopped")
             except OSError, err:
                 if str(err).find("No such process") <= 0:
                     log.exception("Cannot kill Agent daemon at pid %s" % pid)
@@ -169,19 +191,18 @@ class Daemon:
             log.info(message)
             sys.stderr.write(message)
             
-            # Just to be sure. A ValueError might occur if the PID file is empty but does actually exist
+            # A ValueError might occur if the PID file is empty but does actually exist
             if os.path.exists(self.pidfile):
                 os.remove(self.pidfile)
             
             return # Not an error in a restart
 
-        
-        log.info("Stopped")
 
     def restart(self):
         "Restart the daemon"
         self.stop()     
         self.start()
+
 
     def run(self):
         """
@@ -190,12 +211,14 @@ class Daemon:
         """
         raise NotImplementedError
 
+
     def info(self):
         """
         You should override this method when you subclass Daemon. It will be
         called to provide information about the status of the process
         """
         raise NotImplementedError
+
 
     def status(self):
         """
@@ -228,10 +251,11 @@ class Daemon:
         sys.stdout.write(message + "\n")
         sys.exit(exit_code)
 
+
     def pid(self):
         # Get the pid from the pidfile
         try:
-            pf = file(self.pidfile,'r')
+            pf = file(self.pidfile, 'r')
             pid = int(pf.read().strip())
             pf.close()
             return pid
@@ -240,3 +264,9 @@ class Daemon:
         except ValueError:
             return None
 
+
+    def delpid(self):
+        try:
+            os.remove(self.pidfile)
+        except OSError:
+            pass

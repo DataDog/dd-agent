@@ -10,7 +10,7 @@ def get_http_library(proxy_settings, use_forwarder):
         # We are using the forwarder, so it's local trafic. We don't use the proxy
         import urllib2
 
-    elif proxy_settings['host'] is None or int(sys.version_info[1]) >= 7\
+    elif proxy_settings is None or int(sys.version_info[1]) >= 7\
         or (int(sys.version_info[1]) == 6 and int(sys.version_info[2]) >= 3):
         # Python version >= 2.6.3
         import urllib2
@@ -74,14 +74,14 @@ def get_opener(logger, proxy_settings, use_forwarder, urllib2):
         # We are using the forwarder, so it's local trafic. We don't use the proxy
         return None
 
-    if proxy_settings['system_settings'] or proxy_settings['host'] is None:
+    if proxy_settings is None:
         # urllib2 will figure out how to connect automatically        
         return None
 
     proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-    if proxy_settings['user'] is not None:
+    if proxy_settings.get('user') is not None:
         proxy_auth = proxy_settings['user']
-        if proxy_settings['password'] is not None:
+        if proxy_settings.get('password') is not None:
             proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
         proxy_url = '%s@%s' % (proxy_auth, proxy_url)
         

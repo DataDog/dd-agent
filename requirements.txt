@@ -8,3 +8,4 @@ pyyaml
 simplejson
 psutil
 gearman
+pylint

@@ -196,9 +196,9 @@ class MetricTransaction(Transaction):
                 'body': self._data,
                 'headers': self._headers,
                 'validate_cert': not self._application.skip_ssl_validation,
-            }
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
+
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
                 tornado_client_params['proxy_host'] = proxy_settings['host']
@@ -209,6 +209,7 @@ class MetricTransaction(Transaction):
 
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
             else:
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 log.debug("Using Tornado simple HTTP Client")
