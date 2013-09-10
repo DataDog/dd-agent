@@ -53,11 +53,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.hWaitStop)
 
         # Stop all services
+        self.running = False
         self.forwarder.stop()
         self.agent.stop()
         self.dogstatsd.stop()
         self.pup.stop()
-        self.running = False
+        
 
     def SvcDoRun(self):
         import servicemanager

@@ -286,7 +286,7 @@ def run_pup(config):
 
 def stop():
     """ Only used by the Windows service """
-    sys.exit(0)
+    ioloop.IOLoop.current().stop()
 
 def main():
     """ Parses arguments and starts Pup server """
