@@ -48,7 +48,6 @@ class MySql(AgentCheck):
         user = instance['user']
         port = int(instance.get('port', 0))
         password = instance.get('pass', '')
-        password = "phQOrbaXem0kP8JHri1qSMRS"
         mysql_sock = instance.get('sock', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
