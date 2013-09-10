@@ -1,7 +1,10 @@
-from checks import AgentCheck
-import subprocess, os
+import subprocess
+import os
 import sys
 import re
+import traceback
+
+from checks import AgentCheck
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -16,7 +19,6 @@ QUERIES_COMMON = [
     ('mysql.innodb.data_writes', "SHOW STATUS LIKE 'Innodb_data_writes'", RATE),
     ('mysql.innodb.os_log_fsyncs', "SHOW STATUS LIKE 'Innodb_os_log_fsyncs'", RATE),
     ('mysql.innodb.buffer_pool_size', "SHOW STATUS LIKE 'Innodb_data_reads'", RATE),
-
 ]
 
 QUERIES_GREATER_502 = [
@@ -24,7 +26,6 @@ QUERIES_GREATER_502 = [
     ('mysql.performance.slow_queries', "SHOW GLOBAL STATUS LIKE 'Slow_queries'", RATE),
     ('mysql.performance.questions', "SHOW GLOBAL STATUS LIKE 'Questions'", RATE),
     ('mysql.performance.queries', "SHOW GLOBAL STATUS LIKE 'Queries'", RATE),
-
 ]
 
 QUERIES_OLDER_502 = [
@@ -33,33 +34,146 @@ QUERIES_OLDER_502 = [
     ('mysql.performance.questions', "SHOW STATUS LIKE 'Questions'", RATE),
     ('mysql.performance.queries', "SHOW STATUS LIKE 'Queries'", RATE),
 ]
-    
 
-class VersionNotFound(Exception):
-    pass
 
 class MySql(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.mysql_version = {}
+        self.greater_502 = {}
 
     def check(self, instance):
-        host, user, password, mysql_sock, tags, options = self._get_config(instance)
-        
-        if not host or not user:
+        host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
+
+        if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
 
-        db = self._connect(host, mysql_sock, user, password)
-
-        # Check version
-        greater_502 = self._check_version_age(db, host)
+        db = self._connect(host, port, mysql_sock, user, password, defaults_file)
 
         # Metric collection
-        self._collect_metrics(greater_502, db, tags, options)
+        self._collect_metrics(host, db, tags, options)
+        self._collect_system_metrics(host, db, tags)
 
-    def _collect_scalar(self, query, cursor):
+    def _get_config(self, instance):
+        host = instance.get('server', '')
+        user = instance.get('user', '')
+        port = int(instance.get('port', 0))
+        password = instance.get('pass', '')
+        mysql_sock = instance.get('sock', '')
+        defaults_file = instance.get('defaults_file', '')
+        tags = instance.get('tags', None)
+        options = instance.get('options', {})
+
+        return host, port, user, password, mysql_sock, defaults_file, tags, options
+
+    def _connect(self, host, port, mysql_sock, user, password, defaults_file):
+        try:
+            import MySQLdb
+        except ImportError:
+            raise Exception("Cannot import MySQLdb module. Check the instructions "
+                "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
+
+        if defaults_file != '':
+            db = MySQLdb.connect(read_default_file=defaults_file)
+        elif  mysql_sock != '':
+            db = MySQLdb.connect(unix_socket=mysql_sock,
+                                    user=user,
+                                    passwd=password)
+        elif port:
+            db = MySQLdb.connect(host=host,
+                                    port=port,
+                                    user=user,
+                                    passwd=password)
+        else:
+            db = MySQLdb.connect(host=host,
+                                    user=user,
+                                    passwd=password)
+        self.log.debug("Connected to MySQL")
+
+        return db
+
+    def _collect_metrics(self, host, db, tags, options):
+        if self._version_greater_502(db, host):
+            queries = QUERIES_GREATER_502 + QUERIES_COMMON
+        else:
+            queries = QUERIES_OLDER_502 + QUERIES_COMMON
+
+        for metric_name, query, metric_type in queries:
+            value = self._collect_scalar(query, db)
+            if value is not None:
+                if metric_type == RATE:
+                    self.rate(metric_name, value, tags=tags)
+                elif metric_type == GAUGE:
+                    self.gauge(metric_name, value, tags=tags)
+
+        # Compute InnoDB buffer metrics
+        page_size = self._collect_scalar("SHOW STATUS LIKE 'Innodb_page_size'", db)
+        # Be sure InnoDB is enabled
+        if page_size:
+            innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db)
+            innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db)
+            innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
+            innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
+            innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
+
+            self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
+
+        if 'galera_cluster' in options.keys() and options['galera_cluster']:
+            value = self._collect_scalar("SHOW STATUS LIKE 'wsrep_cluster_size'", db)
+            self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
+
+        if 'replication' in options.keys() and options['replication']:
+            self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
+
+    def _version_greater_502(self, db, host):
+        # show global status was introduced in 5.0.2
+        # some patch version numbers contain letters (e.g. 5.0.51a)
+        # so let's be careful when we compute the version number
+        if host in self.greater_502:
+            return self.greater_502[host]
+
+        greater_502 = False
+        try:
+            mysql_version = self._get_version(db, host)
+            self.log.debug("MySQL version %s" % mysql_version)
+
+            major = int(mysql_version[0])
+            minor = int(mysql_version[1])
+            patchlevel = int(re.match(r"([0-9]+)", mysql_version[2]).group(1))
+
+            if (major, minor, patchlevel) > (5, 0, 2):
+                greater_502 = True
+
+        except Exception, exception:
+            self.warning("Cannot compute mysql version, assuming older than 5.0.2: %s" % str(exception))
+
+        self.greater_502[host] = greater_502
+
+        return greater_502
+
+    def _get_version(self, db, host):
+        if host in self.mysql_version:
+            return self.mysql_version[host]
+
+        # Get MySQL version
+        cursor = db.cursor()
+        cursor.execute('SELECT VERSION()')
+        result = cursor.fetchone()
+        cursor.close()
+        del cursor
+        # Version might include a description e.g. 4.1.26-log.
+        # See http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
+        version = result[0].split('-')
+        version = version[0].split('.')
+        self.mysql_version[host] = version
+        return version
+
+    def _collect_scalar(self, query, db):
         self.log.debug("Collecting data with %s" % (query))
         try:
+            cursor = db.cursor()
             cursor.execute(query)
             result = cursor.fetchone()
             cursor.close()
@@ -69,10 +183,10 @@ class MySql(AgentCheck):
                 return None
             self.log.debug("Collecting done, value %s" % result[1])
             return float(result[1])
-        except Exception, e:
-            self.log.exception("While running %s" % query)
+        except Exception:
+            self.log.exception("Error while running %s" % query)
 
-    def _collect_dict(self, metric_type, field_metric_map, query, cursor, tags):
+    def _collect_dict(self, metric_type, field_metric_map, query, db, tags):
         """
         Query status and get a dictionary back.
         Extract each field out of the dictionary
@@ -82,6 +196,7 @@ class MySql(AgentCheck):
         field_metric_map: {"Seconds_behind_master": "mysqlSecondsBehindMaster"}
         """
         try:
+            cursor = db.cursor()
             cursor.execute(query)
             result = cursor.fetchone()
             if result is not None:
@@ -103,87 +218,26 @@ class MySql(AgentCheck):
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()
             del cursor
-        except Exception, e:
-            self.log.debug("Error while running %s" % query)
+        except Exception:
+            self.warning("Error while running %s\n%s" % (query, traceback.format_exc()))
+            self.log.exception("Error while running %s" % query)
 
-    def _get_version(self, db, host):
-        if host in self.mysql_version:
-            return self.mysql_version[host]
-
-        # Get MySQL version
-        cursor = self.db.cursor()
-        cursor.execute('SELECT VERSION()')
-        result = cursor.fetchone()
-        version = result[0].split('-') # Case 31237. Might include a description e.g. 4.1.26-log. See http://dev.mysql.com/doc/refman/4.1/en/information-functions.html#function_version
-        version = version[0].split('.')
-        self.mysql_version[host] = version
-        return version
-
-    def _get_server_pid(self):
- 
+    def _collect_system_metrics(self, host, db, tags):
         pid = None
+        # The server needs to run locally, accessed by TCP or socket
+        if host in ["localhost", "127.0.0.1"] or db.port == long(0):
+            pid = self._get_server_pid(db)
 
-        try:
-            if sys.platform.startswith("linux"):
-                ps = subprocess.Popen(['ps','-C','mysqld','-o','pid'], stdout=subprocess.PIPE, 
-                                      close_fds=True).communicate()[0]
-                pslines = ps.split('\n')
-                # First line is header, second line is mysql pid
-                if len(pslines) > 1 and pslines[1] != '':
-                    return int(pslines[1])
-
-            elif sys.platform.startswith("darwin") or sys.platform.startswith("freebsd"):
-                # Get all processes, filter in python then
-                procs = subprocess.Popen(["ps", "-A", "-o", "pid,command"], stdout=subprocess.PIPE, 
-                                         close_fds=True).communicate()[0]
-                ps = [p for p in procs.split("\n") if "mysqld" in p]
-                if len(ps) > 0:
-                    return int(ps[0].split()[0])
-        except Exception, e:
-            self.log.exception("Error while fetching mysql pid from ps")
-            
-        return pid
-
-    def _collect_procfs(self, tags, cursor):
-        # Try to use the pid file, but there is a good chance
-        # we don't have the permission to read it
-        pid_file = None
-        pid = None
-
-        try:
-            cursor.execute("SHOW VARIABLES LIKE 'pid_file'")
-            pid_file = cursor.fetchone()[1]
-            cursor.close()
-            del cursor                      
-        except Exception, e:
-            self.log.debug("Error while fetching pid of mysql.")
-
-        if pid_file is not None:
-            self.log.debug("pid file: %s" % str(pid_file))
- 
-            try:
-                f = open(pid_file)
-                pid = int(f.readline())
-                f.close()
-            except Exception:
-                self.log.debug("Cannot compute advanced MySQL metrics; cannot read mysql pid file %s" % pid_file)
-
-        self.log.debug("pid: %s" % pid)
-        # If pid has not been found (permission issue), read it from ps
-
-        if pid is None:
-            pid = self._get_server_pid()
+        if pid:
             self.log.debug("pid: %s" % pid)
-
-        if pid is not None:
             # At last, get mysql cpu data out of procfs
             try:
                 # See http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
                 # for meaning: we get 13 & 14: utime and stime, in clock ticks and convert
                 # them with the right sysconf value (SC_CLK_TCK)
-                f = open("/proc/" + str(pid) + "/stat")
-                data = f.readline()
-                f.close()
+                proc_file = open("/proc/%d/stat" % pid)
+                data = proc_file.readline()
+                proc_file.close()
                 fields = data.split(' ')
                 ucpu = fields[13]
                 kcpu = fields[14]
@@ -194,105 +248,58 @@ class MySql(AgentCheck):
                 # to get the percentage of CPU used by mysql over the period
                 self.rate("mysql.performance.user_time", int((float(ucpu)/float(clk_tck)) * 100), tags=tags)
                 self.rate("mysql.performance.kernel_time", int((float(kcpu)/float(clk_tck)) * 100), tags=tags)
-
             except Exception:
-                self.log.debug("Error while reading mysql (pid: %s) procfs data" % pid)
+                self.warning("Error while reading mysql (pid: %s) procfs data\n%s" % (pid, traceback.format_exc()))
 
-    def _get_config(self, instance):
-        host = instance['server']
-        user = instance['user']
-        password = instance.get('pass', '')
-        mysql_sock = instance.get('sock', '')
-        tags = instance.get('tags', None)
-        options = instance.get('options', {})
+    def _get_server_pid(self, db):
+        pid = None
 
-        return host, user, password, mysql_sock, tags, options
-
-    def _connect(self, host, mysql_sock, user, password):
+        # Try to get pid from pid file, it can fail for permission reason
+        pid_file = None
         try:
-            import MySQLdb
-        except ImportError, e:
-            raise Exception("Cannot import MySQLdb module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
+            cursor = db.cursor()
+            cursor.execute("SHOW VARIABLES LIKE 'pid_file'")
+            pid_file = cursor.fetchone()[1]
+            cursor.close()
+            del cursor
+        except Exception:
+            self.warning("Error while fetching pid_file variable of MySQL.")
 
-        # Connect
-        if  mysql_sock != '':
-            db = MySQLdb.connect(unix_socket=mysql_sock,
-                                      user=user,
-                                      passwd=password)
-        else:
-            db = MySQLdb.connect(host=host,
-                                      user=user,
-                                      passwd=password)
-        self.log.debug("Connected to MySQL")
-        return db
+        if pid_file is not None:
+            self.log.debug("pid file: %s" % str(pid_file))
+            try:
+                f = open(pid_file)
+                pid = int(f.readline())
+                f.close()
+            except IOError:
+                self.log.debug("Cannot read mysql pid file %s" % pid_file)
 
-    def _check_version_age(self, db, host):
-        # show global status was introduced in 5.0.2
-        # some patch version numbers contain letters (e.g. 5.0.51a)
-        # so let's be careful when we compute the version number
-        greater_502 = False
-        try:
-            mysql_version = self.getVersion(db, host)
-            self.log.debug("MySQL version %s" % mysql_version)
-            
-            major = int(mysqlVersion[0])
-            patchlevel = int(re.match(r"([0-9]+)", mysqlVersion[2]).group(1))
-            
-            if major > 5 or  major == 5 and patchlevel >= 2: 
-                greater_502 = True
-            
-        except Exception, e:
-            self.log.debug("Cannot compute mysql version assuming older than 5.0.2: %s" % str(e))
+        # If pid has not been found, read it from ps
+        if pid is None:
+            try:
+                if sys.platform.startswith("linux"):
+                    ps = subprocess.Popen(['ps', '-C', 'mysqld', '-o', 'pid'], stdout=subprocess.PIPE,
+                                          close_fds=True).communicate()[0]
+                    pslines = ps.strip().split('\n')
+                    # First line is header, second line is mysql pid
+                    if len(pslines) == 2 and pslines[1] != '':
+                        pid = int(pslines[1])
+            except Exception:
+                self.log.exception("Error while fetching mysql pid from ps")
 
-        return greater_502
-
-    def _collect_metrics(self, greater_502, db, tags, options):
-        if greater_502:
-            queries = QUERIES_GREATER_502 + QUERIES_COMMON
-        else:
-            queries = QUERIES_OLDER_502 + QUERIES_COMMON
-
-        for metric_name, query, metric_type in queries:
-            value = self._collect_scalar(query, db.cursor())
-            if value is not None:
-                if metric_type == RATE:
-                    self.rate(metric_name, value, tags=tags)
-                elif metric_type == GAUGE:
-                    self.gauge(metric_name, self._collect_scalar(query, db.cursor()), tags=tags)
-        
-        page_size = self._collect_scalar("SHOW STATUS LIKE 'Innodb_page_size'", db.cursor())
-        innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db.cursor())
-        innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db.cursor())
-        innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size;
-        innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size;
-        innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free 
-
-        self.log.debug("bufer_pool_stats: total %s free %s used %s" % (innodb_buffer_pool_pages_total,innodb_buffer_pool_pages_free, innodb_buffer_pool_pages_used))
-        self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
-        self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
-        self.gauge("mysql.innodb.buffer_pool_total",innodb_buffer_pool_pages_total, tags=tags)
-        
-        self.log.debug("Collect cpu stats")
-        self._collect_procfs(tags, db.cursor())
-
-        if ('galera_cluster' in options.keys() and options['galera_cluster']):
-            self.gauge('mysql.galera.wsrep_cluster_size', self._collect_scalar("SHOW STATUS LIKE 'wsrep_cluster_size'", db.cursor()), tags=tags)
-
-        if ('replication' in options.keys() and options['replication']):
-            self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db.cursor(), tags=tags)
+        return pid
 
     @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('mysql_server'):
+    def parse_agent_config(agent_config):
+        if not agent_config.get('mysql_server'):
             return False
 
         return {
             'instances': [{
-                'server': agentConfig.get('mysql_server',''),
-                'sock': agentConfig.get('mysql_sock',''),
-                'user': agentConfig.get('mysql_user',''),
-                'pass': agentConfig.get('mysql_pass',''),
+                'server': agent_config.get('mysql_server',''),
+                'sock': agent_config.get('mysql_sock',''),
+                'user': agent_config.get('mysql_user',''),
+                'pass': agent_config.get('mysql_pass',''),
                 'options': {'replication': True},
             }]
         }
-        

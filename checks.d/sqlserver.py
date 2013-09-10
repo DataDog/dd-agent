@@ -2,6 +2,7 @@
 Check the performance counters from SQL Server
 '''
 from checks import AgentCheck
+import traceback
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
@@ -48,7 +49,8 @@ class SQLServer(AgentCheck):
             conn_str += 'User ID=%s;' % (username)
         if password:
             conn_str += 'Password=%s;' % (password)
-
+        if not username and not password:
+            conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
     def check(self, instance):
@@ -68,9 +70,10 @@ class SQLServer(AgentCheck):
                 conn_str = self._conn_string(host, username, password, database)
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
-            except:
-                raise Exception("Unable to connect to SQL Server for instance %s" \
-                    % instance)
+            except Exception, e:
+                cx = "%s - %s" % (host, database)
+                raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
+                    % (cx, traceback.format_exc()))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
@@ -95,6 +98,7 @@ class SQLServer(AgentCheck):
                     self._fetch_all_instances(metric, cursor)
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
             else:
                 try:
                     cursor.execute("""
@@ -106,6 +110,7 @@ class SQLServer(AgentCheck):
                     (value,) = cursor.fetchone()
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
+                    self.warning('Unable to fetch metric: %s' % mname)
                     continue
 
                 # Save the metric

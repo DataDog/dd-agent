@@ -53,6 +53,7 @@ if sys.platform == 'win32':
         'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
+        'pymongo',
 
         # agent
         'checks.services_checks',
@@ -72,27 +73,32 @@ if sys.platform == 'win32':
             self.__dict__.update(kw) 
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
-            self.copyright = 'Copyright 2012 Datadog, Inc.'
+            self.copyright = 'Copyright 2013 Datadog, Inc.'
             self.cmdline_style = 'pywin32'
 
-    agent_svc = Target(name='Datadog Agent', modules='win32.agent')
+    agent_svc = Target(name='Datadog Agent', modules='win32.agent', dest_base='ddagent')
 
     extra_args = {
         'options': {
             'py2exe': {
                 'includes': ','.join(include_modules),
-                'optimize': 2,
-                'compressed': 1,
-                'bundle_files': 1,
+                'optimize': 0,
+                'compressed': True,
+                'bundle_files': 3,
             },
         },
         'console': ['win32\shell.py'],
         'service': [agent_svc],
-        'zipfile': None,
-        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-                        ('pup', glob('pup/pup.html')),
-                        ('pup/static', glob('pup/static/*.*')),
-                        ],
+        'windows': [{'script': 'win32\gui.py',
+                     'dest_base': "agent-manager",
+                     'uac_info': "requireAdministrator", # The manager needs to be administrator to stop/start the service
+                     'icon_resources': [(1, r"packaging\datadog-agent\win32\install_files\dd_agent_win_256.ico")],
+                     }],
+        'data_files': [
+            ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
+            ('pup', glob('pup/pup.html')),
+            ('pup/static', glob('pup/static/*.*')),
+        ],
     }
 
 setup(

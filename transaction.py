@@ -72,7 +72,6 @@ class TransactionManager(object):
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
     def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay):
-
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
@@ -181,14 +180,14 @@ class TransactionManager(object):
                     self.tr_error(tr)
                     self.flush_next()
             else:
-                if self._flush_without_ioloop:
-                    # Tornado is no started (ie, unittests), do it manually: BLOCKING
+                # Wait a little bit more
+                if  tornado.ioloop.IOLoop.instance()._running:
+                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                        lambda: self.flush_next())
+                elif self._flush_without_ioloop:
+                    # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
                     time.sleep(delay)
                     self.flush_next()
-                # Wait a little bit more
-                else:
-                    tornado.ioloop.IOLoop.current().add_timeout(time.time() + delay,
-                        lambda: self.flush_next())
         else:
             self._trs_to_flush = None
 

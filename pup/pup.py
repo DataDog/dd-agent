@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Pup.py
@@ -7,7 +7,7 @@ Pup.py
     ---
     Make sense of your IT Data
 
-    (C) Datadog, Inc. 2012 all rights reserved
+    (C) Datadog, Inc. 2012-2013 all rights reserved
 """
 
 # set up logging before importing any other components
@@ -25,6 +25,10 @@ import time
 import logging
 import zlib
 
+# Status page
+import platform
+from checks.check_status import DogstatsdStatus, ForwarderStatus, CollectorStatus, logger_info
+
 # 3p
 import tornado
 from tornado import ioloop
@@ -32,7 +36,7 @@ from tornado import web
 from tornado import websocket
 
 # project
-from config import get_config
+from config import get_config, get_version
 from util import json
 
 log = logging.getLogger('pup')
@@ -108,7 +112,7 @@ AGENT_IGNORE = [
 # Define settings, path is different if using py2exe
 frozen = getattr(sys, 'frozen', '')
 if not frozen:
-    agent_root = os.path.join(os.path.dirname(__file__), '..')
+    agent_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 else:
     # Using py2exe
     agent_root = os.path.dirname(sys.executable)
@@ -191,6 +195,22 @@ class MainHandler(tornado.web.RequestHandler):
         title="Pup",
         port=port)
 
+class StatusHandler(tornado.web.RequestHandler):
+    def get(self):
+        dogstatsd_status = DogstatsdStatus.load_latest_status()
+        forwarder_status = ForwarderStatus.load_latest_status()
+        collector_status = CollectorStatus.load_latest_status()
+        self.render(os.path.join(agent_root, "pup", "status.html"),
+            port=port,
+            platform=platform.platform(),
+            agent_version=get_version(),
+            python_version=platform.python_version(),
+            logger_info=logger_info(),
+            dogstatsd=dogstatsd_status.to_dict(),
+            forwarder=forwarder_status.to_dict(),
+            collector=collector_status.to_dict(),
+        )
+
 class PostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
@@ -237,6 +257,7 @@ def tornado_logger(handler):
 
 application = tornado.web.Application([
     (r"/", MainHandler),
+    (r"/status", StatusHandler),
     (r"/(.*\..*$)", tornado.web.StaticFileHandler,
      dict(path=settings['static_path'])),
     (r"/pupsocket", PupSocket),

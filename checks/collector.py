@@ -17,6 +17,7 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
+from checks.nagios import Nagios
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
@@ -24,6 +25,8 @@ from resources.processes import Processes as ResProcesses
 
 
 log = logging.getLogger(__name__)
+
+
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 
@@ -48,7 +51,8 @@ class Collector(object):
         self.run_count = 0
         self.continue_running = True
         self.metadata_cache = None
-        self.checks_d = []
+        self.initialized_checks_d = []
+        self.init_failed_checks_d = []
         
         # Unix System Checks
         self._unix_system_checks = {
@@ -90,6 +94,11 @@ class Collector(object):
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
+        # Event Checks
+        self._event_checks = [
+            Nagios(get_hostname()),
+        ]
+
         # Resource Checks
         self._resources_checks = [
             ResProcesses(log,self.agentConfig)
@@ -106,7 +115,7 @@ class Collector(object):
         # in which case we'll get a misleading error in the logs.
         # Best to not even try.
         self.continue_running = False
-        for check in self.checks_d:
+        for check in self.initialized_checks_d:
             check.stop()
     
     def run(self, checksd=None, start_event=True):
@@ -122,8 +131,9 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
-        self.checks_d = checksd
-
+        if checksd:
+            self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -205,6 +215,12 @@ class Collector(object):
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
 
+        # Process the event checks. 
+        for event_check in self._event_checks:
+            event_data = event_check.check(log, self.agentConfig)
+            if event_data:
+                events[event_check.key] = event_data
+
         # Resources checks
         if self.os != 'windows':
             has_resource = False
@@ -234,8 +250,7 @@ class Collector(object):
 
         # checks.d checks
         check_statuses = []
-        checksd = checksd or []
-        for check in checksd:
+        for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
             log.info("Running check %s" % check.name)
@@ -265,6 +280,15 @@ class Collector(object):
                 log.exception("Error running check %s" % check.name)
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
             check_statuses.append(check_status)
+
+        for check_name, info in self.init_failed_checks_d.iteritems():
+            if not self.continue_running:
+                return
+            check_status = CheckStatus(check_name, None, None, None,
+                                       init_failed_error=info['error'],
+                                       init_failed_traceback=info['traceback'])
+            check_statuses.append(check_status)
+
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics

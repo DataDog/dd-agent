@@ -18,6 +18,7 @@ import config
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
+STATUS_WARNING = 'WARNING'
 
 
 log = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class Stylizer(object):
 
     STYLES = {
         'bold'    : 1,
-        'grey'    : 30, 
+        'grey'    : 30,
         'red'     : 31,
         'green'   : 32,
         'yellow'  : 33,
@@ -84,15 +85,18 @@ def logger_info():
     return ', '.join(loggers)
 
 class AgentStatus(object):
-    """ 
+    """
     A small class used to load and save status messages to the filesystem.
     """
 
     NAME = None
-    
+
     def __init__(self):
         self.created_at = datetime.datetime.now()
         self.created_by_pid = os.getpid()
+
+    def has_error(self):
+        raise NotImplementedError
 
     def persist(self):
         try:
@@ -127,14 +131,25 @@ class AgentStatus(object):
             "",
         ]
         return lines
-        
+
     def _header_lines(self, indent):
         # Don't indent the header
         lines = self._title_lines()
-
+        if self.created_seconds_ago() > 120:
+            styles = ['red','bold']
+        else:
+            styles = []
+        # We color it in red if the status is too old
         fields = [
-            ("Status date", "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago())),
+            (
+                style("Status date", *styles),
+                style("%s (%ss ago)" %
+                    (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()), *styles)
+            )
+        ]
+
+        fields += [
             ("Pid", self.created_by_pid),
             ("Platform", platform.platform()),
             ("Python Version", platform.python_version()),
@@ -146,10 +161,19 @@ class AgentStatus(object):
             lines.append(l)
         return lines + [""]
 
+    def to_dict(self):
+        return {
+            'pid': self.created_by_pid,
+            'status_date': "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                        self.created_seconds_ago()),
+            }
+
     @classmethod
     def _not_running_message(cls):
         lines = cls._title_lines() + [
             style("  %s is not running." % cls.NAME, 'red'),
+            style("""  You can get more details in the logs: 
+    %s""" % logger_info(), 'red'),
             "",
             ""
         ]
@@ -191,10 +215,12 @@ class AgentStatus(object):
         message = cls._not_running_message()
         exit_code = -1
 
-        collector_status = cls.load_latest_status()
-        if collector_status:
-            message = collector_status.render()
+        module_status = cls.load_latest_status()
+        if module_status:
+            message = module_status.render()
             exit_code = 0
+            if module_status.has_error():
+                exit_code = 1
 
         sys.stdout.write(message)
         return exit_code
@@ -206,34 +232,43 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
-
-        if (type(tb).__name__ == 'traceback'):
-            self.traceback = traceback.format_tb(tb)
-        else:
-            self.traceback = None
+        self.traceback = tb
+        self.warnings = warnings
 
     def has_error(self):
-        return self.status != STATUS_OK
+        return self.status == STATUS_ERROR
 
+    def has_warnings(self):
+        return self.status == STATUS_WARNING
 
 class CheckStatus(object):
-    
-    def __init__(self, check_name, instance_statuses, metric_count, event_count):
+
+    def __init__(self, check_name, instance_statuses, metric_count,
+                 event_count, init_failed_error=None,
+                 init_failed_traceback=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
+        self.init_failed_error = init_failed_error
+        self.init_failed_traceback = init_failed_traceback
 
     @property
     def status(self):
+        if self.init_failed_error:
+            return STATUS_ERROR
         for instance_status in self.instance_statuses:
             if instance_status.status == STATUS_ERROR:
                 return STATUS_ERROR
         return STATUS_OK
+
+    def has_error(self):
+        return self.status == STATUS_ERROR
+
 
 class EmitterStatus(object):
 
@@ -263,6 +298,16 @@ class CollectorStatus(AgentStatus):
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
+
+    @property
+    def status(self):
+        for check_status in self.check_statuses:
+            if check_status.status == STATUS_ERROR:
+                return STATUS_ERROR
+        return STATUS_OK
+
+    def has_error(self):
+        return self.status != STATUS_OK
 
     def body_lines(self):
         # Metadata whitelist
@@ -304,33 +349,43 @@ class CollectorStatus(AgentStatus):
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
                 ]
-                for s in cs.instance_statuses:
-                    c = 'green'
-                    if s.has_error():
-                        c = 'red'
-                    line =  "    - instance #%s [%s]" % (
-                             s.instance_id, style(s.status, c))
-                    if s.has_error():
-                        line += u": %s" % s.error
-                    check_lines.append(line)
-                
+                if cs.init_failed_error:
+                    check_lines.append("    - initialize check class [%s]: %s" %
+                                       (style(STATUS_ERROR, 'red'),
+                                       repr(cs.init_failed_error)))
+                    if self.verbose and cs.init_failed_traceback:
+                        check_lines.extend('      ' + line for line in
+                                           cs.init_failed_traceback.split('\n'))
+                else:
+                    for s in cs.instance_statuses:
+                        c = 'green'
+                        if s.has_warnings():
+                            c = 'yellow'
+                        if s.has_error():
+                            c = 'red'
+                        line =  "    - instance #%s [%s]" % (
+                                 s.instance_id, style(s.status, c))
+                        if s.has_error():
+                            line += u": %s" % s.error
 
-                    if self.verbose and s.traceback is not None:
-                        # Formatting the traceback to look like a python traceback
-                        check_lines.append("    Traceback (most recent call last):")
+                        check_lines.append(line)
 
-                        # Format the traceback lines to look good in the output
-                        for tb_line in s.traceback:
-                            lines = tb_line.split('\n')
-                            for line in lines:
-                                if line.strip() == '':
-                                    continue
-                                check_lines.append('    ' + line)
+                        if s.has_warnings():
+                            for warning in s.warnings:
+                                warn = warning.split('\n')
+                                if not len(warn): continue
+                                check_lines.append(u"        %s: %s" %
+                                    (style("Warning", 'yellow'), warn[0]))
+                                check_lines.extend(u"        %s" % l for l in
+                                            warn[1:])
+                        if self.verbose and s.traceback is not None:
+                            check_lines.extend('      ' + line for line in
+                                           s.traceback.split('\n'))
 
-                check_lines += [
-                    "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
-                    ""
-                ]
+                    check_lines += [
+                        "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
+                        ""
+                    ]
 
                 lines += check_lines
 
@@ -355,26 +410,92 @@ class CollectorStatus(AgentStatus):
 
         return lines
 
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+
+        # Hostnames
+        status_info['hostnames'] = {}
+        metadata_whitelist = [
+            'hostname',
+            'fqdn',
+            'ipv4',
+            'instance-id'
+        ]
+        if self.metadata:
+            for key, host in self.metadata.items():
+                for whitelist_item in metadata_whitelist:
+                    if whitelist_item in key:
+                        status_info['hostnames'][key] = host
+                        break
+
+        # Checks.d Status
+        status_info['checks'] = {}
+        for cs in self.check_statuses:
+            status_info['checks'][cs.name] = {'instances': {}}
+            for s in cs.instance_statuses:
+                status_info['checks'][cs.name]['instances'][s.instance_id] = {
+                    'status': s.status,
+                    'has_error': s.has_error(),
+                    'has_warnings': s.has_warnings(),
+                }
+                if s.has_error():
+                    status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
+                if s.has_warnings():
+                    status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
+            status_info['checks'][cs.name]['metric_count'] = cs.metric_count
+            status_info['checks'][cs.name]['event_count'] = cs.event_count
+
+        # Emitter status
+        status_info['emitter'] = []
+        for es in self.emitter_statuses:
+            check_status = {
+                'name': es.name,
+                'status': es.status,
+                'has_error': es.has_error(),
+                }
+            if es.has_error():
+                check_status['error'] = es.error
+            status_info['emitter'].append(check_status)
+
+        return status_info
+
 
 class DogstatsdStatus(AgentStatus):
 
     NAME = 'Dogstatsd'
-    
-    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0, metric_count=0):
+
+    def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
+        metric_count=0, event_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count
         self.packets_per_second = packets_per_second
         self.metric_count = metric_count
+        self.event_count = event_count
 
+    def has_error(self):
+        return self.flush_count == 0 and self.packet_count == 0 and self.metric_count == 0
 
     def body_lines(self):
-        return [
+        lines = [
             "Flush count: %s" % self.flush_count,
             "Packet Count: %s" % self.packet_count,
             "Packets per second: %s" % self.packets_per_second,
             "Metric count: %s" % self.metric_count,
+            "Event count: %s" % self.event_count,
         ]
+        return lines
+
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        status_info.update({
+            'flush_count': self.flush_count,
+            'packet_count': self.packet_count,
+            'packets_per_second': self.packets_per_second,
+            'metric_count': self.metric_count,
+            'event_count': self.event_count,
+        })
+        return status_info
 
 
 class ForwarderStatus(AgentStatus):
@@ -388,8 +509,21 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
 
     def body_lines(self):
-        return [
-            "Queue Size: %s" % self.queue_size,
+        lines = [
+            "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
         ]
+        return lines
+
+    def has_error(self):
+        return self.flush_count == 0
+
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        status_info.update({
+            'flush_count': self.flush_count,
+            'queue_length': self.queue_length,
+            'queue_size': self.queue_size,
+        })
+        return status_info

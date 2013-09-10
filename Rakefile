@@ -21,12 +21,17 @@ task "test:profile" do
   sh("nosetests --with-cprofile tests/performance/benchmark*.py")
 end
 
+desc "Lint the code through pylint"
+task "lint" do
+  sh("find . -name \\*.py -type f -not -path \\*tests\\* -exec pylint --rcfile=.pylintrc --reports=n --output-format=parseable {} \\;")
+end
+
 desc "cProfile tests, then run pstats"
 task "test:profile:pstats" => ["test:profile"] do
   sh("python -m pstats stats.dat")
 end
 
-desc "Run the agent locally"
+desc "Run the Agent locally"
 task "run" do
   sh("supervisord -n -c supervisord.dev.conf")
 end

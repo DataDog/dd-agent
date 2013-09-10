@@ -49,7 +49,7 @@ source:
 	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
 
-# Layout all of the files common to both versions of the agent in
+# Layout all of the files common to both versions of the Agent in
 # the build directory.
 install_base: source
 	mkdir -p $(BUILD)
@@ -138,11 +138,7 @@ install_base_deb: install_base
 # Install the forwarder and supervisor on debian.
 install_full_deb: install_base_deb install_full
 	# Install supervisor config.
-	#   FIXME mattp: why do we need both of these?
-	mkdir -p $(BUILD)/etc/supervisor/conf.d
-	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor_ddagent.conf
-	mkdir -p $(BUILD)/etc/supervisor/conf.d/
-	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/supervisor/conf.d/ddagent.conf
+	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor.conf
 
 
 # Make the datadog agent debian package that includes supervisor, the forwarder
@@ -158,7 +154,6 @@ $(FPM_BUILD) -t deb \
 -d "sysstat" \
 -d "python-pexpect" \
 -d "python-pycurl" \
---config-files "/etc/dd-agent/supervisor_ddagent.conf" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
 --pre-uninstall  datadog-agent-deb/prerm \

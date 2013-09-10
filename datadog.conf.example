@@ -1,6 +1,6 @@
 [Main]
 
-# The host of the Datadog intake server to send agent data to
+# The host of the Datadog intake server to send Agent data to
 dd_url: https://app.datadoghq.com
 
 # If you need a proxy to connect to the Internet, provide the settings here
@@ -9,7 +9,10 @@ dd_url: https://app.datadoghq.com
 # proxy_user: user
 # proxy_password: password
 
-# The Datadog api key to associate your agent's data with your organization.
+# If you run the agent behind haproxy, you might want to set this to yes
+# skip_ssl_validation: no
+
+# The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
 api_key:
@@ -28,7 +31,7 @@ api_key:
 # Use mount points instead of volumes to track disk and fs metrics
 use_mount: no
 
-# Change port the agent is listening to
+# Change port the Agent is listening to
 # listen_port: 17123
 
 # Start a graphite listener on this port
@@ -37,8 +40,8 @@ use_mount: no
 # Additional directory to look for Datadog checks
 # additional_checksd: /etc/dd-agent/checks.d/
 
-# Allow non-local traffic to this agent
-# This is required when using this agent as a proxy for other agents
+# Allow non-local traffic to this Agent
+# This is required when using this Agent as a proxy for other Agents
 # that might not have an internet connection
 # For more information, please see
 # https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
@@ -48,7 +51,7 @@ use_mount: no
 # Pup configuration
 # ========================================================================== #
 
-# Pup is a small server that displays metric data collected by the agent.
+# Pup is a small server that displays metric data collected by the Agent.
 # Think of it as a fancy status page or a toe dip into the world of
 # datadog. It can be connected to on the port below.
 
@@ -67,7 +70,7 @@ use_mount: no
 #  Make sure your client is sending to the same port.
 # dogstatsd_port : 8125
 
-# By default dogstatsd will post aggregate metrics to the agent (which handles
+# By default dogstatsd will post aggregate metrics to the Agent (which handles
 # errors/timeouts/retries/etc). To send directly to the datadog api, set this
 # to https://app.datadoghq.com.
 # dogstatsd_target : http://localhost:17123
@@ -82,6 +85,16 @@ use_mount: no
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
+
+# -------------------------------------------------------------------------- #
+#   Disk                                                                     #
+# -------------------------------------------------------------------------- #
+
+# Some infrastrucures have many constantly changing virtual devices (e.g. folks
+# running constantly churning linux containers) whose metrics aren't
+# interesting for datadog. To filter out a particular pattern of devices
+# from collection, configure a regex here:
+# device_blacklist_re: .*\/dev\/mapper\/lxc-box.*
 
 # -------------------------------------------------------------------------- #
 #   Ganglia                                                                  #
@@ -102,6 +115,30 @@ use_mount: no
 # cassandra_port: 7199
 ## If you're using Cassandra 0.7 or lower:
 #cassandra_port: 8080
+
+
+# -------------------------------------------------------------------------- #
+#   Nagios                                                                   #
+# -------------------------------------------------------------------------- #
+
+# dd-agent imports alerts and perfdata from nagios.
+
+# Path to Nagios' event log file
+# Make sure the dd-agent user can read this file
+#nagios_log: /var/log/nagios3/nagios.log
+
+# If you use perfdata, dd-agent can import automatically and in real-time
+# performance data collected by nagios.
+# For more information on perfdata configuration, please refer to
+# http://nagios.sourceforge.net/docs/3_0/perfdata.html
+#
+# Path to Nagios' ***configuration*** file where the properties
+# host|service_perfdata_file and host|service_perfdata_file_template
+# are defined.
+# (ubuntu 10.04)
+#nagios_perf_cfg: /etc/nagios3/nagios.cfg
+# (centos 5)
+#nagios_perf_cfg: /etc/nagios/nagios.cfg
 
 # -------------------------------------------------------------------------- #
 #  Dogstream (log file parser)
@@ -127,8 +164,8 @@ use_mount: no
 # whether the given metric is a 'counter' or 'gauge'.
 #
 # Unless parsers are specified with an absolute path, the modules must exist in
-# the agent's PYTHONPATH. You can set this as an environment variable when
-# starting the agent. If the name of the custom parser function is not passed,
+# the Agent's PYTHONPATH. You can set this as an environment variable when
+# starting the Agent. If the name of the custom parser function is not passed,
 # 'parser' is assumed.
 #
 # If this value isn't specified, the default parser assumes this log format:

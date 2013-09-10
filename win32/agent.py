@@ -4,7 +4,7 @@ from config import initialize_logging; initialize_logging('collector')
 import win32serviceutil
 import win32service
 import win32event
-import servicemanager
+import win32evtlogutil
 import sys
 import logging
 import tornado.httpclient
@@ -19,12 +19,12 @@ from win32.common import handle_exe_click
 import dogstatsd
 from ddagent import Application
 from config import (get_config, set_win32_cert_path, get_system_stats,
-    load_check_directory)
+    load_check_directory, get_win32service_file)
 from win32.common import handle_exe_click
 from pup import pup
 
 class AgentSvc(win32serviceutil.ServiceFramework):
-    _svc_name_ = "ddagent"
+    _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
 
@@ -58,9 +58,11 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.running = False
 
     def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                servicemanager.PYS_SERVICE_STARTED,
-                                (self._svc_name_, ''))
+        import servicemanager
+        servicemanager.LogMsg(
+                servicemanager.EVENTLOG_INFORMATION_TYPE, 
+                servicemanager.PYS_SERVICE_STARTED,
+                (self._svc_name_, ''))
         # Start all services
         self.forwarder.start()
         self.agent.start()
@@ -144,7 +146,7 @@ class PupThread(threading.Thread):
     def __init__(self, agentConfig):
         threading.Thread.__init__(self)
         self.config = agentConfig
-        self.is_enabled = self.config['use_pup']
+        self.is_enabled = agentConfig.get('use_web_info_page', True)
         self.pup = pup
 
     def run(self):
