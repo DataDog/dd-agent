@@ -41,3 +41,5 @@ instances:
     -   host: HOST,PORT
         username: my_username
         password: my_password
+        tags:
+            - optional_tag
