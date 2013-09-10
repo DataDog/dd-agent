@@ -198,7 +198,7 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
-            if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
+            if proxy_settings is not None:
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
