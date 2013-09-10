@@ -23,6 +23,8 @@ from config import (get_config, set_win32_cert_path, get_system_stats,
 from win32.common import handle_exe_click
 from pup import pup
 
+log = logging.getLogger(__name__)
+
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
@@ -84,6 +86,7 @@ class DDAgent(threading.Thread):
         self.running = True
 
     def run(self):
+        log.debug("Windows Service - Starting collector")
         emitters = self.get_emitters()
         systemStats = get_system_stats()
         collector = Collector(self.config, emitters, systemStats)
@@ -97,6 +100,7 @@ class DDAgent(threading.Thread):
             time.sleep(self.config['check_freq'])
 
     def stop(self):
+        log.debug("Windows Service - Stopping collector")
         self.running = False
 
     def get_emitters(self):
@@ -124,9 +128,11 @@ class DDForwarder(threading.Thread):
         self.forwarder = Application(port, agentConfig, watchdog=False)
 
     def run(self):
+        log.debug("Windows Service - Starting forwarder")
         self.forwarder.run()
 
     def stop(self):
+        log.debug("Windows Service - Stopping forwarder")
         self.forwarder.stop()
 
 class DogstatsdThread(threading.Thread):
@@ -135,12 +141,15 @@ class DogstatsdThread(threading.Thread):
         self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
 
     def run(self):
+        log.debug("Windows Service - Starting Dogstatsd server")
         self.reporter.start()
         self.server.start()
 
     def stop(self):
+        log.debug("Windows Service - Stopping Dogstatsd server")
         self.server.stop()
         self.reporter.stop()
+        self.reporter.join()
 
 class PupThread(threading.Thread):
     def __init__(self, agentConfig):
@@ -151,10 +160,12 @@ class PupThread(threading.Thread):
 
     def run(self):
         if self.is_enabled:
+            log.debug("Windows Service - Starting Pup")
             self.pup.run_pup(self.config)
 
     def stop(self):
         if self.is_enabled:
+            log.debug("Windows Service - Stopping Pup")
             self.pup.stop()
 
 if __name__ == '__main__':
