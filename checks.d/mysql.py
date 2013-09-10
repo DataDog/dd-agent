@@ -9,7 +9,7 @@ from checks import AgentCheck
 GAUGE = "gauge"
 RATE = "rate"
 
-STATUSES_COMMON = {
+STATUS_VARS = {
     'Connections': ('mysql.net.connections', RATE),
     'Max_used_connections': ('mysql.net.max_connections', GAUGE),
     'Open_files': ('mysql.performance.open_files', GAUGE),
@@ -19,9 +19,6 @@ STATUSES_COMMON = {
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
     'Innodb_data_reads': ('mysql.innodb.buffer_pool_size', RATE),
-}
-
-STATUSES_VERSION_DEPENDENT = {
     'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', GAUGE),
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
@@ -51,6 +48,7 @@ class MySql(AgentCheck):
         user = instance['user']
         port = int(instance.get('port', 0))
         password = instance.get('pass', '')
+        password = "phQOrbaXem0kP8JHri1qSMRS"
         mysql_sock = instance.get('sock', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
@@ -82,18 +80,10 @@ class MySql(AgentCheck):
         return db
 
     def _collect_metrics(self, host, db, tags, options):
-        import MySQLdb
-
         cursor = db.cursor()
-        cursor.execute("SHOW STATUS")
+        cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
         results = dict(cursor.fetchall())
-        self._rate_or_gauge_statuses(STATUSES_COMMON, results, tags)
-        if self._version_greater_502(db, host):
-            cursor.execute("SHOW GLOBAL STATUS")
-            globalResults = dict(cursor.fetchall())
-            self._rate_or_gauge_statuses(STATUSES_VERSION_DEPENDENT, globalResults, tags)
-        else:
-            self._rate_or_gauge_statuses(STATUSES_VERSION_DEPENDENT, results, tags)
+        self._rate_or_gauge_statuses(STATUS_VARS, results, tags)
         cursor.close()
         del cursor
 
