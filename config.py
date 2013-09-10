@@ -790,14 +790,14 @@ def _load_local_bernard_checks(bernard_config):
 
 def _load_remote_bernard_checks(bernard_config):
     from checks.bernard_check import RemoteBernardCheck
-    import checkserve.client
+    import kima.client
     checks = []
 
     # fixme: use the same value as the agent
     host_name = 'ccabanilla-imac'
     remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule', {})
     base_url = remote_schedule_config.get('base_url', 'https://app.datadoghq.com')
-    chksrv = checkserve.client.connect(base_url)
+    chksrv = kima.client.connect(base_url)
     tags = remote_schedule_config.get('tags', [])
     checks_available = ['bernard-test-check']
     schedule = chksrv.register_agent(host_name, tags, checks_available)

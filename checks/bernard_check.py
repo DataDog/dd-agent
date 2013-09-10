@@ -285,15 +285,15 @@ class BernardCheck(object):
 
 class RemoteBernardCheck(BernardCheck):
     @classmethod
-    def from_config(cls, remote_check, checkserve):
+    def from_config(cls, remote_check, kima):
         return cls(remote_check.name, remote_check.command, remote_check,
-                   checkserve)
+                   kima)
 
-    def __init__(self, name, command, remote_check, checkserve):
+    def __init__(self, name, command, remote_check, kima):
         self.check_name = name
         self.command = command.split(' ')
         self.remote_check = remote_check
-        self.checkserve = checkserve
+        self.kima = kima
         self.result_container = []
         self.container_size = 3
         self.run_count = 0
@@ -306,7 +306,7 @@ class RemoteBernardCheck(BernardCheck):
         self.dogstatsd = Null()
 
     def post_run(self, result):
-        return self.checkserve.post_check_run(self.remote_check,
+        return self.kima.post_check_run(self.remote_check,
                 status=R.index(result.status),
                 output=result.message,
                 timestamp=result.execution_date)
