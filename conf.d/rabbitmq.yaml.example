@@ -26,4 +26,5 @@ instances:
         - rabbit2@domain
        queues:
         - queue1
-        - queue2
+        - vhost1/queue2 # you can optionally specify the vhost too
+        - vhost2/queue2
