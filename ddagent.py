@@ -196,6 +196,7 @@ class MetricTransaction(Transaction):
                 'body': self._data,
                 'headers': self._headers,
                 'validate_cert': not self._application.skip_ssl_validation,
+            }
 
             if proxy_settings['host'] is not None and proxy_settings['port'] is not None:
 
