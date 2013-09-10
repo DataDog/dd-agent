@@ -28,7 +28,7 @@ NODE_ATTRIBUTES = [
                 'sockets_used',
     ]
 
-MAX_QUEUES = 5
+MAX_QUEUE_GAUGES = 5
 MAX_NODES = 3
 
 QUEUE_LIMIT = 100
@@ -119,26 +119,33 @@ class RabbitMQ(AgentCheck):
         url = urlparse.urljoin(base_url, 'queues')
         queues = self._get_data(url)
 
-        if len(queues) > MAX_QUEUES and instance.get('queues', None) is None:
+        if len(queues) > QUEUE_LIMIT and instance.get('queues', None) is None:
             self.warning("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
 
         allowed_queues = instance.get('queues', [])
 
-        if len(allowed_queues) > MAX_QUEUES:
-            raise Exception("The maximum number of queues you can specify is %d." % MAX_QUEUES)
+        if len(allowed_queues) > MAX_QUEUE_GAUGES:
+            raise Exception("The maximum number of queues you can specify is %d." % MAX_QUEUE_GAUGES)
 
         if not allowed_queues:
-            allowed_queues = [q.get('name') for q in queues[:MAX_QUEUES]]
+            allowed_queues = [q.get('name') for q in queues[:MAX_QUEUE_GAUGES]]
+
+        remaining_hists = QUEUE_LIMIT
 
         for queue in queues:
             name, vhost = queue.get('name'), queue.get('vhost')
             absolute_name = '%s/%s' % (vhost, name)
             if absolute_name in allowed_queues:
-                self._get_metrics_for_queue(queue, is_gauge=True, send_histogram=len(queues) > MAX_QUEUES)
+                self._get_metrics_for_queue(queue, is_gauge=True)
                 allowed_queues.remove(absolute_name)
+                remaining_hists -= 1
             elif name in allowed_queues:
-                self._get_metrics_for_queue(queue, is_gauge=True, send_histogram=len(queues) > MAX_QUEUES)
+                self._get_metrics_for_queue(queue, is_gauge=True)
                 allowed_queues.remove(name)
+                remaining_hists -= 1
+            if remaining_hists > len(allowed_queues):
+                self._get_metrics_for_queue(queue)
+                remaining_hists -= 1
 
     def get_node_stats(self, instance, base_url):
         url = urlparse.urljoin(base_url, 'nodes')
