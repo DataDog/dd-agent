@@ -317,13 +317,36 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
+        # Paths to checks.d/conf.d
+        lines = [
+            'Paths',
+            '=====',
+            ''
+        ]
+
+        osname = config.get_os()
+
+        try:
+            confd_path = config.get_confd_path(osname)
+        except config.PathNotFound:
+            confd_path = 'Not found'
+        
+        try:
+            checksd_path = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            checksd_path = 'Not found'
+
+        lines.append('  conf.d: ' + confd_path)
+        lines.append('  checks.d: ' + checksd_path)
+        lines.append('')
 
         # Hostnames
-        lines = [
+        lines += [
             'Hostnames',
             '=========',
             ''
         ]
+
         if not self.metadata:
             lines.append("  No host information available yet.")
         else:
