@@ -754,10 +754,10 @@ def get_logging_config(cfg_path=None):
             'syslog_port': None,
         }
     else:
-        all_users_directory = os.environ['ALLUSERSPROFILE']
+        windows_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
         logging_config = {
             'log_level': None,
-            'ddagent_log_file': os.path.join(all_users_directory, 'Datadog\\logs\\ddagent.log'),
+            'ddagent_log_file': windows_log_location,
             'log_to_event_viewer': True,
             'log_to_syslog': False,
             'syslog_host': None,
