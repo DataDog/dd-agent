@@ -63,7 +63,6 @@ class SQLServer(AgentCheck):
         username = instance.get('username')
         password = instance.get('password')
         database = instance.get('database', 'master')
-        tags = instance.get('tags', [])
         conn_key = self._conn_key(host, username, password, database)
 
         if conn_key not in self.connections:
@@ -78,9 +77,9 @@ class SQLServer(AgentCheck):
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
-        self._fetch_metrics(cursor, tags)
+        self._fetch_metrics(cursor)
 
-    def _fetch_metrics(self, cursor, custom_tags):
+    def _fetch_metrics(self, cursor):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
         '''
         for metric in self.METRICS:
@@ -96,7 +95,7 @@ class SQLServer(AgentCheck):
             # to loop over multiple results and tag the metrics
             if instance_n == ALL_INSTANCES:
                 try:
-                    self._fetch_all_instances(metric, cursor, custom_tags)
+                    self._fetch_all_instances(metric, cursor)
                 except Exception, e:
                     self.log.exception('Unable to fetch metric: %s' % mname)
                     self.warning('Unable to fetch metric: %s' % mname)
@@ -116,9 +115,9 @@ class SQLServer(AgentCheck):
 
                 # Save the metric
                 metric_func = getattr(self, mtype)
-                metric_func(mname, value, tags=custom_tags)
+                metric_func(mname, value)
 
-    def _fetch_all_instances(self, metric, cursor, custom_tags):
+    def _fetch_all_instances(self, metric, cursor):
         mname, mtype, counter, instance_n, tag_by = metric
         cursor.execute("""
             select instance_name, cntr_value
@@ -130,6 +129,7 @@ class SQLServer(AgentCheck):
 
         for instance_name, cntr_value in rows:
             value = cntr_value
-            tags = ['%s:%s' % (tag_by, instance_name.strip())] + custom_tags
+            tags = ['%s:%s' % (tag_by, instance_name.strip())]
             metric_func = getattr(self, mtype)
             metric_func(mname, value, tags=tags)
+
