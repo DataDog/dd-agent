@@ -9,32 +9,21 @@ from checks import AgentCheck
 GAUGE = "gauge"
 RATE = "rate"
 
-QUERIES_COMMON = [
-    ('mysql.net.connections', "SHOW STATUS LIKE 'Connections'", RATE),
-    ('mysql.net.max_connections', "SHOW STATUS LIKE 'Max_used_connections'", GAUGE),
-    ('mysql.performance.open_files', "SHOW STATUS LIKE 'Open_files'", GAUGE),
-    ('mysql.performance.table_locks_waited', "SHOW STATUS LIKE 'Table_locks_waited'", GAUGE),
-    ('mysql.performance.threads_connected', "SHOW STATUS LIKE 'Threads_connected'", GAUGE),
-    ('mysql.innodb.data_reads', "SHOW STATUS LIKE 'Innodb_data_reads'", RATE),
-    ('mysql.innodb.data_writes', "SHOW STATUS LIKE 'Innodb_data_writes'", RATE),
-    ('mysql.innodb.os_log_fsyncs', "SHOW STATUS LIKE 'Innodb_os_log_fsyncs'", RATE),
-    ('mysql.innodb.buffer_pool_size', "SHOW STATUS LIKE 'Innodb_data_reads'", RATE),
-]
-
-QUERIES_GREATER_502 = [
-    ('mysql.performance.created_tmp_disk_tables', "SHOW GLOBAL STATUS LIKE 'Created_tmp_disk_tables'", GAUGE),
-    ('mysql.performance.slow_queries', "SHOW GLOBAL STATUS LIKE 'Slow_queries'", RATE),
-    ('mysql.performance.questions', "SHOW GLOBAL STATUS LIKE 'Questions'", RATE),
-    ('mysql.performance.queries', "SHOW GLOBAL STATUS LIKE 'Queries'", RATE),
-]
-
-QUERIES_OLDER_502 = [
-    ('mysql.performance.created_tmp_disk_tables', "SHOW STATUS LIKE 'Created_tmp_disk_tables'", GAUGE),
-    ('mysql.performance.slow_queries', "SHOW STATUS LIKE 'Slow_queries'", RATE),
-    ('mysql.performance.questions', "SHOW STATUS LIKE 'Questions'", RATE),
-    ('mysql.performance.queries', "SHOW STATUS LIKE 'Queries'", RATE),
-]
-
+STATUS_VARS = {
+    'Connections': ('mysql.net.connections', RATE),
+    'Max_used_connections': ('mysql.net.max_connections', GAUGE),
+    'Open_files': ('mysql.performance.open_files', GAUGE),
+    'Table_locks_waited': ('mysql.performance.table_locks_waited', GAUGE),
+    'Threads_connected': ('mysql.performance.threads_connected', GAUGE),
+    'Innodb_data_reads': ('mysql.innodb.data_reads', RATE),
+    'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
+    'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
+    'Innodb_data_reads': ('mysql.innodb.buffer_pool_size', RATE),
+    'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', GAUGE),
+    'Slow_queries': ('mysql.performance.slow_queries', RATE),
+    'Questions': ('mysql.performance.questions', RATE),
+    'Queries': ('mysql.performance.queries', RATE),
+}
 
 class MySql(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
@@ -93,25 +82,19 @@ class MySql(AgentCheck):
         return db
 
     def _collect_metrics(self, host, db, tags, options):
-        if self._version_greater_502(db, host):
-            queries = QUERIES_GREATER_502 + QUERIES_COMMON
-        else:
-            queries = QUERIES_OLDER_502 + QUERIES_COMMON
-
-        for metric_name, query, metric_type in queries:
-            value = self._collect_scalar(query, db)
-            if value is not None:
-                if metric_type == RATE:
-                    self.rate(metric_name, value, tags=tags)
-                elif metric_type == GAUGE:
-                    self.gauge(metric_name, value, tags=tags)
+        cursor = db.cursor()
+        cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
+        results = dict(cursor.fetchall())
+        self._rate_or_gauge_statuses(STATUS_VARS, results, tags)
+        cursor.close()
+        del cursor
 
         # Compute InnoDB buffer metrics
-        page_size = self._collect_scalar("SHOW STATUS LIKE 'Innodb_page_size'", db)
         # Be sure InnoDB is enabled
-        if page_size:
-            innodb_buffer_pool_pages_total = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_total'", db)
-            innodb_buffer_pool_pages_free = self._collect_scalar("SHOW STATUS LIKE 'Innodb_buffer_pool_pages_free'", db)
+        if 'Innodb_page_size' in results:
+            page_size = self._collect_scalar('Innodb_page_size', results)
+            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', results)
+            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', results)
             innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
             innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
             innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
@@ -120,12 +103,22 @@ class MySql(AgentCheck):
             self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
 
-        if 'galera_cluster' in options.keys() and options['galera_cluster']:
-            value = self._collect_scalar("SHOW STATUS LIKE 'wsrep_cluster_size'", db)
+        if 'galera_cluster' in options and options['galera_cluster']:
+            value = self._collect_scalar('wsrep_cluster_size', results)
             self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
 
-        if 'replication' in options.keys() and options['replication']:
+        if 'replication' in options and options['replication']:
             self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
+    
+    def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
+        for status, metric in statuses.iteritems():
+            metric_name, metric_type = metric
+            value = self._collect_scalar(status, dbResults)
+            if value is not None:
+                if metric_type == RATE:
+                    self.rate(metric_name, value, tags=tags)
+                elif metric_type == GAUGE:
+                    self.gauge(metric_name, value, tags=tags)
 
     def _version_greater_502(self, db, host):
         # show global status was introduced in 5.0.2
@@ -170,21 +163,13 @@ class MySql(AgentCheck):
         self.mysql_version[host] = version
         return version
 
-    def _collect_scalar(self, query, db):
-        self.log.debug("Collecting data with %s" % (query))
-        try:
-            cursor = db.cursor()
-            cursor.execute(query)
-            result = cursor.fetchone()
-            cursor.close()
-            del cursor
-            if result is None:
-                self.log.debug("%s returned None" % query)
-                return None
-            self.log.debug("Collecting done, value %s" % result[1])
-            return float(result[1])
-        except Exception:
-            self.log.exception("Error while running %s" % query)
+    def _collect_scalar(self, key, dict):
+        self.log.debug("Collecting data with %s" % key)
+        if key not in dict:
+            self.log.debug("%s returned None" % key)
+            return None
+        self.log.debug("Collecting done, value %s" % dict[key])
+        return float(dict[key])
 
     def _collect_dict(self, metric_type, field_metric_map, query, db, tags):
         """
