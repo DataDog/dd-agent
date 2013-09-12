@@ -42,7 +42,9 @@ class Nginx(AgentCheck):
         # Requests per second
         parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
         if parsed:
+            conn = int(parsed.group(1))
             requests = int(parsed.group(3))
+            self.rate("nginx.net.conn_opened_per_s", conn, tags=tags)
             self.rate("nginx.net.request_per_s", requests, tags=tags)
 
         # Connection states, reading, writing or waiting for clients
@@ -52,6 +54,7 @@ class Nginx(AgentCheck):
             self.gauge("nginx.net.reading", reading, tags=tags)
             self.gauge("nginx.net.writing", writing, tags=tags)
             self.gauge("nginx.net.waiting", waiting, tags=tags)
+            self.gauge("nginx.net.current", reading + writing + waiting, tags=tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
