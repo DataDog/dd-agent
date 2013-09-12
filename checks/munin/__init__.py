@@ -1,5 +1,7 @@
 from munin import Munin
 
+class NotImplementedException(Exception): pass
+
 class MuninPlugin(object):
 
     @staticmethod
@@ -7,7 +9,7 @@ class MuninPlugin(object):
         """ Name of the plugin this parser is associated to. The match is made
             on the begining of the plugin name, which means 'postgres' will match
             'postgres*' """
-        raise "To be implemented"
+        raise NotImplementedException()
 
     @staticmethod
     def parse_metric(check, section, device, mname, mvalue, mgraph = None):
@@ -21,7 +23,7 @@ class MuninPlugin(object):
             - mvalue: metric value (as a string)
             - mgraph: the multigraph identifier, if any
         """
-        raise "To be implemented"
+        raise NotImplementedException()
 
 
 class MuninPluginMetricIsDevice(MuninPlugin):
@@ -35,5 +37,4 @@ class MuninPluginMetricIsDevice(MuninPlugin):
         if mgraph is not None:
             mname = mname + "." + mgraph
         check.register_metric(mname)
-        #print "Saving with device:", mname, device, mvalue
         check.save_sample(mname, mvalue, device_name = device)
