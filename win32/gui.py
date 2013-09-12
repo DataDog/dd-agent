@@ -447,7 +447,7 @@ def _service_manager(action):
     except Exception, e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
-def service_manger(action, async=True):
+def service_manager(action, async=True):
     if not async:
         _service_manager(action)
     else:
