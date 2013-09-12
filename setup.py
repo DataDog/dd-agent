@@ -28,7 +28,7 @@ if sys.platform == 'win32':
     from glob import glob
     import py2exe
     install_requires.extend([
-        'tornado==2.1',
+        'tornado==3.0.1',
         'pywin32==217',
         'wmi==1.4.9',
         'simplejson==2.6.1',
@@ -59,6 +59,13 @@ if sys.platform == 'win32':
         'checks.services_checks',
         'checks.libs.httplib2',
         'checks.jmx_connector',
+
+        # pup
+        'pup',
+        'pup.pup',
+        'tornado.websocket',
+        'tornado.web',
+        'tornado.ioloop',
     ]
 
     class Target(object):
@@ -89,7 +96,7 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', glob('pup/status.html')),
+            ('pup', glob('pup/pup.html')),
             ('pup/static', glob('pup/static/*.*')),
         ],
     }

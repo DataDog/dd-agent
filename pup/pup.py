@@ -241,7 +241,6 @@ class PupSocket(websocket.WebSocketHandler):
     def on_close(self):
         del listeners[self]
 
-
 def tornado_logger(handler):
     """ Override the tornado logging method.
     If everything goes well, log level is DEBUG.
@@ -255,7 +254,6 @@ def tornado_logger(handler):
     request_time = 1000.0 * handler.request.request_time()
     log_method("%d %s %.2fms", handler.get_status(),
                handler._request_summary(), request_time)
-
 
 application = tornado.web.Application([
     (r"/", MainHandler),
@@ -286,26 +284,8 @@ def run_pup(config):
     scheduler.start()
     io_loop.start()
 
-def run_info_page():
-    global port
-
-    config = get_config(parse_args=False)
-
-    info_page_application = tornado.web.Application([
-        (r"/", StatusHandler),
-        (r"/status", StatusHandler),
-        (r"/(.*\..*$)", tornado.web.StaticFileHandler,
-             dict(path=settings['static_path'])),
-    ], log_function=tornado_logger)
-
-    port = config.get('pup_port', 17125)
-    interface = config.get('pup_interface', 'localhost')
-
-    info_page_application.listen(port, address=interface)
-
-    io_loop = ioloop.IOLoop.current().start()
-
-def stop_info_page():
+def stop():
+    """ Only used by the Windows service """
     ioloop.IOLoop.current().stop()
 
 def main():
