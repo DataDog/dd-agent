@@ -436,7 +436,7 @@ def check_yaml_syntax(content):
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
     
-def service_manager(action):
+def _service_manager(action):
     try:
         if action == 'stop':
             win32serviceutil.StopService(DATADOG_SERVICE)
@@ -446,6 +446,13 @@ def service_manager(action):
             win32serviceutil.RestartService(DATADOG_SERVICE)
     except Exception, e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
+
+def service_manger(action, async=True):
+    if not async:
+        _service_manager(action)
+    else:
+        service_manager_thread = GenericThread(_service_manager, action)
+        service_manager_thread.start()
 
 def get_service_status():
     try:
@@ -473,6 +480,20 @@ def warning_popup(message, parent=None):
 
 def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
+
+class GenericThread(QtCore.QThread):
+    def __init__(self, function, *args, **kwargs):
+        QtCore.QThread.__init__(self)
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        self.function(*self.args,**self.kwargs)
+        return
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
