@@ -535,17 +535,10 @@ def get_confd_path(osname):
 
 
 def get_checksd_path(osname):
-    try:
-        if osname == 'windows':
-            return _windows_checksd_path()
-        else:
-            return _unix_checksd_path()
-    except PathNotFound, e:
-        if len(e.args) > 0:
-            err_msg = "No checks.d folder found in '%s'.\n" % e.args[0]
-        else:
-            err_msg = "No checks.d folder found.\n"
-        raise PathNotFound(err_msg)
+    if osname == 'windows':
+        return _windows_checksd_path()
+    else:
+        return _unix_checksd_path()
 
 
 def get_ssl_certificate(osname, filename):
@@ -591,13 +584,13 @@ def load_check_directory(agentConfig):
         checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
     except PathNotFound, e:
         log.error(e.args[0])
-        sys.exit(1)
+        sys.exit(3)
         
     try:
         confd_path = get_confd_path(osname)
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
-        sys.exit(1)
+        sys.exit(3)
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
