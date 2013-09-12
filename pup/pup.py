@@ -140,10 +140,10 @@ def is_number(n):
     except:
         return False
 
-def is_histogram(s):
-    split = s['metric'].rsplit('.')
+def is_histogram(metric_name):
+    split = metric_name.rsplit('.')
     if len(split) > 1:
-        if split[-1] not in HISTOGRAM_IGNORE:
+        if split[-1] in HISTOGRAM_IGNORE:
             return True
     return False
 
@@ -157,37 +157,48 @@ def send_metrics():
     else: flush(metrics)
     metrics.clear()
 
+def process_metric(metric_name, tags, points):
+    split_metric_name = metric_name.split(".")
+    if is_histogram(metric_name):
+        # split everything
+        namespace = split_metric_name[0]
+        if namespace in AGENT_IGNORE:
+            return
+        metric_name = ".".join(split_metric_name[0:-1])
+        stack_name = split_metric_name[-1]
+        metrics[metric_name]['points'].append({ "stackName" : stack_name, "values" : points })
+        metrics[metric_name]['type'] = "histogram"
+        metrics[metric_name]['tags'] = tags
+        metrics[metric_name]['freq'] = 15
+    else:
+        metrics[metric_name] = {"points" : points, "type" : "gauge", "tags" : tags, "freq" : 20}
+        log.info("{0} : {1}".format(metric_name, metrics[metric_name]))
+
+
 def update(series):
     """ Updates statsd metrics from POST to /api/v1/series """
     for s in series:
+        process_metric(s['metric'], s['tags'], s['points'])
         tags = s['tags']
-        split_metric_name = s['metric'].split(".")
-        if is_histogram(s):
-            # split everything
-            namespace = split_metric_name[0]
-            if namespace in AGENT_IGNORE:
-                continue
-            metric_name = ".".join(split_metric_name[0:-1])
-            stack_name = split_metric_name[-1]
-            values = s['points']
-            metrics[metric_name]['points'].append({ "stackName" : stack_name, "values" : values })
-            metrics[metric_name]['type'] = "histogram"
-            metrics[metric_name]['tags'] = tags
-            metrics[metric_name]['freq'] = 15
-        else:
-            if split_metric_name[-1] in HISTOGRAM_IGNORE:
-                continue
-            metric_name = s['metric']
-            points = s['points']
-            metrics[metric_name] = {"points" : points, "type" : "line", "tags" : tags, "freq" : 15}
+
+def update_agent_metrics(metrics):
+    for m in metrics:
+        # m = ["system.net.bytes_sent", 1378995258, 8.552631578947368, { "hostname":"my-hostname, "device_name":"ham0"}]
+        process_metric(m[0], m[3], [[m[1], m[2]]])
 
 def agent_update(payload):
     """ Updates system metrics from POST to /intake """
     for p in payload:
         timestamp = payload['collection_timestamp']
-        if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic']:
+        if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic', 'metrics']:
             metric = AGENT_TRANSLATION.get(p, p)
             metrics[metric] = {"points" : [[timestamp, float(payload[p])]], "type" : "gauge", "freq" : 20}
+            log.info("{0} : {1}".format(metric, metrics[metric]))
+        elif p == 'metrics':
+            update_agent_metrics(payload[p])
+
+
+
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -216,8 +227,7 @@ class PostHandler(tornado.web.RequestHandler):
         try:
             body = json.loads(self.request.body)
             series = body['series']
-        except:
-            #log.exception("Error parsing the POST request body")
+        except Exception:
             return
         update(series)
 
@@ -225,8 +235,7 @@ class AgentPostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
             payload = json.loads(zlib.decompress(self.request.body))
-        except:
-            #log.exception("Error parsing the agent's POST request body")
+        except Exception:
             return
         agent_update(payload)
 

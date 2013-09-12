@@ -153,7 +153,7 @@ class MetricTransaction(Transaction):
             if is_dd_user:
                 log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append('dd_url')
-        except:
+        except Exception:
             log.info("Not a Datadog user")
 
     def __init__(self, data, headers):
