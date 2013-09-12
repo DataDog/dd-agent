@@ -18,7 +18,7 @@ from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
                               QSystemTrayIcon, QIcon, QMenu)
-from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
+from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer, QThread
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
@@ -481,7 +481,7 @@ def warning_popup(message, parent=None):
 def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
-class GenericThread(QtCore.QThread):
+class GenericThread(QThread):
     def __init__(self, function, *args, **kwargs):
         QtCore.QThread.__init__(self)
         self.function = function
