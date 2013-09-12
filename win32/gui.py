@@ -28,7 +28,7 @@ from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 # Datadog
 from util import yaml, yLoader
 from util import get_os
-from config import get_confd_path, get_config_path, get_config
+from config import get_confd_path, get_config_path, get_config, _windows_commondata_path
 
 EXCLUDED_WINDOWS_CHECKS = [
     'activemq', 'cacti', 'cassandra', 'directory', 'gearmand',
@@ -41,7 +41,7 @@ MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 DATADOG_SERVICE = "DatadogAgent"
 
 STATUS_PAGE_URL = "http://localhost:17125/status"
-AGENT_LOG_FILE = osp.join(os.environ['ALLUSERSPROFILE'], r'Datadog\logs\ddagent.log')
+AGENT_LOG_FILE = osp.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
 
 HUMAN_SERVICE_STATUS = {
     win32service.SERVICE_RUNNING : 'Service is running',
