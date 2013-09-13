@@ -8,9 +8,10 @@ import subprocess
 import ConfigParser
 import inspect
 import imp
+import logging
 from datetime import datetime, timedelta
 from cStringIO import StringIO
-from checks import Check
+from checks import AgentCheck
 
 def usage():
     print sys.argv[0], "[munin-run path]", "[plugin directory]"
@@ -34,10 +35,10 @@ def run_plugins(prunner, ppath):
         if os.access(path, os.X_OK):
             run_plugin(script, os.path.basename(os.path.realpath(path)), prunner)
 
-class Munin(Check):
+class Munin(AgentCheck):
 
-    def __init__(self, logger):
-        Check.__init__(self, logger)
+    def __init__(self):
+        AgentCheck.__init__(self, None, None, {})
         self._current_plugin = None
         self._current_device = None
         self._current_parser = None
@@ -47,7 +48,7 @@ class Munin(Check):
         # Init parsers
         self._parsers = {}
         d = os.path.dirname(os.path.abspath(__file__))
-        self.logger.info("Looking for plugins in: %s" % d)
+        logging.info("Looking for plugins in: %s" % d)
         for m in os.listdir(d):
             m = os.path.join(d,m)
             name, ext = os.path.splitext(os.path.split(m)[-1])
@@ -58,9 +59,9 @@ class Munin(Check):
                     if hasattr(module, pclass):
                         inst = getattr(module,pclass)() 
                         self._parsers[inst.get_name()] = inst.parse_metric
-                        self.logger.info("Registered plugin for %s" % inst.get_name())
+                        logging.info("Registered plugin for %s" % inst.get_name())
                 except:
-                    self.logger.exception("Failed loading plugin from %s" % m)
+                    logging.exception("Failed loading plugin from %s" % m)
 
     def register_metric(self,mname):
         if not self.is_counter(mname):
@@ -88,7 +89,7 @@ class Munin(Check):
             self._current_parser(self, self._current_plugin, self._current_device,
                                 metric, float(value), mgraph = self._current_mgraph)
         except Exception, e:
-            self.logger.exception(e)
+            logging.exception(e)
             return
 
     def end_plugin(self):
@@ -118,7 +119,7 @@ class Munin(Check):
         """Parse a line sent by munin.py while running plugins:
             a line with brackets denotes a section (the plugin name)
             It is followed by 0 or more line of metrics"""
-        #print line
+        logging.debug(line)
         if len(line) > 0:
             if line[0] == '[' and line[-1] == ']':
                 section, script_real_name = line[1:-1].split(' ')
@@ -132,12 +133,12 @@ class Munin(Check):
         """Run a subprocess for at max timeout seconds, calling
         'callback' for each line read from stdout"""
 
-        self.logger.info("Munin: Running: %s" % cmd)
+        logging.info("Munin: Running: %s" % cmd)
 
         # Run the process. Add the current datadog root as PYTHONPATH for imports
         # to work. This is the first entry of the current sys.path
         p = subprocess.Popen(cmd, stdout = subprocess.PIPE, 
-            env={'PYTHONPATH': os.path.abspath(os.environ.get("PYTHONPATH",sys.path[0]))})
+            env={'PYTHONPATH': os.path.abspath(os.environ.get("PYTHONPATH", sys.path[0]))})
 
         fcntl.fcntl(p.stdout.fileno(),
                 fcntl.F_SETFL,
@@ -164,19 +165,19 @@ class Munin(Check):
             if p.poll() is not None:
                 break
             if (datetime.now() - started) > to:
-                self.logger.info("Running for too long, stop")
+                logging.info("Running for too long, stop")
                 p.terminate()
                 break
 
         # Don't forget to flush the last plugin
         self.end_plugin()
-        self.logger.info("Munin: done")
+        logging.info("Munin: done")
 
     def check(self, config):
         """As usual, called by the agent"""
         prun = config.get("munin_runner", "/usr/sbin/munin-run")
         ppdir = config.get("munin_plugin_path", "/etc/munin/plugins")
-        timeout = config.get("munin_timeout",60)
+        timeout = config.get("munin_timeout", 60)
 
         #Check that prun exists
         if not os.path.exists(prun):
@@ -186,21 +187,19 @@ class Munin(Check):
         if os.access(prun, os.X_OK):
             try:
                 self.run_with_timeout(["/usr/bin/sudo", self._myself, prun, ppdir], timeout, self.process_metric_line)
-                return self.get_metrics()
-            except:
-                self.logger.exception("Cannot get munin stats")
+            except Exception:
+                logging.exception("Cannot get munin stats")
                 return False
         else:
-            self.logger.warn("Munin runner is not executable. Please check agent configuration")
+            logging.warn("Munin runner is not executable. Please check agent configuration")
             return False
 
 if __name__ == "__main__":
     
     if len(sys.argv) == 3:
-        run_plugins(sys.argv[1],sys.argv[2])
+        run_plugins(sys.argv[1], sys.argv[2])
     else:
-        import logging
         config = { "apikey": "toto" }
-        munin = Munin(logging)
+        munin = Munin()
         print munin.check(config) 
         print munin.check(config) 
