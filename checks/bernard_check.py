@@ -297,11 +297,12 @@ class RemoteBernardCheck(BernardCheck):
         self.result_container = []
         self.container_size = 3
         self.run_count = 0
+        # FIXME: get from yaml
         self.config = {
             'timeout': 10,
             'notify_startup': False,
             'attempts': 1,
-            'frequency': 60
+            'frequency': 2
         }
         self.dogstatsd = Null()
 

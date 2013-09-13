@@ -799,7 +799,8 @@ def _load_remote_bernard_checks(bernard_config):
     base_url = remote_schedule_config.get('base_url', 'https://app.datadoghq.com')
     chksrv = kima.client.connect(base_url)
     tags = remote_schedule_config.get('tags', [])
-    checks_available = ['bernard-test-check']
+    # FIXME: check the checks that you can check
+    checks_available = ['random-fails']
     schedule = chksrv.register_agent(host_name, tags, checks_available)
     for check in schedule.checks:
         checks.append(RemoteBernardCheck.from_config(check, chksrv))
