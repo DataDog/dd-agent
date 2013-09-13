@@ -9,6 +9,7 @@ import sys
 import os
 import os.path as osp
 import webbrowser
+from multiprocessing import Process # To manage the windows process asynchronously
 
 import win32serviceutil
 import win32service
@@ -18,7 +19,7 @@ from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
                               QSystemTrayIcon, QIcon, QMenu)
-from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer, QThread
+from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
@@ -451,8 +452,8 @@ def service_manager(action, async=True):
     if not async:
         _service_manager(action)
     else:
-        service_manager_thread = GenericThread(_service_manager, action)
-        service_manager_thread.start()
+        p = Process(target=_service_manager, args=(action,))
+        p.start()
 
 def get_service_status():
     try:
@@ -481,19 +482,6 @@ def warning_popup(message, parent=None):
 def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)
 
-class GenericThread(QThread):
-    def __init__(self, function, *args, **kwargs):
-        QThread.__init__(self)
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-
-    def __del__(self):
-        self.wait()
-
-    def run(self):
-        self.function(*self.args,**self.kwargs)
-        return
 
 if __name__ == '__main__':
     from guidata.qt.QtGui import QApplication
