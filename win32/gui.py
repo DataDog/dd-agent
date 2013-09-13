@@ -9,7 +9,7 @@ import sys
 import os
 import os.path as osp
 import webbrowser
-from multiprocessing import Process # To manage the windows process asynchronously
+import thread # To manage the windows process asynchronously
 
 import win32serviceutil
 import win32service
@@ -452,8 +452,7 @@ def service_manager(action, async=True):
     if not async:
         _service_manager(action)
     else:
-        p = Process(target=_service_manager, args=(action,))
-        p.start()
+        thread.start_new_thread(_service_manager, (action,))
 
 def get_service_status():
     try:
