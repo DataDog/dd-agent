@@ -480,6 +480,18 @@ class CollectorStatus(AgentStatus):
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
 
+        osname = config.get_os()
+
+        try:
+            status_info['confd_path'] = config.get_confd_path(osname)
+        except config.PathNotFound:
+            status_info['confd_path'] = 'Not found'
+        
+        try:
+            status_info['checksd_path'] = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            status_info['checksd_path'] = 'Not found'
+
         return status_info
 
 
