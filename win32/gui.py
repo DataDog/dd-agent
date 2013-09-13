@@ -483,7 +483,7 @@ def info_popup(message, parent=None):
 
 class GenericThread(QThread):
     def __init__(self, function, *args, **kwargs):
-        QtCore.QThread.__init__(self)
+        QThread.__init__(self)
         self.function = function
         self.args = args
         self.kwargs = kwargs
