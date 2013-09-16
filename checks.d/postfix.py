@@ -63,11 +63,3 @@ class PostfixCheck(AgentCheck):
             # for example:
             #     sum:postfix.queue.size{role:mta} by {queue}
 
-
-## STILL TO DO
-##
-## create a unit test to generate a mess of 1 byte files in various postfix queues
-## then run this check and compare specific queue totals. if the totals dont match
-## we report test failure and bail
-##
-
