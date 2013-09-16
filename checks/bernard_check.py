@@ -306,9 +306,31 @@ class RemoteBernardCheck(BernardCheck):
         }
         self.dogstatsd = Null()
 
+    def run(self):
+        execution_date = time.time()
+        state = None
+        try:
+            message, state = self._execute_check()
+            if message is None:
+                status = S.TIMEOUT
+                message = 'Check %s timed out after %ds' % (self, self.config['timeout'])
+            else:
+                status = S.OK
+        except OSError:
+            status = S.EXCEPTION
+            message = u'Failed to execute the check: %s' % self
+            log.warn(message, exc_info=True)
+
+        execution_time = time.time() - execution_date
+        self._commit_result(status, state, message, execution_date, execution_time)
+
+        self.run_count += 1
+
     def post_run(self, result):
         return self.kima.post_check_run(self.remote_check,
-                status=R.index(result.status),
+                # Impedence mismatch: bernard calls states what the server
+                # knows as statuses. Should reconcile.
+                status=result.state,
                 output=result.message,
                 timestamp=result.execution_date)
 
