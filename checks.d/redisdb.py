@@ -174,7 +174,7 @@ class Redis(AgentCheck):
 
             instances.append({
                 'host': host,
-                'port': port,
+                'port': int(port),
                 'password': password
             })
 

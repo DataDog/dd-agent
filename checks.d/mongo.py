@@ -11,6 +11,8 @@ from util import get_hostname
 # http://www.mongodb.org/display/DOCS/connections6
 mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
 
+DEFAULT_TIMEOUT = 10
+
 class MongoDb(AgentCheck):
 
     GAUGES = [
@@ -130,7 +132,7 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % instance['server'])
             do_auth = False
 
-        conn = Connection(instance['server'])
+        conn = Connection(instance['server'], network_timeout=DEFAULT_TIMEOUT)
         db = conn['admin']
         if do_auth:
             if not db.authenticate(username, password):

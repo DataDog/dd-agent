@@ -202,6 +202,7 @@ class EC2(object):
     """
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
+    metadata = {}
 
     @staticmethod
     def get_metadata():
@@ -214,7 +215,6 @@ class EC2(object):
         # 'ami-id\nami-launch-index\nami-manifest-path\nhostname\ninstance-id\nlocal-ipv4\npublic-keys/\nreservation-id\nsecurity-groups'
         # >>> urllib2.urlopen('http://169.254.169.254/latest/meta-data/instance-id', timeout=1).read()
         # 'i-deadbeef'
-        metadata = {}
 
         # Every call may add TIMEOUT seconds in latency so don't abuse this call
         # python 2.4 does not support an explicit timeout argument so force it here
@@ -230,7 +230,7 @@ class EC2(object):
             try:
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
-                metadata[k] = v
+                EC2.metadata[k] = v
             except:
                 pass
 
@@ -241,7 +241,7 @@ class EC2(object):
         except:
             pass
 
-        return metadata
+        return EC2.metadata
 
     @staticmethod
     def get_instance_id():
@@ -419,51 +419,3 @@ class Timer(object):
 
     def total(self, as_sec=True):
         return self._now() - self.start
-
-
-class AgentSupervisor(object):
-    ''' A simple supervisor to keep a restart a child on expected auto-restarts
-    '''
-    RESTART_EXIT_STATUS = 5
-
-    @classmethod
-    def start(cls, parent_func, child_func=None):
-        ''' `parent_func` is a function that's called every time the child
-            process dies.
-            `child_func` is a function that should be run by the forked child
-            that will auto-restart with the RESTART_EXIT_STATUS.
-        '''
-        cls.running = True
-        exit_code = cls.RESTART_EXIT_STATUS
-
-        # Allow the child process to die on SIGTERM
-        signal.signal(signal.SIGTERM, cls._handle_sigterm)
-
-        while cls.running and exit_code == cls.RESTART_EXIT_STATUS:
-            try:
-                pid = os.fork()
-                if pid > 0:
-                    # The parent waits on the child.
-                    cls.child_pid = pid
-                    wait_pid, status = os.waitpid(pid, 0)
-                    exit_code = status >> 8
-                    parent_func()
-                else:
-                    # The child will call our given function
-                    if child_func:
-                        child_func()
-                    else:
-                        break
-            except OSError, e:
-                msg = "Agent fork failed: %d (%s)" % (e.errno, e.strerror)
-                logging.error(msg)
-                sys.stderr.write(msg + "\n")
-                sys.exit(1)
-
-        # Exit from the parent cleanly
-        if pid > 0:
-            sys.exit(0)
-
-    @classmethod
-    def _handle_sigterm(cls, signum, frame):
-        os.kill(cls.child_pid, signal.SIGTERM)
