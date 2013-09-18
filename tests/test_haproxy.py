@@ -61,22 +61,6 @@ class HaproxyTestCase(unittest.TestCase):
         except:
             logging.getLogger().exception("Cannot instantiate haproxy")
 
-<<<<<<< HEAD
-
-    def tearDown(self):
-        if self.process is not None:
-            self.process.terminate()
-        del self.cfg
-
-    def testCheckEvents(self):
-        self.real_setup(HAPROXY_CFG)
-        agentConfig = {
-            'haproxy_url': 'http://localhost:3834/stats', 
-            'haproxy_user': 'datadog', 
-            'haproxy_password':'isdevops',
-            'version': '0.1',
-            'api_key': 'apikey_2'
-=======
     def testCheck(self):
         config = {
             'init_config': {},
@@ -86,7 +70,6 @@ class HaproxyTestCase(unittest.TestCase):
                 'password': 'isdevops',
                 'status_check': True
             }]
->>>>>>> checks.d
         }
         self.start_server(HAPROXY_CFG, config)
 
