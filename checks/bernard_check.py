@@ -327,12 +327,15 @@ class RemoteBernardCheck(BernardCheck):
         self.run_count += 1
 
     def post_run(self, result):
+        # fixme: use the same value as the agent
+        host_name = 'ccabanilla-imac'
         return self.kima.post_check_run(self.remote_check,
                 # Impedence mismatch: bernard calls states what the server
                 # knows as statuses. Should reconcile.
                 status=result.state,
                 output=result.message,
-                timestamp=result.execution_date)
+                timestamp=result.execution_date,
+                host_name=host_name)
 
 class Null(object):
     def __init__(self):
