@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.9.0"
+tag="3.10.0"
 
 #######################
 # Define some helpers #
@@ -210,7 +210,7 @@ printf "Operating System: $unamestr\n" >> $logfile
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
 $dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.9.1/virtualenv.py >> $logfile 2>&1
-python $dd_base/virtualenv.py --system-site-packages $dd_base/venv >> $logfile 2>&1
+python $dd_base/virtualenv.py $dd_base/venv >> $logfile 2>&1
 . $dd_base/venv/bin/activate >> $logfile 2>&1
 print_done
 

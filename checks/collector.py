@@ -11,7 +11,7 @@ import socket
 import modules
 
 from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
-from config import get_version
+from config import get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
@@ -380,6 +380,7 @@ class Collector(object):
 
         # Periodically send the host metadata.
         if self._is_first_run() or self._should_send_metadata():
+            payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file

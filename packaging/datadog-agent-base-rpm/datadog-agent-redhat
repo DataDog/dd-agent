@@ -153,6 +153,7 @@ stop() {
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
         rm -f $LOCKFILE
         rm -f $PIDFILE
+        sleep 5
     fi
     return 0
 }
