@@ -511,7 +511,6 @@ def get_proxy(agentConfig, use_system_settings=False):
 
 
 def get_confd_path(osname):
-
     bad_path = ''
     if osname == 'windows':
         try:
@@ -532,22 +531,14 @@ def get_confd_path(osname):
     if os.path.exists(cur_path):
         return cur_path
 
-    log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % bad_path)
-    sys.exit(3)
+    raise PathNotFound(bad_path)
 
 
 def get_checksd_path(osname):
-    try:
-        if osname == 'windows':
-            return _windows_checksd_path()
-        else:
-            return _unix_checksd_path()
-    except PathNotFound, e:
-        if len(e.args) > 0:
-            log.error("No checks.d folder found in '%s'.\n" % e.args[0])
-        else:
-            log.error("No checks.d folder found.\n")
-    sys.exit(3)
+    if osname == 'windows':
+        return _windows_checksd_path()
+    else:
+        return _unix_checksd_path()
 
 
 def get_ssl_certificate(osname, filename):
@@ -586,9 +577,20 @@ def load_check_directory(agentConfig):
     init_failed_checks = {}
 
     osname = get_os()
-    checks_paths = (glob.glob(os.path.join(path, '*.py')) for path
-                    in [agentConfig['additional_checksd'], get_checksd_path(osname)])
-    confd_path = get_confd_path(osname)
+    checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
+
+    try:
+        checksd_path = get_checksd_path(osname)
+        checks_paths.append(glob.glob(os.path.join(checksd_path, '*.py')))
+    except PathNotFound, e:
+        log.error(e.args[0])
+        sys.exit(3)
+        
+    try:
+        confd_path = get_confd_path(osname)
+    except PathNotFound, e:
+        log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
+        sys.exit(3)
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
