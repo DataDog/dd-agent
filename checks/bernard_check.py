@@ -286,11 +286,10 @@ class BernardCheck(object):
 class RemoteBernardCheck(BernardCheck):
     @classmethod
     def from_config(cls, remote_check, kima):
-        return cls(remote_check.name, remote_check.command, remote_check,
-                   kima)
+        return cls(remote_check.command, remote_check, kima)
 
-    def __init__(self, name, command, remote_check, kima):
-        self.check_name = name
+    def __init__(self, command, remote_check, kima):
+        self.check_name = command
         self.command = command.split(' ')
         self.remote_check = remote_check
         self.kima = kima

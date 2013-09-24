@@ -800,7 +800,7 @@ def _load_remote_bernard_checks(bernard_config):
     chksrv = kima.client.connect(base_url)
     tags = remote_schedule_config.get('tags', [])
     # FIXME: check the checks that you can check
-    checks_available = ['random-fails']
+    checks_available = ['random-fail']
     schedule = chksrv.register_agent(host_name, tags, checks_available)
     for check in schedule.checks:
         checks.append(RemoteBernardCheck.from_config(check, chksrv))
