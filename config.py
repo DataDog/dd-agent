@@ -796,8 +796,9 @@ def _load_remote_bernard_checks(bernard_config):
     # fixme: use the same value as the agent
     host_name = 'ccabanilla-imac'
     remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule', {})
-    base_url = remote_schedule_config.get('base_url', 'https://app.datadoghq.com')
-    chksrv = kima.client.connect(base_url)
+    api_key = remote_schedule_config.get('api_key')
+    base_url = remote_schedule_config.get('base_url', None)
+    chksrv = kima.client.connect(api_key, base_url)
     tags = remote_schedule_config.get('tags', [])
     # FIXME: check the checks that you can check
     checks_available = ['random-fail']
