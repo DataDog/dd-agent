@@ -172,7 +172,6 @@ def process_metric(metric_name, tags, points):
         metrics[metric_name]['freq'] = 15
     else:
         metrics[metric_name] = {"points" : points, "type" : "gauge", "tags" : tags, "freq" : 20}
-        log.info("{0} : {1}".format(metric_name, metrics[metric_name]))
 
 
 def update(series):
@@ -193,7 +192,6 @@ def agent_update(payload):
         if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic', 'metrics']:
             metric = AGENT_TRANSLATION.get(p, p)
             metrics[metric] = {"points" : [[timestamp, float(payload[p])]], "type" : "gauge", "freq" : 20}
-            log.info("{0} : {1}".format(metric, metrics[metric]))
         elif p == 'metrics':
             update_agent_metrics(payload[p])
 
