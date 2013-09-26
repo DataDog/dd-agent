@@ -286,14 +286,14 @@ def run_pup(config):
         application.listen(port, address=interface)
 
     interval_ms = 2000
-    io_loop = get_tornado_ioloop()
+    io_loop = get_tornado_ioloop(ioloop, tornado.version_info)
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
 
 def stop():
     """ Only used by the Windows service """
-    get_tornado_ioloop().stop()
+    get_tornado_ioloop(ioloop, tornado.version_info).stop()
 
 def main():
     """ Parses arguments and starts Pup server """
