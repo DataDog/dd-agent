@@ -15,6 +15,8 @@ try:
 except ImportError:
     from md5 import md5
 
+from tornado import ioloop, version_info as tornado_version
+
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
 def generate_minjson_adapter():
@@ -55,6 +57,11 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+def get_tornado_ioloop():
+    if tornado_version[0] == 3:
+        return ioloop.IOLoop.current()
+    else:
+        return ioloop.IOLoop.instance()
 
 def get_uuid():
     # Generate a unique name that will stay constant between

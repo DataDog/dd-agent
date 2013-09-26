@@ -37,7 +37,7 @@ from tornado import websocket
 
 # project
 from config import get_config, get_version
-from util import json
+from util import json, get_tornado_ioloop
 
 log = logging.getLogger('pup')
 
@@ -286,14 +286,14 @@ def run_pup(config):
         application.listen(port, address=interface)
 
     interval_ms = 2000
-    io_loop = ioloop.IOLoop.current()
+    io_loop = get_tornado_ioloop()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
 
 def stop():
     """ Only used by the Windows service """
-    ioloop.IOLoop.current().stop()
+    get_tornado_ioloop().stop()
 
 def main():
     """ Parses arguments and starts Pup server """

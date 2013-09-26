@@ -36,7 +36,7 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, get_uuid, get_hostname, json
+from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
 from emitter import http_emitter, format_body
 from config import get_config
 from checks.check_status import ForwarderStatus
@@ -394,7 +394,7 @@ class Application(tornado.web.Application):
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = tornado.ioloop.IOLoop.current()
+        self.mloop = get_tornado_ioloop()
 
         logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
