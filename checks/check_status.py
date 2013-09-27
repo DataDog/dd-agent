@@ -458,7 +458,8 @@ class CollectorStatus(AgentStatus):
 
         # Checks.d Status
         status_info['checks'] = {}
-        for cs in self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
             for s in cs.instance_statuses:
                 status_info['checks'][cs.name]['instances'][s.instance_id] = {
