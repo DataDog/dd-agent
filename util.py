@@ -314,7 +314,7 @@ class PidFile(object):
 
     def get_default_pid_dir(self):
         if get_os() != 'windows':
-            return PID_DIR
+            return PidFile.PID_DIR
 
         return tempfile.gettempdir()
 
