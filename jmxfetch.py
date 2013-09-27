@@ -149,14 +149,14 @@ class JMXFetch(object):
 		    subprocess_args = [
 		            path_to_java, # Path to the java bin
 		            '-jar', 
-		            '"%s"' % path_to_jmxfetch, # Path to the jmxfetch jar
-		            '"%s"' % confd_path, # Path of the conf.d directory that will be read by jmxfetch
+		            r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
+		            r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch
 		            str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
 		            str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
-		            '"%s"' % logging_config.get('jmxfetch_log_file'), # Path of the log file
+		            r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
 		            JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
 		            ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-		            '"%s"' % path_to_status_file,
+		            r"%s" % path_to_status_file,
 		        ]
 
 		    log.info("Running %s" % " ".join(subprocess_args))
