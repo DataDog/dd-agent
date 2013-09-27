@@ -111,13 +111,37 @@ class JMXFetch(object):
 			pid = JMXFetch.pid_file.get_pid()
 			if pid is None:
 				return False
-
-			os.kill(pid, 0) 
-			# os.kill(pid, 0) will throw an exception if pid is not running 
-			# and won't do anything otherwise
-			return True
 		except Exception:
 			return False
+
+		if get_os() != 'windows':
+			import ctypes # Available from python2.5
+			try:
+				os.kill(pid, 0)
+				# os.kill(pid, 0) will throw an exception if pid is not running 
+				# and won't do anything otherwise
+				# It doesn't work on windows as signal.CTRL_C_EVENT is 0, it would quit the process
+				return True
+			except Exception, e:
+				if "Errno 3" not in str(e):
+					log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+				return False
+
+		# Else we are on windows, we need another way to check if it's running
+		try:
+		    kernel32 = ctypes.windll.kernel32
+		    SYNCHRONIZE = 0x100000
+
+		    process = kernel32.OpenProcess(SYNCHRONIZE, 0, pid)
+		    if process != 0:
+		        kernel32.CloseHandle(process)
+		        return True
+		    else:
+		        return False
+
+        except Exception, e:
+        	log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+        	return False
 
 	@classmethod
 	def stop(cls):
@@ -160,8 +184,8 @@ class JMXFetch(object):
 		        ]
 
 		    log.info("Running %s" % " ".join(subprocess_args))
-		    jmxfetch = subprocess.Popen(subprocess_args, close_fds=True)
-		    jmx_connector_pid = jmxfetch.pid
+		    cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
+		    jmx_connector_pid = cls.subprocess.pid
 		    log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
 		except OSError, e:
 		    jmx_connector_pid = None
