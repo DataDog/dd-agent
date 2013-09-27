@@ -140,8 +140,8 @@ class JMXFetch(object):
 		        return False
 
 		except Exception, e:
-        	log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
-        	return False
+			log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+			return False
 
 	@classmethod
 	def stop(cls):
