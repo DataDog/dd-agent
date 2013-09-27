@@ -187,11 +187,11 @@ class Disk(Check):
             if device.FreeSpace is not None and device.Size is not None:
                 free = float(device.FreeSpace) / B2KB
                 total = float(device.Size) / B2KB
+                used = total - free
                 self.save_sample('system.disk.free', free, device_name=name)
                 self.save_sample('system.disk.total', total, device_name=name)
-                self.save_sample('system.disk.used', total - free,
-                    device_name=name)
-                self.save_sample('system.disk.in_use', (free / total),
+                self.save_sample('system.disk.used', used, device_name=name)
+                self.save_sample('system.disk.in_use', (used / total),
                     device_name=name)
         return self.get_metrics()
 

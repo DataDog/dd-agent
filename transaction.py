@@ -181,8 +181,8 @@ class TransactionManager(object):
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.instance().running():
-                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                if  tornado.ioloop.IOLoop.current()._running:
+                    tornado.ioloop.IOLoop.current().add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING                    

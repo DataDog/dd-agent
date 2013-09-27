@@ -321,13 +321,36 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
+        # Paths to checks.d/conf.d
+        lines = [
+            'Paths',
+            '=====',
+            ''
+        ]
+
+        osname = config.get_os()
+
+        try:
+            confd_path = config.get_confd_path(osname)
+        except config.PathNotFound:
+            confd_path = 'Not found'
+        
+        try:
+            checksd_path = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            checksd_path = 'Not found'
+
+        lines.append('  conf.d: ' + confd_path)
+        lines.append('  checks.d: ' + checksd_path)
+        lines.append('')
 
         # Hostnames
-        lines = [
+        lines += [
             'Hostnames',
             '=========',
             ''
         ]
+
         if not self.metadata:
             lines.append("  No host information available yet.")
         else:
@@ -461,6 +484,18 @@ class CollectorStatus(AgentStatus):
             if es.has_error():
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
+
+        osname = config.get_os()
+
+        try:
+            status_info['confd_path'] = config.get_confd_path(osname)
+        except config.PathNotFound:
+            status_info['confd_path'] = 'Not found'
+        
+        try:
+            status_info['checksd_path'] = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            status_info['checksd_path'] = 'Not found'
 
         return status_info
 

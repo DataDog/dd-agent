@@ -9,6 +9,9 @@ dd_url: https://app.datadoghq.com
 # proxy_user: user
 # proxy_password: password
 
+# If you run the agent behind haproxy, you might want to set this to yes
+# skip_ssl_validation: no
+
 # The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings

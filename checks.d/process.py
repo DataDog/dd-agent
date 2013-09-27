@@ -79,7 +79,7 @@ class ProcessCheck(AgentCheck):
         try:
             import psutil
         except ImportError:
-            raise Exception('You need the "ps" package to run this check')
+            raise Exception('You need the "psutil" package to run this check')
 
         name = instance.get('name', None)
         exact_match = instance.get('exact_match', True)

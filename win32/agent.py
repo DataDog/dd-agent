@@ -4,7 +4,7 @@ from config import initialize_logging; initialize_logging('collector')
 import win32serviceutil
 import win32service
 import win32event
-import servicemanager
+import win32evtlogutil
 import sys
 import logging
 import tornado.httpclient
@@ -19,12 +19,14 @@ from win32.common import handle_exe_click
 import dogstatsd
 from ddagent import Application
 from config import (get_config, set_win32_cert_path, get_system_stats,
-    load_check_directory)
+    load_check_directory, get_win32service_file)
 from win32.common import handle_exe_click
 from pup import pup
 
+log = logging.getLogger(__name__)
+
 class AgentSvc(win32serviceutil.ServiceFramework):
-    _svc_name_ = "ddagent"
+    _svc_name_ = "DatadogAgent"
     _svc_display_name_ = "Datadog Agent"
     _svc_description_ = "Sends metrics to Datadog"
 
@@ -51,16 +53,19 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.hWaitStop)
 
         # Stop all services
+        self.running = False
         self.forwarder.stop()
         self.agent.stop()
         self.dogstatsd.stop()
         self.pup.stop()
-        self.running = False
+        
 
     def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                                servicemanager.PYS_SERVICE_STARTED,
-                                (self._svc_name_, ''))
+        import servicemanager
+        servicemanager.LogMsg(
+                servicemanager.EVENTLOG_INFORMATION_TYPE, 
+                servicemanager.PYS_SERVICE_STARTED,
+                (self._svc_name_, ''))
         # Start all services
         self.forwarder.start()
         self.agent.start()
@@ -82,6 +87,7 @@ class DDAgent(threading.Thread):
         self.running = True
 
     def run(self):
+        log.debug("Windows Service - Starting collector")
         emitters = self.get_emitters()
         systemStats = get_system_stats()
         collector = Collector(self.config, emitters, systemStats)
@@ -95,6 +101,7 @@ class DDAgent(threading.Thread):
             time.sleep(self.config['check_freq'])
 
     def stop(self):
+        log.debug("Windows Service - Stopping collector")
         self.running = False
 
     def get_emitters(self):
@@ -122,37 +129,45 @@ class DDForwarder(threading.Thread):
         self.forwarder = Application(port, agentConfig, watchdog=False)
 
     def run(self):
+        log.debug("Windows Service - Starting forwarder")
         self.forwarder.run()
 
     def stop(self):
+        log.debug("Windows Service - Stopping forwarder")
         self.forwarder.stop()
 
 class DogstatsdThread(threading.Thread):
     def __init__(self, agentConfig):
         threading.Thread.__init__(self)
-        self.reporter, self.server = dogstatsd.init(use_forwarder=True)
+        self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
 
     def run(self):
+        log.debug("Windows Service - Starting Dogstatsd server")
         self.reporter.start()
         self.server.start()
 
     def stop(self):
+        log.debug("Windows Service - Stopping Dogstatsd server")
         self.server.stop()
         self.reporter.stop()
+        self.reporter.join()
 
 class PupThread(threading.Thread):
     def __init__(self, agentConfig):
         threading.Thread.__init__(self)
+        self.config = agentConfig
         self.is_enabled = agentConfig.get('use_web_info_page', True)
         self.pup = pup
 
     def run(self):
         if self.is_enabled:
-            self.pup.run_info_page()
+            log.debug("Windows Service - Starting Pup")
+            self.pup.run_pup(self.config)
 
     def stop(self):
         if self.is_enabled:
-            self.pup.stop_info_page()
+            log.debug("Windows Service - Stopping Pup")
+            self.pup.stop()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
