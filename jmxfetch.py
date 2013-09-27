@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 # datadog
-from util import PidFile, yaml, yLoader
+from util import PidFile, yaml, yLoader, get_os
 
 log = logging.getLogger(__name__)
 
@@ -130,13 +130,20 @@ class JMXFetch(object):
 			log.error("Couldn't kill jmxfetch pid %s" % pid)
 
 	@classmethod
+	def get_path_to_jmxfetch(cls):
+		if get_os() != 'windows':
+			return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
+
+		return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
+
+	@classmethod
 	def start(cls, confd_path, agentConfig, logging_config, path_to_java, default_check_frequency):
 		statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
 		log.info("Starting jmxfetch:")
 		try:
 		    path_to_java = path_to_java or "java"
-		    path_to_jmxfetch = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
+		    path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
 		    path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
 		    
 		    subprocess_args = [
