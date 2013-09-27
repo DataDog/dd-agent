@@ -160,7 +160,7 @@ class JMXFetch(object):
 		        ]
 
 		    log.info("Running %s" % " ".join(subprocess_args))
-		    jmxfetch = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE)
+		    jmxfetch = subprocess.Popen(subprocess_args, close_fds=True)
 		    jmx_connector_pid = jmxfetch.pid
 		    log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
 		except OSError, e:
