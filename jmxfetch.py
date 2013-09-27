@@ -115,7 +115,6 @@ class JMXFetch(object):
 			return False
 
 		if get_os() != 'windows':
-			import ctypes # Available from python2.5
 			try:
 				os.kill(pid, 0)
 				# os.kill(pid, 0) will throw an exception if pid is not running 
@@ -129,6 +128,7 @@ class JMXFetch(object):
 
 		# Else we are on windows, we need another way to check if it's running
 		try:
+			import ctypes # Available from python2.5
 		    kernel32 = ctypes.windll.kernel32
 		    SYNCHRONIZE = 0x100000
 
