@@ -129,15 +129,15 @@ class JMXFetch(object):
 		# Else we are on windows, we need another way to check if it's running
 		try:
 			import ctypes # Available from python2.5
-		    kernel32 = ctypes.windll.kernel32
-		    SYNCHRONIZE = 0x100000
+			kernel32 = ctypes.windll.kernel32
+			SYNCHRONIZE = 0x100000
 
-		    process = kernel32.OpenProcess(SYNCHRONIZE, 0, pid)
-		    if process != 0:
-		        kernel32.CloseHandle(process)
-		        return True
-		    else:
-		        return False
+			process = kernel32.OpenProcess(SYNCHRONIZE, 0, pid)
+			if process != 0:
+				kernel32.CloseHandle(process)
+				return True
+			else:
+			    return False
 
 		except Exception, e:
 			log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
