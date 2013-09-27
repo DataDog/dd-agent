@@ -25,6 +25,9 @@ cp ..\..\..\conf.d\* install_files\conf.d
 # Copy the pup files into the install_files
 cp -R ..\..\..\dist\pup install_files\files\pup
 
+# Copy JMX Fetch into the install_files
+cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
+
 # Move the images needed for the gui
 cp -R install_files\guidata install_files\files
 
