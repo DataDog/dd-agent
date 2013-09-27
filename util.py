@@ -9,6 +9,7 @@ import time
 import types
 import urllib2
 import uuid
+import tempfile
 
 try:
     from hashlib import md5
@@ -306,11 +307,16 @@ class PidFile(object):
     PID_DIR = '/var/run/dd-agent'
 
 
-    def __init__(self, program, pid_dir=PID_DIR):
+    def __init__(self, program, pid_dir=None):
         self.pid_file = "%s.pid" % program
-        self.pid_dir = pid_dir
+        self.pid_dir = pid_dir or self.get_default_pid_dir()
         self.pid_path = os.path.join(self.pid_dir, self.pid_file)
 
+    def get_default_pid_dir(self):
+        if get_os() != 'windows':
+            return PID_DIR
+
+        return tempfile.gettempdir()
 
     def get_path(self):
         # Can we write to the directory
@@ -319,11 +325,11 @@ class PidFile(object):
                 log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
         except Exception:
-            log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+            log.warn("Cannot locate pid file, trying to use: %s" % tempfile.gettempdir())
 
         # if all else fails
-        if os.access("/tmp", os.W_OK):
-            tmp_path = os.path.join('/tmp', self.pid_file)
+        if os.access(tempfile.gettempdir(), os.W_OK):
+            tmp_path = os.path.join(tempfile.gettempdir(), self.pid_file)
             log.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
