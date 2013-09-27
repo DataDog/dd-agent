@@ -58,7 +58,6 @@ if sys.platform == 'win32':
         # agent
         'checks.services_checks',
         'checks.libs.httplib2',
-        'checks.jmx_connector',
 
         # pup
         'pup',
@@ -98,6 +97,7 @@ if sys.platform == 'win32':
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
             ('pup', glob('pup/pup.html')),
             ('pup/static', glob('pup/static/*.*')),
+            ('jmxfetch', glob('checks/libs/jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar')),
         ],
     }
 
