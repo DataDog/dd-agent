@@ -4,9 +4,9 @@ import threading
 from aggregator import MetricsAggregator
 from dogstatsd import Dogstatsd, init, Server
 from util import PidFile
-from config import start_jmx_connector
 import os
-import signal   
+from config import get_logging_config
+from jmxfetch import JMXFetch
 
 STATSD_PORT = 8126
 class DummyReporter(threading.Thread):
@@ -42,15 +42,13 @@ class JMXTestCase(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
-        self.jmxfetch_pid = start_jmx_connector(confd_path, {}, statsd_port=STATSD_PORT)
-
+        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15)
 
 
     def tearDown(self):
         self.server.stop()
         self.reporter.finished = True
-        os.kill(self.jmxfetch_pid, signal.SIGKILL)
-
+        JMXFetch.stop()
 
     def testTomcatMetrics(self):
         count = 0
