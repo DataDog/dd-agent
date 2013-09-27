@@ -22,6 +22,7 @@ from config import (get_config, set_win32_cert_path, get_system_stats,
     load_check_directory, get_win32service_file)
 from win32.common import handle_exe_click
 from pup import pup
+from jmxfetch import JMXFetch
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ class DDAgent(threading.Thread):
         log.debug("Windows Service - Starting collector")
         emitters = self.get_emitters()
         systemStats = get_system_stats()
-        collector = Collector(self.config, emitters, systemStats)
+        self.collector = Collector(self.config, emitters, systemStats)
 
         # Load the checks.d checks
         checksd = load_check_directory(self.config)
@@ -102,6 +103,9 @@ class DDAgent(threading.Thread):
 
     def stop(self):
         log.debug("Windows Service - Stopping collector")
+        self.collector.stop()
+        if JMXFetch.is_running():
+            JMXFetch.stop()
         self.running = False
 
     def get_emitters(self):
