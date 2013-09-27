@@ -123,7 +123,7 @@ class JMXFetch(object):
 	def stop(cls):
 		try:
 			log.info("Killing JMX Fetch")
-			os.kill(JMXFetch.pid_file.get_pid(), signal.SIGKILL)
+			os.kill(JMXFetch.pid_file.get_pid(), signal.SIGTERM)
 			JMXFetch.pid_file.clean()
 			log.info("Success")
 		except Exception:
