@@ -98,7 +98,7 @@ class DDAgent(threading.Thread):
 
         # Main agent loop will run until interrupted
         while self.running:
-            collector.run(checksd=checksd)
+            self.collector.run(checksd=checksd)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
