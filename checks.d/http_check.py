@@ -52,8 +52,13 @@ class HTTPCheck(ServicesCheck):
             raise
 
         if response_time:
-            tags.append('url:%s' % addr)
-            self.gauge('network.http.response_time', time.time() - start, tags=tags)
+           # Stop the timer as early as possible
+           running_time = time.time() - start
+           # Store tags in a temporary list so that we don't modify the global tags data structure
+           tags_list = []
+           tags_list.extend(tags)
+           tags_list.append('url:%s' % addr)
+           self.gauge('network.http.response_time', running_time, tags=tags_list)
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
