@@ -4,7 +4,15 @@ import random
 
 from util import namedtuple
 
+# local schedule imports
+from checks.bernard_check import BernardCheck
+from dogstatsd_client import DogStatsd
+from util import get_hostname
+
+# remote schedule imports
 from checks.bernard_check import S, R
+from checks.bernard_check import RemoteBernardCheck
+import kima.client
 
 log = logging.getLogger('bernard')
 
@@ -13,6 +21,16 @@ TransitionAction = namedtuple('ResultState',
     ['no_event', 'ok_event', 'warning_event', 'fail_event'])
 T = TransitionAction(0, 1, 2, 3)
 
+def init_scheduler(bernard_config):
+    ''' Decides which Scheduler to initialize based on the config
+    '''
+    remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule')
+
+    if remote_schedule_config is None:
+        return Scheduler.from_config(bernard_config)
+    else:
+        return RemoteScheduler.from_config(bernard_config)
+
 class Scheduler(object):
     """
     Schedule Bernard checks execution.
@@ -20,6 +38,48 @@ class Scheduler(object):
 
     # Ratio of jitter to introduce in the scheduling
     JITTER_FACTOR = 0.1
+
+    @classmethod
+    def from_config(cls, bernard_config):
+        schedule_config = bernard_config.get('core', {}).get('schedule', {})
+        agent_config = get_config()
+
+        hostname = get_hostname(agent_config)
+        bernard_checks = []
+
+        DEFAULT_TIMEOUT = 5
+        DEFAULT_FREQUENCY = 60
+        DEFAULT_ATTEMPTS = 3
+
+        default_check_parameter = {
+            'hostname': hostname,
+            'timeout': int(schedule_config.get('timeout', DEFAULT_TIMEOUT)),
+            'frequency': int(schedule_config.get('period', DEFAULT_FREQUENCY)),
+            'attempts': int(schedule_config.get('period', DEFAULT_ATTEMPTS)),
+            'notification': bernard_config.get('core', {}).get('notification', None),
+            'notify_startup': bernard_config.get('core', {}).get('notify_startup', "none"),
+        }
+
+        statsd_config = bernard_config.get('core', {}).get('dogstatsd', {})
+        statsd_host = statsd_config.get('host', 'localhost')
+        statsd_port = statsd_config.get('port', 8125)
+        dogstatsd = DogStatsd(host=statsd_host, port=statsd_port)
+
+        try:
+            check_configs = bernard_config.get('checks') or []
+            for check_config in check_configs:
+                try:
+                    bernard_checks.extend(BernardCheck.from_config(check_config,
+                                           dogstatsd, default_check_parameter))
+                except Exception, e:
+                    log.exception(e)
+
+        except AttributeError:
+            log.info("Error while parsing Bernard configuration file. Be sure the structure is valid.")
+            return []
+
+        return cls(checks=bernard_checks, config=bernard_config,
+                simulated_time=False)
 
     def __init__(self, checks, config, simulated_time=False):
         """Initialize scheduler"""
@@ -232,6 +292,30 @@ class Notifier(object):
         log.info('Event "%s" sent' % title)
 
 class RemoteScheduler(Scheduler):
+    @classmethod
+    def from_config(cls, bernard_config):
+        checks = []
+
+        # fixme: use the same value as the agent
+        host_name = 'ccabanilla-imac'
+        remote_schedule_config = bernard_config.get('core', {}).get('remote_schedule', {})
+        api_key = remote_schedule_config.get('api_key')
+        base_url = remote_schedule_config.get('base_url', None)
+        chksrv = kima.client.connect(api_key, base_url)
+        tags = remote_schedule_config.get('tags', [])
+        schedule = chksrv.register_agent(host_name, tags)
+        for monitor in schedule.monitors:
+            checks.append(RemoteBernardCheck.from_config(monitor, chksrv))
+
+        return cls(checks=checks, config=bernard_config,
+                   simulated_time=False, remote_schedule=schedule)
+
+    def __init__(self, checks, config, simulated_time=False,
+                 last_schedule_update=None, remote_schedule=None):
+        Scheduler.__init__(self, checks, config, simulated_time)
+        self.last_schedule_update = last_schedule_update or time.time()
+        self.remote_schedule = remote_schedule
+
     def process(self):
         """ Execute the next scheduled check """
         check = self._pop_check()
@@ -249,6 +333,77 @@ class RemoteScheduler(Scheduler):
         log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
         assert len(self.checks) == len(self.schedule)
+
+        # Update the check schedule, if needed
+        now = time.time()
+        schedule_age = now - self.last_schedule_update
+        if schedule_age > self.remote_schedule.max_age:
+            kima = self.checks[0].kima
+            new_schedule = kima.refresh_agent_schedule(
+                                                self.remote_schedule)
+
+            prev_ids = set()
+            prev_lookup = {}
+            for remote_check in self.checks:
+                monitor_id = remote_check.get_monitor_id()
+                prev_ids.add(monitor_id)
+                prev_lookup[monitor_id] = remote_check
+
+            new_checks = []
+            current_ids = set()
+            current_lookup = {}
+            updated_ids = set()
+            for monitor in new_schedule.monitors:
+                remote_check = RemoteBernardCheck.from_config(monitor, kima)
+                new_checks.append(remote_check)
+                monitor_id = remote_check.get_monitor_id()
+                current_ids.add(monitor_id)
+                current_lookup[monitor_id] = remote_check
+                prev_version = prev_lookup.get(monitor_id)
+                if prev_version is not None and prev_version != remote_check:
+                    updated_ids.add(monitor_id)
+
+            new_ids = current_ids - prev_ids
+            removed_ids = prev_ids - current_ids
+
+            # Build a new schedule that is the set of:
+            # (current monitors) - (previously scheduled monitors),
+            # making sure to preserve their order in the schedule.
+            new_schedule = []
+            new_position = 0
+            seen = set()
+            for ts, check in self.schedule:
+                monitor_id = check.get_monitor_id()
+                if monitor_id in current_ids:
+                    updated_monitor = current_lookup.get(monitor_id)
+                    new_schedule.append((ts, updated_monitor))
+                    seen.add(monitor_id)
+            self.schedule = new_schedule
+
+            # Schedule the new monitors
+            for monitor_id in current_ids - seen:
+                monitor = current_lookup.get(monitor_id)
+                self._reschedule_at(monitor,
+                    self._reschedule_timestamp(monitor,
+                        self._reschedule_waiting(monitor)))
+
+            changes = [(u'Updated: %s', updated_ids, current_lookup),
+                       (u'New: %s',     new_ids,     current_lookup),
+                       (u'Removed: %s', removed_ids, prev_lookup)]
+
+            msg = []
+            for label, ids, lookup in changes:
+                if len(ids) > 0:
+                    names = [lookup[id].check_name for id in ids]
+                    names.sort()
+                    msg.append(label % u', '.join(names))
+
+            if len(msg) > 0:
+                log.info(u'Updated checks. %s' % '; '.join(msg))
+            else:
+                log.debug('Schedule is unchanged')
+            self.checks = new_checks
+            self.last_schedule_update = now
 
     def _send_check_runs(self, check):
         while len(check.result_container) > 0:

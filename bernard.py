@@ -21,10 +21,10 @@ if int(sys.version_info[1]) <= 3:
 
 # Custom modules
 from checks.check_status import BernardStatus
-from config import get_config, get_parsed_args, load_bernard_checks, get_bernard_config
+from config import get_config, get_parsed_args, get_bernard_config
 from daemon import Daemon, AgentSupervisor
 from util import PidFile, StaticWatchdog
-from scheduler import Scheduler, RemoteScheduler
+from scheduler import init_scheduler
 
 # Constants
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
@@ -61,8 +61,6 @@ class Bernard(Daemon):
     def run(self):
         """Main loop of Bernard"""
 
-        simulated_time = False
-
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
@@ -74,29 +72,15 @@ class Bernard(Daemon):
 
         # load Bernard config and checks
         bernard_config = get_bernard_config()
-        bernard_checks = load_bernard_checks(bernard_config)
-
-        # Exit Bernard if there is no check
-        if not bernard_checks:
-            log.info("No checks found, exiting.")
-            time.sleep(3)
-            sys.exit(0)
+        self.scheduler = init_scheduler(bernard_config)
 
         # Save the agent start-up stats.
-        BernardStatus(checks=bernard_checks).persist()
+        BernardStatus(checks=self.scheduler.checks).persist()
         self.last_info_update = time.time()
 
         # Initialize the auto-restarter
         self.restart_interval = int(RESTART_INTERVAL)
         self.agent_start = time.time()
-
-        # Initialize the Scheduler
-        if bernard_config.get('core', {}).get('remote_schedule'):
-            SchedulerClass = RemoteScheduler
-        else:
-            SchedulerClass = Scheduler
-        self.scheduler = SchedulerClass(checks=bernard_checks, config=bernard_config,
-            simulated_time=simulated_time)
 
         # Run the main loop.
         while self.run_forever:

@@ -289,7 +289,6 @@ class RemoteBernardCheck(BernardCheck):
         return cls(remote_check.command, remote_check, kima)
 
     def __init__(self, command, remote_check, kima):
-        self.check_name = command
         self.command = command.split(' ')
         self.remote_check = remote_check
         self.kima = kima
@@ -304,6 +303,26 @@ class RemoteBernardCheck(BernardCheck):
             'frequency': 2
         }
         self.dogstatsd = Null()
+
+    def __eq__(self, other):
+        return self.remote_check == other.remote_check
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def get_monitor_id(self):
+        return self.remote_check.id
+
+    def empty(self):
+        return len(self.result_container) == 0
+
+    @property
+    def check_name(self):
+        # This is a property to conform to the interface of the base class
+        return self.remote_check.name
+
+    def get_monitor_id(self):
+        return self.remote_check.id
 
     def run(self):
         execution_date = time.time()
@@ -328,7 +347,7 @@ class RemoteBernardCheck(BernardCheck):
     def post_run(self, result):
         # fixme: use the same value as the agent
         host_name = 'ccabanilla-imac'
-        return self.kima.post_check_run(self.remote_check,
+        return self.kima.post_monitor_run(self.remote_check,
                 # Impedence mismatch: bernard calls states what the server
                 # knows as statuses. Should reconcile.
                 status=result.state,
