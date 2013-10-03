@@ -21,12 +21,9 @@ QUEUE_ATTRIBUTES = [
     ]
 
 NODE_ATTRIBUTES = [
-                'fd_total',
                 'fd_used',
-                'mem_limit',
                 'mem_used',
                 'run_queue',
-                'sockets_total',
                 'sockets_used',
     ]
 
@@ -87,6 +84,10 @@ class RabbitMQ(AgentCheck):
             NODE_TYPE: instance.get('nodes', []),
         }
 
+        for object_type, specified_objects in specified.iteritems():
+            if type(specified_objects) != list:
+                raise TypeError("%s parameter must be a list" % object_type)
+
         # setup urllib2 for Basic Auth
         auth_handler = urllib2.HTTPBasicAuthHandler()
         auth_handler.add_password(realm='RabbitMQ Management', uri=base_url, user=username, passwd=password)
@@ -101,7 +102,6 @@ class RabbitMQ(AgentCheck):
         self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE])
         self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE])
 
-
     def _get_data(self, url):
         try:
             data = json.loads(urllib2.urlopen(url).read())
@@ -112,73 +112,74 @@ class RabbitMQ(AgentCheck):
         return data
 
 
-    def get_stats(self, instance, base_url, object_type, max_detailed, specified):
+    def get_stats(self, instance, base_url, object_type, max_detailed, specified_list):
+        """
+        instance: the check instance
+        base_url: the url of the rabbitmq management api (e.g. http://localhost:15672/api)
+        object_type: either QUEUE_TYPE or NODE_TYPE
+        max_detailed: the limit of objects to collect for this type
+        specified_list: a list of specified queues or nodes (specified in the yaml file)
+        """
+
         data = self._get_data(urlparse.urljoin(base_url, object_type))
+        specified_items = list(specified_list) # Make a copy of this list as we will remove items from it at each iteration
 
-        if len(data) > ALERT_THRESHOLD * max_detailed and not specified:
-            self.alert(base_url, max_detailed, len(data), object_type)
-
-        if len(data) > max_detailed and not specified:
-            self.warning("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support")
-
-        if len(specified) > max_detailed:
+        """ data is a list of nodes or queues:
+        data = [
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue1', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
+            {'status': 'running', 'node': 'rabbit@host, 'name': 'queue10', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue11', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
+            ...
+        ]
+        """
+        if len(specified_items) > max_detailed:
             raise Exception("The maximum number of %s you can specify is %d." % (object_type, max_detailed))
 
-        limit_reached = False
-        detailed = 0
-        for data_line in data:
-            name = data_line.get("name")
-            absolute_name = name
+        if specified_items is not None and len(specified_items) > 0: # a list of queues/nodes is specified. We process only those
+            if object_type == NODE_TYPE:
+                for data_line in data:
+                    name = data_line.get("name")
+                    if name in specified_items:
+                        self._get_metrics(data_line, object_type)
+                        specified_items.remove(name)
 
-            if object_type == QUEUE_TYPE:
-                absolute_name = '%s/%s' % (data_line.get("vhost"), name)
+            else: # object_type == QUEUE_TYPE
+                for data_line in data:
+                    name = data_line.get("name")
+                    absolute_name = '%s/%s' % (data_line.get("vhost"), name)
+                    if name in specified_items:
+                        self._get_metrics(data_line, object_type)
+                        specified_items.remove(name)
+                    elif absolute_name in specified_items:
+                        self._get_metrics(data_line, object_type)
+                        specified_items.remove(absolute_name)
 
-            if len(data) < max_detailed: 
-                # The number of queues or nodes is below the limit. 
-                # We can collect detailed metrics for those
-                self._get_metrics(data_line, object_type, detailed=True)
-                detailed += 1
+        else: # No queues/node are specified. We will process every queue/node if it's under the limit
+            if len(data) > ALERT_THRESHOLD * max_detailed:
+                # Post a message on the dogweb stream to warn
+                self.alert(base_url, max_detailed, len(data), object_type)
 
-            elif name in specified:
-                # This queue/node is specified in the config
-                # We can collect detailed metrics for those
-                self._get_metrics(data_line, object_type, detailed=True)
-                detailed += 1
-                specified.remove(name)
+            if len(data) > max_detailed:
+                # Display a warning in the info page
+                self.warning("Too many queues to fetch. You must choose the %s you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support" % object_type)
 
-            elif absolute_name in specified:
-                # This queue/node is specified in the config
-                # We can collect detailed metrics for those
-                self._get_metrics(data_line, object_type, detailed=True)
-                detailed += 1
-                specified.remove(absolute_name)
+            for data_line in data[:max_detailed]:
+                # We truncate the list of nodes/queues if it's above the limit
+                self._get_metrics(data_line, object_type)
 
-            elif not limit_reached and not specified:
-                # No queues/nodes are specified in the config but we haven't reached the limit yet
-                # We can collect detailed metrics for those
-                self._get_metrics(data_line, object_type, detailed=True)
-                detailed += 1
 
-            limit_reached = detailed >= max_detailed
-
-            if limit_reached or len(data) > max_detailed and not specified:
-                self._get_metrics(data_line, object_type, detailed=False)
-
-    def _get_metrics(self, data, object_type, detailed):
-        if detailed:
-            tags = []
-            tag_list = TAGS_MAP[object_type]
-            for t in tag_list.keys():
-                tag = data.get(t, None)
-                if tag is not None:
-                    tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
+    def _get_metrics(self, data, object_type):
+        tags = []
+        tag_list = TAGS_MAP[object_type]
+        for t in tag_list.keys():
+            tag = data.get(t, None)
+            if tag is not None:
+                tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
         for attribute in ATTRIBUTES[object_type]:
             value = data.get(attribute, None)
             if value is not None:
-                self.histogram('rabbitmq.%s.%s.hist' % (METRIC_SUFFIX[object_type], attribute), int(value))
-                if detailed:
-                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), int(value), tags=tags)
+                self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), float(value), tags=tags)
 
     def alert(self, base_url, max_detailed, size, object_type):
         key = "%s%s" % (base_url, object_type)
