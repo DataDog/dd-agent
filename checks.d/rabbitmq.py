@@ -183,7 +183,7 @@ class RabbitMQ(AgentCheck):
     def alert(self, base_url, max_detailed, size, object_type):
         key = "%s%s" % (base_url, object_type)
         if key in self.already_alerted:
-            # We already posted an event
+            # We have already posted an event
             return
 
         self.already_alerted.append(key)
@@ -202,7 +202,7 @@ class RabbitMQ(AgentCheck):
                 "source_type_name": SOURCE_TYPE_NAME,
                 "host": self.hostname,
                 "tags": ["base_url:%s" % base_url, "host:%s" % self.hostname],
-                "event_object": key,
+                "event_object": "rabbitmq.limit.%s" % object_type,
             }
 
         self.event(event)
