@@ -145,72 +145,18 @@ class HAProxy(AgentCheck):
             hostname = data['svname']
             service_name = data['pxname']
 
-            if hostname == Services.FRONTEND:
-                hostname = my_hostname
-
             if service == Services.BACKEND:
-                tags.append('frontend:%s' % my_hostname)
-            tags.append('host:%s' % hostname)
+                tags.append('backend:%s' % hostname)
             tags.append("service:%s" % service_name)
-
-            hp = hostname.split(':')
-            # If there are multiple instances running on different ports, we
-            # want all of the data across the entire host to be aggregated
-            if len(hp) > 1:
-                data_to_aggregate = hosts_to_aggregate.get(hp[0], [])
-                data_to_aggregate.append(data)
-                hosts_to_aggregate[hp[0]] = data_to_aggregate
-                continue
 
             for key, value in data.items():
                 if HAProxy.METRICS.get(key):
                     suffix = HAProxy.METRICS[key][1]
                     name = "haproxy.%s.%s" % (service.lower(), suffix)
                     if HAProxy.METRICS[key][0] == 'rate':
-                        self.rate(name, value, tags=tags, hostname=hostname)
+                        self.rate(name, value, tags=tags)
                     else:
-                        self.gauge(name, value, tags=tags, hostname=hostname)
-
-        if hosts_to_aggregate:
-            self._aggregate_hosts(hosts_to_aggregate, service, my_hostname)
-
-
-    def _aggregate_hosts(self, hosts_to_aggregate, service, my_hostname):
-        ''' If there are many instances of a service running on different ports
-        of a same host, we don't want to create as many metrics as the number of
-        instances So we aggregate these metrics into one host
-
-        hosts_to_aggregate = [
-            'i-4562165': [
-                {'svname':'i-4562165:9001', 'pxname':'dogweb', 'scur':'42', ...},
-                {'svname':'i-4562165:9002', 'pxname':'dogweb', 'scur':'1337', ...},
-                ...
-            ],
-            'i-3920324': [
-                {'svname':'i-3920324:5001', 'pxname':'dogweb', 'scur':'42', ...},
-                {'svname':'i-3920324:5002', 'pxname':'dogweb', 'scur':'1337', ...},
-                ...
-            ],
-            ...
-        ]
-        '''
-        aggr_list = []
-        for hostname, data_list in hosts_to_aggregate.items():
-            aggr_data = {}
-            if len(data_list) == 1:
-                aggr_data = data_list[0]
-            else:
-                # Aggregate each key across all of the service instances
-                for key in data_list[0]:
-                    if HAProxy.METRICS.get(key):
-                        aggr_data[key] = sum([inst.get(key, 0) for inst in data_list])
-
-            aggr_data['svname'] = hostname
-            aggr_data['pxname'] = data_list[0]['pxname']
-
-            aggr_list.append(aggr_data)
-
-        self._process_metrics(aggr_list, service, my_hostname)
+                        self.gauge(name, value, tags=tags)
 
     def _process_events(self, data_list, url):
         ''' Main event processing loop. Events will be created for a service
