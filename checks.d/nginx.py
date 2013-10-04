@@ -54,7 +54,6 @@ class Nginx(AgentCheck):
             self.gauge("nginx.net.reading", reading, tags=tags)
             self.gauge("nginx.net.writing", writing, tags=tags)
             self.gauge("nginx.net.waiting", waiting, tags=tags)
-            self.gauge("nginx.net.current", reading + writing + waiting, tags=tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
