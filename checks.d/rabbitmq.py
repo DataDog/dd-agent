@@ -28,7 +28,7 @@ NODE_ATTRIBUTES = [
                 'sockets_used',
     ]
 
-MAX_QUEUES = 5
+MAX_QUEUE_GAUGES = 5
 MAX_NODES = 3
 
 QUEUE_LIMIT = 100
@@ -93,7 +93,7 @@ class RabbitMQ(AgentCheck):
                     self.histogram('rabbitmq.queue.%s.hist' % attribute, int(value))
                 if is_gauge:
                     self.gauge('rabbitmq.queue.%s' % attribute, int(value), tags=tags)
-                    
+
 
     def _get_metrics_for_node(self, node, is_gauge=False, send_histogram=True):
         if is_gauge:
@@ -111,42 +111,41 @@ class RabbitMQ(AgentCheck):
 
 
     def get_queue_stats(self, instance, base_url):
+        '''
+        collects stats for queues listed in rabbitmq.yaml (or first bunch returned from apis)
+        queue name has following format vhost_name/queue_name where vhost_name (and following slash)
+        is optional
+        '''
         url = urlparse.urljoin(base_url, 'queues')
         queues = self._get_data(url)
 
-        if len(queues) > 100 and not instance.get('queues', None):
+        if len(queues) > QUEUE_LIMIT and instance.get('queues', None) is None:
             self.warning("Too many queues to fetch. You must choose the queues you are interested in by editing the rabbitmq.yaml configuration file")
 
         allowed_queues = instance.get('queues', [])
-        if len(allowed_queues) > MAX_QUEUES:
-            raise Exception("The maximum number of queues you can specify is %d." % MAX_QUEUES)
+
+        if len(allowed_queues) > MAX_QUEUE_GAUGES:
+            raise Exception("The maximum number of queues you can specify is %d." % MAX_QUEUE_GAUGES)
 
         if not allowed_queues:
-            allowed_queues = [q.get('name') for q in queues[:MAX_QUEUES]]
-            # If no queues are specified in the config, we only get metrics for the 5 first ones.
-            # Others will be aggregated
+            allowed_queues = [q.get('name') for q in queues[:MAX_QUEUE_GAUGES]]
 
-        i = 0
-        queue_Limit_reached = False
+        remaining_hists = QUEUE_LIMIT
+
         for queue in queues:
-            name = queue.get('name')
-            if name in allowed_queues:
-                self._get_metrics_for_queue(queue, is_gauge=True, send_histogram=len(queues) > MAX_QUEUES)
+            name, vhost = queue.get('name'), queue.get('vhost')
+            absolute_name = '%s/%s' % (vhost, name)
+            if absolute_name in allowed_queues:
+                self._get_metrics_for_queue(queue, is_gauge=True)
+                allowed_queues.remove(absolute_name)
+                remaining_hists -= 1
+            elif name in allowed_queues:
+                self._get_metrics_for_queue(queue, is_gauge=True)
                 allowed_queues.remove(name)
-            elif queue_Limit_reached:
-                if not allowed_queues:
-                    # We have reached the limit and we have already processed the config specified queues
-                    break
-                # We have reached the limit but some queues specified in the config still haven't been processed
-                continue
-            else:
+                remaining_hists -= 1
+            if remaining_hists > len(allowed_queues):
                 self._get_metrics_for_queue(queue)
-
-            i += 1
-            if i > QUEUE_LIMIT:
-                self.warning("More than %s queues are present. Only collecting data using the 100 first" % QUEUE_LIMIT)
-                queue_Limit_reached = True
-                
+                remaining_hists -= 1
 
     def get_node_stats(self, instance, base_url):
         url = urlparse.urljoin(base_url, 'nodes')
