@@ -12,10 +12,6 @@ instances:
     - include: 
         domain: Catalina
         type: ThreadPool
-    - include: 
-        domain: java.lang
-      exclude:
-        type: GarbageCollector
     host: localhost
     port: 8090
     name: jmx_instance1
