@@ -20,7 +20,6 @@ from util import get_os
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
-BERNARD_CONF = "bernard.yaml"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 10  # seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
@@ -706,29 +705,6 @@ def load_check_directory(agentConfig):
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
             'init_failed_checks':init_failed_checks}
-
-def get_bernard_config():
-    """Return the configuration of Bernard"""
-    from util import yaml, yLoader
-
-    osname = get_os()
-    config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
-
-    try:
-        f = open(config_path)
-    except (IOError, TypeError):
-        log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
-        return {}
-    try:
-        bernard_config = yaml.load(f.read(), Loader=yLoader)
-        assert bernard_config is not None
-        f.close()
-    except:
-        f.close()
-        log.error("Unable to parse yaml config in %s" % config_path)
-        return {}
-
-    return bernard_config
 
 #
 # logging
