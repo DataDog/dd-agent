@@ -600,17 +600,21 @@ def get_jmx_status():
                                                 )], 0, 0))
             return check_statuses
 
-        for instance, status in jmx_instances.iteritems():
-            message = status.get('message', None)
-            metric_count = status.get('metric_count', 0)
+        for instance, info in jmx_instances.iteritems():
+            message = info.get('message', None)
+            metric_count = info.get('metric_count', 0)
+            status = info.get('status')
 
-            if message is not None:
+            if status == STATUS_ERROR:
                 instance_status = InstanceStatus(0, STATUS_ERROR, error=message)
-                check_status = CheckStatus(instance, [instance_status], 0, 0)
-            else:
-                instance_status = InstanceStatus(0, STATUS_OK)
-                check_status = CheckStatus(instance, [instance_status], metric_count, 0)
 
+            elif status == STATUS_WARNING:
+                instance_status = InstanceStatus(0, STATUS_WARNING, warnings=[message])
+
+            elif status == STATUS_OK:
+                instance_status = InstanceStatus(0, STATUS_OK)
+
+            check_status = CheckStatus(instance, [instance_status], metric_count, 0)
             check_statuses.append(check_status)
 
         return check_statuses
