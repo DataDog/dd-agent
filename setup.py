@@ -98,6 +98,7 @@ if sys.platform == 'win32':
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
             ('pup', glob('pup/pup.html')),
+            ('pup', glob('status/status.html')),
             ('pup/static', glob('pup/static/*.*')),
             ('jmxfetch', glob('checks/libs/jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar')),
         ],
