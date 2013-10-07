@@ -50,6 +50,7 @@ cp -R install_files\guidata install_files\files
 rm *wixobj*
 rm -r install_files\files\pup
 rm -r install_files\files\guidata
+rm -r install_files\files\jmxfetch
 rm install_files\files\*.*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
