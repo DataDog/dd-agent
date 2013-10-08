@@ -585,9 +585,13 @@ def get_jmx_status():
     ###
     """
     check_statuses = []
+    path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+    if not os.path.exists(path):
+        log.debug("There is no jmx_status file at: %s" % path)
+        return []
+
     try:
-        stream = file(os.path.join(tempfile.gettempdir(), "jmx_status.yaml"))
-        jmx_stats = yaml.load(stream)
+        jmx_stats = yaml.load(file(path))
 
         status_age = time.time() - jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
         jmx_instances = jmx_stats.get('instances', {})
@@ -619,6 +623,6 @@ def get_jmx_status():
 
         return check_statuses
 
-    except Exception:
-        log.error("Couldn't load latest jmx status")
+    except Exception, e:
+        log.exception("Couldn't load latest jmx status")
         return []
