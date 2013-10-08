@@ -7,9 +7,11 @@ from operator import attrgetter
 
 # vendor
 import tornado.ioloop
+from tornado import version_info as tornado_version
 
 # project
 from checks.check_status import ForwarderStatus
+from util import get_tornado_ioloop
 
 log = logging.getLogger(__name__)
 
@@ -181,8 +183,9 @@ class TransactionManager(object):
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.current()._running:
-                    tornado.ioloop.IOLoop.current().add_timeout(time.time() + delay,
+                tornado_ioloop = get_tornado_ioloop(tornado.ioloop, tornado_version)
+                if  tornado_ioloop._running:
+                    tornado_ioloop.add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
