@@ -34,7 +34,7 @@ from config import get_confd_path, get_config_path, get_config, _windows_commond
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'gearmand',
     'hdfs', 'mcache', 'network', 'postgres',
-    'process', 'redis', 'postfix',
+    'process', 'redis', 'postfix', 'gunicorn', 
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
