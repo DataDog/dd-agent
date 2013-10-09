@@ -107,6 +107,18 @@ use_mount: no
 #ganglia_port: 8651
 
 # -------------------------------------------------------------------------- #
+#   Munin (experimental)                                                     #
+# -------------------------------------------------------------------------- #
+
+# You can import the results from Munin plugins. For this to happen you need to
+# - grant sudo access to dd-agent so that it can run: sudo /usr/sbin/munin-run
+#
+# Please be aware that the performance of the agent will be lower because it
+# will execute the munin plugins at each iteration.
+#
+# use_munin: yes
+
+# -------------------------------------------------------------------------- #
 #   Cassandra                                                                #
 # -------------------------------------------------------------------------- #
 #cassandra_host: localhost

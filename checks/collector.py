@@ -20,6 +20,7 @@ from checks.ganglia import Ganglia
 from checks.nagios import Nagios
 from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
+from checks.munin import Munin
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
 
@@ -79,6 +80,7 @@ class Collector(object):
         self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
+        self._munin = Munin(log)
 
         # Agent Metrics
         self._agent_metrics = CollectorMetrics(log)
@@ -101,7 +103,7 @@ class Collector(object):
 
         # Resource Checks
         self._resources_checks = [
-            ResProcesses(log,self.agentConfig)
+            ResProcesses(log, self.agentConfig)
         ]
 
     def stop(self):
@@ -192,13 +194,17 @@ class Collector(object):
         cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
+        muninData = self._munin.check(self.agentConfig)
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
            
         if cassandraData is not False and cassandraData is not None:
             payload['cassandra'] = cassandraData
-            
+
+        if muninData is not False and muninData is not None:
+            metrics.extend(muninData)
+
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
@@ -253,7 +259,7 @@ class Collector(object):
         for check in self.initialized_checks_d:
             if not self.continue_running:
                 return
-            log.info("Running check %s" % check.name)
+            log.debug("Running check %s" % check.name)
             instance_statuses = [] 
             metric_count = 0
             event_count = 0

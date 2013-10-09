@@ -23,7 +23,7 @@ end
 
 desc "Lint the code through pylint"
 task "lint" do
-  sh("find . -name \\*.py -type f -not -path \\*tests\\* -exec pylint --rcfile=.pylintrc --reports=n --output-format=parseable {} \\;")
+  sh("find . -name \\*.py -type f -not -path \\*build\\* -not -path \\*tests\\* -exec pylint --rcfile=.pylintrc --reports=n --output-format=parseable {} \\;")
 end
 
 desc "cProfile tests, then run pstats"
