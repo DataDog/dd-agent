@@ -614,6 +614,9 @@ def load_check_directory(agentConfig):
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
+    from migration import migrate_old_style_configuration
+    migrate_old_style_configuration(agentConfig, confd_path)
+
     JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
 
     # For backwards-compatability with old style checks, we have to load every
