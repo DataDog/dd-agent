@@ -313,7 +313,6 @@ class CollectorStatus(AgentStatus):
         return self.status != STATUS_OK
 
     def body_lines(self):
-
         # Metadata whitelist
         metadata_whitelist = [
             'hostname',

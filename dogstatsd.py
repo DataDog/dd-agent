@@ -102,7 +102,6 @@ class Reporter(threading.Thread):
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
-
             should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0
             if not count:
                 if should_log:

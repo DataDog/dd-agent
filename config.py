@@ -588,7 +588,6 @@ def get_ssl_certificate(osname, filename):
     return None
 
 
-
 def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
@@ -751,7 +750,6 @@ def get_syslog_format(logger_name):
 
 
 def get_logging_config(cfg_path=None):
-
     system_os = get_os()
     if system_os != 'windows':
         logging_config = {
