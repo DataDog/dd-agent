@@ -109,7 +109,9 @@ class MySql(AgentCheck):
 
         if 'replication' in options and options['replication']:
             self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
-    
+            slave_running = self._collect_scalar("SELECT 'Slave_running', IF(VARIABLE_VALUE like 'On',1,0) from information_schema.global_status where variable_name = 'Slave_running'", db)
+            self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
+
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
             metric_name, metric_type = metric
