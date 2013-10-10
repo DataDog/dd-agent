@@ -14,16 +14,16 @@ class Couchbase(AgentCheck):
                 if val is not None:
                     metric_name = '.'.join(['couchbase', key, metric])
                     self.gauge(metric_name, val, tags=tags)
-                    self.log.debug('found metric %s with value %s' % (metric_name, val))
+#                    self.log.debug('found metric %s with value %s' % (metric_name, val))
 
         for bucket_name, bucket_stats in data.get('buckets', {}).items():
-            for name, val in bucket_stats['basicStats'].items():
+            for name, val in bucket_stats.items():
                 if val is not None:
                     metric_name = '.'.join(['couchbase', 'by_bucket', name])
                     metric_tags = list(tags)
                     metric_tags.append('bucket:%s' % bucket_name)
-                    self.gauge(metric_name, val, tags=metric_tags, device_name=bucket_name)
-                    self.log.debug('found metric %s with value %s' % (metric_name, val))
+                    self.gauge(metric_name, val[0], tags=metric_tags, device_name=bucket_name)
+#                    self.log.debug('found metric %s with value %s' % (metric_name, val[0]))
 
         for node_name, node_stats in data.get('nodes', {}).items():
             for name, val in node_stats['interestingStats'].items():
@@ -32,7 +32,7 @@ class Couchbase(AgentCheck):
                     metric_tags = list(tags)
                     metric_tags.append('node:%s' % node_name)
                     self.gauge(metric_name, val, tags=metric_tags, device_name=node_name)
-                    self.log.debug('found metric %s with value %s' % (metric_name, val))
+#                    self.log.debug('found metric %s with value %s' % (metric_name, val))
 
 
     def _get_stats(self, url):
@@ -86,12 +86,14 @@ class Couchbase(AgentCheck):
 
         if buckets is not None:
             for bucket in buckets:
-                endpoint = bucket['uri']
+                bucket_name = bucket['name']
 
-                url = '%s%s' % (server, endpoint)
+                # We have to manually build the URI for the stats bucket, as this is not auto discoverable
+                url = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
                 bucket_stats = self._get_stats(url)
-                if bucket_stats  is not None:
-                    couchbase['buckets'][bucket['name']] = bucket_stats
+                bucket_samples = bucket_stats['op']['samples']
+                if bucket_samples is not None:
+                    couchbase['buckets'][bucket['name']] = bucket_samples
 
         return couchbase
 
