@@ -1,0 +1,6 @@
+init_config:
+
+instances:
+#    - server: http://localhost:8091
+#      user: Administrator
+#      pass: Password
