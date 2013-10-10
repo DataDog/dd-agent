@@ -8,7 +8,6 @@ import logging
 
 from util import get_hostname
 from tests.common import load_check, kill_subprocess
-
 logging.basicConfig()
 
 MAX_WAIT = 30
@@ -58,7 +57,7 @@ class HaproxyTestCase(unittest.TestCase):
 
             # Wait for it to really start
             self._wait("http://localhost:3834/stats")
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot instantiate haproxy")
 
     def testCheck(self):
@@ -87,7 +86,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
@@ -146,7 +145,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
