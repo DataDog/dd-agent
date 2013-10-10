@@ -106,7 +106,5 @@ class Couchbase(AgentCheck):
         return {
             'instances': [{
                 'server': agentConfig.get('couchbase_server'),
-                'user': agentConfig.get('couchbase_user'),
-                'pass': agentConfig.get('couchbase_pass'),
             }]
         }
