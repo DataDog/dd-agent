@@ -42,12 +42,19 @@ class HAProxy(AgentCheck):
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
         "req_rate": ("gauge", "requests.rate"),
+        "hrsp_1xx": ("rate", "response.1xx"),
+        "hrsp_2xx": ("rate", "response.2xx"),
+        "hrsp_3xx": ("rate", "response.3xx"),
+        "hrsp_4xx": ("rate", "response.4xx"),
+        "hrsp_5xx": ("rate", "response.5xx"),
+        "hrsp_other": ("rate", "response.other"),
     }
 
     def check(self, instance):
         url = instance.get('url')
         username = instance.get('username')
         password = instance.get('password')
+        collect_aggregates_only = instance.get('collect_aggregates_only', False)
 
         self.log.debug('Processing HAProxy data for %s' % url)
        
@@ -58,7 +65,7 @@ class HAProxy(AgentCheck):
         else:
             events_cb = None
 
-        self._process_data(data, self.hostname, self._process_metrics,
+        self._process_data(data, collect_aggregates_only, self._process_metrics,
             events_cb, url)
 
     def _fetch_data(self, url, username, password):
@@ -80,7 +87,7 @@ class HAProxy(AgentCheck):
         # Split the data by line
         return response.split('\n')
 
-    def _process_data(self, data, my_hostname, metric_cb=None, event_cb=None, url=None):
+    def _process_data(self, data, collect_aggregates_only, metric_cb=None, event_cb=None, url=None):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -103,32 +110,30 @@ class HAProxy(AgentCheck):
                 if val:
                     try:
                         # Try converting to a long, if failure, just leave it
-                        val = long(val)
-                    except:
+                        val = float(val)
+                    except Exception:
                         pass
                     data_dict[fields[i]] = val
 
             # Don't create metrics for aggregates
             service = data_dict['svname']
             if data_dict['svname'] in Services.ALL:
-                if not data_list and service == Services.FRONTEND:
-                    data_list.append(data_dict)
+                data_list.append(data_dict)
 
                 # Send the list of data to the metric and event callbacks
                 if metric_cb:
-                    metric_cb(data_list, service, my_hostname)
+                    metric_cb(data_list, service)
                 if event_cb:
                     event_cb(data_list, url)
 
                 # Clear out the event list for the next service
                 data_list = []
-            else:
+            elif not collect_aggregates_only:
                 data_list.append(data_dict)
 
         return data
 
-    def _process_metrics(self, data_list, service, my_hostname):
-        hosts_to_aggregate = {}
+    def _process_metrics(self, data_list, service):
         for data in data_list:
             """
             Each element of data_list is a dictionary related to one host
