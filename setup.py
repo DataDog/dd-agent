@@ -1,6 +1,7 @@
 import platform
 import sys
 from config import *
+from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
     from setuptools import setup, find_packages
@@ -100,7 +101,7 @@ if sys.platform == 'win32':
             ('pup', glob('pup/pup.html')),
             ('pup', glob('pup/status.html')),
             ('pup/static', glob('pup/static/*.*')),
-            ('jmxfetch', glob('checks/libs/jmxfetch-0.0.1-SNAPSHOT-jar-with-dependencies.jar')),
+            ('jmxfetch', glob('checks/libs/%s' % JMX_FETCH_JAR_NAME)),
         ],
     }
 
