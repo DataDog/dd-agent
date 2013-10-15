@@ -87,7 +87,6 @@ if [ $OS = "RedHat" ]; then
     sudo sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
-    sudo yum makecache
 
     if $DDBASE; then
         sudo yum -y install datadog-agent-base
