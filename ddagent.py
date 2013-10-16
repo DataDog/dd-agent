@@ -32,7 +32,6 @@ from socket import gaierror
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
-from tornado import version_info as tornado_version
 from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
@@ -395,7 +394,7 @@ class Application(tornado.web.Application):
         log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = get_tornado_ioloop(tornado.ioloop, tornado_version)
+        self.mloop = get_tornado_ioloop()
 
         logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
