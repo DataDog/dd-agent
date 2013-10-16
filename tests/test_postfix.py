@@ -49,7 +49,7 @@ class TestPostfix(unittest.TestCase):
         pattern = r'\n[ \t]{%d}' % (indent - 1)
         return re.sub(pattern, '\n', text)
 
-    def testChecks(self):
+    def test_checks(self):
         self.config = self.stripHeredoc("""init_config:
 
         instances:
@@ -80,13 +80,14 @@ class TestPostfix(unittest.TestCase):
 
         # output what went in... per queue
         print
-        for queue in self.in_count:
+        for queue, count in self.in_count.iteritems():
             print 'Test messges put into', queue, '= ', self.in_count[queue][0]
 
         # output postfix.py dd-agent plugin counts... per queue
         print
         for tuple in out_count:
             queue = tuple[3]['tags'][0].split(':')[1]
+            self.assertEquals(int(tuple[2]), int(self.in_count[queue][0]))
             print 'Test messages counted by dd-agent for', queue, '= ', tuple[2]
 
         #
@@ -94,6 +95,6 @@ class TestPostfix(unittest.TestCase):
         #
         #print out_count
 
-    if __name__ == '__main__':
-        unittest.main()
+if __name__ == '__main__':
+    unittest.main()
 
