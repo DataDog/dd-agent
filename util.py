@@ -10,6 +10,11 @@ import types
 import urllib2
 import uuid
 
+# Tornado
+try:
+    from tornado import ioloop, version_info as tornado_version
+except ImportError:
+    pass # We are likely running the agent without the forwarder and tornado is not installed
 try:
     from hashlib import md5
 except ImportError:
@@ -56,7 +61,7 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
-def get_tornado_ioloop(ioloop, tornado_version):
+def get_tornado_ioloop():
     if tornado_version[0] == 3:
         return ioloop.IOLoop.current()
     else:

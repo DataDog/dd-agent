@@ -286,7 +286,7 @@ def run_pup(config):
         application.listen(port, address=interface)
 
     interval_ms = 2000
-    io_loop = get_tornado_ioloop(ioloop, tornado.version_info)
+    io_loop = get_tornado_ioloop()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
