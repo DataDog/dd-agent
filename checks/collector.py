@@ -7,7 +7,6 @@ import sys
 import time
 import datetime
 import socket
-import signal
 
 import modules
 
