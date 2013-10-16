@@ -187,25 +187,25 @@ TOMCAT_INIT_CONFIG = {'conf': [{'include': {'attribute': {'currentThreadCount': 
 'type': 'JspMonitor'}}]}
 
 def migrate_cassandra(agentConfig):
-	for old_key, params in CASSANDRA_MAPPING.iteritems():
-		new_key, param_type = params
-		if old_key not in agentConfig:
-			return None
-		CASSANDRA_CONFIG['instances'][0][new_key] = param_type(agentConfig[old_key])
+    for old_key, params in CASSANDRA_MAPPING.iteritems():
+        new_key, param_type = params
+        if old_key not in agentConfig:
+            return None
+        CASSANDRA_CONFIG['instances'][0][new_key] = param_type(agentConfig[old_key])
 
-	return CASSANDRA_CONFIG
+    return CASSANDRA_CONFIG
 
 def migrate_tomcat(agentConfig):
-	return parse_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
+    return parse_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
 
 def migrate_solr(agentConfig):
-	return parse_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
+    return parse_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
 
 def migrate_activemq(agentConfig):
-	return parse_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
+    return parse_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
 
 def migrate_java(agentConfig):
-	return parse_agent_config(agentConfig, 'java')
+    return parse_agent_config(agentConfig, 'java')
 
 def _load_old_config(agentConfig, config_key):
     """ Load the configuration according to the previous syntax in datadog.conf"""
@@ -255,54 +255,55 @@ def parse_agent_config(agentConfig, config_key, init_config=None):
     config = {}
     instances = []
     for i in range(len(connections)):
-    	try:
-			connect = connections[i].split(':')
-			instance = {
-				'host':connect[0],
-				'port':int(connect[1]),
-				'user':users[i],
-				'password':passwords[i]
-			}
-			if len(connect) == 3:
-				instance['name'] = connect[2]
+        try:
+            connect = connections[i].split(':')
+            instance = {
+            'host':connect[0],
+            'port':int(connect[1]),
+            'user':users[i],
+        	'password':passwords[i]
+            }
+            if len(connect) == 3:
+                instance['name'] = connect[2]
 
-			instances.append(instance)
+            instances.append(instance)
 
-	except Exception, e:
-		log.exception("Cannot migrate instance")
+        except Exception, e:
+            log.exception("Cannot migrate instance")
 	    
     config['instances'] = instances
 	    
     if init_config is not None:
         config['init_config'] = init_config
     else: 
-    	config['init_config'] = {}
+        config['init_config'] = {}
     return config
 
 def _write_conf(check_name, config, confd_dir):
-	if config is None:
-		log.debug("No config for check: %s" % check_name)
-		return
+    if config is None:
+        log.debug("No config for check: %s" % check_name)
+        return
 
-	try:
-		yaml_config = dump_to_yaml(config, Dumper=Dumper, default_flow_style=False)
-	except Exception, e:
-		log.exception("Couldn't create yaml from config: %s" % config)
-		return
+    try:
+        yaml_config = dump_to_yaml(config, Dumper=Dumper, default_flow_style=False)
+    except Exception, e:
+        log.exception("Couldn't create yaml from config: %s" % config)
+        return
 
-	file_name = "%s.yaml" % check_name
-	full_path = os.path.join(confd_dir, file_name)
-	if os.path.exists(full_path):
-		log.debug("Config already exists for check: %s" % full_path)
-		return
+    file_name = "%s.yaml" % check_name
+    full_path = os.path.join(confd_dir, file_name)
+    if os.path.exists(full_path):
+        log.debug("Config already exists for check: %s" % full_path)
+        return
 
-	try:
-		f = open(full_path, 'w')
-		f.write(yaml_config)
-	except Exception, e:
-		log.exception("Cannot write config file %s" % full_path)
+    try:
+        f = open(full_path, 'w')
+        f.write(yaml_config)
+    except Exception, e:
+        log.exception("Cannot write config file %s" % full_path)
 
 CHECKS_TO_MIGRATE = {
+    # A dictionary of check name, migration function
 	'cassandra' : migrate_cassandra, 
 	'tomcat': migrate_tomcat,
 	'solr': migrate_solr,
@@ -311,8 +312,8 @@ CHECKS_TO_MIGRATE = {
 }
 
 def migrate_old_style_configuration(agentConfig, confd_dir):
-	for check_name, migrate_fct in CHECKS_TO_MIGRATE.iteritems():
-		try:
-			_write_conf(check_name, migrate_fct(agentConfig), confd_dir)
-		except Exception, e:
-			log.exception("Error while migrating %s" % check_name)
+    for check_name, migrate_fct in CHECKS_TO_MIGRATE.iteritems():
+        try:
+            _write_conf(check_name, migrate_fct(agentConfig), confd_dir)
+        except Exception, e:
+            log.exception("Error while migrating %s" % check_name)
