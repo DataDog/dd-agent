@@ -62,7 +62,7 @@ class JMXTestCase(unittest.TestCase):
 
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
-        self.assertTrue(len([t for t in metrics if "cassandra.db." in t['metric'] and "instance:cassandra_instance" in t['tags']]) > 50, metrics)
+        self.assertTrue(len([t for t in metrics if "cassandra.db." in t['metric'] and "instance:cassandra_instance" in t['tags']]) > 40, metrics)
 
 if __name__ == "__main__":
     unittest.main()
