@@ -8,6 +8,7 @@ import logging
 
 from util import get_hostname
 from tests.common import load_check, kill_subprocess
+from nose.plugins.attrib import attr
 logging.basicConfig()
 
 MAX_WAIT = 30
@@ -60,6 +61,7 @@ class HaproxyTestCase(unittest.TestCase):
         except Exception:
             logging.getLogger().exception("Cannot instantiate haproxy")
 
+    @attr('haproxy')
     def testCheck(self):
         config = {
             'init_config': {},
@@ -100,6 +102,7 @@ class HaproxyTestCase(unittest.TestCase):
         assert self.check.has_events()
         assert len(self.check.get_events()) == 1
 
+    @attr('haproxy')
     def testWrongConfig(self):
         # Same check, with wrong data
         config = {
@@ -108,6 +111,7 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
                 'password': 'isdevops',
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -123,12 +127,14 @@ class HaproxyTestCase(unittest.TestCase):
         assert len(metrics) == 0
         assert self.check.has_events() == False
 
+    @attr('haproxy')
     def testOpenConfig(self):
         # No passwords this time
         config = {
             'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_OPEN_CFG, config)
