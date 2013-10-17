@@ -54,7 +54,7 @@ class HAProxy(AgentCheck):
         url = instance.get('url')
         username = instance.get('username')
         password = instance.get('password')
-        collect_aggregates_only = instance.get('collect_aggregates_only', False)
+        collect_aggregates_only = instance.get('collect_aggregates_only', True)
 
         self.log.debug('Processing HAProxy data for %s' % url)
        
