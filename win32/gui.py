@@ -32,9 +32,9 @@ from util import get_os
 from config import get_confd_path, get_config_path, get_config, _windows_commondata_path
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'activemq', 'cacti', 'cassandra', 'directory', 'gearmand',
-    'hdfs', 'jmx', 'mcache', 'mysql', 'network', 'postgres',
-    'process', 'redis', 'solr', 'tomcat',
+    'cacti', 'directory', 'gearmand',
+    'hdfs', 'mcache', 'network', 'postgres',
+    'process', 'redis', 'postfix', 'gunicorn', 
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"

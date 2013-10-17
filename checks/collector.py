@@ -18,7 +18,6 @@ import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.nagios import Nagios
-from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -53,7 +52,7 @@ class Collector(object):
         self.metadata_cache = None
         self.initialized_checks_d = []
         self.init_failed_checks_d = []
-        
+
         # Unix System Checks
         self._unix_system_checks = {
             'disk': u.Disk(log),
@@ -76,7 +75,6 @@ class Collector(object):
 
         # Old-style metric checks
         self._ganglia = Ganglia(log)
-        self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
@@ -189,16 +187,12 @@ class Collector(object):
 
         # Run old-style checks
         gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
            
-        if cassandraData is not False and cassandraData is not None:
-            payload['cassandra'] = cassandraData
-            
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)

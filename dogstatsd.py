@@ -132,7 +132,7 @@ class Reporter(threading.Thread):
                 packet_count=packet_count,
                 packets_per_second=packets_per_second,
                 metric_count=count,
-                event_count=event_count
+                event_count=event_count,
             ).persist()
 
         except Exception, e:
