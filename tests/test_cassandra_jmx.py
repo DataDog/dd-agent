@@ -8,7 +8,7 @@ import os
 from config import get_logging_config
 from jmxfetch import JMXFetch
 
-STATSD_PORT = 8127
+STATSD_PORT = 8121
 class DummyReporter(threading.Thread):
     def __init__(self, metrics_aggregator):
         threading.Thread.__init__(self)
@@ -30,7 +30,6 @@ class DummyReporter(threading.Thread):
         if metrics:
             self.metrics = metrics
 
-
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
@@ -51,7 +50,7 @@ class JMXTestCase(unittest.TestCase):
         JMXFetch.stop()
 
 
-    def testTomcatMetrics(self):
+    def testCustomJMXMetric(self):
         count = 0
         while self.reporter.metrics is None:
             time.sleep(1)
@@ -60,13 +59,10 @@ class JMXTestCase(unittest.TestCase):
                 raise Exception("No metrics were received in 20 seconds")
 
         metrics = self.reporter.metrics
-        
 
         self.assertTrue(type(metrics) == type([]))
-        self.assertTrue(len(metrics) > 8, metrics)
-        self.assertEquals(len([t for t in metrics if 'instance:solr_instance' in t['tags'] and t['metric'] == "jvm.thread_count"]), 1, metrics)
-        self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and 'instance:solr_instance' in t['tags']]) > 4, metrics)
-        self.assertTrue(len([t for t in metrics if "solr." in t['metric'] and 'instance:solr_instance' in t['tags']]) > 4, metrics)
+        self.assertTrue(len(metrics) > 0)
+        self.assertTrue(len([t for t in metrics if "cassandra.db." in t['metric'] and "instance:cassandra_instance" in t['tags']]) > 40, metrics)
 
 if __name__ == "__main__":
     unittest.main()

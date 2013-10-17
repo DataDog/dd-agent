@@ -1,6 +1,7 @@
 import platform
 import sys
 from config import *
+from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
     from setuptools import setup, find_packages
@@ -40,6 +41,7 @@ if sys.platform == 'win32':
         'adodbapi'
         'elementtree',
         'pycurl',
+        'MySQLdb',
     ])
 
     # Modules to force-include in the exe
@@ -54,11 +56,11 @@ if sys.platform == 'win32':
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
+        'MySQLdb',
 
         # agent
         'checks.services_checks',
         'checks.libs.httplib2',
-        'checks.jmx_connector',
 
         # pup
         'pup',
@@ -97,7 +99,9 @@ if sys.platform == 'win32':
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
             ('pup', glob('pup/pup.html')),
+            ('pup', glob('pup/status.html')),
             ('pup/static', glob('pup/static/*.*')),
+            ('jmxfetch', glob('checks/libs/%s' % JMX_FETCH_JAR_NAME)),
         ],
     }
 

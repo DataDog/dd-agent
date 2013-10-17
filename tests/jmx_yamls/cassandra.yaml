@@ -1,0 +1,62 @@
+instances:
+   -   host: localhost
+       port: 7199
+       name: cassandra_instance
+       max_returned_metrics: 2000
+
+
+
+init_config:
+    conf:
+      - include:
+          domain: org.apache.cassandra.db
+          attribute:
+            - BloomFilterDiskSpaceUsed
+            - BloomFilterFalsePositives
+            - BloomFilterFalseRatio
+            - Capacity
+            - CompressionRatio
+            - CompletedTasks
+            - ExceptionCount
+            - Hits
+            - RecentHitRate
+            - LiveDiskSpaceUsed
+            - LiveSSTableCount
+            - Load
+            - MaxRowSize
+            - MeanRowSize
+            - MemtableColumnsCount
+            - MemtableDataSize
+            - MemtableSwitchCount
+            - MinRowSize
+            - ReadCount
+            - Requests
+            - Size
+            - TotalDiskSpaceUsed
+            - TotalReadLatencyMicros
+            - TotalWriteLatencyMicros
+            - UpdateInterval
+            - WriteCount
+            - PendingTasks
+        exclude:
+          keyspace: system
+          attribute: 
+            - MinimumCompactionThreshold
+            - MaximumCompactionThreshold
+            - RowCacheKeysToSave
+            - KeyCacheSavePeriodInSeconds
+            - RowCacheSavePeriodInSeconds
+            - PendingTasks
+            - Scores
+            - RpcTimeout
+      - include:
+          domain: org.apache.cassandra.internal
+          attribute:
+            - ActiveCount
+            - CompletedTasks
+            - CurrentlyBlockedTasks
+            - TotalBlockedTasks
+      - include:
+          domain: org.apache.cassandra.net
+          attribute:
+            - TotalTimeouts

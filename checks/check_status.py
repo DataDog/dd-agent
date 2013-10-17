@@ -12,9 +12,12 @@ import platform
 import sys
 import tempfile
 import traceback
+import time
 
 # project
 import config
+from compat.defaultdict import defaultdict
+from util import get_os, yaml, yLoader
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -364,10 +367,11 @@ class CollectorStatus(AgentStatus):
             '======',
             ''
         ]
-        if not self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        if not check_statuses:
             lines.append("  No checks have run yet.")
         else:
-            for cs in self.check_statuses:
+            for cs in check_statuses:
                 check_lines = [
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
@@ -453,7 +457,8 @@ class CollectorStatus(AgentStatus):
 
         # Checks.d Status
         status_info['checks'] = {}
-        for cs in self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
             for s in cs.instance_statuses:
                 status_info['checks'][cs.name]['instances'][s.instance_id] = {
@@ -562,3 +567,61 @@ class ForwarderStatus(AgentStatus):
             'queue_size': self.queue_size,
         })
         return status_info
+
+def get_jmx_status():
+    """This function tries to read the jmxfetch status file which is a yaml file
+    located in the same directory as the jmxfetch jar file.
+    Its format is as the following:
+    
+    ###
+
+    timestamp: 1377303057441
+    instances:
+          cassandra_localhost: {message: null, metric_count: 40}
+          tomcat: {message: null, metric_count: 57}
+          instance_name: {message: 'Cannot connect to instance localhost:3033. Is a JMX Server running at this address?', metric_count: 0}
+
+    ###
+    """
+    check_statuses = []
+    path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+    if not os.path.exists(path):
+        log.debug("There is no jmx_status file at: %s" % path)
+        return []
+
+    try:
+        jmx_stats = yaml.load(file(path))
+
+        status_age = time.time() - jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
+        jmx_instances = jmx_stats.get('instances', {})
+
+        if status_age > 60:
+            check_statuses.append(CheckStatus("jmx", [InstanceStatus(
+                                                0, 
+                                                STATUS_ERROR, 
+                                                error="JMXfetch didn't return any metrics during the last minute"
+                                                )], 0, 0))
+            return check_statuses
+
+        for instance, info in jmx_instances.iteritems():
+            message = info.get('message', None)
+            metric_count = info.get('metric_count', 0)
+            status = info.get('status')
+
+            if status == STATUS_ERROR:
+                instance_status = InstanceStatus(0, STATUS_ERROR, error=message)
+
+            elif status == STATUS_WARNING:
+                instance_status = InstanceStatus(0, STATUS_WARNING, warnings=[message])
+
+            elif status == STATUS_OK:
+                instance_status = InstanceStatus(0, STATUS_OK)
+
+            check_status = CheckStatus(instance, [instance_status], metric_count, 0)
+            check_statuses.append(check_status)
+
+        return check_statuses
+
+    except Exception, e:
+        log.exception("Couldn't load latest jmx status")
+        return []

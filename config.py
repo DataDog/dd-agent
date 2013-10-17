@@ -16,7 +16,8 @@ import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
-from util import get_os
+from util import get_os, yaml, yLoader
+from jmxfetch import JMXFetch
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -58,7 +59,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "3.10.1"
+    return "4.0.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -591,7 +592,6 @@ def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from util import yaml, yLoader
     from checks import AgentCheck
 
     initialized_checks = {}
@@ -612,6 +612,11 @@ def load_check_directory(agentConfig):
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
+
+    from migration import migrate_old_style_configuration
+    migrate_old_style_configuration(agentConfig, confd_path)
+
+    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
@@ -656,7 +661,7 @@ def load_check_directory(agentConfig):
                 check_config = yaml.load(f.read(), Loader=yLoader)
                 assert check_config is not None
                 f.close()
-            except:
+            except Exception:
                 f.close()
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 continue
@@ -686,7 +691,7 @@ def load_check_directory(agentConfig):
 
         # Accept instances as a list, as a single dict, or as non-existant
         instances = check_config.get('instances', {})
-        if type(instances) != type([]):
+        if type(instances) != list:
             instances = [instances]
 
         # Init all of the check's classes with
@@ -726,7 +731,8 @@ def load_check_directory(agentConfig):
     log.info('initialized checks.d checks: %s' % initialized_checks.keys())
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
-            'init_failed_checks':init_failed_checks}
+            'init_failed_checks':init_failed_checks,
+            }
 
 
 #
@@ -752,6 +758,7 @@ def get_logging_config(cfg_path=None):
             'forwarder_log_file': '/var/log/datadog/forwarder.log',
             'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
             'pup_log_file': '/var/log/datadog/pup.log',
+            'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
             'log_to_event_viewer': False,
             'log_to_syslog': True,
             'syslog_host': None,
@@ -759,9 +766,11 @@ def get_logging_config(cfg_path=None):
         }
     else:
         windows_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
+        jmxfetch_log_file = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
         logging_config = {
             'log_level': None,
             'ddagent_log_file': windows_log_location,
+            'jmxfetch_log_file': jmxfetch_log_file,
             'log_to_event_viewer': True,
             'log_to_syslog': False,
             'syslog_host': None,
