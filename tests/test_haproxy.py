@@ -67,7 +67,8 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
                 'password': 'isdevops',
-                'status_check': True
+                'status_check': True,
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_CFG, config)
