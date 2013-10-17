@@ -116,7 +116,17 @@ class Redis(AgentCheck):
       
         # Ping the database for info, and track the latency.
         start = time.time()
-        info = conn.info()
+        try:
+            info = conn.info()
+        except ValueError, e:
+            # This is likely a know issue with redis library 2.0.0 
+            # See https://github.com/DataDog/dd-agent/issues/374 for details
+            import redis
+            raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
+                Minimum required version: 2.4
+                Your current version: %s 
+                Please upgrade to a newer version using easy_install""" % redis.__version__)
+
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
 
