@@ -14,7 +14,7 @@ class DummyReporter(threading.Thread):
         threading.Thread.__init__(self)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
-        self.interval = 4
+        self.interval = 10
         self.metrics = None
         self.finished = False
         self.start()
