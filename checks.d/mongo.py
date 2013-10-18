@@ -143,7 +143,7 @@ class MongoDb(AgentCheck):
             if not db.authenticate(username, password):
                 self.log.error("Mongo: cannot connect with config %s" % instance['server'])
 
-        status = db.command('serverStatus')     # Shorthand for {'serverStatus': 1}
+        status = db["$cmd"].find_one({"serverStatus": 1})   
         status['stats'] = db.command('dbstats')
 
         results = {}
