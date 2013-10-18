@@ -31,6 +31,19 @@ class GUnicornCheck(AgentCheck):
     IDLE_TAGS = ["state:idle"]
     WORKING_TAGS = ["state:working"]
 
+    def get_check_library_info(self):
+        try:
+            import psutil
+        except ImportError:
+            return "psutil not found"
+
+        try:
+            version = psutil.__version__
+        except AttributeError:
+            version = "unknown"
+
+        return "psutil: %s" % version
+
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """
         if not psutil:

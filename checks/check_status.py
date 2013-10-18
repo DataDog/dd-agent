@@ -252,13 +252,14 @@ class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count,
                  event_count, init_failed_error=None,
-                 init_failed_traceback=None):
+                 init_failed_traceback=None, library=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
+        self.library = library
 
     @property
     def status(self):
@@ -411,8 +412,13 @@ class CollectorStatus(AgentStatus):
 
                     check_lines += [
                         "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
-                        ""
                     ]
+
+                    if cs.library is not None:
+                        check_lines += [
+                        "    - Library: %s" % cs.library]
+
+                    check_lines += [""]
 
                 lines += check_lines
 

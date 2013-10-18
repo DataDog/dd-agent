@@ -31,6 +31,19 @@ class PostgreSql(AgentCheck):
         self.dbs = {}
         self.versions = {}
 
+    def get_check_library_info(self):
+        try:
+            import psycopg2
+        except ImportError:
+            return "psycopg2 not found"
+
+        try:
+            version = psycopg2.__version__
+        except AttributeError:
+            version = "unknown"
+
+        return "psycopg2: %s" % version
+
     def _get_version(self, key, db):
         if key not in self.versions:
             cursor = db.cursor()

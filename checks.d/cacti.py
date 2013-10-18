@@ -30,6 +30,19 @@ class Cacti(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.last_ts = {}
 
+    def get_check_library_info(self):
+        try:
+            import rrdtool
+        except ImportError:
+            return "rrdtool not found"
+
+        try:
+            version = rrdtool.__version__
+        except AttributeError:
+            version = "unknown"
+
+        return "rrdtool: %s" % version 
+
     def check(self, instance):
         
         # Load the instance config

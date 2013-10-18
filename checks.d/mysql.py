@@ -31,6 +31,19 @@ class MySql(AgentCheck):
         self.mysql_version = {}
         self.greater_502 = {}
 
+    def get_check_library_info(self):
+        try:
+            import MySQLdb
+        except ImportError:
+            return "MySQLdb not found"
+
+        try:
+            version = MySQLdb.__version__
+        except AttributeError:
+            version = "unknown"
+
+        return "MySQLdb: %s" % version
+
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
 
