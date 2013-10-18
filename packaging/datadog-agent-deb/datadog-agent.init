@@ -17,7 +17,7 @@ AGENTPATH="/usr/bin/dd-agent"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/usr/bin/dogstatsd"
 AGENTUSER="dd-agent"
-USE_SUPERVISOR="/usr/bin/dd-forwarder"
+FORWARDERPATH="/usr/bin/dd-forwarder"
 NAME="datadog-agent"
 DESC="Datadog Agent"
 DDAGENT_PID_PATH="/var/run/dd-agent"
@@ -35,49 +35,32 @@ if [ ! -x $AGENTPATH ]; then
 fi
 
 check_status() {
-    if [ -f $USE_SUPERVISOR ]; then
-        # If the socket exists, we can use supervisorctl
-        if [ -e $SUPERVISOR_SOCK ]; then
-            # If we're using supervisor, check the number of datadog processes
-            # supervisor is currently controlling, and make sure that it's the
-            # same as the number of programs specified in the supervisor config
-            # file:
+    # If the socket exists, we can use supervisorctl
+    if [ -e $SUPERVISOR_SOCK ]; then
+        # If we're using supervisor, check the number of datadog processes
+        # supervisor is currently controlling, and make sure that it's the
+        # same as the number of programs specified in the supervisor config
+        # file:
 
-            supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
-            datadog_supervisor_processes=$(echo "$supervisor_processes" |
-                                           grep -v pup |
-                                           grep $NAME |
-                                           grep -c RUNNING)
-            supervisor_config_programs=$(grep -v pup $SUPERVISOR_FILE |
-                                         grep -c '\[program:')
+        supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
+        datadog_supervisor_processes=$(echo "$supervisor_processes" |
+                                       grep -v pup |
+                                       grep $NAME |
+                                       grep -c RUNNING)
+        supervisor_config_programs=$(grep -v pup $SUPERVISOR_FILE |
+                                     grep -c '\[program:')
 
-            if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
-                echo "$supervisor_processes"
-                echo "$DESC (supervisor) is NOT running all child processes"
-                return 1
-            else
-                echo "$DESC (supervisor) is running all child processes"
-                return 0
-            fi
-        else
-            echo "$DESC (supervisor) is not running"
-            return 1
-        fi
-    else
-        # If we're not using supervisor, use the Agent and dogstatsd status
-        # commands:
-
-        su $AGENTUSER -c "$AGENTPATH status > /dev/null 2>&1"
-        agent_exit_code=$?
-        su $AGENTUSER -c "$DOGSTATSDPATH status > /dev/null 2>&1"
-        dogstatsd_exit_code=$?
-        if [ $agent_exit_code -eq 1 ] && [ $dogstatsd_exit_code -eq 1 ]; then
-            echo "$DESC is NOT running all child processes"
+        if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+            echo "$supervisor_processes"
+            echo "$DESC (supervisor) is NOT running all child processes"
             return 1
         else
-            echo "$DESC is running all child processes"
+            echo "$DESC (supervisor) is running all child processes"
             return 0
         fi
+    else
+        echo "$DESC (supervisor) is not running"
+        return 1
     fi
 }
 
@@ -95,22 +78,13 @@ case "$1" in
             exit 0
         fi
 
-        if [ -f $USE_SUPERVISOR ]; then
-            log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
-            start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
-            if [ $? -ne 0 ]; then
-                log_end_msg 1
-            fi
-        else
-            log_daemon_msg "Starting $DESC" "$NAME"
-            if [ ! -f $DDAGENT_PID_PATH ]; then
-                mkdir -p $DDAGENT_PID_PATH
-            fi
-            chown $AGENTUSER $DDAGENT_PID_PATH
-            su $AGENTUSER -c "env LANG=POSIX $AGENTPATH start init --clean > /dev/null 2>&1" && \
-            su $AGENTUSER -c "env LANG=POSIX $DOGSTATSDPATH start > /dev/null 2>&1"
+       
+        log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
+        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        if [ $? -ne 0 ]; then
+            log_end_msg 1
         fi
-
+   
         # check if the agent is running once per second for 10 seconds
         retries=10
         while [ $retries -gt 1 ]; do
@@ -130,16 +104,10 @@ case "$1" in
         exit 1
         ;;
     stop)
-        if [ -f $USE_SUPERVISOR ]; then
-            log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
-            start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
-        else
-            log_daemon_msg "Stopping $DESC" "$NAME"
-            su $AGENTUSER -c "$AGENTPATH stop init > /dev/null 2>&1" && \
-            su $AGENTUSER -c "$DOGSTATSDPATH stop > /dev/null 2>&1"
-            sleep 5 # Restarting too quickly may result in zombie process
-        fi
-
+       
+        log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
+        start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
+   
         log_end_msg $?
 
         ;;
@@ -152,10 +120,8 @@ case "$1" in
         RETURN_VALUE=$?
         su $AGENTUSER -c "$DOGSTATSDPATH info"
         RETURN_VALUE=$(($RETURN_VALUE || $?))
-        if [ -f $USE_SUPERVISOR ]; then
-            su $AGENTUSER -c "$USE_SUPERVISOR info"
-            RETURN_VALUE=$(($RETURN_VALUE || $?))
-        fi
+        su $AGENTUSER -c "$FORWARDERPATH info"
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
         exit $RETURN_VALUE
         ;;
 
