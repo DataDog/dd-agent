@@ -129,21 +129,17 @@ $(FPM_BUILD) -t rpm \
 # DEBIAN
 # =====================
 
-install_base_deb: install_base
+install_deb: install_base install_full
 	mkdir -p $(BUILD)/etc/init.d
-	cp datadog-agent-base-deb/datadog-agent.init $(BUILD)/etc/init.d/datadog-agent
+	cp datadog-agent-deb/datadog-agent.init $(BUILD)/etc/init.d/datadog-agent
 	chmod 755 $(BUILD)/etc/init.d/datadog-agent
-
-
-# Install the forwarder and supervisor on debian.
-install_full_deb: install_base_deb install_full
 	# Install supervisor config.
 	cp datadog-agent-deb/supervisor.conf $(BUILD)/etc/dd-agent/supervisor.conf
 
 
 # Make the datadog agent debian package that includes supervisor, the forwarder
 # etc.
-datadog_agent_deb: clean install_full_deb
+datadog_agent_deb: clean install_deb
 	FPM_EDITOR="echo 'Replaces: datadog-agent (<= $(VERSION)), datadog-agent-base (<= $(VERSION)), datadog-agent-lib' >>" \
 $(FPM_BUILD) -t deb \
 -n datadog-agent \
@@ -160,28 +156,12 @@ $(FPM_BUILD) -t deb \
 .
 
 
-# Make the database agent base debian package.
-datadog_agent_base_deb: clean install_base_deb
-	FPM_EDITOR="echo 'Replaces: datadog-agent-base (<= $(VERSION)), datadog-agent-lib' >>" \
-$(FPM_BUILD) -t deb \
--n datadog-agent-base \
--d "python >= 2.4" \
--d "adduser" \
--d "sysstat" \
--d "python-pexpect" \
---post-install   datadog-agent-base-deb/postinst \
---post-uninstall datadog-agent-base-deb/postrm \
---pre-uninstall  datadog-agent-base-deb/prerm \
-.
-
 #===================
 # JENKINS TARGETS
 #===================
 
 deb:
 	mkdir -p ../artifacts
-	make datadog_agent_base_deb
-	cp *.deb ../artifacts
 	make datadog_agent_deb
 	cp *.deb ../artifacts
 
