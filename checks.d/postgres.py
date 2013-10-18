@@ -65,6 +65,7 @@ class PostgreSql(AgentCheck):
                     %s 
                     FROM pg_stat_database
                     WHERE datname not ilike 'template%%'
+                    AND datname not ilike 'postgres'
                 ;""" % fields
         
         cursor = db.cursor()
@@ -93,11 +94,33 @@ class PostgreSql(AgentCheck):
             result = cursor.fetchone()
         del cursor
 
+    def get_connection(self, key, host, port, user, password, dbname):
+
+        if key in self.dbs:
+            return self.dbs[key]
+
+        elif host != '' and user != '':
+            try:
+                import psycopg2 as pg
+            except ImportError:
+                raise ImportError("psycopg2 library can not be imported. Please check the installation instruction on the Datadog Website")
+            
+            if host == 'localhost' and password == '':
+                # Use ident method
+                return pg.connect("user=%s dbname=%s" % (user, dbname))
+            elif port != '':
+                return pg.connect(host=host, port=port, user=user,
+                    password=password, database=dbname)
+            else:
+                return pg.connect(host=host, user=user, password=password,
+                    database=dbname)
+
+
     def check(self, instance):
         host = instance.get('host', '')
         port = instance.get('port', '')
         user = instance.get('username', '')
-        passwd = instance.get('password', '')
+        password = instance.get('password', '')
         tags = instance.get('tags', [])
         dbname = instance.get('database', 'postgres')
         # Clean up tags in case there was a None entry in the instance
@@ -106,19 +129,7 @@ class PostgreSql(AgentCheck):
             tags = []
         key = '%s:%s' % (host, port)
 
-        if key in self.dbs:
-            db = self.dbs[key]
-        elif host != '' and user != '':
-            import psycopg2 as pg
-            if host == 'localhost' and passwd == '':
-                # Use ident method
-                db = pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                db = pg.connect(host=host, port=port, user=user,
-                    password=passwd, database=dbname)
-            else:
-                db = pg.connect(host=host, user=user, password=passwd,
-                    database=dbname)
+        db = self.get_connection(key, host, port, user, password, dbname)
 
         # Check version
         version = self._get_version(key, db)
