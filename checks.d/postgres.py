@@ -1,5 +1,30 @@
 from checks import AgentCheck
 
+GAUGE = 'gauge'
+RATE = 'rate'
+
+METRICS = {
+    'numbackends'       : ('connections', GAUGE),
+    'xact_commit'       : ('commits', RATE),
+    'xact_rollback'     : ('rollbacks', RATE),
+    'blks_read'         : ('disk_read', RATE),
+    'blks_hit'          : ('buffer_hit', RATE),
+    'tup_returned'      : ('rows_returned', RATE),
+    'tup_fetched'       : ('rows_fetched', RATE),
+    'tup_inserted'      : ('rows_inserted', RATE),
+    'tup_updated'       : ('rows_updated', RATE),
+    'tup_deleted'       : ('rows_deleted', RATE),
+
+}
+
+NEWER_92_METRICS = {
+    'blk_read_time'     : ('disk_read_time', GAUGE),
+    'blk_write_time'    : ('disk_write_time', GAUGE),
+    'deadlocks'         : ('deadlocks', GAUGE),
+    'temp_bytes'        : ('temp_bytes', RATE),
+    'temp_files'        : ('temp_files', RATE),
+}
+
 class PostgreSql(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -9,44 +34,62 @@ class PostgreSql(AgentCheck):
     def _get_version(self, key, db):
         if key not in self.versions:
             cursor = db.cursor()
-            cursor.execute('select version();')
+            cursor.execute('SHOW SERVER_VERSION;')
             result = cursor.fetchone()
-            self.versions[key] = result[0]
-            # FIXME parse or find the way to get the ints
+            try:
+                version = map(int, result[0].split('.'))
+            except Exception:
+                version = result[0]
+            self.versions[key] = version
 
         return self.versions[key]
 
-    def _collect_stats(self, db, tags):
-        query = """
-            select datname, numbackends, xact_commit,
-               xact_rollback, blks_read, blks_hit,
-               tup_returned, tup_fetched, tup_inserted,
-               tup_updated, tup_deleted
-            from pg_stat_database
-            where datname not ilike 'template%' and
-                datname not ilike 'postgres';
-        """
+    def _is_9_2_or_above(self, key, db):
+        version = self._get_version(key, db)
+        if type(version) == list:
+            return version >= [9,2,0]
+
+        return False
+
+
+    def _collect_stats(self, key, db, instance_tags):
+
+        metrics_to_collect = METRICS
+        if self._is_9_2_or_above(key, db):
+            metrics_to_collect.update(NEWER_92_METRICS)
+
+
+        metrics_keys = metrics_to_collect.keys()
+        fields = ",".join(metrics_keys)
+        query = """SELECT datname,
+                    %s 
+                    FROM pg_stat_database
+                    WHERE datname not ilike 'template%%'
+                ;""" % fields
+        
         cursor = db.cursor()
         cursor.execute(query)
         result = cursor.fetchone()
         while result is not None:
-            (dbname, backends, commits, rollbacks, read, hit,
-             ret, fetch, ins, upd, deleted) = result
+            dbname = result[0]
             try:
-                tags = ['db:%s' % dbname] + tags
+                tags = ['db:%s' % dbname] + instance_tags
             except Exception:
                 # if tags is none or is not of the right type
                 tags = ['db:%s' % dbname]
-            self.gauge('postgresql.connections', backends, tags=tags)
-            self.rate('postgresql.commits', commits, tags=tags)
-            self.rate('postgresql.rollbacks', rollbacks, tags=tags)
-            self.rate('postgresql.disk_read', read, tags=tags)
-            self.rate('postgresql.buffer_hit', hit, tags=tags)
-            self.rate('postgresql.rows_returned', ret, tags=tags)
-            self.rate('postgresql.rows_fetched', fetch, tags=tags)
-            self.rate('postgresql.rows_inserted', ins, tags=tags)
-            self.rate('postgresql.rows_updated', upd, tags=tags)
-            self.rate('postgresql.rows_deleted', deleted, tags=tags)
+
+            for i, value in enumerate(result):
+                if i == 0:
+                    # This is the dbname
+                    continue
+
+                metric_name = "postgresql.%s" % metrics_to_collect[metrics_keys[i-1]][0]
+                metric_type = metrics_to_collect[metrics_keys[i-1]][1]
+                if metric_type == GAUGE:
+                    self.gauge(metric_name, value, tags=tags)
+                elif metric_type == RATE:
+                    self.rate(metric_name, value, tags=tags)
+
             result = cursor.fetchone()
         del cursor
 
@@ -82,7 +125,7 @@ class PostgreSql(AgentCheck):
         self.log.debug("Running check against version %s" % version)
 
         # Collect metrics
-        self._collect_stats(db, tags)
+        self._collect_stats(key, db, tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
