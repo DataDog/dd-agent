@@ -107,15 +107,10 @@ class TestMongo(unittest.TestCase):
             'mongodb.mem.virtual': lambda x: x > 0
         }
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
 
         # Run the check against our running server
         self.check.check(self.config['instances'][1])
@@ -130,18 +125,12 @@ class TestMongo(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-        self.assertTrue( replSetCheck )
-
     def testMongoOldConfig(self):
-        raise SkipTest()
         self.agentConfig1 = {
             'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
             'version': '0.1',
@@ -179,16 +168,10 @@ class TestMongo(unittest.TestCase):
             'mongodb.mem.virtual': lambda x: x > 0
         }
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
-
 
         # Test the second mongodb instance
         self.check = load_check('mongo', conf2, self.agentConfig2)
@@ -206,15 +189,10 @@ class TestMongo(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
 
 if __name__ == '__main__':
     unittest.main()
