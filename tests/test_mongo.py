@@ -74,8 +74,6 @@ class TestMongo(unittest.TestCase):
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testMongoCheck(self):
-        raise SkipTest()
-
         self.config = {
             'instances': [{
                 'server': "mongodb://localhost:%s/test" % PORT1
