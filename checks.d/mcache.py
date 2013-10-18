@@ -94,7 +94,7 @@ class Memcache(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "memcache: %s" % version
+        return [("memcache", version)]
 
     def _get_metrics(self, server, port, tags, memcache):
         mc = None  # client

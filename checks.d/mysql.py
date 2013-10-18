@@ -42,7 +42,7 @@ class MySql(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "MySQLdb: %s" % version
+        return [("MySQLdb", version)]
 
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)

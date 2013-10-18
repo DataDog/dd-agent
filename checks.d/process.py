@@ -14,7 +14,7 @@ class ProcessCheck(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "psutil: %s" % version
+        return [("psutil", version)]
 
     def find_pids(self, search_string, psutil, exact_match=True):
         """

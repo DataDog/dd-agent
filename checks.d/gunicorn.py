@@ -42,7 +42,7 @@ class GUnicornCheck(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "psutil: %s" % version
+        return [("psutil", version)]
 
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """

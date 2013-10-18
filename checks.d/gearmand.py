@@ -13,7 +13,7 @@ class Gearman(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "gearman: %s" % version
+        return [("gearman", version)]
 
     def _get_client(self,host,port):
         try:

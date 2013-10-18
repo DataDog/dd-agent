@@ -73,7 +73,7 @@ class MongoDb(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "pymongo: %s" % version
+        return [("pymongo", version)]
 
     def checkLastState(self, state, agentConfig):
         if self._last_state != state:

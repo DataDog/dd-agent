@@ -42,7 +42,7 @@ class PostgreSql(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "psycopg2: %s" % version
+        return [("psycopg2", version)]
 
     def _get_version(self, key, db):
         if key not in self.versions:

@@ -41,7 +41,7 @@ class Cacti(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "rrdtool: %s" % version 
+        return [("rrdtool", version)] 
 
     def check(self, instance):
         

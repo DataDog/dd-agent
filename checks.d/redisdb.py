@@ -81,7 +81,7 @@ class Redis(AgentCheck):
         except AttributeError:
             version = "unknown"
 
-        return "redis: %s" % version
+        return [("redis", version)]
 
     def _parse_dict_string(self, string, key, default):
         """Take from a more recent redis.py, parse_info"""
