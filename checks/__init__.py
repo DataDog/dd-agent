@@ -285,6 +285,7 @@ class AgentCheck(object):
         self.events = []
         self.instances = instances or []
         self.warnings = []
+        self.library_versions = None
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -428,6 +429,19 @@ class AgentCheck(object):
         :param warning_message: String. Warning message to be displayed
         """
         self.warnings.append(warning_message)
+
+    def get_library_info(self):
+        if self.library_versions is not None:
+            return self.library_versions
+        try:
+            self.library_versions = self.get_library_versions()
+        except NotImplementedError:
+            pass
+
+    def get_library_versions(self):
+        """ Should return a string that shows which version
+        of the needed libraries are used """
+        raise NotImplementedError
 
     def get_warnings(self):
         """

@@ -3,6 +3,17 @@ import time
 
 class ProcessCheck(AgentCheck):
 
+    def get_library_versions(self):
+        try:
+            import psutil
+            version = psutil.__version__
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"psutil": version}
+
     def find_pids(self, search_string, psutil, exact_match=True):
         """
         Create a set of pids of selected processes.

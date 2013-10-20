@@ -62,6 +62,17 @@ class MongoDb(AgentCheck):
 
         self._last_state = -1
 
+    def get_library_versions(self):
+        try:
+            import pymongo
+            version = pymongo.version
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"pymongo": version}
+
     def checkLastState(self, state, agentConfig):
         if self._last_state != state:
             self._last_state = state
