@@ -31,18 +31,16 @@ class PostgreSql(AgentCheck):
         self.dbs = {}
         self.versions = {}
 
-    def get_check_library_info(self):
+    def get_library_versions(self):
         try:
             import psycopg2
-        except ImportError:
-            return "psycopg2 not found"
-
-        try:
             version = psycopg2.__version__
+        except ImportError:
+            version = "Not Found"
         except AttributeError:
-            version = "unknown"
+            version = "Unknown"
 
-        return [("psycopg2", version)]
+        return {"psycopg2": version}
 
     def _get_version(self, key, db):
         if key not in self.versions:

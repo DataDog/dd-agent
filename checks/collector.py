@@ -273,7 +273,7 @@ class Collector(object):
             except Exception, e:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, library=check.library_info)
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, library_versions=check.get_library_info())
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():

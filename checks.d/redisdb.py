@@ -70,18 +70,16 @@ class Redis(AgentCheck):
         self.previous_total_commands = {}
         self.connections = {}
 
-    def get_check_library_info(self):
+    def get_library_versions(self):
         try:
             import redis
-        except ImportError:
-            return "redis not found"
-
-        try:
             version = redis.__version__
+        except ImportError:
+            version = "Not Found"
         except AttributeError:
-            version = "unknown"
+            version = "Unknown"
 
-        return [("redis", version)]
+        return {"redis": version}
 
     def _parse_dict_string(self, string, key, default):
         """Take from a more recent redis.py, parse_info"""

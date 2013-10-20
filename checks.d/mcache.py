@@ -83,18 +83,16 @@ class Memcache(AgentCheck):
         "total_connections"
     ]
 
-    def get_check_library_info(self):
+    def get_library_versions(self):
         try:
             import memcache
-        except ImportError:
-            return "memcache not found"
-
-        try:
             version = memcache.__version__
+        except ImportError:
+            version = "Not Found"
         except AttributeError:
-            version = "unknown"
+            version = "Unknown"
 
-        return [("memcache", version)]
+        return {"memcache": version}
 
     def _get_metrics(self, server, port, tags, memcache):
         mc = None  # client
