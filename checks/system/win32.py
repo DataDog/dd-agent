@@ -3,7 +3,7 @@ from checks import Check
 try:
     import wmi
     w = wmi.WMI()
-except ImportError:
+except Exception:
     wmi, w = None, None
 
 # Device WMI drive types
