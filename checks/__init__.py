@@ -519,7 +519,7 @@ class AgentCheck(object):
             return name
 
 
-def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None, metric_type=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
      (metric, timestamp, value, {"tags": ["tag1", "tag2"], ...})
     """

@@ -1,7 +1,9 @@
 import logging
 from time import time
+from checks.metric_types import MetricTypes
 
 log = logging.getLogger(__name__)
+
 
 # This is used to ensure that metrics with a timestamp older than
 # RECENT_POINT_THRESHOLD_DEFAULT seconds (or the value passed in to
@@ -54,7 +56,8 @@ class Gauge(Metric):
                 value=self.value,
                 tags=self.tags,
                 hostname=self.hostname,
-                device_name=self.device_name
+                device_name=self.device_name,
+                metric_type=MetricTypes.GAUGE,
             )]
             self.value = None
             return res
@@ -86,7 +89,8 @@ class Counter(Metric):
                 timestamp=timestamp,
                 tags=self.tags,
                 hostname=self.hostname,
-                device_name=self.device_name
+                device_name=self.device_name,
+                metric_type=MetricTypes.COUNTER,
             )]
         finally:
             self.value = 0
@@ -134,7 +138,8 @@ class Histogram(Metric):
                 tags=self.tags,
                 metric='%s.%s' % (self.name, suffix),
                 value=value,
-                timestamp=ts
+                timestamp=ts,
+                metric_type=MetricTypes.GAUGE,
             ) for suffix, value in metric_aggrs
         ]
 
@@ -146,7 +151,8 @@ class Histogram(Metric):
                 tags=self.tags,
                 metric=name,
                 value=val,
-                timestamp=ts
+                timestamp=ts,
+                metric_type=MetricTypes.GAUGE,
             ))
 
         # Reset our state.
@@ -181,7 +187,8 @@ class Set(Metric):
                 tags=self.tags,
                 metric=self.name,
                 value=len(self.values),
-                timestamp=timestamp
+                timestamp=timestamp,
+                metric_type=MetricTypes.GAUGE,
             )]
         finally:
             self.values = set()
@@ -231,7 +238,8 @@ class Rate(Metric):
                 tags=self.tags,
                 metric=self.name,
                 value=val,
-                timestamp=timestamp
+                timestamp=timestamp,
+                metric_type=MetricTypes.GAUGE,
             )]
         finally:
             self.samples = self.samples[-1:]
@@ -269,6 +277,8 @@ class MetricsAggregator(object):
         self.num_discarded_old_points = 0
 
     def packets_per_second(self, interval):
+        if interval == 0:
+            return 0
         return round(float(self.count)/interval, 2)
 
     def parse_metric_packet(self, packet):
@@ -471,8 +481,7 @@ class MetricsAggregator(object):
         self.submit_metric(metric_name, self.count, 'g')
 
 
-def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
-
+def api_formatter(metric, value, timestamp, tags, hostname, device_name=None, metric_type=None):
     # Workaround for a bug in minjson serialization
     # (https://github.com/DataDog/dd-agent/issues/422)
     if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
@@ -482,5 +491,6 @@ def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
         'points': [(timestamp, value)],
         'tags': tags,
         'host': hostname,
-        'device_name': device_name
+        'device_name': device_name,
+        'type': metric_type or MetricTypes.GAUGE,
     }
