@@ -5,13 +5,36 @@ Generic WMI check. This check allows you to specify particular metrics that you
 want from WMI in your configuration. Check wmi.yaml.example in your conf.d
 directory for more details on configuration.
 '''
+try:
+    import wmi
+except Exception:
+    wmi = None
+
 from checks import AgentCheck
 
 UP_METRIC = 'Up'
 SEARCH_WILDCARD = '*'
 
 class WMICheck(AgentCheck):
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
+        self.wmi_conns = {}
+
+    def _get_wmi_conn(host, user, password):
+        key = "%s:%s:%s" % (host, user, password)
+        if key not in self.wmi_conns:
+            self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
+        return self.wmi_conns[key]
+
     def check(self, instance):
+        if wmi is None:
+            raise Exception("Missing 'wmi' module")
+        
+        host = instance.get('host', None)
+        user = instance.get('username', None)
+        password = instance.get('password', None)
+        w = _get_wmi_conn(host, user, password)
+
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
         filters = instance.get('filters')
@@ -19,9 +42,6 @@ class WMICheck(AgentCheck):
 
         if not wmi_class:
             raise Exception('WMI instance is missing a value for `class` in wmi.yaml')
-
-        import wmi
-        w = wmi.WMI()
 
         # If there are filters, we need one query per filter.
         if filters:

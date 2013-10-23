@@ -3,6 +3,10 @@ Monitor the Windows Event Log
 '''
 from datetime import datetime, timedelta
 import time
+try:
+    import wmi
+except Exception:
+    wmi = None
 
 from checks import AgentCheck
 
@@ -13,18 +17,23 @@ class Win32EventLog(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.last_ts = {}
+        self.wmi_conns = {}
+
+    def _get_wmi_conn(host, user, password):
+        key = "%s:%s:%s" % (host, user, password)
+        if key not in self.wmi_conns:
+            self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
+        return self.wmi_conns[key]
 
     def check(self, instance):
-        try:
-            import wmi
-        except ImportError:
-            raise Exception("Unable to import 'wmi' module")
+        if wmi is None:
+            raise Exception("Missing 'wmi' module")
 
         host = instance.get('host')
         user = instance.get('username')
         password = instance.get('password')
         tags = instance.get('tags')
-        w = wmi.WMI(host, user=user, password=password)
+        w = self._get_wmi_conn(host, user, password)
 
         # Store the last timestamp by instance
         instance_key = self._instance_key(instance)
