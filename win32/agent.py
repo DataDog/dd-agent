@@ -11,6 +11,7 @@ import tornado.httpclient
 import threading
 import modules
 import time
+import multiprocessing
 
 from optparse import Values
 from checks.collector import Collector
@@ -36,8 +37,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         config = get_config(parse_args=False)
         self.forwarder = DDForwarder(config)
-        self.dogstatsd = DogstatsdThread(config)
-        self.pup = PupThread(config)
+        self.dogstatsd = DogstatsdProcess(config)
+        self.pup = PupProcess(config)
 
         # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
@@ -55,11 +56,10 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
         # Stop all services
         self.running = False
-        self.forwarder.stop()
-        self.agent.stop()
-        self.dogstatsd.stop()
-        self.pup.stop()
-        
+        self.pup.terminate()
+        self.agent.terminate()
+        self.dogstatsd.terminate()
+        self.forwarder.terminate()
 
     def SvcDoRun(self):
         import servicemanager
@@ -80,9 +80,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             time.sleep(1)
 
 
-class DDAgent(threading.Thread):
+class DDAgent(multiprocessing.Process):
     def __init__(self, agentConfig):
-        threading.Thread.__init__(self)
+        multiprocessing.Process.__init__(self, name='ddagent')
         self.config = agentConfig
         # FIXME: `running` flag should be handled by the service
         self.running = True
@@ -119,34 +119,34 @@ class DDAgent(threading.Thread):
 
         return emitters
 
-class DDForwarder(threading.Thread):
+class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig):
-        threading.Thread.__init__(self)
+        multiprocessing.Process.__init__(self, name='ddforwarder')
+        self.agentConfig = agentConfig
+
+    def run(self):
+        log.debug("Windows Service - Starting forwarder")
         set_win32_cert_path()
         self.config = get_config(parse_args = False)
-        port = agentConfig.get('listen_port', 17123)
+        port = self.agentConfig.get('listen_port', 17123)
         if port is None:
             port = 17123
         else:
             port = int(port)
-        self.port = port
-        self.forwarder = Application(port, agentConfig, watchdog=False)
-
-    def run(self):
-        log.debug("Windows Service - Starting forwarder")
+        self.forwarder = Application(port, self.agentConfig, watchdog=False)
         self.forwarder.run()
 
     def stop(self):
         log.debug("Windows Service - Stopping forwarder")
         self.forwarder.stop()
 
-class DogstatsdThread(threading.Thread):
+class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
-        threading.Thread.__init__(self)
-        self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
+        multiprocessing.Process.__init__(self, name='dogstatsd')
 
     def run(self):
         log.debug("Windows Service - Starting Dogstatsd server")
+        self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
         self.reporter.start()
         self.server.start()
 
@@ -156,17 +156,17 @@ class DogstatsdThread(threading.Thread):
         self.reporter.stop()
         self.reporter.join()
 
-class PupThread(threading.Thread):
+class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
-        threading.Thread.__init__(self)
-        self.config = agentConfig
-        self.is_enabled = agentConfig.get('use_web_info_page', True)
-        self.pup = pup
+        multiprocessing.Process.__init__(self, name='pup')
+        self.agentConfig = agentConfig
 
     def run(self):
+        self.is_enabled = self.agentConfig.get('use_web_info_page', True)
+        self.pup = pup
         if self.is_enabled:
             log.debug("Windows Service - Starting Pup")
-            self.pup.run_pup(self.config)
+            self.pup.run_pup(self.agentConfig)
 
     def stop(self):
         if self.is_enabled:
