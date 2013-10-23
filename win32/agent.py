@@ -174,6 +174,7 @@ class PupProcess(multiprocessing.Process):
             self.pup.stop()
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     if len(sys.argv) == 1:
         handle_exe_click(AgentSvc._svc_name_)
     else:
