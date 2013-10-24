@@ -67,7 +67,6 @@ class Redis(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-        self.previous_total_commands = {}
         self.connections = {}
 
     def get_library_versions(self):
@@ -162,12 +161,8 @@ class Redis(AgentCheck):
         [self.rate (self.RATE_KEYS[k],  info[k], tags=tags) for k in self.RATE_KEYS  if k in info]
 
         # Save the number of commands.
-        total_commands = info['total_commands_processed'] - 1
-        tuple_tags = tuple(tags)
-        if tuple_tags in self.previous_total_commands:
-            count = total_commands - self.previous_total_commands[tuple_tags]
-            self.gauge('redis.net.commands', count, tags=tags)
-        self.previous_total_commands[tuple_tags] = total_commands
+        self.rate('redis.net.commands', info['total_commands_processed'],
+                  tags=tags)
 
     def check(self, instance):
         try:
