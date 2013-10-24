@@ -30,7 +30,7 @@ install:
   - pip install . --use-mirrors
 before_script:
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl -L http://apache.mirrors.timporter.net/cassandra/2.0.1/apache-cassandra-2.0.1-bin.tar.gz > /tmp/cassandra2.tar.gz
+  - curl -L http://apache.mirrors.multidist.eu/cassandra/2.0.1/apache-cassandra-2.0.1-bin.tar.gz > /tmp/cassandra2.tar.gz
   - tar -xzvf /tmp/cassandra2.tar.gz -C /tmp
   - sudo /tmp/apache-cassandra-2.0.1/bin/cassandra
   - sudo service haproxy restart
