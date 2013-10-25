@@ -11,35 +11,41 @@ class Couchbase(AgentCheck):
     """Extracts stats from Couchbase via its REST API
     http://docs.couchbase.com/couchbase-manual-2.0/#using-the-rest-api
     """
-    def _create_metric(self, data, tags=None):
+
+    def _browse_metrics(self, metrics_to_browse, tags=None):
+        for metric_name, value in metrics_to_browse.iteritems():
+            if value is not None:
+                metric_name = '.'.join(['couchbase', key, self.camel_case_to_joined_lower(metric_name)])
+
+
+    def _submit_metric(self, metric_name, value, tags):
+        if value is not None:
+            metric_name = '.'.join(['couchbase', key, self.camel_case_to_joined_lower(metric_name)])
+            self.gauge(metric_name, value, tags)
+
+    def _create_metrics(self, data, tags=None):
         storage_totals = data['stats']['storageTotals']
         for key, storage_type in storage_totals.items():
-            for metric, val in storage_type.items():
+            for metric_name, val in storage_type.items():
                 if val is not None:
-                    cleaned_metric_name = self.camel_case_to_joined_lower(metric)
-                    full_metric_name = '.'.join(['couchbase', key, cleaned_metric_name])
-                    self.gauge(full_metric_name, val, tags=tags)
-#                    self.log.debug('found metric %s with value %s' % (metric_name, val))
+                    metric_name = '.'.join(['couchbase', key, self.camel_case_to_joined_lower(metric_name)])
+                    self.gauge(metric_name, val, tags=tags)
 
         for bucket_name, bucket_stats in data['buckets'].items():
-            for metric, val in bucket_stats.items():
+            for metric_name, val in bucket_stats.items():
                 if val is not None:
-                    cleaned_metric_name = self.camel_case_to_joined_lower(metric)
-                    full_metric_name = '.'.join(['couchbase', 'by_bucket', cleaned_metric_name])
+                    metric_name = '.'.join(['couchbase', 'by_bucket', self.camel_case_to_joined_lower(metric_name)])
                     metric_tags = list(tags)
                     metric_tags.append('bucket:%s' % bucket_name)
-                    self.gauge(full_metric_name, val[0], tags=metric_tags, device_name=bucket_name)
-#                    self.log.debug('found metric %s with value %s' % (metric_name, val[0]))
+                    self.gauge(metric_name, val[0], tags=metric_tags, device_name=bucket_name)
 
         for node_name, node_stats in data['nodes'].items():
-            for metric, val in node_stats['interestingStats'].items():
+            for metric_name, val in node_stats['interestingStats'].items():
                 if val is not None:
-                    cleaned_metric_name = self.camel_case_to_joined_lower(metric)
-                    full_metric_name = '.'.join(['couchbase', 'by_node', cleaned_metric_name])
+                    metric_name = '.'.join(['couchbase', 'by_node', self.camel_case_to_joined_lower(metric_name)])
                     metric_tags = list(tags)
                     metric_tags.append('node:%s' % node_name)
-                    self.gauge(full_metric_name, val, tags=metric_tags, device_name=node_name)
-#                    self.log.debug('found metric %s with value %s' % (metric_name, val))
+                    self.gauge(metric_name, val, tags=metric_tags, device_name=node_name)
 
 
     def _get_stats(self, url):
@@ -55,9 +61,15 @@ class Couchbase(AgentCheck):
     def check(self, instance):
         server = instance.get('server', None)
         if server is None:
-            return False
+            raise Exception("The server must be specified")
+        tags = instance.get('tags', [])
+        # Clean up tags in case there was a None entry in the instance
+        # e.g. if the yaml contains tags: but no actual tags
+        if tags is None:
+            tags = []
+        tags.append('instance:%s' % server)
         data = self.get_data(server)
-        self._create_metric(data, tags=['instance:%s' % server])
+        self._create_metrics(data, tags=tags)
 
     def get_data(self, server):
         # The dictionary to be returned.

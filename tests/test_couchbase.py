@@ -1,6 +1,8 @@
 import unittest
 from tests.common import load_check
 
+from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 class CouchbaseTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -15,6 +17,7 @@ class CouchbaseTestCase(unittest.TestCase):
         }
         self.check = load_check('couchbase', self.config, self.agentConfig)
 
+    @attr('couchbase')
     def test_camel_case_to_joined_lower(self):
         test_pairs = {
             'camelCase' : 'camel_case',
@@ -34,7 +37,9 @@ class CouchbaseTestCase(unittest.TestCase):
             self.assertEqual(test_output, expected_output, 
                 'Input was %s, expected output was %s, actual output was %s' % (test_input, expected_output, test_output))
 
+    @attr('couchbase')
     def test_metrics_casing(self):
+        raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
@@ -48,7 +53,9 @@ class CouchbaseTestCase(unittest.TestCase):
         found_metrics = [k[0] for k in metrics if k[0] in camel_cased_metrics]
         self.assertEqual(found_metrics.sort(), camel_cased_metrics.sort())
         
+    @attr('couchbase')
     def test_metrics(self):
+        raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
