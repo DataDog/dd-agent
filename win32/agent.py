@@ -36,9 +36,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         config = get_config(parse_args=False)
-        self.forwarder = DDForwarder(config)
-        self.dogstatsd = DogstatsdProcess(config)
-        self.pup = PupProcess(config)
 
         # Setup the correct options so the agent will use the forwarder
         opts, args = Values({
@@ -50,16 +47,23 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         agentConfig = get_config(parse_args=False, options=opts)
         self.agent = DDAgent(agentConfig)
 
+        # Keep a list of running processes so we can start/end as needed.
+        # Processes will start started in order and stopped in reverse order.
+        self.procs = [
+            DDForwarder(config),
+            DDAgent(agentConfig),
+            DogstatsdProcess(config),
+            PupProcess(config),
+        ]
+
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
 
-        # Stop all services
+        # Stop all services in reverse order.
         self.running = False
-        self.pup.terminate()
-        self.agent.terminate()
-        self.dogstatsd.terminate()
-        self.forwarder.terminate()
+        for proc in self.procs[::-1]:
+            proc.terminate()
 
     def SvcDoRun(self):
         import servicemanager
@@ -67,16 +71,25 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 servicemanager.EVENTLOG_INFORMATION_TYPE, 
                 servicemanager.PYS_SERVICE_STARTED,
                 (self._svc_name_, ''))
+
         # Start all services
-        self.forwarder.start()
-        self.agent.start()
-        self.dogstatsd.start()
-        self.pup.start()
+        for proc in self.procs:
+            proc.start()
 
         # Loop to keep the service running since all DD services are
         # running in separate threads
         self.running = True
         while self.running:
+            if self.running:
+                # Restart any processes that might have died.
+                for i, proc in enumerate(self.procs):
+                    if not proc.is_alive():
+                        log.info("%s has died. Restarting..." % proc.name)
+                        # Make a new proc instances because multiprocessing
+                        # won't let you call .start() twice on the same instance.
+                        new_proc = proc.__class__(proc.config)
+                        new_proc.start()
+                        self.procs[i] = new_proc
             time.sleep(1)
 
 
@@ -122,18 +135,18 @@ class DDAgent(multiprocessing.Process):
 class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='ddforwarder')
-        self.agentConfig = agentConfig
+        self.config = agentConfig
 
     def run(self):
         log.debug("Windows Service - Starting forwarder")
         set_win32_cert_path()
-        self.config = get_config(parse_args = False)
-        port = self.agentConfig.get('listen_port', 17123)
+        port = self.config.get('listen_port', 17123)
         if port is None:
             port = 17123
         else:
             port = int(port)
-        self.forwarder = Application(port, self.agentConfig, watchdog=False)
+        app_config = get_config(parse_args = False)
+        self.forwarder = Application(port, app_config, watchdog=False)
         self.forwarder.run()
 
     def stop(self):
@@ -143,6 +156,7 @@ class DDForwarder(multiprocessing.Process):
 class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='dogstatsd')
+        self.config = agentConfig
 
     def run(self):
         log.debug("Windows Service - Starting Dogstatsd server")
@@ -159,14 +173,14 @@ class DogstatsdProcess(multiprocessing.Process):
 class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='pup')
-        self.agentConfig = agentConfig
+        self.config = agentConfig
 
     def run(self):
-        self.is_enabled = self.agentConfig.get('use_web_info_page', True)
+        self.is_enabled = self.config.get('use_web_info_page', True)
         self.pup = pup
         if self.is_enabled:
             log.debug("Windows Service - Starting Pup")
-            self.pup.run_pup(self.agentConfig)
+            self.pup.run_pup(self.config)
 
     def stop(self):
         if self.is_enabled:
