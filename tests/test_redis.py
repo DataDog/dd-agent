@@ -10,7 +10,6 @@ import pprint
 import redis
 
 from tests.common import load_check
-
 logger = logging.getLogger()
 
 MAX_WAIT = 20
@@ -142,6 +141,7 @@ class TestRedis(unittest.TestCase):
 
         # Run one more check and ensure we get total command count
         # and other rates
+        time.sleep(5)
         r.check(instance)
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
