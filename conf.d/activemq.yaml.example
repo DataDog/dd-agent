@@ -5,7 +5,8 @@ instances:
 #        password: password
 #        name: activemq_instance
 #        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
-
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
 
 # List of metrics to be collected by the integration
 # You should not have to modify this.

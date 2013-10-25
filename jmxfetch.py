@@ -22,7 +22,7 @@ JAVA_LOGGING_LEVEL = {
 }
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
-JMX_FETCH_JAR_NAME = "jmxfetch-0.1.1-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.1.2-jar-with-dependencies.jar"
 
 class JMXFetch(object):
 

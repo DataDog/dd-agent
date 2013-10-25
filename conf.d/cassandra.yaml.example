@@ -1,9 +1,12 @@
 instances:
-#   -   host: localhost
-#       port: 7199
-#       user: username
-#       password: password
-#       name: cassandra_instance
+#   -    host: localhost
+#        port: 7199
+#        user: username
+#        password: password
+#        name: cassandra_instance
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 
 
 init_config:
