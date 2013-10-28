@@ -89,6 +89,7 @@ class Collector(object):
             try:
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
+                log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
