@@ -82,7 +82,11 @@ class JMXFetch(object):
 			        continue
 
 			    init_config = check_config.get('init_config', {})
+			    if init_config is None:
+			    	init_config = {}
 			    instances = check_config.get('instances', [])
+			    if instances is None:
+			    	instances = []
 
 			    if instances:
 			        if type(instances) != list or len(instances) == 0:
@@ -143,8 +147,17 @@ class JMXFetch(object):
 	@classmethod
 	def stop(cls):
 		try:
+			pid = JMXFetch.pid_file.get_pid()
+			if pid is None:
+				log.error("Couldn't get jmxfetch pid.")
+				return
+		except Exception:
+			log.error("Couldn't get jmxfetch pid.")
+			return
+
+		try:
 			log.info("Killing JMX Fetch")
-			os.kill(JMXFetch.pid_file.get_pid(), signal.SIGTERM)
+			os.kill(pid, signal.SIGTERM)
 			JMXFetch.pid_file.clean()
 			log.info("Success")
 		except Exception:
