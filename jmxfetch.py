@@ -36,7 +36,7 @@ class JMXFetch(object):
 
 			if should_run:
 				if JMXFetch.is_running():
-					log.warning("JMXFetch is already running")
+					log.warning("JMXFetch is already running, restarting it.")
 					JMXFetch.stop()
 
 				JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, default_check_frequency)
@@ -84,23 +84,20 @@ class JMXFetch(object):
 			    init_config = check_config.get('init_config', {})
 			    instances = check_config.get('instances', [])
 
-			    if init_config and instances:
+			    if instances:
 			        if type(instances) != list or len(instances) == 0:
 			            continue
 
-			        init_config = check_config.get('init_config', {})
-			        instances = check_config.get('instances', {})
-
 			        if java_bin_path is None:
-			            if init_config.get('java_bin_path'):
-			            # We get the java bin path from the yaml file for backward compatibility purposes
+			            if init_config and init_config.get('java_bin_path'):
+				            # We get the java bin path from the yaml file for backward compatibility purposes
 			                java_bin_path = check_config.get('init_config').get('java_bin_path')
 
 			            for instance in instances:
 			                if instance and instance.get('java_bin_path'):
 			                    java_bin_path = instance.get('java_bin_path')
 			        
-			        if not jmx_check_configured and (init_config.get('is_jmx') or check_name in JMX_CHECKS):
+			        if init_config.get('is_jmx') or check_name in JMX_CHECKS:
 			            jmx_check_configured = True
 
 		return (jmx_check_configured, java_bin_path)
