@@ -26,6 +26,7 @@ from pup import pup
 from jmxfetch import JMXFetch
 
 log = logging.getLogger(__name__)
+RESTART_INTERVAL = 24 * 60 * 60 # Defaults to 1 day
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -45,7 +46,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'disabled_dd': False
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
-        self.agent = DDAgent(agentConfig)
+        self.restart_interval = \
+            agentConfig.get('autorestart_interval', RESTART_INTERVAL)
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
@@ -55,6 +57,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             DogstatsdProcess(config),
             PupProcess(config),
         ]
+        # Keep track of the agent because we need to restart it sometimes.
+        self.collector = self.procs[1]
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
@@ -71,6 +75,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 servicemanager.EVENTLOG_INFORMATION_TYPE, 
                 servicemanager.PYS_SERVICE_STARTED,
                 (self._svc_name_, ''))
+        self.start_ts = time.time()
 
         # Start all services
         for proc in self.procs:
@@ -90,13 +95,23 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                         new_proc = proc.__class__(proc.config)
                         new_proc.start()
                         self.procs[i] = new_proc
+                # Auto-restart the collector if we've been running for a while.
+                if time.time() - self.start_ts > self.restart_interval:
+                    log.info('Auto-restarting collector after %s seconds' % self.restart_interval)
+                    collector = self.collector
+                    new_collector = collector.__class__(collector.config,
+                                                        start_event=False)
+                    collector.terminate()
+                    new_collector.start()
+
             time.sleep(1)
 
 
 class DDAgent(multiprocessing.Process):
-    def __init__(self, agentConfig):
+    def __init__(self, agentConfig, start_event=True):
         multiprocessing.Process.__init__(self, name='ddagent')
         self.config = agentConfig
+        self.start_event = start_event
         # FIXME: `running` flag should be handled by the service
         self.running = True
 
@@ -111,7 +126,7 @@ class DDAgent(multiprocessing.Process):
 
         # Main agent loop will run until interrupted
         while self.running:
-            self.collector.run(checksd=checksd)
+            self.collector.run(checksd=checksd, start_event=self.start_event)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
