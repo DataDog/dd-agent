@@ -52,22 +52,20 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
-        self.procs = [
-            DDForwarder(config),
-            DDAgent(agentConfig),
-            DogstatsdProcess(config),
-            PupProcess(config),
-        ]
-        # Keep track of the agent because we need to restart it sometimes.
-        self.collector = self.procs[1]
+        self.procs = {
+            'forwarder': DDForwarder(config),
+            'collector': DDAgent(agentConfig),
+            'dogstatsd': DogstatsdProcess(config),
+            'pup':       PupProcess(config),
+        }
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
 
-        # Stop all services in reverse order.
+        # Stop all services.
         self.running = False
-        for proc in self.procs[::-1]:
+        for proc in self.procs.values():
             proc.terminate()
 
     def SvcDoRun(self):
@@ -78,8 +76,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 (self._svc_name_, ''))
         self.start_ts = time.time()
 
-        # Start all services
-        for proc in self.procs:
+        # Start all services.
+        for proc in self.procs.values():
             proc.start()
 
         # Loop to keep the service running since all DD services are
@@ -88,25 +86,26 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         while self.running:
             if self.running:
                 # Restart any processes that might have died.
-                for i, proc in enumerate(self.procs):
+                for name, proc in self.procs.iteritems():
                     if not proc.is_alive():
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
                         new_proc = proc.__class__(proc.config)
                         new_proc.start()
-                        self.procs[i] = new_proc
+                        self.procs[name] = new_proc
                 # Auto-restart the collector if we've been running for a while.
                 if time.time() - self.start_ts > self.restart_interval:
                     log.info('Auto-restarting collector after %s seconds' % self.restart_interval)
-                    collector = self.collector
+                    collector = self.procs['collector']
                     new_collector = collector.__class__(collector.config,
                                                         start_event=False)
                     collector.terminate()
+                    del self.procs['collector']
                     new_collector.start()
 
                     # Replace old process and reset timer.
-                    self.procs[1] = new_collector
+                    self.procs['collector'] = new_collector
                     self.start_ts = time.time()
 
             time.sleep(1)
