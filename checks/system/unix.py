@@ -543,6 +543,9 @@ class Memory(Check):
             return memData  
             
         elif sys.platform == 'darwin':
+            macV = platform.mac_ver()
+            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
+
             try:
                 top = sp.Popen(['top', '-l 1'], stdout=sp.PIPE, close_fds=True).communicate()[0]
                 sysctl = sp.Popen(['sysctl', 'vm.swapusage'], stdout=sp.PIPE, close_fds=True).communicate()[0]
@@ -556,8 +559,15 @@ class Memory(Check):
             
             # Deal with sysctl
             swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
-            
-            return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
+
+            # Mavericks changes the layout of physical memory format in `top`
+            physUsedPartIndex = 3
+            physFreePartIndex = 4
+            if macV and (macV_minor_version >= 9):
+                physUsedPartIndex = 0
+                physFreePartIndex = 2
+
+            return {'physUsed' : physParts[physUsedPartIndex], 'physFree' : physParts[physFreePartIndex], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
             
         elif sys.platform.startswith("freebsd"):
             try:
