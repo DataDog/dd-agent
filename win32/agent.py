@@ -104,6 +104,10 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                     collector.terminate()
                     new_collector.start()
 
+                    # Replace old process and reset timer.
+                    self.procs[1] = new_collector
+                    self.start_ts = time.time()
+
             time.sleep(1)
 
 
