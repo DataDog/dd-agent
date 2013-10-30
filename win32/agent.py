@@ -48,6 +48,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         agentConfig = get_config(parse_args=False, options=opts)
         self.restart_interval = \
             int(agentConfig.get('autorestart_interval', RESTART_INTERVAL))
+        log.info("Autorestarting the collector ever %s seconds" % self.restart_interval)
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
