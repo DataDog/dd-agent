@@ -666,6 +666,8 @@ def load_check_directory(agentConfig):
             except Exception:
                 f.close()
                 log.exception("Unable to parse yaml config in %s" % conf_path)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
