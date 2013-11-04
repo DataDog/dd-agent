@@ -530,6 +530,8 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None, 
         attributes['hostname'] = hostname
     if device_name:
         attributes['device_name'] = device_name
+    if metric_type:
+        attributes['type'] = metric_type
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)
