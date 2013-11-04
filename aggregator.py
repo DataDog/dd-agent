@@ -214,7 +214,7 @@ class Rate(Metric):
 
         delta = sample2[1] - sample1[1]
         if delta < 0:
-            log.warn('Metric %s has a rate < 0. Not flushing.' % self.name)
+            log.info('Metric %s has a rate < 0. Counter may have been Reset.' % self.name)
             raise UnknownValue()
 
         return (delta / float(interval))

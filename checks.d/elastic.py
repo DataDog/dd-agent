@@ -159,7 +159,7 @@ class ElasticSearch(AgentCheck):
             event = self._create_event(data['status'])
             self.event(event)
 
-        
+
     def load_url(self, config_url, instance, tags=None, url_suffix=STATS_URL):
 
         # Try to fetch data from the stats URL
@@ -322,7 +322,7 @@ class ElasticSearch(AgentCheck):
 
         else:
             # then it should be green
-            alert_type = "info"
+            alert_type = "success"
             msg_title = "%s recovered as %s" % (hostname, status)
 
         msg = "ElasticSearch: %s just reported as %s" % (hostname, status)
