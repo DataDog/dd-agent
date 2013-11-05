@@ -292,21 +292,24 @@ class MetricsAggregator(object):
 
         if len(metadata) < 2:
             raise Exception('Unparseable metric packet: %s' % packet)
-        # Try to cast as an int first to avoid precision issues, then as a
-        # float.
-        try:
-            value = int(metadata[0])
-        except ValueError:
-            try:
-                value = float(metadata[0])
-            except ValueError:
 
-                # If the data type is Set, we will allow strings
-                if metadata[1] in self.ALLOW_STRINGS:
-                    value = metadata[0]
-                else:
+        # Submit the metric
+        raw_value, metric_type = metadata
+
+        if metric_type in self.ALLOW_STRINGS:
+            value = raw_value
+        else:
+            # Try to cast as an int first to avoid precision issues, then as a
+            # float.
+            try:
+                value = int(raw_value)
+            except ValueError:
+                try:
+                    value = float(raw_value)
+                except ValueError:
                     # Otherwise, raise an error saying it must be a number
-                    raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
+                    raise Exception('Metric value must be a number: %s, %s' % (name, raw_value))
+
 
         # Parse the optional values - sample rate & tags.
         sample_rate = 1
@@ -319,10 +322,7 @@ class MetricsAggregator(object):
             elif m[0] == '#':
                 tags = tuple(sorted(m[1:].split(',')))
 
-        # Submit the metric
-        mtype = metadata[1]
-
-        return name, value, mtype, tags, sample_rate
+        return name, value, metric_type, tags, sample_rate
 
     def _unescape_event_text(self, string):
         return string.replace('\\n', '\n')
