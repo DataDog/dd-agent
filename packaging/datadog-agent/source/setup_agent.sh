@@ -216,7 +216,7 @@ print_done
 
 # install dependencies
 printf "Installing tornado 2.4.1 using pip....." | tee -a $logfile
-pip install tornado==2.4.1 >> $logfile 2>&1
+$dd_base/venv/bin/pip install tornado==2.4.1 >> $logfile 2>&1
 print_done
 
 # set up the Agent
@@ -262,7 +262,7 @@ fi
 # set up supervisor
 printf "Setting up supervisor....." | tee -a $logfile
 mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
-pip install supervisor==3.0b2 >> $logfile 2>&1
+$dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
 print_done
 
