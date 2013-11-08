@@ -359,6 +359,7 @@ class Collector(object):
             'resources': {},
             'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
+            'host-tags': {},
         }
 
         # Include system stats on first postback
@@ -378,7 +379,9 @@ class Collector(object):
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
-                payload['tags'] = self.agentConfig['tags']
+                payload['host-tags']['system'] = self.agentConfig['tags'].split(",")
+
+            payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
 
             # Log the metadata on the first run
             if self._is_first_run():
