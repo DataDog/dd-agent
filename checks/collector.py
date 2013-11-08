@@ -379,7 +379,7 @@ class Collector(object):
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
-                payload['host-tags']['system'] = self.agentConfig['tags'].split(",")
+                payload['host-tags']['system'] = [unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")]
 
             EC2_tags = EC2.get_tags()
             if EC2_tags is not None:
