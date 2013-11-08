@@ -236,7 +236,7 @@ class EC2(object):
 
         try:
             iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
-            iam_params = json.loads(urllib2.urlopen(EC2URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
             from checks.libs.boto.ec2.connection import EC2Connection
             connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
