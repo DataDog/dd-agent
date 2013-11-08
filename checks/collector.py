@@ -381,7 +381,9 @@ class Collector(object):
             if self.agentConfig['tags'] is not None:
                 payload['host-tags']['system'] = self.agentConfig['tags'].split(",")
 
-            payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
+            EC2_tags = EC2.get_tags()
+            if EC2_tags is not None:
+                payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
 
             # Log the metadata on the first run
             if self._is_first_run():

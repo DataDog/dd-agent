@@ -224,7 +224,7 @@ class EC2(object):
             EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
             
         except Exception:
-            EC2_tags = []
+            EC2_tags = None
             pass
 
 
