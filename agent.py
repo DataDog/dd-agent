@@ -292,4 +292,4 @@ if __name__ == '__main__':
             log.exception("Uncaught error running the Agent")
         except:
             pass
-
+        raise
