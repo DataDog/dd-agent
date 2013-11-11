@@ -663,7 +663,7 @@ def load_check_directory(agentConfig):
                 check_config = yaml.load(f.read(), Loader=yLoader)
                 assert check_config is not None
                 f.close()
-            except Exception:
+            except Exception, e:
                 f.close()
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
