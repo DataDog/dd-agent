@@ -56,7 +56,7 @@ class Check(object):
         self.logger = logger
         try:
             self.logger.addFilter(LaconicFilter())
-        except:
+        except Exception:
             self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
@@ -217,7 +217,7 @@ class Check(object):
         for m in self._sample_store:
             try:
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)
-            except:
+            except Exception:
                 pass
         return values
 
@@ -228,7 +228,7 @@ class Check(object):
             try:
                 # Discard the timestamp
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)[1]
-            except:
+            except Exception:
                 pass
         return values
 
@@ -256,7 +256,7 @@ class Check(object):
                     if device_name:
                         attributes['device_name'] = device_name
                     metrics.append((m, int(ts), val, attributes))
-            except:
+            except Exception:
                 pass
         return metrics
 

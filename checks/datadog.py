@@ -60,7 +60,7 @@ class Dogstreams(object):
                             config=config))
                     elif len(parts) > 3:
                         logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                except:
+                except Exception:
                     logger.exception("Cannot build dogstream")
 
         perfdata_parsers = NagiosPerfData.init(logger, config)
@@ -91,7 +91,7 @@ class Dogstreams(object):
                         output[k].extend(result[k])
                     else:
                         output[k] = result[k]
-            except:
+            except Exception:
                 self.logger.exception("Error in parsing %s" % (dogstream.log_path))
         return output
 
@@ -118,7 +118,7 @@ class Dogstream(object):
                     class_based = True
                 else:
                     logger.info('Instantiating function-based dogstream')
-            except:
+            except Exception:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
                     parser_spec,
@@ -225,7 +225,7 @@ class Dogstream(object):
                 # Otherwise, assume it's a metric
                 try:
                     metric, ts, value, attrs = datum
-                except:
+                except Exception:
                     continue
 
                 # Validation
@@ -290,7 +290,7 @@ class Dogstream(object):
                     v = float(v)
                     vals.append(v)
                     attributes.update(a)
-                except:
+                except Exception:
                     self.logger.debug("Could not convert %s into a float", v)
 
             if len(vals) == 1:
@@ -386,7 +386,7 @@ class NagiosPerfData(object):
                                 output[key] = line[eq_pos + 1:]
                                 break
                 return output
-            except:
+            except Exception:
                 # Can't parse, assume it's just not working
                 # Don't return an incomplete config
                 return {}

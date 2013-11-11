@@ -225,7 +225,7 @@ class Rate(Metric):
         try:
             try:
                 val = self._rate(self.samples[-2], self.samples[-1])
-            except:
+            except Exception:
                 return []
 
             return [self.formatter(

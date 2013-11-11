@@ -75,7 +75,7 @@ class Processes(ResourcePlugin):
                                       int(psl.rss),
                                       _compute_family(psl.command),
                                       1])
-            except:
+             except Exception:
                 pass
         self.end_snapshot(group_by= self.group_by_family)
 

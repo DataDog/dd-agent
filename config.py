@@ -298,7 +298,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'check_freq'):
             try:
                 agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
-            except:
+            except Exception:
                 pass
 
         # Disable Watchdog (optionally)
@@ -827,7 +827,7 @@ def get_logging_config(cfg_path=None):
         port = config.get('Main', 'syslog_port').strip()
         try:
             logging_config['syslog_port'] = int(port)
-        except:
+        except Exception:
             logging_config['syslog_port'] = None
 
     if config.has_option('Main', 'disable_file_logging'):

@@ -130,7 +130,7 @@ class Agent(Daemon):
         # Now clean-up.
         try:
             CollectorStatus.remove_latest_status()
-        except:
+        except Exception:
             pass
 
         # Explicitly kill the process, because it might be running
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         # Try our best to log the error.
         try:
             log.exception("Uncaught error running the Agent")
-        except:
+        except Exception:
             pass
         raise
 

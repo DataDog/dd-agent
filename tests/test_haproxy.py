@@ -30,7 +30,7 @@ class HaproxyTestCase(unittest.TestCase):
                 req = urllib2.Request(url)
                 request = urllib2.urlopen(req)
                 break
-            except:
+            except Exception:
                 time.sleep(0.5)
                 loop+=1
                 if loop >= MAX_WAIT:

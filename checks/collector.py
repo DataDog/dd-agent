@@ -399,11 +399,11 @@ class Collector(object):
         else:
             try:
                 metadata["socket-hostname"] = socket.gethostname()
-            except:
+            except Exception:
                 pass
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
-        except:
+        except Exception:
             pass
 
         metadata["hostname"] = get_hostname()

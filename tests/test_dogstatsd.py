@@ -334,7 +334,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         for packet in packets:
             try:
                 stats.submit_packets(packet)
-            except:
+            except Exception:
                 assert True
             else:
                 assert False, 'invalid : %s' % packet
@@ -416,7 +416,7 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         try:
             first['tags']
-        except:
+        except Exception:
                 assert True
         else:
             assert False, "event['tags'] shouldn't be defined when no tags aren't explicited in the packet"

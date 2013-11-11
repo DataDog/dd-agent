@@ -179,7 +179,7 @@ def get_hostname(config=None):
                 out, err = p.communicate()
                 if p.returncode == 0:
                     return out.strip()
-            except:
+            except Exception:
                 return None
 
         os_name = get_os()
@@ -235,7 +235,7 @@ class EC2(object):
         try:
             socket_to = socket.getdefaulttimeout()
             socket.setdefaulttimeout(EC2.TIMEOUT)
-        except:
+        except Exception:
             pass
 
         for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
@@ -250,7 +250,7 @@ class EC2(object):
             if socket_to is None:
                 socket_to = 3
             socket.setdefaulttimeout(socket_to)
-        except:
+        except Exception:
             pass
 
         return EC2.metadata
@@ -259,7 +259,7 @@ class EC2(object):
     def get_instance_id():
         try:
             return EC2.get_metadata().get("instance-id", None)
-        except:
+        except Exception:
             return None
 
 
@@ -390,7 +390,7 @@ class LaconicFilter(logging.Filter):
                     self.hashed_messages.clear()
                 self.hashed_messages[h] = True
                 return 1
-        except:
+        except Exception:
             return 1
 
 class Timer(object):
