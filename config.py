@@ -590,8 +590,6 @@ def get_ssl_certificate(osname, filename):
     return None
 
 def check_yaml(conf_path):
-    from util import yaml, yLoader
-
     f = open(conf_path)
     try:
         check_config = yaml.load(f.read(), Loader=yLoader)
