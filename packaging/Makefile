@@ -98,7 +98,6 @@ $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.4" \
 -d "python-uuid" \
 -d "sysstat" \
--d "pexpect" \
 --replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install datadog-agent-base-rpm/pre_install \
 --post-install datadog-agent-base-rpm/post_install \
@@ -113,7 +112,6 @@ $(FPM_BUILD) -t rpm \
 -d "python-tornado >= 2.2" \
 -d "supervisor >= 3.0" \
 -d "sysstat" \
--d "pexpect" \
 -d "python-pycurl" \
 --conflicts "datadog-agent < $(VERSION)" \
 --replaces "datadog-agent-base < 3.4.0" \
@@ -148,7 +146,6 @@ $(FPM_BUILD) -t deb \
 -d "supervisor (>= 3.0)" \
 -d "adduser" \
 -d "sysstat" \
--d "python-pexpect" \
 -d "python-pycurl" \
 --post-install datadog-agent-deb/postinst \
 --post-uninstall datadog-agent-deb/postrm \
