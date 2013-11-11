@@ -90,7 +90,7 @@ class Counter(Metric):
                 tags=self.tags,
                 hostname=self.hostname,
                 device_name=self.device_name,
-                metric_type=MetricTypes.COUNTER,
+                metric_type=MetricTypes.RATE,
             )]
         finally:
             self.value = 0
@@ -294,7 +294,8 @@ class MetricsAggregator(object):
             raise Exception('Unparseable metric packet: %s' % packet)
 
         # Submit the metric
-        raw_value, metric_type = metadata
+        raw_value = metadata[0]
+        metric_type = metadata[1]
 
         if metric_type in self.ALLOW_STRINGS:
             value = raw_value
@@ -365,7 +366,6 @@ class MetricsAggregator(object):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
-
         for packet in packets.split("\n"):
 
             if not packet.strip():

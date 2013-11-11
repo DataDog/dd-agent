@@ -3,4 +3,5 @@
 class MetricTypes(object):
 
     GAUGE = 'gauge'
-    COUNTER = 'count'
+    COUNTER = 'counter'
+    RATE = 'rate'
