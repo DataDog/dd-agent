@@ -551,17 +551,22 @@ class ForwarderStatus(AgentStatus):
 
     NAME = 'Forwarder'
 
-    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
+            transactions_flushed=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
         self.flush_count = flush_count
+        self.transactions_received = transactions_received
+        self.transactions_flushed = transactions_flushed
 
     def body_lines(self):
         lines = [
             "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
+            "Transactions received: %s" % self.transactions_received,
+            "Transactions flushed: %s" % self.transactions_flushed
         ]
         return lines
 
