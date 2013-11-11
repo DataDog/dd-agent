@@ -589,6 +589,17 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
+def check_yaml(conf_path):
+    from util import yaml, yLoader
+
+    f = open(conf_path)
+    try:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert check_config is not None
+        f.close()
+    except Exception, e:
+        f.close()
+        raise e
 
 def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -608,7 +619,7 @@ def load_check_directory(agentConfig):
     except PathNotFound, e:
         log.error(e.args[0])
         sys.exit(3)
-        
+
     try:
         confd_path = get_confd_path(osname)
     except PathNotFound, e:
@@ -660,11 +671,8 @@ def load_check_directory(agentConfig):
         if os.path.exists(conf_path):
             f = open(conf_path)
             try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-                assert check_config is not None
-                f.close()
+                check_yaml(conf_path)
             except Exception, e:
-                f.close()
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
                 init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
