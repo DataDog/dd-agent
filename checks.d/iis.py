@@ -87,7 +87,7 @@ class IIS(AgentCheck):
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
-                    self.log.debug('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                    self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
                         % (metric, wmi_val))
                     continue
 
