@@ -200,7 +200,7 @@ class Server(object):
     A statsd udp server.
     """
 
-    def __init__(self, metrics_aggregator, host, port):
+    def __init__(self, metrics_aggregator, host, port, forward_to_host=None, forward_to_port=None):
         self.host = host
         self.port = int(port)
         self.address = (self.host, self.port)
@@ -208,6 +208,20 @@ class Server(object):
         self.buffer_size = 1024 * 8
 
         self.running = False
+
+        self.should_forward = forward_to_host is not None
+        
+        # In case we want to forward every packet received to another statsd server
+        if self.should_forward:
+            if forward_to_port is None:
+                forward_to_port = 8125
+
+            log.info("External statsd forwarding enabled. All packets received will be forwarded to %s:%s" % (forward_to_host, forward_to_port))
+            try:
+                self.forward_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self.forward_udp_sock.connect((forward_to_host, forward_to_port))
+            except Exception, e:
+                log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
         """ Run the server. """
@@ -234,7 +248,14 @@ class Server(object):
             try:
                 ready = select_select(sock, [], [], timeout)
                 if ready[0]:
-                    aggregator_submit(socket_recv(buffer_size))
+                    message = socket_recv(buffer_size)
+                    aggregator_submit(message)
+
+                    if self.should_forward:
+                        try:
+                            self.forward_udp_sock.send(message)
+                        except Exception, e:
+                            log.exception("Error forwarding message to external statsd server")
             except select_error, se:
                 # Ignore interrupted system calls from sigterm.
                 errno = se[0]
@@ -309,6 +330,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     interval  = int(c['dogstatsd_interval'])
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
+    forward_to_host = c.get('statsd_forward_host')
+    forward_to_port = c.get('statsd_forward_port')
 
     target = c['dd_url']
     if use_forwarder:
@@ -332,7 +355,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     if non_local_traffic:
         server_host = ''
 
-    server = Server(aggregator, server_host, port)
+    server = Server(aggregator, server_host, port, forward_to_host=forward_to_host, forward_to_port=forward_to_port)
 
     return reporter, server, c
 
