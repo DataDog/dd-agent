@@ -272,7 +272,9 @@ def main():
         if all_valid:
             print "All yaml files passed. You can now run the Datadog agent."
         else:
-            print "Fix the invalid yaml files above in order to start the Datadog agent."
+            print("Fix the invalid yaml files above in order to start the Datadog agent. "
+                    "A useful external tool for yaml parsing can be found at "
+                    "http://yaml-online-parser.appspot.com/")
 
     return 0
 

@@ -593,7 +593,8 @@ def check_yaml(conf_path):
     f = open(conf_path)
     try:
         check_config = yaml.load(f.read(), Loader=yLoader)
-        assert check_config is not None
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
         f.close()
     except Exception, e:
         f.close()
