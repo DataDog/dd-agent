@@ -178,6 +178,11 @@ info() {
     exit $RETURN_VALUE
 }
 
+configcheck() {
+   $AGENTUSER -c "$AGENTPATH configcheck"
+    exit $?
+}
+
 
 case "$1" in
     start)
@@ -195,8 +200,11 @@ case "$1" in
     info)
         info "$@"
         ;;
+    configcheck)
+        configcheck
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|info|status}"
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck}"
         exit 2
 esac
 exit $?
