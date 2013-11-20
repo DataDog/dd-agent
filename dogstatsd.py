@@ -211,6 +211,7 @@ class Server(object):
 
         self.should_forward = forward_to_host is not None
         
+        self.forward_udp_sock = None
         # In case we want to forward every packet received to another statsd server
         if self.should_forward:
             if forward_to_port is None:
