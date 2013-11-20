@@ -179,7 +179,10 @@ class RabbitMQ(AgentCheck):
         for attribute in ATTRIBUTES[object_type]:
             value = data.get(attribute, None)
             if value is not None:
-                self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), float(value), tags=tags)
+                try:
+                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), float(value), tags=tags)
+                except ValueError:
+                    self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (METRIC_SUFFIX[object_type], attribute, value, tags))
 
     def alert(self, base_url, max_detailed, size, object_type):
         key = "%s%s" % (base_url, object_type)
