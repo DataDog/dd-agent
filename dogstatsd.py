@@ -216,6 +216,8 @@ class Server(object):
             if forward_to_port is None:
                 forward_to_port = 8125
 
+            self.run_loop = self.receive_and_forward_loop
+
             log.info("External statsd forwarding enabled. All packets received will be forwarded to %s:%s" % (forward_to_host, forward_to_port))
             try:
                 self.forward_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -223,16 +225,38 @@ class Server(object):
             except Exception, e:
                 log.exception("Error while setting up connection to external statsd server")
 
-    def start(self):
-        """ Run the server. """
-        # Bind to the UDP socket.
-        # IPv4 only
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.setblocking(0)
-        self.socket.bind(self.address)
+        else:
+            self.run_loop = self.receive_loop
 
-        log.info('Listening on host & port: %s' % str(self.address))
+    def receive_loop(self):
+        # Inline variables for quick look-up.
+        buffer_size = self.buffer_size
+        aggregator_submit = self.metrics_aggregator.submit_packets
+        sock = [self.socket]
+        socket_recv = self.socket.recv
+        select_select = select.select
+        select_error = select.error
+        timeout = UDP_SOCKET_TIMEOUT
 
+        # Run our select loop.
+        self.running = True
+        while self.running:
+            try:
+                ready = select_select(sock, [], [], timeout)
+                if ready[0]:
+                    aggregator_submit(socket_recv(buffer_size))
+
+            except select_error, se:
+                # Ignore interrupted system calls from sigterm.
+                errno = se[0]
+                if errno != 4:
+                    raise
+            except (KeyboardInterrupt, SystemExit):
+                break
+            except Exception, e:
+                log.exception('Error receiving datagram')
+
+    def receive_and_forward_loop(self):
         # Inline variables for quick look-up.
         buffer_size = self.buffer_size
         aggregator_submit = self.metrics_aggregator.submit_packets
@@ -252,10 +276,7 @@ class Server(object):
                     aggregator_submit(message)
 
                     if self.should_forward:
-                        try:
-                            self.forward_udp_sock.send(message)
-                        except Exception, e:
-                            log.exception("Error forwarding message to external statsd server")
+                        self.forward_udp_sock.send(message)
             except select_error, se:
                 # Ignore interrupted system calls from sigterm.
                 errno = se[0]
@@ -265,6 +286,19 @@ class Server(object):
                 break
             except Exception, e:
                 log.exception('Error receiving datagram')
+
+
+    def start(self):
+        """ Run the server. """
+        # Bind to the UDP socket.
+        # IPv4 only
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.setblocking(0)
+        self.socket.bind(self.address)
+
+        log.info('Listening on host & port: %s' % str(self.address))
+
+        self.run_loop()
 
     def stop(self):
         self.running = False
