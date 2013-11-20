@@ -179,7 +179,7 @@ info() {
 }
 
 configcheck() {
-   $AGENTUSER -c "$AGENTPATH configcheck"
+    su $AGENTUSER -c "$AGENTPATH configcheck"
     exit $?
 }
 
