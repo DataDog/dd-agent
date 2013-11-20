@@ -595,10 +595,19 @@ def check_yaml(conf_path):
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+    finally:
         f.close()
-    except Exception, e:
-        f.close()
-        raise e
 
 def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -699,11 +708,6 @@ def load_check_directory(agentConfig):
         if not check_config.get('instances'):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
-
-        # Accept instances as a list, as a single dict, or as non-existant
-        instances = check_config.get('instances', {})
-        if type(instances) != list:
-            instances = [instances]
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', {})
