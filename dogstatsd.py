@@ -242,6 +242,7 @@ class Server(object):
         select_error = select.error
         timeout = UDP_SOCKET_TIMEOUT
         should_forward = self.should_forward
+        forward_udp_sock = self.forward_udp_sock
 
         # Run our select loop.
         self.running = True
@@ -253,7 +254,7 @@ class Server(object):
                     aggregator_submit(message)
 
                     if should_forward:
-                        self.forward_udp_sock.send(message)
+                        forward_udp_sock.send(message)
             except select_error, se:
                 # Ignore interrupted system calls from sigterm.
                 errno = se[0]
