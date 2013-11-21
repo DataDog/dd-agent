@@ -4,9 +4,11 @@ A Python Statsd implementation with some datadog special sauce.
 """
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('dogstatsd')
+from config import initialize_logging
+initialize_logging('dogstatsd')
 
-import os; os.umask(022)
+import os
+os.umask(022)
 
 # stdlib
 import httplib as http_client
