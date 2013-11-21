@@ -10,7 +10,6 @@ import pprint
 import redis
 
 from tests.common import load_check
-from nose.plugins.attrib import attr
 logger = logging.getLogger()
 
 MAX_WAIT = 20
@@ -20,6 +19,11 @@ DEFAULT_PORT = 6379
 MISSING_KEY_TOLERANCE= 0.5
 
 class TestRedis(unittest.TestCase):
+
+    def is_travis(self):
+        global logger
+        logger.info("Running on travis-ci")
+        return "TRAVIS" in os.environ
 
     def wait4(self, p, pattern):
         """Waits until a specific pattern shows up in the stdout
@@ -36,52 +40,56 @@ class TestRedis(unittest.TestCase):
                 if loop >= MAX_WAIT:
                     break
     def setUp(self):
-        self.redis_noauth = subprocess.Popen(["redis-server", "tests/redisnoauth.cfg"], stdout=subprocess.PIPE)
-        self.wait4(self.redis_noauth, "The server is now ready to accept connections")
-        self.redis_auth = subprocess.Popen(["redis-server", "tests/redisauth.cfg"], stdout=subprocess.PIPE)
-        self.wait4(self.redis_auth, "The server is now ready to accept connections")
+        if not self.is_travis():
+            self.redis_noauth = subprocess.Popen(["redis-server", "tests/redisnoauth.cfg"], stdout=subprocess.PIPE)
+            self.wait4(self.redis_noauth, "The server is now ready to accept connections")
+            self.redis_auth = subprocess.Popen(["redis-server", "tests/redisauth.cfg"], stdout=subprocess.PIPE)
+            self.wait4(self.redis_auth, "The server is now ready to accept connections")
 
     def tearDown(self):
-        self.redis_noauth.terminate()
-        self.redis_auth.terminate()
+        if not self.is_travis():
+            self.redis_noauth.terminate()
+            self.redis_auth.terminate()
 
-    @attr('redis')
     def test_redis_auth(self):
         # Test connection with password
-        # correct password
-        r = load_check('redisdb', {}, {})
-        instance = {
-            'host': 'localhost',
-            'port': AUTH_PORT,
-            'password': 'datadog-is-devops-best-friend'
-        }
-        r.check(instance)
-        metrics = self._sort_metrics(r.get_metrics())
-        assert len(metrics) > 0, "No metrics returned"
-
-        # wrong passwords
-        instances = [
-            {
-                'host': 'localhost',
-                'port': AUTH_PORT,
-                'password': ''
-            },
-            {
-                'host': 'localhost',
-                'port': AUTH_PORT,
-                'password': 'badpassword'
-            }
-        ]
-        for instance in instances:
+        if not self.is_travis():
+            # correct password
             r = load_check('redisdb', {}, {})
+            instance = {
+                'host': 'localhost',
+                'port': AUTH_PORT,
+                'password': 'datadog-is-devops-best-friend'
+            }
             r.check(instance)
             metrics = self._sort_metrics(r.get_metrics())
-            assert len(metrics) == 0, "Should have failed with bad password; got %s instead" % metrics
+            assert len(metrics) > 0, "No metrics returned"
 
-    @attr('redis')
+            # wrong passwords
+            instances = [
+                {
+                    'host': 'localhost',
+                    'port': AUTH_PORT,
+                    'password': ''
+                },
+                {
+                    'host': 'localhost',
+                    'port': AUTH_PORT,
+                    'password': 'badpassword'
+                }
+            ]
+            for instance in instances:
+                r = load_check('redisdb', {}, {})
+                r.check(instance)
+                metrics = self._sort_metrics(r.get_metrics())
+                assert len(metrics) == 0, "Should have failed with bad password; got %s instead" % metrics
+
     def test_redis_default(self):
         # Base test, uses the noauth instance
-        port = NOAUTH_PORT
+        if self.is_travis():
+            port = DEFAULT_PORT
+        else:
+            port = NOAUTH_PORT
 
         instance = {
             'host': 'localhost',
