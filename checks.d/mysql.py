@@ -19,10 +19,22 @@ STATUS_VARS = {
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
     'Innodb_data_reads': ('mysql.innodb.buffer_pool_size', RATE),
-    'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', GAUGE),
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
     'Queries': ('mysql.performance.queries', RATE),
+    'Com_select': ('mysql.performance.com_select', RATE),
+    'Com_insert': ('mysql.performance.com_insert', RATE),
+    'Com_update': ('mysql.performance.com_update', RATE),
+    'Com_delete': ('mysql.performance.com_delete', RATE),
+    'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
+    'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
+    'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
+    'Created_tmp_tables': ('mysql.performance.created_tmp_tables', RATE),
+    'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', RATE),
+    'Created_tmp_files': ('mysql.performance.created_tmp_files', RATE),
+    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
+    'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
+    'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', RATE),
 }
 
 class MySql(AgentCheck):
