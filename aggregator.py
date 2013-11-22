@@ -129,10 +129,10 @@ class Histogram(Metric):
         avg = sum(self.samples) / float(length)
 
         metric_aggrs = [
-            ('max', max_),
-            ('median', med),
-            ('avg', avg),
-            ('count', self.count/interval)
+            ('max', max_, MetricTypes.GAUGE),
+            ('median', med, MetricTypes.GAUGE),
+            ('avg', avg, MetricTypes.GAUGE),
+            ('count', self.count/interval, MetricTypes.RATE)
         ]
 
         metrics = [self.formatter(
@@ -142,8 +142,8 @@ class Histogram(Metric):
                 metric='%s.%s' % (self.name, suffix),
                 value=value,
                 timestamp=ts,
-                metric_type=MetricTypes.GAUGE,
-            ) for suffix, value in metric_aggrs
+                metric_type=metric_type
+            ) for suffix, value, metric_type in metric_aggrs
         ]
 
         for p in self.percentiles:
