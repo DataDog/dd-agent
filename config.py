@@ -606,6 +606,8 @@ def check_yaml(conf_path):
                     break
         if not valid_instances:
             raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
     finally:
         f.close()
 
@@ -679,7 +681,7 @@ def load_check_directory(agentConfig):
         if os.path.exists(conf_path):
             f = open(conf_path)
             try:
-                check_yaml(conf_path)
+                check_config = check_yaml(conf_path)
             except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
