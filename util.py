@@ -215,6 +215,40 @@ class EC2(object):
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
     metadata = {}
+    SOURCE_TYPE_NAME = 'amazon web services'
+
+    @staticmethod
+    def get_tags():
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(EC2.TIMEOUT)
+        except Exception:
+            pass
+
+        try:
+            iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
+            iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            from checks.libs.boto.ec2.connection import EC2Connection
+            connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
+            
+            EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
+            
+        except Exception:
+            EC2_tags = None
+            pass
+
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except Exception:
+            pass
+
+        return EC2_tags
+
 
     @staticmethod
     def get_metadata():
@@ -243,7 +277,7 @@ class EC2(object):
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 EC2.metadata[k] = v
-            except:
+            except Exception:
                 pass
 
         try:
