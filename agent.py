@@ -21,6 +21,7 @@ import os.path
 import signal
 import sys
 import time
+import glob
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -31,10 +32,10 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2
+from util import Watchdog, PidFile, EC2, get_os
 from jmxfetch import JMXFetch
 
 
@@ -63,7 +64,7 @@ class Agent(Daemon):
 
         if JMXFetch.is_running():
             JMXFetch.stop()
-        
+
         if self.collector:
             self.collector.stop()
         log.debug("Collector is stopped.")
@@ -186,6 +187,7 @@ def main():
         'status',
         'info',
         'check',
+        'configcheck',
     ]
 
     if len(args) < 1:
@@ -254,6 +256,25 @@ def main():
                         check.run()
                     print check.get_metrics()
                     print check.get_events()
+
+    elif 'configcheck' == command:
+        osname = get_os()
+        all_valid = True
+        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
+            basename = os.path.basename(conf_path)
+            try:
+                check_yaml(conf_path)
+            except Exception, e:
+                all_valid = False
+                print "%s contains errors:\n%s\n" % (basename, e)
+            else:
+                print "%s is valid\n" % basename
+        if all_valid:
+            print "All yaml files passed. You can now run the Datadog agent."
+        else:
+            print("Fix the invalid yaml files above in order to start the Datadog agent. "
+                    "A useful external tool for yaml parsing can be found at "
+                    "http://yaml-online-parser.appspot.com/")
 
     return 0
 
