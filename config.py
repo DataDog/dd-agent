@@ -769,7 +769,7 @@ def load_bernard_checks(bernard_config):
         for check_config in bernard_config.get('checks', []):
             check_paths = []
             path = check_config.get('path', '')
-            filename = check_config.get('filename', '')
+            check_filename = check_config.get('filename', '')
             notification = check_config.get('notification', '')
             timeout = int(check_config.get('timeout', 0))
             period = int(check_config.get('period', 0))
@@ -791,8 +791,8 @@ def load_bernard_checks(bernard_config):
                 except OSError:
                     log.warn('No such file or directory: %s' % path)
                     continue
-            if filename:
-                check_paths.append(filename)
+            if check_filename:
+                check_paths.append(check_filename)
 
             if check_paths:
                 check_parameter = default_check_parameter.copy()
