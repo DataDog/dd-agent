@@ -148,6 +148,7 @@ class BernardCheck(object):
             message, tail = output.split('|', 1)
         except ValueError:
             # No metric, return directly the output as a message
+            log.debug('Unable to parse metric from output: "%s".' % output)
             return state, output
 
         message = message.strip()

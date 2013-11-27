@@ -22,8 +22,8 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.check_status import BernardStatus
 from config import get_config, get_parsed_args, load_bernard_checks, get_bernard_config
-from daemon import Daemon
-from util import PidFile, AgentSupervisor, StaticWatchdog
+from daemon import Daemon, AgentSupervisor
+from util import PidFile, StaticWatchdog
 from scheduler import Scheduler
 
 # Constants
