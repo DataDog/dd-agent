@@ -26,27 +26,27 @@ JMX_FETCH_JAR_NAME = "jmxfetch-0.1.2-jar-with-dependencies.jar"
 
 class JMXFetch(object):
 
-	pid_file = PidFile("jmxfetch")
-	pid_file_path = pid_file.get_path()
+    pid_file = PidFile("jmxfetch")
+    pid_file_path = pid_file.get_path()
 
-	@classmethod
-	def init(cls, confd_path, agentConfig, logging_config, default_check_frequency):
-		try:
-			should_run, java_bin_path = JMXFetch.should_run(confd_path)
+    @classmethod
+    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency):
+        try:
+            should_run, java_bin_path = JMXFetch.should_run(confd_path)
 
-			if should_run:
-				if JMXFetch.is_running():
-					log.warning("JMXFetch is already running, restarting it.")
-					JMXFetch.stop()
+            if should_run:
+                if JMXFetch.is_running():
+                    log.warning("JMXFetch is already running, restarting it.")
+                    JMXFetch.stop()
 
-				JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, default_check_frequency)
-		except Exception, e:
-			log.exception("Error while initiating JMXFetch")
+                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, default_check_frequency)
+        except Exception, e:
+            log.exception("Error while initiating JMXFetch")
 
 
-	@classmethod
-	def should_run(cls, confd_path):
-		"""
+    @classmethod
+    def should_run(cls, confd_path):
+        """
     Return a tuple (jmx_check_configured, java_bin_path)
 
     jmx_check_configured: boolean that shows that either one of the 
@@ -60,158 +60,158 @@ class JMXFetch(object):
     so we can return the first value returned
     """
 
-		jmx_check_configured = False
-		java_bin_path = None
+        jmx_check_configured = False
+        java_bin_path = None
 
-		for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
+        for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
 
-			if jmx_check_configured and java_bin_path is not None:
-			    return (jmx_check_configured, java_bin_path)
+            if jmx_check_configured and java_bin_path is not None:
+                return (jmx_check_configured, java_bin_path)
 
-			check_name = os.path.basename(conf).split('.')[0]
+            check_name = os.path.basename(conf).split('.')[0]
 
-			if os.path.exists(conf):
-			    f = open(conf)
-			    try:
-			        check_config = yaml.load(f.read(), Loader=yLoader)
-			        assert check_config is not None
-			        f.close()
-			    except Exception:
-			        f.close()
-			        log.error("Unable to parse yaml config in %s" % conf)
-			        continue
+            if os.path.exists(conf):
+                f = open(conf)
+                try:
+                    check_config = yaml.load(f.read(), Loader=yLoader)
+                    assert check_config is not None
+                    f.close()
+                except Exception:
+                    f.close()
+                    log.error("Unable to parse yaml config in %s" % conf)
+                    continue
 
-			    init_config = check_config.get('init_config', {})
-			    if init_config is None:
-			    	init_config = {}
-			    instances = check_config.get('instances', [])
-			    if instances is None:
-			    	instances = []
+                init_config = check_config.get('init_config', {})
+                if init_config is None:
+                    init_config = {}
+                instances = check_config.get('instances', [])
+                if instances is None:
+                    instances = []
 
-			    if instances:
-			        if type(instances) != list or len(instances) == 0:
-			            continue
+                if instances:
+                    if type(instances) != list or len(instances) == 0:
+                        continue
 
-			        if java_bin_path is None:
-			            if init_config and init_config.get('java_bin_path'):
-				            # We get the java bin path from the yaml file for backward compatibility purposes
-			                java_bin_path = check_config.get('init_config').get('java_bin_path')
+                    if java_bin_path is None:
+                        if init_config and init_config.get('java_bin_path'):
+                            # We get the java bin path from the yaml file for backward compatibility purposes
+                            java_bin_path = check_config.get('init_config').get('java_bin_path')
 
-			            for instance in instances:
-			                if instance and instance.get('java_bin_path'):
-			                    java_bin_path = instance.get('java_bin_path')
-			        
-			        if init_config.get('is_jmx') or check_name in JMX_CHECKS:
-			            jmx_check_configured = True
+                        for instance in instances:
+                            if instance and instance.get('java_bin_path'):
+                                java_bin_path = instance.get('java_bin_path')
+                    
+                    if init_config.get('is_jmx') or check_name in JMX_CHECKS:
+                        jmx_check_configured = True
 
-		return (jmx_check_configured, java_bin_path)
+        return (jmx_check_configured, java_bin_path)
 
-	@classmethod
-	def is_running(cls):
-		try:
-			pid = JMXFetch.pid_file.get_pid()
-			if pid is None:
-				return False
-		except Exception:
-			return False
+    @classmethod
+    def is_running(cls):
+        try:
+            pid = JMXFetch.pid_file.get_pid()
+            if pid is None:
+                return False
+        except Exception:
+            return False
 
-		if get_os() != 'windows':
-			try:
-				os.kill(pid, 0)
-				# os.kill(pid, 0) will throw an exception if pid is not running 
-				# and won't do anything otherwise
-				# It doesn't work on windows as signal.CTRL_C_EVENT is 0, it would quit the process
-				return True
-			except Exception, e:
-				if "Errno 3" not in str(e):
-					log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
-				return False
+        if get_os() != 'windows':
+            try:
+                os.kill(pid, 0)
+                # os.kill(pid, 0) will throw an exception if pid is not running 
+                # and won't do anything otherwise
+                # It doesn't work on windows as signal.CTRL_C_EVENT is 0, it would quit the process
+                return True
+            except Exception, e:
+                if "Errno 3" not in str(e):
+                    log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+                return False
 
-		# Else we are on windows, we need another way to check if it's running
-		try:
-			import ctypes # Available from python2.5
-			kernel32 = ctypes.windll.kernel32
-			SYNCHRONIZE = 0x100000
+        # Else we are on windows, we need another way to check if it's running
+        try:
+            import ctypes # Available from python2.5
+            kernel32 = ctypes.windll.kernel32
+            SYNCHRONIZE = 0x100000
 
-			process = kernel32.OpenProcess(SYNCHRONIZE, 0, pid)
-			if process != 0:
-				kernel32.CloseHandle(process)
-				return True
-			else:
-			    return False
+            process = kernel32.OpenProcess(SYNCHRONIZE, 0, pid)
+            if process != 0:
+                kernel32.CloseHandle(process)
+                return True
+            else:
+                return False
 
-		except Exception, e:
-			log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
-			return False
+        except Exception, e:
+            log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+            return False
 
-	@classmethod
-	def stop(cls):
-		try:
-			pid = JMXFetch.pid_file.get_pid()
-			if pid is None:
-				log.error("Couldn't get jmxfetch pid.")
-				return
-		except Exception:
-			log.error("Couldn't get jmxfetch pid.")
-			return
+    @classmethod
+    def stop(cls):
+        try:
+            pid = JMXFetch.pid_file.get_pid()
+            if pid is None:
+                log.error("Couldn't get jmxfetch pid.")
+                return
+        except Exception:
+            log.error("Couldn't get jmxfetch pid.")
+            return
 
-		try:
-			log.info("Killing JMX Fetch")
-			os.kill(pid, signal.SIGTERM)
-			JMXFetch.pid_file.clean()
-			log.info("Success")
-		except Exception:
-			log.error("Couldn't kill jmxfetch pid %s" % pid)
+        try:
+            log.info("Killing JMX Fetch")
+            os.kill(pid, signal.SIGTERM)
+            JMXFetch.pid_file.clean()
+            log.info("Success")
+        except Exception:
+            log.error("Couldn't kill jmxfetch pid %s" % pid)
 
-	@classmethod
-	def get_path_to_jmxfetch(cls):
-		if get_os() != 'windows':
-			return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
+    @classmethod
+    def get_path_to_jmxfetch(cls):
+        if get_os() != 'windows':
+            return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "checks", "libs", JMX_FETCH_JAR_NAME))
 
-		return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
+        return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
 
-	@classmethod
-	def start(cls, confd_path, agentConfig, logging_config, path_to_java, default_check_frequency):
-		statsd_port = agentConfig.get('dogstatsd_port', "8125")
+    @classmethod
+    def start(cls, confd_path, agentConfig, logging_config, path_to_java, default_check_frequency):
+        statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
-		log.info("Starting jmxfetch:")
-		try:
-		    path_to_java = path_to_java or "java"
-		    path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
-		    path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
-		    
-		    subprocess_args = [
-		            path_to_java, # Path to the java bin
-		            '-jar', 
-		            r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
-		            r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch
-		            str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
-		            str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
-		            r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
-		            JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
-		            ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-		            r"%s" % path_to_status_file,
-		        ]
+        log.info("Starting jmxfetch:")
+        try:
+            path_to_java = path_to_java or "java"
+            path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
+            path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+            
+            subprocess_args = [
+                    path_to_java, # Path to the java bin
+                    '-jar', 
+                    r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
+                    r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch
+                    str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
+                    str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
+                    r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
+                    JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
+                    ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
+                    r"%s" % path_to_status_file,
+                ]
 
-		    log.info("Running %s" % " ".join(subprocess_args))
-		    cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
-		    jmx_connector_pid = cls.subprocess.pid
-		    log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
-		except OSError, e:
-		    jmx_connector_pid = None
-		    log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
-		except Exception, e:
-		    jmx_connector_pid = None
-		    log.exception("Couldn't launch JMXTerm")
+            log.info("Running %s" % " ".join(subprocess_args))
+            cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
+            jmx_connector_pid = cls.subprocess.pid
+            log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
+        except OSError, e:
+            jmx_connector_pid = None
+            log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
+        except Exception, e:
+            jmx_connector_pid = None
+            log.exception("Couldn't launch JMXTerm")
 
-		# Write pid to pid file
-		if jmx_connector_pid is not None:
-		    try:
-		        fp = open(JMXFetch.pid_file_path, 'w+')
-		        fp.write(str(jmx_connector_pid))
-		        fp.close()
-		        os.chmod(JMXFetch.pid_file_path, 0644)
-		    except Exception, e:
-		        log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)
+        # Write pid to pid file
+        if jmx_connector_pid is not None:
+            try:
+                fp = open(JMXFetch.pid_file_path, 'w+')
+                fp.write(str(jmx_connector_pid))
+                fp.close()
+                os.chmod(JMXFetch.pid_file_path, 0644)
+            except Exception, e:
+                log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)
 
 
