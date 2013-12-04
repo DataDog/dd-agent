@@ -191,6 +191,7 @@ class Collector(object):
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
+
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
            

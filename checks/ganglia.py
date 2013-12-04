@@ -11,7 +11,7 @@ class Ganglia(Check):
         Check.__init__(self, logger)
 
     def check(self, agentConfig):
-        self.logger.debug('get ganglia status: start')
+        self.logger.debug('Ganglia status: start')
         if 'ganglia_host' not in agentConfig or agentConfig['ganglia_host'] == '':
             self.logger.debug('ganglia_host configuration not set, skipping ganglia')
             return False
@@ -43,7 +43,7 @@ class Ganglia(Check):
 
             self.logger.debug('Ganglia status: done')
             return sio.getvalue()
-        except:
+        except Exception, e:
             self.logger.exception("Unable to get ganglia data")
             return False
 
