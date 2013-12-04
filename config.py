@@ -794,7 +794,7 @@ def get_logging_config(cfg_path=None):
             'log_level': None,
             'ddagent_log_file': windows_log_location,
             'jmxfetch_log_file': jmxfetch_log_file,
-            'log_to_event_viewer': True,
+            'log_to_event_viewer': False,
             'log_to_syslog': False,
             'syslog_host': None,
             'syslog_port': None,
