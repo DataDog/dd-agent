@@ -6,4 +6,9 @@ instances:
           - incoming
           - active
           - deferred
+    - directory: /var/spool/postfix-2
+      queues:
+          - incoming
+          - active
+          - deferred
 
