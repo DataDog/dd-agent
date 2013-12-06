@@ -51,7 +51,9 @@ class Win32EventLog(AgentCheck):
                 log_file=instance.get('log_file'),
                 start_ts=last_ts
             )
-        events = w.query(q.to_wql())
+        wql = q.to_wql()
+        self.log.debug("Querying for Event Log events: %s" % wql)
+        events = w.query(wql)
 
         # Save any events returned to the payload as Datadog events
         for ev in events:
