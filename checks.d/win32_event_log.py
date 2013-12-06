@@ -69,11 +69,12 @@ class Win32EventLog(AgentCheck):
 
     def _instance_key(self, instance):
         ''' Generate a unique key per instance for use with keeping track of
-        state for each instance '''
+            state for each instance.
+        '''
         return '%s' % (instance)
 
     def _get_tz_offset(self):
-        ''' Return the timezone offset for the current local time
+        ''' Return the timezone offset for the current local time..
         '''
         if time.daylight == 0:
             offset = time.localtime().tm_isdst
@@ -93,7 +94,7 @@ class EventLogQuery(object):
         self.start_ts = start_ts
 
     def to_wql(self):
-        ''' Return this query as a WQL string '''
+        ''' Return this query as a WQL string. '''
         wql = """
         SELECT Message, SourceName, TimeGenerated, Type, User, InsertionStrings
         FROM Win32_NTLogEvent
@@ -113,12 +114,15 @@ class EventLogQuery(object):
         if not isinstance(vals, list):
             q += '\nAND %s = "%s"' % (name, vals)
         else:
-            q += "\nAND (%s)" % (' OR '.join(['%s = "%s"' % (name, l) for l in vals]))
+            q += "\nAND (%s)" % (' OR '.join(
+                ['%s = "%s"' % (name, l) for l in vals]
+            ))
         return q
 
     def _dt_to_wmi(self, dt):
-        ''' A wrapper around wmi.from_time to get a WMI-formatted time from a 
-        time struct. '''
+        ''' A wrapper around wmi.from_time to get a WMI-formatted time from a
+            time struct.
+        '''
         import wmi
         return wmi.from_time(year=dt.year, month=dt.month, day=dt.day,
             hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=0,
@@ -126,7 +130,8 @@ class EventLogQuery(object):
 
     def _convert_event_types(self, types):
         ''' Detect if we are running on <= Server 2003. If so, we should convert
-        the EventType values to integers '''
+            the EventType values to integers
+        '''
         return types
 
 class LogEvent(object):
@@ -153,16 +158,16 @@ class LogEvent(object):
         }
 
     def is_after(self, ts):
-        ''' Compare this event's timestamp to a give timestamp '''
+        ''' Compare this event's timestamp to a give timestamp. '''
         if self.timestamp >= int(time.mktime(ts.timetuple())):
             return True
         return False
 
     def _wmi_to_ts(self, wmi_ts):
-        ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time()
+        ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time().
         '''
-        import wmi
-        year, month, day, hour, minute, second, microsecond, tz = wmi.to_time(wmi_ts)
+        year, month, day, hour, minute, second, microsecond, tz = \
+                                                            wmi.to_time(wmi_ts)
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
             second=second, microsecond=microsecond)
         return int(time.mktime(dt.timetuple())) + (self.tz_offset * 60 * 60)
