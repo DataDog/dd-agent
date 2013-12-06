@@ -108,14 +108,15 @@ class ProcessCheck(AgentCheck):
             cpu_check_interval = 0.1
 
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
+        tags = ['process_name:%s' % name, name]
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
-        self.gauge('system.processes.number', len(pids), tags=[name])
+        self.gauge('system.processes.number', len(pids), tags=tags)
         thr, cpu, rss, vms, real = self.get_process_metrics(pids, psutil, cpu_check_interval,
             extended_metrics=self.psutil_older_than_0_6_0(psutil))
-        self.gauge('system.processes.mem.rss', rss, tags=[name])
-        self.gauge('system.processes.mem.vms', vms, tags=[name])
-        self.gauge('system.processes.cpu.pct', cpu, tags=[name])
-        self.gauge('system.processes.threads', thr, tags=[name])
+        self.gauge('system.processes.mem.rss', rss, tags=tags)
+        self.gauge('system.processes.mem.vms', vms, tags=tags)
+        self.gauge('system.processes.cpu.pct', cpu, tags=tags)
+        self.gauge('system.processes.threads', thr, tags=tags)
         if real is not None:
-            self.gauge('system.processes.mem.real', real, tags=[name])
+            self.gauge('system.processes.mem.real', real, tags=tags)
