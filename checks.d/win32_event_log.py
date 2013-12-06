@@ -2,7 +2,7 @@
 Monitor the Windows Event Log
 '''
 from datetime import datetime, timedelta
-import time
+import calendar
 try:
     import wmi
 except Exception:
@@ -38,7 +38,7 @@ class Win32EventLog(AgentCheck):
         # Store the last timestamp by instance
         instance_key = self._instance_key(instance)
         if instance_key not in self.last_ts:
-            self.last_ts[instance_key] = datetime.now()
+            self.last_ts[instance_key] = datetime.utcnow()
             return
 
         # Find all events in the last check that match our search by running a
@@ -58,16 +58,18 @@ class Win32EventLog(AgentCheck):
         # Save any events returned to the payload as Datadog events
         for ev in events:
             log_ev = LogEvent(ev, self.agentConfig.get('api_key', ''),
-                self.hostname, tags, self._get_tz_offset())
+                self.hostname, tags)
 
             # Since WQL only compares on the date and NOT the time, we have to
             # do a secondary check to make sure events are after the last
             # timestamp
             if log_ev.is_after(last_ts):
                 self.event(log_ev.to_event_dict())
+            else:
+                self.log.debug('Skipping event after %s. ts=%s' % (last_ts, log_ev.timestamp))
 
         # Update the last time checked
-        self.last_ts[instance_key] = datetime.now()
+        self.last_ts[instance_key] = datetime.utcnow()
 
     def _instance_key(self, instance):
         ''' Generate a unique key per instance for use with keeping track of
@@ -75,14 +77,6 @@ class Win32EventLog(AgentCheck):
         '''
         return '%s' % (instance)
 
-    def _get_tz_offset(self):
-        ''' Return the timezone offset for the current local time..
-        '''
-        if time.daylight == 0:
-            offset = time.localtime().tm_isdst
-        else:
-            offset = time.altzone
-        return offset / 60 / 60 * -1
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
@@ -125,7 +119,6 @@ class EventLogQuery(object):
         ''' A wrapper around wmi.from_time to get a WMI-formatted time from a
             time struct.
         '''
-        import wmi
         return wmi.from_time(year=dt.year, month=dt.month, day=dt.day,
             hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=0,
             timezone=0)
@@ -137,12 +130,11 @@ class EventLogQuery(object):
         return types
 
 class LogEvent(object):
-    def __init__(self, ev, api_key, hostname, tags, tz_offset):
+    def __init__(self, ev, api_key, hostname, tags):
         self.event = ev
         self.api_key = api_key
         self.hostname = hostname
         self.tags = tags
-        self.tz_offset = tz_offset
         self.timestamp = self._wmi_to_ts(self.event.TimeGenerated)
 
     def to_event_dict(self):
@@ -161,7 +153,7 @@ class LogEvent(object):
 
     def is_after(self, ts):
         ''' Compare this event's timestamp to a give timestamp. '''
-        if self.timestamp >= int(time.mktime(ts.timetuple())):
+        if self.timestamp >= int(calendar.timegm(ts.timetuple())):
             return True
         return False
 
@@ -172,7 +164,7 @@ class LogEvent(object):
                                                             wmi.to_time(wmi_ts)
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
             second=second, microsecond=microsecond)
-        return int(time.mktime(dt.timetuple())) + (self.tz_offset * 60 * 60)
+        return int(calendar.timegm(dt.timetuple()))
 
     def _msg_title(self, event):
         return '%s/%s' % (event.Logfile, event.SourceName)
