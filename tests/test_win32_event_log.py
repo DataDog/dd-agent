@@ -104,7 +104,7 @@ class WinEventLogTest(unittest.TestCase):
             assert ev['tags'] == inst1['tags']
             # Check that the notifications are there.
             for notify in inst1['notify']:
-                assert notify in ev['msg_text']
+                assert '@%s' % notify in ev['msg_text']
 
         check.check(inst2)
         ev2 = check.get_events()
