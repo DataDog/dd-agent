@@ -50,9 +50,12 @@ class Win32EventLog(AgentCheck):
                 user=instance.get('user'),
                 source_name=instance.get('source_name'),
                 log_file=instance.get('log_file'),
+                message_filters=instance.get('message_filters', []),
                 start_ts=last_ts
             )
         wql = q.to_wql()
+        if instance.get('message_filters', []):
+            import pdb; pdb.set_trace()
         self.log.debug("Querying for Event Log events: %s" % wql)
         events = w.query(wql)
 
@@ -81,13 +84,14 @@ class Win32EventLog(AgentCheck):
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-        start_ts=None):
+        start_ts=None, message_filters=None):
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
             ('User', user),
             ('SourceName', source_name),
             ('LogFile', log_file)
         ]
+        self.message_filters = message_filters or []
         self.start_ts = start_ts
 
     def to_wql(self):
@@ -99,6 +103,8 @@ class EventLogQuery(object):
         """ % (self._dt_to_wmi(self.start_ts))
         for name, vals in self.filters:
             wql = self._add_filter(name, vals, wql)
+        for msg_filter in self.message_filters:
+            wql = self._add_message_filter(msg_filter, wql)
         return wql
 
     def _add_filter(self, name, vals, q):
@@ -114,6 +120,17 @@ class EventLogQuery(object):
             q += "\nAND (%s)" % (' OR '.join(
                 ['%s = "%s"' % (name, l) for l in vals]
             ))
+        return q
+
+    def _add_message_filter(self, msg_filter, q):
+        ''' Filter on the message text using a LIKE query. If the filter starts
+            with '-' then we'll assume that it's a NOT LIKE filter.
+        '''
+        if msg_filter.startswith('-'):
+            msg_filter = msg_filter[1:]
+            q += '\nAND NOT Message LIKE "%s"' % msg_filter
+        else:
+            q += '\nAND Message LIKE "%s"' % msg_filter
         return q
 
     def _dt_to_wmi(self, dt):
