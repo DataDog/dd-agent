@@ -2,7 +2,7 @@
 Monitor the Windows Event Log
 '''
 from datetime import datetime, timedelta
-import time
+import calendar
 try:
     import wmi
 except Exception:
@@ -33,12 +33,13 @@ class Win32EventLog(AgentCheck):
         user = instance.get('username')
         password = instance.get('password')
         tags = instance.get('tags')
+        notify = instance.get('notify', [])
         w = self._get_wmi_conn(host, user, password)
 
         # Store the last timestamp by instance
         instance_key = self._instance_key(instance)
         if instance_key not in self.last_ts:
-            self.last_ts[instance_key] = datetime.now()
+            self.last_ts[instance_key] = datetime.utcnow()
             return
 
         # Find all events in the last check that match our search by running a
@@ -49,51 +50,50 @@ class Win32EventLog(AgentCheck):
                 user=instance.get('user'),
                 source_name=instance.get('source_name'),
                 log_file=instance.get('log_file'),
+                message_filters=instance.get('message_filters', []),
                 start_ts=last_ts
             )
-        events = w.query(q.to_wql())
+        wql = q.to_wql()
+        self.log.debug("Querying for Event Log events: %s" % wql)
+        events = w.query(wql)
 
         # Save any events returned to the payload as Datadog events
         for ev in events:
             log_ev = LogEvent(ev, self.agentConfig.get('api_key', ''),
-                self.hostname, tags, self._get_tz_offset())
+                              self.hostname, tags, notify)
 
             # Since WQL only compares on the date and NOT the time, we have to
             # do a secondary check to make sure events are after the last
             # timestamp
             if log_ev.is_after(last_ts):
                 self.event(log_ev.to_event_dict())
+            else:
+                self.log.debug('Skipping event after %s. ts=%s' % (last_ts, log_ev.timestamp))
 
         # Update the last time checked
-        self.last_ts[instance_key] = datetime.now()
+        self.last_ts[instance_key] = datetime.utcnow()
 
     def _instance_key(self, instance):
         ''' Generate a unique key per instance for use with keeping track of
-        state for each instance '''
+            state for each instance.
+        '''
         return '%s' % (instance)
 
-    def _get_tz_offset(self):
-        ''' Return the timezone offset for the current local time
-        '''
-        if time.daylight == 0:
-            offset = time.localtime().tm_isdst
-        else:
-            offset = time.altzone
-        return offset / 60 / 60 * -1
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-        start_ts=None):
+        start_ts=None, message_filters=None):
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
             ('User', user),
             ('SourceName', source_name),
             ('LogFile', log_file)
         ]
+        self.message_filters = message_filters or []
         self.start_ts = start_ts
 
     def to_wql(self):
-        ''' Return this query as a WQL string '''
+        ''' Return this query as a WQL string. '''
         wql = """
         SELECT Message, SourceName, TimeGenerated, Type, User, InsertionStrings
         FROM Win32_NTLogEvent
@@ -101,6 +101,8 @@ class EventLogQuery(object):
         """ % (self._dt_to_wmi(self.start_ts))
         for name, vals in self.filters:
             wql = self._add_filter(name, vals, wql)
+        for msg_filter in self.message_filters:
+            wql = self._add_message_filter(msg_filter, wql)
         return wql
 
     def _add_filter(self, name, vals, q):
@@ -113,29 +115,43 @@ class EventLogQuery(object):
         if not isinstance(vals, list):
             q += '\nAND %s = "%s"' % (name, vals)
         else:
-            q += "\nAND (%s)" % (' OR '.join(['%s = "%s"' % (name, l) for l in vals]))
+            q += "\nAND (%s)" % (' OR '.join(
+                ['%s = "%s"' % (name, l) for l in vals]
+            ))
+        return q
+
+    def _add_message_filter(self, msg_filter, q):
+        ''' Filter on the message text using a LIKE query. If the filter starts
+            with '-' then we'll assume that it's a NOT LIKE filter.
+        '''
+        if msg_filter.startswith('-'):
+            msg_filter = msg_filter[1:]
+            q += '\nAND NOT Message LIKE "%s"' % msg_filter
+        else:
+            q += '\nAND Message LIKE "%s"' % msg_filter
         return q
 
     def _dt_to_wmi(self, dt):
-        ''' A wrapper around wmi.from_time to get a WMI-formatted time from a 
-        time struct. '''
-        import wmi
+        ''' A wrapper around wmi.from_time to get a WMI-formatted time from a
+            time struct.
+        '''
         return wmi.from_time(year=dt.year, month=dt.month, day=dt.day,
             hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=0,
             timezone=0)
 
     def _convert_event_types(self, types):
         ''' Detect if we are running on <= Server 2003. If so, we should convert
-        the EventType values to integers '''
+            the EventType values to integers
+        '''
         return types
 
 class LogEvent(object):
-    def __init__(self, ev, api_key, hostname, tags, tz_offset):
+    def __init__(self, ev, api_key, hostname, tags, notify_list):
         self.event = ev
         self.api_key = api_key
         self.hostname = hostname
         self.tags = tags
-        self.tz_offset = tz_offset
+        self.notify_list = notify_list
         self.timestamp = self._wmi_to_ts(self.event.TimeGenerated)
 
     def to_event_dict(self):
@@ -153,32 +169,35 @@ class LogEvent(object):
         }
 
     def is_after(self, ts):
-        ''' Compare this event's timestamp to a give timestamp '''
-        if self.timestamp >= int(time.mktime(ts.timetuple())):
+        ''' Compare this event's timestamp to a give timestamp. '''
+        if self.timestamp >= int(calendar.timegm(ts.timetuple())):
             return True
         return False
 
     def _wmi_to_ts(self, wmi_ts):
-        ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time()
+        ''' Convert a wmi formatted timestamp into an epoch using wmi.to_time().
         '''
-        import wmi
-        year, month, day, hour, minute, second, microsecond, tz = wmi.to_time(wmi_ts)
+        year, month, day, hour, minute, second, microsecond, tz = \
+                                                            wmi.to_time(wmi_ts)
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
             second=second, microsecond=microsecond)
-        return int(time.mktime(dt.timetuple())) + (self.tz_offset * 60 * 60)
+        return int(calendar.timegm(dt.timetuple()))
 
     def _msg_title(self, event):
         return '%s/%s' % (event.Logfile, event.SourceName)
 
     def _msg_text(self, event):
+        msg_text = ""
         if event.Message:
-            return "%s\n" % event.Message
+            msg_text = "%s\n" % event.Message
+        elif event.InsertionStrings:
+            msg_text = "\n".join([i_str for i_str in event.InsertionStrings
+                                  if i_str.strip()])
 
-        if event.InsertionStrings:
-            return "\n".join([i_str for i_str in event.InsertionStrings
-                if i_str.strip()])
+        if self.notify_list:
+            msg_text += "\n%s" % ' '.join([" @" + n for n in self.notify_list])
 
-        return ""
+        return msg_text
 
     def _alert_type(self, event):
         event_type = event.Type
