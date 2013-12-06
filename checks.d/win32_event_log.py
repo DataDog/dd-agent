@@ -54,8 +54,6 @@ class Win32EventLog(AgentCheck):
                 start_ts=last_ts
             )
         wql = q.to_wql()
-        if instance.get('message_filters', []):
-            import pdb; pdb.set_trace()
         self.log.debug("Querying for Event Log events: %s" % wql)
         events = w.query(wql)
 
