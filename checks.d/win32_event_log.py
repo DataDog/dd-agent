@@ -33,6 +33,7 @@ class Win32EventLog(AgentCheck):
         user = instance.get('username')
         password = instance.get('password')
         tags = instance.get('tags')
+        notify = instance.get('notify', [])
         w = self._get_wmi_conn(host, user, password)
 
         # Store the last timestamp by instance
@@ -58,7 +59,7 @@ class Win32EventLog(AgentCheck):
         # Save any events returned to the payload as Datadog events
         for ev in events:
             log_ev = LogEvent(ev, self.agentConfig.get('api_key', ''),
-                self.hostname, tags)
+                              self.hostname, tags, notify)
 
             # Since WQL only compares on the date and NOT the time, we have to
             # do a secondary check to make sure events are after the last
@@ -130,11 +131,12 @@ class EventLogQuery(object):
         return types
 
 class LogEvent(object):
-    def __init__(self, ev, api_key, hostname, tags):
+    def __init__(self, ev, api_key, hostname, tags, notify_list):
         self.event = ev
         self.api_key = api_key
         self.hostname = hostname
         self.tags = tags
+        self.notify_list = notify_list
         self.timestamp = self._wmi_to_ts(self.event.TimeGenerated)
 
     def to_event_dict(self):
@@ -170,14 +172,17 @@ class LogEvent(object):
         return '%s/%s' % (event.Logfile, event.SourceName)
 
     def _msg_text(self, event):
+        msg_text = ""
         if event.Message:
-            return "%s\n" % event.Message
+            msg_text = "%s\n" % event.Message
+        elif event.InsertionStrings:
+            msg_text = "\n".join([i_str for i_str in event.InsertionStrings
+                                  if i_str.strip()])
 
-        if event.InsertionStrings:
-            return "\n".join([i_str for i_str in event.InsertionStrings
-                if i_str.strip()])
+        if self.notify_list:
+            msg_text += "\n%s" % ' '.join([" @" + n for n in self.notify_list])
 
-        return ""
+        return msg_text
 
     def _alert_type(self, event):
         event_type = event.Type
