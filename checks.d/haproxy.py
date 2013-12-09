@@ -120,7 +120,7 @@ class HAProxy(AgentCheck):
             if 'slim' in data_dict and 'scur' in data_dict:
                 try:
                     data_dict['spct'] = (data_dict['scur'] / data_dict['slim']) * 100
-                except TypeError, DivideByZeroError:
+                except (TypeError, ZeroDivisionError):
                     pass
 
             # Don't create metrics for aggregates
