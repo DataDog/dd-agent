@@ -58,6 +58,7 @@ class Gauge(Metric):
                 hostname=self.hostname,
                 device_name=self.device_name,
                 metric_type=MetricTypes.GAUGE,
+                interval=interval,
             )]
             self.value = None
             return res
@@ -91,6 +92,7 @@ class Counter(Metric):
                 hostname=self.hostname,
                 device_name=self.device_name,
                 metric_type=MetricTypes.RATE,
+                interval=interval,
             )]
         finally:
             self.value = 0
@@ -139,7 +141,8 @@ class Histogram(Metric):
                 metric='%s.%s' % (self.name, suffix),
                 value=value,
                 timestamp=ts,
-                metric_type=metric_type
+                metric_type=metric_type,
+                interval=interval,
             ) for suffix, value, metric_type in metric_aggrs
         ]
 
@@ -153,6 +156,7 @@ class Histogram(Metric):
                 value=val,
                 timestamp=ts,
                 metric_type=MetricTypes.GAUGE,
+                interval=interval,
             ))
 
         # Reset our state.
@@ -189,6 +193,7 @@ class Set(Metric):
                 value=len(self.values),
                 timestamp=timestamp,
                 metric_type=MetricTypes.GAUGE,
+                interval=interval,
             )]
         finally:
             self.values = set()
@@ -240,6 +245,7 @@ class Rate(Metric):
                 value=val,
                 timestamp=timestamp,
                 metric_type=MetricTypes.GAUGE,
+                interval=interval
             )]
         finally:
             self.samples = self.samples[-1:]
@@ -481,7 +487,8 @@ class MetricsAggregator(object):
         self.submit_metric(metric_name, self.count, 'g')
 
 
-def api_formatter(metric, value, timestamp, tags, hostname, device_name=None, metric_type=None):
+def api_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+        metric_type=None, interval=None):
     # Workaround for a bug in minjson serialization
     # (https://github.com/DataDog/dd-agent/issues/422)
     if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
@@ -493,4 +500,5 @@ def api_formatter(metric, value, timestamp, tags, hostname, device_name=None, me
         'host': hostname,
         'device_name': device_name,
         'type': metric_type or MetricTypes.GAUGE,
+        'interval':interval,
     }
