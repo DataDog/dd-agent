@@ -196,16 +196,16 @@ def migrate_cassandra(agentConfig):
     return CASSANDRA_CONFIG
 
 def migrate_tomcat(agentConfig):
-    return parse_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
 
 def migrate_solr(agentConfig):
-    return parse_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
 
 def migrate_activemq(agentConfig):
-    return parse_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
 
 def migrate_java(agentConfig):
-    return parse_agent_config(agentConfig, 'java')
+    return parse_jmx_agent_config(agentConfig, 'java')
 
 def _load_old_config(agentConfig, config_key):
     """ Load the configuration according to the previous syntax in datadog.conf"""
@@ -242,7 +242,7 @@ def _load_old_config(agentConfig, config_key):
     load_conf()
     return (connections, users, passwords)
 
-def parse_agent_config(agentConfig, config_key, init_config=None):
+def parse_jmx_agent_config(agentConfig, config_key, init_config=None):
     """ Converts the old style config to the checks.d style"""
 
     (connections, users, passwords) = _load_old_config(agentConfig, config_key)
@@ -269,7 +269,7 @@ def parse_agent_config(agentConfig, config_key, init_config=None):
             instances.append(instance)
 
         except Exception, e:
-            log.exception("Cannot migrate instance")
+            log.error("Cannot migrate JMX instance %s" % config_key)
 	    
     config['instances'] = instances
 	    
