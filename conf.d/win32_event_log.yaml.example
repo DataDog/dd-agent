@@ -12,6 +12,12 @@ instances:
     #
     # - user: Any valid user name
     #
+    # - message_filters: A list of message filters, using % as a wildcard.
+    #   See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx for
+    #   more on the format for LIKE queries.
+    #   NOTE: Any filter that starts with "-" will be a NOT query, e.g.: '-%success%'
+    #   will search for events without 'success' in the message.
+    #
     # Here are a couple basic examples:
     #
     # The following will capture errors and warnings from SQL Server which
@@ -26,6 +32,8 @@ instances:
     #        - Application
     #    source_name:
     #        - MSSQLSERVER
+    #    message_filters:
+    #        - "%error%"
     #
     # This instance will capture all system errors and tag them with #system.
     #

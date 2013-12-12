@@ -20,6 +20,9 @@ instances:
             - EVENTLOGTEST
         type:
             - Warning
+        notify:
+            - pagerduty
+            - "user1@somecompany.com"
 
     -   host: .
         tags:
@@ -43,7 +46,7 @@ class WinEventLogTest(unittest.TestCase):
             ('Test 3', win32evtlog.EVENTLOG_INFORMATION_TYPE),
             ('Test 4', win32evtlog.EVENTLOG_WARNING_TYPE),
             ('Test 5', win32evtlog.EVENTLOG_WARNING_TYPE),
-            ('Test 6', win32evtlog.EVENTLOG_ERROR_TYPE)
+            ('Test 6', win32evtlog.EVENTLOG_ERROR_TYPE),
         ]
 
     def write_event(self, msg, ev_type, source_name='EVENTLOGTEST'):
@@ -68,7 +71,7 @@ class WinEventLogTest(unittest.TestCase):
             eventType=myType, strings=descr, data=data, sid=my_sid)
 
     @attr('windows')
-    def testIIS(self):
+    def test_windows_event_log(self):
         import win32evtlog
         check, instances = get_check('win32_event_log', CONFIG)
 
@@ -99,6 +102,9 @@ class WinEventLogTest(unittest.TestCase):
             assert 'EVENTLOGTESTBAD' not in ev['msg_title']
             # Make sure the tags match up
             assert ev['tags'] == inst1['tags']
+            # Check that the notifications are there.
+            for notify in inst1['notify']:
+                assert '@%s' % notify in ev['msg_text']
 
         check.check(inst2)
         ev2 = check.get_events()
@@ -110,6 +116,7 @@ class WinEventLogTest(unittest.TestCase):
             assert 'EVENTLOGTESTBAD' not in ev['msg_title']
             # Make sure the tags match up
             assert ev['tags'] == inst1['tags']
+
 
 if __name__ == "__main__":
     unittest.main()

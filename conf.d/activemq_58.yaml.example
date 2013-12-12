@@ -48,7 +48,7 @@ init_config:
               metric_type: counter
             ExpiredCount:
               alias: activemq.queue.expired_count
-              type: counter
+              metric_type: counter
             InFlightCount:
               alias: activemq.queue.in_flight_count
               metric_type: counter
