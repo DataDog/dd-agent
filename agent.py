@@ -11,7 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('collector')
+from config import get_version, initialize_logging; initialize_logging('collector')
 
 import os; os.umask(022)
 
@@ -145,7 +145,7 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER, 
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
                 max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
@@ -205,6 +205,9 @@ def main():
         pid_file.clean()
 
     agent = Agent(pid_file.get_path(), autorestart)
+
+    if command == 'start' or 'restart' or 'foreground':
+        log.info('Agent version %s' % get_version())
 
     if 'start' == command:
         log.info('Start daemon')
