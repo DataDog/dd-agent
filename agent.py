@@ -206,9 +206,11 @@ def main():
 
     agent = Agent(pid_file.get_path(), autorestart)
 
+    if command == 'start' or 'restart' or 'foreground':
+        log.info('Agent version %s' % get_version())
+
     if 'start' == command:
         log.info('Start daemon')
-        log.info('Agent version %s' %get_version())
         agent.start()
 
     elif 'stop' == command:
