@@ -206,7 +206,8 @@ def main():
 
     agent = Agent(pid_file.get_path(), autorestart)
 
-    if command == 'start' or 'restart' or 'foreground':
+    START_COMMANDS = ['start', 'restart', 'foreground']
+    if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
 
     if 'start' == command:
