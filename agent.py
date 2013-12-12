@@ -43,6 +43,7 @@ from jmxfetch import JMXFetch
 PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
+START_COMMANDS = ['start', 'restart', 'foreground']
 
 # Globals
 log = logging.getLogger('collector')
@@ -206,7 +207,7 @@ def main():
 
     agent = Agent(pid_file.get_path(), autorestart)
 
-    if command == 'start' or 'restart' or 'foreground':
+    if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
 
     if 'start' == command:
