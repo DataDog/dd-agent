@@ -1,4 +1,5 @@
 from checks import AgentCheck
+from checks.system import Platform
 import time
 
 class ProcessCheck(AgentCheck):
@@ -52,28 +53,62 @@ class ProcessCheck(AgentCheck):
 
         return set(found_process_list)
 
-    def get_process_metrics(self, pids, psutil, cpu_check_interval, extended_metrics=False):
+    def get_process_metrics(self, pids, psutil, cpu_check_interval):
         rss = 0
         vms = 0
         cpu = 0
         thr = 0
-        if extended_metrics:
+        iorc = 0
+        iowc = 0
+        iorb = 0
+        iowb = 0
+
+        extended_metrics_0_6_0 = self.psutil_v_or_later(psutil, (0, 6, 0))
+        extended_metrics_0_5_0_unix = self.psutil_v_or_later(psutil, (0, 5, 0)) and \
+                                        Platform.is_unix()
+        if extended_metrics_0_6_0:
             real = 0
+            cxs = 0
         else:
             real = None
+            cxs = None
+
+        if extended_metrics_0_5_0_unix:
+            fds = 0
+        else:
+            fds = None
+
         for pid in set(pids):
             try:
                 p = psutil.Process(pid)
-                if extended_metrics:
+                if extended_metrics_0_6_0:
                     mem = p.get_ext_memory_info()
                     real += mem.rss - mem.shared
+                    cxs += p.get_num_ctx_switches()
                 else:
                     mem = p.get_memory_info()
+
+                if extended_metrics_0_5_0_unix:
+                    fds += p.get_num_fds()
 
                 rss += mem.rss
                 vms += mem.vms
                 thr += p.get_num_threads()
                 cpu += p.get_cpu_percent(cpu_check_interval)
+
+                # user agent might not have permission to access get_io_counters()
+                # is it possible for the agent to have access for some processes and not others?
+                # if partial access is possible, would an io read_count still be useful?
+                if iorc is not None:
+                    try:
+                        ioc = p.get_io_counters()
+                        iorc += ioc.read_count
+                        iowc += ioc.write_count
+                        iorb += ioc.read_bytes
+                        iowb += ioc.write_bytes
+                    except psutil.AccessDenied:
+                        self.warning('DD user agent does not have access to process io counters')
+                        iorc = None
 
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
@@ -81,10 +116,11 @@ class ProcessCheck(AgentCheck):
                 pass
 
         #Memory values are in Byte
-        return (thr, cpu, rss, vms, real)
+        return (thr, cpu, rss, vms, real, fds, iorc, iowc, iorb, iowb, cxs)
 
-    def psutil_older_than_0_6_0(self, psutil):
-        return psutil.version_info[1] >= 6
+    def psutil_v_or_later(self, psutil, v):
+        vers = psutil.version_info
+        return 100 * vers[0] + 10 * vers[1] + vers[2] >= 100 * v[0] + 10 * v[1] + v[2]
 
     def check(self, instance):
         try:
@@ -112,11 +148,22 @@ class ProcessCheck(AgentCheck):
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
         self.gauge('system.processes.number', len(pids), tags=tags)
-        thr, cpu, rss, vms, real = self.get_process_metrics(pids, psutil, cpu_check_interval,
-            extended_metrics=self.psutil_older_than_0_6_0(psutil))
+        thr, cpu, rss, vms, real, fds, iorc, iowc, iorb, iowb, cxs = self.get_process_metrics(pids,
+            psutil, cpu_check_interval)
+
         self.gauge('system.processes.mem.rss', rss, tags=tags)
         self.gauge('system.processes.mem.vms', vms, tags=tags)
         self.gauge('system.processes.cpu.pct', cpu, tags=tags)
         self.gauge('system.processes.threads', thr, tags=tags)
         if real is not None:
             self.gauge('system.processes.mem.real', real, tags=tags)
+        if fds is not None:
+            self.gauge('system.processes.open_file_descriptors', fds, tags=tags)
+        if cxs is not None:
+            self.gauge('system.processes.ctx_switches', cxs, tags=tags)
+        if iorc:
+            self.gauge('system.processes.ioread_count', iorc, tags=tags)
+            self.gauge('system.processes.iowrite_count', iowc, tags=tags)
+            self.gauge('system.processes.ioread_bytes', iorb, tags=tags)
+            self.gauge('system.processes.iowrite_bytes', iowb, tags=tags)
+
