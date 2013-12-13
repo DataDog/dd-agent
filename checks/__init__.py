@@ -548,7 +548,7 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
     if metric_type:
         attributes['type'] = metric_type
     if interval:
-        # For now, don't send the interval for agent metrice, since they don't
+        # For now, don't send the interval for agent metrics, since they don't
         # come at very predictable intervals.
         # attributes['interval'] = None
         pass
