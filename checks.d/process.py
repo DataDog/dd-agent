@@ -18,10 +18,11 @@ class ProcessCheck(AgentCheck):
         'system.processes.ctx_switches',
         )
 
-    def psutil_v_or_later(self, v):
+    def is_psutil_version_later_than(self, v):
         try:
             import psutil
             vers = psutil.version_info
+            import pdb; pdb.set_trace()
             return 100 * vers[0] + 10 * vers[1] + vers[2] >= 100 * v[0] + 10 * v[1] + v[2]
         except Exception:
             return False
@@ -74,7 +75,7 @@ class ProcessCheck(AgentCheck):
         thr = 0
 
         # process metrics available for psutil versions 0.6.0 and later
-        extended_metrics_0_6_0 = self.psutil_v_or_later((0, 6, 0))
+        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0))
         if extended_metrics_0_6_0:
             real = 0
             ctx_switches = 0
@@ -83,7 +84,7 @@ class ProcessCheck(AgentCheck):
             ctx_switches = None
 
         # process metrics available for psutil versions 0.5.0 and later on UNIX
-        extended_metrics_0_5_0_unix = self.psutil_v_or_later((0, 5, 0)) and \
+        extended_metrics_0_5_0_unix = self.is_psutil_version_later_than((0, 5, 0)) and \
                                 Platform.is_unix()
         if extended_metrics_0_5_0_unix:
             open_file_descriptors = 0
