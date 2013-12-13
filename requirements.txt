@@ -8,3 +8,4 @@ simplejson
 psutil
 gearman
 pylint
+boto
