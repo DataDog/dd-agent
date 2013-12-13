@@ -18,8 +18,6 @@ METRICS = {
 }
 
 NEWER_92_METRICS = {
-    'blk_read_time'     : ('disk_read_time', GAUGE),
-    'blk_write_time'    : ('disk_write_time', GAUGE),
     'deadlocks'         : ('deadlocks', GAUGE),
     'temp_bytes'        : ('temp_bytes', RATE),
     'temp_files'        : ('temp_files', RATE),
