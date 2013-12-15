@@ -23,4 +23,4 @@ conf.d/*.yaml
 !conf.d/network.yaml
 packaging/build/
 packaging/root/
-/.vagrant/machines/default/virtualbox/id
+.vagrant/*
