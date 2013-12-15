@@ -1,6 +1,17 @@
+"""
+Module that tries to migration old style configuration to checks.d interface
+for checks that don't support old style configuration anymore
+
+It also comments out related lines in datadog.conf.
+Point of entry is: migrate_old_style_configuration at the bottom of the file
+which is called when the checks.d directory is loaded when Agent starts.
+
+"""
+
 # std
 import os.path
 import logging
+import string
 
 # 3rd party
 from yaml import dump as dump_to_yaml
@@ -8,6 +19,7 @@ try:
     from yaml import CDumper as Dumper
 except ImportError:
     from yaml import Dumper
+
 
 log = logging.getLogger(__name__)
 
@@ -196,16 +208,16 @@ def migrate_cassandra(agentConfig):
     return CASSANDRA_CONFIG
 
 def migrate_tomcat(agentConfig):
-    return parse_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, "tomcat", init_config=TOMCAT_INIT_CONFIG)
 
 def migrate_solr(agentConfig):
-    return parse_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, "solr", init_config=SOLR_INIT_CONFIG)
 
 def migrate_activemq(agentConfig):
-    return parse_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
+    return parse_jmx_agent_config(agentConfig, 'activemq', init_config=ACTIVEMQ_INIT_CONFIG)
 
 def migrate_java(agentConfig):
-    return parse_agent_config(agentConfig, 'java')
+    return parse_jmx_agent_config(agentConfig, 'java')
 
 def _load_old_config(agentConfig, config_key):
     """ Load the configuration according to the previous syntax in datadog.conf"""
@@ -242,7 +254,7 @@ def _load_old_config(agentConfig, config_key):
     load_conf()
     return (connections, users, passwords)
 
-def parse_agent_config(agentConfig, config_key, init_config=None):
+def parse_jmx_agent_config(agentConfig, config_key, init_config=None):
     """ Converts the old style config to the checks.d style"""
 
     (connections, users, passwords) = _load_old_config(agentConfig, config_key)
@@ -269,7 +281,7 @@ def parse_agent_config(agentConfig, config_key, init_config=None):
             instances.append(instance)
 
         except Exception, e:
-            log.exception("Cannot migrate instance")
+            log.error("Cannot migrate JMX instance %s" % config_key)
 	    
     config['instances'] = instances
 	    
@@ -299,6 +311,7 @@ def _write_conf(check_name, config, confd_dir):
     try:
         f = open(full_path, 'w')
         f.write(yaml_config)
+        log.info("Successfully wrote %s" % full_path)
     except Exception, e:
         log.exception("Cannot write config file %s" % full_path)
 
@@ -311,9 +324,52 @@ CHECKS_TO_MIGRATE = {
 	'jmx': migrate_java,
 }
 
-def migrate_old_style_configuration(agentConfig, confd_dir):
+TO_COMMENT = [
+    'java_',
+    'cassandra_',
+    'tomcat_',
+    'solr_',
+    'activemq_'
+]
+
+def _comment_old_config(datadog_conf_path):
+    """Tries to comment lines in datadog.conf that shouldn't be used anymore"""
+
+    f = open(datadog_conf_path, "r+")
+    config_lines = map(string.strip, f.readlines())
+    new_lines = []
+    for line in config_lines:
+        should_comment = False
+        for key in TO_COMMENT:
+            if line.startswith(key):
+                should_comment = True
+                break
+
+        if should_comment:
+            new_lines.append("# %s" % line)
+        else:
+            new_lines.append(line)
+
+    f.seek(0)
+    f.write("\n".join(new_lines))
+    f.truncate()
+    f.close()
+
+
+def migrate_old_style_configuration(agentConfig, confd_dir, datadog_conf_path):
+    """This will try to migrate some integration configurations configured in datadog._comment_old_conf 
+    to the checks.d format 
+    """
+    log.info("Running migration script")
     for check_name, migrate_fct in CHECKS_TO_MIGRATE.iteritems():
+        log.debug("Migrating %s integration" % check_name)
         try:
             _write_conf(check_name, migrate_fct(agentConfig), confd_dir)
         except Exception, e:
             log.exception("Error while migrating %s" % check_name)
+
+    try:
+        _comment_old_config(datadog_conf_path)
+    except Exception, e:
+        log.exception("Error while trying to comment deprecated lines in datadog.conf")
+

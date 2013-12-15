@@ -16,8 +16,10 @@ import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
+# project
 from util import get_os, yaml, yLoader
 from jmxfetch import JMXFetch
+from migration import migrate_old_style_configuration
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -642,9 +644,10 @@ def load_check_directory(agentConfig):
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
-    from migration import migrate_old_style_configuration
-    migrate_old_style_configuration(agentConfig, confd_path)
+    # Migrate datadog.conf integration configurations that are not supported anymore
+    migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
+    # Start JMXFetch if needed
     JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
 
     # For backwards-compatability with old style checks, we have to load every
@@ -794,7 +797,7 @@ def get_logging_config(cfg_path=None):
             'log_level': None,
             'ddagent_log_file': windows_log_location,
             'jmxfetch_log_file': jmxfetch_log_file,
-            'log_to_event_viewer': True,
+            'log_to_event_viewer': False,
             'log_to_syslog': False,
             'syslog_host': None,
             'syslog_port': None,

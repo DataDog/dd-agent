@@ -50,7 +50,7 @@ class Cacti(AgentCheck):
         try:
             import rrdtool
         except ImportError, e:
-            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
+            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/cacti")
 
         # Try importing MySQL
         try:

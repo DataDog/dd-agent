@@ -20,23 +20,26 @@ class PostfixCheck(AgentCheck):
 
         directory = config['directory']
         queues = config['queues']
+        tags = config['tags']
 
-        self._get_queue_count(directory, queues)
+        self._get_queue_count(directory, queues, tags)
 
     def _get_config(self, instance):
         directory = instance.get('directory', None)
         queues = instance.get('queues', None)
+        tags = instance.get('tags', [])
         if not queues or not directory:
             raise Exception('missing required yaml config entry')
 
         instance_config = {
             'directory': directory,
-            'queues': queues
+            'queues': queues,
+            'tags': tags,
         }
 
         return instance_config
 
-    def _get_queue_count(self, directory, queues):
+    def _get_queue_count(self, directory, queues, tags):
         for queue in queues:
             queue_path = os.path.join(directory, queue)
             if not os.path.exists(queue_path):
@@ -53,13 +56,12 @@ class PostfixCheck(AgentCheck):
                     count = os.popen('sudo find %s -type f | wc -l' % queue_path)
                     count = count.readlines()[0].strip()
                 else:
-                    # should we self.log.error instead and disable the check?
-                    self.log.warning('the dd-agent user does not have sudo access')
+                    raise Exception('The dd-agent user does not have sudo access')
 
             # emit an individually tagged metric
-            self.gauge('postfix.queue.size', count, tags=['queue:%s' % queue])
+            self.gauge('postfix.queue.size', count, tags=tags + ['queue:%s' % queue, 'instance:%s' %  os.path.basename(directory)])
 
             # these can be retrieved in a single graph statement
             # for example:
-            #     sum:postfix.queue.size{role:mta} by {queue}
+            #     sum:postfix.queue.size{instance:postfix-2,queue:incoming,host:hostname.domain.tld}
 

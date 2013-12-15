@@ -32,7 +32,7 @@ class UnknownValue(CheckException): pass
 # DEPRECATED
 # ------------------------------
 # If you are writing your own check, you should inherit from AgentCheck
-# and not this class. This class will be removed in a future version 
+# and not this class. This class will be removed in a future version
 # of the agent.
 #==============================================================================
 class Check(object):
@@ -170,9 +170,9 @@ class Check(object):
 
             return (sample2[0], delta / interval, sample2[2], sample2[3])
         except Infinity:
-            raise 
+            raise
         except UnknownValue:
-            raise 
+            raise
         except Exception, e:
             raise NaN(e)
 
@@ -425,7 +425,7 @@ class AgentCheck(object):
         return len(self.warnings) > 0
 
     def warning(self, warning_message):
-        """ Add a warning message that will be printed in the info page 
+        """ Add a warning message that will be printed in the info page
         :param warning_message: String. Warning message to be displayed
         """
         self.warnings.append(warning_message)
@@ -458,16 +458,16 @@ class AgentCheck(object):
             try:
                 self.check(instance)
                 if self.has_warnings():
-                    instance_status = check_status.InstanceStatus(i, 
-                        check_status.STATUS_WARNING, 
+                    instance_status = check_status.InstanceStatus(i,
+                        check_status.STATUS_WARNING,
                         warnings=self.get_warnings()
                     )
                 else:
                     instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, 
-                    check_status.STATUS_ERROR, 
+                instance_status = check_status.InstanceStatus(i,
+                    check_status.STATUS_ERROR,
                     error=e,
                     tb=traceback.format_exc()
                 )
@@ -533,7 +533,8 @@ class AgentCheck(object):
             return name
 
 
-def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None, metric_type=None):
+def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+                                                metric_type=None, interval=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
      (metric, timestamp, value, {"tags": ["tag1", "tag2"], ...})
     """
@@ -546,6 +547,11 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None, 
         attributes['device_name'] = device_name
     if metric_type:
         attributes['type'] = metric_type
+    if interval:
+        # For now, don't send the interval for agent metrics, since they don't
+        # come at very predictable intervals.
+        # attributes['interval'] = None
+        pass
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)

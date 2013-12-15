@@ -12,13 +12,13 @@ from util import PidFile, yaml, yLoader, get_os
 log = logging.getLogger(__name__)
 
 JAVA_LOGGING_LEVEL = {
-    logging.CRITICAL : "SEVERE",
-    logging.DEBUG : "ALL",
-    logging.ERROR : "WARNING",
-    logging.FATAL : "SEVERE",
+    logging.CRITICAL : "FATAL",
+    logging.DEBUG : "DEBUG",
+    logging.ERROR : "ERROR",
+    logging.FATAL : "FATAL",
     logging.INFO : "INFO",
-    logging.WARN : "WARNING",
-    logging.WARNING : "WARNING",
+    logging.WARN : "WARN",
+    logging.WARNING : "WARN",
 }
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']

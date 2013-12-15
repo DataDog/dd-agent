@@ -6,6 +6,7 @@ services:
   - mysql
   - elasticsearch
   - memcache
+  - redis-server
 before_script:
   - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
 language: python
@@ -25,7 +26,6 @@ before_install:
   - sudo apt-get install couchdb
   - sudo apt-get install lighttpd
   - sudo apt-get install gearman
-  - sudo apt-get -o Dpkg::Options::="--force-confnew" install redis-server
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
