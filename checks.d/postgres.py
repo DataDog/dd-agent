@@ -19,8 +19,8 @@ METRICS = {
 
 NEWER_92_METRICS = {
     'deadlocks'         : ('deadlocks', GAUGE),
-    'temp_bytes'        : ('temp_bytes_per_sec', RATE),
-    'temp_files'        : ('temp_files_per_sec', RATE),
+    'temp_bytes'        : ('temp_bytes', RATE),
+    'temp_files'        : ('temp_files', RATE),
 }
 
 class PostgreSql(AgentCheck):
