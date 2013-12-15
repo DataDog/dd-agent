@@ -133,10 +133,17 @@ SELECT relname,
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
             self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
+
+        # Do we need relation-specific metrics?
+        if relations is None or relations == []:
+            metric_scope = (self.DB_METRICS, )
+        else:
+            metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
   
         cursor = db.cursor()
+
         try:
-            for scope in (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS):
+            for scope in metric_scope:
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
                                                 # we must remember that order to parse results
@@ -152,10 +159,10 @@ SELECT relname,
                 # with descriptor a PG relation or index name, which we use to create the tags
                 
                 for row in results:
-                    desc = scope['descriptors']
                     # turn descriptors into tags
-                    tags = instance_tags.extend(["%s:%s" % (d[0][1], d) for d in zip(desc, row[:len(desc)])])
-                    print tags
+                    desc = scope['descriptors']
+                    # descriptors are: (pg_name, dd_tag_name): value
+                    instance_tags.extend(["%s:%s" % (d[0][1], d[1]) for d in zip(desc, row[:len(desc)])])
 
                     # [(metric-map, value), (metric-map, value), ...]
                     # metric-map is: (dd_name, "rate"|"gauge")
@@ -167,7 +174,7 @@ SELECT relname,
                     # v[0] == (metric_name, submit_function)
                     # v[1] == the actual value
                     # FIXME namedtuple probably better here
-                    [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
+                    [v[0][1](self, v[0][0], v[1], tags=instance_tags) for v in values]
         finally:
             del cursor
 
@@ -244,4 +251,9 @@ SELECT relname,
 
 if __name__ == '__main__':
     p = PostgreSql("", {}, {})
-    p.check({"host": "localhost", "port": 5432, "username": "alq", "password": "", "tags": ["code"]})
+    p.check({"host": "localhost",
+             "port": 5432,
+             "username": "alq",
+             "password": "",
+             "tags": ["code"],
+             "relations": ["hourly_usage"]})
