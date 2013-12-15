@@ -198,6 +198,8 @@ TOMCAT_INIT_CONFIG = {'conf': [{'include': {'attribute': {'currentThreadCount': 
 'metric_type': 'counter'},
 'type': 'JspMonitor'}}]}
 
+class NoConfigToMigrateException(Exception): pass
+
 def migrate_cassandra(agentConfig):
     for old_key, params in CASSANDRA_MAPPING.iteritems():
         new_key, param_type = params
@@ -294,7 +296,7 @@ def parse_jmx_agent_config(agentConfig, config_key, init_config=None):
 def _write_conf(check_name, config, confd_dir):
     if config is None:
         log.debug("No config for check: %s" % check_name)
-        return
+        raise NoConfigToMigrateException()
 
     try:
         yaml_config = dump_to_yaml(config, Dumper=Dumper, default_flow_style=False)
@@ -361,15 +363,20 @@ def migrate_old_style_configuration(agentConfig, confd_dir, datadog_conf_path):
     to the checks.d format 
     """
     log.info("Running migration script")
+    should_comment_datadog_conf = False
     for check_name, migrate_fct in CHECKS_TO_MIGRATE.iteritems():
         log.debug("Migrating %s integration" % check_name)
         try:
             _write_conf(check_name, migrate_fct(agentConfig), confd_dir)
+            should_comment_datadog_conf = True
+        except NoConfigToMigrateException:
+            pass
         except Exception, e:
             log.exception("Error while migrating %s" % check_name)
 
-    try:
-        _comment_old_config(datadog_conf_path)
-    except Exception, e:
-        log.exception("Error while trying to comment deprecated lines in datadog.conf")
+    if should_comment_datadog_conf:
+        try:
+            _comment_old_config(datadog_conf_path)
+        except Exception, e:
+            log.exception("Error while trying to comment deprecated lines in datadog.conf")
 
