@@ -1,90 +1,89 @@
-from checks import AgentCheck
+from checks import AgentCheck, CheckException
 
-GAUGE = 'gauge'
-RATE = 'rate'
+class PostgreSql(AgentCheck):
+    """
+    """
 
-# Comment here
-
-# turning columns into tags
-DB_METRICS = {
-    'descriptors': [
-        ('datname', 'db')
-    ],
-    'metrics': {
-        'numbackends'       : ('connections', GAUGE),
-        'xact_commit'       : ('commits', RATE),
-        'xact_rollback'     : ('rollbacks', RATE),
-        'blks_read'         : ('disk_read', RATE),
-        'blks_hit'          : ('buffer_hit', RATE),
-        'tup_returned'      : ('rows_returned', RATE),
-        'tup_fetched'       : ('rows_fetched', RATE),
-        'tup_inserted'      : ('rows_inserted', RATE),
-        'tup_updated'       : ('rows_updated', RATE),
-        'tup_deleted'       : ('rows_deleted', RATE),
-    },
-    'query': """
+    RATE = AgentCheck.rate
+    GAUGE = AgentCheck.gauge
+    
+    # turning columns into tags
+    DB_METRICS = {
+        'descriptors': [
+            ('datname', 'db')
+        ],
+        'metrics': {
+            'numbackends'       : ('postgresql.connections', GAUGE),
+            'xact_commit'       : ('postgresql.commits', RATE),
+            'xact_rollback'     : ('postgresql.rollbacks', RATE),
+            'blks_read'         : ('postgresql.disk_read', RATE),
+            'blks_hit'          : ('postgresql.buffer_hit', RATE),
+            'tup_returned'      : ('postgresql.rows_returned', RATE),
+            'tup_fetched'       : ('postgresql.rows_fetched', RATE),
+            'tup_inserted'      : ('postgresql.rows_inserted', RATE),
+            'tup_updated'       : ('postgresql.rows_updated', RATE),
+            'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+        },
+        'query': """
 SELECT datname,
        %s
   FROM pg_stat_database
  WHERE datname not ilike 'template%%'
    AND datname not ilike 'postgres'
 """,
-    'relation': False,
-}
+        'relation': False,
+    }
 
-NEWER_92_DB_METRICS = {
-    'blk_read_time'     : ('disk_read_time', GAUGE),
-    'blk_write_time'    : ('disk_write_time', GAUGE),
-    'deadlocks'         : ('deadlocks', GAUGE),
-    'temp_bytes'        : ('temp_bytes', RATE),
-    'temp_files'        : ('temp_files', RATE),
-}
+    NEWER_92_METRICS = {
+        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
+        'temp_bytes'        : ('postgresql.temp_bytes', RATE),
+        'temp_files'        : ('postgresql.temp_files', RATE),
+    }
 
-REL_METRICS = {
-    'descriptors': [
-        ('relname', 'table')
-    ],
-    'metrics': {
-        'seq_scan'          : ('seq_scans', RATE),
-        'seq_tup_read'      : ('seq_rows_read', RATE),
-        'idx_scan'          : ('index_scans', RATE),
-        'idx_tup_fetch'     : ('index_rows_fetched', RATE),
-        'n_tup_ins'         : ('rows_inserted', RATE),
-        'n_tup_upd'         : ('rows_updated', RATE),
-        'n_tup_del'         : ('rows_deleted', RATE),
-        'n_tup_hot_upd'     : ('rows_hot_updated', RATE),
-        'n_live_tup'        : ('live_rows', GAUGE),
-        'n_dead_tup'        : ('dead_rows', GAUGE),
-    },
-    'query': """
+    REL_METRICS = {
+        'descriptors': [
+            ('relname', 'table')
+        ],
+        'metrics': {
+            'seq_scan'          : ('postgresql.seq_scans', RATE),
+            'seq_tup_read'      : ('postgresql.seq_rows_read', RATE),
+            'idx_scan'          : ('postgresql.index_scans', RATE),
+            'idx_tup_fetch'     : ('postgresql.index_rows_fetched', RATE),
+            'n_tup_ins'         : ('postgresql.rows_inserted', RATE),
+            'n_tup_upd'         : ('postgresql.rows_updated', RATE),
+            'n_tup_del'         : ('postgresql.rows_deleted', RATE),
+            'n_tup_hot_upd'     : ('postgresql.rows_hot_updated', RATE),
+            'n_live_tup'        : ('postgresql.live_rows', GAUGE),
+            'n_dead_tup'        : ('postgresql.dead_rows', GAUGE),
+        },
+        'query': """
 SELECT relname,
        %s
   FROM pg_stat_user_tables
  WHERE relname = %s""",
-    'relation': True,
-}
+        'relation': True,
+    }
 
-IDX_METRICS = {
-    'descriptors': [
-        ('relname', 'table'),
-        ('indexrelname', 'index')
-    ],
-    'metrics': {
-        'idx_scan'          : ('index_scans', RATE),
-        'idx_tup_read'      : ('index_rows_read', RATE),
-        'idx_tup_fetch'     : ('index_rows_fetched', RATE),
-    },
-    'query': """
+    IDX_METRICS = {
+        'descriptors': [
+            ('relname', 'table'),
+            ('indexrelname', 'index')
+        ],
+        'metrics': {
+            'idx_scan'          : ('postgresql.index_scans', RATE),
+            'idx_tup_read'      : ('postgresql.index_rows_read', RATE),
+            'idx_tup_fetch'     : ('postgresql.index_rows_fetched', RATE),
+        },
+        'query': """
 SELECT relname,
        indexrelname,
        %s
   FROM pg_stat_user_indexes
  WHERE relname = %s""",
-    'relation': True,
-}
+        'relation': True,
+    }
 
 
-class PostgreSql(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.dbs = {}
@@ -126,20 +125,22 @@ class PostgreSql(AgentCheck):
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        def get_dd_metric_name(pg_name, mapping):
-            "Turn a pg metric name into a dd metric name"
-            return "postgresql.%s" % mapping.get('metrics', {}).get(pg_name, pg_name)
- 
+
+        # Clean up initial args
+        if instance_tags is None:
+            instance_tags = []
+
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
-            DB_METRICS['metrics'].update(NEWER_92_METRICS)
-        
+            self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
+  
         cursor = db.cursor()
         try:
-            for scope in (DB_METRICS, REL_METRICS, IDX_METRICS):
+            for scope in (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS):
                 # build query
-                fields = ",".join(scope['metrics'].keys())
-                query = scope['query'] % fields
+                cols = scope['metrics'].keys()  # list of metrics to query, in some order
+                                                # we must remember that order to parse results
+                query = scope['query'] % (", ".join(cols))  # assembled query
 
                 # execute query
                 cursor.execute(query)
@@ -148,53 +149,55 @@ class PostgreSql(AgentCheck):
                 # parse results
                 # A row should look like this
                 # (descriptor, descriptor, ..., value, value, value, value, ...)
-                # with descriptor a table, relation or index name
-            
+                # with descriptor a PG relation or index name, which we use to create the tags
                 
                 for row in results:
-                    # [(metric-map, value), (metric-map, value), ...]
-                    # shift the results since the first columns will be the "descriptors"
                     desc = scope['descriptors']
-                    x = zip(scope['metrics'], row[len(desc):])
-                
-                    # compute tags
-                    if instance_tags is None:
-                        instance_tags = []
                     # turn descriptors into tags
-                    tags = instance_tags.extend(["%s:%s" % (d[0][1], d for d in zip(desc, row[:len(desc)])])
+                    tags = instance_tags.extend(["%s:%s" % (d[0][1], d) for d in zip(desc, row[:len(desc)])])
+                    print tags
 
-                # [(metric, value), (metric, value), ...]
-                metric_name = lambda name: "postgresql.%s" % metrics_to_collect[metrics_keys[i-1]][0]
-                metric_type = metrics_to_collect[metrics_keys[i-1]][1]
-                if metric_type == GAUGE:
-                    self.gauge(metric_name, value, tags=tags)
-                elif metric_type == RATE:
-                    self.rate(metric_name, value, tags=tags)
-                            
-                result = cursor.fetchone()
+                    # [(metric-map, value), (metric-map, value), ...]
+                    # metric-map is: (dd_name, "rate"|"gauge")
+                    # shift the results since the first columns will be the "descriptors"
+                    values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
+                    print values
+                    
+                    # To submit simply call the function for each value v
+                    # v[0] == (metric_name, submit_function)
+                    # v[1] == the actual value
+                    # FIXME namedtuple probably better here
+                    [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
         finally:
             del cursor
 
     def get_connection(self, key, host, port, user, password, dbname):
-
+        "Get and memoize connections to instances"
         if key in self.dbs:
             return self.dbs[key]
 
-        elif host != '' and user != '':
+        elif host != "" and user != "":
             try:
                 import psycopg2 as pg
+                if host == 'localhost' and password == '':
+                    # Use ident method
+                    return  pg.connect("user=%s dbname=%s" % (user, dbname))
+                elif port != '':
+                    return pg.connect(host=host, port=port, user=user,
+                                      password=password, database=dbname)
+                else:
+                    return pg.connect(host=host, user=user, password=password,
+                                      database=dbname)
             except ImportError:
-                raise ImportError("psycopg2 library can not be imported. Please check the installation instruction on the Datadog Website")
-            
-            if host == 'localhost' and password == '':
-                # Use ident method
-                return pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                return pg.connect(host=host, port=port, user=user,
-                    password=password, database=dbname)
+                raise ImportError("psycopg2 library can not be imported. Please check the installation instruction on the Datadog Website.")
+
+        else:
+            if host is None or host == "":
+                raise CheckException("Please specify a Postgres host to connect to.")
+            elif user is None or user == "":
+                raise CheckException("Please specify a user to connect to Postgres as.")
             else:
-                return pg.connect(host=host, user=user, password=password,
-                    database=dbname)
+                raise CheckException("Cannot connect to Postgres.")
 
 
     def check(self, instance):
@@ -216,7 +219,7 @@ class PostgreSql(AgentCheck):
         # Check version
         version = self._get_version(key, db)
         self.log.debug("Running check against version %s" % version)
-
+            
         # Collect metrics
         self._collect_stats(key, db, tags, relations)
 
@@ -238,3 +241,7 @@ class PostgreSql(AgentCheck):
             }
 
         return False
+
+if __name__ == '__main__':
+    p = PostgreSql("", {}, {})
+    p.check({"host": "localhost", "port": 5432, "username": "alq", "password": "", "tags": ["code"]})
