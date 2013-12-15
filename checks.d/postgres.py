@@ -1,7 +1,7 @@
 from checks import AgentCheck, CheckException
 
 class PostgreSql(AgentCheck):
-    """
+    """Collects per-database, and optionally per-relation metrics
     """
 
     RATE = AgentCheck.rate
@@ -60,7 +60,7 @@ SELECT datname,
 SELECT relname,
        %s
   FROM pg_stat_user_tables
- WHERE relname = %s""",
+ WHERE relname = ANY(%s)""",
         'relation': True,
     }
 
@@ -79,7 +79,7 @@ SELECT relname,
        indexrelname,
        %s
   FROM pg_stat_user_indexes
- WHERE relname = %s""",
+ WHERE relname = ANY(%s)""",
         'relation': True,
     }
 
@@ -89,16 +89,6 @@ SELECT relname,
         self.dbs = {}
         self.versions = {}
 
-    def get_library_versions(self):
-        try:
-            import psycopg2
-            version = psycopg2.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"psycopg2": version}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -116,7 +106,7 @@ SELECT relname,
     def _is_9_2_or_above(self, key, db):
         version = self._get_version(key, db)
         if type(version) == list:
-            return version >= [9,2,0]
+            return version >= [9, 2, 0]
 
         return False
 
@@ -126,57 +116,66 @@ SELECT relname,
         on top of that.
         """
 
-        # Clean up initial args
-        if instance_tags is None:
-            instance_tags = []
-
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
             self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
 
         # Do we need relation-specific metrics?
         if relations is None or relations == []:
-            metric_scope = (self.DB_METRICS, )
+            metric_scope = (self.DB_METRICS,)
         else:
             metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
   
-        cursor = db.cursor()
-
-        try:
-            for scope in metric_scope:
-                # build query
-                cols = scope['metrics'].keys()  # list of metrics to query, in some order
-                                                # we must remember that order to parse results
-                query = scope['query'] % (", ".join(cols))  # assembled query
-
-                # execute query
+        for scope in metric_scope:
+            # build query
+            cols = scope['metrics'].keys()  # list of metrics to query, in some order
+            # we must remember that order to parse results
+            cursor = db.cursor()
+            
+            # if this is a relation-specific query, we need to list all relations last
+            if scope['relation'] and len(relations) > 0:
+                query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
+                cursor.execute(query, (relations, ))
+            else:
+                query = scope['query'] % (", ".join(cols))
                 cursor.execute(query)
-                results = cursor.fetchall()
 
-                # parse results
-                # A row should look like this
-                # (descriptor, descriptor, ..., value, value, value, value, ...)
-                # with descriptor a PG relation or index name, which we use to create the tags
+            results = cursor.fetchall()
+            cursor.close()
                 
-                for row in results:
-                    # turn descriptors into tags
-                    desc = scope['descriptors']
-                    # descriptors are: (pg_name, dd_tag_name): value
-                    instance_tags.extend(["%s:%s" % (d[0][1], d[1]) for d in zip(desc, row[:len(desc)])])
+            # parse & submit results
+            # A row should look like this
+            # (descriptor, descriptor, ..., value, value, value, value, ...)
+            # with descriptor a PG relation or index name, which we use to create the tags
+            for row in results:
+                # turn descriptors into tags
+                desc = scope['descriptors']
+                # Check that all columns will be processed
+                assert len(row) == len(cols) + len(desc)
+                
+                # Build tags
+                # descriptors are: (pg_name, dd_tag_name): value
+                # Special-case the "db" tag, which overrides the one that is passed as instance_tag
+                # The reason is that pg_stat_database returns all databases regardless of the
+                # connection.
+                if not scope['relation']:
+                    tags = [t for t in instance_tags if not t.startswith("db:")]
+                else:
+                    tags = [t for t in instance_tags]
 
-                    # [(metric-map, value), (metric-map, value), ...]
-                    # metric-map is: (dd_name, "rate"|"gauge")
-                    # shift the results since the first columns will be the "descriptors"
-                    values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
-                    print values
-                    
-                    # To submit simply call the function for each value v
-                    # v[0] == (metric_name, submit_function)
-                    # v[1] == the actual value
-                    # FIXME namedtuple probably better here
-                    [v[0][1](self, v[0][0], v[1], tags=instance_tags) for v in values]
-        finally:
-            del cursor
+                tags += ["%s:%s" % (d[0][1], d[1]) for d in zip(desc, row[:len(desc)])]
+
+                # [(metric-map, value), (metric-map, value), ...]
+                # metric-map is: (dd_name, "rate"|"gauge")
+                # shift the results since the first columns will be the "descriptors"
+                values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
+                
+                # To submit simply call the function for each value v
+                # v[0] == (metric_name, submit_function)
+                # v[1] == the actual value
+                # tags are
+                [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
+            
 
     def get_connection(self, key, host, port, user, password, dbname):
         "Get and memoize connections to instances"
@@ -215,13 +214,17 @@ SELECT relname,
         tags = instance.get('tags', [])
         dbname = instance.get('database', 'postgres')
         relations = instance.get('relations', [])
+
+        key = '%s:%s' % (host, port)
+        db = self.get_connection(key, host, port, user, password, dbname)
+
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
-        key = '%s:%s' % (host, port)
-
-        db = self.get_connection(key, host, port, user, password, dbname)
+        
+        # preset tags to the database name
+        tags.extend(["db:%s" % dbname])
 
         # Check version
         version = self._get_version(key, db)
@@ -250,10 +253,18 @@ SELECT relname,
         return False
 
 if __name__ == '__main__':
+    # Assumes that you have a pg db that bears the same name
+    # as your unix username. Furthermore assumes that you can connect
+    # using ident.
+    # if you want to collect per-table stats, simply pass them as arguments
     p = PostgreSql("", {}, {})
+    # get current username
+    import getpass, sys
+    usr = getpass.getuser()
     p.check({"host": "localhost",
              "port": 5432,
-             "username": "alq",
+             "username": usr,
              "password": "",
              "tags": ["code"],
-             "relations": ["hourly_usage"]})
+             "database": usr,
+             "relations": sys.argv[1:]})
