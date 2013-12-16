@@ -22,7 +22,6 @@ class ProcessCheck(AgentCheck):
         try:
             import psutil
             vers = psutil.version_info
-            import pdb; pdb.set_trace()
             return vers >= v
         except Exception:
             return False
