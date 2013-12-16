@@ -23,7 +23,7 @@ class ProcessCheck(AgentCheck):
             import psutil
             vers = psutil.version_info
             import pdb; pdb.set_trace()
-            return 100 * vers[0] + 10 * vers[1] + vers[2] >= 100 * v[0] + 10 * v[1] + v[2]
+            return vers >= v
         except Exception:
             return False
 
