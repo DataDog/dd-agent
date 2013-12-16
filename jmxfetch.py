@@ -188,7 +188,7 @@ class JMXFetch(object):
                 str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
                 str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
                 r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
-                JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Should be in ["ALL", "FINEST", "FINER", "FINE", "CONFIG", "INFO", "WARNING", "SEVERE"]
+                JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
                 ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
                 r"%s" % path_to_status_file,
             ]
