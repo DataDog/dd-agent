@@ -34,6 +34,8 @@
         <dl>
           <dt>Status date</dt>      <dd>{{ collector['status_date'] }}</dd>
           <dt>Pid</dt>              <dd>{{ collector['pid'] }}</dd>
+          <dt>Path to conf.d</dt>      <dd>{{ collector['confd_path'] }}</dd>
+          <dt>Path to checks.d</dt>    <dd>{{ collector['checksd_path'] }}</dd>
         </dl>
 
         <h3>Hostnames</h3>
@@ -113,7 +115,7 @@
 
         <dl>
           <dt>Flush count</dt>        <dd>{{ forwarder['flush_count'] }}</dd>
-          <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }}</dd>
+          <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }} bytes</dd>
           <dt>Queue length</dt>       <dd>{{ forwarder['queue_length'] }}</dd>
         </dl>
 

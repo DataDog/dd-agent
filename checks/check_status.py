@@ -12,9 +12,12 @@ import platform
 import sys
 import tempfile
 import traceback
+import time
 
 # project
 import config
+from compat.defaultdict import defaultdict
+from util import get_os, yaml, yLoader
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -249,13 +252,14 @@ class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count,
                  event_count, init_failed_error=None,
-                 init_failed_traceback=None):
+                 init_failed_traceback=None, library_versions=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
+        self.library_versions = library_versions
 
     @property
     def status(self):
@@ -317,13 +321,36 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
+        # Paths to checks.d/conf.d
+        lines = [
+            'Paths',
+            '=====',
+            ''
+        ]
+
+        osname = config.get_os()
+
+        try:
+            confd_path = config.get_confd_path(osname)
+        except config.PathNotFound:
+            confd_path = 'Not found'
+        
+        try:
+            checksd_path = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            checksd_path = 'Not found'
+
+        lines.append('  conf.d: ' + confd_path)
+        lines.append('  checks.d: ' + checksd_path)
+        lines.append('')
 
         # Hostnames
-        lines = [
+        lines += [
             'Hostnames',
             '=========',
             ''
         ]
+
         if not self.metadata:
             lines.append("  No host information available yet.")
         else:
@@ -341,10 +368,11 @@ class CollectorStatus(AgentStatus):
             '======',
             ''
         ]
-        if not self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        if not check_statuses:
             lines.append("  No checks have run yet.")
         else:
-            for cs in self.check_statuses:
+            for cs in check_statuses:
                 check_lines = [
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
@@ -384,8 +412,16 @@ class CollectorStatus(AgentStatus):
 
                     check_lines += [
                         "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
-                        ""
                     ]
+
+                    if cs.library_versions is not None:
+                        check_lines += [
+                            "    - Dependencies:"]
+                        for library, version in cs.library_versions.iteritems():
+                            check_lines += [
+                            "        - %s: %s" % (library, version)]
+
+                    check_lines += [""]
 
                 lines += check_lines
 
@@ -430,7 +466,8 @@ class CollectorStatus(AgentStatus):
 
         # Checks.d Status
         status_info['checks'] = {}
-        for cs in self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
             for s in cs.instance_statuses:
                 status_info['checks'][cs.name]['instances'][s.instance_id] = {
@@ -456,6 +493,18 @@ class CollectorStatus(AgentStatus):
             if es.has_error():
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
+
+        osname = config.get_os()
+
+        try:
+            status_info['confd_path'] = config.get_confd_path(osname)
+        except config.PathNotFound:
+            status_info['confd_path'] = 'Not found'
+        
+        try:
+            status_info['checksd_path'] = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            status_info['checksd_path'] = 'Not found'
 
         return status_info
 
@@ -502,17 +551,22 @@ class ForwarderStatus(AgentStatus):
 
     NAME = 'Forwarder'
 
-    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
+            transactions_flushed=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
         self.flush_count = flush_count
+        self.transactions_received = transactions_received
+        self.transactions_flushed = transactions_flushed
 
     def body_lines(self):
         lines = [
-            "Queue Size: %s" % self.queue_size,
+            "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
+            "Transactions received: %s" % self.transactions_received,
+            "Transactions flushed: %s" % self.transactions_flushed
         ]
         return lines
 
@@ -577,3 +631,62 @@ class BernardStatus(AgentStatus):
         status_info.update(check_stats)
 
         return status_info
+
+
+def get_jmx_status():
+    """This function tries to read the jmxfetch status file which is a yaml file
+    located in the same directory as the jmxfetch jar file.
+    Its format is as the following:
+    
+    ###
+
+    timestamp: 1377303057441
+    instances:
+          cassandra_localhost: {message: null, metric_count: 40}
+          tomcat: {message: null, metric_count: 57}
+          instance_name: {message: 'Cannot connect to instance localhost:3033. Is a JMX Server running at this address?', metric_count: 0}
+
+    ###
+    """
+    check_statuses = []
+    path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+    if not os.path.exists(path):
+        log.debug("There is no jmx_status file at: %s" % path)
+        return []
+
+    try:
+        jmx_stats = yaml.load(file(path))
+
+        status_age = time.time() - jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
+        jmx_instances = jmx_stats.get('instances', {})
+
+        if status_age > 60:
+            check_statuses.append(CheckStatus("jmx", [InstanceStatus(
+                                                0, 
+                                                STATUS_ERROR, 
+                                                error="JMXfetch didn't return any metrics during the last minute"
+                                                )], 0, 0))
+            return check_statuses
+
+        for instance, info in jmx_instances.iteritems():
+            message = info.get('message', None)
+            metric_count = info.get('metric_count', 0)
+            status = info.get('status')
+
+            if status == STATUS_ERROR:
+                instance_status = InstanceStatus(0, STATUS_ERROR, error=message)
+
+            elif status == STATUS_WARNING:
+                instance_status = InstanceStatus(0, STATUS_WARNING, warnings=[message])
+
+            elif status == STATUS_OK:
+                instance_status = InstanceStatus(0, STATUS_OK)
+
+            check_status = CheckStatus(instance, [instance_status], metric_count, 0)
+            check_statuses.append(check_status)
+
+        return check_statuses
+
+    except Exception, e:
+        log.exception("Couldn't load latest jmx status")
+        return []

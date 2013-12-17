@@ -80,7 +80,7 @@ class ServicesCheck(AgentCheck):
         self.start_pool()
 
     def check(self, instance):
-        if threading.activeCount() > 5 * self.pool_size:
+        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1 
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()

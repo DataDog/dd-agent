@@ -30,6 +30,17 @@ class Cacti(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.last_ts = {}
 
+    def get_library_versions(self):
+        try:
+            import rrdtool
+            version = rrdtool.__version__
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"rrdtool": version} 
+
     def check(self, instance):
         
         # Load the instance config
@@ -39,7 +50,7 @@ class Cacti(AgentCheck):
         try:
             import rrdtool
         except ImportError, e:
-            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
+            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/cacti")
 
         # Try importing MySQL
         try:

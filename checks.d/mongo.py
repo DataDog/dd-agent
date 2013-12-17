@@ -62,6 +62,17 @@ class MongoDb(AgentCheck):
 
         self._last_state = -1
 
+    def get_library_versions(self):
+        try:
+            import pymongo
+            version = pymongo.version
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"pymongo": version}
+
     def checkLastState(self, state, agentConfig):
         if self._last_state != state:
             self._last_state = state
@@ -126,6 +137,11 @@ class MongoDb(AgentCheck):
                 parsed = {}
         username = parsed.get('username')
         password = parsed.get('password')
+        db_name = parsed.get('database')
+
+        if not db_name:
+            self.log.info('No MongoDB database found in URI. Defaulting to admin.')
+            db_name = 'admin'
 
         do_auth = True
         if username is None or password is None:
@@ -133,12 +149,12 @@ class MongoDb(AgentCheck):
             do_auth = False
 
         conn = Connection(instance['server'], network_timeout=DEFAULT_TIMEOUT)
-        db = conn['admin']
+        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
                 self.log.error("Mongo: cannot connect with config %s" % instance['server'])
 
-        status = db.command('serverStatus')     # Shorthand for {'serverStatus': 1}
+        status = db["$cmd"].find_one({"serverStatus": 1})   
         status['stats'] = db.command('dbstats')
 
         results = {}

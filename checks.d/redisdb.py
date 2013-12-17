@@ -67,8 +67,18 @@ class Redis(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-        self.previous_total_commands = {}
         self.connections = {}
+
+    def get_library_versions(self):
+        try:
+            import redis
+            version = redis.__version__
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"redis": version}
 
     def _parse_dict_string(self, string, key, default):
         """Take from a more recent redis.py, parse_info"""
@@ -100,8 +110,7 @@ class Redis(AgentCheck):
                 self.connections[key] = redis.Redis(**connection_params)
 
             except TypeError:
-                self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
-                raise
+                raise Exception("You need a redis library that supports authenticated connections. Try sudo easy_install redis.")
 
         return self.connections[key]
 
@@ -116,7 +125,17 @@ class Redis(AgentCheck):
       
         # Ping the database for info, and track the latency.
         start = time.time()
-        info = conn.info()
+        try:
+            info = conn.info()
+        except ValueError, e:
+            # This is likely a know issue with redis library 2.0.0 
+            # See https://github.com/DataDog/dd-agent/issues/374 for details
+            import redis
+            raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
+                Minimum required version: 2.4
+                Your current version: %s 
+                Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
+
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
 
@@ -141,12 +160,8 @@ class Redis(AgentCheck):
         [self.rate (self.RATE_KEYS[k],  info[k], tags=tags) for k in self.RATE_KEYS  if k in info]
 
         # Save the number of commands.
-        total_commands = info['total_commands_processed'] - 1
-        tuple_tags = tuple(tags)
-        if tuple_tags in self.previous_total_commands:
-            count = total_commands - self.previous_total_commands[tuple_tags]
-            self.gauge('redis.net.commands', count, tags=tags)
-        self.previous_total_commands[tuple_tags] = total_commands
+        self.rate('redis.net.commands', info['total_commands_processed'],
+                  tags=tags)
 
     def check(self, instance):
         try:

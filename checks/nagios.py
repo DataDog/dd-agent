@@ -112,7 +112,7 @@ class Nagios(object):
             self.logger.debug("Nagios event: %s" % (event))
 
             return True
-        except:
+        except Exception:
             self.logger.exception("Unable to create a nagios event from line: [%s]" % (line))
             return False
 

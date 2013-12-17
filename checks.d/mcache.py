@@ -83,6 +83,17 @@ class Memcache(AgentCheck):
         "total_connections"
     ]
 
+    def get_library_versions(self):
+        try:
+            import memcache
+            version = memcache.__version__
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"memcache": version}
+
     def _get_metrics(self, server, port, tags, memcache):
         mc = None  # client
         try:
@@ -156,7 +167,7 @@ class Memcache(AgentCheck):
         # See https://github.com/DataDog/dd-agent/issues/278 for details.
         try:
             memcache.Client.debuglog = None
-        except:
+        except Exception:
             pass
 
         port = int(instance.get('port', self.DEFAULT_PORT))

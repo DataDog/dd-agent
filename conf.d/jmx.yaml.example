@@ -7,6 +7,8 @@ instances:
 #        user: username
 #        password: password
 #        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
 #        conf:
 #            - include: 
 #               domain: my_domain

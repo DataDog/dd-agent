@@ -5,11 +5,9 @@ from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
 
-# vendor
-import tornado.ioloop
-
 # project
 from checks.check_status import ForwarderStatus
+from util import get_tornado_ioloop
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +80,8 @@ class TransactionManager(object):
         self._total_count = 0 # Maintain size/count not to recompute it everytime
         self._total_size = 0 
         self._flush_count = 0
+        self._transactions_received = 0
+        self._transactions_flushed = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -127,7 +127,8 @@ class TransactionManager(object):
 
         # Done
         self._transactions.append(tr)
-        self._total_count = self._total_count + 1
+        self._total_count +=  1
+        self._transactions_received += 1
         self._total_size = self._total_size + tr_size
 
         log.debug("Transaction %s added" % (tr.get_id()))
@@ -156,7 +157,9 @@ class TransactionManager(object):
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
-            flush_count=self._flush_count).persist()
+            flush_count=self._flush_count,
+            transactions_received=self._transactions_received,
+            transactions_flushed=self._transactions_flushed).persist()
 
     def flush_next(self):
 
@@ -181,8 +184,9 @@ class TransactionManager(object):
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.instance().running():
-                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                tornado_ioloop = get_tornado_ioloop()
+                if  tornado_ioloop._running:
+                    tornado_ioloop.add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
@@ -201,8 +205,9 @@ class TransactionManager(object):
     def tr_success(self,tr):
         log.debug("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
-        self._total_count = self._total_count - 1
-        self._total_size = self._total_size - tr.get_size()
+        self._total_count +=  -1
+        self._total_size += - tr.get_size()
+        self._transactions_flushed += 1
         self.print_queue_stats()
 
 

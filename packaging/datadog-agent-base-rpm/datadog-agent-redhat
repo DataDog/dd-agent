@@ -160,6 +160,7 @@ stop() {
         [ "$RETURNVALUE" -eq "0" ] && rm -f $LOCKFILE && rm -f $PIDFILE
         rm -f $LOCKFILE
         rm -f $PIDFILE
+        sleep 5
     fi
     return 0
 }
@@ -185,6 +186,11 @@ info() {
     exit $RETURN_VALUE
 }
 
+configcheck() {
+    su $AGENTUSER -c "$AGENTPATH configcheck"
+    exit $?
+}
+
 
 case "$1" in
     start)
@@ -202,8 +208,11 @@ case "$1" in
     info)
         info "$@"
         ;;
+    configcheck)
+        configcheck
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|info|status}"
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck}"
         exit 2
 esac
 exit $?

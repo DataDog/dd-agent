@@ -37,7 +37,7 @@ from tornado import websocket
 
 # project
 from config import get_config, get_version
-from util import json
+from util import json, get_tornado_ioloop
 
 log = logging.getLogger('pup')
 
@@ -137,13 +137,13 @@ def is_number(n):
     try:
         float(n)
         return True
-    except:
+    except Exception:
         return False
 
-def is_histogram(s):
-    split = s['metric'].rsplit('.')
+def is_histogram(metric_name):
+    split = metric_name.rsplit('.')
     if len(split) > 1:
-        if split[-1] not in HISTOGRAM_IGNORE:
+        if split[-1] in HISTOGRAM_IGNORE:
             return True
     return False
 
@@ -157,37 +157,46 @@ def send_metrics():
     else: flush(metrics)
     metrics.clear()
 
+def process_metric(metric_name, tags, points):
+    split_metric_name = metric_name.split(".")
+    if is_histogram(metric_name):
+        # split everything
+        namespace = split_metric_name[0]
+        if namespace in AGENT_IGNORE:
+            return
+        metric_name = ".".join(split_metric_name[0:-1])
+        stack_name = split_metric_name[-1]
+        metrics[metric_name]['points'].append({ "stackName" : stack_name, "values" : points })
+        metrics[metric_name]['type'] = "histogram"
+        metrics[metric_name]['tags'] = tags
+        metrics[metric_name]['freq'] = 15
+    else:
+        metrics[metric_name] = {"points" : points, "type" : "gauge", "tags" : tags, "freq" : 20}
+
+
 def update(series):
     """ Updates statsd metrics from POST to /api/v1/series """
     for s in series:
+        process_metric(s['metric'], s['tags'], s['points'])
         tags = s['tags']
-        split_metric_name = s['metric'].split(".")
-        if is_histogram(s):
-            # split everything
-            namespace = split_metric_name[0]
-            if namespace in AGENT_IGNORE:
-                continue
-            metric_name = ".".join(split_metric_name[0:-1])
-            stack_name = split_metric_name[-1]
-            values = s['points']
-            metrics[metric_name]['points'].append({ "stackName" : stack_name, "values" : values })
-            metrics[metric_name]['type'] = "histogram"
-            metrics[metric_name]['tags'] = tags
-            metrics[metric_name]['freq'] = 15
-        else:
-            if split_metric_name[-1] in HISTOGRAM_IGNORE:
-                continue
-            metric_name = s['metric']
-            points = s['points']
-            metrics[metric_name] = {"points" : points, "type" : "line", "tags" : tags, "freq" : 15}
+
+def update_agent_metrics(metrics):
+    for m in metrics:
+        # m = ["system.net.bytes_sent", 1378995258, 8.552631578947368, { "hostname":"my-hostname, "device_name":"ham0"}]
+        process_metric(m[0], m[3], [[m[1], m[2]]])
 
 def agent_update(payload):
     """ Updates system metrics from POST to /intake """
     for p in payload:
         timestamp = payload['collection_timestamp']
-        if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic']:
+        if (is_number(payload[p])) and p not in ['collection_timestamp', 'networkTraffic', 'metrics']:
             metric = AGENT_TRANSLATION.get(p, p)
             metrics[metric] = {"points" : [[timestamp, float(payload[p])]], "type" : "gauge", "freq" : 20}
+        elif p == 'metrics':
+            update_agent_metrics(payload[p])
+
+
+
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -216,8 +225,7 @@ class PostHandler(tornado.web.RequestHandler):
         try:
             body = json.loads(self.request.body)
             series = body['series']
-        except:
-            #log.exception("Error parsing the POST request body")
+        except Exception:
             return
         update(series)
 
@@ -225,8 +233,7 @@ class AgentPostHandler(tornado.web.RequestHandler):
     def post(self):
         try:
             payload = json.loads(zlib.decompress(self.request.body))
-        except:
-            #log.exception("Error parsing the agent's POST request body")
+        except Exception:
             return
         agent_update(payload)
 
@@ -241,7 +248,6 @@ class PupSocket(websocket.WebSocketHandler):
     def on_close(self):
         del listeners[self]
 
-
 def tornado_logger(handler):
     """ Override the tornado logging method.
     If everything goes well, log level is DEBUG.
@@ -255,7 +261,6 @@ def tornado_logger(handler):
     request_time = 1000.0 * handler.request.request_time()
     log_method("%d %s %.2fms", handler.get_status(),
                handler._request_summary(), request_time)
-
 
 application = tornado.web.Application([
     (r"/", MainHandler),
@@ -281,32 +286,14 @@ def run_pup(config):
         application.listen(port, address=interface)
 
     interval_ms = 2000
-    io_loop = ioloop.IOLoop.instance()
+    io_loop = get_tornado_ioloop()
     scheduler = ioloop.PeriodicCallback(send_metrics, interval_ms, io_loop=io_loop)
     scheduler.start()
     io_loop.start()
 
-def run_info_page():
-    global port
-
-    config = get_config(parse_args=False)
-
-    info_page_application = tornado.web.Application([
-        (r"/", StatusHandler),
-        (r"/status", StatusHandler),
-        (r"/(.*\..*$)", tornado.web.StaticFileHandler,
-             dict(path=settings['static_path'])),
-    ], log_function=tornado_logger)
-
-    port = config.get('pup_port', 17125)
-    interface = config.get('pup_interface', 'localhost')
-
-    info_page_application.listen(port, address=interface)
-
-    io_loop = ioloop.IOLoop.instance().start()
-
-def stop_info_page():
-    ioloop.IOLoop.instance().stop()
+def stop():
+    """ Only used by the Windows service """
+    get_tornado_ioloop(ioloop, tornado.version_info).stop()
 
 def main():
     """ Parses arguments and starts Pup server """

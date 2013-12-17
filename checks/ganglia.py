@@ -21,7 +21,7 @@ class Ganglia(Check):
             port = Ganglia.PORT
             try:
                 port = int(agentConfig.get('ganglia_port', Ganglia.PORT))
-            except:
+            except Exception:
                 pass
             self.logger.debug("Retrieving Ganglia XML from %s:%d" % (host, port))
 
@@ -43,7 +43,7 @@ class Ganglia(Check):
 
             self.logger.debug('Ganglia status: done')
             return sio.getvalue()
-        except:
+        except Exception:
             self.logger.exception("Unable to get ganglia data")
             return False
 

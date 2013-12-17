@@ -344,13 +344,3 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
-
-
-if __name__ == '__main__':
-    check, instances = Network.from_yaml('conf.d/network.yaml')
-    for instance in instances:
-        check.check(instance)
-        check.check(instance)
-    if check.has_events():
-        print 'Events: %s' % (check.get_events())
-    print 'Metrics: %s' % (check.get_metrics())

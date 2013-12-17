@@ -9,11 +9,18 @@ import time
 import types
 import urllib2
 import uuid
+import tempfile
 
+# Tornado
+try:
+    from tornado import ioloop, version_info as tornado_version
+except ImportError:
+    pass # We are likely running the agent without the forwarder and tornado is not installed
 try:
     from hashlib import md5
 except ImportError:
     from md5 import md5
+
 
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
@@ -55,6 +62,11 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+def get_tornado_ioloop():
+    if tornado_version[0] == 3:
+        return ioloop.IOLoop.current()
+    else:
+        return ioloop.IOLoop.instance()
 
 def get_uuid():
     # Generate a unique name that will stay constant between
@@ -167,7 +179,7 @@ def get_hostname(config=None):
                 out, err = p.communicate()
                 if p.returncode == 0:
                     return out.strip()
-            except:
+            except Exception:
                 return None
 
         os_name = get_os()
@@ -203,6 +215,40 @@ class EC2(object):
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
     metadata = {}
+    SOURCE_TYPE_NAME = 'amazon web services'
+
+    @staticmethod
+    def get_tags():
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(EC2.TIMEOUT)
+        except Exception:
+            pass
+
+        try:
+            iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
+            iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            from checks.libs.boto.ec2.connection import EC2Connection
+            connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
+            
+            EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
+            
+        except Exception:
+            EC2_tags = None
+            pass
+
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except Exception:
+            pass
+
+        return EC2_tags
+
 
     @staticmethod
     def get_metadata():
@@ -223,7 +269,7 @@ class EC2(object):
         try:
             socket_to = socket.getdefaulttimeout()
             socket.setdefaulttimeout(EC2.TIMEOUT)
-        except:
+        except Exception:
             pass
 
         for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
@@ -231,14 +277,14 @@ class EC2(object):
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 EC2.metadata[k] = v
-            except:
+            except Exception:
                 pass
 
         try:
             if socket_to is None:
                 socket_to = 3
             socket.setdefaulttimeout(socket_to)
-        except:
+        except Exception:
             pass
 
         return EC2.metadata
@@ -247,7 +293,7 @@ class EC2(object):
     def get_instance_id():
         try:
             return EC2.get_metadata().get("instance-id", None)
-        except:
+        except Exception:
             return None
 
 
@@ -321,11 +367,16 @@ class PidFile(object):
     PID_DIR = '/var/run/dd-agent'
 
 
-    def __init__(self, program, pid_dir=PID_DIR):
+    def __init__(self, program, pid_dir=None):
         self.pid_file = "%s.pid" % program
-        self.pid_dir = pid_dir
+        self.pid_dir = pid_dir or self.get_default_pid_dir()
         self.pid_path = os.path.join(self.pid_dir, self.pid_file)
 
+    def get_default_pid_dir(self):
+        if get_os() != 'windows':
+            return PidFile.PID_DIR
+
+        return tempfile.gettempdir()
 
     def get_path(self):
         # Can we write to the directory
@@ -333,12 +384,12 @@ class PidFile(object):
             if os.access(self.pid_dir, os.W_OK):
                 log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
-        except:
-            log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+        except Exception:
+            log.warn("Cannot locate pid file, trying to use: %s" % tempfile.gettempdir())
 
         # if all else fails
-        if os.access("/tmp", os.W_OK):
-            tmp_path = os.path.join('/tmp', self.pid_file)
+        if os.access(tempfile.gettempdir(), os.W_OK):
+            tmp_path = os.path.join(tempfile.gettempdir(), self.pid_file)
             log.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
@@ -353,7 +404,7 @@ class PidFile(object):
             log.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
-        except:
+        except Exception:
             log.warn("Could not clean up pid file")
             return False
 
@@ -366,7 +417,7 @@ class PidFile(object):
             pf.close()
 
             return int(pid_s.strip())
-        except:
+        except Exception:
             return None
 
 
@@ -394,7 +445,7 @@ class LaconicFilter(logging.Filter):
                     self.hashed_messages.clear()
                 self.hashed_messages[h] = True
                 return 1
-        except:
+        except Exception:
             return 1
 
 class Timer(object):
