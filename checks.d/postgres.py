@@ -18,8 +18,6 @@ METRICS = {
 }
 
 NEWER_92_METRICS = {
-    'blk_read_time'     : ('disk_read_time', GAUGE),
-    'blk_write_time'    : ('disk_write_time', GAUGE),
     'deadlocks'         : ('deadlocks', GAUGE),
     'temp_bytes'        : ('temp_bytes', RATE),
     'temp_files'        : ('temp_files', RATE),
@@ -118,13 +116,16 @@ class PostgreSql(AgentCheck):
             
             if host == 'localhost' and password == '':
                 # Use ident method
-                return pg.connect("user=%s dbname=%s" % (user, dbname))
+                connection = pg.connect("user=%s dbname=%s" % (user, dbname))
             elif port != '':
-                return pg.connect(host=host, port=port, user=user,
+                connection = pg.connect(host=host, port=port, user=user,
                     password=password, database=dbname)
             else:
-                return pg.connect(host=host, user=user, password=password,
+                connection = pg.connect(host=host, user=user, password=password,
                     database=dbname)
+        
+        self.dbs[key] = connection
+        return connection
 
 
     def check(self, instance):

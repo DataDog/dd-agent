@@ -56,8 +56,7 @@ class PostfixCheck(AgentCheck):
                     count = os.popen('sudo find %s -type f | wc -l' % queue_path)
                     count = count.readlines()[0].strip()
                 else:
-                    # should we self.log.error instead and disable the check?
-                    self.log.warning('the dd-agent user does not have sudo access')
+                    raise Exception('The dd-agent user does not have sudo access')
 
             # emit an individually tagged metric
             self.gauge('postfix.queue.size', count, tags=tags + ['queue:%s' % queue, 'instance:%s' %  os.path.basename(directory)])

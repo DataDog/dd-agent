@@ -60,13 +60,9 @@ class HAProxy(AgentCheck):
        
         data = self._fetch_data(url, username, password)
 
-        if instance.get('status_check', self.init_config.get('status_check', False)):
-            events_cb = self._process_events
-        else:
-            events_cb = None
+        process_events = instance.get('status_check', self.init_config.get('status_check', False))
 
-        self._process_data(data, collect_aggregates_only, self._process_metrics,
-            events_cb, url)
+        self._process_data(data, collect_aggregates_only, process_events, url)
 
     def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''
@@ -87,7 +83,7 @@ class HAProxy(AgentCheck):
         # Split the data by line
         return response.split('\n')
 
-    def _process_data(self, data, collect_aggregates_only, metric_cb=None, event_cb=None, url=None):
+    def _process_data(self, data, collect_aggregates_only, process_events, url=None):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -121,10 +117,9 @@ class HAProxy(AgentCheck):
                 data_list.append(data_dict)
 
                 # Send the list of data to the metric and event callbacks
-                if metric_cb:
-                    metric_cb(data_list, service)
-                if event_cb:
-                    event_cb(data_list, url)
+                self._process_metrics(data_list, service, url)
+                if process_events:
+                    self._process_events(data_list, url)
 
                 # Clear out the event list for the next service
                 data_list = []
@@ -133,7 +128,7 @@ class HAProxy(AgentCheck):
 
         return data
 
-    def _process_metrics(self, data_list, service):
+    def _process_metrics(self, data_list, service, url):
         for data in data_list:
             """
             Each element of data_list is a dictionary related to one host
@@ -146,7 +141,7 @@ class HAProxy(AgentCheck):
                 ...
             ]
             """
-            tags = ["type:%s" % service]
+            tags = ["type:%s" % service, "instance_url:%s" % url]
             hostname = data['svname']
             service_name = data['pxname']
 

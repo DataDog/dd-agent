@@ -192,7 +192,7 @@ class RabbitMQ(AgentCheck):
 
         self.already_alerted.append(key)
 
-        title = "RabbitMQ integration is approaching the limit on %s" % self.hostname
+        title = "RabbitMQ integration is approaching the limit on the number of %s that can be collected from on %s" % (object_type, self.hostname)
         msg = """%s %s are present. The limit is %s. 
         Please get in touch with Datadog support to increase the limit.""" % (size, object_type, max_detailed)
 
@@ -210,9 +210,3 @@ class RabbitMQ(AgentCheck):
             }
 
         self.event(event)
-
-
-
-
-
-
