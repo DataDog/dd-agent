@@ -3,7 +3,25 @@ import time
 
 class ProcessCheck(AgentCheck):
 
+<<<<<<< HEAD
     def get_library_versions(self):
+=======
+    PROCESS_GAUGE = (
+        'system.processes.threads',
+        'system.processes.cpu.pct',
+        'system.processes.mem.rss',
+        'system.processes.mem.vms',
+        'system.processes.mem.real',
+        'system.processes.open_file_decorators',
+        'system.processes.ioread_count',
+        'system.processes.iowrite_count',
+        'system.processes.ioread_bytes',
+        'system.processes.iowrite_bytes',
+        'system.processes.ctx_switches',
+        )
+
+    def is_psutil_version_later_than(self, v):
+>>>>>>> a0113fd... Change process io counter access denied message from warning to info
         try:
             import psutil
             version = psutil.__version__
@@ -75,6 +93,26 @@ class ProcessCheck(AgentCheck):
                 thr += p.get_num_threads()
                 cpu += p.get_cpu_percent(cpu_check_interval)
 
+<<<<<<< HEAD
+=======
+                # user agent might not have permission to call get_io_counters()
+                # user agent might have access to io counters for some processes and not others
+                if read_count is not None:
+                    try:
+                        io_counters = p.get_io_counters()
+                        read_count += io_counters.read_count
+                        write_count += io_counters.write_count
+                        read_bytes += io_counters.read_bytes
+                        write_bytes += io_counters.write_bytes
+                    except psutil.AccessDenied:
+                        self.log.info('DD user agent does not have access \
+                            to I/O counters for process %d: %s' % (pid, p.name))
+                        read_count = None
+                        write_count = None
+                        read_bytes = None
+                        write_bytes = None
+
+>>>>>>> a0113fd... Change process io counter access denied message from warning to info
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % pid)
