@@ -119,9 +119,11 @@ class MySql(AgentCheck):
             self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
 
         if 'replication' in options and options['replication']:
-            self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
-            slave_running = self._collect_scalar("SELECT 'Slave_running', IF(VARIABLE_VALUE like 'On',1,0) from information_schema.global_status where variable_name = 'Slave_running'", db)
+            # get slave running form global status page
+            slave_running = self._collect_string('Slave_running', results).lower()
+            slave_running = 1 if slave_running == 'on' else 0
             self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
+            self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
@@ -177,12 +179,18 @@ class MySql(AgentCheck):
         return version
 
     def _collect_scalar(self, key, dict):
+        return self._collect_type(key, dict, float)
+
+    def _collect_string(self, key, dict):
+        return self._collect_type(key, dict, unicode)
+
+    def _collect_type(self, key, dict, the_type):
         self.log.debug("Collecting data with %s" % key)
         if key not in dict:
             self.log.debug("%s returned None" % key)
             return None
         self.log.debug("Collecting done, value %s" % dict[key])
-        return float(dict[key])
+        return the_type(dict[key])
 
     def _collect_dict(self, metric_type, field_metric_map, query, db, tags):
         """
