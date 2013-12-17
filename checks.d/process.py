@@ -14,7 +14,7 @@ class ProcessCheck(AgentCheck):
         'system.processes.ioread_count',
         'system.processes.iowrite_count',
         'system.processes.ioread_bytes',
-        'system.processes.iowrite_bytes'
+        'system.processes.iowrite_bytes',
         'system.processes.ctx_switches',
         )
 
@@ -124,8 +124,8 @@ class ProcessCheck(AgentCheck):
                         read_bytes += io_counters.read_bytes
                         write_bytes += io_counters.write_bytes
                     except psutil.AccessDenied:
-                        self.warning('DD user agent does not have access \
-                            to io counters for process %d' % pid)
+                        self.log.info('DD user agent does not have access \
+                            to I/O counters for process %d: %s' % (pid, p.name))
                         read_count = None
                         write_count = None
                         read_bytes = None
