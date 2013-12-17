@@ -755,7 +755,7 @@ def load_bernard_checks(bernard_config):
         'hostname': hostname,
         'timeout': int(schedule_config.get('timeout', DEFAULT_TIMEOUT)),
         'frequency': int(schedule_config.get('period', DEFAULT_FREQUENCY)),
-        'attempts': int(schedule_config.get('period', DEFAULT_ATTEMPTS)),
+        'attempts': int(schedule_config.get('attempts', DEFAULT_ATTEMPTS)),
         'notification': bernard_config.get('core', {}).get('notification', None),
         'notify_startup': bernard_config.get('core', {}).get('notify_startup', "none"),
     }
