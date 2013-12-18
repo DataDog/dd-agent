@@ -122,7 +122,10 @@ class MySql(AgentCheck):
             # get slave running form global status page
             slave_running = self._collect_string('Slave_running', results)
             if slave_running is not None:
-                slave_running = 1 if slave_running.lower() == 'on' else 0
+                if slave_running.lower().strip() == 'on':
+                    slave_running = 1
+                else:
+                    slave_running = 0
                 self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
             self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
 
