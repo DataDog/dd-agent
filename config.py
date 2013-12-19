@@ -16,8 +16,10 @@ import imp
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
+# project
 from util import get_os, yaml, yLoader
 from jmxfetch import JMXFetch
+from migration import migrate_old_style_configuration
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -298,7 +300,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'check_freq'):
             try:
                 agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
-            except:
+            except Exception:
                 pass
 
         # Disable Watchdog (optionally)
@@ -325,6 +327,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+
+        #Forwarding to external statsd server
+        if config.has_option('Main', 'statsd_forward_host'):
+            agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
+            if config.has_option('Main', 'statsd_forward_port'):
+                agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
 
         # normalize 'yes'/'no' to boolean
         dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
@@ -589,6 +597,27 @@ def get_ssl_certificate(osname, filename):
     log.info("Certificate file NOT found at %s" % str(path))
     return None
 
+def check_yaml(conf_path):
+    f = open(conf_path)
+    try:
+        check_config = yaml.load(f.read(), Loader=yLoader)
+        assert 'init_config' in check_config, "No 'init_config' section found"
+        assert 'instances' in check_config, "No 'instances' section found"
+
+        valid_instances = True
+        if check_config['instances'] is None or not isinstance(check_config['instances'], list):
+            valid_instances = False
+        else:
+            for i in check_config['instances']:
+                if not isinstance(i, dict):
+                    valid_instances = False
+                    break
+        if not valid_instances:
+            raise Exception('You need to have at least one instance defined in the YAML file for this check')
+        else:
+            return check_config
+    finally:
+        f.close()
 
 def load_check_directory(agentConfig):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
@@ -608,16 +637,17 @@ def load_check_directory(agentConfig):
     except PathNotFound, e:
         log.error(e.args[0])
         sys.exit(3)
-        
+
     try:
         confd_path = get_confd_path(osname)
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
-    from migration import migrate_old_style_configuration
-    migrate_old_style_configuration(agentConfig, confd_path)
+    # Migrate datadog.conf integration configurations that are not supported anymore
+    migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
+    # Start JMXFetch if needed
     JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
 
     # For backwards-compatability with old style checks, we have to load every
@@ -660,12 +690,11 @@ def load_check_directory(agentConfig):
         if os.path.exists(conf_path):
             f = open(conf_path)
             try:
-                check_config = yaml.load(f.read(), Loader=yLoader)
-                assert check_config is not None
-                f.close()
-            except Exception:
-                f.close()
+                check_config = check_yaml(conf_path)
+            except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
                 continue
         elif hasattr(check_class, 'parse_agent_config'):
             # FIXME: Remove this check once all old-style checks are gone
@@ -690,11 +719,6 @@ def load_check_directory(agentConfig):
         if not check_config.get('instances'):
             log.error("Config %s is missing 'instances'" % conf_path)
             continue
-
-        # Accept instances as a list, as a single dict, or as non-existant
-        instances = check_config.get('instances', {})
-        if type(instances) != list:
-            instances = [instances]
 
         # Init all of the check's classes with
         init_config = check_config.get('init_config', {})
@@ -773,7 +797,7 @@ def get_logging_config(cfg_path=None):
             'log_level': None,
             'ddagent_log_file': windows_log_location,
             'jmxfetch_log_file': jmxfetch_log_file,
-            'log_to_event_viewer': True,
+            'log_to_event_viewer': False,
             'log_to_syslog': False,
             'syslog_host': None,
             'syslog_port': None,
@@ -827,7 +851,7 @@ def get_logging_config(cfg_path=None):
         port = config.get('Main', 'syslog_port').strip()
         try:
             logging_config['syslog_port'] = int(port)
-        except:
+        except Exception:
             logging_config['syslog_port'] = None
 
     if config.has_option('Main', 'disable_file_logging'):

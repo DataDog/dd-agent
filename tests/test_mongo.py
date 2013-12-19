@@ -63,14 +63,14 @@ class TestMongo(unittest.TestCase):
                 time.sleep(30)
                 x = c1.admin.command("replSetGetStatus")
                 assert pymongo.Connection('localhost:%s' % PORT2)
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot instantiate mongod properly")
 
     def tearDown(self):
         try:
             if "p1" in dir(self): self.p1.terminate()
             if "p2" in dir(self): self.p2.terminate()
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testMongoCheck(self):

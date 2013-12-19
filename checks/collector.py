@@ -356,6 +356,7 @@ class Collector(object):
             'resources': {},
             'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
+            'host-tags': {},
         }
 
         # Include system stats on first postback
@@ -376,16 +377,15 @@ class Collector(object):
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             if self.agentConfig['tags'] is not None:
-                payload['tags'] = self.agentConfig['tags']
+                payload['host-tags']['system'] = [unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")]
+
+            EC2_tags = EC2.get_tags()
+            if EC2_tags is not None:
+                payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
 
             # Log the metadata on the first run
             if self._is_first_run():
-                if self.agentConfig['tags'] is not None:
-                    log.info(u"Hostnames: %s, tags: %s" \
-                        % (repr(self.metadata_cache),
-                           self.agentConfig['tags']))
-                else:
-                    log.info(u"Hostnames: %s" % repr(self.metadata_cache))
+                log.info(u"Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
 
         return payload
 
@@ -400,11 +400,11 @@ class Collector(object):
         else:
             try:
                 metadata["socket-hostname"] = socket.gethostname()
-            except:
+            except Exception:
                 pass
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
-        except:
+        except Exception:
             pass
 
         metadata["hostname"] = get_hostname()

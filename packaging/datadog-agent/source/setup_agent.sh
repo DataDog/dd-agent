@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.10.1"
+tag="4.0.1"
 
 #######################
 # Define some helpers #

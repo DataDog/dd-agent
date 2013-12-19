@@ -1,7 +1,9 @@
 import logging
 from time import time
+from checks.metric_types import MetricTypes
 
 log = logging.getLogger(__name__)
+
 
 # This is used to ensure that metrics with a timestamp older than
 # RECENT_POINT_THRESHOLD_DEFAULT seconds (or the value passed in to
@@ -57,7 +59,9 @@ class Gauge(Metric):
                 value=self.value,
                 tags=self.tags,
                 hostname=self.hostname,
-                device_name=self.device_name
+                device_name=self.device_name,
+                metric_type=MetricTypes.GAUGE,
+                interval=interval,
             )]
             self.value = None
             return res
@@ -89,7 +93,9 @@ class Counter(Metric):
                 timestamp=timestamp,
                 tags=self.tags,
                 hostname=self.hostname,
-                device_name=self.device_name
+                device_name=self.device_name,
+                metric_type=MetricTypes.RATE,
+                interval=interval,
             )]
         finally:
             self.value = 0
@@ -125,10 +131,10 @@ class Histogram(Metric):
         avg = sum(self.samples) / float(length)
 
         metric_aggrs = [
-            ('max', max_),
-            ('median', med),
-            ('avg', avg),
-            ('count', self.count/interval)
+            ('max', max_, MetricTypes.GAUGE),
+            ('median', med, MetricTypes.GAUGE),
+            ('avg', avg, MetricTypes.GAUGE),
+            ('count', self.count/interval, MetricTypes.RATE)
         ]
 
         metrics = [self.formatter(
@@ -137,8 +143,10 @@ class Histogram(Metric):
                 tags=self.tags,
                 metric='%s.%s' % (self.name, suffix),
                 value=value,
-                timestamp=ts
-            ) for suffix, value in metric_aggrs
+                timestamp=ts,
+                metric_type=metric_type,
+                interval=interval,
+            ) for suffix, value, metric_type in metric_aggrs
         ]
 
         for p in self.percentiles:
@@ -149,7 +157,9 @@ class Histogram(Metric):
                 tags=self.tags,
                 metric=name,
                 value=val,
-                timestamp=ts
+                timestamp=ts,
+                metric_type=MetricTypes.GAUGE,
+                interval=interval,
             ))
 
         # Reset our state.
@@ -184,7 +194,9 @@ class Set(Metric):
                 tags=self.tags,
                 metric=self.name,
                 value=len(self.values),
-                timestamp=timestamp
+                timestamp=timestamp,
+                metric_type=MetricTypes.GAUGE,
+                interval=interval,
             )]
         finally:
             self.values = set()
@@ -225,7 +237,7 @@ class Rate(Metric):
         try:
             try:
                 val = self._rate(self.samples[-2], self.samples[-1])
-            except:
+            except Exception:
                 return []
 
             return [self.formatter(
@@ -234,7 +246,9 @@ class Rate(Metric):
                 tags=self.tags,
                 metric=self.name,
                 value=val,
-                timestamp=timestamp
+                timestamp=timestamp,
+                metric_type=MetricTypes.GAUGE,
+                interval=interval
             )]
         finally:
             self.samples = self.samples[-1:]
@@ -272,6 +286,8 @@ class MetricsAggregator(object):
         self.num_discarded_old_points = 0
 
     def packets_per_second(self, interval):
+        if interval == 0:
+            return 0
         return round(float(self.count)/interval, 2)
 
     def parse_metric_packet(self, packet):
@@ -285,21 +301,25 @@ class MetricsAggregator(object):
 
         if len(metadata) < 2:
             raise Exception('Unparseable metric packet: %s' % packet)
-        # Try to cast as an int first to avoid precision issues, then as a
-        # float.
-        try:
-            value = int(metadata[0])
-        except ValueError:
-            try:
-                value = float(metadata[0])
-            except ValueError:
 
-                # If the data type is Set, we will allow strings
-                if metadata[1] in self.ALLOW_STRINGS:
-                    value = metadata[0]
-                else:
+        # Submit the metric
+        raw_value = metadata[0]
+        metric_type = metadata[1]
+
+        if metric_type in self.ALLOW_STRINGS:
+            value = raw_value
+        else:
+            # Try to cast as an int first to avoid precision issues, then as a
+            # float.
+            try:
+                value = int(raw_value)
+            except ValueError:
+                try:
+                    value = float(raw_value)
+                except ValueError:
                     # Otherwise, raise an error saying it must be a number
-                    raise Exception('Metric value must be a number: %s, %s' % (name, metadata[0]))
+                    raise Exception('Metric value must be a number: %s, %s' % (name, raw_value))
+
 
         # Parse the optional values - sample rate & tags.
         sample_rate = 1
@@ -312,10 +332,7 @@ class MetricsAggregator(object):
             elif m[0] == '#':
                 tags = tuple(sorted(m[1:].split(',')))
 
-        # Submit the metric
-        mtype = metadata[1]
-
-        return name, value, mtype, tags, sample_rate
+        return name, value, metric_type, tags, sample_rate
 
     def _unescape_event_text(self, string):
         return string.replace('\\n', '\n')
@@ -358,7 +375,6 @@ class MetricsAggregator(object):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
-
         for packet in packets.split("\n"):
 
             if not packet.strip():
@@ -475,8 +491,8 @@ class MetricsAggregator(object):
         self.submit_metric(metric_name, self.count, 'g')
 
 
-def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
-
+def api_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+        metric_type=None, interval=None):
     # Workaround for a bug in minjson serialization
     # (https://github.com/DataDog/dd-agent/issues/422)
     if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
@@ -486,5 +502,7 @@ def api_formatter(metric, value, timestamp, tags, hostname, device_name=None):
         'points': [(timestamp, value)],
         'tags': tags,
         'host': hostname,
-        'device_name': device_name
+        'device_name': device_name,
+        'type': metric_type or MetricTypes.GAUGE,
+        'interval':interval,
     }

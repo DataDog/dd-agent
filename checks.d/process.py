@@ -1,18 +1,30 @@
 from checks import AgentCheck
+from checks.system import Platform
 import time
 
 class ProcessCheck(AgentCheck):
 
-    def get_library_versions(self):
+    PROCESS_GAUGE = (
+        'system.processes.threads',
+        'system.processes.cpu.pct',
+        'system.processes.mem.rss',
+        'system.processes.mem.vms',
+        'system.processes.mem.real',
+        'system.processes.open_file_decorators',
+        'system.processes.ioread_count',
+        'system.processes.iowrite_count',
+        'system.processes.ioread_bytes',
+        'system.processes.iowrite_bytes',
+        'system.processes.ctx_switches',
+        )
+
+    def is_psutil_version_later_than(self, v):
         try:
             import psutil
-            version = psutil.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"psutil": version}
+            vers = psutil.version_info
+            return vers >= v
+        except Exception:
+            return False
 
     def find_pids(self, search_string, psutil, exact_match=True):
         """
@@ -52,28 +64,72 @@ class ProcessCheck(AgentCheck):
 
         return set(found_process_list)
 
-    def get_process_metrics(self, pids, psutil, cpu_check_interval, extended_metrics=False):
+    def get_process_metrics(self, pids, psutil, cpu_check_interval):
+
+        # initialize process metrics
+        # process metrics available for all versions of psutil
         rss = 0
         vms = 0
         cpu = 0
         thr = 0
-        if extended_metrics:
+
+        # process metrics available for psutil versions 0.6.0 and later
+        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0))
+        if extended_metrics_0_6_0:
             real = 0
+            ctx_switches = 0
         else:
             real = None
+            ctx_switches = None
+
+        # process metrics available for psutil versions 0.5.0 and later on UNIX
+        extended_metrics_0_5_0_unix = self.is_psutil_version_later_than((0, 5, 0)) and \
+                                Platform.is_unix()
+        if extended_metrics_0_5_0_unix:
+            open_file_descriptors = 0
+        else:
+            open_file_descriptors = None
+
+        # process I/O counters (agent might not have permission to access)
+        read_count = 0
+        write_count = 0
+        read_bytes = 0
+        write_bytes = 0
+
         for pid in set(pids):
             try:
                 p = psutil.Process(pid)
-                if extended_metrics:
+                if extended_metrics_0_6_0:
                     mem = p.get_ext_memory_info()
                     real += mem.rss - mem.shared
+                    ctx_switches += p.get_num_ctx_switches()
                 else:
                     mem = p.get_memory_info()
+
+                if extended_metrics_0_5_0_unix:
+                    open_file_descriptors += p.get_num_fds()
 
                 rss += mem.rss
                 vms += mem.vms
                 thr += p.get_num_threads()
                 cpu += p.get_cpu_percent(cpu_check_interval)
+
+                # user agent might not have permission to call get_io_counters()
+                # user agent might have access to io counters for some processes and not others
+                if read_count is not None:
+                    try:
+                        io_counters = p.get_io_counters()
+                        read_count += io_counters.read_count
+                        write_count += io_counters.write_count
+                        read_bytes += io_counters.read_bytes
+                        write_bytes += io_counters.write_bytes
+                    except psutil.AccessDenied:
+                        self.log.info('DD user agent does not have access \
+                            to I/O counters for process %d: %s' % (pid, p.name))
+                        read_count = None
+                        write_count = None
+                        read_bytes = None
+                        write_bytes = None
 
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
@@ -81,10 +137,8 @@ class ProcessCheck(AgentCheck):
                 pass
 
         #Memory values are in Byte
-        return (thr, cpu, rss, vms, real)
-
-    def psutil_older_than_0_6_0(self, psutil):
-        return psutil.version_info[1] >= 6
+        return (thr, cpu, rss, vms, real, open_file_descriptors,
+            read_count, write_count, read_bytes, write_bytes, ctx_switches)
 
     def check(self, instance):
         try:
@@ -108,14 +162,16 @@ class ProcessCheck(AgentCheck):
             cpu_check_interval = 0.1
 
         pids = self.find_pids(search_string, psutil, exact_match=exact_match)
+        tags = ['process_name:%s' % name, name]
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
-        self.gauge('system.processes.number', len(pids), tags=[name])
-        thr, cpu, rss, vms, real = self.get_process_metrics(pids, psutil, cpu_check_interval,
-            extended_metrics=self.psutil_older_than_0_6_0(psutil))
-        self.gauge('system.processes.mem.rss', rss, tags=[name])
-        self.gauge('system.processes.mem.vms', vms, tags=[name])
-        self.gauge('system.processes.cpu.pct', cpu, tags=[name])
-        self.gauge('system.processes.threads', thr, tags=[name])
-        if real is not None:
-            self.gauge('system.processes.mem.real', real, tags=[name])
+
+        self.gauge('system.processes.number', len(pids), tags=tags)
+
+        metrics = dict(zip(ProcessCheck.PROCESS_GAUGE, self.get_process_metrics(pids,
+            psutil, cpu_check_interval)))
+
+        for metric, value in metrics.iteritems():
+            if value is not None:
+                self.gauge(metric, value, tags=tags)
+

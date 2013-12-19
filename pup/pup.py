@@ -137,7 +137,7 @@ def is_number(n):
     try:
         float(n)
         return True
-    except:
+    except Exception:
         return False
 
 def is_histogram(metric_name):

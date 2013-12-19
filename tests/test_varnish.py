@@ -1876,7 +1876,7 @@ instances:
                 v.check({"varnishstat": os.popen("which varnishstat").read()[:-1]})
                 pprint.pprint(v.get_metrics())
                 time.sleep(1)
-        except:
+        except Exception:
             pass
 
     def testOldConfig(self):

@@ -110,8 +110,7 @@ class Redis(AgentCheck):
                 self.connections[key] = redis.Redis(**connection_params)
 
             except TypeError:
-                self.log.exception("You need a redis library that supports authenticated connections. Try easy_install redis.")
-                raise
+                raise Exception("You need a redis library that supports authenticated connections. Try sudo easy_install redis.")
 
         return self.connections[key]
 
@@ -135,7 +134,7 @@ class Redis(AgentCheck):
             raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
                 Minimum required version: 2.4
                 Your current version: %s 
-                Please upgrade to a newer version using easy_install""" % redis.__version__)
+                Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
 
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)

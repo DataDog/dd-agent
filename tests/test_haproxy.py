@@ -30,7 +30,7 @@ class HaproxyTestCase(unittest.TestCase):
                 req = urllib2.Request(url)
                 request = urllib2.urlopen(req)
                 break
-            except:
+            except Exception:
                 time.sleep(0.5)
                 loop+=1
                 if loop >= MAX_WAIT:
@@ -96,8 +96,7 @@ class HaproxyTestCase(unittest.TestCase):
         inst = config['instances'][0]
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
         new_data = [l.replace("OPEN", "DOWN") for l in data]
-        self.check._process_data(new_data, get_hostname(self.agentConfig),
-            event_cb=self.check._process_events, url=inst['url'])
+        self.check._process_data(new_data, False, True, inst['url']),
 
         assert self.check.has_events()
         assert len(self.check.get_events()) == 1
@@ -163,3 +162,4 @@ class HaproxyTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

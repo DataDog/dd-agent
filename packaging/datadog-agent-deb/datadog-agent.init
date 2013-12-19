@@ -133,9 +133,15 @@ case "$1" in
         $0 stop
         $0 start
         ;;
+
+    configcheck)
+        su $AGENTUSER -c "$AGENTPATH configcheck"
+        exit $?
+        ;;
+
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info|status}"
+        echo "Usage: $N {start|stop|restart|info|status|configcheck}"
         exit 1
         ;;
 esac
