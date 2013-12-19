@@ -1,0 +1,3 @@
+#!/bin/sh
+userdel dd-agent
+groupdel dd-agent
