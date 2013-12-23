@@ -147,11 +147,11 @@ class Varnish(AgentCheck):
                 if rate_val.lower() in ("nan", "."):
                     # col 2 matters
                     self.log.debug("Varnish (gauge) %s %d" % (metric_name, int(gauge_val)))
-                    self.gauge(metric_name, int(gauge_val))
+                    self.gauge(metric_name, int(gauge_val), tags=tags)
                 else:
                     # col 3 has a rate (since restart)
                     self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
-                    self.rate(metric_name, float(gauge_val))
+                    self.rate(metric_name, float(gauge_val), tags=tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
