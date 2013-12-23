@@ -82,6 +82,7 @@ class Varnish(AgentCheck):
         if instance.get("varnishstat", None) is None:
             raise Exception("varnishstat is not configured")
         tags = instance.get('tags', [])
+        name = instance.get('name')
 
         # Get the varnish version from varnishstat
         output, error = subprocess.Popen([instance.get("varnishstat"), "-V"],
@@ -114,6 +115,9 @@ class Varnish(AgentCheck):
             arg = "-1"
 
         cmd = [instance.get("varnishstat"), arg]
+        if name is not None:
+            cmd.extend(['-n', name])
+            tags += [u'name:%s' % name]
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
