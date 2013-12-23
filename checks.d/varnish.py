@@ -117,7 +117,7 @@ class Varnish(AgentCheck):
         cmd = [instance.get("varnishstat"), arg]
         if name is not None:
             cmd.extend(['-n', name])
-            tags += [u'name:%s' % name]
+            tags += [u'varnish_name:%s' % name]
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
