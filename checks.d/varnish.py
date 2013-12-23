@@ -113,9 +113,14 @@ class Varnish(AgentCheck):
             use_xml = False
             arg = "-1"
 
-        output, error = subprocess.Popen([instance.get("varnishstat"), arg],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE).communicate()
+        cmd = [instance.get("varnishstat"), arg]
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+            output, error = proc.communicate()
+        except Exception:
+            self.log.error(u"Failed to run %s" % repr(cmd))
+            raise
         if error and len(error) > 0:
             self.log.error(error)
         self._parse_varnishstat(output, use_xml, tags)
