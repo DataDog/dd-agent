@@ -74,7 +74,7 @@ mismatch may result in your changes being overwritten.
 
 ### How are decisions made?
 
-Short answer: with pull requests to the gunicorn repository.
+Short answer: with pull requests to this repository.
 
 All decisions affecting gunicorn, big and small, follow the same 3 steps:
 
