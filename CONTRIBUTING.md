@@ -76,10 +76,14 @@ mismatch may result in your changes being overwritten.
 
 Short answer: with pull requests to this repository.
 
-All decisions affecting gunicorn, big and small, follow the same 3 steps:
+All decisions affecting dd-agent, big and small, follow the same 3 steps:
 
 * Step 1: Open a pull request. Anyone can do this.
 
 * Step 2: Discuss the pull request. Anyone can do this.
 
 * Step 3: Accept or refuse a pull request. At the moment the Datadog engineering team does this. We hope to open the gates to outside maintainers in the future.
+
+## Using GitHub Issues
+
+We make heavy use of [milestones](https://github.com/DataDog/dd-agent/issues/milestones) to plan upcoming releases.
