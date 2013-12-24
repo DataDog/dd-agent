@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 # figure out where to pull from
 tag="4.0.1"
