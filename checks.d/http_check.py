@@ -18,15 +18,18 @@ class HTTPCheck(ServicesCheck):
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
-        return url, username, password, timeout, include_content, headers, response_time, tags
+        ssl = instance.get('disable_ssl_validation', True)
+        return url, username, password, timeout, include_content, headers, response_time, tags, ssl
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time, tags = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation = self._load_conf(instance)
         content = ''
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
-            h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
+            if disable_ssl_validation:
+                self.log.warn("Skipping SSL certificate validation for %s based on configuration" % addr)
+            h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
             resp, content = h.request(addr, "GET", headers=headers)
