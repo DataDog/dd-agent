@@ -4,7 +4,6 @@ set -e
 if [ "$1" = purge ]; then
     update-rc.d datadog-agent remove
     deluser dd-agent
-    delgroup --only-if-empty dd-agent
 fi
 
 exit 0
