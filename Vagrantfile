@@ -20,6 +20,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
 
     # Manual set-up
+    deb.vm.provision "shell", inline: "sudo apt-get update"
     deb.vm.provision "shell", inline: "sudo apt-get -y install ruby"
     deb.vm.provision "shell", inline: "sudo apt-get -y install ruby-dev"
     deb.vm.provision "shell", inline: "sudo gem install --no-ri --no-rdoc fpm"
@@ -36,8 +37,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
 
     # Manual set-up
+    rh.vm.provision "shell", inline: "sudo yum -y update"
     rh.vm.provision "shell", inline: "sudo yum -y install ruby"
     rh.vm.provision "shell", inline: "sudo yum -y install ruby-devel"
+    rh.vm.provision "shell", inline: "sudo yum -y install rubygems"
     rh.vm.provision "shell", inline: "sudo gem install --no-ri --no-rdoc fpm"
+    rh.vm.provision "shell", inline: "sudo yum -y localinstall http://yum.datadoghq.com/rpm/supervisor-3.0-0.5.a10.el6.noarch.rpm"
   end
 end
