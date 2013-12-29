@@ -23,6 +23,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     deb.vm.provision "shell", inline: "sudo apt-get update"
     deb.vm.provision "shell", inline: "sudo apt-get -y install ruby"
     deb.vm.provision "shell", inline: "sudo apt-get -y install ruby-dev"
+    deb.vm.provision "shell", inline: "sudo apt-get -y install python"
     deb.vm.provision "shell", inline: "sudo gem install --no-ri --no-rdoc fpm"
   end
 
