@@ -6,7 +6,6 @@ import time
 import socket
 
 import pymongo
-from nose.plugins.skip import SkipTest
 
 from tests.common import load_check
 
