@@ -95,7 +95,7 @@ class Scheduler(object):
 
         # post results
         try:
-            self.post_run(result)
+            self.post_run(check, result)
         except Exception:
             log.error("Could not post run", exc_info=True)
 
@@ -130,9 +130,11 @@ class Scheduler(object):
 
         log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
-    def post_run(self, result):
+    def post_run(self, check, result):
         return self.kima.post_check_run(
+                check=check.name,
                 status=result.status,
                 output=result.message,
                 timestamp=result.execution_date,
+                params=check.params,
                 host_name=self.hostname)

@@ -62,12 +62,17 @@ class BernardCheck(object):
         # For every set of params (e.g.: {'port': 8888}) return a single check.
         # We'll template the $variables in the `command` value with the params.
         for param_dict in params_list:
+            # Stringify all of the check params. We expect everything to be
+            # strings through the pipeline so we'll do it early on.
+            for k, v in param_dict.iteritems():
+                param_dict[k] = str(v)
+
             command = _subprocess_command(raw_command, param_dict, hostname)
-            checks.append(cls(name, command, check_config))
+            checks.append(cls(name, command, check_config, param_dict))
 
         return checks
 
-    def __init__(self, name, command, config):
+    def __init__(self, name, command, config, params):
         """ Initializes a BernardCheck with the given `name` and `command`.
             Any additional config (e.g. timeout or period) are given in the
             `config` dict. `command` is expected to be in a subprocess-friendly
@@ -76,6 +81,7 @@ class BernardCheck(object):
         self.name = name
         self.config = config
         self.command = command
+        self.params = params
         self.run_count = 0
         self.event_count = 0
 
@@ -162,7 +168,7 @@ class BernardCheck(object):
             state=state,
             message=message,
             execution_date=execution_date,
-            execution_time=execution_time
+            execution_time=execution_time,
         )
         self.result = check_result
         return check_result
@@ -256,7 +262,7 @@ def _subprocess_command(raw_command, params, hostname):
 
     # Replace variables.
     for param, val in params.iteritems():
-        raw_command = raw_command.replace('$%s' % param, str(val))
+        raw_command = raw_command.replace('$%s' % param, val)
 
     # Split into subprocess format.
     command_split = raw_command.split()
