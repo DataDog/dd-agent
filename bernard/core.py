@@ -9,7 +9,7 @@ from bernard.check import R, S
 from bernard.scheduler import Scheduler
 from checks.check_status import AgentStatus, style
 from config import get_config_path
-from daemon import Daemon
+from daemon import Daemon, AgentSupervisor
 from dogstatsd_client import DogStatsd
 from util import (
     StaticWatchdog,
@@ -104,8 +104,7 @@ class Bernard(Daemon):
         # Now clean-up.
         BernardStatus.remove_latest_status()
 
-        # Explicitly kill the process, because it might be running
-        # as a daemon.
+        # Explicitly kill the process, because it might be running as a daemon.
         log.info("Exiting. Bye bye.")
         sys.exit(0)
 
