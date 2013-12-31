@@ -1,19 +1,22 @@
+# stdlib
 import logging
 import signal
 import sys
 import time
+
+# project
+from bernard.check import R, S
+from bernard.scheduler import Scheduler
+from checks.check_status import AgentStatus, style
+from config import get_config_path
 from daemon import Daemon
+from dogstatsd_client import DogStatsd
 from util import (
     StaticWatchdog,
     get_os,
     yaml,
     yLoader,
 )
-from checks.check_status import AgentStatus, style
-from config import get_config_path
-
-from bernard.check import R, S
-from bernard.scheduler import Scheduler
 
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
 BERNARD_CONF = "bernard.yaml"
@@ -61,7 +64,9 @@ class Bernard(Daemon):
 
         # load Bernard config and checks
         bernard_config = get_bernard_config()
-        self.scheduler = Scheduler.from_config(self.hostname, bernard_config)
+        dogstatsd_client = DogStatsd()
+        self.scheduler = Scheduler.from_config(self.hostname, bernard_config,
+                                               dogstatsd_client)
 
         # Save the agent start-up stats.
         BernardStatus(checks=self.scheduler.checks).persist()
@@ -117,13 +122,14 @@ class BernardStatus(AgentStatus):
 
     NAME = 'Bernard'
 
-    def __init__(self, checks=[], schedule_count=0):
+    def __init__(self, checks=None, schedule_count=0):
         AgentStatus.__init__(self)
+        checks = checks or []
         self.check_stats = [check.get_status() for check in checks]
         self.schedule_count = schedule_count
 
-        self.STATUS_COLOR = {S.OK: 'green', S.TIMEOUT: 'yellow', S.EXCEPTION: 'red', S.INVALID_OUTPUT: 'red'}
-        self.STATE_COLOR = {R.OK: 'green', R.WARNING: 'yellow', R.CRITICAL: 'red', R.UNKNOWN: 'yellow', R.NONE: 'white'}
+        self.STATUS_COLOR = {R.OK: 'green', R.WARNING: 'yellow', R.CRITICAL: 'red', R.UNKNOWN: 'yellow', R.NONE: 'white'}
+        self.STATE_COLOR = {S.OK: 'green', S.TIMEOUT: 'yellow', S.EXCEPTION: 'red', S.INVALID_OUTPUT: 'red'}
 
     def body_lines(self):
         lines = [
@@ -141,8 +147,8 @@ class BernardStatus(AgentStatus):
         for check in self.check_stats:
             status_color = self.STATUS_COLOR[check['status']]
             state_color = self.STATE_COLOR[check['state']]
-            lines += ['  %s: [%s] #%d run is %s' % (check['check_name'], style(check['status'], status_color),
-                                                    check['run_count'], style(check['state'], state_color))]
+            lines += ['  %s: [%s] #%d run is %s' % (check['check_name'], style(check['state'], status_color),
+                                                    check['run_count'], style(check['status'], state_color))]
             lines += ['    %s' % ((check['message'] or ' ').splitlines()[0])]
 
         return lines
@@ -162,8 +168,6 @@ class BernardStatus(AgentStatus):
 
 def get_bernard_config():
     """Return the configuration of Bernard"""
-
-    osname = get_os()
     config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
 
     try:
