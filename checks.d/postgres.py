@@ -123,6 +123,7 @@ class PostgreSql(AgentCheck):
             else:
                 connection = pg.connect(host=host, user=user, password=password,
                     database=dbname)
+        connection.autocommit = True
         
         self.dbs[key] = connection
         return connection

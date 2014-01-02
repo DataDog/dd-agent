@@ -61,7 +61,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.0.0"
+    return "4.0.1"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
