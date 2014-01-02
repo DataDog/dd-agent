@@ -217,9 +217,9 @@ print_done
 # set up setuptools and pip with wheels support
 printf "Setting up setuptools and pip....." | tee -a $logfile
 $dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py >> $logfile 2>&1
-$dd_base/venv/bin/python $dd_base/ez_setup.py
+$dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
 $dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
-$dd_base/venv/bin/python $dd_base/get-pip.py
+$dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
 print_done
 
 # install dependencies
