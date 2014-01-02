@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="3.10.1"
+tag="4.0.1"
 
 #######################
 # Define some helpers #
@@ -209,9 +209,17 @@ printf "Operating System: $unamestr\n" >> $logfile
 
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
-$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.9.1/virtualenv.py >> $logfile 2>&1
-python $dd_base/virtualenv.py $dd_base/venv >> $logfile 2>&1
+$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.X/virtualenv.py >> $logfile 2>&1
+python $dd_base/virtualenv.py --no-pip --no-setuptools $dd_base/venv >> $logfile 2>&1
 . $dd_base/venv/bin/activate >> $logfile 2>&1
+print_done
+
+# set up setuptools and pip with wheels support
+printf "Setting up setuptools and pip....." | tee -a $logfile
+$dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py >> $logfile 2>&1
+$dd_base/venv/bin/python $dd_base/ez_setup.py
+$dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
+$dd_base/venv/bin/python $dd_base/get-pip.py
 print_done
 
 # install dependencies
