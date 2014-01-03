@@ -1,58 +1,57 @@
+# stdlib
 import logging
 import random
 import time
-import kima.client
 
-from bernard.check import BernardCheck, R, S
+# project
+import kima.client
+from bernard.check import BernardCheck, S
 
 log = logging.getLogger(__name__)
 
+# FIXME: Overriding the config for Kima.
+API_KEY = 'apikey_2'
+BASE_URL = 'http://localhost:5000'
+
 class Scheduler(object):
-    """
-    Schedule Bernard checks execution.
-    """
+    """ Schedule Bernard checks execution. """
 
     # Ratio of jitter to introduce in the scheduling
     JITTER_FACTOR = 0.1
 
+    # Check config defaults
+    DEFAULT_TIMEOUT = 5
+    DEFAULT_PERIOD = 15
+
     @classmethod
-    def from_config(cls, hostname, bernard_config):
+    def from_config(cls, hostname, bernard_config, dogstatsd_client):
         schedule_config = bernard_config.get('core', {}).get('schedule', {})
         bernard_checks = []
 
-        DEFAULT_TIMEOUT = 5
-        DEFAULT_FREQUENCY = 60
-        DEFAULT_ATTEMPTS = 3
-
-        default_check_parameter = {
-            'hostname': hostname,
-            'timeout': int(schedule_config.get('timeout', DEFAULT_TIMEOUT)),
-            'frequency': int(schedule_config.get('period', DEFAULT_FREQUENCY)),
-            'attempts': int(schedule_config.get('period', DEFAULT_ATTEMPTS)),
-            'notification': bernard_config.get('core', {}).get('notification', None),
-            'notify_startup': bernard_config.get('core', {}).get('notify_startup', "none"),
+        default_options = {
+            'timeout': int(schedule_config.get('timeout', cls.DEFAULT_TIMEOUT)),
+            'period': int(schedule_config.get('period', cls.DEFAULT_PERIOD)),
         }
 
-        try:
-            check_configs = bernard_config.get('checks') or []
-            for check_config in check_configs:
-                try:
-                    bernard_checks.extend(BernardCheck.from_config(check_config, default_check_parameter))
-                except Exception, e:
-                    log.exception(e)
-
-        except AttributeError:
-            log.info("Error while parsing Bernard configuration file. Be sure the structure is valid.")
-            return []
+        check_configs = bernard_config.get('checks') or {}
+        for check_name, check_config in check_configs.iteritems():
+            try:
+                check = BernardCheck.from_config(check_name, check_config,
+                                                 default_options, hostname)
+            except Exception:
+                log.exception('Unable to load check %s' % check_name)
+            else:
+                bernard_checks.extend(check)
 
         return cls(checks=bernard_checks, config=bernard_config,
-                   hostname=hostname)
+                   hostname=hostname, dogstatsd_client=dogstatsd_client)
 
-    def __init__(self, checks, config, hostname):
-        """Initialize scheduler"""
+    def __init__(self, checks, config, hostname, dogstatsd_client):
+        """ Initialize scheduler """
         self.checks = checks
         self.config = config
         self.hostname = hostname
+        self.dogstatsd_client = dogstatsd_client
         self.schedule_count = 0
 
         # Initialize schedule
@@ -62,11 +61,9 @@ class Scheduler(object):
         for check in self.checks:
             self.schedule.append((position, check))
             position += 1
-            check.last_notified_state = R.NONE
 
-        api_key = 'apikey_2'
-        base_url = 'http://localhost:9000'
-        self.kima = kima.client.connect(api_key, base_url)
+        # Initialize our kima client.
+        self.kima = kima.client.connect(API_KEY, BASE_URL)
 
         # Scheduler doesn't need to be initialize if no check
         assert self.checks
@@ -93,12 +90,12 @@ class Scheduler(object):
     def process(self):
         """ Execute the next scheduled check """
         check = self._pop_check()
-        result = check.run()
+        result = check.run(self.dogstatsd_client)
         self.schedule_count += 1
 
         # post results
         try:
-            self.post_run(result)
+            self.post_run(check, result)
         except Exception:
             log.error("Could not post run", exc_info=True)
 
@@ -107,13 +104,13 @@ class Scheduler(object):
 
     def reschedule_check(self, check):
         # Get the duration to wait for the next scheduling
-        waiting = check.config['frequency']
-        status = check.get_last_result().status
-        if status == S.TIMEOUT:
+        waiting = check.get_period()
+        state = check.get_result().state
+        if state == S.TIMEOUT:
             waiting = waiting * 3
-        elif status == S.INVALID_OUTPUT:
+        elif state == S.INVALID_OUTPUT:
             waiting = waiting * 8
-        elif status == S.EXCEPTION:
+        elif state == S.EXCEPTION:
             waiting = waiting * 12
 
         jitter_range = self.JITTER_FACTOR * waiting
@@ -133,40 +130,11 @@ class Scheduler(object):
 
         log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
-    def post_run(self, result):
-        return self.kima.post_monitor_run(
-                # Impedence mismatch: bernard calls states what the server
-                # knows as statuses. Should reconcile.
-                status=result.state,
+    def post_run(self, check, result):
+        return self.kima.post_check_run(
+                check=check.name,
+                status=result.status,
                 output=result.message,
                 timestamp=result.execution_date,
+                params=check.params,
                 host_name=self.hostname)
-
-class SimulatedScheduler(Scheduler):
-    def __init__(self, *args, **kwargs):
-        Scheduler.__init__(self, *args, **kwargs)
-        self.virtual_time = time.time()
-
-    def wait_time(self):
-        return 0
-
-    def _now(self):
-        """
-        Set the virtual time at the end of the check execution
-        Reschedule the check on a timestamp based on this virtual time
-        """
-        last_result = check.get_last_result()
-        timestamp = self.virtual_time + last_result.execution_time
-        self.virtual_time = timestamp
-        return timestamp
-
-    def _pop_check(self):
-        """
-        When going to run a next check in simulated time, move the
-        simulated time to the next scheduled timestamp if
-        it is in the future
-        """
-        self.virtual_time = max(self.schedule[0][0], self.virtual_time)
-        if self.schedule:
-            return self.schedule.pop(0)[1]
-

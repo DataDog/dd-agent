@@ -1,16 +1,18 @@
+# stdlib
 import logging
 import os
 import re
 import signal
+import shlex
 import subprocess
 import time
+
+# project
 from util import (
+    get_hostname,
     namedtuple,
     StaticWatchdog,
 )
-
-class InvalidCheckOutput(Exception):
-    pass
 
 class Timeout(Exception):
     pass
@@ -22,15 +24,15 @@ class InvalidPath(Exception):
 CheckResult = namedtuple('CheckResult',
     ['status', 'state', 'message', 'execution_date', 'execution_time'])
 
-# Status of the execution of the check
-ExecutionStatus = namedtuple('ExecutionStatus',
+# State of the last execution of the check
+ExecutionState = namedtuple('ExecutionState',
     ['OK', 'TIMEOUT', 'EXCEPTION', 'INVALID_OUTPUT'])
-S = ExecutionStatus('ok', 'timeout', 'exception', 'invalid_output')
+S = ExecutionState('ok', 'timeout', 'exception', 'invalid_output')
 
-# State of check
-ResultState = namedtuple('ResultState',
-    ['NONE', 'OK', 'WARNING', 'CRITICAL', 'UNKNOWN'])
-R = ResultState('init', 'ok', 'warning', 'critical', 'unknown')
+# Check result status
+class R():
+    OK, WARNING, CRITICAL, UNKNOWN, NONE = (0, 1, 2, 3, 4)
+    ALL = (OK, WARNING, CRITICAL, UNKNOWN, NONE)
 
 log = logging.getLogger(__name__)
 
@@ -43,92 +45,70 @@ class BernardCheck(object):
         ]))
 
     @classmethod
-    def from_config(cls, check_config, defaults):
-        check_paths = []
-        path = check_config.get('path', '')
-        filename = check_config.get('filename', '')
-        notification = check_config.get('notification', '')
-        timeout = int(check_config.get('timeout', 0))
-        period = int(check_config.get('period', 0))
-        attempts = int(check_config.get('attempts', 0))
-        name = check_config.get('name', None)
-        args = check_config.get('args', [])
-        notify_startup = check_config.get('notify_startup', None)
-        if path:
-            try:
-                filenames = os.listdir(path)
-                check_paths = []
-                for fname in filenames:
-                    # Filter hidden files
-                    if not fname.startswith('.'):
-                        check_path = os.path.join(path, fname)
-                        # Keep only executable files
-                        if os.path.isfile(check_path) and os.access(check_path, os.X_OK):
-                            check_paths.append(check_path)
-            except OSError, e:
-                raise InvalidPath(str(e))
-        if filename:
-            check_paths.append(filename)
+    def from_config(cls, name, check_config, defaults, hostname=None):
+        options = check_config.get('options', {})
+        timeout = int(options.get('timeout', 0))
+        period = int(options.get('period', 0))
+        raw_command = check_config.get('command')
+        params_list = check_config.get('params') or [{}]
+        hostname = hostname or get_hostname()
 
+        check_config = {
+            'timeout': timeout or defaults['timeout'],
+            'period': period or defaults['period'],
+        }
         checks = []
-        if check_paths:
-            check_parameter = defaults.copy()
-            if notification:
-                check_parameter['notification'] = notification
-            if timeout:
-                check_parameter['timeout'] = timeout
-            if period:
-                check_parameter['period'] = period
-            if attempts:
-                check_parameter['attempts'] = attempts
-            if notify_startup:
-                check_parameter['notify_startup'] = notify_startup
-            if name:
-                check_parameter['name'] = name
-            for check_path in check_paths:
-                checks.append(cls(check=check_path, config=check_parameter,
-                                  args=args))
+
+        # For every set of params (e.g.: {'port': 8888}) return a single check.
+        # We'll template the $variables in the `command` value with the params.
+        for param_dict in params_list:
+            # Stringify all of the check params. We expect everything to be
+            # strings through the pipeline so we'll do it early on.
+            for k, v in param_dict.iteritems():
+                param_dict[k] = str(v)
+
+            command = _subprocess_command(raw_command, param_dict, hostname)
+            checks.append(cls(name, command, check_config, param_dict))
+
         return checks
 
-    def __init__(self, check, config, args=[]):
-        self.check = check
+    def __init__(self, name, command, config, params):
+        """ Initializes a BernardCheck with the given `name` and `command`.
+            Any additional config (e.g. timeout or period) are given in the
+            `config` dict. `command` is expected to be in a subprocess-friendly
+            form, e.g.: ['check_foo', ['-h', 'localhost']].
+        """
+        self.name = name
         self.config = config
-        self.args = args
-        self.command = [self.check] + args
-
+        self.command = command
+        self.params = params
         self.run_count = 0
         self.event_count = 0
 
-        self.container_size = self.config['attempts'] + 1
+        # Always holds the latest result.
+        self.result = None
 
-        # Contains the result of #{container_size} last checks
-        self.result_container = []
-
-        # Set check_name, remove file extension and "check_" prefix
-        if 'name' in config:
-            check_name = config['name']
-        else:
-            check_name = self.check.split('/')[-1]
-            if check_name.startswith('check_'):
-                check_name = check_name[6:]
-            check_name = check_name.rsplit('.')[0]
-
-        self.check_name = check_name.lower()
-        log.debug(u"Initialized check %s (%s)" % (self.check_name, ' '.join(self.command)))
+        log.debug(u"Initialized check %s (%s)" % (self.name, command))
 
     def __repr__(self):
-        return self.check_name
+        return self.name
+
+    def get_period(self):
+        return self.config['period']
 
     def _execute_check(self):
         timeout = self.config.get('timeout')
         output = None
         returncode = None
+
         # This is going to disable the StaticWatchdog
         signal.signal(signal.SIGALRM, self.timeout_handler)
         signal.alarm(timeout)
         try:
             try:
-                process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                process = subprocess.Popen(self.command,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
                 output = process.communicate()[0].strip()
                 returncode = process.returncode
                 if len(output) > 20:
@@ -136,7 +116,7 @@ class BernardCheck(object):
                 else:
                     truncated_output = output
                 log.info(u"Check[%s]: %s => %s (%s)" % (
-                    self.check_name,
+                    self.name,
                     u' '.join(self.command),
                     returncode,
                     truncated_output
@@ -153,50 +133,53 @@ class BernardCheck(object):
     def timeout_handler(self, signum, frame):
         raise Timeout()
 
-    def run(self):
+    def run(self, dogstatsd_client):
         execution_date = time.time()
         try:
             output, returncode = self._execute_check()
+
             if output is None:
-                status = S.TIMEOUT
-                state = R.UNKNOWN
+                state = S.TIMEOUT
+                status = R.UNKNOWN
                 message = 'Check %s timed out after %ds' % (self, self.config['timeout'])
             else:
-                try:
-                    state, message = self.parse_nagios(output, returncode)
-                    status = S.OK
-                except InvalidCheckOutput:
-                    status = S.INVALID_OUTPUT
-                    state = R.UNKNOWN
-                    message = u'Failed to parse the output of the check: %s, returncode: %d, output: %s' % (
-                        self, returncode, output)
+                if returncode not in R.ALL:
+                    state = S.INVALID_OUTPUT
+                    status = R.UNKNOWN
+                    message = u'Failed to parse the output of the check: %s, ' \
+                               'returncode: %d, output: %s' \
+                                    % (self, returncode, output)
                     log.warn(message)
-        except OSError, exception:
-            state = R.UNKNOWN
-            status = S.EXCEPTION
+                else:
+                    message = self.parse_nagios(output, dogstatsd_client)
+                    state = S.OK
+                    status = returncode
+        except OSError:
+            status = R.UNKNOWN
+            state = S.EXCEPTION
             message = u'Failed to execute the check: %s' % self
             log.warn(message, exc_info=True)
 
         execution_time = time.time() - execution_date
         self.run_count += 1
 
-        return CheckResult(
+        check_result = CheckResult(
             status=status,
             state=state,
             message=message,
             execution_date=execution_date,
-            execution_time=execution_time
+            execution_time=execution_time,
         )
+        self.result = check_result
+        return check_result
 
-    def parse_nagios(self, output, returncode):
-        state = returncode
-
+    def parse_nagios(self, output, dogstatsd_client):
         output = output.strip()
         try:
             message, tail = output.split('|', 1)
         except ValueError:
             # No metric, return directly the output as a message
-            return state, output
+            return output
 
         message = message.strip()
 
@@ -217,7 +200,7 @@ class BernardCheck(object):
                 unit = metric.group('unit')
 
                 dd_metric = self._metric_name(label)
-                # self.dogstatsd.increment('bernard.check.metric_points')
+                dogstatsd_client.increment('bernard.check.metric_points')
 
                 if unit == '%':
                     value = value / 100.0
@@ -234,38 +217,58 @@ class BernardCheck(object):
                 elif unit == 'us':
                     value = value / 1000000.0
                 elif unit == 'c':
-                    # self.dogstatsd.rate(dd_metric, value)
+                    dogstatsd_client.rate(dd_metric, value)
                     log.debug('Saved rate: %s:%.2f' % (dd_metric, value))
                     continue
 
-                # self.dogstatsd.gauge(dd_metric, value)
+                dogstatsd_client.gauge(dd_metric, value)
                 log.debug('Saved metric: %s:%.2f' % (dd_metric, value))
 
-        return state, message
+        return message
 
     def _metric_name(self, label):
-        return 'bernard.%s.%s' % (self.check_name, label)
+        return 'bernard.%s.%s' % (self.name, label)
 
-    def get_last_result(self):
-        return self.get_result(0)
-
-    def get_result(self, position=0):
-        if len(self.result_container) > position:
-            index = - (position + 1)
-            return self.result_container[index]
-        elif position > self.container_size:
-            raise Exception('Trying to get %dth result while container size is %d' % (position, self.container_size))
-        else:
-            return CheckResult(execution_date=0, status=S.OK, state=R.NONE, message='Not runned yet', execution_time=0)
+    def get_result(self):
+        if self.result:
+            return self.result
+        return CheckResult(execution_date=0, state=S.OK, status=R.NONE,
+                           message='Not yet run.', execution_time=0)
 
     def get_status(self):
-        result = self.get_last_result()
+        result = self.get_result()
 
         return {
-            'check_name': self.check_name,
+            'check_name': self.name,
             'run_count': self.run_count,
             'status': result.status,
             'state': result.state,
             'message': result.message,
             'execution_time': result.execution_time,
         }
+
+
+def _subprocess_command(raw_command, params, hostname):
+    """ Given a raw command from the Bernard config and a dictionary of check
+        parameter, return a list that's subprocess-compatible for running the
+        command. We'll replace all command "variables" with a real parameter.
+
+    >>> _subprocess_command("/usr/bin/check_pg -p $port", {'port': '5433'})
+    ['/usr/bin/check_pg', ['-p', '5433']]
+    """
+    # $host is always available as a parameter.
+    if 'host' not in params:
+        params['host'] = hostname
+
+    # Replace variables.
+    for param, val in params.iteritems():
+        raw_command = raw_command.replace('$%s' % param, val)
+
+    # Split into subprocess format.
+    command_split = raw_command.split()
+    if len(command_split) == 0:
+        raise Exception('Invalid command in config: %v' % raw_command)
+    parsed_command = [command_split[0]]
+    if len(command_split[1:]):
+        parsed_command.extend(shlex.split(' '.join(command_split[1:])))
+    return parsed_command
