@@ -1,0 +1,28 @@
+## Default configuration
+# core:
+#   schedule:
+#     timeout:  5           # To check will timeout and exit after {timeout} seconds
+#     period:  60           # Scheduled once every {period} seconds
+#     attempts: 3           # The state change is confirmed only after {attempts} attempts (1 for instant change).
+#   notification: ""        # String added in the event body
+#   notify_startup: none    # Which state to notify at startup, can be all, warning, critical or none
+# checks:
+
+## Advanced example
+# core:
+#   schedule:
+#     timeout: 3
+#     period: 90
+#   notification: "@all"
+# checks:
+#   - path: /path2/default_checks/
+#     attempts: 2
+#   - path: /path1/my_checks/
+#     timeout: 2
+#     period: 50
+#     notification: "@my_email Take a look"
+#     notify_startup: warning
+#     args: ["--verbose"]
+#   - filename: /path3/checks/my_check
+#     args: ["-w", "10", "-w", "30"]
+#     name: custom name for this check

@@ -25,6 +25,7 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/usr/share/datadog/agent/dogstatsd.py"
+BERNARDPATH="/usr/share/datadog/agent/bernard.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
@@ -54,10 +55,10 @@ check_status() {
             s=`supervisorctl -c $SUPERVISOR_CONF status`
 
             # number of RUNNING supervisord programs (ignoring pup)
-            p=`echo "$s" | grep -v pup | grep -c RUNNING`
+            p=`echo "$s" | grep -v pup | grep -v bernard | grep -c RUNNING`
 
-            # number of expected running supervisord programs (ignoring pup)
-            c=`grep -v pup $SUPERVISOR_CONF | grep -c '\[program:'`
+            # number of expected running supervisord programs (ignoring pup and bernard)
+            c=`grep -v pup $SUPERVISOR_CONF | grep -v bernard | grep -c '\[program:'`
             if [ "$p" -ne "$c" ]; then
                 echo "$s"
                 echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
@@ -132,6 +133,8 @@ start() {
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $BERNARDPATH start > /dev/null 2>&1"
+        RETURNVALUE=$(($RETURNVALUE || $?))
         echo
         [ $RETURNVALUE -eq 0 ] && touch $LOCKFILE
         return $RETURNVALUE
@@ -151,6 +154,7 @@ stop() {
         echo -n 'Stopping Datadog Agent: '
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH stop > /dev/null 2>&1"
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
+        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $BERNARDPATH stop > /dev/null 2>&1"
         rm -f $LOCKFILE
         rm -f $PIDFILE
         sleep 5
@@ -171,6 +175,8 @@ info() {
     RETURN_VALUE=$?
     su $AGENTUSER -c "$DOGSTATSDPATH info"
     RETURN_VALUE=$(($RETURN_VALUE || $?))
+    # Show bernard info but don't fail if it's not running
+    su $AGENTUSER -c "$BERNARDPATH info"
     if [ -f $USE_SUPERVISOR ]; then
         su $AGENTUSER -c "$USE_SUPERVISOR info"
         RETURN_VALUE=$(($RETURN_VALUE || $?))

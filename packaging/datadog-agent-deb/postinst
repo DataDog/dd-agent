@@ -11,6 +11,7 @@ case "$1" in
         chown -R dd-agent:root /var/log/datadog
         chown -R root:root /usr/share/datadog
         chown -h root:root /usr/bin/dogstatsd
+        chown -h root:root /usr/bin/bernard
         chown -h root:root /usr/bin/dd-agent
         chown -h root:root /usr/bin/dd-forwarder
 

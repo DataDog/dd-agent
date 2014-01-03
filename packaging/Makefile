@@ -45,6 +45,7 @@ source:
 	cp -r $(SRC)/*.py $(ROOT)/
 	cp -r $(SRC)/LICENSE* $(ROOT)/
 	cp -r $(SRC)/datadog.conf.example $(ROOT)/
+	cp -r $(SRC)/bernard.yaml.example $(ROOT)/
 	cp -r $(SRC)/datadog-cert.pem $(ROOT)/
 	find $(ROOT) -name "*.pyc" -exec rm {} \;
 
@@ -62,10 +63,12 @@ install_base: source
 	# Install the common source & config.
 	cp -r $(ROOT)/*		 $(BUILD)/usr/share/datadog/agent/
 	cp    $(ROOT)/datadog.conf.example $(BUILD)/etc/dd-agent
+	cp    $(ROOT)/bernard.yaml.example $(BUILD)/etc/dd-agent
 	cp -r $(ROOT)/conf.d/* $(BUILD)/etc/dd-agent/conf.d/
 	# Install the common executables.
 	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
 	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
+	ln -sf ../share/datadog/agent/bernard.py 	$(BUILD)/usr/bin/bernard
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/var/log/datadog

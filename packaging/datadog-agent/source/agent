@@ -107,6 +107,8 @@ case $action in
         RETURN_VALUE=$(($RETURN_VALUE || $?))
         python agent/ddagent.py info
         RETURN_VALUE=$(($RETURN_VALUE || $?))
+         # Show bernard info but don't fail if it's not running
+        python agent/bernard.py info
         exit $RETURN_VALUE
         ;;
 

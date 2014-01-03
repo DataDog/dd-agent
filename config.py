@@ -63,6 +63,7 @@ def get_parsed_args():
 def get_version():
     return "4.0.1"
 
+
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
     return StringIO("\n".join(map(string.strip, f.readlines())))
@@ -89,9 +90,9 @@ def _windows_commondata_path():
     return path_buf.value
 
 
-def _windows_config_path():
+def _windows_config_path(filename):
     common_data = _windows_commondata_path()
-    path = os.path.join(common_data, 'Datadog', DATADOG_CONF)
+    path = os.path.join(common_data, 'Datadog', filename)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -120,8 +121,8 @@ def _windows_checksd_path():
     raise PathNotFound(checksd_path)
 
 
-def _unix_config_path():
-    path = os.path.join('/etc/dd-agent', DATADOG_CONF)
+def _unix_config_path(filename):
+    path = os.path.join('/etc/dd-agent', filename)
     if os.path.exists(path):
         return path
     raise PathNotFound(path)
@@ -149,7 +150,7 @@ def _is_affirmative(s):
     return s.lower() in ('yes', 'true', '1')
 
 
-def get_config_path(cfg_path=None, os_name=None):
+def get_config_path(cfg_path=None, os_name=None, filename=DATADOG_CONF):
     # Check if there's an override and if it exists
     if cfg_path is not None and os.path.exists(cfg_path):
         return cfg_path
@@ -161,13 +162,13 @@ def get_config_path(cfg_path=None, os_name=None):
     bad_path = ''
     if os_name == 'windows':
         try:
-            return _windows_config_path()
+            return _windows_config_path(filename)
         except PathNotFound, e:
             if len(e.args) > 0:
                 bad_path = e.args[0]
     else:
         try:
-            return _unix_config_path()
+            return _unix_config_path(filename)
         except PathNotFound, e:
             if len(e.args) > 0:
                 bad_path = e.args[0]
@@ -175,12 +176,13 @@ def get_config_path(cfg_path=None, os_name=None):
     # Check if there's a config stored in the current agent directory
     path = os.path.realpath(__file__)
     path = os.path.dirname(path)
-    if os.path.exists(os.path.join(path, DATADOG_CONF)):
-        return os.path.join(path, DATADOG_CONF)
+    if os.path.exists(os.path.join(path, filename)):
+        return os.path.join(path, filename)
 
     # If all searches fail, exit the agent with an error
-    sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
-    sys.exit(3)
+    if filename == DATADOG_CONF:
+        sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
+        sys.exit(3)
 
 
 def get_config(parse_args=True, cfg_path=None, options=None):
@@ -760,7 +762,6 @@ def load_check_directory(agentConfig):
             'init_failed_checks':init_failed_checks,
             }
 
-
 #
 # logging
 
@@ -784,6 +785,7 @@ def get_logging_config(cfg_path=None):
             'forwarder_log_file': '/var/log/datadog/forwarder.log',
             'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
             'pup_log_file': '/var/log/datadog/pup.log',
+            'bernard_log_file': '/var/log/datadog/bernard.log',
             'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
             'log_to_event_viewer': False,
             'log_to_syslog': True,
@@ -802,6 +804,7 @@ def get_logging_config(cfg_path=None):
             'syslog_host': None,
             'syslog_port': None,
         }
+
 
     config_path = get_config_path(cfg_path, os_name=system_os)
     config = ConfigParser.ConfigParser()
