@@ -1,20 +1,22 @@
+# stdlib
 import logging
 import sys
+
+# project
+from bernard.core import Bernard
 from config import initialize_logging, get_config, get_parsed_args
 from daemon import AgentSupervisor
-
 from util import (
     PidFile,
     get_hostname,
 )
-from bernard.core import Bernard
 
 log = logging.getLogger(__name__)
 
 def main():
     """" Execution of Bernard"""
-    # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
-    # were only introduced in 2.4.
+    # Check we're not using an old version of Python. We need 2.4 above because
+    # some modules (like subprocess) were only introduced in 2.4.
     if int(sys.version_info[1]) <= 3:
         sys.stderr.write("Datadog agent requires python 2.4 or later.\n")
         sys.exit(2)
