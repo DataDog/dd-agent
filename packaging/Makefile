@@ -38,6 +38,7 @@ source:
 	cp -r $(SRC)/dogstream $(ROOT)/
 	cp -r $(SRC)/pup $(ROOT)/
 	cp -r $(SRC)/yaml $(ROOT)/
+	cp -r $(SRC)/bernard $(ROOT)/
 	cp -r $(SRC)/checks.d $(ROOT)/
 	cp -r $(SRC)/compat $(ROOT)/
 	cp -r $(SRC)/conf.d $(ROOT)/
@@ -66,9 +67,9 @@ install_base: source
 	cp    $(ROOT)/bernard.yaml.example $(BUILD)/etc/dd-agent
 	cp -r $(ROOT)/conf.d/* $(BUILD)/etc/dd-agent/conf.d/
 	# Install the common executables.
-	ln -sf ../share/datadog/agent/dogstatsd.py  $(BUILD)/usr/bin/dogstatsd
-	ln -sf ../share/datadog/agent/agent.py      $(BUILD)/usr/bin/dd-agent
-	ln -sf ../share/datadog/agent/bernard.py 	$(BUILD)/usr/bin/bernard
+	ln -sf ../share/datadog/agent/dogstatsd.py      $(BUILD)/usr/bin/dogstatsd
+	ln -sf ../share/datadog/agent/agent.py          $(BUILD)/usr/bin/dd-agent
+	ln -sf ../share/datadog/agent/bernard/cli.py 	$(BUILD)/usr/bin/bernard
 	chmod 755 $(BUILD)/usr/bin/dogstatsd
 	chmod 755 $(BUILD)/usr/bin/dd-agent
 	chmod 755 $(BUILD)/var/log/datadog

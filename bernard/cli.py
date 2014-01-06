@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
 # stdlib
 import logging
 import sys
+sys.path.append('../')
 
 # project
 from bernard.core import Bernard
