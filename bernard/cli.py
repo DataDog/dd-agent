@@ -3,7 +3,9 @@
 # stdlib
 import logging
 import sys
-sys.path.append('../')
+
+# FIXME conor: Hack to get the path correct on staging
+sys.path.append('/usr/share/datadog/agent')
 
 # project
 from bernard.core import Bernard
