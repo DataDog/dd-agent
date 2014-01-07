@@ -43,3 +43,7 @@ class Platform(object):
                 or Platform.is_freebsd()
         )
 
+    @staticmethod
+    def is_win32(name=None):
+        name = name or sys.platform
+        return name == "win32"

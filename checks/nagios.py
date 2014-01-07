@@ -97,7 +97,7 @@ class Nagios(object):
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
-                self.logger.warn("Ignoring unkown nagios event for line: %s" % (line[:-1]))
+                self.logger.warn("Ignoring unknown nagios event for line: %s" % (line[:-1]))
                 return False
 
             # and parse the rest of the line
