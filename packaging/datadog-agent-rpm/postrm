@@ -1,0 +1,3 @@
+getent passwd dd-agent >/dev/null && userdel  dd-agent
+getent group  dd-agent >/dev/null && groupdel dd-agent
+exit 0
