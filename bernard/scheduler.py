@@ -4,12 +4,12 @@ import random
 import time
 
 # project
-import kima.client
+import datadog.checks
 from bernard.check import BernardCheck, S
 
 log = logging.getLogger(__name__)
 
-# FIXME: Overriding the config for Kima.
+# FIXME: Overriding the config for Checks client.
 API_KEY = 'apikey_2'
 BASE_URL = 'http://localhost:5000'
 
@@ -63,7 +63,7 @@ class Scheduler(object):
             position += 1
 
         # Initialize our kima client.
-        self.kima = kima.client.connect(API_KEY, BASE_URL)
+        self.checkserv_client = datadog.checks.connect(API_KEY, BASE_URL)
 
         # Scheduler doesn't need to be initialize if no check
         assert self.checks
@@ -131,7 +131,7 @@ class Scheduler(object):
         log.debug('%s is rescheduled, next run in %.2fs' % (check, waiting))
 
     def post_run(self, check, result):
-        return self.kima.post_check_run(
+        return self.checkserv_client.post_check_run(
                 check=check.name,
                 status=result.status,
                 output=result.message,
