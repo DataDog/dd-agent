@@ -4,8 +4,10 @@
 import logging
 import sys
 
-# FIXME conor: Hack to get the path correct on staging
-sys.path.append('/usr/share/datadog/agent')
+# FIXME conor: Hack to get the correct PYTHONPATH
+import os.path
+_cur_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(_cur_dir, '../'))
 
 # project
 from bernard.core import Bernard
