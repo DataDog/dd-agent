@@ -379,8 +379,7 @@ class Collector(object):
             if self.agentConfig['tags'] is not None:
                 host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
-            EC2_tags = EC2.get_tags()
-            if EC2_tags is not None:
+            if self.agentConfig.get('collect_ec2_tags', "no").lower() in ("yes", "true"):
                 host_tags.extend(EC2.get_tags())
 
             if host_tags:

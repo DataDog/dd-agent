@@ -232,11 +232,11 @@ class EC2(object):
             from checks.libs.boto.ec2.connection import EC2Connection
             connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
-            
+
             EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
-            
+
         except Exception:
-            EC2_tags = None
+            EC2_tags = []
             pass
 
         try:
