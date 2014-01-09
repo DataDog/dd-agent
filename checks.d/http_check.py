@@ -78,7 +78,11 @@ class HTTPCheck(ServicesCheck):
         name = instance.get('name', None)
         nb_failures = self.statuses[name].count(Status.DOWN)
         nb_tries = len(self.statuses[name])
-
+        tags = instance.get('tags', [])
+        url = instance.get('url', None)
+        tags_list = []
+        tags_list.extend(tags)
+        tags_list.append('url:%s' % url)
 
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
@@ -137,7 +141,7 @@ class HTTPCheck(ServicesCheck):
              'alert_type': alert_type,
              "source_type_name": source_type,
              "event_object": name,
+             "tags": tags_list
         }
-
 
 
