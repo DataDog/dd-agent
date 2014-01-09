@@ -33,7 +33,7 @@ class WMICheck(AgentCheck):
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)
-        w = _get_wmi_conn(host, user, password)
+        w = self._get_wmi_conn(host, user, password)
 
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
