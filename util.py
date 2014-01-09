@@ -239,7 +239,6 @@ class EC2(object):
             EC2_tags = None
             pass
 
-
         try:
             if socket_to is None:
                 socket_to = 3

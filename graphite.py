@@ -1,9 +1,8 @@
-import sys, os, re, struct
+import struct
 import logging
 import cPickle as pickle
 
 from tornado.ioloop import IOLoop
-from tornado.iostream import IOStream
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +16,9 @@ except Exception, e:
 class GraphiteServer(TCPServer):
 
     def __init__(self, app, hostname, io_loop=None, ssl_options=None, **kwargs):
-        log.info('Graphite listener is started')
+        log.warn('Graphite listener is started -- if you do not need graphite, turn it off in datadog.conf.')
+        log.warn('Graphite relay uses pickle to transport messages. Pickle is not secured against remote execution exploits.')
+        log.warn('See http://blog.nelhage.com/2011/03/exploiting-pickle/ for more details')
         self.app = app
         self.hostname = hostname
         TCPServer.__init__(self, io_loop=io_loop, ssl_options=ssl_options, **kwargs)
@@ -37,9 +38,9 @@ class GraphiteConnection(object):
         self.stream.set_close_callback(self._on_close)
         self.stream.read_bytes(4, self._on_read_header)
 
-    def _on_read_header(self,data):
+    def _on_read_header(self, data):
         try:
-            size = struct.unpack("!L",data)[0]
+            size = struct.unpack("!L", data)[0]
             log.debug("Receiving a string of size:" + str(size))
             self.stream.read_bytes(size, self._on_read_line)
         except Exception, e:
@@ -84,12 +85,12 @@ class GraphiteConnection(object):
             send the datapoint to datadog"""
 
         log.debug("New metric: %s, values: %s" % (metric, datapoint))
-        (metric,host,device) = self._parseMetric(metric)
+        (metric, host, device) = self._parseMetric(metric)
         if metric is not None:    
-            self._postMetric(metric,host,device, datapoint)
+            self._postMetric(metric, host, device, datapoint)
             log.info("Posted metric: %s, host: %s, device: %s" % (metric, host, device))
 
-    def _decode(self,data):
+    def _decode(self, data):
 
         try:
             datapoints = pickle.loads(data)
@@ -99,12 +100,12 @@ class GraphiteConnection(object):
    
         for (metric, datapoint) in datapoints:
             try:
-                datapoint = ( float(datapoint[0]), float(datapoint[1]) )
+                datapoint = (float(datapoint[0]), float(datapoint[1]))
             except Exception, e:
                 log.error(e)
                 continue
             
-            self._processMetric(metric,datapoint) 
+            self._processMetric(metric, datapoint)
 
         self.stream.read_bytes(4, self._on_read_header)
 

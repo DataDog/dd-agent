@@ -99,9 +99,10 @@ $(FPM_BUILD) -t rpm \
 -d "python-uuid" \
 -d "sysstat" \
 --replaces "datadog-agent-lib < $(VERSION)" \
---pre-install datadog-agent-base-rpm/pre_install \
---post-install datadog-agent-base-rpm/post_install \
---pre-uninstall datadog-agent-base-rpm/pre_uninstall \
+--pre-install    datadog-agent-base-rpm/pre_install \
+--post-install   datadog-agent-base-rpm/post_install \
+--pre-uninstall  datadog-agent-base-rpm/pre_uninstall \
+--post-uninstall datadog-agent-base-rpm/post_uninstall \
 .
 
 datadog_agent_rpm: clean install_full_rpm
@@ -119,6 +120,7 @@ $(FPM_BUILD) -t rpm \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
+--post-uninstall    datadog-agent-rpm/postrm \
 --config-files "/etc/dd-agent/supervisor.conf" \
 .
 
