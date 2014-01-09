@@ -1,6 +1,7 @@
 import re
 import time
 import urllib2
+import base64
 
 from util import headers
 from checks import AgentCheck
@@ -29,6 +30,11 @@ class Nginx(AgentCheck):
 
     def _get_metrics(self, url, tags):
         req = urllib2.Request(url, None, headers(self.agentConfig))
+        if 'user' in instance and 'password' in instance:
+            auth_str = '%s:%s' % (instance['user'], instance['password'])
+            encoded_auth_str = base64.encodestring(auth_str)
+            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
+
         request = urllib2.urlopen(req)
         response = request.read()
 
