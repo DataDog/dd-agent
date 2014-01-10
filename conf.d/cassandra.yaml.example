@@ -24,6 +24,8 @@ init_config:
             - ExceptionCount
             - Hits
             - RecentHitRate
+            - RowCacheRecentHitRate
+            - KeyCacheRecentHitRate
             - LiveDiskSpaceUsed
             - LiveSSTableCount
             - Load

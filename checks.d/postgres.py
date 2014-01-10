@@ -222,6 +222,8 @@ SELECT relname,
                 raise CheckException("Please specify a user to connect to Postgres as.")
             else:
                 raise CheckException("Cannot connect to Postgres.")
+
+        connection.autocommit = True
         
         self.dbs[key] = connection
         return connection
