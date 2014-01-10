@@ -31,6 +31,7 @@ class HAProxy(AgentCheck):
         "qcur": ("gauge", "queue.current"),
         "scur": ("gauge", "session.current"),
         "slim": ("gauge", "session.limit"),
+        "spct": ("gauge", "session.pct"),    # Calculated as: (scur/slim)*100
         "stot": ("rate", "session.rate"),
         "bin": ("rate", "bytes.in_rate"),
         "bout": ("rate", "bytes.out_rate"),
@@ -110,6 +111,13 @@ class HAProxy(AgentCheck):
                     except Exception:
                         pass
                     data_dict[fields[i]] = val
+
+            # The percentage of used sessions based on 'scur' and 'slim'
+            if 'slim' in data_dict and 'scur' in data_dict:
+                try:
+                    data_dict['spct'] = (data_dict['scur'] / data_dict['slim']) * 100
+                except (TypeError, ZeroDivisionError):
+                    pass
 
             # Don't create metrics for aggregates
             service = data_dict['svname']
