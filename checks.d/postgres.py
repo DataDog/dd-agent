@@ -130,7 +130,7 @@ SELECT relname,
             self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
 
         # Do we need relation-specific metrics?
-        if relations is None or relations == []:
+        if not relations:
             metric_scope = (self.DB_METRICS,)
         else:
             metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
