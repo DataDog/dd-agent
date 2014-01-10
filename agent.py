@@ -115,8 +115,33 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
+            
+            # enable profiler if needed
+            profiled = False
+            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
+                try:
+                    import cProfile
+                    profiler = cProfile.Profile()
+                    profiled = True
+                    profiler.enable()
+                except Exception:
+                    log.warn("Cannot enable profiler")
+                    
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
+
+            # disable profiler and printout stats to stdout
+            if agentConfig.get('profile', False) and profiled:
+                try:
+                    profiler.disable()
+                    import pstats
+                    from cStringIO import StringIO
+                    s = StringIO()
+                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+                    ps.print_stats()
+                    log.debug(s.getvalue())
+                except Exception:
+                    log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -293,4 +318,3 @@ if __name__ == '__main__':
         except Exception:
             pass
         raise
-
