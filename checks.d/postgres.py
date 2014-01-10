@@ -272,20 +272,3 @@ SELECT relname,
             }
 
         return False
-
-if __name__ == '__main__':
-    # Assumes that you have a pg db that bears the same name
-    # as your unix username. Furthermore assumes that you can connect
-    # using ident.
-    # if you want to collect per-table stats, simply pass them as arguments
-    p = PostgreSql("", {}, {})
-    # get current username
-    import getpass, sys
-    usr = getpass.getuser()
-    p.check({"host": "localhost",
-             "port": 5432,
-             "username": usr,
-             "password": "",
-             "tags": ["code"],
-             "database": usr,
-             "relations": sys.argv[1:]})
