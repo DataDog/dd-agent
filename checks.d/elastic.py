@@ -130,6 +130,7 @@ class ElasticSearch(AgentCheck):
 
     def check(self, instance):
         config_url = instance.get('url')
+        added_tags = instance.get('tags')
         if config_url is None:
             raise Exception("An url must be specified")
 
