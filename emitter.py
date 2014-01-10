@@ -20,10 +20,6 @@ def get_http_library(proxy_settings, use_forwarder):
         import urllib2proxy as urllib2
     return urllib2 
 
-def format_body(message):
-    payload = json.dumps(message)
-    return zlib.compress(payload)
-
 def post_headers(agentConfig, payload):
     return {
         'User-Agent': 'Datadog Agent/%s' % agentConfig['version'],
@@ -34,12 +30,15 @@ def post_headers(agentConfig, payload):
     }
 
 def http_emitter(message, logger, agentConfig):
-    logger.debug('http_emitter: start')
-
-    # Post back the data
-    postBackData = format_body(message)
+    "Send payload"
 
     logger.debug('http_emitter: attempting postback to ' + agentConfig['dd_url'])
+
+    # Post back the data
+    payload = json.dumps(message)
+    zipped = zlib.compress(payload)
+
+    logger.debug("payload_size=%d, compression_ration=%d" %(len(zipped), len(payload)/len(zipped)))
 
     # Build the request handler
     apiKey = message.get('apiKey', None)
@@ -47,13 +46,13 @@ def http_emitter(message, logger, agentConfig):
         raise Exception("The http emitter requires an api key")
 
     url = "%s/intake?api_key=%s" % (agentConfig['dd_url'], apiKey)
-    headers = post_headers(agentConfig, postBackData)
+    headers = post_headers(agentConfig, zipped)
 
     proxy_settings = agentConfig.get('proxy_settings', None)
     urllib2 = get_http_library(proxy_settings, agentConfig['use_forwarder'])
 
     try:
-        request = urllib2.Request(url, postBackData, headers)
+        request = urllib2.Request(url, zipped, headers)
         # Do the request, logger any errors
         opener = get_opener(logger, proxy_settings, agentConfig['use_forwarder'], urllib2)
         if opener is not None:
