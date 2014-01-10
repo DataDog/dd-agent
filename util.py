@@ -215,7 +215,6 @@ class EC2(object):
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
     metadata = {}
-    SOURCE_TYPE_NAME = 'amazon web services'
 
     @staticmethod
     def get_tags():
@@ -236,8 +235,8 @@ class EC2(object):
             EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
 
         except Exception:
+            log.exception("Problem retrieving custom EC2 tags")
             EC2_tags = []
-            pass
 
         try:
             if socket_to is None:
