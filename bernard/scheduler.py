@@ -65,11 +65,6 @@ class Scheduler(object):
         # Initialize our kima client.
         self.checkserv_client = datadog.checks.connect(API_KEY, BASE_URL)
 
-        # Scheduler doesn't need to be initialize if no check
-        assert self.checks
-        # Don't miss checks
-        assert len(self.checks) == len(self.schedule)
-
     def _pop_check(self):
         """Return the next scheduled check
         Because we call wait_time before it, no need to
