@@ -4,11 +4,6 @@
 import logging
 import sys
 
-# FIXME conor: Hack to get the correct PYTHONPATH
-import os.path
-_cur_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(_cur_dir, '../'))
-
 # project
 from bernard.core import Bernard
 from config import initialize_logging, get_config, get_parsed_args
