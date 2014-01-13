@@ -116,7 +116,9 @@ class MongoDb(AgentCheck):
             self.log.warn("Missing 'server' in mongo config")
             return
 
+        server = instance['server']
         tags = instance.get('tags', [])
+        tags.append('server:%s' % server)
 
         try:
             from pymongo import Connection
@@ -127,10 +129,10 @@ class MongoDb(AgentCheck):
         try:
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(instance['server'])
+            parsed = uri_parser.parse_uri(server)
         except ImportError:
             # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(instance['server'])
+            matches = mongo_uri_re.match(server)
             if matches:
                 parsed = matches.groupdict()
             else:
@@ -145,14 +147,14 @@ class MongoDb(AgentCheck):
 
         do_auth = True
         if username is None or password is None:
-            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['server'])
+            self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(instance['server'], network_timeout=DEFAULT_TIMEOUT)
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT)
         db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % instance['server'])
+                self.log.error("Mongo: cannot connect with config %s" % server)
 
         status = db["$cmd"].find_one({"serverStatus": 1})   
         status['stats'] = db.command('dbstats')
