@@ -6,12 +6,10 @@ import time
 # project
 import datadog.checks
 from bernard.check import BernardCheck, S
+from config import get_config
 
 log = logging.getLogger(__name__)
 
-# FIXME: Overriding the config for Checks client.
-API_KEY = 'apikey_2'
-BASE_URL = 'http://localhost:5000'
 
 class Scheduler(object):
     """ Schedule Bernard checks execution. """
@@ -63,7 +61,10 @@ class Scheduler(object):
             position += 1
 
         # Initialize our kima client.
-        self.checkserv_client = datadog.checks.connect(API_KEY, BASE_URL)
+        agent_config = get_config()
+        api_key = agent_config.get('api_key')
+        dd_url = agent_config.get('dd_url')
+        self.checkserv_client = datadog.checks.connect(api_key, dd_url)
 
     def _pop_check(self):
         """Return the next scheduled check
