@@ -1,7 +1,6 @@
 import re
 import types
 import time
-from datetime import datetime
 
 from checks import AgentCheck
 from util import get_hostname
@@ -156,10 +155,8 @@ class MongoDb(AgentCheck):
             if not db.authenticate(username, password):
                 self.log.error("Mongo: cannot connect with config %s" % server)
 
-        status = db["$cmd"].find_one({"serverStatus": 1})   
+        status = db["$cmd"].find_one({"serverStatus": 1})
         status['stats'] = db.command('dbstats')
-
-        results = {}
 
         # Handle replica data, if any
         # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
