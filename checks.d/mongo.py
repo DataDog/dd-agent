@@ -118,6 +118,8 @@ class MongoDb(AgentCheck):
         server = instance['server']
         tags = instance.get('tags', [])
         tags.append('server:%s' % server)
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
 
         try:
             from pymongo import Connection
