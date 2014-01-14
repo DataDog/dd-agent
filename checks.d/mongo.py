@@ -58,8 +58,7 @@ class MongoDb(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-
-        self._last_state = -1
+        self._last_state_by_server = {}
 
     def get_library_versions(self):
         try:
@@ -72,12 +71,12 @@ class MongoDb(AgentCheck):
 
         return {"pymongo": version}
 
-    def checkLastState(self, state, agentConfig):
-        if self._last_state != state:
-            self._last_state = state
-            return self.create_event(state, agentConfig)
+    def check_last_state(self, state, server, agentConfig):
+        if self._last_state_by_server.get(server, -1) != state:
+            self._last_state_by_server[server] = state
+            return self.create_event(state, server, agentConfig)
 
-    def create_event(self, state, agentConfig):
+    def create_event(self, state, server, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -95,8 +94,8 @@ class MongoDb(AgentCheck):
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (hostname, status)
-        msg = "MongoDB: %s just reported as %s" % (hostname, status)
+        msg_title = "%s is %s" % (server, status)
+        msg = "MongoDB %s just reported as %s" % (server, status)
 
         self.event({
             'timestamp': int(time.time()),
@@ -191,7 +190,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                self.checkLastState(data['state'], self.agentConfig)
+                self.check_last_state(data['state'], server, self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
