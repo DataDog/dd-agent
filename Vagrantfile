@@ -37,14 +37,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # argument is a set of non-required options.
   config.vm.synced_folder ".", "/src" #, nfs: true
 
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
-  config.vm.provider :virtualbox do |vb|
-    # Use VBoxManage to customize the VM. For example to change memory:
-    vb.customize ["modifyvm", :id, "--memory", "1024"]
-=======
   # Debian 7 box
   config.vm.define "debian" do |deb|
     deb.vm.box = "debagent"
@@ -80,6 +72,5 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     rh.vm.provision "shell", inline: "sudo yum -y install rubygems"
     rh.vm.provision "shell", inline: "sudo gem install --no-ri --no-rdoc fpm"
     rh.vm.provision "shell", inline: "sudo yum -y localinstall http://yum.datadoghq.com/rpm/supervisor-3.0-0.5.a10.el6.noarch.rpm"
->>>>>>> master
   end
 end
