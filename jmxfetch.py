@@ -32,14 +32,14 @@ class JMXFetch(object):
     @classmethod
     def init(cls, confd_path, agentConfig, logging_config, default_check_frequency):
         try:
-            should_run, java_bin_path = JMXFetch.should_run(confd_path)
+            should_run, java_bin_path, java_options = JMXFetch.should_run(confd_path)
 
             if should_run:
                 if JMXFetch.is_running():
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
-                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, default_check_frequency)
+                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, java_options, default_check_frequency)
         except Exception, e:
             log.exception("Error while initiating JMXFetch")
 
@@ -58,15 +58,22 @@ class JMXFetch(object):
     jmx check. So we need to parse yaml files to get it.
     We assume that this value is alwayws the same for every jmx check
     so we can return the first value returned
+
+    java_options: is string contains options that will be passed to java_bin_path
+    We assume that this value is alwayws the same for every jmx check
+    so we can return the first value returned
     """
 
         jmx_check_configured = False
         java_bin_path = None
+        java_options = None
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
 
-            if jmx_check_configured and java_bin_path is not None:
-                return (jmx_check_configured, java_bin_path)
+            java_bin_path_is_set = java_bin_path is not None
+            java_options_is_set = java_options is not None
+            if jmx_check_configured and java_bin_path_is_set and java_options_is_set:
+                return (jmx_check_configured, java_bin_path, java_options)
 
             check_name = os.path.basename(conf).split('.')[0]
 
@@ -100,11 +107,16 @@ class JMXFetch(object):
                         for instance in instances:
                             if instance and instance.get('java_bin_path'):
                                 java_bin_path = instance.get('java_bin_path')
-                    
+
+                    if java_options is None:
+                        for instance in instances:
+                            if instance and instance.get('java_options'):
+                                java_options = instance.get('java_options')
+
                     if init_config.get('is_jmx') or check_name in JMX_CHECKS:
                         jmx_check_configured = True
 
-        return (jmx_check_configured, java_bin_path)
+        return (jmx_check_configured, java_bin_path, java_options)
 
     @classmethod
     def is_running(cls):
@@ -171,18 +183,19 @@ class JMXFetch(object):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
 
     @classmethod
-    def start(cls, confd_path, agentConfig, logging_config, path_to_java, default_check_frequency):
+    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, default_check_frequency):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
         log.info("Starting jmxfetch:")
         try:
             path_to_java = path_to_java or "java"
+            java_run_opts = java_run_opts or ""
             path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
             path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
             
             subprocess_args = [
                 path_to_java, # Path to the java bin
-                '-jar', 
+                '-jar',
                 r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
                 r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch
                 str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
@@ -192,6 +205,10 @@ class JMXFetch(object):
                 ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
                 r"%s" % path_to_status_file,
             ]
+
+            if java_run_opts:
+                for opt in java_run_opts.split():
+                    subprocess_args.insert(1,opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
             cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)

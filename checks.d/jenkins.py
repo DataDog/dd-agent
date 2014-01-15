@@ -20,6 +20,17 @@ except ImportError:
 from util import get_hostname
 from checks import AgentCheck
 
+
+class Skip(Exception):
+    """
+    Raised by :class:`Jenkins` when it comes across
+    a build or job that should be excluded from being checked.
+    """
+    def __init__(self, reason, dir_name):
+        message = 'skipping build or job at %s because %s' % (dir_name, reason)
+        Exception.__init__(self, message)
+
+
 class Jenkins(AgentCheck):
     datetime_format = '%Y-%m-%d_%H-%M-%S'
 
@@ -28,6 +39,9 @@ class Jenkins(AgentCheck):
         self.high_watermarks = {}
 
     def _extract_timestamp(self, dir_name):
+        if not os.path.isdir(dir_name):
+            raise Skip('its not a build directory', dir_name)
+
         try:
             # Parse the timestamp from the directory name
             date_str = os.path.basename(dir_name)
@@ -37,12 +51,15 @@ class Jenkins(AgentCheck):
             raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
 
     def _get_build_metadata(self, dir_name):
+        if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
+            raise Skip('the build has already been archived', dir_name)
+
         # Read the build.xml metadata file that Jenkins generates
         build_metadata = os.path.join(dir_name, 'build.xml')
 
         if not os.access(build_metadata, os.R_OK):
             self.log.debug("Can't read build file at %s" % (build_metadata))
-            raise Exception("Can't read build file at %s" % (build_metadata))
+            raise Exception("Can't access build.xml at %s" % (build_metadata))
         else:
             tree = ElementTree()
             tree.parse(build_metadata)
@@ -50,9 +67,7 @@ class Jenkins(AgentCheck):
             keys = ['result', 'number', 'duration']
 
             kv_pairs = ((k, tree.find(k)) for k in keys)
-            d = dict([(k, v.text)
-                        for k, v in kv_pairs
-                        if v is not None])
+            d = dict([(k, v.text) for k, v in kv_pairs if v is not None])
 
             try:
                 d['branch'] = tree.find('actions')\
@@ -79,7 +94,11 @@ class Jenkins(AgentCheck):
                 # We try to get the last valid build
                 for index in xrange(0, len(dirs) - 1):
                     dir_name = dirs[index]
-                    timestamp = self._extract_timestamp(dir_name)
+                    try:
+                        timestamp = self._extract_timestamp(dir_name)
+                    except Skip:
+                        continue
+
                     # Check if it's a new build
                     if timestamp > self.high_watermarks[instance_key][job_name]:
                         # If we can't get build metadata, we try the previous one
@@ -89,10 +108,10 @@ class Jenkins(AgentCheck):
                             continue
 
                         output = {
-                                'job_name':     job_name,
-                                'timestamp':    timestamp,
-                                'event_type':   'build result'
-                            }
+                            'job_name':     job_name,
+                            'timestamp':    timestamp,
+                            'event_type':   'build result'
+                        }
                         output.update(build_metadata)
                         self.high_watermarks[instance_key][job_name] = timestamp
                         yield output
@@ -121,9 +140,8 @@ class Jenkins(AgentCheck):
         job_dirs = glob(os.path.join(jenkins_home, 'jobs', '*'))
 
         if not job_dirs:
-            raise Exception("Jobs directory is empty! Make sure the jenkins_home path is correct")
-
-        build_events = []
+            raise Exception('No jobs found in `%s`! '
+                            'Check `jenkins_home` in your config' % (job_dirs))
 
         for job_dir in job_dirs:
             for output in self._get_build_results(instance.get('name'), job_dir):

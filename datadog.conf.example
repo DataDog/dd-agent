@@ -23,6 +23,9 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Collect AWS EC2 custom tags as agent tags
+# collect_ec2_tags: no
+
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided
