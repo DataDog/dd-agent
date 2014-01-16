@@ -1,13 +1,13 @@
-import urlparse
-import urllib2
+import base64
 import socket
 import subprocess
 import sys
-from datetime import datetime
 import time
+import urlparse
+import urllib2
 
-from checks import AgentCheck
 from util import json, headers
+from checks import AgentCheck
 
 HEALTH_URL = "/_cluster/health?pretty=true"
 STATS_URL = "/_cluster/nodes/stats?all=true"
@@ -133,6 +133,13 @@ class ElasticSearch(AgentCheck):
         if config_url is None:
             raise Exception("An url must be specified")
 
+        # Load basic authentication configuration, if available.
+        username, password = instance.get('username'), instance.get('password')
+        if username and password:
+            auth = (username, password)
+        else:
+            auth = None
+
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
         parsed = urlparse.urlparse(config_url)
@@ -144,22 +151,27 @@ class ElasticSearch(AgentCheck):
 
         # Load stats data.
         url = urlparse.urljoin(config_url, STATS_URL)
-        stats_data = self._get_data(url)
-        self._process_stats_data(config_url, stats_data, tags=tags)
+        stats_data = self._get_data(url, auth)
+        self._process_stats_data(config_url, stats_data, auth, tags=tags)
 
         # Load the health data.
         url = urlparse.urljoin(config_url, HEALTH_URL)
-        health_data = self._get_data(url)
+        health_data = self._get_data(url, auth)
         self._process_health_data(config_url, health_data, tags=tags)
 
-    def _get_data(self, url):
-        """ Hit a given URL and return the parsed json """
+    def _get_data(self, url, auth=None):
+        """ Hit a given URL and return the parsed json
+            `auth` is a tuple of (username, password) or None
+        """
         req = urllib2.Request(url, None, headers(self.agentConfig))
+        if auth:
+            encoded_auth_str = base64.encodestring('%s:%s' % (auth[0], auth[1]))
+            req.add_header('Authorization', 'Basic %s' % encoded_auth_str)
         request = urllib2.urlopen(req)
         response = request.read()
         return json.loads(response)
 
-    def _process_stats_data(self, config_url, data, tags=None):
+    def _process_stats_data(self, config_url, data, auth, tags=None):
         for node in data['nodes']:
             node_data = data['nodes'][node]
 
@@ -182,18 +194,22 @@ class ElasticSearch(AgentCheck):
                 # against the primary IP from ES
                 try:
                     nodes_url = urlparse.urljoin(config_url, NODES_URL)
-                    primary_addr = self._get_primary_addr(self.agentConfig, nodes_url, node)
+                    primary_addr = self._get_primary_addr(nodes_url, node, auth)
                 except NodeNotFound:
                     # Skip any nodes that aren't found
                     continue
                 if self._host_matches_node(primary_addr):
                     self._map_metric(process_metric)
 
-    def _get_primary_addr(self, agentConfig, url, node_name):
+    def _get_primary_addr(self, url, node_name, auth):
         """ Returns a list of primary interface addresses as seen by ES.
             Used in ES < 0.19
         """
-        req = urllib2.Request(url, None, headers(agentConfig))
+        req = urllib2.Request(url, None, headers(self.agentConfig))
+        # Load basic authentication configuration, if available.
+        if auth:
+            encoded_auth_str = base64.encodestring('%s:%s' % (auth[0], auth[1]))
+            req.add_header('Authorization', 'Basic %s' % encoded_auth_str)
         request = urllib2.urlopen(req)
         response = request.read()
         data = json.loads(response)

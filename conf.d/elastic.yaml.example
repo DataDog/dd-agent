@@ -1,4 +1,13 @@
 init_config:
 
 instances:
-    - #url: http://localhost:9200
+    # The URL where elasticsearch accepts HTTP requests. This will be used to
+    # fetch statistics from the nodes and information about the cluster health.
+    #
+    # If you're using basic authentication with a 3rd party library, for example
+    # elasticsearch-http-basic, you will need to specify and value for username
+    # and password for every instance that requires authentication.
+    #
+    #-  url: localhost:9200
+    #   username: username
+    #   password: password
