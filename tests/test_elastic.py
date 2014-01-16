@@ -56,7 +56,8 @@ class TestElastic(unittest.TestCase):
         self.check = load_check('elastic', conf, agentConfig)
         
         self.check.check(conf['instances'][0])
-
+        events = self.check.get_events()
+        self.assertEquals(len(events),1,events)
         r = self.check.get_metrics()
 
         self.assertTrue(type(r) == type([]))
