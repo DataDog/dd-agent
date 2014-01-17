@@ -208,7 +208,6 @@ class JMXFetch(object):
                 path_to_java, # Path to the java bin
                 '-jar',
                 r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
-                '--check', " ".join(jmx_checks), # List of jmx checks
                 '--check_period', str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
                 '--conf_directory', r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch,
                 '--log_level', JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
@@ -217,6 +216,10 @@ class JMXFetch(object):
                 '--status_location', r"%s" % path_to_status_file, # Path to the status file to write    
                 command, # Name of the command          
             ]
+
+            subprocess_args.insert(3, '--check')
+            for check in jmx_checks:
+                subprocess_args.insert(4, check)
 
             if java_run_opts:
                 for opt in java_run_opts.split():
