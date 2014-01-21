@@ -59,10 +59,6 @@ class Bernard(Daemon):
 
         # load Bernard config and checks
         bernard_config = get_bernard_config()
-        if not len(bernard_config['checks']):
-            log.info('There are no checks for the scheduler. Exiting.')
-            sys.exit(0)
-
         self.scheduler = Scheduler.from_config(self.hostname,
                                                bernard_config,
                                                DogStatsd())

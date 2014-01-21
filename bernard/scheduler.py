@@ -10,6 +10,7 @@ from config import get_config
 
 log = logging.getLogger(__name__)
 
+MAX_WAIT_TIME = 300
 
 class Scheduler(object):
     """ Schedule Bernard checks execution. """
@@ -63,6 +64,12 @@ class Scheduler(object):
 
     def wait_time(self):
         now = time.time()
+        # FIXME: We're letting bernard run even when there are no checks
+        # defined so that the init script works. We can either adjust the init
+        # script to allow bernard to stop immediately or continue this way.
+        if not len(self.schedule):
+            return MAX_WAIT_TIME
+
         if self.schedule[0][0] <= now:
             return 0
         else:
@@ -74,6 +81,8 @@ class Scheduler(object):
     def process(self):
         """ Execute the next scheduled check """
         check = self._pop_check()
+        if not check:
+            return
         result = check.run(self.dogstatsd_client)
         self.schedule_count += 1
 
