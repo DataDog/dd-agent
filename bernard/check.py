@@ -267,7 +267,7 @@ def _subprocess_command(raw_command, params, hostname):
     # Split into subprocess format.
     command_split = raw_command.split()
     if len(command_split) == 0:
-        raise Exception('Invalid command in config: %v' % raw_command)
+        raise Exception('Invalid command in config: %s' % raw_command)
     parsed_command = [command_split[0]]
     if len(command_split[1:]):
         parsed_command.extend(shlex.split(' '.join(command_split[1:])))
