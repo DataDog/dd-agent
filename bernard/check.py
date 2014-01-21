@@ -8,11 +8,7 @@ import subprocess
 import time
 
 # project
-from util import (
-    get_hostname,
-    namedtuple,
-    StaticWatchdog,
-)
+from util import namedtuple, StaticWatchdog
 
 class Timeout(Exception):
     pass
@@ -45,12 +41,11 @@ class BernardCheck(object):
         ]))
 
     @classmethod
-    def from_config(cls, check_config, hostname=None):
+    def from_config(cls, check_config):
         name = check_config['name']
         options = check_config['options']
         raw_command = check_config['command']
         param_dict = check_config['params']
-        hostname = hostname or get_hostname()
 
         # Stringify all of the check params. We expect everything to be
         # strings through the pipeline so we'll do it early on.
@@ -59,7 +54,7 @@ class BernardCheck(object):
 
         # For every set of params (e.g.: {'port': 8888}) return a single check.
         # We'll template the $variables in the `command` value with the params.
-        command = _subprocess_command(raw_command, param_dict, hostname)
+        command = _subprocess_command(raw_command, param_dict)
         return cls(name, command, options, param_dict)
 
     def __init__(self, name, command, options, params):
@@ -238,7 +233,7 @@ class BernardCheck(object):
         }
 
 
-def _subprocess_command(raw_command, params, hostname):
+def _subprocess_command(raw_command, params):
     """ Given a raw command from the Bernard config and a dictionary of check
         parameter, return a list that's subprocess-compatible for running the
         command. We'll replace all command "variables" with a real parameter.
@@ -246,10 +241,6 @@ def _subprocess_command(raw_command, params, hostname):
     >>> _subprocess_command("/usr/bin/check_pg -p $port", {'port': '5433'})
     ['/usr/bin/check_pg', ['-p', '5433']]
     """
-    # $host is always available as a parameter.
-    if 'host' not in params:
-        params['host'] = hostname
-
     # Replace variables.
     for param, val in params.iteritems():
         raw_command = raw_command.replace('$%s' % param, val)
