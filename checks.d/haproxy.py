@@ -12,7 +12,7 @@ try:
 except ImportError:
     from compat.defaultdict import defaultdict
 
-STATS_URL = ";csv;norefresh"
+STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
 class Services(object):
