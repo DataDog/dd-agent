@@ -32,7 +32,7 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
 from util import Watchdog, PidFile, EC2, get_os
@@ -313,8 +313,6 @@ def main():
             print "You have to specify one of the following command %s" % JMX_LIST_COMMANDS
         else:
             jmx_command = args[1]
-            from config import get_confd_path, get_logging_config
-            from util import get_os
             JMXFetch.init(get_confd_path(get_os()), agentConfig, get_logging_config(), 15, jmx_command)
 
 
