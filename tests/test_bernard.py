@@ -158,14 +158,14 @@ class TestBernardCheck(unittest.TestCase):
 
     def _get_test_checks(self):
         return [
-            BernardCheck.from_config(self._get_check_config('check_ok'))[0],
-            BernardCheck.from_config(self._get_check_config('check_warning'))[0],
-            BernardCheck.from_config(self._get_check_config('check_wrong_exit'))[0],
-            BernardCheck.from_config(self._get_check_config('check_disappeared'))[0],
+            BernardCheck.from_config(self._get_check_config('check_ok')),
+            BernardCheck.from_config(self._get_check_config('check_warning')),
+            BernardCheck.from_config(self._get_check_config('check_wrong_exit')),
+            BernardCheck.from_config(self._get_check_config('check_disappeared')),
         ]
 
     def _get_timeout_check(self):
-        return BernardCheck.from_config(self._get_check_config('check_timeout'))[0]
+        return BernardCheck.from_config(self._get_check_config('check_timeout'))
 
     def _get_scheduler(self, checks):
         return Scheduler(checks, get_hostname(), FakeDogstatsd())

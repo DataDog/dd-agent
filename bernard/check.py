@@ -51,7 +51,6 @@ class BernardCheck(object):
         raw_command = check_config['command']
         param_dict = check_config['params']
         hostname = hostname or get_hostname()
-        checks = []
 
         # Stringify all of the check params. We expect everything to be
         # strings through the pipeline so we'll do it early on.
@@ -61,9 +60,7 @@ class BernardCheck(object):
         # For every set of params (e.g.: {'port': 8888}) return a single check.
         # We'll template the $variables in the `command` value with the params.
         command = _subprocess_command(raw_command, param_dict, hostname)
-        checks.append(cls(name, command, options, param_dict))
-
-        return checks
+        return cls(name, command, options, param_dict)
 
     def __init__(self, name, command, options, params):
         """ Initializes a BernardCheck with the given `name` and `command`.
