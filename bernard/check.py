@@ -232,6 +232,13 @@ class BernardCheck(object):
             'execution_time': result.execution_time,
         }
 
+    def get_sanitized_params(self):
+        """ Return a list of the check params, excluding those that are
+            explicitly skipped by the configuration file, e.g. `password`.
+        """
+        return dict((k, v) for k,v in self.params
+                    if k not in self.options['exclude_tags'])
+
 
 def _subprocess_command(raw_command, params):
     """ Given a raw command from the Bernard config and a dictionary of check

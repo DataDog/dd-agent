@@ -28,6 +28,7 @@ def get_bernard_config():
     default_options = {
         'period': int(c.get('bernard_default_period', DEFAULT_PERIOD)),
         'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT)),
+        'exclude_tags': [],
     }
 
     return {
