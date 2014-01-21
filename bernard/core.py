@@ -6,17 +6,12 @@ import time
 
 # project
 from bernard.check import R, S
+from bernard.config_parser import get_bernard_config
 from bernard.scheduler import Scheduler
 from checks.check_status import AgentStatus, style
-from config import get_config_path
 from daemon import Daemon, AgentSupervisor
 from dogstatsd_client import DogStatsd
-from util import (
-    StaticWatchdog,
-    get_os,
-    yaml,
-    yLoader,
-)
+from util import StaticWatchdog
 
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
 BERNARD_CONF = "bernard.yaml"
@@ -51,7 +46,7 @@ class Bernard(Daemon):
         return BernardStatus.print_latest_status(verbose=verbose)
 
     def run(self):
-        """Main loop of Bernard"""
+        """ Main loop of Bernard """
 
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
@@ -63,10 +58,9 @@ class Bernard(Daemon):
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
         # load Bernard config and checks
-        bernard_config = get_bernard_config()
-        dogstatsd_client = DogStatsd()
-        self.scheduler = Scheduler.from_config(self.hostname, bernard_config,
-                                               dogstatsd_client)
+        self.scheduler = Scheduler.from_config(self.hostname,
+                                               get_bernard_config(),
+                                               DogStatsd())
 
         # Save the agent start-up stats.
         BernardStatus(checks=self.scheduler.checks).persist()
@@ -117,6 +111,7 @@ class Bernard(Daemon):
         log.info("Running an auto-restart.")
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+
 class BernardStatus(AgentStatus):
 
     NAME = 'Bernard'
@@ -164,24 +159,3 @@ class BernardStatus(AgentStatus):
         status_info.update(check_stats)
 
         return status_info
-
-def get_bernard_config():
-    """Return the configuration of Bernard"""
-    config_path = get_config_path(os_name=get_os(), filename=BERNARD_CONF)
-
-    try:
-        f = open(config_path)
-    except (IOError, TypeError):
-        log.info("Bernard isn't configured: can't find %s" % BERNARD_CONF)
-        return {}
-    try:
-        bernard_config = yaml.load(f.read(), Loader=yLoader)
-        assert bernard_config is not None
-        f.close()
-    except Exception:
-        f.close()
-        log.error("Unable to parse yaml config in %s" % config_path)
-        return {}
-
-    return bernard_config
-

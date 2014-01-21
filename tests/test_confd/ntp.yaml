@@ -1,0 +1,16 @@
+#
+# A single custom service check
+#
+
+init_config:
+    service_checks:
+        check_ntp:
+            command: /usr/local/bin/check_ntp -H $host
+            options:
+                timeout: 5
+                period: 15
+
+instances:
+    -   host: ntp1.pool.ntp.org
+        service_checks:
+            - check_ntp

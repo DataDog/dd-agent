@@ -5,6 +5,7 @@ import time
 logger = logging.getLogger()
 from bernard.scheduler import Scheduler
 from bernard.check import BernardCheck, R, S
+from bernard.config_parser import read_service_checks
 from dogstatsd_client import DogStatsd
 from util import get_hostname
 
@@ -148,30 +149,39 @@ class TestBernardCheck(unittest.TestCase):
         self.assertTrue(scheduler.schedule[1][0] <= scheduler.schedule[2][0])
         self.assertTrue(scheduler.schedule[2][0] <= scheduler.schedule[3][0])
 
+    def test_config_parsing(self):
+        """ Dumb simple test to test that config parsing works """
+        path = os.path.dirname(os.path.abspath(__file__))
+        yaml_path = os.path.join(path, 'test_confd')
+        checks = read_service_checks(yaml_path, {})
+        self.assertEqual(len(checks), 7)
+
     def _get_test_checks(self):
         return [
-            BernardCheck.from_config('check_ok', self._get_check_config('check_ok'), {})[0],
-            BernardCheck.from_config('check_warning', self._get_check_config('check_warning'), {})[0],
-            BernardCheck.from_config('check_wrong_exit', self._get_check_config('check_wrong_exit'), {})[0],
-            BernardCheck.from_config('check_disappeared', self._get_check_config('check_disappeared'), {})[0],
+            BernardCheck.from_config(self._get_check_config('check_ok'))[0],
+            BernardCheck.from_config(self._get_check_config('check_warning'))[0],
+            BernardCheck.from_config(self._get_check_config('check_wrong_exit'))[0],
+            BernardCheck.from_config(self._get_check_config('check_disappeared'))[0],
         ]
 
     def _get_timeout_check(self):
-        return BernardCheck.from_config('check_timeout', self._get_check_config('check_timeout'), {})[0]
+        return BernardCheck.from_config(self._get_check_config('check_timeout'))[0]
 
     def _get_scheduler(self, checks):
-        return Scheduler(checks, {}, get_hostname(), FakeDogstatsd())
+        return Scheduler(checks, get_hostname(), FakeDogstatsd())
 
     def _get_check_config(self, command):
         path = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(path, 'bernard_checks')
         return {
+            'name': command,
             'command': os.path.join(path, command),
             'options': {
                 'period': 60,
                 'attempts': 3,
                 'timeout': 1,
-            }
+            },
+            'params': {}
         }
 
 

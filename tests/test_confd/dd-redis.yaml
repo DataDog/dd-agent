@@ -1,0 +1,38 @@
+#
+# Multiple custom service checks, with different checks per instance
+#
+
+init_config:
+    service_checks:
+        check_redis_latency:
+            command: /usr/local/bin/check_redis_latency -h $host -p $port
+            options:
+                timeout: 5
+                period: 15
+
+        check_redis_queue:
+            command: /usr/local/bin/check_redis_queue -h $host -p $port -d $db
+            options:
+                timeout: 5
+                period: 15
+
+        check_redis_livecache:
+            command: /usr/local/bin/check_redis_livecache -h $host -p $port -d $db
+            options:
+                timeout: 5
+                period: 15
+
+instances:
+    -   host: localhost
+        port: 6380
+        db: 0
+        service_checks:
+            - check_redis_latency
+            - check_redis_queue
+
+    -   host: livecache1.datadog.com
+        port: 6379
+        db: 1
+        service_checks:
+            - check_redis_latency
+            - check_redis_livecache

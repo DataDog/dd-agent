@@ -17,37 +17,25 @@ class Scheduler(object):
     # Ratio of jitter to introduce in the scheduling
     JITTER_FACTOR = 0.1
 
-    # Check config defaults
-    DEFAULT_TIMEOUT = 5
-    DEFAULT_PERIOD = 15
-
     @classmethod
     def from_config(cls, hostname, bernard_config, dogstatsd_client):
-        schedule_config = bernard_config.get('core', {}).get('schedule', {})
         bernard_checks = []
 
-        default_options = {
-            'timeout': int(schedule_config.get('timeout', cls.DEFAULT_TIMEOUT)),
-            'period': int(schedule_config.get('period', cls.DEFAULT_PERIOD)),
-        }
-
-        check_configs = bernard_config.get('checks') or {}
-        for check_name, check_config in check_configs.iteritems():
+        check_configs = bernard_config.get('checks') or []
+        for check_config in check_configs:
             try:
-                check = BernardCheck.from_config(check_name, check_config,
-                                                 default_options, hostname)
+                check = BernardCheck.from_config(check_config, hostname)
             except Exception:
-                log.exception('Unable to load check %s' % check_name)
+                log.exception('Unable to load check %s' % check_config['name'])
             else:
                 bernard_checks.extend(check)
 
-        return cls(checks=bernard_checks, config=bernard_config,
-                   hostname=hostname, dogstatsd_client=dogstatsd_client)
+        return cls(checks=bernard_checks, hostname=hostname,
+                   dogstatsd_client=dogstatsd_client)
 
-    def __init__(self, checks, config, hostname, dogstatsd_client):
+    def __init__(self, checks, hostname, dogstatsd_client):
         """ Initialize scheduler """
         self.checks = checks
-        self.config = config
         self.hostname = hostname
         self.dogstatsd_client = dogstatsd_client
         self.schedule_count = 0
@@ -67,9 +55,9 @@ class Scheduler(object):
         self.checkserv_client = datadog.checks.connect(api_key, dd_url)
 
     def _pop_check(self):
-        """Return the next scheduled check
-        Because we call wait_time before it, no need to
-        check if the timestamp is in the past"""
+        """ Return the next scheduled check. Because we call wait_time before,
+            no need to check if the timestamp is in the past
+        """
         if self.schedule:
             return self.schedule.pop(0)[1]
 

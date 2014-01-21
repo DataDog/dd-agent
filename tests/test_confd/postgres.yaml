@@ -1,0 +1,31 @@
+#
+# Standard Datadog check with service checks
+#
+
+init_config:
+    service_checks:
+        check_pg:
+            command: /usr/local/bin/check_pg -p $port -d $dbname
+            options:
+                timeout: 2
+                period: 15
+
+instances:
+    -   host: localhost
+        port: 5432
+        username: my_username
+        password: my_password
+        dbname: postgres
+        service_checks:
+            - check_pg
+
+    # instance that overrides service check options
+    -   host: localhost
+        port: 5433
+        username: my_username
+        password: my_password
+        dbname: dogdataprod
+        service_checks:
+            - check_pg:
+                options:
+                    timeout: 10

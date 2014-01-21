@@ -16,7 +16,7 @@ from util import (
 log = logging.getLogger(__name__)
 
 def main():
-    """" Execution of Bernard"""
+    """ Execution of Bernard """
     # Check we're not using an old version of Python. We need 2.4 above because
     # some modules (like subprocess) were only introduced in 2.4.
     if int(sys.version_info[1]) <= 3:

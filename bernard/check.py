@@ -45,41 +45,34 @@ class BernardCheck(object):
         ]))
 
     @classmethod
-    def from_config(cls, name, check_config, defaults, hostname=None):
-        options = check_config.get('options', {})
-        timeout = int(options.get('timeout', 0))
-        period = int(options.get('period', 0))
-        raw_command = check_config.get('command')
-        params_list = check_config.get('params') or [{}]
+    def from_config(cls, check_config, hostname=None):
+        name = check_config['name']
+        options = check_config['options']
+        raw_command = check_config['command']
+        param_dict = check_config['params']
         hostname = hostname or get_hostname()
-
-        check_config = {
-            'timeout': timeout or defaults['timeout'],
-            'period': period or defaults['period'],
-        }
         checks = []
+
+        # Stringify all of the check params. We expect everything to be
+        # strings through the pipeline so we'll do it early on.
+        for k, v in param_dict.iteritems():
+            param_dict[k] = str(v)
 
         # For every set of params (e.g.: {'port': 8888}) return a single check.
         # We'll template the $variables in the `command` value with the params.
-        for param_dict in params_list:
-            # Stringify all of the check params. We expect everything to be
-            # strings through the pipeline so we'll do it early on.
-            for k, v in param_dict.iteritems():
-                param_dict[k] = str(v)
-
-            command = _subprocess_command(raw_command, param_dict, hostname)
-            checks.append(cls(name, command, check_config, param_dict))
+        command = _subprocess_command(raw_command, param_dict, hostname)
+        checks.append(cls(name, command, options, param_dict))
 
         return checks
 
-    def __init__(self, name, command, config, params):
+    def __init__(self, name, command, options, params):
         """ Initializes a BernardCheck with the given `name` and `command`.
-            Any additional config (e.g. timeout or period) are given in the
-            `config` dict. `command` is expected to be in a subprocess-friendly
+            Any additional options (e.g. timeout or period) are given in the
+            `options` dict. `command` is expected to be in a subprocess-friendly
             form, e.g.: ['check_foo', ['-h', 'localhost']].
         """
         self.name = name
-        self.config = config
+        self.options = options
         self.command = command
         self.params = params
         self.run_count = 0
@@ -94,10 +87,10 @@ class BernardCheck(object):
         return self.name
 
     def get_period(self):
-        return self.config['period']
+        return self.options['period']
 
     def _execute_check(self):
-        timeout = self.config.get('timeout')
+        timeout = self.options.get('timeout')
         output = None
         returncode = None
 
@@ -141,7 +134,7 @@ class BernardCheck(object):
             if output is None:
                 state = S.TIMEOUT
                 status = R.UNKNOWN
-                message = 'Check %s timed out after %ds' % (self, self.config['timeout'])
+                message = 'Check %s timed out after %ds' % (self, self.options['timeout'])
             else:
                 if returncode not in R.ALL:
                     state = S.INVALID_OUTPUT
