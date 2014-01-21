@@ -58,8 +58,13 @@ class Bernard(Daemon):
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
         # load Bernard config and checks
+        bernard_config = get_bernard_config()
+        if not len(bernard_config['checks']):
+            log.info('There are no checks for the scheduler. Exiting.')
+            sys.exit(0)
+
         self.scheduler = Scheduler.from_config(self.hostname,
-                                               get_bernard_config(),
+                                               bernard_config,
                                                DogStatsd())
 
         # Save the agent start-up stats.
