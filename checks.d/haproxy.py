@@ -74,7 +74,7 @@ class HAProxy(AgentCheck):
         authhandler = urllib2.HTTPBasicAuthHandler(passman)
         opener = urllib2.build_opener(authhandler)
         urllib2.install_opener(opener)
-        url = "%s%s" % (url, STATS_URL)
+        url = urllib2.urlparse.urljoin(url, STATS_URL)
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
