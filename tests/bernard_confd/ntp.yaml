@@ -11,6 +11,6 @@ init_config:
                 period: 15
 
 instances:
-    -   host: ntp1.pool.ntp.org
+    -   ntp_host: ntp1.pool.ntp.org
         service_checks:
             - check_ntp

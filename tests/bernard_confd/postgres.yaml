@@ -27,7 +27,7 @@ instances:
         port: 5433
         username: my_username
         password: my_password
-        dbname: dogdataprod
+        dbname: proddb
         service_checks:
             - check_pg:
                 options:

@@ -43,7 +43,7 @@ instances:
             - check_redis_latency
             - check_redis_queue
 
-    -   host: livecache1.datadog.com
+    -   host: localhost
         port: 6379
         db: 1
         service_checks:

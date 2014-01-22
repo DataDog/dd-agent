@@ -24,21 +24,15 @@ def get_bernard_config():
         about, e.g.: default timeout and period.
     """
     confd_path = get_confd_path(get_os())
-    c = get_config()
-    default_options = {
-        'period': int(c.get('bernard_default_period', DEFAULT_PERIOD)),
-        'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT)),
-        'tag_by': ['host'],
-        'additional_tags': [],
-    }
-
+    confd_files = glob.glob(os.path.join(confd_path, '*.yaml'))
     return {
-        'checks': read_service_checks(confd_path, default_options)
+        'checks': read_service_checks(confd_files, _get_default_options())
     }
 
-def read_service_checks(confd_path, default_options):
-    """ Return a list of configuration for every check that's defined among
-        the conf.d files in `confd_path`. The `default_options` argument
+
+def read_service_checks(confd_files, default_options):
+    """ Return a list of configuration for every check that's defined among the
+        conf.d file paths in `confd_files`. The `default_options` argument
         includes any global defaults that should apply to any check if not
         defined at a lower level, e.g. timeout.
 
@@ -47,7 +41,7 @@ def read_service_checks(confd_path, default_options):
             [{
                 'name': 'check_pg',
                 'command': '/usr/local/bin/check_pg',
-                'parameters': {'db': 'mydb', 'port': '5432', ...}
+                'params': {'db': 'mydb', 'port': '5432', ...}
                 'options': {'timeout': 5, 'period': 15, 'tag_by': ['host'], ...}
             }, ...]
     """
@@ -55,7 +49,7 @@ def read_service_checks(confd_path, default_options):
 
     # Build up a list of conf.d configs parsed into python objects.
     # We'll ignore any configs that don't include any service checks.
-    for confd_file in glob.glob(os.path.join(confd_path, '*.yaml')):
+    for confd_file in confd_files:
         f = open(confd_file)
         try:
             # We're not going to error when the over config format isn't
@@ -99,15 +93,23 @@ def read_service_checks(confd_path, default_options):
                 for opt, default in default_options.iteritems():
                     if opt not in service_options:
                         service_options[opt] = default
-                    # special-case the "tag_by" - always include host
-                    if opt is 'tag_by' and 'host' not in service_options[opt]:
-                        service_options[opt].append('host')
 
                 service_checks.append({
                     'name': name,
                     'command': base_service_check['command'],
-                    'parameters': instance,
+                    'params': instance,
                     'options': service_options
                 })
 
     return service_checks
+
+
+def _get_default_options():
+    """ Returns the global default options for all checks. """
+    c = get_config()
+    return {
+        'period': int(c.get('bernard_default_period', DEFAULT_PERIOD)),
+        'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT)),
+        'tag_by': ['host'],
+        'additional_tags': [],
+    }
