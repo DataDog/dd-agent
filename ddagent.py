@@ -380,19 +380,23 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
 
-        # non_local_traffic must be == True to match, not just some non-false value
-        if non_local_traffic is True:
-            http_server.listen(self._port)
-        else:
-            # localhost in lieu of 127.0.0.1 to support IPv6
-            try:
-                http_server.listen(self._port, address = "localhost")
-            except gaierror:
-                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
-                http_server.listen(self._port, address = "127.0.0.1")
-            except socket_error, e:
-                log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
-                sys.exit(1)
+        try:
+            # non_local_traffic must be == True to match, not just some non-false value
+            if non_local_traffic is True:
+                http_server.listen(self._port)
+            else:
+                # localhost in lieu of 127.0.0.1 to support IPv6
+                try:
+                    http_server.listen(self._port, address = "localhost")
+                except gaierror:
+                    log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                    http_server.listen(self._port, address = "127.0.0.1")
+        except socket_error, e:
+            log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
+            sys.exit(1)
+        except Exception, e:
+            log.exception("Uncaught exception. Forwarder is exiting.")
+            sys.exit(1)
 
         log.info("Listening on port %d" % self._port)
 
