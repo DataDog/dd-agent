@@ -232,12 +232,29 @@ class BernardCheck(object):
             'execution_time': result.execution_time,
         }
 
-    def get_sanitized_params(self):
-        """ Return a list of the check params, excluding those that are
-            explicitly skipped by the configuration file, e.g. `password`.
+    def get_check_run_params(self):
+        """ Return a list of the check params, filtered from the full list of
+            parameters by the `tag_by` option in the parameter. Also include
+            any tags added with the `additional_tags` option.
         """
-        return dict((k, v) for k,v in self.params
-                    if k not in self.options['exclude_tags'])
+        run_params = {}
+        for tag_by in self.options['tag_by']:
+            if tag_by in self.params:
+                run_params[tag_by] = self.params[tag_by]
+
+        # Add the additional tags, which we expect to be in key:val form. Skip
+        # any tags that are not in this form. Override existing tags if the keys
+        # match.
+        for tag in self.options['additional_tags']:
+            try:
+                key, val = tag.split(':')
+            except ValueError:
+                log.error('Invalid additional tag in configuration: %s' % tag)
+                continue
+            else:
+                run_params[key] = val
+
+        return run_params
 
 
 def _subprocess_command(raw_command, params):

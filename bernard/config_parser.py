@@ -28,7 +28,8 @@ def get_bernard_config():
     default_options = {
         'period': int(c.get('bernard_default_period', DEFAULT_PERIOD)),
         'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT)),
-        'exclude_tags': [],
+        'tag_by': ['host'],
+        'additional_tags': [],
     }
 
     return {
@@ -47,7 +48,7 @@ def read_service_checks(confd_path, default_options):
                 'name': 'check_pg',
                 'command': '/usr/local/bin/check_pg',
                 'parameters': {'db': 'mydb', 'port': '5432', ...}
-                'options': {'timeout': 5, 'period': 15}
+                'options': {'timeout': 5, 'period': 15, 'tag_by': ['host'], ...}
             }, ...]
     """
     service_checks = []
@@ -98,6 +99,9 @@ def read_service_checks(confd_path, default_options):
                 for opt, default in default_options.iteritems():
                     if opt not in service_options:
                         service_options[opt] = default
+                    # special-case the "tag_by" - always include host
+                    if opt is 'tag_by' and 'host' not in service_options[opt]:
+                        service_options[opt].append('host')
 
                 service_checks.append({
                     'name': name,

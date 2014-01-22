@@ -9,9 +9,9 @@ init_config:
             options:
                 timeout: 2
                 period: 15
-                exclude_tags:
-                    - password
-                    - username
+                tag_by:
+                    - port
+                    - dbname
 
 instances:
     -   host: localhost

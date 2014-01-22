@@ -129,5 +129,5 @@ class Scheduler(object):
                 status=result.status,
                 output=result.message,
                 timestamp=result.execution_date,
-                params=check.get_sanitized_params(),
+                params=check.get_check_run_params(),
                 host_name=self.hostname)
