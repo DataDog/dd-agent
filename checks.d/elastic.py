@@ -1,4 +1,3 @@
-import base64
 import socket
 import subprocess
 import sys
@@ -8,6 +7,7 @@ import urllib2
 
 from util import json, headers
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 HEALTH_URL = "/_cluster/health?pretty=true"
 STATS_URL = "/_cluster/nodes/stats?all=true"
@@ -165,8 +165,7 @@ class ElasticSearch(AgentCheck):
         """
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if auth:
-            encoded_auth_str = base64.encodestring('%s:%s' % (auth[0], auth[1]))
-            req.add_header('Authorization', 'Basic %s' % encoded_auth_str)
+            add_basic_auth(req, *auth)
         request = urllib2.urlopen(req)
         response = request.read()
         return json.loads(response)
@@ -208,8 +207,7 @@ class ElasticSearch(AgentCheck):
         req = urllib2.Request(url, None, headers(self.agentConfig))
         # Load basic authentication configuration, if available.
         if auth:
-            encoded_auth_str = base64.encodestring('%s:%s' % (auth[0], auth[1]))
-            req.add_header('Authorization', 'Basic %s' % encoded_auth_str)
+            add_basic_auth(req, *auth)
         request = urllib2.urlopen(req)
         response = request.read()
         data = json.loads(response)
