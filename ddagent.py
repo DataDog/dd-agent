@@ -26,7 +26,7 @@ from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
-from socket import gaierror
+from socket import gaierror, error as socket_error
 
 # Tornado
 import tornado.httpserver
@@ -390,6 +390,9 @@ class Application(tornado.web.Application):
             except gaierror:
                 log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
                 http_server.listen(self._port, address = "127.0.0.1")
+            except socket_error, e:
+                log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
+                sys.exit(1)
 
         log.info("Listening on port %d" % self._port)
 
