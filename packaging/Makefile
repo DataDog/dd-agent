@@ -12,7 +12,7 @@ BUILD_NUMBER ?= 0
 
 VERSION=`PYTHONPATH=$(SRC) python -c "from config import get_version; print get_version()"`
 
-FPM_BUILD=fpm -s dir -e -C $(BUILD) \
+FPM_BUILD=fpm --epoch 1 -s dir -e -C $(BUILD) \
 -a all -m "Datadog Packages <package@datadoghq.com>" \
 --url "http://www.datadoghq.com/" \
 --description "`cat desc`"\
