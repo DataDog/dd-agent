@@ -320,7 +320,6 @@ class ElasticSearch(AgentCheck):
         return { 'timestamp': int(time.time()),
                  'event_type': 'elasticsearch',
                  'host': hostname,
-                 'api_key': self.agentConfig['api_key'],
                  'msg_text':msg,
                  'msg_title': msg_title,
                  "alert_type": alert_type,

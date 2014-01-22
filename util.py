@@ -62,6 +62,11 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+def plural(count):
+    if count > 1:
+        return "s"
+    return ""
+
 def get_tornado_ioloop():
     if tornado_version[0] == 3:
         return ioloop.IOLoop.current()

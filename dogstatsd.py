@@ -28,14 +28,15 @@ from aggregator import MetricsAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname
+from util import json, PidFile, get_hostname, plural
 
 log = logging.getLogger('dogstatsd')
 
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
-LOGGING_INTERVAL = 10
+FLUSH_LOGGING_PERIOD = 10
+FLUSH_LOGGING_INITIAL = 5
 
 def serialize_metrics(metrics):
     return json.dumps({"series" : metrics})
@@ -104,13 +105,18 @@ class Reporter(threading.Thread):
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
-            should_log = self.flush_count < LOGGING_INTERVAL or self.flush_count % LOGGING_INTERVAL == 0
+            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.flush_count % FLUSH_LOGGING_PERIOD == 0
             if not count:
                 if should_log:
                     log.info("Flush #%s: No metrics to flush." % self.flush_count)
+                else:
+                    log.debug("Flush #%s: No metrics to flush." % self.flush_count)
             else:
                 if should_log:
-                    log.info("Flush #%s: flushing %s metrics" % (self.flush_count, count))
+                    log.info("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
+                else:
+                    log.debug("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
+
                 self.submit(metrics)
 
             events = self.metrics_aggregator.flush_events()
@@ -122,10 +128,13 @@ class Reporter(threading.Thread):
                     log.debug("Flush #%s: No events to flush." % self.flush_count)
             else:
                 if should_log:
-                    log.info("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
+                    log.info("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
                 else:
-                    log.debug("Flush #%s: flushing %s events" % (self.flush_count, len(events)))
+                    log.debug("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
                 self.submit_events(events)
+
+            if self.flush_count == FLUSH_LOGGING_INITIAL:
+                log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
 
             # Persist a status message.
             packet_count = self.metrics_aggregator.total_count

@@ -1,7 +1,6 @@
 import re
 import types
 import time
-from datetime import datetime
 
 from checks import AgentCheck
 from util import get_hostname
@@ -59,8 +58,7 @@ class MongoDb(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-
-        self._last_state = -1
+        self._last_state_by_server = {}
 
     def get_library_versions(self):
         try:
@@ -73,12 +71,12 @@ class MongoDb(AgentCheck):
 
         return {"pymongo": version}
 
-    def checkLastState(self, state, agentConfig):
-        if self._last_state != state:
-            self._last_state = state
-            return self.create_event(state, agentConfig)
+    def check_last_state(self, state, server, agentConfig):
+        if self._last_state_by_server.get(server, -1) != state:
+            self._last_state_by_server[server] = state
+            return self.create_event(state, server, agentConfig)
 
-    def create_event(self, state, agentConfig):
+    def create_event(self, state, server, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -96,8 +94,8 @@ class MongoDb(AgentCheck):
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (hostname, status)
-        msg = "MongoDB: %s just reported as %s" % (hostname, status)
+        msg_title = "%s is %s" % (server, status)
+        msg = "MongoDB %s just reported as %s" % (server, status)
 
         self.event({
             'timestamp': int(time.time()),
@@ -116,7 +114,11 @@ class MongoDb(AgentCheck):
             self.log.warn("Missing 'server' in mongo config")
             return
 
+        server = instance['server']
         tags = instance.get('tags', [])
+        tags.append('server:%s' % server)
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
 
         try:
             from pymongo import Connection
@@ -127,10 +129,10 @@ class MongoDb(AgentCheck):
         try:
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(instance['server'])
+            parsed = uri_parser.parse_uri(server)
         except ImportError:
             # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(instance['server'])
+            matches = mongo_uri_re.match(server)
             if matches:
                 parsed = matches.groupdict()
             else:
@@ -145,19 +147,17 @@ class MongoDb(AgentCheck):
 
         do_auth = True
         if username is None or password is None:
-            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['server'])
+            self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(instance['server'], network_timeout=DEFAULT_TIMEOUT)
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT)
         db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % instance['server'])
+                self.log.error("Mongo: cannot connect with config %s" % server)
 
-        status = db["$cmd"].find_one({"serverStatus": 1})   
+        status = db["$cmd"].find_one({"serverStatus": 1})
         status['stats'] = db.command('dbstats')
-
-        results = {}
 
         # Handle replica data, if any
         # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
@@ -190,7 +190,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                self.checkLastState(data['state'], self.agentConfig)
+                self.check_last_state(data['state'], server, self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):

@@ -32,7 +32,7 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
 from util import Watchdog, PidFile, EC2, get_os
@@ -214,6 +214,7 @@ def main():
         'info',
         'check',
         'configcheck',
+        'jmx',
     ]
 
     if len(args) < 1:
@@ -304,6 +305,16 @@ def main():
             print("Fix the invalid yaml files above in order to start the Datadog agent. "
                     "A useful external tool for yaml parsing can be found at "
                     "http://yaml-online-parser.appspot.com/")
+
+    elif 'jmx' == command:
+        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
+       
+        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS:
+            print "You have to specify one of the following command %s" % JMX_LIST_COMMANDS
+        else:
+            jmx_command = args[1]
+            JMXFetch.init(get_confd_path(get_os()), agentConfig, get_logging_config(), 15, jmx_command)
+
 
     return 0
 

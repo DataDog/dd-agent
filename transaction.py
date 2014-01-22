@@ -7,14 +7,12 @@ from operator import attrgetter
 
 # project
 from checks.check_status import ForwarderStatus
-from util import get_tornado_ioloop
+from util import get_tornado_ioloop, plural
 
 log = logging.getLogger(__name__)
 
-def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+FLUSH_LOGGING_PERIOD = 10
+FLUSH_LOGGING_INITIAL = 5
 
 class ImplementationError(Exception): pass
 
@@ -148,10 +146,24 @@ class TransactionManager(object):
                 to_flush.append(tr)
 
         count = len(to_flush)
+        should_log = self._flush_count +1 <= FLUSH_LOGGING_INITIAL or self._flush_count +1 % FLUSH_LOGGING_PERIOD == 0
         if count > 0:
-            log.debug("Flushing %s transaction%s" % (count,plural(count)))
+            if should_log:
+                log.info("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
+            else:
+                log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count +1)))
+
             self._trs_to_flush = to_flush
             self.flush_next()
+        else:
+            if should_log:
+                log.info("No transaction to flush during flush #%s" % str(self._flush_count +1))
+            else:
+                log.debug("No transaction to flush during flush #%s" % str(self._flush_count +1))
+
+        if self._flush_count +1 == FLUSH_LOGGING_INITIAL:
+            log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+
         self._flush_count += 1
 
         ForwarderStatus(
