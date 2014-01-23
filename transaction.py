@@ -14,8 +14,6 @@ log = logging.getLogger(__name__)
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 
-class ImplementationError(Exception): pass
-
 class Transaction(object):
 
     def __init__(self):
@@ -61,7 +59,7 @@ class Transaction(object):
         return self._next_flush < now
 
     def flush(self):
-        raise ImplementationError("To be implemented in a subclass")
+        raise NotImplementedError("To be implemented in a subclass")
 
 class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
