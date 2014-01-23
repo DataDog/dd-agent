@@ -1,10 +1,9 @@
 import re
-import time
 import urllib2
-import base64
 
 from util import headers
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 class Nginx(AgentCheck):
     """Tracks basic nginx metrics via the status module
@@ -33,10 +32,7 @@ class Nginx(AgentCheck):
         url = instance.get('nginx_status_url')
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'user' in instance and 'password' in instance:
-            auth_str = '%s:%s' % (instance['user'], instance['password'])
-            encoded_auth_str = base64.encodestring(auth_str)
-            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
-
+            add_basic_auth(req, instance['user'], instance['password'])
         request = urllib2.urlopen(req)
         return request.read()
 

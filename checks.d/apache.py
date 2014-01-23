@@ -1,8 +1,8 @@
 import urllib2
-import base64
 
 from util import headers
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 class Apache(AgentCheck):
     """Tracks basic connection/requests/workers metrics
@@ -36,9 +36,7 @@ class Apache(AgentCheck):
         tags = instance.get('tags', [])
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'apache_user' in instance and 'apache_password' in instance:
-            auth_str = '%s:%s' % (instance['apache_user'], instance['apache_password'])
-            encoded_auth_str = base64.encodestring(auth_str)
-            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
+            add_basic_auth(req, instance['apache_user'], instance['apache_password'])
         request = urllib2.urlopen(req)
         response = request.read()
 

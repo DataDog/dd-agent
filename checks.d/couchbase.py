@@ -1,9 +1,9 @@
 import urllib2
-import base64
 import re
 from util import json, headers
 
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 #Constants
 COUCHBASE_STATS_PATH = '/pools/nodes'
@@ -49,14 +49,12 @@ class Couchbase(AgentCheck):
                     self.gauge(metric_name, val, tags=metric_tags, device_name=node_name)
 
 
-    def _get_stats(self, url):
+    def _get_stats(self, url, instance):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchbase stats at url: %s' % url)
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'user' in instance and 'password' in instance:
-            auth_str = '%s:%s' % (instance['user'], instance['password'])
-            encoded_auth_str = base64.encodestring(auth_str)
-            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
+            add_basic_auth(req, instance['user'], instance['password'])
 
         # Do the request, log any errors
         request = urllib2.urlopen(req)
@@ -73,10 +71,10 @@ class Couchbase(AgentCheck):
         if tags is None:
             tags = []
         tags.append('instance:%s' % server)
-        data = self.get_data(server)
+        data = self.get_data(server, instance)
         self._create_metrics(data, tags=tags)
 
-    def get_data(self, server):
+    def get_data(self, server, instance):
         # The dictionary to be returned.
         couchbase = {'stats': None,
                 'buckets': {},
@@ -85,7 +83,7 @@ class Couchbase(AgentCheck):
 
         # build couchbase stats entry point
         url = '%s%s' % (server, COUCHBASE_STATS_PATH)
-        overall_stats = self._get_stats(url)
+        overall_stats = self._get_stats(url, instance)
 
         # No overall stats? bail out now
         if overall_stats is None:
@@ -104,7 +102,7 @@ class Couchbase(AgentCheck):
         endpoint = overall_stats['buckets']['uri']
 
         url = '%s%s' % (server, endpoint)
-        buckets = self._get_stats(url)
+        buckets = self._get_stats(url, instance)
 
         if buckets is not None:
             for bucket in buckets:
@@ -112,7 +110,7 @@ class Couchbase(AgentCheck):
 
                 # We have to manually build the URI for the stats bucket, as this is not auto discoverable
                 url = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
-                bucket_stats = self._get_stats(url)
+                bucket_stats = self._get_stats(url, instance)
                 bucket_samples = bucket_stats['op']['samples']
                 if bucket_samples is not None:
                     couchbase['buckets'][bucket['name']] = bucket_samples
