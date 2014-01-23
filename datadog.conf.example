@@ -117,17 +117,6 @@ use_mount: no
 #ganglia_port: 8651
 
 # -------------------------------------------------------------------------- #
-#   Cassandra                                                                #
-# -------------------------------------------------------------------------- #
-#cassandra_host: localhost
-#cassandra_nodetool: /usr/bin/nodetool
-## If you're using Cassandra 0.8 or higher:
-# cassandra_port: 7199
-## If you're using Cassandra 0.7 or lower:
-#cassandra_port: 8080
-
-
-# -------------------------------------------------------------------------- #
 #   Nagios                                                                   #
 # -------------------------------------------------------------------------- #
 
