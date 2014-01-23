@@ -232,15 +232,15 @@ class BernardCheck(object):
             'execution_time': result.execution_time,
         }
 
-    def get_check_run_params(self):
-        """ Return a list of the check params, filtered from the full list of
+    def get_check_run_tags(self):
+        """ Return a list of the check tags, filtered from the full list of
             parameters by the `tag_by` option in the parameter. Also include
             any tags added with the `additional_tags` option.
         """
-        run_params = {}
+        tags_dict = {} # use a dict so we can easily de-dupe.
         for tag_by in self.options['tag_by']:
             if tag_by in self.params:
-                run_params[tag_by] = self.params[tag_by]
+                tags_dict[tag_by] = self.params[tag_by]
 
         # Add the additional tags, which we expect to be in key:val form. Skip
         # any tags that are not in this form. Override existing tags if the keys
@@ -252,9 +252,9 @@ class BernardCheck(object):
                 log.error('Invalid additional tag in configuration: %s' % tag)
                 continue
             else:
-                run_params[key] = val
+                tags_dict[key] = val
 
-        return run_params
+        return [u"%s:%s" % (k, v) for k, v in tags_dict.iteritems()]
 
 
 def _subprocess_command(raw_command, params):
