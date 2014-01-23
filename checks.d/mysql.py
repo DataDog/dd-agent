@@ -26,6 +26,10 @@ STATUS_VARS = {
     'Com_insert': ('mysql.performance.com_insert', RATE),
     'Com_update': ('mysql.performance.com_update', RATE),
     'Com_delete': ('mysql.performance.com_delete', RATE),
+    'Com_insert_select': ('mysql.performance.com_insert_select', RATE),
+    'Com_update_multi': ('mysql.performance.com_update_multi', RATE),
+    'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
+    'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
     'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
     'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
     'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
@@ -34,7 +38,7 @@ STATUS_VARS = {
     'Created_tmp_files': ('mysql.performance.created_tmp_files', RATE),
     'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
     'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
-    'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', RATE),
+    'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', GAUGE),
 }
 
 class MySql(AgentCheck):
