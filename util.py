@@ -440,8 +440,8 @@ class Timer(object):
         return time.time()
 
     def start(self):
-        self.start = self._now()
-        self.last = self.start
+        self.started = self._now()
+        self.last = self.started
         return self
 
     def step(self):
@@ -451,4 +451,4 @@ class Timer(object):
         return step
 
     def total(self, as_sec=True):
-        return self._now() - self.start
+        return self._now() - self.started
