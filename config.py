@@ -770,6 +770,8 @@ def load_check_directory(agentConfig):
 #
 # logging
 
+def get_log_date_format():
+    return "%Y-%m-%d %H:%M:%S %Z"
 
 def get_log_format(logger_name):
     if get_os() != 'windows':
@@ -890,7 +892,7 @@ def initialize_logging(logger_name):
             # NOTE: the entire directory needs to be writable so that rotation works
             if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                 file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                formatter = logging.Formatter(get_log_format(logger_name))
+                formatter = logging.Formatter(get_log_format(logger_name), get_log_date_format())
                 file_handler.setFormatter(formatter)
 
                 root_log = logging.getLogger()
@@ -912,7 +914,7 @@ def initialize_logging(logger_name):
                         sys_log_addr = "/var/run/syslog"
 
                 handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
-                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 root_log = logging.getLogger()
                 root_log.addHandler(handler)
             except Exception, e:
