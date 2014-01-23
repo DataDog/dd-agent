@@ -22,7 +22,9 @@ JAVA_LOGGING_LEVEL = {
 }
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
-JMX_FETCH_JAR_NAME = "jmxfetch-0.1.2-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
+JMX_LIST_COMMANDS = ['list_everything', 'list_collected_attributes', 'list_matching_attributes', 'list_not_matching_attributes', 'list_limited_attributes']
+JMX_COLLECT_COMMAND = 'collect'
 
 class JMXFetch(object):
 
@@ -30,16 +32,16 @@ class JMXFetch(object):
     pid_file_path = pid_file.get_path()
 
     @classmethod
-    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency):
+    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency, command=None):
         try:
-            should_run, java_bin_path, java_options = JMXFetch.should_run(confd_path)
+            jmx_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path)
 
-            if should_run:
+            if len(jmx_checks) > 0:
                 if JMXFetch.is_running():
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
-                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, java_options, default_check_frequency)
+                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, java_options, default_check_frequency,  jmx_checks, command)
         except Exception, e:
             log.exception("Error while initiating JMXFetch")
 
@@ -47,11 +49,11 @@ class JMXFetch(object):
     @classmethod
     def should_run(cls, confd_path):
         """
-    Return a tuple (jmx_check_configured, java_bin_path)
+    Return a tuple (jmx_checks, java_bin_path)
 
-    jmx_check_configured: boolean that shows that either one of the 
-    check in JMX_CHECKS is enabled or there is a configured check 
-    that have the "is_jmx" flag enabled in its init_config
+    jmx_checks: list of yaml files that are jmx checks 
+    (they have the is_jmx flag enabled or they are in JMX_CHECKS)
+    and that have at least one instance configured
 
     java_bin_path: is the path to the java executable. It was 
     previously set in the "instance" part of the yaml file of the
@@ -64,7 +66,7 @@ class JMXFetch(object):
     so we can return the first value returned
     """
 
-        jmx_check_configured = False
+        jmx_checks = []
         java_bin_path = None
         java_options = None
 
@@ -72,8 +74,6 @@ class JMXFetch(object):
 
             java_bin_path_is_set = java_bin_path is not None
             java_options_is_set = java_options is not None
-            if jmx_check_configured and java_bin_path_is_set and java_options_is_set:
-                return (jmx_check_configured, java_bin_path, java_options)
 
             check_name = os.path.basename(conf).split('.')[0]
 
@@ -102,21 +102,25 @@ class JMXFetch(object):
                     if java_bin_path is None:
                         if init_config and init_config.get('java_bin_path'):
                             # We get the java bin path from the yaml file for backward compatibility purposes
-                            java_bin_path = check_config.get('init_config').get('java_bin_path')
+                            java_bin_path = init_config.get('java_bin_path')
 
-                        for instance in instances:
-                            if instance and instance.get('java_bin_path'):
-                                java_bin_path = instance.get('java_bin_path')
+                        else:
+                            for instance in instances:
+                                if instance and instance.get('java_bin_path'):
+                                    java_bin_path = instance.get('java_bin_path')
 
                     if java_options is None:
-                        for instance in instances:
-                            if instance and instance.get('java_options'):
-                                java_options = instance.get('java_options')
+                        if init_config and init_config.get('java_options'):
+                            java_options = init_config.get('java_options')
+                        else:
+                            for instance in instances:
+                                if instance and instance.get('java_options'):
+                                    java_options = instance.get('java_options')
 
                     if init_config.get('is_jmx') or check_name in JMX_CHECKS:
-                        jmx_check_configured = True
+                        jmx_checks.append(os.path.basename(conf))
 
-        return (jmx_check_configured, java_bin_path, java_options)
+        return (jmx_checks, java_bin_path, java_options)
 
     @classmethod
     def is_running(cls):
@@ -183,10 +187,17 @@ class JMXFetch(object):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
 
     @classmethod
-    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, default_check_frequency):
+    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, default_check_frequency, jmx_checks, command=None):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
+        command = command or JMX_COLLECT_COMMAND
+        if command == JMX_COLLECT_COMMAND:
+            reporter = "statsd:%s" % str(statsd_port)
+        else:
+            reporter = "console"
+
         log.info("Starting jmxfetch:")
+        jmx_connector_pid = None
         try:
             path_to_java = path_to_java or "java"
             java_run_opts = java_run_opts or ""
@@ -197,23 +208,32 @@ class JMXFetch(object):
                 path_to_java, # Path to the java bin
                 '-jar',
                 r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
-                r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch
-                str(statsd_port), # Port on which the dogstatsd server is running, as jmxfetch send metrics using dogstatsd
-                str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
-                r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
-                JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
-                ",".join(["%s.yaml" % check for check in JMX_CHECKS]),
-                r"%s" % path_to_status_file,
+                '--check_period', str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
+                '--conf_directory', r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch,
+                '--log_level', JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
+                '--log_location', r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
+                '--reporter',  reporter, # Reporter to use
+                '--status_location', r"%s" % path_to_status_file, # Path to the status file to write    
+                command, # Name of the command          
             ]
+
+            subprocess_args.insert(3, '--check')
+            for check in jmx_checks:
+                subprocess_args.insert(4, check)
 
             if java_run_opts:
                 for opt in java_run_opts.split():
                     subprocess_args.insert(1,opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
-            cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
-            jmx_connector_pid = cls.subprocess.pid
-            log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
+            if command == JMX_COLLECT_COMMAND:
+                cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
+                jmx_connector_pid = cls.subprocess.pid
+                log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
+
+            else:
+                subprocess.call(subprocess_args)
+            
         except OSError, e:
             jmx_connector_pid = None
             log.exception("Couldn't launch JMXTerm. Is java in your PATH?")

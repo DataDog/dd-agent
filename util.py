@@ -62,6 +62,11 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+def plural(count):
+    if count > 1:
+        return "s"
+    return ""
+
 def get_tornado_ioloop():
     if tornado_version[0] == 3:
         return ioloop.IOLoop.current()
@@ -215,7 +220,6 @@ class EC2(object):
     URL = "http://169.254.169.254/latest/meta-data"
     TIMEOUT = 0.1 # second
     metadata = {}
-    SOURCE_TYPE_NAME = 'amazon web services'
 
     @staticmethod
     def get_tags():
@@ -232,12 +236,12 @@ class EC2(object):
             from checks.libs.boto.ec2.connection import EC2Connection
             connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
-            
+
             EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
-            
+
         except Exception:
-            EC2_tags = None
-            pass
+            log.exception("Problem retrieving custom EC2 tags")
+            EC2_tags = []
 
         try:
             if socket_to is None:

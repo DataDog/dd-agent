@@ -32,7 +32,7 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
 from util import Watchdog, PidFile, EC2, get_os
@@ -115,8 +115,33 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
+            
+            # enable profiler if needed
+            profiled = False
+            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
+                try:
+                    import cProfile
+                    profiler = cProfile.Profile()
+                    profiled = True
+                    profiler.enable()
+                except Exception:
+                    log.warn("Cannot enable profiler")
+                    
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
+
+            # disable profiler and printout stats to stdout
+            if agentConfig.get('profile', False) and profiled:
+                try:
+                    profiler.disable()
+                    import pstats
+                    from cStringIO import StringIO
+                    s = StringIO()
+                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+                    ps.print_stats()
+                    log.debug(s.getvalue())
+                except Exception:
+                    log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -189,6 +214,7 @@ def main():
         'info',
         'check',
         'configcheck',
+        'jmx',
     ]
 
     if len(args) < 1:
@@ -280,6 +306,16 @@ def main():
                     "A useful external tool for yaml parsing can be found at "
                     "http://yaml-online-parser.appspot.com/")
 
+    elif 'jmx' == command:
+        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
+       
+        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS:
+            print "You have to specify one of the following command %s" % JMX_LIST_COMMANDS
+        else:
+            jmx_command = args[1]
+            JMXFetch.init(get_confd_path(get_os()), agentConfig, get_logging_config(), 15, jmx_command)
+
+
     return 0
 
 
@@ -293,4 +329,3 @@ if __name__ == '__main__':
         except Exception:
             pass
         raise
-

@@ -67,8 +67,12 @@ class Lighttpd(AgentCheck):
 
         tags = instance.get('tags', [])
         self.log.debug("Connecting to %s" % url)
-        req = urllib2.Request(url, None,
-            headers(self.agentConfig))
+        req = urllib2.Request(url, None, headers(self.agentConfig))
+        if 'user' in instance and 'password' in instance:
+            auth_str = '%s:%s' % (instance['user'], instance['password'])
+            encoded_auth_str = base64.encodestring(auth_str)
+            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
+            
         request = urllib2.urlopen(req)
         headers_resp = request.info().headers
         server_version = self._get_server_version(headers_resp)

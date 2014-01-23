@@ -387,6 +387,8 @@ class AgentCheck(object):
                 "tags": (optional) list, a list of tags to associate with this event
             }
         """
+        if event.get('api_key') is None:
+            event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
     def has_events(self):

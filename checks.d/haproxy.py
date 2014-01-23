@@ -12,7 +12,7 @@ try:
 except ImportError:
     from compat.defaultdict import defaultdict
 
-STATS_URL = ";csv;norefresh"
+STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
 class Services(object):
@@ -31,6 +31,7 @@ class HAProxy(AgentCheck):
         "qcur": ("gauge", "queue.current"),
         "scur": ("gauge", "session.current"),
         "slim": ("gauge", "session.limit"),
+        "spct": ("gauge", "session.pct"),    # Calculated as: (scur/slim)*100
         "stot": ("rate", "session.rate"),
         "bin": ("rate", "bytes.in_rate"),
         "bout": ("rate", "bytes.out_rate"),
@@ -111,6 +112,13 @@ class HAProxy(AgentCheck):
                         pass
                     data_dict[fields[i]] = val
 
+            # The percentage of used sessions based on 'scur' and 'slim'
+            if 'slim' in data_dict and 'scur' in data_dict:
+                try:
+                    data_dict['spct'] = (data_dict['scur'] / data_dict['slim']) * 100
+                except (TypeError, ZeroDivisionError):
+                    pass
+
             # Don't create metrics for aggregates
             service = data_dict['svname']
             if data_dict['svname'] in Services.ALL:
@@ -179,14 +187,13 @@ class HAProxy(AgentCheck):
                     lastchg = 0
 
                 # Create the event object
-                ev = self._create_event(self.agentConfig['api_key'],
-                    data['status'], hostname, lastchg, service_name)
+                ev = self._create_event(data['status'], hostname, lastchg, service_name)
                 self.event(ev)
 
                 # Store this host status so we can check against it later
                 self.host_status[url][key] = data['status']
 
-    def _create_event(self, api_key, status, hostname, lastchg, service_name):
+    def _create_event(self, status, hostname, lastchg, service_name):
         if status == "DOWN":
             alert_type = "error"
             title = "HAProxy %s front-end reported %s %s" % (service_name, hostname, status)
@@ -201,7 +208,6 @@ class HAProxy(AgentCheck):
              'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
              'host': hostname,
-             'api_key': api_key,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,

@@ -191,6 +191,7 @@ class Collector(object):
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
 
+
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
            
@@ -375,12 +376,15 @@ class Collector(object):
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
+            host_tags = []
             if self.agentConfig['tags'] is not None:
-                payload['host-tags']['system'] = [unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")]
+                host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
-            EC2_tags = EC2.get_tags()
-            if EC2_tags is not None:
-                payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
+            if self.agentConfig['collect_ec2_tags']:
+                host_tags.extend(EC2.get_tags())
+
+            if host_tags:
+                payload['host-tags']['system'] = host_tags
 
             # Log the metadata on the first run
             if self._is_first_run():

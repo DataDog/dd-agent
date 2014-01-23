@@ -26,7 +26,7 @@ from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
-from socket import gaierror
+from socket import gaierror, error as socket_error
 
 # Tornado
 import tornado.httpserver
@@ -37,7 +37,7 @@ from tornado.options import define, parse_command_line, options
 
 # agent import
 from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
-from emitter import http_emitter, format_body
+from emitter import http_emitter
 from config import get_config
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
@@ -380,16 +380,23 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
 
-        # non_local_traffic must be == True to match, not just some non-false value
-        if non_local_traffic is True:
-            http_server.listen(self._port)
-        else:
-            # localhost in lieu of 127.0.0.1 to support IPv6
-            try:
-                http_server.listen(self._port, address = "localhost")
-            except gaierror:
-                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
-                http_server.listen(self._port, address = "127.0.0.1")
+        try:
+            # non_local_traffic must be == True to match, not just some non-false value
+            if non_local_traffic is True:
+                http_server.listen(self._port)
+            else:
+                # localhost in lieu of 127.0.0.1 to support IPv6
+                try:
+                    http_server.listen(self._port, address = "localhost")
+                except gaierror:
+                    log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                    http_server.listen(self._port, address = "127.0.0.1")
+        except socket_error, e:
+            log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
+            sys.exit(1)
+        except Exception, e:
+            log.exception("Uncaught exception. Forwarder is exiting.")
+            sys.exit(1)
 
         log.info("Listening on port %d" % self._port)
 

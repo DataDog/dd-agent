@@ -1,6 +1,7 @@
 import re
 import time
 import urllib2
+import base64
 
 from util import headers
 from checks import AgentCheck
@@ -25,13 +26,22 @@ class Nginx(AgentCheck):
             raise Exception('NginX instance missing "nginx_status_url" value.')
         tags = instance.get('tags', [])
 
-        self._get_metrics(instance['nginx_status_url'], tags)
+        response = self._get_data(instance)
+        self._get_metrics(response, tags)
 
-    def _get_metrics(self, url, tags):
+    def _get_data(self, instance):
+        url = instance.get('nginx_status_url')
         req = urllib2.Request(url, None, headers(self.agentConfig))
-        request = urllib2.urlopen(req)
-        response = request.read()
+        if 'user' in instance and 'password' in instance:
+            auth_str = '%s:%s' % (instance['user'], instance['password'])
+            encoded_auth_str = base64.encodestring(auth_str)
+            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
 
+        request = urllib2.urlopen(req)
+        return request.read()
+
+
+    def _get_metrics(self, response, tags):
         # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
         # Connections
         parsed = re.search(r'Active connections:\s+(\d+)', response)

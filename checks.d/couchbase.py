@@ -1,4 +1,5 @@
 import urllib2
+import base64
 import re
 from util import json, headers
 
@@ -52,6 +53,10 @@ class Couchbase(AgentCheck):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchbase stats at url: %s' % url)
         req = urllib2.Request(url, None, headers(self.agentConfig))
+        if 'user' in instance and 'password' in instance:
+            auth_str = '%s:%s' % (instance['user'], instance['password'])
+            encoded_auth_str = base64.encodestring(auth_str)
+            req.add_header("Authorization", "Basic %s" % encoded_auth_str)
 
         # Do the request, log any errors
         request = urllib2.urlopen(req)

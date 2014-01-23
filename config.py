@@ -61,7 +61,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.0.1"
+    return "4.1.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -388,6 +388,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
+
+        agentConfig["collect_ec2_tags"] = False
+        if config.has_option("Main", "collect_ec2_tags"):
+            agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')

@@ -34,8 +34,7 @@ class Apache(AgentCheck):
         url = self.assumed_url.get(instance['apache_status_url'], instance['apache_status_url'])
 
         tags = instance.get('tags', [])
-        req = urllib2.Request(url, None,
-            headers(self.agentConfig))
+        req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'apache_user' in instance and 'apache_password' in instance:
             auth_str = '%s:%s' % (instance['apache_user'], instance['apache_password'])
             encoded_auth_str = base64.encodestring(auth_str)
