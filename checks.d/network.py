@@ -10,7 +10,7 @@ import re
 
 # project
 from checks import AgentCheck
-from checks.system import Platform
+from util import Platform
 
 
 class Network(AgentCheck):

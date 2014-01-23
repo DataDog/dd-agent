@@ -1,5 +1,5 @@
 from checks import AgentCheck
-from checks.system import Platform
+from util import Platform
 import time
 
 class ProcessCheck(AgentCheck):

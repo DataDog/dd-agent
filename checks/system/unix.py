@@ -14,8 +14,7 @@ import time
 
 # project
 from checks import Check, UnknownValue
-from checks.system import Platform
-from util import get_hostname
+from util import get_hostname, Platform
 
 
 # locale-resilient float converter
