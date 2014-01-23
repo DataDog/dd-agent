@@ -20,7 +20,6 @@ from cStringIO import StringIO
 from util import get_os, yaml, yLoader
 from jmxfetch import JMXFetch
 from migration import migrate_old_style_configuration
-from checks.system import Platform
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -424,6 +423,9 @@ def get_system_stats():
     }
 
     platf = sys.platform
+    
+    from checks.system import Platform
+
     if  Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
