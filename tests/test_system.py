@@ -141,7 +141,7 @@ none                  985964       1  985963    1% /lib/init/rw
     def testMemory(self):
         global logger
         res = Memory(logger).check({})
-        if Platform.is_linux()':
+        if Platform.is_linux():
             for k in ("swapTotal", "swapFree", "swapPctFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable", "physPctUsable", "physShared"):
                 assert k in res, res
             assert res["swapTotal"] == res["swapFree"] + res["swapUsed"]
