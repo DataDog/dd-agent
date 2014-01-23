@@ -95,9 +95,15 @@ class Redis(AgentCheck):
             self.log.exception("Cannot parse dictionary string: %s" % string)
             return default
 
+    def _generate_instance_key(self, instance):
+        if 'unix_socket_path' in instance:
+            return (instance.get('unix_socket_path'), instance.get('db'))
+        else:
+            return (instance.get('host'), instance.get('port'), instance.get('db'))
+
     def _get_conn(self, instance):
         import redis
-        key = (instance.get('host'), instance.get('port'), instance.get('db'))
+        key = self._generate_instance_key(instance)
         if key not in self.connections:
             try:
                 
@@ -117,12 +123,17 @@ class Redis(AgentCheck):
     def _check_db(self, instance, custom_tags=None):
         conn = self._get_conn(instance)
         tags = set(custom_tags or [])
-        tags = sorted(tags.union(["redis_host:%s" % instance.get('host'),
-                                  "redis_port:%s" % instance.get('port'),
-                                  ]))
+
+        if 'unix_socket_path' in instance:
+            tags_to_add = ["unix_socket_path:%s" % instance.get("unix_socket_path")]
+        else:
+            tags_to_add =  ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
+
         if instance.get('db') is not None:
-            tags.append("db:%s" % instance.get('db'))
-      
+            tags_to_add.append("db:%s" % instance.get('db'))
+
+        tags = sorted(tags.union(tags_to_add))
+
         # Ping the database for info, and track the latency.
         start = time.time()
         try:
@@ -169,6 +180,8 @@ class Redis(AgentCheck):
         except ImportError:
             raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
 
+        if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
+            raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
         self._check_db(instance,custom_tags)
 
