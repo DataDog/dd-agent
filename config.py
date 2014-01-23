@@ -20,6 +20,7 @@ from cStringIO import StringIO
 from util import get_os, yaml, yLoader
 from jmxfetch import JMXFetch
 from migration import migrate_old_style_configuration
+from checks.system import Platform
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
@@ -422,28 +423,29 @@ def get_system_stats():
         'pythonV': platform.python_version(),
     }
 
-    if sys.platform == 'linux2':
+    platf = sys.platform
+    if  Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
         systemStats['cpuCores'] = int(wc.communicate()[0])
 
-    if sys.platform == 'darwin':
+    if Platform.is_darwin(platf):
         systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
 
-    if sys.platform.find('freebsd') != -1:
+    if Platform.is_freebsd(platf):
         systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
 
-    if sys.platform == 'linux2':
+    if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()
 
-    elif sys.platform == 'darwin':
+    elif Platform.is_darwin(platf):
         systemStats['macV'] = platform.mac_ver()
 
-    elif sys.platform.find('freebsd') != -1:
+    elif Platform.is_freebsd(platf):
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '')  # no codename for FreeBSD
 
-    elif sys.platform == 'win32':
+    elif Platform.is_win32(platf):
         systemStats['winV'] = platform.win32_ver()
 
     return systemStats

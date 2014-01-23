@@ -5,6 +5,7 @@ import sys
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
+from checks.system import Platform
 from checks.system.unix import *
 from checks.system import Platform
 from common import get_check
@@ -141,7 +142,7 @@ none                  985964       1  985963    1% /lib/init/rw
     def testMemory(self):
         global logger
         res = Memory(logger).check({})
-        if sys.platform == 'linux2':
+        if Platform.is_linux()':
             for k in ("swapTotal", "swapFree", "swapPctFree", "swapUsed", "physTotal", "physFree", "physUsed", "physBuffers", "physCached", "physUsable", "physPctUsable", "physShared"):
                 assert k in res, res
             assert res["swapTotal"] == res["swapFree"] + res["swapUsed"]
