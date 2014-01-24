@@ -117,12 +117,12 @@ case "$1" in
               # addtional options to the real command
               # (right now only dd-agent supports additional flags)
         su $AGENTUSER -c "$AGENTPATH info $@"
-        RETURN_VALUE=$?
+        COLLECTOR_RETURN=$?
         su $AGENTUSER -c "$DOGSTATSDPATH info"
-        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        DOGSTATSD_RETURN=$?
         su $AGENTUSER -c "$FORWARDERPATH info"
-        RETURN_VALUE=$(($RETURN_VALUE || $?))
-        exit $RETURN_VALUE
+        FORWARDER_RETURN=$?
+        exit $(($COLLECTOR_RETURN+$DOGSTATSD_RETURN+$FORWARDER_RETURN))
         ;;
 
     status)
