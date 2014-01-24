@@ -13,17 +13,6 @@ class Couchbase(AgentCheck):
     http://docs.couchbase.com/couchbase-manual-2.0/#using-the-rest-api
     """
 
-    def _browse_metrics(self, metrics_to_browse, tags=None):
-        for metric_name, value in metrics_to_browse.iteritems():
-            if value is not None:
-                metric_name = '.'.join(['couchbase', key, self.camel_case_to_joined_lower(metric_name)])
-
-
-    def _submit_metric(self, metric_name, value, tags):
-        if value is not None:
-            metric_name = '.'.join(['couchbase', key, self.camel_case_to_joined_lower(metric_name)])
-            self.gauge(metric_name, value, tags)
-
     def _create_metrics(self, data, tags=None):
         storage_totals = data['stats']['storageTotals']
         for key, storage_type in storage_totals.items():
@@ -72,7 +61,7 @@ class Couchbase(AgentCheck):
             tags = []
         tags.append('instance:%s' % server)
         data = self.get_data(server, instance)
-        self._create_metrics(data, tags=tags)
+        self._create_metrics(data, tags=list(set(tags)))
 
     def get_data(self, server, instance):
         # The dictionary to be returned.
