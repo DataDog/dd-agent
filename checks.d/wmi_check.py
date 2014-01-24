@@ -95,11 +95,7 @@ class WMICheck(AgentCheck):
         config = []
         metrics = agentConfig['WMI']
         for metric_name, wmi_conf in metrics.items():
-            try:
-                wmi_class, wmi_prop = wmi_conf.split(':')
-            except ValueError:
-                self.log.error('Invalid WMI line format: %s' % wmi_conf)
-
+            wmi_class, wmi_prop = wmi_conf.split(':')
             config.append({
                 'class': wmi_class,
                 'metrics': [[wmi_prop, metric_name, 'gauge']]
