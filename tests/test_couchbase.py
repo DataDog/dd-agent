@@ -41,7 +41,7 @@ class CouchbaseTestCase(unittest.TestCase):
 
     @attr('couchbase')
     def test_metrics_casing(self):
-        #raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
+        raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
@@ -57,7 +57,7 @@ class CouchbaseTestCase(unittest.TestCase):
         
     @attr('couchbase')
     def test_metrics(self):
-        #raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
+        raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
