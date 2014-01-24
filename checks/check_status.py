@@ -19,9 +19,14 @@ import config
 from compat.defaultdict import defaultdict
 from util import get_os, yaml, yLoader
 
+# 3rd party
+from checks.libs import ntplib
+
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 STATUS_WARNING = 'WARNING'
+
+NTP_OFFSET_THRESHOLD = 600
 
 
 log = logging.getLogger(__name__)
@@ -321,8 +326,25 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
-        # Paths to checks.d/conf.d
+
+        ntp_offset = ntplib.NTPClient().request('north-america.pool.ntp.org', version=3).offset
+        if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
+            ntp_styles = ['red', 'bold']
+        else:
+            ntp_styles = []
+
+
         lines = [
+            'Clocks',
+            '======',
+            ''
+        ]
+        lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
+        lines.append('  System UTC time: ' + datetime.datetime.utcnow().__str__())
+        lines.append('')
+
+        # Paths to checks.d/conf.d
+        lines += [
             'Paths',
             '=====',
             ''
