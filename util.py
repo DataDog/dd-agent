@@ -10,6 +10,7 @@ import types
 import urllib2
 import uuid
 import tempfile
+import re
 
 # Tornado
 try:
@@ -21,7 +22,8 @@ try:
 except ImportError:
     from md5 import md5
 
-
+VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
+MAX_HOSTNAME_LEN = 255
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
 def generate_minjson_adapter():
@@ -147,12 +149,22 @@ def cast_metric_val(val):
     return val
 
 def is_valid_hostname(hostname):
-    return hostname.lower() not in set([
+    if hostname.lower() in set([
         'localhost',
         'localhost.localdomain',
         'localhost6.localdomain6',
         'ip6-localhost',
-    ])
+    ]):
+        log.warning("Hostname: %s is local" % hostname)
+        return False
+    if len(hostname) > MAX_HOSTNAME_LEN:
+        log.warning("Hostname: %s is too long (max length is  %s characters)" % (hostname, MAX_HOSTNAME_LEN))
+        return False
+    if VALID_HOSTNAME_RFC_1123_PATTERN.match(hostname) is None:
+        log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
+        return False
+    return True
+    
 
 def get_hostname(config=None):
     """
