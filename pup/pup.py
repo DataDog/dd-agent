@@ -293,7 +293,7 @@ def run_pup(config):
 
 def stop():
     """ Only used by the Windows service """
-    get_tornado_ioloop(ioloop, tornado.version_info).stop()
+    get_tornado_ioloop().stop()
 
 def main():
     """ Parses arguments and starts Pup server """
