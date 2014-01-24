@@ -469,18 +469,24 @@ class CollectorStatus(AgentStatus):
         check_statuses = self.check_statuses + get_jmx_status()
         for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
-            for s in cs.instance_statuses:
-                status_info['checks'][cs.name]['instances'][s.instance_id] = {
-                    'status': s.status,
-                    'has_error': s.has_error(),
-                    'has_warnings': s.has_warnings(),
-                }
-                if s.has_error():
-                    status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
-                if s.has_warnings():
-                    status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
-            status_info['checks'][cs.name]['metric_count'] = cs.metric_count
-            status_info['checks'][cs.name]['event_count'] = cs.event_count
+            if cs.init_failed_error:
+                status_info['checks'][cs.name]['init_failed'] = True
+                status_info['checks'][cs.name]['traceback'] = cs.init_failed_traceback
+            else:
+                status_info['checks'][cs.name] = {'instances': {}}
+                status_info['checks'][cs.name]['init_failed'] = False
+                for s in cs.instance_statuses:
+                    status_info['checks'][cs.name]['instances'][s.instance_id] = {
+                        'status': s.status,
+                        'has_error': s.has_error(),
+                        'has_warnings': s.has_warnings(),
+                    }
+                    if s.has_error():
+                        status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
+                    if s.has_warnings():
+                        status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
+                status_info['checks'][cs.name]['metric_count'] = cs.metric_count
+                status_info['checks'][cs.name]['event_count'] = cs.event_count
 
         # Emitter status
         status_info['emitter'] = []
