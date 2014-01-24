@@ -2,6 +2,8 @@ init_config:
 
 instances:
 #     - server: http://localhost:8091
+#       user: Administrator
+#       password: password
 #       tags:
 #            - optional_tag1
 #            - optional_tag2

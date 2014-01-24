@@ -30,6 +30,10 @@ install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
 before_script:
+  - wget http://packages.couchbase.com/releases/2.1.1/couchbase-server-community_x86_64_2.1.1.deb
+  - sudo apt-get install libssl0.9.8
+  - sudo dpkg -i couchbase-server-community_x86_64_2.1.1.deb
+  - /opt/couchbase/bin/couchbase-cli cluster-init --cluster=localhost --cluster-init-username=Administrator --cluster-init-password=password
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
   - curl -L http://apache.mirrors.multidist.eu/cassandra/2.0.3/apache-cassandra-2.0.3-bin.tar.gz > /tmp/cassandra2.tar.gz
   - tar -xzvf /tmp/cassandra2.tar.gz -C /tmp
