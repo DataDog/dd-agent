@@ -388,7 +388,7 @@ class Collector(object):
 
             # Log the metadata on the first run
             if self._is_first_run():
-                log.info(u"Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
+                log.info("Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
 
         return payload
 
