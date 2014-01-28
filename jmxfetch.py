@@ -26,13 +26,13 @@ JMX_CHECKS = [
     'activemq_58',
     'cassandra',
     'jmx',
+    'kafka',
     'solr',
     'tomcat',
 ]
 JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
 JMX_LIST_COMMANDS = ['list_everything', 'list_collected_attributes', 'list_matching_attributes', 'list_not_matching_attributes', 'list_limited_attributes']
 JMX_COLLECT_COMMAND = 'collect'
-JMX_FETCH_JAR_NAME = "jmxfetch-0.1.2-jar-with-dependencies.jar"
 
 class JMXFetch(object):
 
