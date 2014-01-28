@@ -34,7 +34,10 @@ class MongoDb(AgentCheck):
 
         "replSet.health",
         "replSet.state",
-        "replSet.replicationLag"
+        "replSet.replicationLag",
+        "metrics.repl.buffer.count",
+        "metrics.repl.buffer.maxSizeBytes",
+        "metrics.repl.buffer.sizeBytes",
     ]
 
     RATES = [
@@ -51,7 +54,32 @@ class MongoDb(AgentCheck):
         "asserts.warning",
         "asserts.msg",
         "asserts.user",
-        "asserts.rollovers"
+        "asserts.rollovers",
+        "metrics.document.deleted",
+        "metrics.document.inserted",
+        "metrics.document.returned",
+        "metrics.document.updated",
+        "metrics.getLastError.wtime.num",
+        "metrics.getLastError.wtime.totalMillis",
+        "metrics.getLastError.wtimeouts",
+        "metrics.operation.fastmod",
+        "metrics.operation.idhack",
+        "metrics.operation.scanAndOrder",
+        "metrics.queryExecutor.scanned",
+        "metrics.record.moves",
+        "metrics.repl.apply.batches.num",
+        "metrics.repl.apply.batches.totalMillis",
+        "metrics.repl.apply.ops",
+        "metrics.repl.network.bytes",
+        "metrics.repl.network.getmores.num",
+        "metrics.repl.network.getmores.totalMillis",
+        "metrics.repl.network.ops",
+        "metrics.repl.network.readersCreated",
+        "metrics.repl.oplog.insert.num",
+        "metrics.repl.oplog.insert.totalMillis",
+        "metrics.repl.oplog.insertBytes",
+        "metrics.ttl.deletedDocuments",
+        "metrics.ttl.passes",
     ]
 
     METRICS = GAUGES + RATES
