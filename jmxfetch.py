@@ -21,10 +21,18 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING : "WARN",
 }
 
-JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
+JMX_CHECKS = [
+    'activemq',
+    'activemq_58',
+    'cassandra',
+    'jmx',
+    'solr',
+    'tomcat',
+]
 JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
 JMX_LIST_COMMANDS = ['list_everything', 'list_collected_attributes', 'list_matching_attributes', 'list_not_matching_attributes', 'list_limited_attributes']
 JMX_COLLECT_COMMAND = 'collect'
+JMX_FETCH_JAR_NAME = "jmxfetch-0.1.2-jar-with-dependencies.jar"
 
 class JMXFetch(object):
 
@@ -42,7 +50,7 @@ class JMXFetch(object):
                     JMXFetch.stop()
 
                 JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, java_options, default_check_frequency,  jmx_checks, command)
-        except Exception, e:
+        except Exception:
             log.exception("Error while initiating JMXFetch")
 
 
@@ -51,11 +59,11 @@ class JMXFetch(object):
         """
     Return a tuple (jmx_checks, java_bin_path)
 
-    jmx_checks: list of yaml files that are jmx checks 
+    jmx_checks: list of yaml files that are jmx checks
     (they have the is_jmx flag enabled or they are in JMX_CHECKS)
     and that have at least one instance configured
 
-    java_bin_path: is the path to the java executable. It was 
+    java_bin_path: is the path to the java executable. It was
     previously set in the "instance" part of the yaml file of the
     jmx check. So we need to parse yaml files to get it.
     We assume that this value is alwayws the same for every jmx check
@@ -71,10 +79,6 @@ class JMXFetch(object):
         java_options = None
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
-
-            java_bin_path_is_set = java_bin_path is not None
-            java_options_is_set = java_options is not None
-
             check_name = os.path.basename(conf).split('.')[0]
 
             if os.path.exists(conf):
@@ -134,7 +138,7 @@ class JMXFetch(object):
         if get_os() != 'windows':
             try:
                 os.kill(pid, 0)
-                # os.kill(pid, 0) will throw an exception if pid is not running 
+                # os.kill(pid, 0) will throw an exception if pid is not running
                 # and won't do anything otherwise
                 # It doesn't work on windows as signal.CTRL_C_EVENT is 0, it would quit the process
                 return True
@@ -203,7 +207,7 @@ class JMXFetch(object):
             java_run_opts = java_run_opts or ""
             path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
             path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
-            
+
             subprocess_args = [
                 path_to_java, # Path to the java bin
                 '-jar',
@@ -213,8 +217,8 @@ class JMXFetch(object):
                 '--log_level', JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
                 '--log_location', r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
                 '--reporter',  reporter, # Reporter to use
-                '--status_location', r"%s" % path_to_status_file, # Path to the status file to write    
-                command, # Name of the command          
+                '--status_location', r"%s" % path_to_status_file, # Path to the status file to write
+                command, # Name of the command
             ]
 
             subprocess_args.insert(3, '--check')
@@ -233,11 +237,11 @@ class JMXFetch(object):
 
             else:
                 subprocess.call(subprocess_args)
-            
-        except OSError, e:
+
+        except OSError:
             jmx_connector_pid = None
             log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
-        except Exception, e:
+        except Exception:
             jmx_connector_pid = None
             log.exception("Couldn't launch JMXTerm")
 
@@ -248,7 +252,7 @@ class JMXFetch(object):
                 fp.write(str(jmx_connector_pid))
                 fp.close()
                 os.chmod(JMXFetch.pid_file_path, 0644)
-            except Exception, e:
+            except Exception:
                 log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)
 
 
