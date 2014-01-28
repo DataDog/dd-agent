@@ -25,11 +25,11 @@ class Scheduler(object):
         check_configs = bernard_config.get('checks') or []
         for check_config in check_configs:
             try:
-                check = BernardCheck.from_config(check_config, hostname)
+                check = BernardCheck.from_config(check_config)
             except Exception:
                 log.exception('Unable to load check %s' % check_config['name'])
             else:
-                bernard_checks.extend(check)
+                bernard_checks.append(check)
 
         return cls(checks=bernard_checks, hostname=hostname,
                    dogstatsd_client=dogstatsd_client)
