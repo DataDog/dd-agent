@@ -309,8 +309,15 @@ def main():
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
        
-        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS:
-            print "You have to specify one of the following command %s" % JMX_LIST_COMMANDS
+        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
+            print "#" * 80
+            print "JMX tool to be used to help configuring your JMX checks."
+            print "See http://docs.datadoghq.com/integrations/java/ for more information"
+            print "#" * 80
+            print "\n"
+            print "You have to specify one of the following command:" 
+            for command, desc in JMX_LIST_COMMANDS.iteritems():
+                print "      - %s: %s" % (command, desc)
         else:
             jmx_command = args[1]
             JMXFetch.init(get_confd_path(get_os()), agentConfig, get_logging_config(), 15, jmx_command)

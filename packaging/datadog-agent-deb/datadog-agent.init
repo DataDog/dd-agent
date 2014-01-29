@@ -139,9 +139,15 @@ case "$1" in
         exit $?
         ;;
 
+    jmx)
+        shift
+        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        exit $?
+        ;;
+
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info|status|configcheck}"
+        echo "Usage: $N {start|stop|restart|info|status|configcheck|jmx}"
         exit 1
         ;;
 esac

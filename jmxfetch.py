@@ -23,7 +23,13 @@ JAVA_LOGGING_LEVEL = {
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
 JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
-JMX_LIST_COMMANDS = ['list_everything', 'list_collected_attributes', 'list_matching_attributes', 'list_not_matching_attributes', 'list_limited_attributes']
+JMX_LIST_COMMANDS = {
+        'list_everything': 'List every attributes available that has a type supported by JMXFetch', 
+        'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration', 
+        'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
+        'list_not_matching_attributes': "List attributes that don't match any of your instances configuration", 
+        'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected"
+        }
 JMX_COLLECT_COMMAND = 'collect'
 
 class JMXFetch(object):
@@ -140,7 +146,7 @@ class JMXFetch(object):
                 return True
             except Exception, e:
                 if "Errno 3" not in str(e):
-                    log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+                    log.debug("Couldn't determine if JMXFetch is running. We suppose it's not. %s" % str(e))
                 return False
 
         # Else we are on windows, we need another way to check if it's running
@@ -157,7 +163,7 @@ class JMXFetch(object):
                 return False
 
         except Exception, e:
-            log.debug("Couldn't determine if jmxterm is running. We suppose it's not. %s" % str(e))
+            log.debug("Couldn't determine if JMXFetch is running. We suppose it's not. %s" % str(e))
             return False
 
     @classmethod
@@ -236,10 +242,10 @@ class JMXFetch(object):
             
         except OSError, e:
             jmx_connector_pid = None
-            log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
+            log.exception("Couldn't launch JMXFetch. Is java in your PATH?")
         except Exception, e:
             jmx_connector_pid = None
-            log.exception("Couldn't launch JMXTerm")
+            log.exception("Couldn't launch JMXFetch")
 
         # Write pid to pid file
         if jmx_connector_pid is not None:
@@ -249,6 +255,6 @@ class JMXFetch(object):
                 fp.close()
                 os.chmod(JMXFetch.pid_file_path, 0644)
             except Exception, e:
-                log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)
+                log.exception("Unable to write JMXFetch pidfile: %s" % JMXFetch.pid_file_path)
 
 
