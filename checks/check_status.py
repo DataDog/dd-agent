@@ -336,6 +336,7 @@ class CollectorStatus(AgentStatus):
                 ntp_styles = []
         except Exception:
             ntp_offset = "Unknown"
+            ntp_styles = []
 
 
         lines = [
