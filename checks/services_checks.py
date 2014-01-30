@@ -72,10 +72,11 @@ class ServicesCheck(AgentCheck):
 
     def stop_pool(self):
         self.log.info("Stopping Thread Pool")
-        self.pool.terminate()
-        self.pool.join()
-        self.jobs_status.clear()
-        assert self.pool.get_nworkers() == 0
+        if self.pool_started:
+            self.pool.terminate()
+            self.pool.join()
+            self.jobs_status.clear()
+            assert self.pool.get_nworkers() == 0
 
     def restart_pool(self):
         self.stop_pool()
