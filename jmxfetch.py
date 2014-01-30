@@ -44,9 +44,9 @@ class JMXFetch(object):
     pid_file_path = pid_file.get_path()
 
     @classmethod
-    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency, command=None):
+    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency, command=None, checks_list=None):
         try:
-            jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path)
+            jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
             try:
                 JMXFetch.write_status_file(invalid_checks)
             except Exception:
@@ -75,7 +75,7 @@ class JMXFetch(object):
         stream.close()
 
     @classmethod
-    def should_run(cls, confd_path):
+    def should_run(cls, confd_path, checks_list):
         """
     Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options)
 
@@ -122,7 +122,7 @@ class JMXFetch(object):
                     continue
 
                 try:
-                    is_jmx, check_java_bin_path, check_java_options = JMXFetch.is_jmx_check(check_config, check_name)
+                    is_jmx, check_java_bin_path, check_java_options = JMXFetch.is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
                         if java_bin_path is None and check_java_bin_path is not None:
@@ -130,21 +130,25 @@ class JMXFetch(object):
                         if java_options is None and check_java_options is not None:
                             java_options = check_java_options
                 except InvalidJMXConfiguration, e:
+                    log.error("%s check is not a valid jmx configuration: %s" % (check_name, e))
                     invalid_checks[check_name] = e
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options)
 
     @classmethod
-    def is_jmx_check(cls, check_config, check_name):
+    def is_jmx_check(cls, check_config, check_name, checks_list):
         init_config = check_config.get('init_config', {})
         java_bin_path = None
         java_options = None
         is_jmx = False
-
         if init_config is None:
             init_config = {}
 
-        if init_config.get('is_jmx') or check_name in JMX_CHECKS:
+        if checks_list:
+            if check_name in checks_list:
+                is_jmx = True
+
+        elif init_config.get('is_jmx') or check_name in JMX_CHECKS:
             is_jmx = True
 
         if is_jmx:
@@ -153,23 +157,21 @@ class JMXFetch(object):
                 raise InvalidJMXConfiguration('You need to have at least one instance defined in the YAML file for this check')
 
             for inst in instances:
+                if type(inst) != dict:
+                    raise InvalidJMXConfiguration("Each instance should be a dictionary. %s" % LINK_TO_DOC)
                 host = inst.get('host', None)
                 port = inst.get('port', None)
                 conf = inst.get('conf', init_config.get('conf', None))
                 if host is None:
                     raise InvalidJMXConfiguration("A host must be specified")
-                if port is None:
-                    raise InvalidJMXConfiguration("A port must be specified")
-                try:
-                    int(port)
-                except ValueError:
-                    raise InvalidJMXConfiguration("port should be an integer")
+                if port is None or type(port) != int:
+                    raise InvalidJMXConfiguration("A numeric port must be specified")
 
                 if conf is None:
                     log.warning("%s doesn't have a 'conf' section. Only basic JVM metrics will be collected. %s" % LINK_TO_DOC)
                 else:
                     if type(conf) != list or len(conf) == 0:
-                        raise InvalidJMXConfiguration("You need to specify a list of configurations. %s" % LINK_TO_DOC)
+                        raise InvalidJMXConfiguration("'conf' section should be a list of configurations %s" % LINK_TO_DOC)
 
                     for config in conf:
                         include = config.get('include', None)

@@ -284,8 +284,8 @@ def main():
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
-                    print check.get_metrics()
-                    print check.get_events()
+                        print check.get_metrics()
+                        print check.get_events()
 
     elif 'configcheck' == command:
         osname = get_os()
@@ -317,11 +317,15 @@ def main():
             print "\n"
             print "You have to specify one of the following command:" 
             for command, desc in JMX_LIST_COMMANDS.iteritems():
-                print "      - %s: %s" % (command, desc)
+                print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
+            print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"
+            print "\n"
+
         else:
             jmx_command = args[1]
+            checks_list = args[2:]
             confd_directory = get_confd_path(get_os())
-            should_run  = JMXFetch.init(confd_directory, agentConfig, get_logging_config(), 15, jmx_command)
+            should_run  = JMXFetch.init(confd_directory, agentConfig, get_logging_config(), 15, jmx_command, checks_list)
             if not should_run:
                 print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
                 print "Have you enabled any JMX check ?"
