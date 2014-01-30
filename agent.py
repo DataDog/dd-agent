@@ -124,7 +124,7 @@ class Agent(Daemon):
                     profiler = cProfile.Profile()
                     profiled = True
                     profiler.enable()
-                    log.info("Agent profiling is enabled")
+                    log.debug("Agent profiling is enabled")
                 except Exception:
                     log.warn("Cannot enable profiler")
                     
