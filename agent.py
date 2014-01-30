@@ -124,6 +124,7 @@ class Agent(Daemon):
                     profiler = cProfile.Profile()
                     profiled = True
                     profiler.enable()
+                    log.info("Agent profiling is enabled")
                 except Exception:
                     log.warn("Cannot enable profiler")
                     
@@ -131,7 +132,7 @@ class Agent(Daemon):
             self.collector.run(checksd=checksd, start_event=self.start_event)
 
             # disable profiler and printout stats to stdout
-            if agentConfig.get('profile', False) and profiled:
+            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes' and profiled:
                 try:
                     profiler.disable()
                     import pstats
