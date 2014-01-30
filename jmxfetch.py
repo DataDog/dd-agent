@@ -53,7 +53,7 @@ class JMXFetch(object):
                 log.exception("Error while writing JMX status file")
 
             if len(jmx_checks) > 0:
-                if JMXFetch.is_running():
+                if JMXFetch.is_running() and command == JMX_COLLECT_COMMAND:
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
