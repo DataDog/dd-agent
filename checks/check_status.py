@@ -327,11 +327,14 @@ class CollectorStatus(AgentStatus):
             'instance-id'
         ]
 
-        ntp_offset = ntplib.NTPClient().request('north-america.pool.ntp.org', version=3).offset
-        if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
-            ntp_styles = ['red', 'bold']
-        else:
-            ntp_styles = []
+        try:
+            ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
+            if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
+                ntp_styles = ['red', 'bold']
+            else:
+                ntp_styles = []
+        except Exception:
+            ntp_offset = "Unknown"
 
 
         lines = [
