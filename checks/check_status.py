@@ -240,12 +240,13 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None, warnings=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
         self.traceback = tb
         self.warnings = warnings
+        self.metric_count = metric_count
 
     def has_error(self):
         return self.status == STATUS_ERROR
@@ -420,6 +421,8 @@ class CollectorStatus(AgentStatus):
                                  s.instance_id, style(s.status, c))
                         if s.has_error():
                             line += u": %s" % s.error
+                        if s.metric_count is not None:
+                            line += " collected %s metrics" % s.metric_count
 
                         check_lines.append(line)
 
@@ -613,15 +616,15 @@ class ForwarderStatus(AgentStatus):
         })
         return status_info
 
-def get_jmx_instance_status(instance_name, status, message):
+def get_jmx_instance_status(instance_name, status, message, metric_count):
     if status == STATUS_ERROR:
-        instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message)
+        instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
 
     elif status == STATUS_WARNING:
-        instance_status = InstanceStatus(instance_name, STATUS_WARNING, warnings=[message])
+        instance_status = InstanceStatus(instance_name, STATUS_WARNING, warnings=[message], metric_count=metric_count)
 
     elif status == STATUS_OK:
-        instance_status = InstanceStatus(instance_name, STATUS_OK)
+        instance_status = InstanceStatus(instance_name, STATUS_OK, metric_count=metric_count)
 
     return instance_status
 
@@ -685,7 +688,7 @@ def get_jmx_status():
                         metric_count = info.get('metric_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
-                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message))
+                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
                
                 for check_name, instances in jmx_checks.get('initialized_checks', {}).iteritems():
@@ -694,7 +697,7 @@ def get_jmx_status():
                         metric_count = info.get('metric_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
-                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message))
+                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
 
                 for check_name, data in check_data.iteritems():
