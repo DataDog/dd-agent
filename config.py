@@ -605,6 +605,7 @@ def get_ssl_certificate(osname, filename):
 
 def check_yaml(conf_path):
     f = open(conf_path)
+    check_name = os.path.basename(conf_path).split('.')[0]
     try:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
