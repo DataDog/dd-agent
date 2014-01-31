@@ -44,6 +44,11 @@ class Network(AgentCheck):
         ('tcp6', 'time_wait') : 'system.net.tcp6.time_wait',
     }
 
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances=instances)
+        if len(instances) > 1:
+            raise Exception("Network check only supports one configured instance.")
+
     def check(self, instance):
         if instance is None:
             instance = {}
