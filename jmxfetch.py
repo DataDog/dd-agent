@@ -24,14 +24,16 @@ JAVA_LOGGING_LEVEL = {
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
 JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
+JMX_COLLECT_COMMAND = 'collect'
 JMX_LIST_COMMANDS = {
         'list_everything': 'List every attributes available that has a type supported by JMXFetch', 
         'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration', 
         'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
         'list_not_matching_attributes': "List attributes that don't match any of your instances configuration", 
-        'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected"
+        'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
+        JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"
         }
-JMX_COLLECT_COMMAND = 'collect'
+
 PYTHON_JMX_STATUS_FILE = 'jmx_status_python.yaml'
 
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
@@ -44,7 +46,8 @@ class JMXFetch(object):
     pid_file_path = pid_file.get_path()
 
     @classmethod
-    def init(cls, confd_path, agentConfig, logging_config, default_check_frequency, command=None, checks_list=None):
+    def init(cls, confd_path, agentConfig, logging_config, 
+        default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
             jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
             try:
@@ -57,7 +60,9 @@ class JMXFetch(object):
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
-                JMXFetch.start(confd_path, agentConfig, logging_config, java_bin_path, java_options, default_check_frequency,  jmx_checks, command)
+                JMXFetch.start(confd_path, agentConfig, logging_config, 
+                    java_bin_path, java_options, default_check_frequency,  
+                    jmx_checks, command, reporter)
                 return True
             else:
                 return False
@@ -270,14 +275,13 @@ class JMXFetch(object):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
 
     @classmethod
-    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, default_check_frequency, jmx_checks, command=None):
+    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, 
+        default_check_frequency, jmx_checks, command=None, reporter=None):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
         command = command or JMX_COLLECT_COMMAND
-        if command == JMX_COLLECT_COMMAND:
+        if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
-        else:
-            reporter = "console"
 
         log.info("Starting jmxfetch:")
         jmx_connector_pid = None
@@ -309,7 +313,7 @@ class JMXFetch(object):
                     subprocess_args.insert(1,opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
-            if command == JMX_COLLECT_COMMAND:
+            if reporter != "console":
                 cls.subprocess = subprocess.Popen(subprocess_args, close_fds=True)
                 jmx_connector_pid = cls.subprocess.pid
                 log.debug("JMX Fetch pid: %s" % jmx_connector_pid)
