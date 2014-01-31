@@ -144,9 +144,11 @@ SELECT relname,
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
+                self.log.debug("Running query: %s with relations: %s" % (query, relations))
                 cursor.execute(query, (relations, ))
             else:
                 query = scope['query'] % (", ".join(cols))
+                self.log.debug("Running query: %s" % query)
                 cursor.execute(query)
 
             results = cursor.fetchall()
@@ -235,7 +237,7 @@ SELECT relname,
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('database', 'postgres')
+        dbname = instance.get('dbname', 'postgres')
         relations = instance.get('relations', [])
 
         key = '%s:%s' % (host, port)
