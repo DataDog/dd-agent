@@ -9,7 +9,7 @@ instances:
 #        #trust_store_password: password
 
 # List of metrics to be collected by the integration
-# You should not have to modify this.
+# Read http://docs.datadoghq.com/integrations/java/ to learn how to customize it
 init_config:
     conf:
       - include:
