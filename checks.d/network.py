@@ -46,7 +46,7 @@ class Network(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances=instances)
-        if len(instances) > 1:
+        if instances is not None and len(instances) > 1:
             raise Exception("Network check only supports one configured instance.")
 
     def check(self, instance):
