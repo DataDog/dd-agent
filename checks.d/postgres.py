@@ -196,15 +196,6 @@ SELECT relname,
         elif host != "" and user != "":
             try:
                 import psycopg2 as pg
-                if host == 'localhost' and password == '':
-                    # Use ident method
-                    return  pg.connect("user=%s dbname=%s" % (user, dbname))
-                elif port != '':
-                    return pg.connect(host=host, port=port, user=user,
-                                      password=password, database=dbname)
-                else:
-                    return pg.connect(host=host, user=user, password=password,
-                                      database=dbname)
             except ImportError:
                 raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
             
@@ -218,14 +209,17 @@ SELECT relname,
                 connection = pg.connect(host=host, user=user, password=password,
                     database=dbname)
         else:
-            if host is None or host == "":
+            if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
-            elif user is None or user == "":
+            elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
-            else:
-                raise CheckException("Cannot connect to Postgres.")
 
-        connection.autocommit = True
+        try:
+            connection.autocommit = True
+        except AttributeError:
+            # connection.autocommit was added in version 2.4.2
+            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+            connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         
         self.dbs[key] = connection
         return connection
@@ -240,7 +234,7 @@ SELECT relname,
         dbname = instance.get('dbname', 'postgres')
         relations = instance.get('relations', [])
 
-        key = '%s:%s' % (host, port)
+        key = '%s:%s:%s' % (host, port,dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance
