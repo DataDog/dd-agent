@@ -92,6 +92,14 @@ def logger_info():
         loggers.append("No loggers configured")
     return ', '.join(loggers)
 
+def get_ntp_info():
+    ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
+    if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
+        ntp_styles = ['red', 'bold']
+    else:
+        ntp_styles = []
+    return ntp_offset, ntp_styles
+
 class AgentStatus(object):
     """
     A small class used to load and save status messages to the filesystem.
@@ -328,23 +336,17 @@ class CollectorStatus(AgentStatus):
             'instance-id'
         ]
 
-        try:
-            ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
-            if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
-                ntp_styles = ['red', 'bold']
-            else:
-                ntp_styles = []
-        except Exception:
-            ntp_offset = "Unknown"
-            ntp_styles = []
-
 
         lines = [
             'Clocks',
             '======',
             ''
         ]
-        lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
+        try:
+            ntp_offset, ntp_styles = get_ntp_info()
+            lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
+        except Exception, e:
+            lines.append('  NTP offset: Unkwown (%s)' % str(e))
         lines.append('  System UTC time: ' + datetime.datetime.utcnow().__str__())
         lines.append('')
 
