@@ -507,10 +507,9 @@ class AgentCheck(object):
             f.close()
 
         config = yaml.load(yaml_text, Loader=yLoader)
-        instances = config.get('instances', [])
-        check = cls(check_name, config.get('init_config', {}), agentConfig or {}, instances=instances)
+        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
-        return check, instances
+        return check, config.get('instances', [])
 
     def normalize(self, metric, prefix=None):
         """
