@@ -12,7 +12,8 @@ from checks.utils import add_basic_auth
 HEALTH_URL = "/_cluster/health?pretty=true"
 STATS_URL = "/_cluster/nodes/stats?all=true"
 NODES_URL = "/_cluster/nodes?network=true"
-
+# 0.90 switched from indices.cache to indices..fields , .filter_cache
+# Updated dict with new fields; may be when it gets too much difference , we can move to version specific dicts
 METRICS = {
     "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
     "elasticsearch.docs.deleted": ("gauge", "indices.docs.deleted"),
@@ -41,6 +42,11 @@ METRICS = {
     "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
     "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
     "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
+    "elasticsearch.filter_cache.size": ("gauge","indices.filter_cache.memory_size_in_bytes"),
+    "elasticsearch.filter_cache.evictions": ("gauge", "indices.filter_cache.evictions"),
+    "elasticsearch.id_cache.size": ("gauge","indices.id_cache.memory_size_in_bytes"),
+    "elasticsearch.fielddata.size": ("gauge","indices.fielddata.memory_size_in_bytes"),
+    "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions"),
     "elasticsearch.merges.current": ("gauge", "indices.merges.current"),
     "elasticsearch.merges.current.docs": ("gauge", "indices.merges.current_docs"),
     "elasticsearch.merges.current.size": ("gauge", "indices.merges.current_size_in_bytes"),
@@ -339,4 +345,3 @@ class ElasticSearch(AgentCheck):
                 'url': agentConfig.get('elasticsearch'),
             }]
         }
-
