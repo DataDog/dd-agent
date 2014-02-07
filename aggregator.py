@@ -253,12 +253,10 @@ class Rate(Metric):
         finally:
             self.samples = self.samples[-1:]
 
-
-class MetricsAggregator(object):
+class Aggregator(object):
     """
-    A metric aggregator class.
+    Abstract metric aggregator class.
     """
-
     # Types of metrics that allow strings
     ALLOW_STRINGS = ['s', ]
 
@@ -268,14 +266,6 @@ class MetricsAggregator(object):
         self.total_count = 0
         self.count = 0
         self.event_count = 0
-        self.metric_type_to_class = {
-            'g': Gauge,
-            'c': Counter,
-            'h': Histogram,
-            'ms': Histogram,
-            's': Set,
-            '_dd-r': Rate,
-        }
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or api_formatter
@@ -391,6 +381,166 @@ class MetricsAggregator(object):
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
+        """ Add a metric to be aggregated """
+        raise NotImplementedError()
+
+    def event(self, title, text, date_happened=None, alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
+        event = {
+            'title': title,
+            'text': text,
+        }
+        if date_happened is not None:
+            event['date_happened'] = date_happened
+        else:
+            event['date_happened'] = int(time())
+        if alert_type is not None:
+            event['alert_type'] = alert_type
+        if aggregation_key is not None:
+            event['aggregation_key'] = aggregation_key
+        if source_type_name is not None:
+            event['source_type_name'] = source_type_name
+        if priority is not None:
+            event['priority'] = priority
+        if tags is not None:
+            event['tags'] = sorted(tags)
+        if hostname is not None:
+            event['host'] = hostname
+        else:
+            event['host'] = self.hostname
+
+        self.events.append(event)
+
+    def flush(self):
+        """ Flush aggreaged metrics """
+        raise NotImplementedError()
+
+    def flush_events(self):
+        events = self.events
+        self.events = []
+
+        self.total_count += self.event_count
+        self.event_count = 0
+
+        log.debug("Received %d events since last flush" % len(events))
+
+        return events
+
+    def send_packet_count(self, metric_name):
+        self.submit_metric(metric_name, self.count, 'g')
+
+class MetricsBucketAggregator(Aggregator):
+    """
+    A metric aggregator class.
+    """
+
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
+        super(MetricsBucketAggregator, self).__init__(hostname, interval, expiry_seconds, formatter, recent_point_threshold)
+        self.metric_type_to_class = {
+            'g': Gauge,
+            'c': Counter,
+            'h': Histogram,
+            'ms': Histogram,
+            's': Set,
+            '_dd-r': Rate,
+        }
+        timestamp = time()
+        self.bucket_start = timestamp - (timestamp % self.interval)
+        self.bucket_end = self.bucket_start + self.interval
+        self.metricsBuckets = []
+
+    def calculate_bucket_boundaries(self, timestamp):
+        """ Calculate the start and end times for the time bucket """
+        self.bucket_start  = timestamp - (timestamp % self.interval)
+        self.bucket_end = self.bucket_start + self.interval
+
+    def recreate_metrics(self, metrics):
+        #TODO is there a better way to do this?  We need new Metrics of the same type, preserving the
+        #  last sample time but resetting the value of the Metric
+        new_metrics = {}
+        for context, metric in metrics.items():
+            metric_class = metric.__class__
+            new_metrics[context] = metric_class(metric.formatter, metric.name, metric.tags,
+                metric.hostname, metric.device_name)
+            if metric.last_sample_time:
+                new_metrics[context].last_sample_time = metric.last_sample_time
+        return new_metrics
+
+    def submit_metric(self, name, value, mtype, tags=None, hostname=None,
+                                device_name=None, timestamp=None, sample_rate=1):
+        # Avoid calling extra functions to dedupe tags if there are none
+        if tags is None:
+            context = (name, tuple(), hostname, device_name)
+        else:
+            context = (name, tuple(sorted(set(tags))), hostname, device_name)
+
+        cur_time = time()
+        if cur_time >= self.bucket_end:
+            self.metricsBuckets.append((self.metrics, self.bucket_end))
+            self.metrics = self.recreate_metrics(self.metrics)
+            self.calculate_bucket_boundaries(cur_time)
+        
+        if context not in self.metrics:
+            metric_class = self.metric_type_to_class[mtype]
+            self.metrics[context] = metric_class(self.formatter, name, tags,
+                hostname or self.hostname, device_name)
+
+        if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
+            log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))
+            self.num_discarded_old_points += 1
+        else:
+            self.metrics[context].sample(value, sample_rate, timestamp)
+
+    def flush(self):
+        cur_time = time()
+        expiry_timestamp = cur_time - self.expiry_seconds
+
+        if cur_time >= self.bucket_end:
+            self.metricsBuckets.append((self.metrics, self.bucket_end))
+            self.metrics = self.metrics = self.recreate_metrics(self.metrics)
+            self.calculate_bucket_boundaries(cur_time) 
+
+        # Flush points and remove expired metrics. 
+        metrics = []
+        for metricsBucket, timestamp in self.metricsBuckets:
+            # We mutate this dictionary while iterating so don't use an iterator.
+            for context, metric in metricsBucket.items():
+                if metric.last_sample_time < expiry_timestamp:
+                    log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                    del metricsBucket[context]
+                else:
+                    metrics += metric.flush(timestamp, self.interval)
+        self.metricsBuckets = []
+        
+        # Log a warning regarding metrics with old timestamps being submitted
+        if self.num_discarded_old_points > 0:
+            log.warn('%s points were discarded as a result of having an old timestamp' % self.num_discarded_old_points)
+            self.num_discarded_old_points = 0
+
+        # Save some stats.
+        log.debug("received %s payloads since last flush" % self.count)
+        self.total_count += self.count
+        self.count = 0
+        return metrics
+
+
+class MetricsAggregator(Aggregator):
+    """
+    A metric aggregator class.
+    """
+
+    def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
+        super(MetricsAggregator, self).__init__(hostname, interval, expiry_seconds, formatter, recent_point_threshold)
+        self.metric_type_to_class = {
+            'g': Gauge,
+            'c': Counter,
+            'h': Histogram,
+            'ms': Histogram,
+            's': Set,
+            '_dd-r': Rate,
+        }
+
+    def submit_metric(self, name, value, mtype, tags=None, hostname=None,
+                                device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
         if tags is None:
             context = (name, tuple(), hostname, device_name)
@@ -425,32 +575,6 @@ class MetricsAggregator(object):
     def set(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 's', tags, hostname, device_name)
 
-    def event(self, title, text, date_happened=None, alert_type=None, aggregation_key=None, source_type_name=None, priority=None, tags=None, hostname=None):
-        event = {
-            'title': title,
-            'text': text,
-        }
-        if date_happened is not None:
-            event['date_happened'] = date_happened
-        else:
-            event['date_happened'] = int(time())
-        if alert_type is not None:
-            event['alert_type'] = alert_type
-        if aggregation_key is not None:
-            event['aggregation_key'] = aggregation_key
-        if source_type_name is not None:
-            event['source_type_name'] = source_type_name
-        if priority is not None:
-            event['priority'] = priority
-        if tags is not None:
-            event['tags'] = sorted(tags)
-        if hostname is not None:
-            event['host'] = hostname
-        else:
-            event['host'] = self.hostname
-
-        self.events.append(event)
-
     def flush(self):
         timestamp = time()
         expiry_timestamp = timestamp - self.expiry_seconds
@@ -475,20 +599,6 @@ class MetricsAggregator(object):
         self.total_count += self.count
         self.count = 0
         return metrics
-
-    def flush_events(self):
-        events = self.events
-        self.events = []
-
-        self.total_count += self.event_count
-        self.event_count = 0
-
-        log.debug("Received %d events since last flush" % len(events))
-
-        return events
-
-    def send_packet_count(self, metric_name):
-        self.submit_metric(metric_name, self.count, 'g')
 
 
 def api_formatter(metric, value, timestamp, tags, hostname, device_name=None,

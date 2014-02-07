@@ -5,7 +5,7 @@ import time
 import unittest
 import nose.tools as nt
 
-from dogstatsd import MetricsAggregator
+from aggregator import MetricsAggregator
 
 
 class TestUnitDogStatsd(unittest.TestCase):
@@ -234,6 +234,26 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         # Assert that no more rates are given
         assert not stats.flush()
+
+    def test_rate_errors(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('my.rate:10|_dd-r')
+        # Sleep 1 second so the time interval > 0 (timestamp is converted to an int)
+        time.sleep(1)
+        stats.submit_packets('my.rate:9|_dd-r')
+
+        # Since the difference < 0 we shouldn't get a value
+        metrics = stats.flush()
+        print(metrics)
+        nt.assert_equal(len(metrics), 0)
+
+        stats.submit_packets('my.rate:10|_dd-r')
+        # Trying to have the times be the same
+        stats.submit_packets('my.rate:40|_dd-r')
+        
+        metrics = stats.flush()
+        nt.assert_equal(len(metrics), 0)
+        
 
     def test_gauge_sample_rate(self):
         stats = MetricsAggregator('myhost')

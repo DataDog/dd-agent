@@ -24,7 +24,7 @@ import threading
 from urllib import urlencode
 
 # project
-from aggregator import MetricsAggregator
+from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
@@ -354,7 +354,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsAggregator(hostname, interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, interval, recent_point_threshold=c.get('recent_point_threshold', None))
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
