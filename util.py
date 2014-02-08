@@ -9,12 +9,21 @@ import time
 import types
 import urllib2
 import uuid
+import tempfile
+import re
 
+# Tornado
+try:
+    from tornado import ioloop, version_info as tornado_version
+except ImportError:
+    pass # We are likely running the agent without the forwarder and tornado is not installed
 try:
     from hashlib import md5
 except ImportError:
     from md5 import md5
 
+VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
+MAX_HOSTNAME_LEN = 255
 # Import json for the agent. Try simplejson first, then the stdlib version and
 # if all else fails, use minjson which we bundle with the agent.
 def generate_minjson_adapter():
@@ -55,6 +64,16 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+def plural(count):
+    if count > 1:
+        return "s"
+    return ""
+
+def get_tornado_ioloop():
+    if tornado_version[0] == 3:
+        return ioloop.IOLoop.current()
+    else:
+        return ioloop.IOLoop.instance()
 
 def get_uuid():
     # Generate a unique name that will stay constant between
@@ -130,12 +149,22 @@ def cast_metric_val(val):
     return val
 
 def is_valid_hostname(hostname):
-    return hostname.lower() not in set([
+    if hostname.lower() in set([
         'localhost',
         'localhost.localdomain',
         'localhost6.localdomain6',
         'ip6-localhost',
-    ])
+    ]):
+        log.warning("Hostname: %s is local" % hostname)
+        return False
+    if len(hostname) > MAX_HOSTNAME_LEN:
+        log.warning("Hostname: %s is too long (max length is  %s characters)" % (hostname, MAX_HOSTNAME_LEN))
+        return False
+    if VALID_HOSTNAME_RFC_1123_PATTERN.match(hostname) is None:
+        log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
+        return False
+    return True
+    
 
 def get_hostname(config=None):
     """
@@ -167,7 +196,7 @@ def get_hostname(config=None):
                 out, err = p.communicate()
                 if p.returncode == 0:
                     return out.strip()
-            except:
+            except Exception:
                 return None
 
         os_name = get_os()
@@ -205,6 +234,38 @@ class EC2(object):
     metadata = {}
 
     @staticmethod
+    def get_tags():
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(EC2.TIMEOUT)
+        except Exception:
+            pass
+
+        try:
+            iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
+            iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            from checks.libs.boto.ec2.connection import EC2Connection
+            connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
+
+            EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
+
+        except Exception:
+            log.exception("Problem retrieving custom EC2 tags")
+            EC2_tags = []
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except Exception:
+            pass
+
+        return EC2_tags
+
+
+    @staticmethod
     def get_metadata():
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
         """
@@ -223,7 +284,7 @@ class EC2(object):
         try:
             socket_to = socket.getdefaulttimeout()
             socket.setdefaulttimeout(EC2.TIMEOUT)
-        except:
+        except Exception:
             pass
 
         for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
@@ -231,14 +292,14 @@ class EC2(object):
                 v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 EC2.metadata[k] = v
-            except:
+            except Exception:
                 pass
 
         try:
             if socket_to is None:
                 socket_to = 3
             socket.setdefaulttimeout(socket_to)
-        except:
+        except Exception:
             pass
 
         return EC2.metadata
@@ -247,7 +308,7 @@ class EC2(object):
     def get_instance_id():
         try:
             return EC2.get_metadata().get("instance-id", None)
-        except:
+        except Exception:
             return None
 
 
@@ -300,11 +361,16 @@ class PidFile(object):
     PID_DIR = '/var/run/dd-agent'
 
 
-    def __init__(self, program, pid_dir=PID_DIR):
+    def __init__(self, program, pid_dir=None):
         self.pid_file = "%s.pid" % program
-        self.pid_dir = pid_dir
+        self.pid_dir = pid_dir or self.get_default_pid_dir()
         self.pid_path = os.path.join(self.pid_dir, self.pid_file)
 
+    def get_default_pid_dir(self):
+        if get_os() != 'windows':
+            return PidFile.PID_DIR
+
+        return tempfile.gettempdir()
 
     def get_path(self):
         # Can we write to the directory
@@ -312,12 +378,12 @@ class PidFile(object):
             if os.access(self.pid_dir, os.W_OK):
                 log.info("Pid file is: %s" % self.pid_path)
                 return self.pid_path
-        except:
-            log.warn("Cannot locate pid file, defaulting to /tmp/%s" % PID_FILE)
+        except Exception:
+            log.warn("Cannot locate pid file, trying to use: %s" % tempfile.gettempdir())
 
         # if all else fails
-        if os.access("/tmp", os.W_OK):
-            tmp_path = os.path.join('/tmp', self.pid_file)
+        if os.access(tempfile.gettempdir(), os.W_OK):
+            tmp_path = os.path.join(tempfile.gettempdir(), self.pid_file)
             log.debug("Using temporary pid file: %s" % tmp_path)
             return tmp_path
         else:
@@ -332,7 +398,7 @@ class PidFile(object):
             log.debug("Cleaning up pid file %s" % path)
             os.remove(path)
             return True
-        except:
+        except Exception:
             log.warn("Could not clean up pid file")
             return False
 
@@ -345,7 +411,7 @@ class PidFile(object):
             pf.close()
 
             return int(pid_s.strip())
-        except:
+        except Exception:
             return None
 
 
@@ -373,7 +439,7 @@ class LaconicFilter(logging.Filter):
                     self.hashed_messages.clear()
                 self.hashed_messages[h] = True
                 return 1
-        except:
+        except Exception:
             return 1
 
 class Timer(object):
@@ -386,8 +452,8 @@ class Timer(object):
         return time.time()
 
     def start(self):
-        self.start = self._now()
-        self.last = self.start
+        self.started = self._now()
+        self.last = self.started
         return self
 
     def step(self):
@@ -397,4 +463,49 @@ class Timer(object):
         return step
 
     def total(self, as_sec=True):
-        return self._now() - self.start
+        return self._now() - self.started
+
+
+class Platform(object):
+    """
+    Return information about the given platform.
+    """
+    @staticmethod
+    def is_darwin(name=None):
+        name = name or sys.platform
+        return 'darwin' in name
+
+    @staticmethod
+    def is_freebsd(name=None):
+        name = name or sys.platform
+        return name.startswith("freebsd")
+
+    @staticmethod
+    def is_linux(name=None):
+        name = name or sys.platform
+        return 'linux' in name
+
+    @staticmethod
+    def is_bsd(name=None):
+        """ Return true if this is a BSD like operating system. """
+        name = name or sys.platform
+        return Platform.is_darwin(name) or Platform.is_freebsd(name)
+
+    @staticmethod
+    def is_solaris(name=None):
+        name = name or sys.platform
+        return name == "sunos5"
+
+    @staticmethod
+    def is_unix(name=None):
+        """ Return true if the platform is a unix, False otherwise. """
+        name = name or sys.platform
+        return (Platform.is_darwin()
+                or Platform.is_linux()
+                or Platform.is_freebsd()
+        )
+
+    @staticmethod
+    def is_win32(name=None):
+        name = name or sys.platform
+        return name == "win32"

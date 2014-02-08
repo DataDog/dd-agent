@@ -2,6 +2,17 @@ from checks import AgentCheck
 
 class Gearman(AgentCheck):
 
+    def get_library_versions(self):
+        try:
+            import gearman
+            version = gearman.__version__
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
+
+        return {"gearman": version}
+
     def _get_client(self,host,port):
         try:
             import gearman

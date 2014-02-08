@@ -5,20 +5,14 @@ from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
 
-# vendor
-import tornado.ioloop
-
 # project
 from checks.check_status import ForwarderStatus
+from util import get_tornado_ioloop, plural
 
 log = logging.getLogger(__name__)
 
-def plural(count):
-    if count > 1:
-        return "s"
-    return ""
-
-class ImplementationError(Exception): pass
+FLUSH_LOGGING_PERIOD = 20
+FLUSH_LOGGING_INITIAL = 5
 
 class Transaction(object):
 
@@ -65,7 +59,7 @@ class Transaction(object):
         return self._next_flush < now
 
     def flush(self):
-        raise ImplementationError("To be implemented in a subclass")
+        raise NotImplementedError("To be implemented in a subclass")
 
 class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
@@ -82,6 +76,8 @@ class TransactionManager(object):
         self._total_count = 0 # Maintain size/count not to recompute it everytime
         self._total_size = 0 
         self._flush_count = 0
+        self._transactions_received = 0
+        self._transactions_flushed = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -127,7 +123,8 @@ class TransactionManager(object):
 
         # Done
         self._transactions.append(tr)
-        self._total_count = self._total_count + 1
+        self._total_count +=  1
+        self._transactions_received += 1
         self._total_size = self._total_size + tr_size
 
         log.debug("Transaction %s added" % (tr.get_id()))
@@ -147,16 +144,32 @@ class TransactionManager(object):
                 to_flush.append(tr)
 
         count = len(to_flush)
+        should_log = self._flush_count +1 <= FLUSH_LOGGING_INITIAL or (self._flush_count + 1) % FLUSH_LOGGING_PERIOD == 0
         if count > 0:
-            log.debug("Flushing %s transaction%s" % (count,plural(count)))
+            if should_log:
+                log.info("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
+            else:
+                log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count +1)))
+
             self._trs_to_flush = to_flush
             self.flush_next()
+        else:
+            if should_log:
+                log.info("No transaction to flush during flush #%s" % str(self._flush_count +1))
+            else:
+                log.debug("No transaction to flush during flush #%s" % str(self._flush_count +1))
+
+        if self._flush_count +1 == FLUSH_LOGGING_INITIAL:
+            log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+
         self._flush_count += 1
 
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
-            flush_count=self._flush_count).persist()
+            flush_count=self._flush_count,
+            transactions_received=self._transactions_received,
+            transactions_flushed=self._transactions_flushed).persist()
 
     def flush_next(self):
 
@@ -181,8 +194,9 @@ class TransactionManager(object):
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.instance().running():
-                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                tornado_ioloop = get_tornado_ioloop()
+                if  tornado_ioloop._running:
+                    tornado_ioloop.add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
@@ -201,8 +215,9 @@ class TransactionManager(object):
     def tr_success(self,tr):
         log.debug("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
-        self._total_count = self._total_count - 1
-        self._total_size = self._total_size - tr.get_size()
+        self._total_count +=  -1
+        self._total_size += - tr.get_size()
+        self._transactions_flushed += 1
         self.print_queue_stats()
 
 

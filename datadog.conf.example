@@ -9,6 +9,9 @@ dd_url: https://app.datadoghq.com
 # proxy_user: user
 # proxy_password: password
 
+# If you run the agent behind haproxy, you might want to set this to yes
+# skip_ssl_validation: no
+
 # The Datadog api key to associate your Agent's data with your organization.
 # Can be found here:
 # https://app.datadoghq.com/account/settings
@@ -19,6 +22,9 @@ api_key:
 
 # Set the host's tags
 #tags: mytag0, mytag1
+
+# Collect AWS EC2 custom tags as agent tags
+# collect_ec2_tags: no
 
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
@@ -79,6 +85,13 @@ use_mount: no
 ## by the dogstatsd_interval) before being sent to the server. Defaults to 'yes'
 # dogstatsd_normalize : yes
 
+# If you want to forward every packet received by the dogstatsd server
+# to another statsd server, uncomment these lines.
+# WARNING: Make sure that forwarded packets are regular statsd packets and not "dogstatsd" packets,
+# as your other statsd server might not be able to handle them.
+# statsd_forward_host: address_of_own_statsd_server
+# statsd_forward_port: 8125
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #
@@ -102,17 +115,6 @@ use_mount: no
 
 # Ganglia port where gmetad is running
 #ganglia_port: 8651
-
-# -------------------------------------------------------------------------- #
-#   Cassandra                                                                #
-# -------------------------------------------------------------------------- #
-#cassandra_host: localhost
-#cassandra_nodetool: /usr/bin/nodetool
-## If you're using Cassandra 0.8 or higher:
-# cassandra_port: 7199
-## If you're using Cassandra 0.7 or lower:
-#cassandra_port: 8080
-
 
 # -------------------------------------------------------------------------- #
 #   Nagios                                                                   #

@@ -10,7 +10,7 @@ import re
 
 # project
 from checks import AgentCheck
-from checks.system import Platform
+from util import Platform
 
 
 class Network(AgentCheck):
@@ -43,6 +43,11 @@ class Network(AgentCheck):
         ('tcp6', 'listening') : 'system.net.tcp6.listening',
         ('tcp6', 'time_wait') : 'system.net.tcp6.time_wait',
     }
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances=instances)
+        if instances is not None and len(instances) > 1:
+            raise Exception("Network check only supports one configured instance.")
 
     def check(self, instance):
         if instance is None:
@@ -344,13 +349,3 @@ class Network(AgentCheck):
             metrics_by_interface[iface] = metrics
 
         return metrics_by_interface
-
-
-if __name__ == '__main__':
-    check, instances = Network.from_yaml('conf.d/network.yaml')
-    for instance in instances:
-        check.check(instance)
-        check.check(instance)
-    if check.has_events():
-        print 'Events: %s' % (check.get_events())
-    print 'Metrics: %s' % (check.get_metrics())

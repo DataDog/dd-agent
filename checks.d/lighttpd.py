@@ -2,6 +2,7 @@ import urllib2
 
 from util import headers
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 class Lighttpd(AgentCheck):
     """Tracks basic connection/requests/workers metrics
@@ -67,8 +68,9 @@ class Lighttpd(AgentCheck):
 
         tags = instance.get('tags', [])
         self.log.debug("Connecting to %s" % url)
-        req = urllib2.Request(url, None,
-            headers(self.agentConfig))
+        req = urllib2.Request(url, None, headers(self.agentConfig))
+        if 'user' in instance and 'password' in instance:
+            add_basic_auth(req, instance['user'], instance['password'])
         request = urllib2.urlopen(req)
         headers_resp = request.info().headers
         server_version = self._get_server_version(headers_resp)

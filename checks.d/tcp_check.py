@@ -138,7 +138,6 @@ class TCPCheck(ServicesCheck):
              'timestamp': int(time.time()),
              'event_type': event_type,
              'host': self.hostname,
-             'api_key': self.agentConfig['api_key'],
              'msg_text': msg,
              'msg_title': title,
              'alert_type': alert_type,

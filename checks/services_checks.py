@@ -49,11 +49,12 @@ class ServicesCheck(AgentCheck):
         # A dictionary to keep track of service statuses
         self.statuses = {}
         self.notified = {}
-        self.start_pool()
         self.nb_failures = 0
+        self.pool_started = False
 
     def stop(self):
         self.stop_pool()
+        self.pool_started = False
 
     def start_pool(self):
         # The pool size should be the minimum between the number of instances
@@ -67,20 +68,24 @@ class ServicesCheck(AgentCheck):
 
         self.resultsq = Queue()
         self.jobs_status = {}
+        self.pool_started = True
 
     def stop_pool(self):
         self.log.info("Stopping Thread Pool")
-        self.pool.terminate()
-        self.pool.join()
-        self.jobs_status.clear()
-        assert self.pool.get_nworkers() == 0
+        if self.pool_started:
+            self.pool.terminate()
+            self.pool.join()
+            self.jobs_status.clear()
+            assert self.pool.get_nworkers() == 0
 
     def restart_pool(self):
         self.stop_pool()
         self.start_pool()
 
     def check(self, instance):
-        if threading.activeCount() > 5 * self.pool_size:
+        if not self.pool_started:
+            self.start_pool()
+        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1 
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()

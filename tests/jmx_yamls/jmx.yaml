@@ -1,0 +1,17 @@
+init_config:
+
+instances:
+  - conf:
+    - include:
+        attribute:
+          bufferSize: 
+            alias: my.metric.buf
+            metric_type: gauge
+        domain: Catalina
+        type: Connector
+    - include: 
+        domain: Catalina
+        type: ThreadPool
+    host: localhost
+    port: 8090
+    name: jmx_instance1

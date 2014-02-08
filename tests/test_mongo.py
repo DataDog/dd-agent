@@ -6,7 +6,6 @@ import time
 import socket
 
 import pymongo
-from nose.plugins.skip import SkipTest
 
 from tests.common import load_check
 
@@ -63,19 +62,17 @@ class TestMongo(unittest.TestCase):
                 time.sleep(30)
                 x = c1.admin.command("replSetGetStatus")
                 assert pymongo.Connection('localhost:%s' % PORT2)
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot instantiate mongod properly")
 
     def tearDown(self):
         try:
             if "p1" in dir(self): self.p1.terminate()
             if "p2" in dir(self): self.p2.terminate()
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot terminate mongod instances")
 
     def testMongoCheck(self):
-        raise SkipTest()
-
         self.config = {
             'instances': [{
                 'server': "mongodb://localhost:%s/test" % PORT1
@@ -109,15 +106,10 @@ class TestMongo(unittest.TestCase):
             'mongodb.mem.virtual': lambda x: x > 0
         }
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
 
         # Run the check against our running server
         self.check.check(self.config['instances'][1])
@@ -132,18 +124,12 @@ class TestMongo(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-        self.assertTrue( replSetCheck )
-
     def testMongoOldConfig(self):
-        raise SkipTest()
         self.agentConfig1 = {
             'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
             'version': '0.1',
@@ -181,16 +167,10 @@ class TestMongo(unittest.TestCase):
             'mongodb.mem.virtual': lambda x: x > 0
         }
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
-
 
         # Test the second mongodb instance
         self.check = load_check('mongo', conf2, self.agentConfig2)
@@ -208,15 +188,10 @@ class TestMongo(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
 
-        replSetCheck = False
         for m in metrics:
             metric_name = m[0]
-            if "replset" in metric_name.split("."):
-                replSetCheck = True
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
-        self.assertTrue( replSetCheck )
 
 if __name__ == '__main__':
     unittest.main()
