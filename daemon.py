@@ -174,11 +174,12 @@ class Daemon(object):
             os.remove(self.pidfile)
 
         if pid > 1:
-            # Try killing the daemon process    
             try:
                 if self.autorestart:
+                    # Try killing the supervising process
                     os.kill(os.getpgid(pid), signal.SIGTERM)
                 else:
+                    # No supervising process present
                     os.kill(pid, signal.SIGTERM)
                 log.info("Daemon is stopped")
             except OSError, err:

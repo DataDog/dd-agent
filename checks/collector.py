@@ -11,14 +11,13 @@ import socket
 import modules
 
 from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
-from config import get_version
+from config import get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.nagios import Nagios
-from checks.cassandra import Cassandra
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -53,7 +52,7 @@ class Collector(object):
         self.metadata_cache = None
         self.initialized_checks_d = []
         self.init_failed_checks_d = []
-        
+
         # Unix System Checks
         self._unix_system_checks = {
             'disk': u.Disk(log),
@@ -76,7 +75,6 @@ class Collector(object):
 
         # Old-style metric checks
         self._ganglia = Ganglia(log)
-        self._cassandra = Cassandra()
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
@@ -91,6 +89,7 @@ class Collector(object):
             try:
                 self._metrics_checks.append(modules.load(module_spec, 'Check')(log))
                 log.info("Registered custom check %s" % module_spec)
+                log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
@@ -189,16 +188,13 @@ class Collector(object):
 
         # Run old-style checks
         gangliaData = self._ganglia.check(self.agentConfig)
-        cassandraData = self._cassandra.check(log, self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
+
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
            
-        if cassandraData is not False and cassandraData is not None:
-            payload['cassandra'] = cassandraData
-            
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
@@ -278,7 +274,8 @@ class Collector(object):
                 event_count = len(current_check_events)
             except Exception, e:
                 log.exception("Error running check %s" % check.name)
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count)
+
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, library_versions=check.get_library_info())
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():
@@ -359,6 +356,7 @@ class Collector(object):
             'resources': {},
             'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
+            'host-tags': {},
         }
 
         # Include system stats on first postback
@@ -374,20 +372,23 @@ class Collector(object):
 
         # Periodically send the host metadata.
         if self._is_first_run() or self._should_send_metadata():
+            payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
+            host_tags = []
             if self.agentConfig['tags'] is not None:
-                payload['tags'] = self.agentConfig['tags']
+                host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
+
+            if self.agentConfig['collect_ec2_tags']:
+                host_tags.extend(EC2.get_tags())
+
+            if host_tags:
+                payload['host-tags']['system'] = host_tags
 
             # Log the metadata on the first run
             if self._is_first_run():
-                if self.agentConfig['tags'] is not None:
-                    log.info(u"Hostnames: %s, tags: %s" \
-                        % (repr(self.metadata_cache),
-                           self.agentConfig['tags']))
-                else:
-                    log.info(u"Hostnames: %s" % repr(self.metadata_cache))
+                log.info("Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
 
         return payload
 
@@ -402,11 +403,11 @@ class Collector(object):
         else:
             try:
                 metadata["socket-hostname"] = socket.gethostname()
-            except:
+            except Exception:
                 pass
         try:
             metadata["socket-fqdn"] = socket.getfqdn()
-        except:
+        except Exception:
             pass
 
         metadata["hostname"] = get_hostname()

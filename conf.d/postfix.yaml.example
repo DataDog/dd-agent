@@ -1,0 +1,20 @@
+init_config:
+
+instances:
+    - directory: /var/spool/postfix
+      queues:
+          - incoming
+          - active
+          - deferred
+      tags:
+          - optional_tag1
+          - optional_tag2
+    - directory: /var/spool/postfix-2
+      queues:
+          - incoming
+          - active
+          - deferred
+      tags:
+          - optional_tag3
+          - optional_tag4
+

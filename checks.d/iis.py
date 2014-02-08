@@ -1,6 +1,11 @@
 '''
 Check the performance counters from IIS
 '''
+try:
+    import wmi
+except Exception:
+    wmi = None
+
 from checks import AgentCheck
 
 class IIS(AgentCheck):
@@ -38,12 +43,19 @@ class IIS(AgentCheck):
         ('iis.requests.isapi', 'rate', 'TotalISAPIExtensionRequests'),
     ]
 
+    def __init__(self, name, init_config, agentConfig):
+        AgentCheck.__init__(self, name, init_config, agentConfig)
+        self.wmi_conns = {}
+
+    def _get_wmi_conn(self, host, user, password):
+        key = "%s:%s:%s" % (host, user, password)
+        if key not in self.wmi_conns:
+            self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
+        return self.wmi_conns[key]
+
     def check(self, instance):
-        try:
-            import wmi
-        except ImportError:
-            self.log.error("Unable to import 'wmi' module")
-            return
+        if wmi is None:
+            raise Exception("Missing 'wmi' module")
 
         # Connect to the WMI provider
         host = instance.get('host', None)
@@ -51,7 +63,7 @@ class IIS(AgentCheck):
         password = instance.get('password', None)
         instance_tags = instance.get('tags', [])
         sites = instance.get('sites', ['_Total'])
-        w = wmi.WMI(host, user=user, password=password)
+        w = self._get_wmi_conn(host, user, password)
 
         try:
             wmi_cls = w.Win32_PerfFormattedData_W3SVC_WebService()
@@ -75,7 +87,7 @@ class IIS(AgentCheck):
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
-                    self.log.error('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                    self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
                         % (metric, wmi_val))
                     continue
 

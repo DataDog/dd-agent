@@ -1,9 +1,9 @@
 import re
-import time
 import urllib2
 
 from util import headers
 from checks import AgentCheck
+from checks.utils import add_basic_auth
 
 class Nginx(AgentCheck):
     """Tracks basic nginx metrics via the status module
@@ -25,13 +25,19 @@ class Nginx(AgentCheck):
             raise Exception('NginX instance missing "nginx_status_url" value.')
         tags = instance.get('tags', [])
 
-        self._get_metrics(instance['nginx_status_url'], tags)
+        response = self._get_data(instance)
+        self._get_metrics(response, tags)
 
-    def _get_metrics(self, url, tags):
+    def _get_data(self, instance):
+        url = instance.get('nginx_status_url')
         req = urllib2.Request(url, None, headers(self.agentConfig))
+        if 'user' in instance and 'password' in instance:
+            add_basic_auth(req, instance['user'], instance['password'])
         request = urllib2.urlopen(req)
-        response = request.read()
+        return request.read()
 
+
+    def _get_metrics(self, response, tags):
         # Thanks to http://hostingfu.com/files/nginx/nginxstats.py for this code
         # Connections
         parsed = re.search(r'Active connections:\s+(\d+)', response)
@@ -42,7 +48,9 @@ class Nginx(AgentCheck):
         # Requests per second
         parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', response)
         if parsed:
+            conn = int(parsed.group(1))
             requests = int(parsed.group(3))
+            self.rate("nginx.net.conn_opened_per_s", conn, tags=tags)
             self.rate("nginx.net.request_per_s", requests, tags=tags)
 
         # Connection states, reading, writing or waiting for clients

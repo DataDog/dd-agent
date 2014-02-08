@@ -34,6 +34,8 @@
         <dl>
           <dt>Status date</dt>      <dd>{{ collector['status_date'] }}</dd>
           <dt>Pid</dt>              <dd>{{ collector['pid'] }}</dd>
+          <dt>Path to conf.d</dt>      <dd>{{ collector['confd_path'] }}</dd>
+          <dt>Path to checks.d</dt>    <dd>{{ collector['checksd_path'] }}</dd>
         </dl>
 
         <h3>Hostnames</h3>
@@ -55,6 +57,9 @@
           {% for name, check in collector['checks'].iteritems() %}
           <li><h4>{{ name }}</h4>
           <ul>
+          {% if check['init_failed'] %}
+            <li>Initialization error: {{check['traceback']}}</li>
+         {% else %}
           {% for id, instance in check['instances'].iteritems() %}
           <li>
             <dl>
@@ -80,6 +85,7 @@
           </ul></li>
           {% end %}
         </ul>
+        {% end %}
         {% else %}
         <p>No checks have run yet.</p>
         {% end %}
@@ -113,7 +119,7 @@
 
         <dl>
           <dt>Flush count</dt>        <dd>{{ forwarder['flush_count'] }}</dd>
-          <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }}</dd>
+          <dt>Queue size</dt>         <dd>{{ forwarder['queue_size'] }} bytes</dd>
           <dt>Queue length</dt>       <dd>{{ forwarder['queue_length'] }}</dd>
         </dl>
 

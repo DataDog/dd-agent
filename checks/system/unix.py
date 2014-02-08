@@ -14,8 +14,7 @@ import time
 
 # project
 from checks import Check, UnknownValue
-from checks.system import Platform
-from util import get_hostname
+from util import get_hostname, Platform
 
 
 # locale-resilient float converter
@@ -262,7 +261,7 @@ class IO(Check):
         """
         io = {}
         try:
-            if sys.platform == 'linux2':
+            if Platform.is_linux():
                 stdout = sp.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
                                           stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
@@ -377,7 +376,7 @@ class Load(Check):
         Check.__init__(self, logger)
     
     def check(self, agentConfig):
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             try:
                 loadAvrgProc = open('/proc/loadavg', 'r')
                 uptime = loadAvrgProc.readlines()
@@ -444,7 +443,7 @@ class Memory(Check):
                 pass
     
     def check(self, agentConfig):
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             try:
                 meminfoProc = open('/proc/meminfo', 'r')
                 lines = meminfoProc.readlines()
@@ -543,6 +542,9 @@ class Memory(Check):
             return memData  
             
         elif sys.platform == 'darwin':
+            macV = platform.mac_ver()
+            macV_minor_version = int(re.match(r'10\.(\d+)\.?.*', macV[0]).group(1))
+
             try:
                 top = sp.Popen(['top', '-l 1'], stdout=sp.PIPE, close_fds=True).communicate()[0]
                 sysctl = sp.Popen(['sysctl', 'vm.swapusage'], stdout=sp.PIPE, close_fds=True).communicate()[0]
@@ -556,8 +558,15 @@ class Memory(Check):
             
             # Deal with sysctl
             swapParts = re.findall(r'([0-9]+\.\d+)', sysctl)
-            
-            return {'physUsed' : physParts[3], 'physFree' : physParts[4], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
+
+            # Mavericks changes the layout of physical memory format in `top`
+            physUsedPartIndex = 3
+            physFreePartIndex = 4
+            if macV and (macV_minor_version >= 9):
+                physUsedPartIndex = 0
+                physFreePartIndex = 2
+
+            return {'physUsed' : physParts[physUsedPartIndex], 'physFree' : physParts[physFreePartIndex], 'swapUsed' : swapParts[1], 'swapFree' : swapParts[2]}
             
         elif sys.platform.startswith("freebsd"):
             try:
@@ -740,7 +749,7 @@ class Cpu(Check):
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
                 return 0.0
 
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             mpstat = sp.Popen(['mpstat', '1', '3'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             # topdog@ip:~$ mpstat 1 3
             # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)

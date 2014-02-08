@@ -28,6 +28,14 @@ class Riak(AgentCheck):
         "memory_code",
         "memory_ets",
         "read_repairs",
+        "node_put_fsm_rejected_60s",
+        "node_put_fsm_active_60s",
+        "node_put_fsm_in_rate",
+        "node_put_fsm_out_rate",
+        "node_get_fsm_rejected_60s",
+        "node_get_fsm_active_60s",
+        "node_get_fsm_in_rate",
+        "node_get_fsm_out_rate"
     ]
 
     stat_keys = [
@@ -69,7 +77,7 @@ class Riak(AgentCheck):
             return
 
         if resp.status != 200:
-            self.status_code_event(url, r, aggregation_key)
+            self.status_code_event(url, resp, aggregation_key)
 
         stats = json.loads(content)
 

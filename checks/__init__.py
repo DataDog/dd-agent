@@ -32,7 +32,7 @@ class UnknownValue(CheckException): pass
 # DEPRECATED
 # ------------------------------
 # If you are writing your own check, you should inherit from AgentCheck
-# and not this class. This class will be removed in a future version 
+# and not this class. This class will be removed in a future version
 # of the agent.
 #==============================================================================
 class Check(object):
@@ -56,7 +56,7 @@ class Check(object):
         self.logger = logger
         try:
             self.logger.addFilter(LaconicFilter())
-        except:
+        except Exception:
             self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
@@ -170,9 +170,9 @@ class Check(object):
 
             return (sample2[0], delta / interval, sample2[2], sample2[3])
         except Infinity:
-            raise 
+            raise
         except UnknownValue:
-            raise 
+            raise
         except Exception, e:
             raise NaN(e)
 
@@ -217,7 +217,7 @@ class Check(object):
         for m in self._sample_store:
             try:
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)
-            except:
+            except Exception:
                 pass
         return values
 
@@ -228,7 +228,7 @@ class Check(object):
             try:
                 # Discard the timestamp
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)[1]
-            except:
+            except Exception:
                 pass
         return values
 
@@ -256,7 +256,7 @@ class Check(object):
                     if device_name:
                         attributes['device_name'] = device_name
                     metrics.append((m, int(ts), val, attributes))
-            except:
+            except Exception:
                 pass
         return metrics
 
@@ -285,6 +285,7 @@ class AgentCheck(object):
         self.events = []
         self.instances = instances or []
         self.warnings = []
+        self.library_versions = None
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -386,6 +387,8 @@ class AgentCheck(object):
                 "tags": (optional) list, a list of tags to associate with this event
             }
         """
+        if event.get('api_key') is None:
+            event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
     def has_events(self):
@@ -424,10 +427,23 @@ class AgentCheck(object):
         return len(self.warnings) > 0
 
     def warning(self, warning_message):
-        """ Add a warning message that will be printed in the info page 
+        """ Add a warning message that will be printed in the info page
         :param warning_message: String. Warning message to be displayed
         """
         self.warnings.append(warning_message)
+
+    def get_library_info(self):
+        if self.library_versions is not None:
+            return self.library_versions
+        try:
+            self.library_versions = self.get_library_versions()
+        except NotImplementedError:
+            pass
+
+    def get_library_versions(self):
+        """ Should return a string that shows which version
+        of the needed libraries are used """
+        raise NotImplementedError
 
     def get_warnings(self):
         """
@@ -444,16 +460,16 @@ class AgentCheck(object):
             try:
                 self.check(instance)
                 if self.has_warnings():
-                    instance_status = check_status.InstanceStatus(i, 
-                        check_status.STATUS_WARNING, 
+                    instance_status = check_status.InstanceStatus(i,
+                        check_status.STATUS_WARNING,
                         warnings=self.get_warnings()
                     )
                 else:
                     instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, 
-                    check_status.STATUS_ERROR, 
+                instance_status = check_status.InstanceStatus(i,
+                    check_status.STATUS_ERROR,
                     error=e,
                     tb=traceback.format_exc()
                 )
@@ -519,7 +535,8 @@ class AgentCheck(object):
             return name
 
 
-def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+                                                metric_type=None, interval=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
      (metric, timestamp, value, {"tags": ["tag1", "tag2"], ...})
     """
@@ -530,6 +547,13 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
         attributes['hostname'] = hostname
     if device_name:
         attributes['device_name'] = device_name
+    if metric_type:
+        attributes['type'] = metric_type
+    if interval:
+        # For now, don't send the interval for agent metrics, since they don't
+        # come at very predictable intervals.
+        # attributes['interval'] = None
+        pass
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)

@@ -1,5 +1,11 @@
 from checks import Check
 
+try:
+    import wmi
+    w = wmi.WMI()
+except Exception:
+    wmi, w = None, None
+
 # Device WMI drive types
 class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
@@ -14,8 +20,6 @@ class Processes(Check):
         self.gauge('system.proc.count')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             os = w.Win32_PerfFormattedData_PerfOS_System()[0]
         except AttributeError:
@@ -49,8 +53,6 @@ class Memory(Check):
         self.gauge('system.mem.nonpaged')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             os = w.Win32_OperatingSystem()[0]
         except AttributeError:
@@ -86,8 +88,6 @@ class Cpu(Check):
         self.gauge('system.cpu.system')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
         except AttributeError:
@@ -142,8 +142,6 @@ class Network(Check):
         self.gauge('system.net.bytes_sent')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
         except AttributeError:
@@ -171,8 +169,6 @@ class Disk(Check):
         self.gauge('system.disk.used')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             disk = w.Win32_LogicalDisk()
         except AttributeError:
@@ -187,11 +183,11 @@ class Disk(Check):
             if device.FreeSpace is not None and device.Size is not None:
                 free = float(device.FreeSpace) / B2KB
                 total = float(device.Size) / B2KB
+                used = total - free
                 self.save_sample('system.disk.free', free, device_name=name)
                 self.save_sample('system.disk.total', total, device_name=name)
-                self.save_sample('system.disk.used', total - free,
-                    device_name=name)
-                self.save_sample('system.disk.in_use', (free / total),
+                self.save_sample('system.disk.used', used, device_name=name)
+                self.save_sample('system.disk.in_use', (used / total),
                     device_name=name)
         return self.get_metrics()
 
@@ -206,8 +202,6 @@ class IO(Check):
         self.gauge('system.io.avg_q_sz')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
         try:
             disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
         except AttributeError:

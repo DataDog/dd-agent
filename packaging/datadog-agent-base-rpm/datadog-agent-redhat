@@ -29,6 +29,7 @@ AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
+COLLECTOR_PYTHON_PATH="/usr/share/datadog/agent/checks/libs:$PYTHONPATH"
 
 if [ -x "/usr/bin/python2.6" ]; then
     PYTHON="/usr/bin/python2.6"
@@ -128,7 +129,7 @@ start() {
         fi
         echo -n 'Starting Datadog Agent: '
         install -d -o $AGENTUSER $PIDPATH
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
+        daemon --user $AGENTUSER "env LANG=POSIX env PYTHONPATH=$COLLECTOR_PYTHON_PATH $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
@@ -153,6 +154,7 @@ stop() {
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH stop > /dev/null 2>&1"
         rm -f $LOCKFILE
         rm -f $PIDFILE
+        sleep 5
     fi
     return 0
 }
@@ -166,15 +168,21 @@ info() {
     shift # Shift 'info' out of the args so we can pass any
           # additional options to the real command
           # (right now only dd-agent supports additional flags)
+    FORWARDER_RETURN=0
     su $AGENTUSER -c "$AGENTPATH info $@"
-    RETURN_VALUE=$?
+    COLLECTOR_RETURN=$?
     su $AGENTUSER -c "$DOGSTATSDPATH info"
-    RETURN_VALUE=$(($RETURN_VALUE || $?))
+    DOGSTATSD_RETURN=$?
     if [ -f $USE_SUPERVISOR ]; then
         su $AGENTUSER -c "$USE_SUPERVISOR info"
-        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        FORWARDER_RETURN=$?
     fi
-    exit $RETURN_VALUE
+    exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+DOGSTATSD_RETURN))
+}
+
+configcheck() {
+    su $AGENTUSER -c "$AGENTPATH configcheck"
+    exit $?
 }
 
 
@@ -194,8 +202,17 @@ case "$1" in
     info)
         info "$@"
         ;;
+    configcheck)
+        configcheck
+        ;;
+
+    jmx)
+        shift
+        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        exit $?
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|info|status}"
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck|jmx}"
         exit 2
 esac
 exit $?
