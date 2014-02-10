@@ -235,12 +235,15 @@ class MySql(AgentCheck):
                     # cursor.description is a tuple of (column_name, ..., ...)
                     try:
                         col_idx = [d[0].lower() for d in cursor.description].index(field.lower())
-                        if metric_type == GAUGE:
-                            self.gauge(metric, float(result[col_idx]), tags=tags)
-                        elif metric_type == RATE:
-                            self.rate(metric, float(result[col_idx]), tags=tags)
+                        if result[col_idx] is not None:
+                            if metric_type == GAUGE:
+                                self.gauge(metric, float(result[col_idx]), tags=tags)
+                            elif metric_type == RATE:
+                                self.rate(metric, float(result[col_idx]), tags=tags)
+                            else:
+                                self.gauge(metric, float(result[col_idx]), tags=tags)
                         else:
-                            self.gauge(metric, float(result[col_idx]), tags=tags)
+                            self.log.debug("Recieved value is None for index %d" % col_idx)
                     except ValueError:
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()
