@@ -5,7 +5,7 @@ import subprocess
 import time
 import urllib2
 import urlparse
-
+from nose.plugins.skip import SkipTest
 from tests.common import load_check
 
 PORT = 9200
@@ -46,6 +46,7 @@ class TestElastic(unittest.TestCase):
             self.process.terminate()
     
     def testElasticChecksD(self):
+        raise SkipTest("See https://github.com/DataDog/dd-agent/issues/825")
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
               'version': '0.1',
               'api_key': 'toto' }
