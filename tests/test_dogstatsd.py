@@ -21,6 +21,11 @@ class TestUnitDogStatsd(unittest.TestCase):
         def sort_by(m):
             return (m['title'], m['text'],  ','.join(m.get('tags', None) or []))
         return sorted(metrics, key=sort_by)
+    
+    @staticmethod
+    def assert_almost_equal(i, j, e=1):
+        # Floating point math?
+        assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
 
     def test_counter_normalization(self):
         stats = MetricsAggregator('myhost', interval=10)
@@ -283,18 +288,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         metrics = self.sort_metrics(stats.flush())
 
-        def assert_almost_equal(i, j, e=1):
-            # Floating point math?
-            assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
-
         nt.assert_equal(len(metrics), 5)
         p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
-        assert_almost_equal(p95['points'][0][1], 95, 10)
-        assert_almost_equal(pmax['points'][0][1], 99, 1)
-        assert_almost_equal(pmed['points'][0][1], 50, 2)
-        assert_almost_equal(pavg['points'][0][1], 50, 2)
-        assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
+        self.assert_almost_equal(p95['points'][0][1], 95, 10)
+        self.assert_almost_equal(pmax['points'][0][1], 99, 1)
+        self.assert_almost_equal(pmed['points'][0][1], 50, 2)
+        self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
         nt.assert_equals(p95['host'], 'myhost')
 
         # Ensure that histograms are reset.
@@ -492,6 +493,59 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(second['text'], 'text|content')
         nt.assert_equal(third['text'], 'First line\nSecond line')
         nt.assert_equal(fourth['text'], u'♬ †øU †øU ¥ºu T0µ ♪')
+    
+    def test_recent_point_threshold(self):
+        threshold = 100
+        stats = MetricsAggregator('myhost', recent_point_threshold=threshold)
+        timestamp_beyond_threshold = time.time() - threshold*2
+        timestamp_within_threshold = time.time() - threshold/2
+
+        # Ensure that old gauges get dropped due to old timestamps
+        stats.submit_metric('my.first.gauge', 5, 'g')
+        stats.submit_metric('my.first.gauge', 1, 'g', timestamp=timestamp_beyond_threshold)
+        stats.submit_metric('my.second.gauge', 20, 'g', timestamp=timestamp_beyond_threshold)
+
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 1
+
+        first = metrics[0]
+        nt.assert_equals(first['metric'], 'my.first.gauge')
+        nt.assert_equals(first['points'][0][1], 5)
+        nt.assert_equals(first['host'], 'myhost')      
+
+        # Ensure that old gauges get dropped due to old timestamps
+        stats.submit_metric('my.1.gauge', 5, 'g')
+        stats.submit_metric('my.1.gauge', 1, 'g', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.2.counter', 20, 'c', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.3.set', 20, 's', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.4.histogram', 20, 'h', timestamp=timestamp_within_threshold)
+        
+        flush_timestamp = time.time()
+        metrics = self.sort_metrics(stats.flush())
+        print(metrics)
+        nt.assert_equal(len(metrics), 8)
+
+        first, second, third, h1, h2, h3, h4, h5  = metrics
+        nt.assert_equals(first['metric'], 'my.1.gauge')
+        nt.assert_equals(first['points'][0][1], 1)
+        nt.assert_equals(first['host'], 'myhost')
+        self.assert_almost_equal(first['points'][0][0], timestamp_within_threshold, 0.1)  
+
+        nt.assert_equals(second['metric'], 'my.2.counter')
+        nt.assert_equals(second['points'][0][1], 20)
+        self.assert_almost_equal(second['points'][0][0], flush_timestamp, 0.1)
+        
+        nt.assert_equals(third['metric'], 'my.3.set')
+        nt.assert_equals(third['points'][0][1], 1)
+        self.assert_almost_equal(third['points'][0][0], flush_timestamp, 0.1)
+        
+        nt.assert_equals(h1['metric'], 'my.4.histogram.95percentile')
+        nt.assert_equals(h1['points'][0][1], 20)
+        self.assert_almost_equal(h1['points'][0][0], flush_timestamp, 0.1)
+        nt.assert_equal(h1['points'][0][0],h2['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h3['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h4['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h5['points'][0][0])          
 
 if __name__ == "__main__":
     unittest.main()

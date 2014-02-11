@@ -158,6 +158,12 @@ class TestUnitDogStatsd(unittest.TestCase):
     def test_empty_counter(self):
         ag_interval = self.interval
         stats = MetricsBucketAggregator('myhost', interval = ag_interval)
+        
+        self.sleep_for_interval_length(ag_interval)
+        metrics = self.sort_metrics(stats.flush())
+        # Should be an empty list
+        nt.assert_equals(len(metrics),0)
+        
         # Track some counters.
         stats.submit_packets('my.first.counter:%s|c' % (1 * ag_interval))
         # Call flush before the bucket_length has been exceeded
@@ -232,6 +238,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         ag_interval = 5
         stats = MetricsBucketAggregator('myhost', interval = ag_interval)
         self.wait_for_bucket_boundary(ag_interval)
+        time.sleep(0.5)
         
         # Track some counters.
         stats.submit_packets("my.first.counter:%s|c" % (1 * ag_interval))
@@ -884,6 +891,71 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(second['text'], 'text|content')
         nt.assert_equal(third['text'], 'First line\nSecond line')
         nt.assert_equal(fourth['text'], u'♬ †øU †øU ¥ºu T0µ ♪')
+
+    def test_recent_point_threshold(self):
+        ag_interval = 1
+        threshold = 100
+        stats = MetricsBucketAggregator('myhost', recent_point_threshold=threshold, interval=ag_interval)
+        timestamp_beyond_threshold = time.time() - threshold*2
+
+        # Ensure that old gauges get dropped due to old timestamps
+        stats.submit_metric('my.first.gauge', 5, 'g')
+        stats.submit_metric('my.first.gauge', 1, 'g', timestamp=timestamp_beyond_threshold)
+        stats.submit_metric('my.second.gauge', 20, 'g', timestamp=timestamp_beyond_threshold)
+
+        self.sleep_for_interval_length(ag_interval)
+        metrics = self.sort_metrics(stats.flush())
+        assert len(metrics) == 1
+
+        first = metrics[0]
+        nt.assert_equals(first['metric'], 'my.first.gauge')
+        nt.assert_equals(first['points'][0][1], 5)
+        nt.assert_equals(first['host'], 'myhost')      
+
+        timestamp_within_threshold = time.time() - threshold/2
+        bucket_for_timestamp_within_threshold = timestamp_within_threshold - \
+                                                (timestamp_within_threshold % ag_interval) + ag_interval
+        submit_timestamp = time.time()
+        stats.submit_metric('my.1.gauge', 5, 'g')
+        stats.submit_metric('my.1.gauge', 1, 'g', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.2.counter', 20, 'c', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.3.set', 20, 's', timestamp=timestamp_within_threshold)
+        stats.submit_metric('my.4.histogram', 20, 'h', timestamp=timestamp_within_threshold)
+        
+        self.sleep_for_interval_length(ag_interval)
+        flush_timestamp = time.time()
+        bucket_timestamp = flush_timestamp - (flush_timestamp % ag_interval)
+        metrics = self.sort_metrics(stats.flush())
+        print(metrics)
+        nt.assert_equal(len(metrics), 10)
+
+        first, first_b, second, second_b, third, h1, h2, h3, h4, h5  = metrics
+        nt.assert_equals(first['metric'], 'my.1.gauge')
+        nt.assert_equals(first['points'][0][1], 1)
+        nt.assert_equals(first['host'], 'myhost')
+        self.assert_almost_equal(first['points'][0][0], bucket_for_timestamp_within_threshold, 0.1)  
+        nt.assert_equals(first_b['metric'], 'my.1.gauge')
+        nt.assert_equals(first_b['points'][0][1], 5)
+        self.assert_almost_equal(first_b['points'][0][0], bucket_timestamp, 0.1)
+
+        nt.assert_equals(second['metric'], 'my.2.counter')
+        nt.assert_equals(second['points'][0][1], 20)
+        self.assert_almost_equal(second['points'][0][0], bucket_for_timestamp_within_threshold, 0.1)
+        nt.assert_equals(second_b['metric'], 'my.2.counter')
+        nt.assert_equals(second_b['points'][0][1], 0)
+        self.assert_almost_equal(second_b['points'][0][0], bucket_timestamp, 0.1)
+        
+        nt.assert_equals(third['metric'], 'my.3.set')
+        nt.assert_equals(third['points'][0][1], 1)
+        self.assert_almost_equal(third['points'][0][0], bucket_for_timestamp_within_threshold, 0.1)
+        
+        nt.assert_equals(h1['metric'], 'my.4.histogram.95percentile')
+        nt.assert_equals(h1['points'][0][1], 20)
+        self.assert_almost_equal(h1['points'][0][0], bucket_for_timestamp_within_threshold, 0.1)
+        nt.assert_equal(h1['points'][0][0],h2['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h3['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h4['points'][0][0])
+        nt.assert_equal(h1['points'][0][0],h5['points'][0][0])
 
 if __name__ == "__main__":
     unittest.main()

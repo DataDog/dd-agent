@@ -11,6 +11,9 @@ log = logging.getLogger(__name__)
 # input into the incorrect bucket. Currently, the MetricsAggregator
 # does not support submitting values for the past, and all values get
 # submitted for the timestamp passed into the flush() function.
+# The MetricsBucketAggregator uses times that are aligned to "bukcets"
+# that are the lenght of the interval that is passed into the
+# MetricsBucketAggregator constructor.
 RECENT_POINT_THRESHOLD_DEFAULT = 3600
 
 class Infinity(Exception): pass
@@ -68,6 +71,30 @@ class Gauge(Metric):
 
         return []
 
+class BucketGauge(Gauge):
+    """ A metric that tracks a value at particular points in time. 
+    The difference beween this class and Gauge is that this class will 
+    report that gauge sample time as the time that Metric is flushed, as
+    opposed to the time that the sample was collected.
+    
+    """
+    
+    def flush(self, timestamp, interval):
+        if self.value is not None:
+            res = [self.formatter(
+                metric=self.name,
+                timestamp=timestamp,
+                value=self.value,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name,
+                metric_type=MetricTypes.GAUGE,
+                interval=interval,
+            )]
+            self.value = None
+            return res
+
+        return []        
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -261,7 +288,6 @@ class Aggregator(object):
     ALLOW_STRINGS = ['s', ]
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
-        self.metrics = {}
         self.events = []
         self.total_count = 0
         self.count = 0
@@ -435,35 +461,27 @@ class MetricsBucketAggregator(Aggregator):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         super(MetricsBucketAggregator, self).__init__(hostname, interval, expiry_seconds, formatter, recent_point_threshold)
+        self.metric_by_bucket = {}
+        self.current_bucket = None
+        self.current_mbc = None
         self.metric_type_to_class = {
-            'g': Gauge,
+            'g': BucketGauge,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
             's': Set,
-            '_dd-r': Rate,
         }
         timestamp = time()
         self.bucket_start = timestamp - (timestamp % self.interval)
         self.bucket_end = self.bucket_start + self.interval
-        self.metricsBuckets = []
 
     def calculate_bucket_boundaries(self, timestamp):
-        """ Calculate the start and end times for the time bucket """
-        self.bucket_start  = timestamp - (timestamp % self.interval)
+        # Calculate the start and end times for the time bucket 
+        self.bucket_start  = self.calculate_bucket_start(timestamp)
         self.bucket_end = self.bucket_start + self.interval
-
-    def recreate_metrics(self, metrics):
-        #TODO is there a better way to do this?  We need new Metrics of the same type, preserving the
-        #  last sample time but resetting the value of the Metric
-        new_metrics = {}
-        for context, metric in metrics.items():
-            metric_class = metric.__class__
-            new_metrics[context] = metric_class(metric.formatter, metric.name, metric.tags,
-                metric.hostname, metric.device_name)
-            if metric.last_sample_time:
-                new_metrics[context].last_sample_time = metric.last_sample_time
-        return new_metrics
+    
+    def calculate_bucket_start(self, timestamp):
+        return timestamp - (timestamp % self.interval)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
@@ -473,43 +491,69 @@ class MetricsBucketAggregator(Aggregator):
         else:
             context = (name, tuple(sorted(set(tags))), hostname, device_name)
 
-        cur_time = time()
-        if cur_time >= self.bucket_end:
-            self.metricsBuckets.append((self.metrics, self.bucket_end))
-            self.metrics = self.recreate_metrics(self.metrics)
-            self.calculate_bucket_boundaries(cur_time)
-        
-        if context not in self.metrics:
-            metric_class = self.metric_type_to_class[mtype]
-            self.metrics[context] = metric_class(self.formatter, name, tags,
-                hostname or self.hostname, device_name)
-
+        cur_time =  time()
+        #check to make sure that the timestamp that is passed in (if any) is not older than 
+        # recent_point_threshold.  If so, discard the point.
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
             log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))
             self.num_discarded_old_points += 1
         else:
-            self.metrics[context].sample(value, sample_rate, timestamp)
+            timestamp = timestamp or cur_time
+            #bucket_timestamp needs to be the end of the bucket
+            bucket_timestamp = timestamp - (timestamp % self.interval) + self.interval
+            if bucket_timestamp == self.current_bucket:
+                metric_by_context = self.current_mbc
+            else:
+                if bucket_timestamp not in self.metric_by_bucket:
+                    self.metric_by_bucket[bucket_timestamp] = {}
+                metric_by_context = self.metric_by_bucket[bucket_timestamp]
+                self.current_bucket = bucket_timestamp
+                self.current_mbc = metric_by_context
+        
+            if context not in metric_by_context:
+                metric_class = self.metric_type_to_class[mtype]
+                metric_by_context[context] = metric_class(self.formatter, name, tags,
+                    hostname or self.hostname, device_name)
+
+            metric_by_context[context].sample(value, sample_rate, timestamp)
 
     def flush(self):
         cur_time = time()
         expiry_timestamp = cur_time - self.expiry_seconds
 
-        if cur_time >= self.bucket_end:
-            self.metricsBuckets.append((self.metrics, self.bucket_end))
-            self.metrics = self.metrics = self.recreate_metrics(self.metrics)
-            self.calculate_bucket_boundaries(cur_time) 
-
-        # Flush points and remove expired metrics. 
         metrics = []
-        for metricsBucket, timestamp in self.metricsBuckets:
-            # We mutate this dictionary while iterating so don't use an iterator.
-            for context, metric in metricsBucket.items():
-                if metric.last_sample_time < expiry_timestamp:
-                    log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
-                    del metricsBucket[context]
-                else:
-                    metrics += metric.flush(timestamp, self.interval)
-        self.metricsBuckets = []
+ 
+        if self.metric_by_bucket:
+            # Using a counter on sorted keys so that the metric_by_context are processed
+            #  in timestamp/bucket order and so we can access the next timestamp/bucket
+            #  while processing the current one
+            bucket_timestamps = self.metric_by_bucket.keys()
+            bucket_timestamps.sort()
+            for i in range(0,len(bucket_timestamps)): 
+                bucket_timestamp = bucket_timestamps[i]
+                metric_by_context = self.metric_by_bucket[bucket_timestamp]
+                next_bucket_timestamp = None
+                next_metric_by_context = None
+                if i != len(bucket_timestamps)-1:
+                    next_bucket_timestamp = bucket_timestamps[i+1]
+                    next_metric_by_context = self.metric_by_bucket[next_bucket_timestamp]
+                if bucket_timestamp < cur_time:
+                    # We mutate this dictionary while iterating so don't use an iterator.
+                    for context, metric in metric_by_context.items():
+                        if metric.last_sample_time < expiry_timestamp:
+                            log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                            del metric_by_context[context]
+                        else:
+                            metrics += metric.flush(bucket_timestamp, self.interval)
+                            #If we are not processing the last bucket, see if we need to copy this metric
+                            # to the next bucket
+                            if next_metric_by_context and context not in next_metric_by_context:
+                                self.metric_by_bucket[next_bucket_timestamp][context] = metric
+                    if(i == len(bucket_timestamps)-1):
+                        # Move all of the Metrics in the last processed bucket into the new bucket
+                        new_bucket_timestamp = self.calculate_bucket_start(cur_time) + self.interval 
+                        self.metric_by_bucket[new_bucket_timestamp] = metric_by_context
+                    del self.metric_by_bucket[bucket_timestamp]
         
         # Log a warning regarding metrics with old timestamps being submitted
         if self.num_discarded_old_points > 0:
@@ -520,6 +564,8 @@ class MetricsBucketAggregator(Aggregator):
         log.debug("received %s payloads since last flush" % self.count)
         self.total_count += self.count
         self.count = 0
+        self.current_bucket = None
+        self.current_mbc = None
         return metrics
 
 
@@ -530,6 +576,7 @@ class MetricsAggregator(Aggregator):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         super(MetricsAggregator, self).__init__(hostname, interval, expiry_seconds, formatter, recent_point_threshold)
+        self.metrics = {}
         self.metric_type_to_class = {
             'g': Gauge,
             'c': Counter,
