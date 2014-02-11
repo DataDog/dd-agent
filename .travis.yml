@@ -33,7 +33,7 @@ before_script:
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
   - curl -L http://apache.mirrors.multidist.eu/cassandra/2.0.5/apache-cassandra-2.0.5-bin.tar.gz > /tmp/cassandra2.tar.gz
   - tar -xzvf /tmp/cassandra2.tar.gz -C /tmp
-  - sudo /tmp/apache-cassandra-2.0.3/bin/cassandra
+  - sudo /tmp/apache-cassandra-2.0.5/bin/cassandra
   - sudo service haproxy restart
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat_cfg.xml > /etc/tomcat6/server.xml"
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat6 >> /etc/default/tomcat6"
