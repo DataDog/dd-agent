@@ -29,12 +29,13 @@ from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 # Datadog
 from util import yaml, yLoader
 from util import get_os
-from config import get_confd_path, get_config_path, get_config, _windows_commondata_path
+from config import (get_confd_path, get_config_path, get_config, 
+    _windows_commondata_path)
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'gearmand',
     'hdfs', 'mcache', 'network', 'postgres',
-    'process', 'redis', 'postfix', 'gunicorn', 
+    'redis', 'postfix', 'gunicorn', 
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"

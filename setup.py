@@ -42,6 +42,7 @@ if sys.platform == 'win32':
         'elementtree',
         'pycurl',
         'MySQLdb',
+        'psutil',
     ])
 
     # Modules to force-include in the exe
@@ -57,6 +58,7 @@ if sys.platform == 'win32':
         'tornado.curl_httpclient',
         'pymongo',
         'MySQLdb',
+        'psutil',
 
         # agent
         'checks.services_checks',

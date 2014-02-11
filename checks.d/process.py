@@ -75,7 +75,9 @@ class ProcessCheck(AgentCheck):
         thr = 0
 
         # process metrics available for psutil versions 0.6.0 and later
-        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0))
+        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0)) and \
+            not Platform.is_win32()
+        # On Windows get_ext_memory_info returns different metrics
         if extended_metrics_0_6_0:
             real = 0
             voluntary_ctx_switches = 0
