@@ -8,7 +8,7 @@ import nose.tools as nt
 from dogstatsd import MetricsBucketAggregator
 
 
-class TestUnitDogStatsd(unittest.TestCase):
+class TestUnitMetricsBucketAggregator(unittest.TestCase):
     def setUp(self):
         self.interval = 1
 
@@ -251,7 +251,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = self.sort_metrics(stats.flush())
 
         nt.assert_equals(len(metrics), 3)
-
         first, second, third = metrics
         nt.assert_equals(first['metric'], 'my.first.counter')
         nt.assert_equals(first['points'][0][1], 1)
@@ -283,7 +282,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         self.sleep_for_interval_length(ag_interval)
         # Ensure that counters reset to zero.
         metrics = self.sort_metrics(stats.flush())
-
+        nt.assert_equals(len(metrics), 3)
         first, second, third = metrics
         nt.assert_equals(first['metric'], 'my.first.counter')
         nt.assert_equals(first['points'][0][1], 0)
@@ -295,7 +294,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         self.sleep_for_interval_length(ag_interval)
         # Ensure that counters reset to zero.
         metrics = self.sort_metrics(stats.flush())
-
+        nt.assert_equals(len(metrics), 3)
         first, second, third = metrics
         nt.assert_equals(first['metric'], 'my.first.counter')
         nt.assert_equals(first['points'][0][1], 0)
@@ -737,18 +736,59 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_metrics_expiry(self):
         # Ensure metrics eventually expire and stop submitting.
-        expiry = self.interval * 4 + 2
-        stats = MetricsBucketAggregator('myhost', interval=self.interval, expiry_seconds=expiry)
+        ag_interval = self.interval
+        expiry = ag_interval * 5 + 2
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval, expiry_seconds=expiry)
         stats.submit_packets('test.counter:123|c')
+        stats.submit_packets('test.gauge:55|g')
+        stats.submit_packets('test.set:44|s')
+        stats.submit_packets('test.histogram:11|h')
+        submit_time = time.time()
+        submit_bucket_timestamp = submit_time - (submit_time % ag_interval)
 
         # Ensure points keep submitting
         self.sleep_for_interval_length()
-        assert stats.flush()
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 123)
+        nt.assert_equal(metrics[0]['points'][0][0], submit_bucket_timestamp)
+
+        #flush without waiting - should get nothing
+        metrics = self.sort_metrics(stats.flush())
+        assert not metrics, str(metrics)
+
+        #Don't sumbit anything
+        submit_time = time.time()
+        bucket_timestamp = submit_time - (submit_time % ag_interval)
+
         self.sleep_for_interval_length()
-        assert stats.flush()
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 1)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 0)
+        nt.assert_equal(metrics[0]['points'][0][0], bucket_timestamp)
+
+        stats.submit_packets('test.gauge:5|g')
         self.sleep_for_interval_length()
-        time.sleep(0.5)
-        assert stats.flush()
+        time.sleep(0.3)
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 2)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 0)
+        nt.assert_equal(metrics[1]['metric'], 'test.gauge')
+        nt.assert_equal(metrics[1]['points'][0][1], 5)
+
+        #flush without waiting - should get nothing
+        metrics = self.sort_metrics(stats.flush())
+        assert not metrics, str(metrics)
+
+        self.sleep_for_interval_length()
+        metrics = self.sort_metrics(stats.flush())
+
+        nt.assert_equal(len(metrics), 1)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 0)
 
         # Now sleep for longer than the expiry window and ensure
         # no points are submitted
@@ -759,8 +799,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         # If we submit again, we're all good.
         stats.submit_packets('test.counter:123|c')
+        stats.submit_packets('test.gauge:55|g')
+        stats.submit_packets('test.set:44|s')
+        stats.submit_packets('test.histogram:11|h')
         self.sleep_for_interval_length()
-        assert stats.flush()
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 123)
 
 
     def test_diagnostic_stats(self):
@@ -911,8 +957,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(first['host'], 'myhost')
 
         timestamp_within_threshold = time.time() - threshold/2
-        bucket_for_timestamp_within_threshold = timestamp_within_threshold - \
-                                                (timestamp_within_threshold % ag_interval) + ag_interval
+        bucket_for_timestamp_within_threshold = timestamp_within_threshold - (timestamp_within_threshold % ag_interval)
         stats.submit_metric('my.1.gauge', 5, 'g')
         stats.submit_metric('my.1.gauge', 1, 'g', timestamp=timestamp_within_threshold)
         stats.submit_metric('my.2.counter', 20, 'c', timestamp=timestamp_within_threshold)
@@ -921,7 +966,8 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         self.sleep_for_interval_length(ag_interval)
         flush_timestamp = time.time()
-        bucket_timestamp = flush_timestamp - (flush_timestamp % ag_interval)
+        # The bucket timestamp is the beginning of the bucket that ended before we flushed
+        bucket_timestamp = flush_timestamp - (flush_timestamp % ag_interval) - ag_interval
         metrics = self.sort_metrics(stats.flush())
         nt.assert_equal(len(metrics), 10)
 
@@ -952,6 +998,14 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(h1['points'][0][0], h3['points'][0][0])
         nt.assert_equal(h1['points'][0][0], h4['points'][0][0])
         nt.assert_equal(h1['points'][0][0], h5['points'][0][0])
+
+    def test_calculate_bucket_start(self):
+        stats = MetricsBucketAggregator('myhost', interval=10)
+        nt.assert_equal(stats.calculate_bucket_start(13284283), 13284280)
+        nt.assert_equal(stats.calculate_bucket_start(13284280), 13284280)
+        stats = MetricsBucketAggregator('myhost', interval=5)
+        nt.assert_equal(stats.calculate_bucket_start(13284287), 13284285)
+        nt.assert_equal(stats.calculate_bucket_start(13284280), 13284280)
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,8 +11,8 @@ log = logging.getLogger(__name__)
 # input into the incorrect bucket. Currently, the MetricsAggregator
 # does not support submitting values for the past, and all values get
 # submitted for the timestamp passed into the flush() function.
-# The MetricsBucketAggregator uses times that are aligned to "bukcets"
-# that are the lenght of the interval that is passed into the
+# The MetricsBucketAggregator uses times that are aligned to "buckets"
+# that are the length of the interval that is passed into the
 # MetricsBucketAggregator constructor.
 RECENT_POINT_THRESHOLD_DEFAULT = 3600
 
@@ -466,8 +466,10 @@ class MetricsBucketAggregator(Aggregator):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300, formatter=None, recent_point_threshold=None):
         super(MetricsBucketAggregator, self).__init__(hostname, interval, expiry_seconds, formatter, recent_point_threshold)
         self.metric_by_bucket = {}
+        self.last_sample_time_by_context = {}
         self.current_bucket = None
         self.current_mbc = None
+        self.last_flush_cutoff_time = 0
         self.metric_type_to_class = {
             'g': BucketGauge,
             'c': Counter,
@@ -475,14 +477,6 @@ class MetricsBucketAggregator(Aggregator):
             'ms': Histogram,
             's': Set,
         }
-        timestamp = time()
-        self.bucket_start = timestamp - (timestamp % self.interval)
-        self.bucket_end = self.bucket_start + self.interval
-
-    def calculate_bucket_boundaries(self, timestamp):
-        # Calculate the start and end times for the time bucket
-        self.bucket_start = self.calculate_bucket_start(timestamp)
-        self.bucket_end = self.bucket_start + self.interval
 
     def calculate_bucket_start(self, timestamp):
         return timestamp - (timestamp % self.interval)
@@ -490,28 +484,30 @@ class MetricsBucketAggregator(Aggregator):
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
+        # Note: if you change the way that context is created, please also change create_empty_metrics,
+        #  which counts on this order
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
             context = (name, tuple(sorted(set(tags))), hostname, device_name)
 
         cur_time = time()
-        #check to make sure that the timestamp that is passed in (if any) is not older than
-        # recent_point_threshold.  If so, discard the point.
+        # Check to make sure that the timestamp that is passed in (if any) is not older than
+        #  recent_point_threshold.  If so, discard the point.
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
             log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))
             self.num_discarded_old_points += 1
         else:
             timestamp = timestamp or cur_time
-            #bucket_timestamp needs to be the end of the bucket
-            bucket_timestamp = timestamp - (timestamp % self.interval) + self.interval
-            if bucket_timestamp == self.current_bucket:
+            # Keep track of the buckets using the timestamp at the start time of the bucket
+            bucket_start_timestamp = self.calculate_bucket_start(timestamp)
+            if bucket_start_timestamp == self.current_bucket:
                 metric_by_context = self.current_mbc
             else:
-                if bucket_timestamp not in self.metric_by_bucket:
-                    self.metric_by_bucket[bucket_timestamp] = {}
-                metric_by_context = self.metric_by_bucket[bucket_timestamp]
-                self.current_bucket = bucket_timestamp
+                if bucket_start_timestamp not in self.metric_by_bucket:
+                    self.metric_by_bucket[bucket_start_timestamp] = {}
+                metric_by_context = self.metric_by_bucket[bucket_start_timestamp]
+                self.current_bucket = bucket_start_timestamp
                 self.current_mbc = metric_by_context
 
             if context not in metric_by_context:
@@ -521,43 +517,55 @@ class MetricsBucketAggregator(Aggregator):
 
             metric_by_context[context].sample(value, sample_rate, timestamp)
 
+    def create_empty_metrics(self, sample_time_by_context, expiry_timestamp, flush_timestamp, metrics):
+        # Even if no data is submitted, Counters keep reporting "0" for expiry_seconds.  The other Metrics
+        #  (Set, Gauge, Histogram) do not report if no data is submitted
+        for context, last_sample_time in sample_time_by_context.items():
+            if last_sample_time < expiry_timestamp:
+                log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                self.last_sample_time_by_context.pop(context, None)
+            else:
+                # The expiration currently only applies to Counters
+                # This counts on the ordering of the context created in submit_metric not changing
+                metric = Counter(self.formatter, context[0], context[1], context[2], context[3])
+                metrics += metric.flush(flush_timestamp, self.interval)
+
     def flush(self):
         cur_time = time()
+        flush_cutoff_time = self.calculate_bucket_start(cur_time)
         expiry_timestamp = cur_time - self.expiry_seconds
 
         metrics = []
 
         if self.metric_by_bucket:
-            # Using a counter on sorted keys so that the metric_by_context are processed
-            #  in timestamp/bucket order and so we can access the next timestamp/bucket
-            #  while processing the current one
-            bucket_timestamps = self.metric_by_bucket.keys()
-            bucket_timestamps.sort()
-            for i in range(0, len(bucket_timestamps)):
-                bucket_timestamp = bucket_timestamps[i]
-                metric_by_context = self.metric_by_bucket[bucket_timestamp]
-                next_bucket_timestamp = None
-                next_metric_by_context = None
-                if i != len(bucket_timestamps)-1:
-                    next_bucket_timestamp = bucket_timestamps[i+1]
-                    next_metric_by_context = self.metric_by_bucket[next_bucket_timestamp]
-                if bucket_timestamp < cur_time:
+            # We want to process these in order so that we can check for and expired metrics and
+            #  re-create non-expired metrics.  We also mutate self.metric_by_bucket.
+            for bucket_start_timestamp in sorted(self.metric_by_bucket.keys()):
+                metric_by_context = self.metric_by_bucket[bucket_start_timestamp]
+                if bucket_start_timestamp < flush_cutoff_time:
+                    not_sampled_in_this_bucket = self.last_sample_time_by_context.copy()
                     # We mutate this dictionary while iterating so don't use an iterator.
                     for context, metric in metric_by_context.items():
                         if metric.last_sample_time < expiry_timestamp:
+                            # This should never happen
                             log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
-                            del metric_by_context[context]
+                            not_sampled_in_this_bucket.pop(context, None)
+                            self.last_sample_time_by_context.pop(context, None)
                         else:
-                            metrics += metric.flush(bucket_timestamp, self.interval)
-                            #If we are not processing the last bucket, see if we need to copy this metric
-                            # to the next bucket
-                            if next_metric_by_context and context not in next_metric_by_context:
-                                self.metric_by_bucket[next_bucket_timestamp][context] = metric
-                    if i == len(bucket_timestamps)-1:
-                        # Move all of the Metrics in the last processed bucket into the new bucket
-                        new_bucket_timestamp = self.calculate_bucket_start(cur_time) + self.interval
-                        self.metric_by_bucket[new_bucket_timestamp] = metric_by_context
-                    del self.metric_by_bucket[bucket_timestamp]
+                            metrics += metric.flush(bucket_start_timestamp, self.interval)
+                            if isinstance(metric, Counter):
+                                self.last_sample_time_by_context[context] = metric.last_sample_time
+                                not_sampled_in_this_bucket.pop(context, None)
+                    # We need to account for Metrics that have not expired and were not flushed for this bucket
+                    self.create_empty_metrics(not_sampled_in_this_bucket, expiry_timestamp, bucket_start_timestamp, metrics)
+
+                    del self.metric_by_bucket[bucket_start_timestamp]
+        else:
+            # Even if there are no metrics in this flush, there may be some non-expired counters
+            #  We should only create these non-expired metrics if we've passed an interval since the last flush
+            if flush_cutoff_time >= self.last_flush_cutoff_time + self.interval:
+                self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp, \
+                                                flush_cutoff_time-self.interval, metrics)
 
         # Log a warning regarding metrics with old timestamps being submitted
         if self.num_discarded_old_points > 0:
@@ -570,6 +578,7 @@ class MetricsBucketAggregator(Aggregator):
         self.count = 0
         self.current_bucket = None
         self.current_mbc = None
+        self.last_flush_cutoff_time = flush_cutoff_time
         return metrics
 
 

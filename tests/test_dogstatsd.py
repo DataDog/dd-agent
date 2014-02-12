@@ -361,24 +361,50 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_metrics_expiry(self):
         # Ensure metrics eventually expire and stop submitting.
-        stats = MetricsAggregator('myhost', expiry_seconds=1)
+        ag_interval = 1
+        expiry = ag_interval * 4 + 2
+        stats = MetricsAggregator('myhost', interval=ag_interval, expiry_seconds=expiry)
         stats.submit_packets('test.counter:123|c')
+        stats.submit_packets('test.gauge:55|g')
+        stats.submit_packets('test.set:44|s')
+        stats.submit_packets('test.histogram:11|h')
 
         # Ensure points keep submitting
-        assert stats.flush()
-        assert stats.flush()
+        time.sleep(ag_interval)
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 123)
+        time.sleep(ag_interval)
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 1)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 0)
+
+        time.sleep(ag_interval)
         time.sleep(0.5)
-        assert stats.flush()
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 1)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 0)
 
         # Now sleep for longer than the expiry window and ensure
         # no points are submitted
+        time.sleep(ag_interval)
         time.sleep(2)
         m = stats.flush()
         assert not m, str(m)
 
         # If we submit again, we're all good.
         stats.submit_packets('test.counter:123|c')
-        assert stats.flush()
+        stats.submit_packets('test.gauge:55|g')
+        stats.submit_packets('test.set:44|s')
+        stats.submit_packets('test.histogram:11|h')
+
+        metrics = self.sort_metrics(stats.flush())
+        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(metrics[0]['metric'], 'test.counter')
+        nt.assert_equal(metrics[0]['points'][0][1], 123)
 
 
     def test_diagnostic_stats(self):
