@@ -35,8 +35,11 @@ log = logging.getLogger('dogstatsd')
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
-FLUSH_LOGGING_PERIOD = 10
-FLUSH_LOGGING_INITIAL = 5
+# Since we call flush more often than the metrics aggregation interval, we should
+#  log a bunch of flushes in a row every so often.
+FLUSH_LOGGING_PERIOD = 50
+FLUSH_LOGGING_INITIAL = 60
+FLUSH_LOGGING_COUNT = 5
 
 def serialize_metrics(metrics):
     return json.dumps({"series" : metrics})
@@ -56,6 +59,7 @@ class Reporter(threading.Thread):
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
+        self.log_count = 0
 
         self.watchdog = None
         if use_watchdog:
@@ -100,41 +104,34 @@ class Reporter(threading.Thread):
     def flush(self):
         try:
             self.flush_count += 1
+            self.log_count += 1
             packets_per_second = self.metrics_aggregator.packets_per_second(self.interval)
             packet_count = self.metrics_aggregator.total_count
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
-            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.flush_count % FLUSH_LOGGING_PERIOD == 0
+            if self.flush_count % FLUSH_LOGGING_PERIOD == 0:
+                self.log_count = 0
+            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
+            log_func = log.info
+            if not should_log:
+                log_func = log.debug
             if not count:
-                if should_log:
-                    log.info("Flush #%s: No metrics to flush." % self.flush_count)
-                else:
-                    log.debug("Flush #%s: No metrics to flush." % self.flush_count)
+                log_func("Flush #%s: No metrics to flush." % self.flush_count)
             else:
-                if should_log:
-                    log.info("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
-                else:
-                    log.debug("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
-
+                log_func("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
                 self.submit(metrics)
 
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
             if not event_count:
-                if should_log:
-                    log.info("Flush #%s: No events to flush." % self.flush_count)
-                else:
-                    log.debug("Flush #%s: No events to flush." % self.flush_count)
+                log_func("Flush #%s: No events to flush." % self.flush_count)
             else:
-                if should_log:
-                    log.info("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
-                else:
-                    log.debug("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
+                log_func("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
                 self.submit_events(events)
 
             if self.flush_count == FLUSH_LOGGING_INITIAL:
-                log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+                log.info("First flushes done, %s flushes will be logged every %s flushes." % (FLUSH_LOGGING_COUNT, FLUSH_LOGGING_PERIOD))
 
             # Persist a status message.
             packet_count = self.metrics_aggregator.total_count
@@ -221,7 +218,7 @@ class Server(object):
         self.running = False
 
         self.should_forward = forward_to_host is not None
-        
+
         self.forward_udp_sock = None
         # In case we want to forward every packet received to another statsd server
         if self.should_forward:
@@ -339,6 +336,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     port      = c['dogstatsd_port']
     interval  = int(c['dogstatsd_interval'])
+    aggregator_interval  = int(c['dogstatsd_agregator_bucket_size'])
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
@@ -354,7 +352,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
