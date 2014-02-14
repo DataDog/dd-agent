@@ -149,7 +149,7 @@ class ProcessCheck(AgentCheck):
                 pass
 
         if got_denied:
-            self.warning("The Datadog Agent got denied access when trying to get the number of file descriptors")
+            self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
 
         #Memory values are in Byte
         return (thr, cpu, rss, vms, real, open_file_descriptors,
