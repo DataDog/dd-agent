@@ -27,8 +27,6 @@ instances:
 
 #  -  name: python
 #     process: ['python']
-#  -  name: nodeserver
-#     search_string: ['node server.js']
 #  -  name: node
 #     process: ['node']
-#  -  name: All
+
