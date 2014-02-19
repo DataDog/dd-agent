@@ -13,7 +13,6 @@ instances:
 
  - name: ssh
    search_string: ['ssh', 'sshd']
-   exact_match: False
 
  - name: postgres
    search_string: ['postgres']
@@ -23,7 +22,6 @@ instances:
 
  - name: nodeserver
    search_string: ['node server.js']
-   exact_match: False
 
 #  -  name: python
 #     process: ['python']
