@@ -46,7 +46,6 @@ class TestElastic(unittest.TestCase):
             self.process.terminate()
 
     def testElasticChecksD(self):
-        raise SkipTest("See https://github.com/DataDog/dd-agent/issues/825")
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
               'version': '0.1',
               'api_key': 'toto' }
@@ -72,6 +71,16 @@ class TestElastic(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.transport.server_open"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.thread_pool.snapshot.queue"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.active_shards"]), 1, r)
+
+        # Checks enabled for specific ES versions
+        version = c._get_es_version('http://localhost:%s' % PORT)
+        if int(version[0:1]) >= 1 or version in ["0.90.10", "0.90.11"]:
+            # ES versions 0.90.10 and above
+            pass
+        else:
+            # ES version 0.90.9 and below
+            self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
+
 
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"
         self.check.check(conf['instances'][0])
