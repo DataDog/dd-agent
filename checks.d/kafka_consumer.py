@@ -35,7 +35,9 @@ class KafkaCheck(AgentCheck):
                             key = (consumer_group, topic, partition)
                             consumer_offsets[key] = consumer_offset
                         except NoNodeError:
-                            self.log.exception('Could not read consumer offset from %s'  % zk_path)
+                            self.log.warn('No zookeeper node at %s' % zk_path)
+                        except Exception:
+                            self.log.exception('Could not read consumer offset from %s' % zk_path)
         finally:
             try:
                 zk_conn.stop()
