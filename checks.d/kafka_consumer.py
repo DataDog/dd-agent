@@ -66,24 +66,21 @@ class KafkaCheck(AgentCheck):
             except Exception:
                 self.log.exception('Error cleaning up Kafka connection')
 
-        # Report the data
-        seen_broker_offsets = set()
+        # Report the broker data
+        for (topic, partition), broker_offset in broker_offsets.items():
+            broker_tags = ['topic:%s' % topic, 'partition:%s' % partition]
+            broker_offset = broker_offsets.get((topic, partition))
+            self.gauge('kafka.broker_offset', broker_offset, tags=broker_tags)
+
+        # Report the consumer
         for (consumer_group, topic, partition), consumer_offset in consumer_offsets.items():
 
             # Get the broker offset
-            broker_tags = ['topic:%s' % topic, 'partition:%s' % partition]
-            broker_key = (topic, partition)
-            broker_offset = broker_offsets.get(broker_key)
-
-            # Keep track of the broker offsets we've written because many
-            # consumer groups could operate on the same topic/partition
-            if broker_key not in seen_broker_offsets:
-                self.gauge('kafka.broker_offset', broker_offset, tags=broker_tags)
-                seen_broker_offsets.add(broker_key)
+            broker_offset = broker_offsets.get((topic, partition))
 
             # Report the consumer offset and lag
-            consumer_tags = ['consumer_group:%s' % consumer_group]
-            self.gauge('kafka.consumer_offset', consumer_offset,
-                       tags=broker_tags + consumer_tags)
+            tags = ['topic:%s' % topic, 'partition:%s' % partition,
+                    'consumer_group:%s' % consumer_group]
+            self.gauge('kafka.consumer_offset', consumer_offset, tags=tags)
             self.gauge('kafka.consumer_lag', broker_offset - consumer_offset,
-                       tags=broker_tags + consumer_tags)
+                       tags=tags)
