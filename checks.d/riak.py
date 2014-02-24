@@ -4,7 +4,7 @@ from checks import AgentCheck
 from util import md5
 from util import json
 
-from checks.libs.httplib2 import Http, HttpLib2Error
+from httplib2 import Http, HttpLib2Error
 import socket
 
 class Riak(AgentCheck):

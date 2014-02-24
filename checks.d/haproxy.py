@@ -7,10 +7,7 @@ from util import json, headers
 
 import time
 
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
+from collections import defaultdict
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'

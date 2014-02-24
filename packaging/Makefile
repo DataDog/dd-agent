@@ -39,7 +39,6 @@ source:
 	cp -r $(SRC)/pup $(ROOT)/
 	cp -r $(SRC)/yaml $(ROOT)/
 	cp -r $(SRC)/checks.d $(ROOT)/
-	cp -r $(SRC)/compat $(ROOT)/
 	cp -r $(SRC)/conf.d $(ROOT)/
 	cp -r $(SRC)/resources $(ROOT)/
 	cp -r $(SRC)/*.py $(ROOT)/

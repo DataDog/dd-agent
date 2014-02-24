@@ -1,22 +1,11 @@
 import os
 import time
 
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
-
+from collections import defaultdict
 from datetime import datetime
 from glob import glob
 
-try:
-    from xml.etree.ElementTree import ElementTree
-except ImportError:
-    try:
-        from elementtree import ElementTree
-    except ImportError:
-        pass
-
+from xml.etree.ElementTree import ElementTree
 from util import get_hostname
 from checks import AgentCheck
 

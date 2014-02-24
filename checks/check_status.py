@@ -16,7 +16,7 @@ import time
 
 # project
 import config
-from compat.defaultdict import defaultdict
+from collections import defaultdict
 from util import get_os, yaml, yLoader
 
 # 3rd party

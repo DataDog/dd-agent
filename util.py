@@ -11,55 +11,20 @@ import urllib2
 import uuid
 import tempfile
 import re
+from collections import namedtuple
+import yaml
+from yaml import CLoader as yLoader
+import simplejson as json
+import logging
+
 
 # Tornado
-try:
-    from tornado import ioloop, version_info as tornado_version
-except ImportError:
-    pass # We are likely running the agent without the forwarder and tornado is not installed
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import md5
+from tornado import ioloop, version_info as tornado_version
+from hashlib import md5
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
-# Import json for the agent. Try simplejson first, then the stdlib version and
-# if all else fails, use minjson which we bundle with the agent.
-def generate_minjson_adapter():
-    import minjson
-    class json(object):
-        @staticmethod
-        def dumps(data):
-            return minjson.write(data)
 
-        @staticmethod
-        def loads(data):
-            return minjson.safeRead(data)
-    return json
-
-try:
-    import simplejson as json
-except ImportError:
-    try:
-        import json
-    except ImportError:
-        json = generate_minjson_adapter()
-
-
-
-import yaml
-try:
-    from yaml import CLoader as yLoader
-except ImportError:
-    from yaml import Loader as yLoader
-
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
-
-import logging
 log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
@@ -245,7 +210,7 @@ class EC2(object):
         try:
             iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
             iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
-            from checks.libs.boto.ec2.connection import EC2Connection
+            from boto.ec2.connection import EC2Connection
             connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
 

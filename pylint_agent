@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+echo "Running pylint on .py files"
+pylint --rcfile=./.pylintrc_less_strict *.py */*.py
