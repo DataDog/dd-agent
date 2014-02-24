@@ -288,7 +288,7 @@ class GCE(object):
             tags.append('on-host-maintenance:%s' % host_metadata['instance']['scheduling']['onHostMaintenance'])
             tags.append('local-ipv4:%s' % host_metadata['instance']['networkInterfaces'][0]['ip'])
             tags.append('public-ipv4:%s' % host_metadata['instance']['networkInterfaces'][0]['accessConfigs'][0]['externalIp'])
-            tags.append('project_id:%s' % host_metadata['project']['projectId'])
+            tags.append('project:%s' % host_metadata['project']['projectId'])
             tags.append('numeric_project_id:%s' % host_metadata['project']['numericProjectId'])
 
             GCE.metadata['hostname'] = host_metadata['instance']['hostname'].split('.')[0]
