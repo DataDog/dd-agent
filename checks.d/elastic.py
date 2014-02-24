@@ -117,6 +117,7 @@ METRICS = {
     "elasticsearch.relocating_shards": ("gauge", "relocating_shards"),
     "elasticsearch.initializing_shards": ("gauge", "initializing_shards"),
     "elasticsearch.unassigned_shards": ("gauge", "unassigned_shards"),
+    "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red":0,"yellow":1,"green":2}.get(v, -1)),
 }
 
 
@@ -285,7 +286,7 @@ class ElasticSearch(AgentCheck):
             self.event(event)
 
         def process_metric(metric, xtype, path, xform=None):
-            # closure over node_data
+            # closure over data
             self._process_metric(data, metric, path, xform, tags=tags)
         self._map_metric(process_metric)
 
