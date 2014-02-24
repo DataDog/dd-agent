@@ -59,7 +59,7 @@ class HAProxy(AgentCheck):
         collect_status_metrics = instance.get('collect_status_metrics', False)
 
         self.log.debug('Processing HAProxy data for %s' % url)
-       
+
         data = self._fetch_data(url, username, password)
 
         process_events = instance.get('status_check', self.init_config.get('status_check', False))
@@ -127,7 +127,7 @@ class HAProxy(AgentCheck):
             if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
                 hosts_statuses[(data_dict['pxname'], data_dict['status'])] += 1
 
-            
+
             if data_dict['svname'] in Services.ALL:
                 data_list.append(data_dict)
 
@@ -147,9 +147,22 @@ class HAProxy(AgentCheck):
         return data
 
     def _process_status_metric(self, hosts_statuses):
+        agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
         for (service, status), count in hosts_statuses.iteritems():
+            status = status.lower()
+
             tags = ['status:%s' % status, 'service:%s' % service]
             self.gauge("haproxy.count_per_status", count, tags=tags)
+
+            if 'up' in status:
+                agg_statuses[service]['available'] += count
+            if 'down' in status or 'maint' in status or 'nolb' in status:
+                agg_statuses[service]['unavailable'] += count
+
+        for service in agg_statuses:
+            for status, count in agg_statuses[service].iteritems():
+                tags = ['status:%s' % status, 'service:%s' % service]
+                self.gauge("haproxy.count_per_status", count, tags=tags)
 
     def _process_metrics(self, data_list, service, url):
         for data in data_list:
