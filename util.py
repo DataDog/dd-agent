@@ -235,7 +235,7 @@ def get_hostname(config=None):
 class GCE(object):
     URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
     TIMEOUT = 0.1 # second
-    SOURCE_TYPE_NAME = 'google_compute_engine'
+    SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
 
 
