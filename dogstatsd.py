@@ -37,8 +37,8 @@ WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
 # Since we call flush more often than the metrics aggregation interval, we should
 #  log a bunch of flushes in a row every so often.
-FLUSH_LOGGING_PERIOD = 50
-FLUSH_LOGGING_INITIAL = 60
+FLUSH_LOGGING_PERIOD = 70
+FLUSH_LOGGING_INITIAL = 10
 FLUSH_LOGGING_COUNT = 5
 
 def serialize_metrics(metrics):
