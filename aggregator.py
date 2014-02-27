@@ -548,7 +548,7 @@ class MetricsBucketAggregator(Aggregator):
                     for context, metric in metric_by_context.items():
                         if metric.last_sample_time < expiry_timestamp:
                             # This should never happen
-                            log.debug("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
+                            log.warning("%s hasn't been submitted in %ss. Expiring." % (context, self.expiry_seconds))
                             not_sampled_in_this_bucket.pop(context, None)
                             self.last_sample_time_by_context.pop(context, None)
                         else:
