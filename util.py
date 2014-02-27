@@ -65,9 +65,9 @@ log = logging.getLogger(__name__)
 NumericTypes = (float, int, long)
 
 def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+    if count == 1:
+        return ""
+    return "s"
 
 def get_tornado_ioloop():
     if tornado_version[0] == 3:
@@ -116,7 +116,7 @@ def getTopIndex():
     macV = None
     if sys.platform == 'darwin':
         macV = platform.mac_ver()
-        
+
     # Output from top is slightly modified on OS X 10.6 (case #28239)
     if macV and macV[0].startswith('10.6.'):
         return 6
@@ -164,7 +164,7 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
-    
+
 
 def get_hostname(config=None):
     """
