@@ -112,24 +112,19 @@ class Reporter(threading.Thread):
             count = len(metrics)
             if self.flush_count % FLUSH_LOGGING_PERIOD == 0:
                 self.log_count = 0
-            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
-            log_func = log.info
-            if not should_log:
-                log_func = log.debug
-            if not count:
-                log_func("Flush #%s: No metrics to flush." % self.flush_count)
-            else:
-                log_func("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
+            if count:
                 self.submit(metrics)
 
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
-            if not event_count:
-                log_func("Flush #%s: No events to flush." % self.flush_count)
-            else:
-                log_func("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
+            if event_count:
                 self.submit_events(events)
 
+            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
+            log_func = log.info
+            if not should_log:
+                log_func = log.debug
+            log_func("Flush #%s: flushed %s metric%s and %s event%s" % (self.flush_count, count, plural(count), event_count, plural(event_count)))
             if self.flush_count == FLUSH_LOGGING_INITIAL:
                 log.info("First flushes done, %s flushes will be logged every %s flushes." % (FLUSH_LOGGING_COUNT, FLUSH_LOGGING_PERIOD))
 
