@@ -5,7 +5,6 @@ import subprocess
 import time
 import urllib2
 import urlparse
-from nose.plugins.skip import SkipTest
 from tests.common import load_check
 
 PORT = 9200
