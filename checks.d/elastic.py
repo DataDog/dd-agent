@@ -186,7 +186,10 @@ class ElasticSearch(AgentCheck):
             additional_metrics = {
                 "elasticsearch.search.fetch.open_contexts": ("gauge", "indices.search.open_contexts"),
                 "elasticsearch.cache.filter.evictions": ("gauge", "indices.filter_cache.evictions"),
-                "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes")
+                "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes"),
+                "elasticsearch.id_cache.size": ("gauge","indices.id_cache.memory_size_in_bytes"),
+                "elasticsearch.fielddata.size": ("gauge","indices.fielddata.memory_size_in_bytes"),
+                "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions")
             }
 
         else:
