@@ -34,7 +34,7 @@ from config import (get_confd_path, get_config_path, get_config,
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'gearmand',
-    'hdfs', 'mcache', 'network', 'postgres',
+    'hdfs', 'mcache', 'network',
     'redis', 'postfix', 'gunicorn', 
     ]
 
