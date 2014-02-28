@@ -59,7 +59,7 @@ if sys.platform == 'win32':
         'pymongo',
         'MySQLdb',
         'psutil',
-        'psycopg2'
+        'psycopg2',
 
         # agent
         'checks.services_checks',
