@@ -175,15 +175,3 @@ class Docker(AgentCheck):
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
         finally:
             fp.close()
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-    check, instances = Docker.from_yaml("/home/vagrant/.datadog-agent/agent/conf.d/docker.yaml")
-    for instance in instances:
-        print "\nRunning the check against url: %s" % (instance["url"])
-        check.check(instance)
-        if check.has_events():
-            print "Events: %s" % (check.get_events())
-        print "Metrics:"
-        pprint(check.get_metrics())
