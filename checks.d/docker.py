@@ -8,41 +8,39 @@ from util import json, headers
 from checks import AgentCheck
 
 
-USER_HZ = 1000
-
 LXC_METRICS = [
     {
         "cgroup": "memory",
         "file": "lxc/{0}/memory.stat",
         "metrics": {
-            "active_anon": ("docker.memory.active_anon", "gauge"),
-            "active_file": ("docker.memory.active_file", "gauge"),
-            "cache": ("docker.memory.cache", "gauge"),
-            "hierarchical_memory_limit": ("docker.memory.hierarchical_memory_limit", "gauge"),
-            "hierarchical_memsw_limit": ("docker.memory.hierarchical_memsw_limit", "gauge"),
-            "inactive_anon": ("docker.memory.inactive_anon", "gauge"),
-            "inactive_file": ("docker.memory.inactive_file", "gauge"),
-            "mapped_file": ("docker.memory.mapped_file", "gauge"),
-            "pgfault": ("docker.memory.pgfault", "gauge"),
-            "pgmajfault": ("docker.memory.pgmajfault", "gauge"),
-            "pgpgin": ("docker.memory.pgpgin", "gauge"),
-            "pgpgout": ("docker.memory.pgpgout", "gauge"),
-            "rss": ("docker.memory.rss", "gauge"),
-            "swap": ("docker.memory.swap", "gauge"),
-            "unevictable": ("docker.memory.unevictable", "gauge"),
-            "total_active_anon": ("docker.memory.total_active_anon", "gauge"),
-            "total_active_file": ("docker.memory.total_active_file", "gauge"),
-            "total_cache": ("docker.memory.total_cache", "gauge"),
-            "total_inactive_anon": ("docker.memory.total_inactive_anon", "gauge"),
-            "total_inactive_file": ("docker.memory.total_inactive_file", "gauge"),
-            "total_mapped_file": ("docker.memory.total_mapped_file", "gauge"),
-            "total_pgfault": ("docker.memory.total_pgfault", "gauge"),
-            "total_pgmajfault": ("docker.memory.total_pgmajfault", "gauge"),
-            "total_pgpgin": ("docker.memory.total_pgpgin", "gauge"),
-            "total_pgpgout": ("docker.memory.total_pgpgout", "gauge"),
-            "total_rss": ("docker.memory.total_rss", "gauge"),
-            "total_swap": ("docker.memory.total_swap", "gauge"),
-            "total_unevictable": ("docker.memory.total_unevictable", "gauge"),
+            "active_anon": ("docker.mem.active_anon", "gauge"),
+            "active_file": ("docker.mem.active_file", "gauge"),
+            "cache": ("docker.mem.cache", "gauge"),
+            "hierarchical_memory_limit": ("docker.mem.hierarchical_memory_limit", "gauge"),
+            "hierarchical_memsw_limit": ("docker.mem.hierarchical_memsw_limit", "gauge"),
+            "inactive_anon": ("docker.mem.inactive_anon", "gauge"),
+            "inactive_file": ("docker.mem.inactive_file", "gauge"),
+            "mapped_file": ("docker.mem.mapped_file", "gauge"),
+            "pgfault": ("docker.mem.pgfault", "gauge"),
+            "pgmajfault": ("docker.mem.pgmajfault", "gauge"),
+            "pgpgin": ("docker.mem.pgpgin", "gauge"),
+            "pgpgout": ("docker.mem.pgpgout", "gauge"),
+            "rss": ("docker.mem.rss", "gauge"),
+            "swap": ("docker.mem.swap", "gauge"),
+            "unevictable": ("docker.mem.unevictable", "gauge"),
+            "total_active_anon": ("docker.mem.total_active_anon", "gauge"),
+            "total_active_file": ("docker.mem.total_active_file", "gauge"),
+            "total_cache": ("docker.mem.total_cache", "gauge"),
+            "total_inactive_anon": ("docker.mem.total_inactive_anon", "gauge"),
+            "total_inactive_file": ("docker.mem.total_inactive_file", "gauge"),
+            "total_mapped_file": ("docker.mem.total_mapped_file", "gauge"),
+            "total_pgfault": ("docker.mem.total_pgfault", "gauge"),
+            "total_pgmajfault": ("docker.mem.total_pgmajfault", "gauge"),
+            "total_pgpgin": ("docker.mem.total_pgpgin", "gauge"),
+            "total_pgpgout": ("docker.mem.total_pgpgout", "gauge"),
+            "total_rss": ("docker.mem.total_rss", "gauge"),
+            "total_swap": ("docker.mem.total_swap", "gauge"),
+            "total_unevictable": ("docker.mem.total_unevictable", "gauge"),
         }
     },
     {
@@ -56,7 +54,7 @@ LXC_METRICS = [
 ]
 
 DOCKER_METRICS = {
-    "SizeRw": ("docker.disk.size_in_bytes", "gauge"),
+    "SizeRw": ("docker.disk.size", "gauge"),
 }
 
 DOCKER_TAGS = [
