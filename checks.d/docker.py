@@ -92,7 +92,7 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
     """Class that makes Unix sockets work with urllib2 without any additional
     dependencies."""
     def unix_open(self, req):
-        full_path = "{1}{2}".format(*urlsplit(req.get_full_url()))
+        full_path = "%s%s" % urlsplit(req.get_full_url())[1:3]
         path = os.path.sep
         for part in full_path.split("/"):
             path = os.path.join(path, part)
@@ -155,8 +155,11 @@ class Docker(AgentCheck):
     def _find_cgroup(self, hierarchy):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
-        with open("/proc/mounts") as fp:
+        try:
+            fp = open("/proc/mounts")
             mounts = map(lambda x: x.split(), fp.read().splitlines())
+        finally:
+            fp.close()
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         # Old cgroup style
         if len(cgroup_mounts) == 1:
@@ -167,8 +170,11 @@ class Docker(AgentCheck):
 
     def _parse_cgroup_file(self, file_):
         """Parses a cgroup pseudo file for key/values."""
-        with open(file_) as fp:
+        try:
+            fp = open(file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
+        finally:
+            fp.close()
 
 
 if __name__ == "__main__":
