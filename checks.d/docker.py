@@ -58,9 +58,7 @@ DOCKER_METRICS = {
 }
 
 DOCKER_TAGS = [
-    "ID",
     "Name",
-    "Created",
     "Driver",
     "Path",
 ]
