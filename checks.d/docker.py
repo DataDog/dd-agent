@@ -122,6 +122,8 @@ class Docker(AgentCheck):
             container_tags = list(tags)
             for key in DOCKER_TAGS:
                 container_tags.append("%s:%s" % (key.lower(), container_details[key]))
+            for key in DOCKER_CONFIG_TAGS:
+                container_tags.append("%s:%s" % (key.lower(), container_details["Config"][key]))
             for key, (dd_key, metric_type) in DOCKER_METRICS.items():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
