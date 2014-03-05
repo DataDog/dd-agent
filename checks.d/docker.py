@@ -134,6 +134,9 @@ class Docker(AgentCheck):
                 for key, (dd_key, metric_type) in metric["metrics"].items():
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+        else:
+            self.warning("No containers are running.")
+
 
     def _get_containers(self, instance):
         """Gets the list of running containers in Docker."""
