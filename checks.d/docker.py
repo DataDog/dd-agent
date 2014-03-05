@@ -116,7 +116,6 @@ class Docker(AgentCheck):
 
     def check(self, instance):
         tags = instance.get("tags") or []
-
         for container in self._get_containers(instance):
             container_details = self._get_container(instance, container["Id"])
             container_tags = list(tags)
@@ -136,7 +135,6 @@ class Docker(AgentCheck):
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
         else:
             self.warning("No containers are running.")
-
 
     def _get_containers(self, instance):
         """Gets the list of running containers in Docker."""
