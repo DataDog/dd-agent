@@ -28,7 +28,7 @@ from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural
+from util import json, PidFile, get_hostname, plural, get_uuid, get_hostname
 
 log = logging.getLogger('dogstatsd')
 
@@ -118,7 +118,7 @@ class Reporter(threading.Thread):
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
             if event_count:
-                self.submit_events(events)
+                self.submit_events_agent(events)
 
             should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
             log_func = log.info
@@ -171,7 +171,7 @@ class Reporter(threading.Thread):
                         status, method, self.api_host, url, duration))
         return duration
 
-    def submit_events(self, events):
+    def submit_events_api(self, events):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
@@ -195,6 +195,43 @@ class Reporter(threading.Thread):
                 duration = round((time() - start_time) * 1000.0, 4)
                 log.debug("%s %s %s%s (%sms)" % (
                                 status, method, self.api_host, url, duration))
+        finally:
+            conn.close()
+
+    def submit_events_agent(self, events):
+        headers = {'Content-Type':'application/json'}
+        method = 'POST'
+
+        payload = {}
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
+            payload['apiKey'] = self.api_key
+        url = '/intake?%s' % urlencode(params)
+
+        status = None
+        conn = self.http_conn_cls(self.api_host)
+        try:
+            payload['events'] = {}
+            payload['metrics'] = []
+            payload['events']['api']=[]
+            payload['uuid'] = get_uuid()
+            payload['internalHostname'] = 'dogbox-avaschalde'
+            for event in events:
+                payload['events']['api'].append(event)
+
+            start_time = time()
+            log.debug('Sending payload: %s' % payload)
+            conn.request(method, url, json.dumps(payload), headers)
+
+            response = conn.getresponse()
+            status = response.status
+            response.close()
+            duration = round((time() - start_time) * 1000.0, 4)
+            log.debug("%s %s %s%s (%sms)" % (
+                            status, method, self.api_host, url, duration))
+            print(json.dumps(payload, indent=4))
+
         finally:
             conn.close()
 
