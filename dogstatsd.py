@@ -28,7 +28,7 @@ from aggregator import MetricsAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural
+from util import json, PidFile, get_hostname, plural, get_uuid, get_hostname
 
 log = logging.getLogger('dogstatsd')
 
@@ -121,17 +121,8 @@ class Reporter(threading.Thread):
 
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
-            if not event_count:
-                if should_log:
-                    log.info("Flush #%s: No events to flush." % self.flush_count)
-                else:
-                    log.debug("Flush #%s: No events to flush." % self.flush_count)
-            else:
-                if should_log:
-                    log.info("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
-                else:
-                    log.debug("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
-                self.submit_events(events)
+            if event_count:
+                self.submit_events_agent(events)
 
             if self.flush_count == FLUSH_LOGGING_INITIAL:
                 log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
@@ -179,7 +170,9 @@ class Reporter(threading.Thread):
                         status, method, self.api_host, url, duration))
         return duration
 
-    def submit_events(self, events):
+    # Doesn't work anymore because 'title' and 'text' are now
+    # 'msg_title' and 'msg_text' because of event(...) in aggregator
+    def submit_events_api(self, events):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
@@ -187,7 +180,6 @@ class Reporter(threading.Thread):
         if self.api_key:
             params['api_key'] = self.api_key
         url = '/api/v1/events?%s' % urlencode(params)
-
         status = None
         conn = self.http_conn_cls(self.api_host)
         try:
@@ -206,6 +198,43 @@ class Reporter(threading.Thread):
         finally:
             conn.close()
 
+    def submit_events_agent(self, events):
+        headers = {'Content-Type':'application/json'}
+        method = 'POST'
+
+        payload = {}
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
+            payload['apiKey'] = self.api_key
+        url = '/intake?%s' % urlencode(params)
+
+        status = None
+        conn = self.http_conn_cls(self.api_host)
+        try:
+            payload['events'] = {}
+            payload['metrics'] = []
+            payload['events']['api']=[]
+            payload['uuid'] = get_uuid()
+            payload['internalHostname'] = 'dogbox-avaschalde'
+            for event in events:
+                payload['events']['api'].append(event)
+
+            start_time = time()
+            log.debug('Sending payload: %s' % payload)
+            conn.request(method, url, json.dumps(payload), headers)
+
+            response = conn.getresponse()
+            status = response.status
+            response.close()
+            duration = round((time() - start_time) * 1000.0, 4)
+            log.debug("%s %s %s%s (%sms)" % (
+                            status, method, self.api_host, url, duration))
+            print(json.dumps(payload, indent=4))
+
+        finally:
+            conn.close()
+
 class Server(object):
     """
     A statsd udp server.
@@ -221,7 +250,7 @@ class Server(object):
         self.running = False
 
         self.should_forward = forward_to_host is not None
-        
+
         self.forward_udp_sock = None
         # In case we want to forward every packet received to another statsd server
         if self.should_forward:
