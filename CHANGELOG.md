@@ -52,7 +52,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.2
 
 
 
-# 4.0.1 / 2013/12/17
+# 4.0.1 / 2013-12-17
 
 **Linux or Source Install only**
 
@@ -63,7 +63,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.2
 #### Details
 https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.1
 
-# 4.0.0 / 2013/12/16
+# 4.0.0 / 2013-12-16
 
 **This is a major version. See platform-specific pages for detailed changes.**
 
@@ -74,7 +74,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.1
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.10.1...4.0.0
 
-# 3.10.1 / 2013.11.06
+# 3.10.1 / 2013-11-06
 
 **Linux or Source Install only**
 
@@ -87,7 +87,7 @@ https://github.com/DataDog/dd-agent/compare/3.10.1...4.0.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.10.0...3.10.1
 
-# 3.11.0 / 2013.10.08
+# 3.11.0 / 2013-10-08
 
 **Windows Only**
 
@@ -110,7 +110,7 @@ https://github.com/DataDog/dd-agent/compare/3.10.0...3.10.1
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.9.3...3.11.0
 
-# 3.9.3 / 2013.09.11
+# 3.9.3 / 2013-09-11
 
 **Windows Only**
 
@@ -125,7 +125,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.3...3.11.0
 https://github.com/DataDog/dd-agent/compare/3.9.2...3.9.3
 
 
-# 3.10.0 / 2013.09.06 
+# 3.10.0 / 2013-09-06 
 
 **Linux or Source Install only**
 
@@ -150,7 +150,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.2...3.9.3
 https://github.com/DataDog/dd-agent/compare/3.9.0...3.10.0
 
 
-# 3.9.2 (Windows Only) - 2013.08.29
+# 3.9.2 / 2013-08-29
 
 **Windows Only**
 
@@ -167,7 +167,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.10.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.9.1...3.9.2
 
-# 3.9.1 / 2013.08.19
+# 3.9.1 / 2013-08-19
 
 **Windows Only**
 
@@ -188,7 +188,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.1...3.9.2
 https://github.com/DataDog/dd-agent/compare/3.9.0...3.9.1
 
 
-# 3.9.0 / 2013.08.05
+# 3.9.0 / 2013-08-05
 
 ### Integrations Affected
 * HDFS
@@ -224,7 +224,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.9.1
 https://github.com/DataDog/dd-agent/compare/3.8.0...3.9.0
 
 
-# 3.8.0 / 2013.06.19
+# 3.8.0 / 2013-06-19
 
 #### Changes
 * [FEATURE] Add status command to Debian
@@ -239,14 +239,14 @@ https://github.com/DataDog/dd-agent/compare/3.8.0...3.9.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.7.2...3.8.0
 
-# 3.7.2 / 2013.05.22
+# 3.7.2 / 2013-05-22
 
 * [FEATURE] Fix redis check when used with additional tags ([#515](https://github.com/DataDog/dd-agent/issues/515))
 
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.7.1...3.7.2
 
-# 3.7.1 / 2013.05.21
+# 3.7.1 / 2013-05-21
 
 #### Changes
 * [FEATURE] Add basic auth support for apache check ([#410](https://github.com/DataDog/dd-agent/issues/410))
@@ -261,7 +261,7 @@ https://github.com/DataDog/dd-agent/compare/3.7.1...3.7.2
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.7.0...3.7.1
 
-# 3.7.0 / 2013.05.08
+# 3.7.0 / 2013-05-08
 
 #### Changes
 * [FEATURE] Restart the agent if it uses too much memory ([#426](https://github.com/DataDog/dd-agent/pull/429)) (Thanks to [@echohead](https://github.com/echohead))
@@ -279,7 +279,7 @@ https://github.com/DataDog/dd-agent/compare/3.7.0...3.7.1
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.6.4...3.7.0
 
-# 3.6.4 / 2013.04.25
+# 3.6.4 / 2013-04-25
 
 **Windows only**
 
@@ -290,7 +290,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.4...3.7.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.6.3...3.6.4
 
-# 3.6.3 / 2013.04.14
+# 3.6.3 / 2013-04-14
 
 #### Changes
 * [BUGFIX} Customizable field names for cacti check ([#404](https://github.com/DataDog/dd-agent/issues/404))
@@ -300,7 +300,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.3...3.6.4
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.6.2...3.6.3
 
-# 3.6.2 / 2013.04.05
+# 3.6.2 / 2013-04-05
 
 #### Changes
 * [FEATURE] Port MySQL to checks.d ([#408](https://github.com/DataDog/dd-agent/pull/408)) (Thanks to [@CaptTofu](https://github.com/CaptTofu))
@@ -316,7 +316,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.2...3.6.3
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.6.1...3.6.2
 
-# 3.6.1 / 2013.03.21
+# 3.6.1 / 2013-03-21
 
 #### Changes
 * [FEATURE] Port Jenkins to checks.d
@@ -329,7 +329,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.1...3.6.2
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.6.0...3.6.1
 
-# 3.6.0 / 2013.03.13
+# 3.6.0 / 2013-03-13
 
 #### Changes
 * [FEATURE] The agent can now run behind a web proxy ([#377](https://github.com/DataDog/dd-agent/pull/377))
@@ -418,7 +418,7 @@ https://github.com/DataDog/dd-agent/compare/3.4.1...3.4.2
 https://github.com/DataDog/dd-agent/compare/3.4.0...3.4.1
 
 
-## 3.4.0 / 2012.11.28
+## 3.4.0 / 2012-11-28
 
 #### Changes
 * [FEATURE] Added FreeBSD support, thanks to @loris.
@@ -440,7 +440,7 @@ https://github.com/DataDog/dd-agent/compare/3.4.0...3.4.1
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.3.0...3.4.0
 
-## 3.3.0 / 2012.10.25
+## 3.3.0 / 2012-10-25
 
 ### New Features
 
@@ -457,7 +457,7 @@ https://github.com/DataDog/dd-agent/compare/3.3.0...3.4.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.2.3...3.3.0
 
-## 3.2.3 / 2012.10.15
+## 3.2.3 / 2012-10-15
 
 #### Changes
 * [FEATURE] Windows support is officially added.
@@ -469,7 +469,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.3...3.3.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.2.2...3.2.3
 
-# 3.2.2 / 2012.10.05
+# 3.2.2 / 2012-10-05
 
 #### Changes
 * [BUGFIX] Fixes an issue with events in checks.d where only events from the last instance would be sent.
@@ -477,7 +477,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.2...3.2.3
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.2.1...3.2.2
 
-# 3.2.1 / 2012.10.05
+# 3.2.1 / 2012-10-05
 
 #### Changes
 * [BUGFIX] Fixes an issue with duplicate events being created in `checks.d` checks.
@@ -485,7 +485,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.1...3.2.2
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.2.0...3.2.1
 
-## 3.2.0 / 2012.10.05
+## 3.2.0 / 2012-10-05
 
 #### Changes
 * [FEATURE] Add new AgentCheck interface for all future checks.
@@ -494,7 +494,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.0...3.2.1
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.1.7...3.2.0
 
-# 3.1.7 / 2012.09.28
+# 3.1.7 / 2012-09-28
 
 #### Changes
 * [BUGFIX] Fixes the case where you have the `python-redis` module and the check will run with default host/port even if you don't have any redis configuration. Fixes case [#200](https://github.com/DataDog/dd-agent/issues/200).
@@ -502,7 +502,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.7...3.2.0
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.1.6...3.1.7
 
-# 3.1.6 / 2012.09.27
+# 3.1.6 / 2012-09-27
 
 #### Changes
 * [BUGFIX] Fixes memcached integration bug running under Python 2.4 [#201](https://github.com/DataDog/dd-agent/issues/201)
@@ -511,7 +511,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.6...3.1.7
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.1.5...3.1.6
 
-# 3.1.5 / 2012.09.21
+# 3.1.5 / 2012-09-21
 
 #### Changes
 * [BUGFIX] Fixes network traffic reporting bug introduced in 3.1.4. If you're running 3.1.4 we recommended that you upgrade.
@@ -519,7 +519,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.5...3.1.6
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.1.4...3.1.5
 
-# 3.1.4 / 2012.09.21
+# 3.1.4 / 2012-09-21
 
 #### Changes
 * [FEATURE] memcached and nginx checks now support multiple instances per host.
