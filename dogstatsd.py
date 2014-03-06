@@ -28,7 +28,7 @@ from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural, get_uuid, get_hostname
+from util import json, PidFile, get_hostname, plural, get_uuid
 
 log = logging.getLogger('dogstatsd')
 
@@ -202,26 +202,23 @@ class Reporter(threading.Thread):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
-        payload = {}
+        payload = {
+            'apiKey': self.api_key,
+            'events': {
+                'api': events
+            },
+            'uuid': get_uuid(),
+            'internalHostname': get_hostname()
+        }
         params = {}
         if self.api_key:
             params['api_key'] = self.api_key
-            payload['apiKey'] = self.api_key
         url = '/intake?%s' % urlencode(params)
 
         status = None
         conn = self.http_conn_cls(self.api_host)
         try:
-            payload['events'] = {}
-            payload['metrics'] = []
-            payload['events']['api']=[]
-            payload['uuid'] = get_uuid()
-            payload['internalHostname'] = 'dogbox-avaschalde'
-            for event in events:
-                payload['events']['api'].append(event)
-
             start_time = time()
-            log.debug('Sending payload: %s' % payload)
             conn.request(method, url, json.dumps(payload), headers)
 
             response = conn.getresponse()
@@ -230,7 +227,6 @@ class Reporter(threading.Thread):
             duration = round((time() - start_time) * 1000.0, 4)
             log.debug("%s %s %s%s (%sms)" % (
                             status, method, self.api_host, url, duration))
-            print(json.dumps(payload, indent=4))
 
         finally:
             conn.close()
