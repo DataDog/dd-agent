@@ -8,7 +8,7 @@ Changes
 #### Changes
 * 
 
-# 4.1.0 - 2014/02/04
+# 4.1.0 - 2014-02-04
 
 ### Integrations affected
 * PostgreSQL
@@ -47,7 +47,7 @@ Changes
 #### Details
 https://github.com/DataDog/dd-agent/compare/4.0.2...4.1.0
 
-# 4.0.2 / 2014/01/08
+# 4.0.2 / 2014-01-08
 
 **Windows Only**
 
