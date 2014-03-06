@@ -262,7 +262,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
