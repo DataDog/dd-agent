@@ -14,7 +14,7 @@ Changes
 * Varnish
 * Couchbase
 
-### New features
+#### Changes
 * [FEATURE] Support for older versions of psycopg2
 * [FEATURE] New tool to help configuring JMX Checks: See http://docs.datadoghq.com/integrations/java/
 * [FEATURE] Add basic authentication to Couchbase check [#787](https://github.com/DataDog/dd-agent/issues/787)
@@ -44,6 +44,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.2...4.1.0
 
 **Windows Only**
 
+#### Changes
 * [BUGFIX] Fix WMI Check
 
 #### Details
@@ -55,7 +56,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.2
 
 **Linux or Source Install only**
 
-### Bug Fixes
+#### Changes
 * [BUGFIX] Fix Postgresql check that was sending bad values in some cases.
 * [BUGFIX] Fix replication lag calculation in MySql check.
 
@@ -66,6 +67,7 @@ https://github.com/DataDog/dd-agent/compare/4.0.0...4.0.1
 
 **This is a major version. See platform-specific pages for detailed changes.**
 
+#### Changes
 - [FEATURE] Linux/Mac OS/Source install: Visit https://github.com/DataDog/dd-agent/wiki/Agent-4.0.0-for-Linux-,-Mac-OS-and-FreeBSD
 - [FEATURE] Windows: Visit https://github.com/DataDog/dd-agent/wiki/Agent-4.0.0-for-Windows
 
@@ -76,6 +78,7 @@ https://github.com/DataDog/dd-agent/compare/3.10.1...4.0.0
 
 **Linux or Source Install only**
 
+#### Changes
 * [BUGFIX] Fix Mongo Integration for newer versions of MongoDB [#677](https://github.com/DataDog/dd-agent/issues/677)
 * [BUGFIX] Fix memory metrics for Mac Os X Mavericks
 * [BUGFIX] Fix tagging issues for HTTP Check [8ab75](d1e09e3605f7c09177c5a6fb4f3e2b86a698ab75)
@@ -97,6 +100,7 @@ https://github.com/DataDog/dd-agent/compare/3.10.0...3.10.1
 * MySQL
 * Riak
 
+#### Changes
 * [FEATURE] Make Cassandra, Tomcat, ActiveMQ, SolR, Java and MySQL integrations work on Windows
 * [FEATURE] Make pup work on Windows
 * [FEATURE] Add an additional metric to the Nginx integration [#665](https://github.com/DataDog/dd-agent/pull/665) (Thanks to [@dcrosta](https://github.com/dcrosta))
@@ -113,6 +117,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.3...3.11.0
 ### Integrations Affected
 * SQL Server
 
+#### Changes
 * [FEATURE] Allow optional custom tags in SQL Server check ([#654](https://github.com/DataDog/dd-agent/pull/654))
 * [BUGFIX] Fix log file location on Windows XP
 
@@ -131,6 +136,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.2...3.9.3
 * Network
 * Process
 
+#### Changes
 * [FEATURE] GUnicorn check [#619](https://github.com/DataDog/dd-agent/pull/619)
 * [FEATURE] Dogstatsd Autorestart [#624](https://github.com/DataDog/dd-agent/pull/624)
 * [FEATURE] Add tags to metrics collected by the HTTP Check  [#647](https://github.com/DataDog/dd-agent/pull/647) (Thanks to [@ordenull](https://github.com/ordenull))
@@ -151,6 +157,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.10.0
 ### Integrations Affected
 * SQL Server
 
+#### Changes
 * [FEATURE] Default SQL Server to integrated security if no username/password is provided ([#622](https://github.com/DataDog/dd-agent/pull/622
 ))(Thanks to [@jamescrowley](https://github.com/jamescrowley)) 
 * [FEATURE] Allow skipping ssl certificate validation (useful when the agent runs behind haproxy)  ([#641](https://github.com/DataDog/dd-agent/issues/641))
@@ -168,6 +175,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.1...3.9.2
 * SQL Server
 * IIS
 
+#### Changes
 * [FEATURE] Add a Management GUI to the Windows Agent for service and check management
 * [FEATURE] Log to a log file (located in C:\ProgramData\Datadog\logs )
 * [FEATURE] Create shortcuts in the Start Menu
@@ -190,10 +198,11 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.9.1
 * Nginx
 * RedisDB
 
-* [FEATURE] New HDFS check added ([#551](https://github.com/DataDog/dd-agent/pull/551)) (thanks to [@dcrosta][])
-* [FEATURE] New Directory check added ([#581](https://github.com/DataDog/dd-agent/pull/581)) (thanks to [@brettlangdon][])
+#### Changes
+* [FEATURE] New HDFS check added ([#551](https://github.com/DataDog/dd-agent/pull/551)) (thanks to @dcrosta)
+* [FEATURE] New Directory check added ([#581](https://github.com/DataDog/dd-agent/pull/581)) (thanks to @brettlangdon)
 * [FEATURE] Events can now be sent to the Agent DogStatsD server from supported client libraries ([#532](https://github.com/DataDog/dd-agent/pull/532))
-* [FEATURE] HTTP check now supports custom headers ([#541](https://github.com/DataDog/dd-agent/issues/541)) (thanks to [@tomduckering][])
+* [FEATURE] HTTP check now supports custom headers ([#541](https://github.com/DataDog/dd-agent/issues/541)) (thanks to @tomduckering)
 * [FEATURE] Optional `response_time` metric has been added to TCP and HTTP checks
 * [FEATURE] `info` command will exit with a non-zero value when errors were displayed by the command
 * [FEATURE] Basic Jenkins metrics are now collected by Jenkins check ([#567](https://github.com/DataDog/dd-agent/issues/567))
@@ -209,7 +218,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.9.1
 * [BUGFIX] Nginx check no longer asserts number of connections ([#569](https://github.com/DataDog/dd-agent/issues/569))
 * [BUGFIX] Deb and RPM `start` command will now poll the Agent status when starting instead of waiting a fixed amount of time ([#582](https://github.com/DataDog/dd-agent/issues/582))
 * [BUGFIX] RedisDB check will now cast a parsed port to an integer ([#600](https://github.com/DataDog/dd-agent/pull/600))
-* [BUGFIX] `supervisord` location is no longer hardcoded on Debian ([#580](https://github.com/DataDog/dd-agent/issues/580)) (Thanks to [@mastrolinux][]) 
+* [BUGFIX] `supervisord` location is no longer hardcoded on Debian ([#580](https://github.com/DataDog/dd-agent/issues/580)) (Thanks to @mastrolinux) 
 
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.8.0...3.9.0
@@ -217,6 +226,7 @@ https://github.com/DataDog/dd-agent/compare/3.8.0...3.9.0
 
 # 3.8.0 / 2013.06.19
 
+#### Changes
 * [FEATURE] Add status command to Debian
 * [FEATURE] Debian version now uses its own supervisor config instead of using the system config
 * [FEATURE] Add `-v` option to info command, which currently gives stack traces for errors that occurred during checks
@@ -238,6 +248,7 @@ https://github.com/DataDog/dd-agent/compare/3.7.1...3.7.2
 
 # 3.7.1 / 2013.05.21
 
+#### Changes
 * [FEATURE] Add basic auth support for apache check ([#410](https://github.com/DataDog/dd-agent/issues/410))
 * [FEATURE] Support any redis parameter during the connection ([#276](https://github.com/DataDog/dd-agent/issues/276))
 * [FEATURE] Better launching script for source install
@@ -252,6 +263,7 @@ https://github.com/DataDog/dd-agent/compare/3.7.0...3.7.1
 
 # 3.7.0 / 2013.05.08
 
+#### Changes
 * [FEATURE] Restart the agent if it uses too much memory ([#426](https://github.com/DataDog/dd-agent/pull/429)) (Thanks to [@echohead](https://github.com/echohead))
 * [FEATURE] Port Memcache to checks.d ([#390](https://github.com/DataDog/dd-agent/pull/439))
 * [FEATURE] Add a process memory check ([#434](https://github.com/DataDog/dd-agent/pull/434)) (Thanks to [@mastrolinux](https://github.com/mastrolinux))
@@ -280,6 +292,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.3...3.6.4
 
 # 3.6.3 / 2013.04.14
 
+#### Changes
 * [BUGFIX} Customizable field names for cacti check ([#404](https://github.com/DataDog/dd-agent/issues/404))
 * [BUGFIX} Enable replication monitoring by default for old style check configuration for mysql
 * [BUGFIX} Always collect metrics for config specified queues/nodes for rabbitmq
@@ -289,6 +302,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.2...3.6.3
 
 # 3.6.2 / 2013.04.05
 
+#### Changes
 * [FEATURE] Port MySQL to checks.d ([#408](https://github.com/DataDog/dd-agent/pull/408)) (Thanks to [@CaptTofu](https://github.com/CaptTofu))
 * [FEATURE] Add KyotoTycoon Check ([#426](https://github.com/DataDog/dd-agent/pull/426)) (Thanks to [@dcrosta](https://github.com/dcrosta))
 * [FEATURE] Add command line option to run a particular agent check ([#408](https://github.com/DataDog/dd-agent/pull/417)) 
@@ -304,6 +318,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.1...3.6.2
 
 # 3.6.1 / 2013.03.21
 
+#### Changes
 * [FEATURE] Port Jenkins to checks.d
 * [FEATURE] Lighttpd check now supports Lighttpd 2.0 ([#412](https://github.com/DataDog/dd-agent/pull/412)) (Thanks to [@brettlangdon](https://github.com/brettlangdon))
 * [FEATURE]Additional configurable checks.d directory ([#413](https://github.com/DataDog/dd-agent/pull/413)) (Thanks to [@brettlangdon](https://github.com/brettlangdon))
@@ -316,14 +331,13 @@ https://github.com/DataDog/dd-agent/compare/3.6.0...3.6.1
 
 # 3.6.0 / 2013.03.13
 
-### New features
-
+#### Changes
 * [FEATURE] The agent can now run behind a web proxy ([#377](https://github.com/DataDog/dd-agent/pull/377))
 * [FEATURE] MongoDB now supports multiple instances running on the same host ([#397](https://github.com/DataDog/dd-agent/pull/397))
 * [FEATURE] Additional network metrics ([#396](https://github.com/DataDog/dd-agent/pull/396))
 * [FEATURE] lighttpd check ([#385](https://github.com/DataDog/dd-agent/pull/385))
-* [FEATURE] Allow pup to bind to a specific interface ([#394](https://github.com/DataDog/dd-agent/pull/394)). Thanks to [@shamada-kuuluu][]
-* [FEATURE] Add a partial response in HTTP Check ([#375](https://github.com/DataDog/dd-agent/pull/375)). Thanks to [@dcrosta][]
+* [FEATURE] Allow pup to bind to a specific interface ([#394](https://github.com/DataDog/dd-agent/pull/394)). Thanks to @shamada-kuuluu
+* [FEATURE] Add a partial response in HTTP Check ([#375](https://github.com/DataDog/dd-agent/pull/375)). Thanks to @dcrosta
 * [FEATURE] WMI checks support advanced configuration ([#359](https://github.com/DataDog/dd-agent/pull/359))
 * [FEATURE] More reliable and consistent hostname detection ([84e715c](https://github.com/DataDog/dd-agent/commit/84e715c90d806f92667640d5647bc07194b36d71))
 * [BUGFIX] Better retry handling for JMX checks ([#369](https://github.com/DataDog/dd-agent/issues/369))
@@ -342,15 +356,16 @@ https://github.com/DataDog/dd-agent/compare/3.5.0...3.5.1
 
 # 3.5.0
 
+#### Changes
 * [FEATURE] Logging overhaul: Consistent locations in `/var/log/datadog/`, defaults to INFO level ([#297](https://github.com/DataDog/dd-agent/pull/297))
-* [FEATURE] Add more memcached metrics ([#283](https://github.com/DataDog/dd-agent/pull/283)). Thanks to [@jkoppe][]
-* [FEATURE] RabbitMQ integration ([#330](https://github.com/DataDog/dd-agent/pull/330)). Thanks to [@brettlangdon][]
-* [FEATURE] Riak integration ([#332](https://github.com/DataDog/dd-agent/pull/332)). Thanks to [@stefan-mees][]
+* [FEATURE] Add more memcached metrics ([#283](https://github.com/DataDog/dd-agent/pull/283)). Thanks to @jkoppe
+* [FEATURE] RabbitMQ integration ([#330](https://github.com/DataDog/dd-agent/pull/330)). Thanks to @brettlangdon
+* [FEATURE] Riak integration ([#332](https://github.com/DataDog/dd-agent/pull/332)). Thanks to @stefan-mees
 * [FEATURE] Allow source file and line in Cassandra system.log. ([#307](https://github.com/DataDog/dd-agent/pull/307))
 * [FEATURE] Port CouchDB and ElasticSearch to checks.d ([#311](https://github.com/DataDog/dd-agent/pull/311))
 * [FEATURE] New System Metrics: `system.mem.pct_usable` and `system.swap.pct_free` ([#334](https://github.com/DataDog/dd-agent/pull/334))
 * [FEATURE] SmartOS support (see [the agent setup page](https://app.datadoghq.com/account/settings#agent))
-* [FEATURE] Invoke custom emitters from the forwarder, instead of the agent, to capture statsd output ([#271](https://github.com/DataDog/dd-agent/pull/272). Thanks to [@charles-dyfis-net][]) 
+* [FEATURE] Invoke custom emitters from the forwarder, instead of the agent, to capture statsd output ([#271](https://github.com/DataDog/dd-agent/pull/272). Thanks to @charles-dyfis-net) 
 * [FEATURE] Allow strings to be elements in dogstatsd sets ([#300](https://github.com/DataDog/dd-agent/issues/326))
 * [BUGFIX] Limit the number of threads used by service checks ([#351](https://github.com/DataDog/dd-agent/issues/351))
 * [PERFORMANCE] Better JMX performance ([#313](https://github.com/DataDog/dd-agent/issues/313), [#348](https://github.com/DataDog/dd-agent/issues/348))
@@ -361,14 +376,14 @@ https://github.com/DataDog/dd-agent/compare/3.4.4...3.5.0
 
 # 3.4.4
 
+#### Changes
 * [BUGFIX] Fix memory leaks in redis check, and potentially in custom checks.d checks that supply duplicate tags ([#325](https://github.com/DataDog/dd-agent/issues/325))
 * [BUGFIX] Fix mongo auth issue ([#318](https://github.com/DataDog/dd-agent/issues/318))
 * [BUGFIX] Add configurable socket timeout to zookeeper check ([#310](https://github.com/DataDog/dd-agent/issues/310))
 
 # 3.4.3
 
-### Bug fixes
-
+#### Changes
 * [BUGFIX] Fix memory leaks in memcache check ([#278](https://github.com/DataDog/dd-agent/issues/278))
 * [BUGFIX] Fix umask issue ([#293](https://github.com/DataDog/dd-agent/issues/293))
 * [BUGFIX] Fix bad error message in CentOS 5 installation ([#320](https://github.com/DataDog/dd-agent/issues/320))
@@ -380,6 +395,7 @@ https://github.com/DataDog/dd-agent/compare/3.4.2...3.4.3
 
 **If you're having issues upgrading, please read the [upgrade notes](https://github.com/DataDog/dd-agent/wiki/Upgrade-Notes)**
 
+#### Changes
 * [FEATURE] Check multiple Cassandra, Tomcat and Solr instances per host
 * [FEATURE] Added a `JMXCheck` base class which can be used to easily track metrics from services that support JMX.
 * [BUGFIX] Create `/etc/dd-agent/conf.d` on install
@@ -390,6 +406,7 @@ https://github.com/DataDog/dd-agent/compare/3.4.1...3.4.2
 
 # 3.4.1
 
+#### Changes
 * [FEATURE] Added an `info` command  (`sudo /etc/init.d/datadog-agent info`) which prints status info about the agent processes.
 * [FEATURE] Added a check for [Zookeeper](http://zookeeper.apache.org/).
 * [BUGFIX] Fixes packaging bugs introduced in 3.4.0.
@@ -403,19 +420,20 @@ https://github.com/DataDog/dd-agent/compare/3.4.0...3.4.1
 
 ## 3.4.0 / 2012.11.28
 
-* [FEATURE] Added FreeBSD support, thanks to [@loris][].
+#### Changes
+* [FEATURE] Added FreeBSD support, thanks to @loris.
 * [FEATURE] Removed `datadog-agent` and `datadog-agent-base` dependencies. Now you only install one package per machine (instructions are the same).
 * [FEATURE] The agent now compresses payloads sent over the wire.
-* [FEATURE] Allow custom `PYTHONPATH` in checks.d config ([#227][])
+* [FEATURE] Allow custom `PYTHONPATH` in checks.d config (#227)
 * [FEATURE] Added new Redis metrics.
 * [FEATURE] Added normalized load, that is load per cpu.
 * [FEATURE] Port Apache, NginX and Varnish checks to checks.d.
-* [BUGFIX] [#290][], [#291][] - disable non-local traffic by default, suppress stack traces in 404s
-* [BUGFIX] [#257][] - More useful Apache rates not averaged from the beginning of time.
-* [BUGFIX] [#277][] - Run dogstatsd on older debian boxes.
-* [BUGFIX] [#245][] - Expire counter values.
-* [BUGFIX] [#261][] - Fix Windows checks.d location lookup.
-* [BUGFIX] [#253][] - Sum Dogstream counters.
+* [BUGFIX] #290, #291 - disable non-local traffic by default, suppress stack traces in 404s
+* [BUGFIX] #257 - More useful Apache rates not averaged from the beginning of time.
+* [BUGFIX] #277 - Run dogstatsd on older debian boxes.
+* [BUGFIX] #245 - Expire counter values.
+* [BUGFIX] #261 - Fix Windows checks.d location lookup.
+* [BUGFIX] #253 - Sum Dogstream counters.
 * [PERFORMANCE] Improved dogstatsd performance.
 * [ENHANCEMENT] Stylistic code improvements.
 
@@ -426,6 +444,7 @@ https://github.com/DataDog/dd-agent/compare/3.3.0...3.4.0
 
 ### New Features
 
+#### Changes
 * [FEATURE] Added HTTP and TCP Service Checks ([read the docs](http://docs.datadoghq.com/guides/services_checks/))
 * [FEATURE] Added the Windows Event Log Integration
 * [PERFORMANCE] Use the _much_ faster simplejson library, if it's available, otherwise use the standard json library.
@@ -440,6 +459,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.3...3.3.0
 
 ## 3.2.3 / 2012.10.15
 
+#### Changes
 * [FEATURE] Windows support is officially added.
 * [FEATURE] Added a SQL Server check.
 * [FEATURE] Added an IIS check.
@@ -451,6 +471,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.2...3.2.3
 
 # 3.2.2 / 2012.10.05
 
+#### Changes
 * [BUGFIX] Fixes an issue with events in checks.d where only events from the last instance would be sent.
 
 #### Details
@@ -458,6 +479,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.1...3.2.2
 
 # 3.2.1 / 2012.10.05
 
+#### Changes
 * [BUGFIX] Fixes an issue with duplicate events being created in `checks.d` checks.
 
 #### Details
@@ -465,8 +487,7 @@ https://github.com/DataDog/dd-agent/compare/3.2.0...3.2.1
 
 ## 3.2.0 / 2012.10.05
 
-### New Features
-
+#### Changes
 * [FEATURE] Add new AgentCheck interface for all future checks.
 * [FEATURE] Split checks and configuration with `checks.d`/`conf.d`.
 
@@ -475,6 +496,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.7...3.2.0
 
 # 3.1.7 / 2012.09.28
 
+#### Changes
 * [BUGFIX] Fixes the case where you have the `python-redis` module and the check will run with default host/port even if you don't have any redis configuration. Fixes case [#200](https://github.com/DataDog/dd-agent/issues/200).
 
 #### Details
@@ -482,6 +504,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.6...3.1.7
 
 # 3.1.6 / 2012.09.27
 
+#### Changes
 * [BUGFIX] Fixes memcached integration bug running under Python 2.4 [#201](https://github.com/DataDog/dd-agent/issues/201)
 * [BUGFIX] Removes token from the Cassandra Stats, because it is not always a number. Fixes case [#202](https://github.com/DataDog/dd-agent/issues/202)
 
@@ -490,6 +513,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.5...3.1.6
 
 # 3.1.5 / 2012.09.21
 
+#### Changes
 * [BUGFIX] Fixes network traffic reporting bug introduced in 3.1.4. If you're running 3.1.4 we recommended that you upgrade.
 
 #### Details
@@ -497,12 +521,12 @@ https://github.com/DataDog/dd-agent/compare/3.1.4...3.1.5
 
 # 3.1.4 / 2012.09.21
 
+#### Changes
 * [FEATURE] memcached and nginx checks now support multiple instances per host.
 * [FEATURE] Statsd: Added `sets` metric type. Read the [docs](http://docs.datadoghq.com/guides/metrics/#sets).
 * [FEATURE] Statsd: Now supports multiple metrics per packet.
 * [FEATURE] Some under the hood work to support more platforms.
 * [FEATURE] Bug fixes
-
 * [BUGFIX] Fixes invalid configuration parsing in the case of pure JVM metrics.
 
 #### Details
@@ -510,21 +534,25 @@ https://github.com/DataDog/dd-agent/compare/3.1.3...3.1.4
 
 # 3.1.3
 
+#### Changes
 * [BUGFIX] Fixes invalid configuration parsing in the case of pure JVM metrics.
 
 # 3.1.2
 
+#### Changes
 * [FEATURE] Dogstream (parsing logs with dd-agent) supports parsing classes in addition to parsing functions.
 
 # 3.1.1
 
+#### Changes
 * [FEATURE] Multi-instance JMX check
 * [FEATURE] dogstatsd counters now send 0 for up to 10 minutes after the last increment(). They work with alerts.
-* [BUGFIX] [part 1 of [#16][]5](https://github.com/DataDog/dd-agent/issues/165) dogstatsd's average is fixed
+* [BUGFIX] [part 1 of #165](https://github.com/DataDog/dd-agent/issues/165) dogstatsd's average is fixed
 * [BUGFIX] HAProxy logging level was logging debug messages by default.
 
 # 3.1.0
 
+#### Changes
 * [FEATURE] Deploy Pup along with the Agent (though Pup doesn't run on CentOS 5)
 * [FEATURE] Added a one line install script
 * [FEATURE] HAProxy integration
@@ -540,6 +568,7 @@ https://github.com/DataDog/dd-agent/compare/3.1.3...3.1.4
 
 # 3.0.5
 
+#### Changes
 * [BUGFIX] Incorrect version dependencies between `datadog-agent` and `datadog-agent-base`.
 * [BUGFIX] [#130](https://github.com/DataDog/dd-agent/issues/130) Fixes a crash when changing the listening port of the forwarder.
 
@@ -559,46 +588,56 @@ to get the new versions up-and-running.
 
 # 3.0.4
 
+#### Changes
 * [FEATURE] [#112](https://github.com/DataDog/dd-agent/issues/112) Thanks to [@charles-dyfis-net](https://github.com/charles-dyfis-net), the agent supports extra `emitters`. An emitter is an output for events and metrics.
 * [FEATURE] [#117](https://github.com/DataDog/dd-agent/issues/117) Thanks to [@rl-0x0](https://github.com/rl-0x0), the agent can now parse supervisord logs and turn them into events and metrics.
 * [FEATURE] [#121](https://github.com/DataDog/dd-agent/issues/121) Thanks to [@charles-dyfis-net](https://github.com/charles-dyfis-net), the agent supports custom checks. Check out our README for more details.
 
 # 3.0.3
 
+#### Changes
 * [BUGFIX] [#82](https://github.com/DataDog/dd-agent/issues/82) Now proudly runs on Amazon Web Services Linux.
 * [FEATURE] [#110](https://github.com/DataDog/dd-agent/issues/110) More ElasticSearch metrics
 
 # 3.0.2
 
+#### Changes
 * [BUGFIX] [#105](https://github.com/DataDog/dd-agent/issues/105) Fix for ElasticSearch 0.18
 
 # 3.0.1
 
+#### Changes
 * [BUGFIX] Support for ElasticSearch 0.18
 * [BUGFIX] [#95](https://github.com/DataDog/dd-agent/issues/95) Fix for incorrect supervisord configuration on debian. More details [here](https://github.com/DataDog/dd-agent/wiki/How-to-fix-supervisor) to test whether you are affected.
 
 # 3.0.0
-* **This is a major version**:
+
+* **This is a major version**
+#### Changes
 * [FEATURE] [dogstatsd](http://api.datadoghq.com/guides/dogstatsd), a drop-in replacement of statsd with tagging magic, bundled with the agent. Compatible with all statsd clients.
 * [FEATURE] [#21](https://github.com/DataDog/dd-agent/issues/21) Support for ElasticSearch 0.19
 
 # 2.2.28
 
+#### Changes
 * [FEATURE] [#83](https://github.com/DataDog/dd-agent/issues/83) Support authenticated connections to redis. Simply use the following stanza in `/etc/dd-agent/datadog.conf` to support multiple servers
 
-    redis_urls: host:port, password[@host][]:port
+    redis_urls: host:port, password@host:port
 
 # 2.2.27
 
+#### Changes
 * [BUGFIX] [#80](https://github.com/DataDog/dd-agent/issues/80) Agent now runs happily in locales with different radix separator
 * [FEATURE] [#73](https://github.com/DataDog/dd-agent/issues/73) Allow checks to record tag metrics
 
 # 2.2.26 
 
+#### Changes
 * [BUGFIX][#76](https://github.com/DataDog/dd-agent/issues/76) Fixes nagios perfdata parsing (if templates contained brackets)
 
 # 2.2.25
 
+#### Changes
 * [BUGFIX] [#68](https://github.com/DataDog/dd-agent/issues/68) Fixes off-by-one dog parsing error
 * [BUGFIX] [#65](https://github.com/DataDog/dd-agent/issues/65) More robust uninstall script on Debian & Ubuntu
 * [FEATURE] [#71](https://github.com/DataDog/dd-agent/issues/71) Supports for network metrics on Mac OS X
@@ -606,71 +645,88 @@ to get the new versions up-and-running.
 
 # 2.2.24
 
+#### Changes
 * [BUGFIX] fixes used memory metric
 * [BUGFIX] fixes mongo support on Ubuntu 11.10 (with pymongo 1.11)
-* [BUGFIX] fixes IO metrics on Ubuntu 12.04 (thanks [@dcrosta][])
+* [BUGFIX] fixes IO metrics on Ubuntu 12.04 (thanks @dcrosta)
 
 # 2.2.22
 
+#### Changes
 * [FEATURE] Supports Varnish 2.x
 
 # 2.2.21
 
 If you use ganglia, you want this version.
 
+#### Changes
 * [PERFORMANCE] major ganglia speedup, getting telnetlib out of the equation
 
 # 2.2.20
 
+#### Changes
 * [BUGFIX] fixes MongoDB support, broken in 2.2.19.
 
 # 2.2.19
 
-* [BUGFIX] varnish support is now xml-based, to not break when reading bitmap values ([#42][])
-* [BUGFIX] less verbose errors in dogstream ([#55][])
+#### Changes
+* [BUGFIX] varnish support is now xml-based, to not break when reading bitmap values (#42)
+* [BUGFIX] less verbose errors in dogstream (#55)
 * [FEATURE] Now capturing master/slave changes in Mongo
 
 # 2.2.18
 
+#### Changes
 * [BUGFIX] When using `use_ec2_instance_id: yes` on a non-ec2 box, don't hang! (introduced with 2.2.17)
 * [FEATURE] Initial Varnish support
 
 # 2.2.17
 
-* [BUGFIX] On CentOS, pid was always saved in /tmp/dd-agent.pid ([#51][])
+#### Changes
+* [BUGFIX] On CentOS, pid was always saved in /tmp/dd-agent.pid (#51)
 * **CONFIGURATION CHANGE**: When running on EC2, the instance id will be used in lieu of the hostname, unless `use_ec2_instance_id` is set no `no`.
 
 # 2.2.16
 
+#### Changes
 * [FEATURE] Agent auto-detects the fact that it is running on Amazon EC2
 * [FEATURE] Agent supports [custom event parsers](wiki/Log-Parsing)
 
 # 2.2.15
 
+#### Changes
 * [BUGFIX] Fixes MongoDB configuration parsing.
 
 # 2.2.14
 
+#### Changes
 * [BUGFIX] Used memory was not reported on 2.2.12 when running the agent on Debian Lenny.
 * [BUGFIX] Cacti memory is reported in MB, not in bytes.
 
 # 2.2.12
 
+#### Changes
 * [BUGFIX] Cacti check should fail gracefully if it cannot find RRD files.
 
 # 2.2.11
 
+#### Changes
 * [BUGFIX] Prevent counters from wrapping ([#23](/DataDog/dd-agent/pull/30))
 * [BUGFIX] Collect shared memory metric, accessible in Datadog via system.mem.shared.
 
 # 2.2.10
 
+#### Changes
 * [BUGFIX] On CentOS5, when both `datadog-agent` and `datadog-agent-base` are installed, `datadog-agent-base` runs with the stock 2.4 python, which allows python modules that support integrations (e.g. mysql) to be installed with yum.
 
 # 2.2.9 (minor)
 
+#### Changes
 * [FEATURE] Added support for [cacti](http://www.cacti.net)
 * [FEATURE] Added support for new memory metrics: `system.mem.buffers`, `system.mem.cached`, `system.mem.buffers`, `system.mem.usable`, `system.mem.total`
+
+#### Details
+  https://github.com/DataDog/dd-agent/issues?milestone=1&state=closedystem.mem.total`
 
 #### Details
   https://github.com/DataDog/dd-agent/issues?milestone=1&state=closed
