@@ -143,6 +143,12 @@ class MongoDb(AgentCheck):
             return
 
         server = instance['server']
+        use_ssl = instance.get('ssl', None)
+        ssl_keyfile = instance.get('ssl_keyfile', None)
+        ssl_certfile = instance.get('ssl_certfile', None)
+        ssl_cert_reqs = instance.get('ssl_cert_reqs', None)
+        ssl_ca_certs = instance.get('ssl_ca_certs', None)
+
         tags = instance.get('tags', [])
         tags.append('server:%s' % server)
         # de-dupe tags to avoid a memory leak
@@ -178,7 +184,9 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT)
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
+            ssl=use_ssl, ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile, 
+            ssl_cert_reqs=ssl_cert_reqs, ssl_ca_certs=ssl_ca_certs)
         db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
