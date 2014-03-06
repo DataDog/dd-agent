@@ -1,6 +1,13 @@
 Changes
 =======
 
+# 4.2.0 - Unreleased
+
+### Integrations afffected
+
+### Changes
+* 
+
 # 4.1.0 - 2014/02/04
 
 ### Integrations affected
