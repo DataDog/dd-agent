@@ -420,10 +420,9 @@ class Aggregator(object):
             'msg_text': text,
         }
         if date_happened is not None:
-            event['date_happened'] = date_happened
+            event['timestamp'] = date_happened
         else:
-            event['date_happened'] = int(time())
-        event['timestamp'] = event['date_happened']
+            event['timestamp'] = int(time())
         if alert_type is not None:
             event['alert_type'] = alert_type
         if aggregation_key is not None:
