@@ -5,7 +5,7 @@ Changes
 
 ### Integrations afffected
 
-### Changes
+#### Changes
 * 
 
 # 4.1.0 - 2014/02/04
