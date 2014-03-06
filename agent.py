@@ -288,7 +288,7 @@ def main():
                         print check.get_metrics()
                         print check.get_events()
 
-    elif 'configcheck' == command:
+    elif 'configcheck' == command or 'configtest' == command:
         osname = get_os()
         all_valid = True
         for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
