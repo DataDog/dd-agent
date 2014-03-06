@@ -100,6 +100,12 @@ start() {
         exit 3
     fi
 
+    su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+    if [ $? -ne 0 ]; then
+        echo -n "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
+        echo -n "Resuming starting process."
+    fi
+
     if [ -f $USE_SUPERVISOR ]; then
         # no need to test for status before daemon,
         # the daemon function does the right thing

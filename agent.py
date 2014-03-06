@@ -297,15 +297,17 @@ def main():
                 check_yaml(conf_path)
             except Exception, e:
                 all_valid = False
-                print "%s contains errors:\n%s\n" % (basename, e)
+                print "%s contains errors:\n    %s" % (basename, e)
             else:
-                print "%s is valid\n" % basename
+                print "%s is valid" % basename
         if all_valid:
             print "All yaml files passed. You can now run the Datadog agent."
+            return 0
         else:
             print("Fix the invalid yaml files above in order to start the Datadog agent. "
                     "A useful external tool for yaml parsing can be found at "
                     "http://yaml-online-parser.appspot.com/")
+            return 1
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
