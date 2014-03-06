@@ -118,7 +118,7 @@ class Reporter(threading.Thread):
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
             if event_count:
-                self.submit_events_agent(events)
+                self.submit_events(events)
 
             should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
             log_func = log.info
@@ -171,34 +171,7 @@ class Reporter(threading.Thread):
                         status, method, self.api_host, url, duration))
         return duration
 
-    def submit_events_api(self, events):
-        headers = {'Content-Type':'application/json'}
-        method = 'POST'
-
-        params = {}
-        if self.api_key:
-            params['api_key'] = self.api_key
-        url = '/api/v1/events?%s' % urlencode(params)
-
-        status = None
-        conn = self.http_conn_cls(self.api_host)
-        try:
-            for event in events:
-                start_time = time()
-                body = serialize_event(event)
-                log.debug('Sending event: %s' % body)
-                conn.request(method, url, body, headers)
-
-                response = conn.getresponse()
-                status = response.status
-                response.close()
-                duration = round((time() - start_time) * 1000.0, 4)
-                log.debug("%s %s %s%s (%sms)" % (
-                                status, method, self.api_host, url, duration))
-        finally:
-            conn.close()
-
-    def submit_events_agent(self, events):
+    def submit_events(self, events):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
