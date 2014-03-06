@@ -50,10 +50,11 @@ class JMXFetch(object):
         default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
             jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
-            try:
-                JMXFetch.write_status_file(invalid_checks)
-            except Exception:
-                log.exception("Error while writing JMX status file")
+            if len(invalid_checks) > 0:
+                try:
+                    JMXFetch.write_status_file(invalid_checks)
+                except Exception:
+                    log.exception("Error while writing JMX status file")
 
             if len(jmx_checks) > 0:
                 if JMXFetch.is_running() and command == JMX_COLLECT_COMMAND:
