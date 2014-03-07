@@ -19,7 +19,7 @@ class TestUnitDogStatsd(unittest.TestCase):
     @staticmethod
     def sort_events(metrics):
         def sort_by(m):
-            return (m['title'], m['text'], ','.join(m.get('tags', None) or []))
+            return (m['msg_title'], m['msg_text'], ','.join(m.get('tags', None) or []))
         return sorted(metrics, key=sort_by)
 
     @staticmethod
