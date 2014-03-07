@@ -117,7 +117,7 @@
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="datadogcert.pem" />
-            <ComponentRef Id="license.txt" />
+            <ComponentRef Id="license.rtf" />
             <ComponentRef Id="datadogagentstatus.url" />
             <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
             <ComponentRef Id="msvcp90.dll" />
