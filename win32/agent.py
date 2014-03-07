@@ -87,7 +87,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             if self.running:
                 # Restart any processes that might have died.
                 for name, proc in self.procs.iteritems():
-                    if not proc.is_alive():
+                    if not proc.is_alive() and proc.is_enabled:
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
@@ -118,6 +118,7 @@ class DDAgent(multiprocessing.Process):
         self.start_event = start_event
         # FIXME: `running` flag should be handled by the service
         self.running = True
+        self.is_enabled = True
 
     def run(self):
         log.debug("Windows Service - Starting collector")
@@ -155,6 +156,7 @@ class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='ddforwarder')
         self.config = agentConfig
+        self.is_enabled = True
 
     def run(self):
         log.debug("Windows Service - Starting forwarder")
@@ -176,6 +178,7 @@ class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='dogstatsd')
         self.config = agentConfig
+        self.is_enabled = True
 
     def run(self):
         log.debug("Windows Service - Starting Dogstatsd server")
@@ -193,6 +196,7 @@ class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='pup')
         self.config = agentConfig
+        self.is_enabled = True
 
     def run(self):
         self.is_enabled = self.config.get('use_web_info_page', True)
