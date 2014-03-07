@@ -21,6 +21,7 @@ import socket
 import sys
 from time import time
 import threading
+import math
 from urllib import urlencode
 
 # project
@@ -28,7 +29,7 @@ from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural, get_uuid
+from util import json, PidFile, get_hostname, plural, get_uuid, chunks
 
 log = logging.getLogger('dogstatsd')
 
@@ -40,6 +41,7 @@ UDP_SOCKET_TIMEOUT = 5
 FLUSH_LOGGING_PERIOD = 70
 FLUSH_LOGGING_INITIAL = 10
 FLUSH_LOGGING_COUNT = 5
+EVENT_CHUNK_SIZE = 50
 
 def serialize_metrics(metrics):
     return json.dumps({"series" : metrics})
@@ -53,7 +55,7 @@ class Reporter(threading.Thread):
     server.
     """
 
-    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False):
+    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False, event_chunk_size=None):
         threading.Thread.__init__(self)
         self.interval = int(interval)
         self.finished = threading.Event()
@@ -68,6 +70,7 @@ class Reporter(threading.Thread):
 
         self.api_key = api_key
         self.api_host = api_host
+        self.event_chunk_size = event_chunk_size or EVENT_CHUNK_SIZE
 
         self.http_conn_cls = http_client.HTTPSConnection
 
@@ -175,34 +178,49 @@ class Reporter(threading.Thread):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
-        payload = {
-            'apiKey': self.api_key,
-            'events': {
-                'api': events
-            },
-            'uuid': get_uuid(),
-            'internalHostname': get_hostname()
-        }
-        params = {}
-        if self.api_key:
-            params['api_key'] = self.api_key
-        url = '/intake?%s' % urlencode(params)
+        events_len = len(events)
+        event_chunk_size = self.event_chunk_size
 
-        status = None
-        conn = self.http_conn_cls(self.api_host)
-        try:
-            start_time = time()
-            conn.request(method, url, json.dumps(payload), headers)
+        def batch_same_size(entries,batch_size,output=[]):
+            if len(entries) > batch_size:
+                output.append(entries[:batch_size])
+                batch_same_size(entries[batch_size:],batch_size,output)
+            else:
+                output.append(entries)
+            return output
 
-            response = conn.getresponse()
-            status = response.status
-            response.close()
-            duration = round((time() - start_time) * 1000.0, 4)
-            log.debug("%s %s %s%s (%sms)" % (
-                            status, method, self.api_host, url, duration))
+        test_list = ['a','b','c','d','e']
 
-        finally:
-            conn.close()
+        for chunk in chunks(events,event_chunk_size):
+            print(chunk)
+            payload = {
+                'apiKey': self.api_key,
+                'events': {
+                    'api': chunk
+                },
+                'uuid': get_uuid(),
+                'internalHostname': get_hostname()
+            }
+            params = {}
+            if self.api_key:
+                params['api_key'] = self.api_key
+            url = '/intake?%s' % urlencode(params)
+
+            status = None
+            conn = self.http_conn_cls(self.api_host)
+            try:
+                start_time = time()
+                conn.request(method, url, json.dumps(payload), headers)
+
+                response = conn.getresponse()
+                status = response.status
+                response.close()
+                duration = round((time() - start_time) * 1000.0, 4)
+                log.debug("%s %s %s%s (%sms)" % (
+                                status, method, self.api_host, url, duration))
+
+            finally:
+                conn.close()
 
 class Server(object):
     """
@@ -342,6 +360,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
+    event_chunk_size = c.get('event_chunk_size') or None
 
     target = c['dd_url']
     if use_forwarder:
@@ -356,7 +375,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
 
     # Start the reporting thread.
-    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
+    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
 
     # Start the server on an IPv4 stack
     # Default to loopback
