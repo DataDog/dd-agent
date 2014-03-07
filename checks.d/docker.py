@@ -170,7 +170,11 @@ class Docker(AgentCheck):
         if params:
             uri = "%s?%s" % (uri, urllib.urlencode(params))
         req = urllib2.Request(uri, None)
-        request = urllib2.urlopen(req)
+        try:
+            request = urllib2.urlopen(req)
+        except urllib2.URLError, e:
+            if "Errno 13" in str(e):
+                raise Exception("Unable to connect to socket. dd-agent must be part of the 'docker' group")
         response = request.read()
         return json.loads(response)
 
