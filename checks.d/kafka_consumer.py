@@ -8,10 +8,16 @@ if sys.version_info < (2, 6):
 
 from compat.defaultdict import defaultdict
 from checks import AgentCheck
-from kafka.client import KafkaClient
-from kafka.common import OffsetRequest
-from kazoo.client import KazooClient
-from kazoo.exceptions import NoNodeError
+try:
+    from kafka.client import KafkaClient
+    from kafka.common import OffsetRequest
+except ImportError:
+    raise Exception('Missing python dependency: kafka (https://github.com/mumrah/kafka-python)')
+try:
+    from kazoo.client import KazooClient
+    from kazoo.exceptions import NoNodeError
+except ImportError:
+    raise Exception('Missing python dependency: kazoo (https://github.com/python-zk/kazoo)')
 import random
 
 class KafkaCheck(AgentCheck):
