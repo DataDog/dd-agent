@@ -536,9 +536,8 @@ class AgentCheck(object):
 
     @staticmethod
     def read_config(instance, key, message=None, cast=None):
-        try:
-            val = instance[key]
-        except KeyError:
+        val = instance.get(key)
+        if val is None:
             message = message or 'Must provide `%s` value in instance config' % key
             raise Exception(message)
 
