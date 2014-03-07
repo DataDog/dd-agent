@@ -192,7 +192,6 @@ class Reporter(threading.Thread):
         test_list = ['a','b','c','d','e']
 
         for chunk in chunks(events,event_chunk_size):
-            print(chunk)
             payload = {
                 'apiKey': self.api_key,
                 'events': {
