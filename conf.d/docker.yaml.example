@@ -23,6 +23,7 @@ instances:
 # include all, except ubuntu and debian:
 # instances:
 #     - url: "unix://var/run/docker.sock"
+#       include: []
 #       exclude:
 #         - "image:ubuntu"
 #         - "image:debian"
