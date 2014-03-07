@@ -233,7 +233,13 @@ class Server(object):
         # IPv4 only
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        self.socket.bind(self.address)
+        try:
+            self.socket.bind(self.address)
+        except socket.gaierror:
+            if self.address[0] == 'localhost':
+                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                self.address = ('127.0.0.1', self.address[1])
+                self.socket.bind(self.address)
 
         log.info('Listening on host & port: %s' % str(self.address))
 
@@ -354,7 +360,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     # Start the server on an IPv4 stack
     # Default to loopback
-    server_host = '127.0.0.1'
+    server_host = 'localhost'
     # If specified, bind to all addressses
     if non_local_traffic:
         server_host = ''
