@@ -1,5 +1,11 @@
 # Variables
-$version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
+if (Test-Path variable:global:$env:BUILD_NUMBER) {
+	$build_num = $env:BUILD_NUMBER
+} else {
+	$build_num = '0'
+}
+
+$version = "$(python -c "from config import get_version; print get_version()").$build_num"
 
 # Remove old artifacts
 rm -r build/*
@@ -31,6 +37,8 @@ cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
 # Move the images needed for the gui
 cp -R install_files\guidata install_files\files
 
+# Copy the license file
+cp ..\..\..\LICENSE install_files\license.rtf
 
 ## Generate the CLI installer with WiX
 
