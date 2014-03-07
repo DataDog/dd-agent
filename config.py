@@ -262,7 +262,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
@@ -933,7 +933,7 @@ def initialize_logging(logger_name):
             try:
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
-                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
                 app_log.addHandler(nt_event_handler)

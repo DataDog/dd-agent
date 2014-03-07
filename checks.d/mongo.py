@@ -143,11 +143,18 @@ class MongoDb(AgentCheck):
             return
 
         server = instance['server']
-        use_ssl = instance.get('ssl', None)
-        ssl_keyfile = instance.get('ssl_keyfile', None)
-        ssl_certfile = instance.get('ssl_certfile', None)
-        ssl_cert_reqs = instance.get('ssl_cert_reqs', None)
-        ssl_ca_certs = instance.get('ssl_ca_certs', None)
+
+        ssl_params = {
+            'ssl': instance.get('ssl', None),
+            'ssl_keyfile': instance.get('ssl_keyfile', None),
+            'ssl_certfile': instance.get('ssl_certfile', None),
+            'ssl_cert_reqs':  instance.get('ssl_cert_reqs', None),
+            'ssl_ca_certs': instance.get('ssl_ca_certs', None)
+        }
+
+        for key, param in ssl_params.items():
+            if param is None:
+                del ssl_params[key]
 
         tags = instance.get('tags', [])
         tags.append('server:%s' % server)
@@ -185,8 +192,7 @@ class MongoDb(AgentCheck):
             do_auth = False
 
         conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
-            ssl=use_ssl, ssl_keyfile=ssl_keyfile, ssl_certfile=ssl_certfile, 
-            ssl_cert_reqs=ssl_cert_reqs, ssl_ca_certs=ssl_ca_certs)
+            **ssl_params)
         db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):

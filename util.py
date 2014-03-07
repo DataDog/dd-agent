@@ -186,8 +186,14 @@ def get_hostname(config=None):
         config = get_config(parse_args=True)
     config_hostname = config.get('hostname')
     if config_hostname and is_valid_hostname(config_hostname):
-        hostname = config_hostname
+        return config_hostname
 
+    #Try to get GCE instance name
+    if hostname is None:
+        gce_hostname = GCE.get_hostname()
+        if gce_hostname is not None:
+            if is_valid_hostname(gce_hostname):
+                return gce_hostname
     # then move on to os-specific detection
     if hostname is None:
         def _get_hostname_unix():
@@ -211,12 +217,6 @@ def get_hostname(config=None):
         instanceid = EC2.get_instance_id()
         if instanceid:
             hostname = instanceid
-
-    #Try to get GCE instance name
-    if hostname is not None:
-        gce_hostname = GCE.get_hostname()
-        if gce_hostname is not None:
-            hostname = gce_hostname
 
     # fall back on socket.gethostname(), socket.getfqdn() is too unreliable
     if hostname is None:
