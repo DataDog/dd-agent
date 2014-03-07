@@ -1,3 +1,4 @@
+# pylint: disable=no-name-in-module
 import struct
 import logging
 import cPickle as pickle
@@ -9,8 +10,11 @@ log = logging.getLogger(__name__)
 try:
     from tornado.netutil import TCPServer
 except Exception, e:
-    log.warn("Tornado < 2.1.1 detected, using compatibility TCPServer")
-    from compat.tornadotcpserver import TCPServer
+    try:
+        from tornado.tcpserver import TCPServer
+    except Exception:
+        log.warn("Tornado < 2.1.1 detected, using compatibility TCPServer")
+        from compat.tornadotcpserver import TCPServer
 
 
 class GraphiteServer(TCPServer):
