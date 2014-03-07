@@ -3,10 +3,12 @@ import urllib
 import httplib
 import socket
 import os
+import re
 from urlparse import urlsplit, urljoin
 from util import json, headers
 from checks import AgentCheck
 
+MAX_CONTAINERS_WITHOUT_RULES = 10
 
 LXC_METRICS = [
     {
@@ -119,13 +121,23 @@ class Docker(AgentCheck):
         containers = self._get_containers(instance)
         if not containers:
             self.warning("No containers are running.")
+
+        # If we don't have include/exclude rules, we cap to
+        # MAX_CONTAINERS_WITHOUT_RULES containers to collect.
+        if not instance.get("exclude") or not instance.get("include"):
+            containers = containers[:MAX_CONTAINERS_WITHOUT_RULES]
         for container in containers:
             container_details = self._get_container(instance, container["Id"])
             container_tags = list(tags)
             for key in DOCKER_TAGS:
-                container_tags.append("%s:%s" % (key.lower(), container_details[key]))
+                container_tags.append(self._make_tag(key, container_details[key]))
             for key in DOCKER_CONFIG_TAGS:
-                container_tags.append("%s:%s" % (key.lower(), container_details["Config"][key]))
+                container_tags.append(self._make_tag(key, container_details["Config"][key]))
+
+            # Check if the container is included/excluded via its tags
+            if not self._is_container_included(instance, container_tags):
+                continue
+
             for key, (dd_key, metric_type) in DOCKER_METRICS.items():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
@@ -136,6 +148,23 @@ class Docker(AgentCheck):
                 for key, (dd_key, metric_type) in metric["metrics"].items():
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+
+    def _make_tag(self, key, value):
+        return "%s:%s" % (key.lower(), value)
+
+    def _is_container_included(self, instance, tags):
+        def _is_tag_included(tag):
+            for exclude_rule in instance.get("exclude") or []:
+                if re.match(exclude_rule, tag):
+                    for include_rule in instance.get("include") or []:
+                        if re.match(include_rule, tag):
+                            return True
+                    return False
+            return True
+        for tag in tags:
+            if _is_tag_included(tag):
+                return True
+        return False
 
     def _get_containers(self, instance):
         """Gets the list of running containers in Docker."""
