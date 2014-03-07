@@ -1,5 +1,7 @@
 from checks import AgentCheck, CheckException
 
+class ShouldRestartException(Exception): pass
+
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
@@ -124,6 +126,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
+        from psycopg2 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -139,7 +142,11 @@ SELECT relname,
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-            cursor = db.cursor()
+            try:
+                cursor = db.cursor()
+            except InterfaceError, e:
+                self.log.error("Connection seems broken: %s" % str(e))
+                raise ShouldRestartException
             
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
@@ -188,9 +195,9 @@ SELECT relname,
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
             
 
-    def get_connection(self, key, host, port, user, password, dbname):
+    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
-        if key in self.dbs:
+        if key in self.dbs and use_cached:
             return self.dbs[key]
 
         elif host != "" and user != "":
@@ -250,7 +257,13 @@ SELECT relname,
         self.log.debug("Running check against version %s" % version)
             
         # Collect metrics
-        self._collect_stats(key, db, tags, relations)
+        try:
+            self._collect_stats(key, db, tags, relations)
+        except ShouldRestartException:
+            self.log.info("Resetting the connection")
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            self._collect_stats(key, db, tags, relations)
+
 
     @staticmethod
     def parse_agent_config(agentConfig):
