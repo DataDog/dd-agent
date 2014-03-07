@@ -181,16 +181,6 @@ class Reporter(threading.Thread):
         events_len = len(events)
         event_chunk_size = self.event_chunk_size
 
-        def batch_same_size(entries,batch_size,output=[]):
-            if len(entries) > batch_size:
-                output.append(entries[:batch_size])
-                batch_same_size(entries[batch_size:],batch_size,output)
-            else:
-                output.append(entries)
-            return output
-
-        test_list = ['a','b','c','d','e']
-
         for chunk in chunks(events,event_chunk_size):
             payload = {
                 'apiKey': self.api_key,
