@@ -1,3 +1,11 @@
+import sys
+
+if sys.version_info < (2, 6):
+    # Normally we'd write our checks to be compatible with >= python 2.4 but
+    # the dependencies of this check are not compatible with 2.4 and would
+    # be too much work to rewrite, so raise an exception here.
+    raise Exception('kafka_consumer check requires at least Python 2.6')
+
 from collections import defaultdict
 from checks import AgentCheck
 from kafka.client import KafkaClient
