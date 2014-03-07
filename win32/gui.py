@@ -143,7 +143,7 @@ class DatadogConf(EditorFile):
                 else:
                     service_manager("start")
             else:
-                self.check_api_key()
+                self.check_api_key(editor)
 
 class AgentCheck(EditorFile):
     def __init__(self, filename, ext, conf_d_directory):

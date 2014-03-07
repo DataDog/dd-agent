@@ -38,7 +38,7 @@ def http_emitter(message, logger, agentConfig):
     payload = json.dumps(message)
     zipped = zlib.compress(payload)
 
-    logger.debug("payload_size=%d, compression_ration=%d" %(len(zipped), len(payload)/len(zipped)))
+    logger.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f" % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
 
     # Build the request handler
     apiKey = message.get('apiKey', None)

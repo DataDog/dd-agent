@@ -130,6 +130,7 @@ class ElasticSearch(AgentCheck):
 
     def check(self, instance):
         config_url = instance.get('url')
+        added_tags = instance.get('tags')
         if config_url is None:
             raise Exception("An url must be specified")
 
@@ -148,6 +149,9 @@ class ElasticSearch(AgentCheck):
 
         # Tag by URL so we can differentiate the metrics from multiple instances
         tags = ['url:%s' % config_url]
+        if added_tags is not None:
+            for tag in added_tags:
+                tags.append(tag)
 
         # Load stats data.
         url = urlparse.urljoin(config_url, STATS_URL)

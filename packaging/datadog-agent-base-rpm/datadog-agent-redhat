@@ -29,6 +29,7 @@ AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
+COLLECTOR_PYTHON_PATH="/usr/share/datadog/agent/checks/libs:$PYTHONPATH"
 
 if [ -x "/usr/bin/python2.6" ]; then
     PYTHON="/usr/bin/python2.6"
@@ -128,7 +129,7 @@ start() {
         fi
         echo -n 'Starting Datadog Agent: '
         install -d -o $AGENTUSER $PIDPATH
-        daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
+        daemon --user $AGENTUSER "env LANG=POSIX env PYTHONPATH=$COLLECTOR_PYTHON_PATH $PYTHON $AGENTPATH start init --clean > /dev/null 2>&1"
         RETURNVALUE=$?
         daemon --user $AGENTUSER "env LANG=POSIX $PYTHON $DOGSTATSDPATH start > /dev/null 2>&1"
         RETURNVALUE=$(($RETURNVALUE || $?))
@@ -204,8 +205,14 @@ case "$1" in
     configcheck)
         configcheck
         ;;
+
+    jmx)
+        shift
+        su $AGENTUSER -c "$AGENTPATH jmx $@"
+        exit $?
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck}"
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck|jmx}"
         exit 2
 esac
 exit $?

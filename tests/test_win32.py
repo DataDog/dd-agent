@@ -48,7 +48,7 @@ class TestWin32(unittest.TestCase):
         mem = w32.Memory(log)
         self._checkMemoryLeak(lambda: mem.check(AGENT_CONFIG))
 
-    def testMemory(self):
+    def testNetwork(self):
         net = w32.Network(log)
         self._checkMemoryLeak(lambda: net.check(AGENT_CONFIG))
 
