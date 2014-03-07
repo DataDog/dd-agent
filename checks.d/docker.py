@@ -60,17 +60,9 @@ DOCKER_METRICS = {
 }
 
 DOCKER_TAGS = [
-    "Name",
-    "Driver",
-    "Path",
+    "Command",
+    "Image",
 ]
-
-DOCKER_CONFIG_TAGS = [
-    "Hostname",
-    "Image"
-]
-
-
 
 class UnixHTTPConnection(httplib.HTTPConnection, object):
     """Class used in conjuction with UnixSocketHandler to make urllib2
@@ -127,12 +119,11 @@ class Docker(AgentCheck):
         if not instance.get("exclude") or not instance.get("include"):
             containers = containers[:MAX_CONTAINERS_WITHOUT_RULES]
         for container in containers:
-            container_details = self._get_container(instance, container["Id"])
             container_tags = list(tags)
+            for name in container["Names"]:
+                container_tags.append(self._make_tag("name", name.lstrip("/")))
             for key in DOCKER_TAGS:
-                container_tags.append(self._make_tag(key, container_details[key]))
-            for key in DOCKER_CONFIG_TAGS:
-                container_tags.append(self._make_tag(key, container_details["Config"][key]))
+                container_tags.append(self._make_tag(key, container[key]))
 
             # Check if the container is included/excluded via its tags
             if not self._is_container_included(instance, container_tags):
@@ -150,7 +141,7 @@ class Docker(AgentCheck):
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
     def _make_tag(self, key, value):
-        return "%s:%s" % (key.lower(), value)
+        return "%s:%s" % (key.lower(), value.strip())
 
     def _is_container_included(self, instance, tags):
         def _is_tag_included(tag):
