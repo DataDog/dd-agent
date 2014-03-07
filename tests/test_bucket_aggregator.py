@@ -21,7 +21,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
     @staticmethod
     def sort_events(metrics):
         def sort_by(m):
-            return (m['title'], m['text'], ','.join(m.get('tags', None) or []))
+            return (m['msg_title'], m['msg_text'], ','.join(m.get('tags', None) or []))
         return sorted(metrics, key=sort_by)
 
     def sleep_for_interval_length(self, interval=None):
@@ -883,19 +883,19 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
             assert True
         else:
             assert False, "event['tags'] shouldn't be defined when no tags aren't explicited in the packet"
-        nt.assert_equal(first['title'], 'title1')
-        nt.assert_equal(first['text'], 'text')
+        nt.assert_equal(first['msg_title'], 'title1')
+        nt.assert_equal(first['msg_text'], 'text')
 
-        nt.assert_equal(second['title'], 'title2')
-        nt.assert_equal(second['text'], 'text')
+        nt.assert_equal(second['msg_title'], 'title2')
+        nt.assert_equal(second['msg_text'], 'text')
         nt.assert_equal(second['tags'], sorted(['t1']))
 
-        nt.assert_equal(third['title'], 'title3')
-        nt.assert_equal(third['text'], 'text')
+        nt.assert_equal(third['msg_title'], 'title3')
+        nt.assert_equal(third['msg_text'], 'text')
         nt.assert_equal(third['tags'], sorted(['t1', 't2:v2', 't3', 't4']))
 
-        nt.assert_equal(fourth['title'], 'title4')
-        nt.assert_equal(fourth['text'], 'text')
+        nt.assert_equal(fourth['msg_title'], 'title4')
+        nt.assert_equal(fourth['msg_text'], 'text')
         nt.assert_equal(fourth['aggregation_key'], 'key')
         nt.assert_equal(fourth['priority'], 'normal')
         nt.assert_equal(fourth['tags'], sorted(['t1', 't2']))
@@ -913,11 +913,11 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         assert len(events) == 5
         first, second, third, fourth, fifth = events
 
-        nt.assert_equal(first['title'], '')
-        nt.assert_equal(second['title'], u'2intitulé')
-        nt.assert_equal(third['title'], '3title content')
-        nt.assert_equal(fourth['title'], '4title|content')
-        nt.assert_equal(fifth['title'], '5title\\ntitle')
+        nt.assert_equal(first['msg_title'], '')
+        nt.assert_equal(second['msg_title'], u'2intitulé')
+        nt.assert_equal(third['msg_title'], '3title content')
+        nt.assert_equal(fourth['msg_title'], '4title|content')
+        nt.assert_equal(fifth['msg_title'], '5title\\ntitle')
 
     def test_event_text(self):
         stats = MetricsBucketAggregator('myhost', interval=self.interval)
@@ -931,10 +931,10 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         assert len(events) == 4
         first, second, third, fourth = events
 
-        nt.assert_equal(first['text'], '')
-        nt.assert_equal(second['text'], 'text|content')
-        nt.assert_equal(third['text'], 'First line\nSecond line')
-        nt.assert_equal(fourth['text'], u'♬ †øU †øU ¥ºu T0µ ♪')
+        nt.assert_equal(first['msg_text'], '')
+        nt.assert_equal(second['msg_text'], 'text|content')
+        nt.assert_equal(third['msg_text'], 'First line\nSecond line')
+        nt.assert_equal(fourth['msg_text'], u'♬ †øU †øU ¥ºu T0µ ♪')
 
     def test_recent_point_threshold(self):
         ag_interval = 1
