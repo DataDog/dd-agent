@@ -1,3 +1,4 @@
+# pylint: disable=no-name-in-module
 """An extensible library for opening URLs using a variety of protocols
 
 The simplest way to use this module is to call the urlopen function,
