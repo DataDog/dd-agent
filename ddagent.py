@@ -460,13 +460,9 @@ def init(skip_ssl_validation=False):
     return app
 
 def main():
-    define("pycurl", default=1, help="Use pycurl")
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     args = parse_command_line()
     skip_ssl_validation = False
-
-    if unicode(options.pycurl) == u"0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
 
     if unicode(options.sslcheck) == u"0":
         skip_ssl_validation = True
