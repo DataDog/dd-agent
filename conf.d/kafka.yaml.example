@@ -1,4 +1,18 @@
+
+instances:
+#    -   host: localhost
+#        port: 9999
+#        name: jmx_instance
+#        user: username
+#        password: password
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
+
+
 init_config:
+    is_jmx: true
+
     # Metrics collected by this check. You should not have to modify this.
     conf:
         #
@@ -136,14 +150,3 @@ init_config:
                 MeanRate:
                     metric_type: counter
                     alias: kafka.log.flush_rate
-
-
-instances:
-#    -   host: localhost
-#        port: 9999
-#        name: jmx_instance
-#        user: username
-#        password: password
-#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
-#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
-#        #trust_store_password: password
