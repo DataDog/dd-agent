@@ -22,6 +22,7 @@ try:
 except ImportError:
     from md5 import md5
 
+
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
 # Import json for the agent. Try simplejson first, then the stdlib version and
@@ -65,9 +66,9 @@ log = logging.getLogger(__name__)
 NumericTypes = (float, int, long)
 
 def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+    if count == 1:
+        return ""
+    return "s"
 
 def get_tornado_ioloop():
     if tornado_version[0] == 3:
@@ -116,7 +117,7 @@ def getTopIndex():
     macV = None
     if sys.platform == 'darwin':
         macV = platform.mac_ver()
-        
+
     # Output from top is slightly modified on OS X 10.6 (case #28239)
     if macV and macV[0].startswith('10.6.'):
         return 6
@@ -164,7 +165,7 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
-    
+
 
 def get_hostname(config=None):
     """
@@ -185,8 +186,14 @@ def get_hostname(config=None):
         config = get_config(parse_args=True)
     config_hostname = config.get('hostname')
     if config_hostname and is_valid_hostname(config_hostname):
-        hostname = config_hostname
+        return config_hostname
 
+    #Try to get GCE instance name
+    if hostname is None:
+        gce_hostname = GCE.get_hostname()
+        if gce_hostname is not None:
+            if is_valid_hostname(gce_hostname):
+                return gce_hostname
     # then move on to os-specific detection
     if hostname is None:
         def _get_hostname_unix():
@@ -225,6 +232,81 @@ def get_hostname(config=None):
         raise Exception('Unable to reliably determine host name. You can define one in datadog.conf or in your hosts file')
     else:
         return hostname
+
+class GCE(object):
+    URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
+    TIMEOUT = 0.1 # second
+    SOURCE_TYPE_NAME = 'google cloud platform'
+    metadata = None
+
+
+    @staticmethod
+    def _get_metadata():
+        if GCE.metadata is not None:
+            return GCE.metadata
+
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(GCE.TIMEOUT)
+        except Exception:
+            pass
+
+        try:
+            opener = urllib2.build_opener()
+            opener.addheaders = [('X-Google-Metadata-Request','True')]
+            GCE.metadata = json.loads(opener.open(GCE.URL).read().strip())
+
+        except Exception:
+            GCE.metadata = {}
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except Exception:
+            pass
+        return GCE.metadata
+
+
+
+    @staticmethod
+    def get_tags():
+
+        try:
+            host_metadata = GCE._get_metadata()
+            tags = []
+
+            for key, value in host_metadata['instance'].get('attributes', {}).iteritems():
+                tags.append("%s:%s" % (key, value))
+
+            tags.extend(host_metadata['instance'].get('tags', []))
+            tags.append('zone:%s' % host_metadata['instance']['zone'].split('/')[-1])
+            tags.append('instance-type:%s' % host_metadata['instance']['machineType'].split('/')[-1])
+            tags.append('internal-hostname:%s' % host_metadata['instance']['hostname'])
+            tags.append('instance-id:%s' % host_metadata['instance']['id'])
+            tags.append('automatic-restart:%s' % host_metadata['instance']['scheduling']['automaticRestart'])
+            tags.append('on-host-maintenance:%s' % host_metadata['instance']['scheduling']['onHostMaintenance'])
+            tags.append('local-ipv4:%s' % host_metadata['instance']['networkInterfaces'][0]['ip'])
+            tags.append('public-ipv4:%s' % host_metadata['instance']['networkInterfaces'][0]['accessConfigs'][0]['externalIp'])
+            tags.append('project:%s' % host_metadata['project']['projectId'])
+            tags.append('numeric_project_id:%s' % host_metadata['project']['numericProjectId'])
+
+            GCE.metadata['hostname'] = host_metadata['instance']['hostname'].split('.')[0]
+
+            return tags
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_hostname():
+        try:
+            host_metadata = GCE._get_metadata()
+            return host_metadata['instance']['hostname'].split('.')[0]
+        except Exception:
+            return None
+
+
 
 class EC2(object):
     """Retrieve EC2 metadata
@@ -509,3 +591,23 @@ class Platform(object):
     def is_win32(name=None):
         name = name or sys.platform
         return name == "win32"
+
+"""
+Iterable Recipes
+"""
+
+def chunks(iterable, chunk_size):
+    """Generate sequences of `chunk_size` elements from `iterable`."""
+    iterable = iter(iterable)
+    while True:
+        chunk = [None] * chunk_size
+        count = 0
+        try:
+            for _ in range(chunk_size):
+                chunk[count] = iterable.next()
+                count += 1
+            yield chunk[:count]
+        except StopIteration:
+            if count:
+                yield chunk[:count]
+            break

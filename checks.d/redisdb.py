@@ -143,7 +143,7 @@ class Redis(AgentCheck):
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
             raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
-                Minimum required version: 2.4
+                Minimum required version: 2.4.11
                 Your current version: %s 
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
 

@@ -56,14 +56,15 @@ class HAProxy(AgentCheck):
         username = instance.get('username')
         password = instance.get('password')
         collect_aggregates_only = instance.get('collect_aggregates_only', True)
+        collect_status_metrics = instance.get('collect_status_metrics', False)
 
         self.log.debug('Processing HAProxy data for %s' % url)
-       
+
         data = self._fetch_data(url, username, password)
 
         process_events = instance.get('status_check', self.init_config.get('status_check', False))
 
-        self._process_data(data, collect_aggregates_only, process_events, url)
+        self._process_data(data, collect_aggregates_only, process_events, url=url, collect_status_metrics=collect_status_metrics)
 
     def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''
@@ -84,7 +85,7 @@ class HAProxy(AgentCheck):
         # Split the data by line
         return response.split('\n')
 
-    def _process_data(self, data, collect_aggregates_only, process_events, url=None):
+    def _process_data(self, data, collect_aggregates_only, process_events, url=None, collect_status_metrics=False):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -92,6 +93,8 @@ class HAProxy(AgentCheck):
         # The line looks like:
         # "# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,"
         fields = [f.strip() for f in data[0][2:].split(',') if f]
+
+        hosts_statuses = defaultdict(int)
 
         # Holds a list of dictionaries describing each system
         data_list = []
@@ -119,8 +122,12 @@ class HAProxy(AgentCheck):
                 except (TypeError, ZeroDivisionError):
                     pass
 
-            # Don't create metrics for aggregates
             service = data_dict['svname']
+
+            if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
+                hosts_statuses[(data_dict['pxname'], data_dict['status'])] += 1
+
+
             if data_dict['svname'] in Services.ALL:
                 data_list.append(data_dict)
 
@@ -134,7 +141,28 @@ class HAProxy(AgentCheck):
             elif not collect_aggregates_only:
                 data_list.append(data_dict)
 
+        if collect_status_metrics:
+            self._process_status_metric(hosts_statuses)
+
         return data
+
+    def _process_status_metric(self, hosts_statuses):
+        agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
+        for (service, status), count in hosts_statuses.iteritems():
+            status = status.lower()
+
+            tags = ['status:%s' % status, 'service:%s' % service]
+            self.gauge("haproxy.count_per_status", count, tags=tags)
+
+            if 'up' in status:
+                agg_statuses[service]['available'] += count
+            if 'down' in status or 'maint' in status or 'nolb' in status:
+                agg_statuses[service]['unavailable'] += count
+
+        for service in agg_statuses:
+            for status, count in agg_statuses[service].iteritems():
+                tags = ['status:%s' % status, 'service:%s' % service]
+                self.gauge("haproxy.count_per_status", count, tags=tags)
 
     def _process_metrics(self, data_list, service, url):
         for data in data_list:

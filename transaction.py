@@ -11,7 +11,7 @@ from util import get_tornado_ioloop, plural
 
 log = logging.getLogger(__name__)
 
-FLUSH_LOGGING_PERIOD = 10
+FLUSH_LOGGING_PERIOD = 20
 FLUSH_LOGGING_INITIAL = 5
 
 class Transaction(object):
@@ -144,7 +144,7 @@ class TransactionManager(object):
                 to_flush.append(tr)
 
         count = len(to_flush)
-        should_log = self._flush_count +1 <= FLUSH_LOGGING_INITIAL or self._flush_count +1 % FLUSH_LOGGING_PERIOD == 0
+        should_log = self._flush_count +1 <= FLUSH_LOGGING_INITIAL or (self._flush_count + 1) % FLUSH_LOGGING_PERIOD == 0
         if count > 0:
             if should_log:
                 log.info("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))

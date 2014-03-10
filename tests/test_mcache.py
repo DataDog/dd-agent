@@ -93,6 +93,7 @@ class TestMemCache(unittest.TestCase):
 
         import gc
         gc.set_debug(gc.DEBUG_LEAK)
+        gc.collect()
         try:
             start = len(gc.garbage)
             for i in range(10):

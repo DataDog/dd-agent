@@ -11,3 +11,6 @@ instances:
     #-  url: localhost:9200
     #   username: username
     #   password: password
+    #   tags:
+    #     - 'tag1:key1'
+    #     - 'tag2:key2'

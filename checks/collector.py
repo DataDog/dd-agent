@@ -10,7 +10,7 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
+from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
 from config import get_version, get_system_stats
 
 import checks.system.unix as u
@@ -385,6 +385,10 @@ class Collector(object):
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
+
+            GCE_tags = GCE.get_tags()
+            if GCE_tags is not None:
+                payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
             # Log the metadata on the first run
             if self._is_first_run():

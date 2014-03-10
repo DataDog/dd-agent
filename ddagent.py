@@ -46,6 +46,9 @@ import modules
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
+PUP_ENDPOINT = "pup_url"
+DD_ENDPOINT  = "dd_url"
+
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
 
@@ -141,7 +144,7 @@ class MetricTransaction(Transaction):
 
         if 'use_pup' in cls._application._agentConfig:
             if cls._application._agentConfig['use_pup']:
-                cls._endpoints.append('pup_url')
+                cls._endpoints.append(PUP_ENDPOINT)
         # Only send data to Datadog if an API KEY exists
         # i.e. user is also Datadog user
         try:
@@ -152,7 +155,7 @@ class MetricTransaction(Transaction):
                 and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
             if is_dd_user:
                 log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
-                cls._endpoints.append('dd_url')
+                cls._endpoints.append(DD_ENDPOINT)
         except Exception:
             log.info("Not a Datadog user")
 
@@ -198,7 +201,7 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
-            if proxy_settings is not None:
+            if proxy_settings is not None and endpoint != PUP_ENDPOINT:
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
@@ -209,12 +212,11 @@ class MetricTransaction(Transaction):
                 tornado_client_params['ca_certs'] = ssl_certificate
 
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
             else:
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                log.debug("Using Tornado simple HTTP Client")
                 
+            tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
             
 
@@ -222,7 +224,7 @@ class MetricTransaction(Transaction):
             # whether or not it's successfully sent to datadoghq. If it fails
             # getting sent to pup, it's not a big deal.
             callback = lambda(x): None
-            if len(self._endpoints) <= 1 or endpoint == 'dd_url':
+            if len(self._endpoints) <= 1 or endpoint == DD_ENDPOINT:
                 callback = self.on_response
 
             http.fetch(req, callback=callback)
@@ -243,7 +245,7 @@ class APIMetricTransaction(MetricTransaction):
         config = self._application._agentConfig
         api_key = config['api_key']
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
-        if endpoint == 'pup_url':
+        if endpoint == PUP_ENDPOINT:
             url = config[endpoint] + '/api/v1/series'
         return url
 
@@ -458,13 +460,9 @@ def init(skip_ssl_validation=False):
     return app
 
 def main():
-    define("pycurl", default=1, help="Use pycurl")
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     args = parse_command_line()
     skip_ssl_validation = False
-
-    if unicode(options.pycurl) == u"0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
 
     if unicode(options.sslcheck) == u"0":
         skip_ssl_validation = True

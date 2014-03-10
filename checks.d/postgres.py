@@ -1,5 +1,7 @@
 from checks import AgentCheck, CheckException
 
+class ShouldRestartException(Exception): pass
+
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
@@ -124,6 +126,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
+        from psycopg2 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -139,14 +142,20 @@ SELECT relname,
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-            cursor = db.cursor()
+            try:
+                cursor = db.cursor()
+            except InterfaceError, e:
+                self.log.error("Connection seems broken: %s" % str(e))
+                raise ShouldRestartException
             
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
+                self.log.debug("Running query: %s with relations: %s" % (query, relations))
                 cursor.execute(query, (relations, ))
             else:
                 query = scope['query'] % (", ".join(cols))
+                self.log.debug("Running query: %s" % query)
                 cursor.execute(query)
 
             results = cursor.fetchall()
@@ -186,23 +195,14 @@ SELECT relname,
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
             
 
-    def get_connection(self, key, host, port, user, password, dbname):
+    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
-        if key in self.dbs:
+        if key in self.dbs and use_cached:
             return self.dbs[key]
 
         elif host != "" and user != "":
             try:
                 import psycopg2 as pg
-                if host == 'localhost' and password == '':
-                    # Use ident method
-                    return  pg.connect("user=%s dbname=%s" % (user, dbname))
-                elif port != '':
-                    return pg.connect(host=host, port=port, user=user,
-                                      password=password, database=dbname)
-                else:
-                    return pg.connect(host=host, user=user, password=password,
-                                      database=dbname)
             except ImportError:
                 raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
             
@@ -216,14 +216,17 @@ SELECT relname,
                 connection = pg.connect(host=host, user=user, password=password,
                     database=dbname)
         else:
-            if host is None or host == "":
+            if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
-            elif user is None or user == "":
+            elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
-            else:
-                raise CheckException("Cannot connect to Postgres.")
 
-        connection.autocommit = True
+        try:
+            connection.autocommit = True
+        except AttributeError:
+            # connection.autocommit was added in version 2.4.2
+            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+            connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         
         self.dbs[key] = connection
         return connection
@@ -235,10 +238,10 @@ SELECT relname,
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('database', 'postgres')
+        dbname = instance.get('dbname', 'postgres')
         relations = instance.get('relations', [])
 
-        key = '%s:%s' % (host, port)
+        key = '%s:%s:%s' % (host, port,dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance
@@ -254,7 +257,13 @@ SELECT relname,
         self.log.debug("Running check against version %s" % version)
             
         # Collect metrics
-        self._collect_stats(key, db, tags, relations)
+        try:
+            self._collect_stats(key, db, tags, relations)
+        except ShouldRestartException:
+            self.log.info("Resetting the connection")
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            self._collect_stats(key, db, tags, relations)
+
 
     @staticmethod
     def parse_agent_config(agentConfig):

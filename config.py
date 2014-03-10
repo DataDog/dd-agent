@@ -24,8 +24,10 @@ from migration import migrate_old_style_configuration
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
-DEFAULT_STATSD_FREQUENCY = 10  # seconds
+DEFAULT_STATSD_FREQUENCY = 2  # seconds
+DEFAULT_STATSD_BUCKET_SIZE = 10 #seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
+PUP_STATSD_BUCKET_SIZE = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
@@ -61,7 +63,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.1.0"
+    return "4.2.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -191,6 +193,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
+        'dogstatsd_agregator_bucket_size': DEFAULT_STATSD_BUCKET_SIZE,
         'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
@@ -205,6 +208,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
+    dogstatsd_agregator_bucket_size = DEFAULT_STATSD_BUCKET_SIZE
 
     # Config handling
     try:
@@ -258,7 +262,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
@@ -278,6 +282,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Increases the frequency of statsd metrics when only sending to Pup
         if not agentConfig['use_dd'] and agentConfig['use_pup']:
             dogstatsd_interval = PUP_STATSD_FREQUENCY
+            dogstatsd_agregator_bucket_size = PUP_STATSD_BUCKET_SIZE
 
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
@@ -320,6 +325,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             'dogstatsd_port': 8125,
             'dogstatsd_target': 'http://localhost:17123',
             'dogstatsd_interval': dogstatsd_interval,
+            'dogstatsd_agregator_bucket_size': dogstatsd_agregator_bucket_size,
             'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
@@ -423,7 +429,7 @@ def get_system_stats():
     }
 
     platf = sys.platform
-    
+
     if  Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
@@ -605,6 +611,7 @@ def get_ssl_certificate(osname, filename):
 
 def check_yaml(conf_path):
     f = open(conf_path)
+    check_name = os.path.basename(conf_path).split('.')[0]
     try:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
@@ -926,10 +933,10 @@ def initialize_logging(logger_name):
             try:
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
-                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
-                app_log.addHandler(nt_event_handler)    
+                app_log.addHandler(nt_event_handler)
             except Exception, e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()

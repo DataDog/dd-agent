@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="4.0.1"
+tag="4.1.0"
 
 #######################
 # Define some helpers #
@@ -273,6 +273,10 @@ mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
 $dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
 print_done
+
+# Install pycurl
+printf "Installing pycurl....." | tee -a $logfile
+$dd_base/venv/bin/pip install pycurl >> $logfile 2>&1
 
 if [ "$unamestr" = "Darwin" ]; then
     # prepare launchd
