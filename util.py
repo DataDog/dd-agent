@@ -22,6 +22,7 @@ try:
 except ImportError:
     from md5 import md5
 
+
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
 # Import json for the agent. Try simplejson first, then the stdlib version and
@@ -590,3 +591,23 @@ class Platform(object):
     def is_win32(name=None):
         name = name or sys.platform
         return name == "win32"
+
+"""
+Iterable Recipes
+"""
+
+def chunks(iterable, chunk_size):
+    """Generate sequences of `chunk_size` elements from `iterable`."""
+    iterable = iter(iterable)
+    while True:
+        chunk = [None] * chunk_size
+        count = 0
+        try:
+            for _ in range(chunk_size):
+                chunk[count] = iterable.next()
+                count += 1
+            yield chunk[:count]
+        except StopIteration:
+            if count:
+                yield chunk[:count]
+            break
