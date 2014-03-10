@@ -212,12 +212,11 @@ class MetricTransaction(Transaction):
                 tornado_client_params['ca_certs'] = ssl_certificate
 
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
             else:
                 req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                log.debug("Using Tornado simple HTTP Client")
                 
+            tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
             
 
