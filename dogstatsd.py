@@ -181,7 +181,7 @@ class Reporter(threading.Thread):
         events_len = len(events)
         event_chunk_size = self.event_chunk_size
 
-        for chunk in chunks(events,event_chunk_size):
+        for chunk in chunks(events, event_chunk_size):
             payload = {
                 'apiKey': self.api_key,
                 'events': {
@@ -349,7 +349,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
-    event_chunk_size = c.get('event_chunk_size') or None
+    event_chunk_size = c.get('event_chunk_size')
 
     target = c['dd_url']
     if use_forwarder:
