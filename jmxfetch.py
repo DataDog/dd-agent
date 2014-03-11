@@ -22,14 +22,21 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING : "WARN",
 }
 
-JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
+JMX_CHECKS = [
+    'activemq',
+    'activemq_58',
+    'cassandra',
+    'jmx',
+    'solr',
+    'tomcat',
+]
 JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
 JMX_COLLECT_COMMAND = 'collect'
 JMX_LIST_COMMANDS = {
-        'list_everything': 'List every attributes available that has a type supported by JMXFetch', 
-        'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration', 
+        'list_everything': 'List every attributes available that has a type supported by JMXFetch',
+        'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration',
         'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
-        'list_not_matching_attributes': "List attributes that don't match any of your instances configuration", 
+        'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
         'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
         JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"
         }
@@ -46,7 +53,7 @@ class JMXFetch(object):
     pid_file_path = pid_file.get_path()
 
     @classmethod
-    def init(cls, confd_path, agentConfig, logging_config, 
+    def init(cls, confd_path, agentConfig, logging_config,
         default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
             jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
@@ -61,13 +68,11 @@ class JMXFetch(object):
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
-                JMXFetch.start(confd_path, agentConfig, logging_config, 
-                    java_bin_path, java_options, default_check_frequency,  
+                JMXFetch.start(confd_path, agentConfig, logging_config,
+                    java_bin_path, java_options, default_check_frequency,
                     jmx_checks, command, reporter)
                 return True
-            else:
-                return False
-        except Exception, e:
+        except Exception:
             log.exception("Error while initiating JMXFetch")
 
     @classmethod
@@ -85,15 +90,15 @@ class JMXFetch(object):
         """
     Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options)
 
-    jmx_checks: list of yaml files that are jmx checks 
+    jmx_checks: list of yaml files that are jmx checks
     (they have the is_jmx flag enabled or they are in JMX_CHECKS)
     and that have at least one instance configured
 
     invalid_checks: dictionary whose keys are check names that are JMX checks but
-    they have a bad configuration. Values of the dictionary are exceptions generated 
+    they have a bad configuration. Values of the dictionary are exceptions generated
     when checking the configuration
 
-    java_bin_path: is the path to the java executable. It was 
+    java_bin_path: is the path to the java executable. It was
     previously set in the "instance" part of the yaml file of the
     jmx check. So we need to parse yaml files to get it.
     We assume that this value is alwayws the same for every jmx check
@@ -110,9 +115,6 @@ class JMXFetch(object):
         invalid_checks = {}
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
-
-            java_bin_path_is_set = java_bin_path is not None
-            java_options_is_set = java_options is not None
             filename = os.path.basename(conf)
             check_name = filename.split('.')[0]
 
@@ -219,7 +221,7 @@ class JMXFetch(object):
         if get_os() != 'windows':
             try:
                 os.kill(pid, 0)
-                # os.kill(pid, 0) will throw an exception if pid is not running 
+                # os.kill(pid, 0) will throw an exception if pid is not running
                 # and won't do anything otherwise
                 # It doesn't work on windows as signal.CTRL_C_EVENT is 0, it would quit the process
                 return True
@@ -276,7 +278,7 @@ class JMXFetch(object):
         return os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "..", "jmxfetch", JMX_FETCH_JAR_NAME))
 
     @classmethod
-    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts, 
+    def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts,
         default_check_frequency, jmx_checks, command=None, reporter=None):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
@@ -291,7 +293,7 @@ class JMXFetch(object):
             java_run_opts = java_run_opts or ""
             path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
             path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
-            
+
             subprocess_args = [
                 path_to_java, # Path to the java bin
                 '-jar',
@@ -301,8 +303,8 @@ class JMXFetch(object):
                 '--log_level', JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
                 '--log_location', r"%s" % logging_config.get('jmxfetch_log_file'), # Path of the log file
                 '--reporter',  reporter, # Reporter to use
-                '--status_location', r"%s" % path_to_status_file, # Path to the status file to write    
-                command, # Name of the command          
+                '--status_location', r"%s" % path_to_status_file, # Path to the status file to write
+                command, # Name of the command
             ]
 
             subprocess_args.insert(3, '--check')
@@ -321,11 +323,11 @@ class JMXFetch(object):
 
             else:
                 subprocess.call(subprocess_args)
-            
-        except OSError, e:
+
+        except OSError:
             jmx_connector_pid = None
-            log.exception("Couldn't launch JMXFetch. Is java in your PATH?")
-        except Exception, e:
+            log.exception("Couldn't launch JMXTerm. Is java in your PATH?")
+        except Exception:
             jmx_connector_pid = None
             log.exception("Couldn't launch JMXFetch")
 
@@ -336,7 +338,5 @@ class JMXFetch(object):
                 fp.write(str(jmx_connector_pid))
                 fp.close()
                 os.chmod(JMXFetch.pid_file_path, 0644)
-            except Exception, e:
-                log.exception("Unable to write JMXFetch pidfile: %s" % JMXFetch.pid_file_path)
-
-
+            except Exception:
+                log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)

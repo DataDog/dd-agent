@@ -1,0 +1,9 @@
+init_config:
+
+instances:
+#  -   kafka_connect_str: localhost:19092
+#      zk_connect_str: localhost:2181
+#      zk_prefix: /0.8
+#      consumer_groups:
+#        my_consumer:
+#          my_topic: [0, 1, 4, 12]
