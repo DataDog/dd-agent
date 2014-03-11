@@ -8,12 +8,12 @@ from urlparse import urlsplit, urljoin
 from util import json, headers
 from checks import AgentCheck
 
-MAX_CONTAINERS_WITHOUT_RULES = 10
+DEFAULT_MAX_CONTAINERS = 20
 
 LXC_METRICS = [
     {
         "cgroup": "memory",
-        "file": "lxc/{0}/memory.stat",
+        "file": "lxc/%s/memory.stat",
         "metrics": {
             "active_anon": ("docker.mem.active_anon", "gauge"),
             "active_file": ("docker.mem.active_file", "gauge"),
@@ -47,7 +47,7 @@ LXC_METRICS = [
     },
     {
         "cgroup": "cpuacct",
-        "file": "lxc/{0}/cpuacct.stat",
+        "file": "lxc/%s/cpuacct.stat",
         "metrics": {
             "user": ("docker.cpu.user", "gauge"),
             "system": ("docker.cpu.system", "gauge"),
@@ -114,10 +114,14 @@ class Docker(AgentCheck):
         if not containers:
             self.warning("No containers are running.")
 
-        # If we don't have include/exclude rules, we cap to
-        # MAX_CONTAINERS_WITHOUT_RULES containers to collect.
+        max_containers = instance.get('max_containers', DEFAULT_MAX_CONTAINERS)
+
         if not instance.get("exclude") or not instance.get("include"):
-            containers = containers[:MAX_CONTAINERS_WITHOUT_RULES]
+            if len(containers) > max_containers:
+                self.warning("Too many containers to collect. Please refine the containers to collect by editing the configuration file. Truncating to %s containers" % max_containers)
+                containers = containers[:max_containers]
+
+        collected_containers = 0
         for container in containers:
             container_tags = list(tags)
             for name in container["Names"]:
@@ -129,12 +133,17 @@ class Docker(AgentCheck):
             if not self._is_container_included(instance, container_tags):
                 continue
 
+            collected_containers += 1
+            if collected_containers > max_containers:
+                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
+                break
+
             for key, (dd_key, metric_type) in DOCKER_METRICS.items():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for metric in LXC_METRICS:
                 mountpoint = self._mounpoints[metric["cgroup"]]
-                stat_file = os.path.join(mountpoint, metric["file"].format(container["Id"]))
+                stat_file = os.path.join(mountpoint, metric["file"] % container["Id"])
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
                     if key in stats:
@@ -174,7 +183,7 @@ class Docker(AgentCheck):
             request = urllib2.urlopen(req)
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
-                raise Exception("Unable to connect to socket. dd-agent must be part of the 'docker' group")
+                raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
         response = request.read()
         return json.loads(response)
 
