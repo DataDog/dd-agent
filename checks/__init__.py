@@ -534,6 +534,17 @@ class AgentCheck(object):
         else:
             return name
 
+    @staticmethod
+    def read_config(instance, key, message=None, cast=None):
+        val = instance.get(key)
+        if val is None:
+            message = message or 'Must provide `%s` value in instance config' % key
+            raise Exception(message)
+
+        if cast is None:
+            return val
+        else:
+            return cast(val)
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
                                                 metric_type=None, interval=None):
