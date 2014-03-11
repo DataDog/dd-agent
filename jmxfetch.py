@@ -23,7 +23,7 @@ JAVA_LOGGING_LEVEL = {
 }
 
 JMX_CHECKS = ['tomcat', 'activemq', 'activemq_58', 'solr', 'cassandra', 'jmx']
-JMX_FETCH_JAR_NAME = "jmxfetch-0.2.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.3.0-jar-with-dependencies.jar"
 JMX_COLLECT_COMMAND = 'collect'
 JMX_LIST_COMMANDS = {
         'list_everything': 'List every attributes available that has a type supported by JMXFetch', 
