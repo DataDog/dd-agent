@@ -305,12 +305,6 @@ class Dogstatsd(Daemon):
         log.debug("Caught sigterm. Stopping run loop.")
         self.server.stop()
 
-    def stop(self):
-        if self.autorestart:
-            parent_pid = os.getpgid(self.pid())
-            os.kill(parent_pid, signal.SIGTERM)
-        super(Dogstatsd, self).stop()
-
     def run(self):
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
