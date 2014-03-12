@@ -98,6 +98,7 @@ $(FPM_BUILD) -t rpm \
 -d "python(abi) >= 2.4" \
 -d "python-uuid" \
 -d "sysstat" \
+--conflicts "datadog-agent-base < $(VERSION)" \
 --replaces "datadog-agent-lib < $(VERSION)" \
 --pre-install    datadog-agent-base-rpm/pre_install \
 --post-install   datadog-agent-base-rpm/post_install \
