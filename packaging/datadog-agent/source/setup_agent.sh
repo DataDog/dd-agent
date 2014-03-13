@@ -34,7 +34,7 @@ get_api_key_to_report() {
 }
 
 # Try to use curl to post the log in case of failure to an endpoint
-# Will try to send it by mail usint the mail function if curl failed 
+# Will try to send it by mail usint the mail function if curl failed
 report() {
     get_api_key_to_report
     log=$(cat "$logfile")
@@ -60,7 +60,7 @@ and we'll do our very best to help you solve your problem.\n$DEFAULT"
 
 # If the user doesn't want to automatically report, display a message so he can reports manually
 report_manual() {
-   
+
    printf "$RED
 Troubleshooting and basic usage information for the Agent are available at:
 
@@ -68,7 +68,7 @@ Troubleshooting and basic usage information for the Agent are available at:
 
 If you're still having problems, please send an email to $email_reporting_failure
 with the content of $logfile and any
-information you think would be useful and we'll do our very best to help you 
+information you think would be useful and we'll do our very best to help you
 solve your problem.
 
 \n$DEFAULT"
@@ -77,7 +77,7 @@ solve your problem.
 
 }
 
-# Try to send the report using the mail function if curl failed, and display 
+# Try to send the report using the mail function if curl failed, and display
 # a message in case the mail function also failed
 report_using_mail() {
     log=$(cat "$logfile")
@@ -90,14 +90,14 @@ Troubleshooting and basic usage information for the Agent are available at:
 
 If you're still having problems, please send an email to $email_reporting_failure
 with the content of $logfile and any
-information you think would be useful and we'll do our very best to help you 
+information you think would be useful and we'll do our very best to help you
 solve your problem.
 
 
 \n$DEFAULT"
 
     printf "$log" | mail -s "Agent source installation failure" $email_reporting_failure  2>> $logfile && printf "$notification_message" | tee -a $logfile || printf "$notfication_message_manual" | tee -a $logfile
-    
+
 exit 1
 
 }
@@ -107,7 +107,7 @@ exit 1
 unknown_error() {
   printf "$RED It looks like you hit an issue when trying to install the Agent.\n$DEFAULT" | tee -a $logfile
   printf "$1" | tee -a $logfile
-  
+
   while true; do
     read -p "Do you want to send a failure report to Datadog (Content of the report is in $logfile)? (y/n)" yn
     case $yn in
@@ -142,6 +142,12 @@ fi
 
 if [ -n "$DD_HOME" ]; then
     dd_home=$DD_HOME
+fi
+
+if [ -n "$DD_START_AGENT" ]; then
+    start_agent=$DD_START_AGENT
+else
+    start_agent=1
 fi
 
 
@@ -310,60 +316,61 @@ if [ "$unamestr" = "SunOS" ]; then
 
     printf "*** The Agent is running. My work here is done... ( ^_^) ***" | tee -a $logfile
     printf "
-                                                                                
-                                         7           77II?+~,,,,,,              
-                                        77II?~:,,,,,,,,,,,,,,,,,,,              
-                           77I?+~:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,I             
-   7         77II?+~,,,,,,,,,,,,,,,,,,,,,,,,,,,,I :,,,,,,,,,,,,,,,:             
-  II?=:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,:   ~  +,,,,,,,,,,,,,,             
-  ,,,,,,,,,,,,,,,,,=7:,,,,,,,,,,,,,,,,,,,,,,~    =   7,,,,,,,,,,,,,7            
-  ,,,,,,,,,,,,,=     =7,,,,,,,,,,, ~7:I,,,:      7I    ,,,,,,,,,,,,I            
-  ,,,,,,,,,,,,7       ,  ,,,,,=                   ,7    ,,,,,,,,,,,,            
-  I,,,,,,,,,,         +~                     7:I  ,,   7 ,,,,,,,,,,,            
-   ,,,,,,,,+           ,I                     7 ,+ ,,I   +,,,,,,,,,,7           
-   ,,,,,,,,            ,,                        ,,,,,,I7?,,,,,,,,,,+           
-   :,,,,,,,            7,                         ,,,,,,,,,,,,,,,,,,,           
-   7,,,,,,,7            ,7                         ,,,,,,,,,,,,,,,,,,           
-    ,,,,,,,,7           ,7                    7,,,I ,,,,,,,,,,,,,,,,,7          
-    ,,,,,,,,,I         7,7      7I:,,:         I,,,7:,,,,,,,,,,,,,,,,=          
-    =,,,,,,,,,,       I,,      7,,,,,  7        ?,, =,,,,,,,,,,,,,,,,,          
-    7,,,,,,,,,,,,I77?,,,       =,,,,,7              ?,,,,,,,,,,,,,,,,,          
-     ,,,,,,,,,,,,,,,,,          ,,,=                 7,,,,,,,,,,,,,,,,          
-     ,,,,,,,,,,,,=                                     ,,,,,,,,,,,,,,,7         
-     ,,,,,,,,,,,,:                                      ,,,,,,,,,,,,,,=         
-     ~,,,,,,,,,,,, 7                             I?~,,,7 ,,,,,,,,,,,,,,         
-     7,,,,,,,,,,,,I                            7,,,,,,,7 ,,,,,,,,,,,,,,         
-      ,,,,,,,,,,,,,  7                          ,,,,,,,7 ,,,,,,,,,,,,,,I        
-      ,,,,,,,,,,,,,7 7                            ~,,:   ,,,,,,,,,,,,,,:        
-      =,,,,,,,,,,,,:,7           I                 77   ?,,,,,,,,,,,,,,,        
-      7,,,,,,,,,,,,,,,          7 ,7              7,    ,,,,,,,,,,,,,:,,7 7     
-       ,,,,,,,,,,,,,,,,,           :,I           7,,+?~,,,,,:?       7,,I       
-       ,,,,,,,,,,,,,,,,,:            ,,,I      7+,,,=                 ,,,       
-       ?,,,,,,,,,,,,,,,,,        +:,,,,,,,,,,,,,,                     ,,,       
-        ,,,,,,,,,,,,,,,,,        7,7       ~,~   7                7,  ,,,77     
-        ,,,,,,,,,,,,,,,,,         ,=                     7       I,,7 ,,,+      
-        ,,,,,,,,,,,,,,,,I         ,,                    7       7,,,7 ,,,,      
-        I,,,,,,,,,,,,,,           ,,                   ,,,I    I,,,,+ ,,,,      
-         ,,,,,,,,,,,,7  7         +,                  ?,,,,,7 =,,,,,: ,,,,7     
-         ,,,,,,,,,,?+,,,,,,?      7,7               7?,,,,,,,,,,,,,,, =,,,=     
-         :,,,,,,,,,       7,,I     ,=        ~I     I,,,,,,,,,,,,,,,, 7,,,,     
-         7,,,,,,            ,,     ,,     7 ?,,,~7 I,,,,,,,,,,,,,,,,, 7,,,,     
-          ,,,,,              ,,    ,,     7+,,,,,,,,,,,,,,,,,,,,,,,,,7 ,,,,     
-          ,,,,                ,I   ,,     +,,,,,,,,,,,,,,,,,,,,,,,,,,I ,,,,7    
-          ,,,,7               ,,   =,7  7+,,,,,,,,,,,,,,,,,,,,,,,,,,,= ,,7      
-          :,,,:               I,III=,=  =,,,,,,,,,,,,,,,,,,,,,~7   7  7,,=      
-          7,,,,:              7,,,,,,,  ,,,,,,,,,,,,,,+       7I?~,,,,,,,,      
-           ,,,,,,              ,=7 7,,  ,,,,,=    7  7I?=,,,,,,,,,,,,,,,,,7     
-           ,,,,,,:            7,    ,,       II+:,,,,,,,,,,,,,,,,,,~?           
-                  7           :,    ,,?~,,,,,,,,,,,,,,:?                        
-                              ,+    ,,,,,:=7                                    
-                    I       7,,                                                 
-                    I,,~++:,,,                                                  
-                       ?:,:I 7                                                  
+
+                                         7           77II?+~,,,,,,
+                                        77II?~:,,,,,,,,,,,,,,,,,,,
+                           77I?+~:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,I
+   7         77II?+~,,,,,,,,,,,,,,,,,,,,,,,,,,,,I :,,,,,,,,,,,,,,,:
+  II?=:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,:   ~  +,,,,,,,,,,,,,,
+  ,,,,,,,,,,,,,,,,,=7:,,,,,,,,,,,,,,,,,,,,,,~    =   7,,,,,,,,,,,,,7
+  ,,,,,,,,,,,,,=     =7,,,,,,,,,,, ~7:I,,,:      7I    ,,,,,,,,,,,,I
+  ,,,,,,,,,,,,7       ,  ,,,,,=                   ,7    ,,,,,,,,,,,,
+  I,,,,,,,,,,         +~                     7:I  ,,   7 ,,,,,,,,,,,
+   ,,,,,,,,+           ,I                     7 ,+ ,,I   +,,,,,,,,,,7
+   ,,,,,,,,            ,,                        ,,,,,,I7?,,,,,,,,,,+
+   :,,,,,,,            7,                         ,,,,,,,,,,,,,,,,,,,
+   7,,,,,,,7            ,7                         ,,,,,,,,,,,,,,,,,,
+    ,,,,,,,,7           ,7                    7,,,I ,,,,,,,,,,,,,,,,,7
+    ,,,,,,,,,I         7,7      7I:,,:         I,,,7:,,,,,,,,,,,,,,,,=
+    =,,,,,,,,,,       I,,      7,,,,,  7        ?,, =,,,,,,,,,,,,,,,,,
+    7,,,,,,,,,,,,I77?,,,       =,,,,,7              ?,,,,,,,,,,,,,,,,,
+     ,,,,,,,,,,,,,,,,,          ,,,=                 7,,,,,,,,,,,,,,,,
+     ,,,,,,,,,,,,=                                     ,,,,,,,,,,,,,,,7
+     ,,,,,,,,,,,,:                                      ,,,,,,,,,,,,,,=
+     ~,,,,,,,,,,,, 7                             I?~,,,7 ,,,,,,,,,,,,,,
+     7,,,,,,,,,,,,I                            7,,,,,,,7 ,,,,,,,,,,,,,,
+      ,,,,,,,,,,,,,  7                          ,,,,,,,7 ,,,,,,,,,,,,,,I
+      ,,,,,,,,,,,,,7 7                            ~,,:   ,,,,,,,,,,,,,,:
+      =,,,,,,,,,,,,:,7           I                 77   ?,,,,,,,,,,,,,,,
+      7,,,,,,,,,,,,,,,          7 ,7              7,    ,,,,,,,,,,,,,:,,7 7
+       ,,,,,,,,,,,,,,,,,           :,I           7,,+?~,,,,,:?       7,,I
+       ,,,,,,,,,,,,,,,,,:            ,,,I      7+,,,=                 ,,,
+       ?,,,,,,,,,,,,,,,,,        +:,,,,,,,,,,,,,,                     ,,,
+        ,,,,,,,,,,,,,,,,,        7,7       ~,~   7                7,  ,,,77
+        ,,,,,,,,,,,,,,,,,         ,=                     7       I,,7 ,,,+
+        ,,,,,,,,,,,,,,,,I         ,,                    7       7,,,7 ,,,,
+        I,,,,,,,,,,,,,,           ,,                   ,,,I    I,,,,+ ,,,,
+         ,,,,,,,,,,,,7  7         +,                  ?,,,,,7 =,,,,,: ,,,,7
+         ,,,,,,,,,,?+,,,,,,?      7,7               7?,,,,,,,,,,,,,,, =,,,=
+         :,,,,,,,,,       7,,I     ,=        ~I     I,,,,,,,,,,,,,,,, 7,,,,
+         7,,,,,,            ,,     ,,     7 ?,,,~7 I,,,,,,,,,,,,,,,,, 7,,,,
+          ,,,,,              ,,    ,,     7+,,,,,,,,,,,,,,,,,,,,,,,,,7 ,,,,
+          ,,,,                ,I   ,,     +,,,,,,,,,,,,,,,,,,,,,,,,,,I ,,,,7
+          ,,,,7               ,,   =,7  7+,,,,,,,,,,,,,,,,,,,,,,,,,,,= ,,7
+          :,,,:               I,III=,=  =,,,,,,,,,,,,,,,,,,,,,~7   7  7,,=
+          7,,,,:              7,,,,,,,  ,,,,,,,,,,,,,,+       7I?~,,,,,,,,
+           ,,,,,,              ,=7 7,,  ,,,,,=    7  7I?=,,,,,,,,,,,,,,,,,7
+           ,,,,,,:            7,    ,,       II+:,,,,,,,,,,,,,,,,,,~?
+                  7           :,    ,,?~,,,,,,,,,,,,,,:?
+                              ,+    ,,,,,:=7
+                    I       7,,
+                    I,,~++:,,,
+                       ?:,:I 7
     " | tee -a $logfile
     # kthxbye
     exit $?
 else
+if [ "$start_agent" = "1" ]; then
     printf "Starting the Agent....." | tee -a $logfile
     # run Agent
     cd $dd_base >> $logfile 2>&1
@@ -382,20 +389,20 @@ else
     trap "{ kill $agent_pid; exit; }" EXIT
     print_done
 
-    
+
     # regular Agent install
     if [ $apikey ]; then
-    
+
         # wait for metrics to be submitted
         printf "$GREEN
     Your Agent has started up for the first time. We're currently verifying
     that data is being submitted. You should see your Agent show up in Datadog
     shortly at:
-    
+
         $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
-    
+
       printf "\n\nWaiting for metrics..." | tee -a $logfile
-    
+
         c=0
         # Wait for 30 secs before checking if metrics have been submitted
         while [ "$c" -lt "30" ]; do
@@ -403,9 +410,9 @@ else
             printf "."
             c=$(($c+1))
         done
-    
+
         # Hit this endpoint to check if the Agent is submitting metrics
-        # and retry every sec for 60 more sec before failing 
+        # and retry every sec for 60 more sec before failing
         curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
         success=$?
         while [ "$success" -gt "0" ]; do
@@ -419,57 +426,57 @@ else
               "
             fi
         done
-    
+
         # print instructions
         printf "$GREEN
-    
+
     Success! Your Agent is functioning properly, and will continue to run
     in the foreground. To stop it, simply press CTRL-C. To start it back
     up again in the foreground, run:
-    
+
     cd $dd_base
     sh bin/agent
-    
+
     " | tee -a $logfile
-    
+
         if [ "$unamestr" = "Darwin" ]; then
         echo "To set it up as a daemon that always runs in the background
     while you're logged in, run:
-    
+
         mkdir -p ~/Library/LaunchAgents
         cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
         launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
     " | tee -a $logfile
         fi
-    
+
         printf "$DEFAULT"
-    
+
     # pup install
     else
-    
+
         # print instructions
         printf "$GREEN
-    
+
     Success! Pup is installed and functioning properly, and will continue to
     run in the foreground. To stop it, simply press CTRL-C. To start it back
     up again in the foreground, run:
-    
+
         cd $dd_base
         sh bin/agent
     " | tee -a $logfile
-    
+
         if [ "$unamestr" = "Darwin" ]; then
         echo "To set it up as a daemon that always runs in the background
     while you're logged in, run:
-    
+
         mkdir -p ~/Library/LaunchAgents
         cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
         launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
     " | tee -a $logfile
         fi
-    
+
         printf "$DEFAULT"
     fi
-    
+
     wait $agent_pid
-fi
+fi; fi
