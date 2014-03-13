@@ -15,9 +15,11 @@ Changes
 * PostgreSQL
 * Process
 * Google Compute Engine
+* JMX Checks: Cassandra, Tomcat, Solr, ActiveMq, JMX, Kafka
 
 #### Changes
 * [PERFORMANCE] Disable pup by default
+* [ENHANCEMENT] Use JMXFetch 0.3.0 ( [Changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md) )
 * [FEATURE] Add a "configtest" command alias of "configcheck": See [#838][]
 * [FEATURE] Add a Docker integration: See [#844][] (Thanks to [@steeve][])
 * [FEATURE] ElasticSearch: Support for newer versions (>= 0.90.10)
