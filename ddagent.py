@@ -191,7 +191,6 @@ class MetricTransaction(Transaction):
 
             # Getting proxy settings
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
-            ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
 
             tornado_client_params = {
                 'url': url,
@@ -201,6 +200,8 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
+            force_use_curl = False
+
             if proxy_settings is not None and endpoint != PUP_ENDPOINT:
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
@@ -209,14 +210,19 @@ class MetricTransaction(Transaction):
                 tornado_client_params['proxy_port'] = proxy_settings['port']
                 tornado_client_params['proxy_username'] = proxy_settings['user']
                 tornado_client_params['proxy_password'] = proxy_settings['password']
+                force_use_curl = True
+
+            if not self._application.use_simple_http_client or force_use_curl:
+                ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
-                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-
-            else:
-                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
+            req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 
-            tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            if not self._application.use_simple_http_client or force_use_curl:
+                log.debug("Using CurlAsyncHTTPClient")
+                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
             
 
@@ -306,7 +312,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False):
+    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False, use_simple_http_client=False):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -318,6 +324,7 @@ class Application(tornado.web.Application):
 
         self._watchdog = None
         self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
+        self.use_simple_http_client = use_simple_http_client
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
@@ -438,7 +445,7 @@ class Application(tornado.web.Application):
     def stop(self):
         self.mloop.stop()
 
-def init(skip_ssl_validation=False):
+def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', 17123)
@@ -447,7 +454,7 @@ def init(skip_ssl_validation=False):
     else:
         port = int(port)
 
-    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation)
+    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation, use_simple_http_client=use_simple_http_client)
 
     def sigterm_handler(signum, frame):
         log.info("caught sigterm. stopping")
@@ -461,16 +468,21 @@ def init(skip_ssl_validation=False):
 
 def main():
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
+    define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()
     skip_ssl_validation = False
+    use_simple_http_client = False
 
     if unicode(options.sslcheck) == u"0":
         skip_ssl_validation = True
 
+    if unicode(options.use_simple_http_client) == u"1":
+        use_simple_http_client = True
+
     # If we don't have any arguments, run the server.
     if not args:
         import tornado.httpclient
-        app = init(skip_ssl_validation)
+        app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
         finally:
