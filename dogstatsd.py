@@ -21,7 +21,6 @@ import socket
 import sys
 from time import time
 import threading
-import math
 from urllib import urlencode
 
 # project
