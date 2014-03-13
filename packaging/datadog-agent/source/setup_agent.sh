@@ -274,11 +274,6 @@ $dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
 print_done
 
-# Install pycurl
-printf "Installing pycurl....." | tee -a $logfile
-$dd_base/venv/bin/pip install pycurl >> $logfile 2>&1
-print_done
-
 if [ "$unamestr" = "Darwin" ]; then
     # prepare launchd
     mkdir -p $dd_base/launchd/logs >> $logfile 2>&1
