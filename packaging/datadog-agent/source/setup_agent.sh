@@ -277,6 +277,7 @@ print_done
 # Install pycurl
 printf "Installing pycurl....." | tee -a $logfile
 $dd_base/venv/bin/pip install pycurl >> $logfile 2>&1
+print_done
 
 if [ "$unamestr" = "Darwin" ]; then
     # prepare launchd
