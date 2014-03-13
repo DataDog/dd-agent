@@ -69,23 +69,22 @@ def http_emitter(message, logger, agentConfig):
             raise
 
 def get_opener(logger, proxy_settings, use_forwarder, urllib2):
-    if use_forwarder:
+    if use_forwarder or proxy_settings is None:
         # We are using the forwarder, so it's local trafic. We don't use the proxy
-        return None
-
-    if proxy_settings is None:
-        # urllib2 will figure out how to connect automatically        
-        return None
-
-    proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-    if proxy_settings.get('user') is not None:
-        proxy_auth = proxy_settings['user']
-        if proxy_settings.get('password') is not None:
-            proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
-        proxy_url = '%s@%s' % (proxy_auth, proxy_url)
+        proxy = {}
+        logger.debug("Not using proxy settings")
+    else:
+        proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
         
-    proxy = {'https': proxy_url}
-    logger.info("Using proxy settings %s" % proxy)
+        if proxy_settings.get('user') is not None:
+            proxy_auth = proxy_settings['user']
+            if proxy_settings.get('password') is not None:
+                proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
+            proxy_url = '%s@%s' % (proxy_auth, proxy_url)
+        
+        proxy = {'https': proxy_url}
+        logger.debug("Using proxy settings %s" % proxy)
+
     proxy_handler = urllib2.ProxyHandler(proxy)
     opener = urllib2.build_opener(proxy_handler)
     return opener
