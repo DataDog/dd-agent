@@ -677,8 +677,15 @@ def load_check_directory(agentConfig):
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except Exception, e:
             traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
+
+            # Let's see if there is a conf.d for this check
+            conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+            if os.path.exists(conf_path):
+                # There is a configuration file for that check but the module can't be imported
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                log.exception('Unable to import check module %s.py from checks.d' % check_name)
+            else: # There is no conf for that check. Let's not spam the logs for it.
+                log.debug('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
