@@ -1,5 +1,5 @@
 """
-Module that tries to migration old style configuration to checks.d interface
+Module that tries to migrate old style configuration to checks.d interface
 for checks that don't support old style configuration anymore
 
 It also comments out related lines in datadog.conf.
