@@ -5,11 +5,11 @@ set -e
 case "$1" in
     configure)
         update-rc.d datadog-agent defaults
-        adduser --system dd-agent --disabled-login --shell /bin/sh --no-create-home --quiet
-        usermod -d /usr/share/datadog/agent dd-agent
+        adduser --system datadog --disabled-login --shell /bin/sh --no-create-home --quiet
+        usermod -d /usr/share/datadog/agent datadog
         chown root:root /etc/init.d/datadog-agent
-        chown -R dd-agent:root /etc/dd-agent
-        chown -R dd-agent:root /var/log/datadog
+        chown -R datadog:root /etc/dd-agent
+        chown -R datadog:root /var/log/datadog
         chown -R root:root /usr/share/datadog
         chown -h root:root /usr/bin/dogstatsd
         chown -h root:root /usr/bin/dd-agent

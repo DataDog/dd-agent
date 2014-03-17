@@ -1,8 +1,8 @@
-# The user running dd-agent must have passwordless sudo access for the find 
+# The user running the Datadog Agent must have passwordless sudo access for the find 
 # command to run the postfix check.  Here's an example:
 #
 # example /etc/sudoers entry:
-#          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/find
+#          datadog ALL=(ALL) NOPASSWD:/usr/bin/find
 #
 
 init_config:

@@ -183,7 +183,7 @@ class Docker(AgentCheck):
             request = urllib2.urlopen(req)
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
-                raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
+                raise Exception("Unable to connect to socket. datadog user must be part of the 'docker' group")
         response = request.read()
         return json.loads(response)
 

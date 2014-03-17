@@ -1,3 +1,14 @@
-getent passwd dd-agent > /dev/null && userdel dd-agent
-getent group dd-agent >/dev/null && groupdel dd-agent
+case "$*" in
+  0) 
+    # We're uninstalling.
+    getent passwd datadog > /dev/null && userdel datadog
+    getent group datadog >/dev/null && groupdel datadog
+    ;;
+  1)
+    # We're upgrading. 
+    ;;
+  *) 
+    ;;
+esac
+
 exit 0
