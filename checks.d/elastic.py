@@ -13,9 +13,6 @@ from checks.utils import add_basic_auth
 class NodeNotFound(Exception): pass
 
 class ElasticSearch(AgentCheck):
-    HEALTH_URL = "/_cluster/health?pretty=true"
-    STATS_URL = "/_cluster/nodes/stats?all=true"
-    NODES_URL = "/_cluster/nodes?network=true"
     METRICS = { # Metrics that are common to all Elasticsearch versions
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
         "elasticsearch.docs.deleted": ("gauge", "indices.docs.deleted"),
@@ -133,8 +130,8 @@ class ElasticSearch(AgentCheck):
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
         parsed = urlparse.urlparse(config_url)
-        if parsed.path != "":
-            config_url = "%s://%s" % (parsed.scheme, parsed.netloc)
+        if parsed[2] != "":
+            config_url = "%s://%s" % (parsed[0], parsed[1])
 
         # Tag by URL so we can differentiate the metrics from multiple instances
         tags = ['url:%s' % config_url]
@@ -164,10 +161,10 @@ class ElasticSearch(AgentCheck):
 
         try:
             data = self._get_data(config_url)
-            version = data['version']['number']
+            version = map(int, data['version']['number'].split('.'))
         except Exception, e:
-            self.log.debug("Error while trying to get Elasticsearch version %s" % str(e))
-            version = "0.0.0"
+            self.warning("Error while trying to get Elasticsearch version %s %s" % (str(e), data.get('version', {}).get('number')))
+            version = [0, 0, 0]
 
         self.log.debug("Elasticsearch version is %s" % version)
         return version
@@ -177,7 +174,7 @@ class ElasticSearch(AgentCheck):
             Define the set of URLs and METRICS to use depending on the running ES version
         """
 
-        if int(version[0:1]) >= 1 or version in ["0.90.10", "0.90.11"]:
+        if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             # Metrics architecture changed starting with version 0.90.10
             self.HEALTH_URL = "/_cluster/health?pretty=true"
@@ -235,14 +232,17 @@ class ElasticSearch(AgentCheck):
                 # closure over node_data
                 self._process_metric(node_data, metric, path, xform, tags=tags)
 
-            if 'hostname' in node_data:
+            # On newer version of ES it's "host" not "hostname"
+            node_hostname = node_data.get('hostname', node_data.get('host', None))
+
+            if node_hostname is not None:
                 # For ES >= 0.19
                 hostnames = (
                     self.hostname.decode('utf-8'),
                     socket.gethostname().decode('utf-8'),
                     socket.getfqdn().decode('utf-8')
                 )
-                if node_data['hostname'].decode('utf-8') in hostnames:
+                if node_hostname.decode('utf-8') in hostnames:
                     for metric in self.METRICS:
                         # metric description
                         desc = self.METRICS[metric]

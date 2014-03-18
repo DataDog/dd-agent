@@ -8,7 +8,7 @@ instances:
     # elasticsearch-http-basic, you will need to specify a value for username
     # and password for every instance that requires authentication.
     #
-    #-  url: localhost:9200
+    #-  url: http://localhost:9200
     #   username: username
     #   password: password
     #   tags:
