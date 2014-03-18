@@ -25,7 +25,7 @@
 AGENTPATH="/usr/share/datadog/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/usr/share/datadog/agent/dogstatsd.py"
-AGENTUSER="datadog"
+AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
 USE_SUPERVISOR="/usr/bin/dd-forwarder"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"

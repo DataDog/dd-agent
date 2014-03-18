@@ -9,7 +9,7 @@ from checks import AgentCheck
 class DirectoryCheck(AgentCheck):
     """This check is for monitoring and reporting metrics on the files for a provided directory
 
-    WARNING: the user/group that the agent runs as must have access to stat the files in the desired directory
+    WARNING: the user/group that dd-agent runs as must have access to stat the files in the desired directory
 
     Config options:
         "directory" - string, the directory to gather stats for. required

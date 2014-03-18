@@ -8,7 +8,7 @@ instances:
     #
     # For each instance, the 'directory' parameter is required, all others are optional.
     #
-    # WARNING: Ensure the user account running the Agent (typically datadog) has read
+    # WARNING: Ensure the user account running the Agent (typically dd-agent) has read
     # access to the monitored directory and files.
     #
     # Instances take the following parameters:
