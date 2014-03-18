@@ -10,7 +10,7 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
+from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
 from config import get_version, get_system_stats
 
 import checks.system.unix as u
@@ -190,6 +190,7 @@ class Collector(object):
         gangliaData = self._ganglia.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
+
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
@@ -375,16 +376,23 @@ class Collector(object):
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
+            host_tags = []
             if self.agentConfig['tags'] is not None:
-                payload['host-tags']['system'] = [unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")]
+                host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
-            EC2_tags = EC2.get_tags()
-            if EC2_tags is not None:
-                payload['host-tags'][EC2.SOURCE_TYPE_NAME] = EC2.get_tags()
+            if self.agentConfig['collect_ec2_tags']:
+                host_tags.extend(EC2.get_tags())
+
+            if host_tags:
+                payload['host-tags']['system'] = host_tags
+
+            GCE_tags = GCE.get_tags()
+            if GCE_tags is not None:
+                payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
             # Log the metadata on the first run
             if self._is_first_run():
-                log.info(u"Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
+                log.info("Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
 
         return payload
 

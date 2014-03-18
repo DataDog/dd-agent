@@ -9,6 +9,8 @@ class CouchbaseTestCase(unittest.TestCase):
         self.config = {
             'instances': [{
                 'server': 'http://localhost:8091',
+                'user': 'Administrator',
+                'password': 'password',
             }]
         }
         self.agentConfig = {

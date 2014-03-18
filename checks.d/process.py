@@ -1,5 +1,5 @@
 from checks import AgentCheck
-from checks.system import Platform
+from util import Platform
 import time
 
 class ProcessCheck(AgentCheck):
@@ -15,7 +15,8 @@ class ProcessCheck(AgentCheck):
         'system.processes.iowrite_count',
         'system.processes.ioread_bytes',
         'system.processes.iowrite_bytes',
-        'system.processes.ctx_switches',
+        'system.processes.voluntary_ctx_switches',
+        'system.processes.involuntary_ctx_switches',
         )
 
     def is_psutil_version_later_than(self, v):
@@ -74,13 +75,17 @@ class ProcessCheck(AgentCheck):
         thr = 0
 
         # process metrics available for psutil versions 0.6.0 and later
-        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0))
+        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0)) and \
+            not Platform.is_win32()
+        # On Windows get_ext_memory_info returns different metrics
         if extended_metrics_0_6_0:
             real = 0
-            ctx_switches = 0
+            voluntary_ctx_switches = 0
+            involuntary_ctx_switches = 0
         else:
             real = None
-            ctx_switches = None
+            voluntary_ctx_switches = None
+            involuntary_ctx_switches = None
 
         # process metrics available for psutil versions 0.5.0 and later on UNIX
         extended_metrics_0_5_0_unix = self.is_psutil_version_later_than((0, 5, 0)) and \
@@ -96,18 +101,30 @@ class ProcessCheck(AgentCheck):
         read_bytes = 0
         write_bytes = 0
 
+        got_denied = False
+
         for pid in set(pids):
             try:
                 p = psutil.Process(pid)
                 if extended_metrics_0_6_0:
                     mem = p.get_ext_memory_info()
                     real += mem.rss - mem.shared
-                    ctx_switches += p.get_num_ctx_switches()
+                    try:
+                        ctx_switches = p.get_num_ctx_switches()
+                        voluntary_ctx_switches += ctx_switches.voluntary
+                        involuntary_ctx_switches += ctx_switches.involuntary
+                    except NotImplementedError:
+                        # Handle old Kernels which don't provide this info.
+                        voluntary_ctx_switches = None
+                        involuntary_ctx_switches = None
                 else:
                     mem = p.get_memory_info()
 
                 if extended_metrics_0_5_0_unix:
-                    open_file_descriptors += p.get_num_fds()
+                    try:
+                        open_file_descriptors += p.get_num_fds()
+                    except psutil.AccessDenied:
+                        got_denied = True
 
                 rss += mem.rss
                 vms += mem.vms
@@ -136,9 +153,12 @@ class ProcessCheck(AgentCheck):
                 self.warning('Process %s disappeared while scanning' % pid)
                 pass
 
+        if got_denied:
+            self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
+
         #Memory values are in Byte
         return (thr, cpu, rss, vms, real, open_file_descriptors,
-            read_count, write_count, read_bytes, write_bytes, ctx_switches)
+            read_count, write_count, read_bytes, write_bytes, voluntary_ctx_switches, involuntary_ctx_switches)
 
     def check(self, instance):
         try:
@@ -174,4 +194,3 @@ class ProcessCheck(AgentCheck):
         for metric, value in metrics.iteritems():
             if value is not None:
                 self.gauge(metric, value, tags=tags)
-

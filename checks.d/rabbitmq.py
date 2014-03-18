@@ -199,7 +199,6 @@ class RabbitMQ(AgentCheck):
         event = {
                 "timestamp": int(time.time()), 
                 "event_type": EVENT_TYPE,
-                "api_key": self.agentConfig['api_key'],
                 "msg_title": title,
                 "msg_text": msg,
                 "alert_type": 'warning',

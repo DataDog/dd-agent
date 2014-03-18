@@ -66,8 +66,7 @@ class GUnicornCheck(AgentCheck):
         self.gauge("gunicorn.workers", working, self.WORKING_TAGS)
         self.gauge("gunicorn.workers", idle, self.IDLE_TAGS)
 
-    @classmethod
-    def _count_workers(cls, worker_procs):
+    def _count_workers(self, worker_procs):
         working = 0
         idle = 0
 
@@ -85,7 +84,7 @@ class GUnicornCheck(AgentCheck):
                 continue
         
         # Let them do a little bit more work.
-        time.sleep(cls.CPU_SLEEP_SECS)
+        time.sleep(self.CPU_SLEEP_SECS)
 
         # Processes which have used more CPU are considered active (this is a very 
         # naive check, but gunicorn exposes no stats API)
@@ -98,7 +97,7 @@ class GUnicornCheck(AgentCheck):
                 cpu_time = sum(proc.get_cpu_times())
             except Exception:
                 # couldn't collect cpu time. assume it's dead.
-                log.debug("Couldn't collect cpu time for %s" % proc)
+                self.log.debug("Couldn't collect cpu time for %s" % proc)
                 continue
             if cpu_time == cpu_time_by_pid[proc.pid]:
                 idle += 1
@@ -107,11 +106,10 @@ class GUnicornCheck(AgentCheck):
 
         return working, idle
 
-    @classmethod
-    def _get_master_proc_by_name(cls, name):
+    def _get_master_proc_by_name(self, name):
         """ Return a psutil process for the master gunicorn process with the given name. """
-        master_name = cls._get_master_proc_name(name)
-        master_procs = [p for p in psutil.process_iter() if p.name == master_name]
+        master_name = GUnicornCheck._get_master_proc_name(name)
+        master_procs = [p for p in psutil.process_iter() if p.cmdline and p.cmdline[0] == master_name]
         if len(master_procs) == 0:
             raise GUnicornCheckError("Found no master process with name: %s" % master_name)
         elif len(master_procs) > 1:

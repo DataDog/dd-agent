@@ -14,8 +14,7 @@ import time
 
 # project
 from checks import Check, UnknownValue
-from checks.system import Platform
-from util import get_hostname
+from util import get_hostname, Platform
 
 
 # locale-resilient float converter
@@ -262,7 +261,7 @@ class IO(Check):
         """
         io = {}
         try:
-            if sys.platform == 'linux2':
+            if Platform.is_linux():
                 stdout = sp.Popen(['iostat', '-d', '1', '2', '-x', '-k'],
                                           stdout=sp.PIPE,
                                           close_fds=True).communicate()[0]
@@ -377,7 +376,7 @@ class Load(Check):
         Check.__init__(self, logger)
     
     def check(self, agentConfig):
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             try:
                 loadAvrgProc = open('/proc/loadavg', 'r')
                 uptime = loadAvrgProc.readlines()
@@ -444,7 +443,7 @@ class Memory(Check):
                 pass
     
     def check(self, agentConfig):
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             try:
                 meminfoProc = open('/proc/meminfo', 'r')
                 lines = meminfoProc.readlines()
@@ -750,7 +749,7 @@ class Cpu(Check):
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
                 return 0.0
 
-        if sys.platform == 'linux2':
+        if Platform.is_linux():
             mpstat = sp.Popen(['mpstat', '1', '3'], stdout=sp.PIPE, close_fds=True).communicate()[0]
             # topdog@ip:~$ mpstat 1 3
             # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)

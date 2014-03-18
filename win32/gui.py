@@ -29,12 +29,13 @@ from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 # Datadog
 from util import yaml, yLoader
 from util import get_os
-from config import get_confd_path, get_config_path, get_config, _windows_commondata_path
+from config import (get_confd_path, get_config_path, get_config, 
+    _windows_commondata_path)
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'gearmand',
-    'hdfs', 'mcache', 'network', 'postgres',
-    'process', 'redis', 'postfix', 'gunicorn', 
+    'hdfs', 'mcache', 'network',
+    'redis', 'postfix', 'gunicorn', 
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
@@ -143,7 +144,7 @@ class DatadogConf(EditorFile):
                 else:
                     service_manager("start")
             else:
-                self.check_api_key()
+                self.check_api_key(editor)
 
 class AgentCheck(EditorFile):
     def __init__(self, filename, ext, conf_d_directory):

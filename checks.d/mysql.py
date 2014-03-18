@@ -19,10 +19,27 @@ STATUS_VARS = {
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
     'Innodb_data_reads': ('mysql.innodb.buffer_pool_size', RATE),
-    'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', GAUGE),
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
     'Queries': ('mysql.performance.queries', RATE),
+    'Com_select': ('mysql.performance.com_select', RATE),
+    'Com_insert': ('mysql.performance.com_insert', RATE),
+    'Com_update': ('mysql.performance.com_update', RATE),
+    'Com_delete': ('mysql.performance.com_delete', RATE),
+    'Com_insert_select': ('mysql.performance.com_insert_select', RATE),
+    'Com_update_multi': ('mysql.performance.com_update_multi', RATE),
+    'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
+    'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
+    'Qcache_hits':('mysql.performance.qcache_hits', RATE),
+    'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
+    'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
+    'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
+    'Created_tmp_tables': ('mysql.performance.created_tmp_tables', RATE),
+    'Created_tmp_disk_tables': ('mysql.performance.created_tmp_disk_tables', RATE),
+    'Created_tmp_files': ('mysql.performance.created_tmp_files', RATE),
+    'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
+    'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
+    'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', GAUGE),
 }
 
 class MySql(AgentCheck):
@@ -218,12 +235,15 @@ class MySql(AgentCheck):
                     # cursor.description is a tuple of (column_name, ..., ...)
                     try:
                         col_idx = [d[0].lower() for d in cursor.description].index(field.lower())
-                        if metric_type == GAUGE:
-                            self.gauge(metric, float(result[col_idx]), tags=tags)
-                        elif metric_type == RATE:
-                            self.rate(metric, float(result[col_idx]), tags=tags)
+                        if result[col_idx] is not None:
+                            if metric_type == GAUGE:
+                                self.gauge(metric, float(result[col_idx]), tags=tags)
+                            elif metric_type == RATE:
+                                self.rate(metric, float(result[col_idx]), tags=tags)
+                            else:
+                                self.gauge(metric, float(result[col_idx]), tags=tags)
                         else:
-                            self.gauge(metric, float(result[col_idx]), tags=tags)
+                            self.log.debug("Recieved value is None for index %d" % col_idx)
                     except ValueError:
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()

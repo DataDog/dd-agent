@@ -210,7 +210,7 @@ class Memcache(AgentCheck):
                 tags = ["instance:%s" % instance[2]]
 
             if not tags:
-                tags = ["instance:%s_%s" % (server, port)]
+                tags = ["instance:%s_%s" % (url, port)]
 
             all_instances.append({
                 'url': url,

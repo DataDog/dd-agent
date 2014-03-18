@@ -38,6 +38,14 @@ instances:
 
 #        collect_response_time: true
 
+         # The (optional) disable_ssl_validation will instruct the check
+         # to skip the validation of the SSL certificate of the URL being tested.
+         # This is mostly useful when checking SSL connections signed with
+         # certificates that are not themselves signed by a public authority.
+         # When true, the check logs a warning in collector.log
+
+#        disable_ssl_validation: true
+
          # The (optional) headers parameter allows you to send extra headers
          # with the request. This is useful for explicitly specifying the host
          # header or perhaps adding headers for authorisation purposes. Note

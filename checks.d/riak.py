@@ -77,7 +77,7 @@ class Riak(AgentCheck):
             return
 
         if resp.status != 200:
-            self.status_code_event(url, r, aggregation_key)
+            self.status_code_event(url, resp, aggregation_key)
 
         stats = json.loads(content)
 

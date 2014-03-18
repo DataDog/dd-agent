@@ -17,15 +17,17 @@ from optparse import OptionParser, Values
 from cStringIO import StringIO
 
 # project
-from util import get_os, yaml, yLoader
+from util import get_os, yaml, yLoader, Platform
 from jmxfetch import JMXFetch
 from migration import migrate_old_style_configuration
 
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
-DEFAULT_STATSD_FREQUENCY = 10  # seconds
+DEFAULT_STATSD_FREQUENCY = 2  # seconds
+DEFAULT_STATSD_BUCKET_SIZE = 10 #seconds
 PUP_STATSD_FREQUENCY = 2       # seconds
+PUP_STATSD_BUCKET_SIZE = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
@@ -62,7 +64,6 @@ def get_parsed_args():
 
 def get_version():
     return "4.999.0"
-
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -193,6 +194,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
         'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
+        'dogstatsd_agregator_bucket_size': DEFAULT_STATSD_BUCKET_SIZE,
         'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
@@ -207,6 +209,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
+    dogstatsd_agregator_bucket_size = DEFAULT_STATSD_BUCKET_SIZE
 
     # Config handling
     try:
@@ -260,7 +263,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
@@ -280,6 +283,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Increases the frequency of statsd metrics when only sending to Pup
         if not agentConfig['use_dd'] and agentConfig['use_pup']:
             dogstatsd_interval = PUP_STATSD_FREQUENCY
+            dogstatsd_agregator_bucket_size = PUP_STATSD_BUCKET_SIZE
 
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
@@ -322,6 +326,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             'dogstatsd_port': 8125,
             'dogstatsd_target': 'http://localhost:17123',
             'dogstatsd_interval': dogstatsd_interval,
+            'dogstatsd_agregator_bucket_size': dogstatsd_agregator_bucket_size,
             'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
@@ -350,8 +355,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
-        if config.has_option('Main', 'autorestart'):
-            agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
+        agentConfig['autorestart'] = False
 
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
@@ -391,6 +395,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
 
+        agentConfig["collect_ec2_tags"] = False
+        if config.has_option("Main", "collect_ec2_tags"):
+            agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
+
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
         sys.exit(2)
@@ -420,28 +428,30 @@ def get_system_stats():
         'pythonV': platform.python_version(),
     }
 
-    if sys.platform == 'linux2':
+    platf = sys.platform
+
+    if  Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
         systemStats['cpuCores'] = int(wc.communicate()[0])
 
-    if sys.platform == 'darwin':
+    if Platform.is_darwin(platf):
         systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
 
-    if sys.platform.find('freebsd') != -1:
+    if Platform.is_freebsd(platf):
         systemStats['cpuCores'] = int(subprocess.Popen(['sysctl', 'hw.ncpu'], stdout=subprocess.PIPE, close_fds=True).communicate()[0].split(': ')[1])
 
-    if sys.platform == 'linux2':
+    if Platform.is_linux(platf):
         systemStats['nixV'] = platform.dist()
 
-    elif sys.platform == 'darwin':
+    elif Platform.is_darwin(platf):
         systemStats['macV'] = platform.mac_ver()
 
-    elif sys.platform.find('freebsd') != -1:
+    elif Platform.is_freebsd(platf):
         version = platform.uname()[2]
         systemStats['fbsdV'] = ('freebsd', version, '')  # no codename for FreeBSD
 
-    elif sys.platform == 'win32':
+    elif Platform.is_win32(platf):
         systemStats['winV'] = platform.win32_ver()
 
     return systemStats
@@ -601,6 +611,7 @@ def get_ssl_certificate(osname, filename):
 
 def check_yaml(conf_path):
     f = open(conf_path)
+    check_name = os.path.basename(conf_path).split('.')[0]
     try:
         check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
@@ -667,8 +678,15 @@ def load_check_directory(agentConfig):
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except Exception, e:
             traceback_message = traceback.format_exc()
-            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-            log.exception('Unable to import check module %s.py from checks.d' % check_name)
+
+            # Let's see if there is a conf.d for this check
+            conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+            if os.path.exists(conf_path):
+                # There is a configuration file for that check but the module can't be imported
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                log.exception('Unable to import check module %s.py from checks.d' % check_name)
+            else: # There is no conf for that check. Let's not spam the logs for it.
+                log.debug('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
         check_class = None
@@ -765,6 +783,8 @@ def load_check_directory(agentConfig):
 #
 # logging
 
+def get_log_date_format():
+    return "%Y-%m-%d %H:%M:%S %Z"
 
 def get_log_format(logger_name):
     if get_os() != 'windows':
@@ -887,7 +907,7 @@ def initialize_logging(logger_name):
             # NOTE: the entire directory needs to be writable so that rotation works
             if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
                 file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                formatter = logging.Formatter(get_log_format(logger_name))
+                formatter = logging.Formatter(get_log_format(logger_name), get_log_date_format())
                 file_handler.setFormatter(formatter)
 
                 root_log = logging.getLogger()
@@ -909,7 +929,7 @@ def initialize_logging(logger_name):
                         sys_log_addr = "/var/run/syslog"
 
                 handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
-                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 root_log = logging.getLogger()
                 root_log.addHandler(handler)
             except Exception, e:
@@ -921,10 +941,10 @@ def initialize_logging(logger_name):
             try:
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
-                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
-                app_log.addHandler(nt_event_handler)    
+                app_log.addHandler(nt_event_handler)
             except Exception, e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()

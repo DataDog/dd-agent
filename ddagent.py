@@ -26,7 +26,7 @@ from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
-from socket import gaierror
+from socket import gaierror, error as socket_error
 
 # Tornado
 import tornado.httpserver
@@ -37,7 +37,7 @@ from tornado.options import define, parse_command_line, options
 
 # agent import
 from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
-from emitter import http_emitter, format_body
+from emitter import http_emitter
 from config import get_config
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
@@ -45,6 +45,9 @@ import modules
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
+
+PUP_ENDPOINT = "pup_url"
+DD_ENDPOINT  = "dd_url"
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -141,7 +144,7 @@ class MetricTransaction(Transaction):
 
         if 'use_pup' in cls._application._agentConfig:
             if cls._application._agentConfig['use_pup']:
-                cls._endpoints.append('pup_url')
+                cls._endpoints.append(PUP_ENDPOINT)
         # Only send data to Datadog if an API KEY exists
         # i.e. user is also Datadog user
         try:
@@ -152,7 +155,7 @@ class MetricTransaction(Transaction):
                 and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
             if is_dd_user:
                 log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
-                cls._endpoints.append('dd_url')
+                cls._endpoints.append(DD_ENDPOINT)
         except Exception:
             log.info("Not a Datadog user")
 
@@ -188,7 +191,6 @@ class MetricTransaction(Transaction):
 
             # Getting proxy settings
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
-            ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
 
             tornado_client_params = {
                 'url': url,
@@ -198,7 +200,9 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
-            if proxy_settings is not None:
+            force_use_curl = False
+
+            if proxy_settings is not None and endpoint != PUP_ENDPOINT:
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
@@ -206,15 +210,19 @@ class MetricTransaction(Transaction):
                 tornado_client_params['proxy_port'] = proxy_settings['port']
                 tornado_client_params['proxy_username'] = proxy_settings['user']
                 tornado_client_params['proxy_password'] = proxy_settings['password']
+                force_use_curl = True
+
+            if not self._application.use_simple_http_client or force_use_curl:
+                ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
-                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
-
-            else:
-                req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-                log.debug("Using Tornado simple HTTP Client")
+            req = tornado.httpclient.HTTPRequest(**tornado_client_params)
                 
+            if not self._application.use_simple_http_client or force_use_curl:
+                log.debug("Using CurlAsyncHTTPClient")
+                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
             
 
@@ -222,7 +230,7 @@ class MetricTransaction(Transaction):
             # whether or not it's successfully sent to datadoghq. If it fails
             # getting sent to pup, it's not a big deal.
             callback = lambda(x): None
-            if len(self._endpoints) <= 1 or endpoint == 'dd_url':
+            if len(self._endpoints) <= 1 or endpoint == DD_ENDPOINT:
                 callback = self.on_response
 
             http.fetch(req, callback=callback)
@@ -243,7 +251,7 @@ class APIMetricTransaction(MetricTransaction):
         config = self._application._agentConfig
         api_key = config['api_key']
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
-        if endpoint == 'pup_url':
+        if endpoint == PUP_ENDPOINT:
             url = config[endpoint] + '/api/v1/series'
         return url
 
@@ -330,7 +338,7 @@ class ApiEventInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False):
+    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False, use_simple_http_client=False):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -342,6 +350,7 @@ class Application(tornado.web.Application):
 
         self._watchdog = None
         self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
+        self.use_simple_http_client = use_simple_http_client
         if self.skip_ssl_validation:
             log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
 
@@ -407,16 +416,23 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
 
-        # non_local_traffic must be == True to match, not just some non-false value
-        if non_local_traffic is True:
-            http_server.listen(self._port)
-        else:
-            # localhost in lieu of 127.0.0.1 to support IPv6
-            try:
-                http_server.listen(self._port, address = "localhost")
-            except gaierror:
-                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
-                http_server.listen(self._port, address = "127.0.0.1")
+        try:
+            # non_local_traffic must be == True to match, not just some non-false value
+            if non_local_traffic is True:
+                http_server.listen(self._port)
+            else:
+                # localhost in lieu of 127.0.0.1 to support IPv6
+                try:
+                    http_server.listen(self._port, address = "localhost")
+                except gaierror:
+                    log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                    http_server.listen(self._port, address = "127.0.0.1")
+        except socket_error, e:
+            log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
+            sys.exit(1)
+        except Exception, e:
+            log.exception("Uncaught exception. Forwarder is exiting.")
+            sys.exit(1)
 
         log.info("Listening on port %d" % self._port)
 
@@ -456,7 +472,7 @@ class Application(tornado.web.Application):
     def stop(self):
         self.mloop.stop()
 
-def init(skip_ssl_validation=False):
+def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', 17123)
@@ -465,7 +481,7 @@ def init(skip_ssl_validation=False):
     else:
         port = int(port)
 
-    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation)
+    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation, use_simple_http_client=use_simple_http_client)
 
     def sigterm_handler(signum, frame):
         log.info("caught sigterm. stopping")
@@ -478,21 +494,22 @@ def init(skip_ssl_validation=False):
     return app
 
 def main():
-    define("pycurl", default=1, help="Use pycurl")
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
+    define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()
     skip_ssl_validation = False
-
-    if unicode(options.pycurl) == u"0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = "1"
+    use_simple_http_client = False
 
     if unicode(options.sslcheck) == u"0":
         skip_ssl_validation = True
 
+    if unicode(options.use_simple_http_client) == u"1":
+        use_simple_http_client = True
+
     # If we don't have any arguments, run the server.
     if not args:
         import tornado.httpclient
-        app = init(skip_ssl_validation)
+        app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
         finally:

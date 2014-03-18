@@ -23,6 +23,9 @@ api_key:
 # Set the host's tags
 #tags: mytag0, mytag1
 
+# Collect AWS EC2 custom tags as agent tags
+# collect_ec2_tags: no
+
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided
@@ -55,7 +58,7 @@ use_mount: no
 # Think of it as a fancy status page or a toe dip into the world of
 # datadog. It can be connected to on the port below.
 
-# use_pup: yes
+# use_pup: no
 # pup_port: 17125
 # pup_interface: localhost
 # pup_url: http://localhost:17125
@@ -112,17 +115,6 @@ use_mount: no
 
 # Ganglia port where gmetad is running
 #ganglia_port: 8651
-
-# -------------------------------------------------------------------------- #
-#   Cassandra                                                                #
-# -------------------------------------------------------------------------- #
-#cassandra_host: localhost
-#cassandra_nodetool: /usr/bin/nodetool
-## If you're using Cassandra 0.8 or higher:
-# cassandra_port: 7199
-## If you're using Cassandra 0.7 or lower:
-#cassandra_port: 8080
-
 
 # -------------------------------------------------------------------------- #
 #   Nagios                                                                   #
