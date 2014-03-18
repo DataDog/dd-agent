@@ -44,20 +44,11 @@ class BernardCheck(object):
     def from_config(cls, check_config):
         name = check_config['name']
         options = check_config['options']
-        raw_command = check_config['command']
-        param_dict = check_config['params']
+        command = shlex.split(check_config['command'])
+        tags = check_config['tags']
+        return cls(name, command, options, tags)
 
-        # Stringify all of the check params. We expect everything to be
-        # strings through the pipeline so we'll do it early on.
-        for k, v in param_dict.iteritems():
-            param_dict[k] = str(v)
-
-        # For every set of params (e.g.: {'port': 8888}) return a single check.
-        # We'll template the $variables in the `command` value with the params.
-        command = _subprocess_command(raw_command, param_dict)
-        return cls(name, command, options, param_dict)
-
-    def __init__(self, name, command, options, params):
+    def __init__(self, name, command, options, tags):
         """ Initializes a BernardCheck with the given `name` and `command`.
             Any additional options (e.g. timeout or period) are given in the
             `options` dict. `command` is expected to be in a subprocess-friendly
@@ -66,7 +57,7 @@ class BernardCheck(object):
         self.name = name
         self.options = options
         self.command = command
-        self.params = params
+        self.tags = tags
         self.run_count = 0
         self.event_count = 0
 
@@ -231,31 +222,6 @@ class BernardCheck(object):
             'message': result.message,
             'execution_time': result.execution_time,
         }
-
-    def get_check_run_tags(self):
-        """ Return a list of the check tags, filtered from the full list of
-            parameters by the `tag_by` option in the parameter. Also include
-            any tags added with the `additional_tags` option.
-        """
-        tags_dict = {} # use a dict so we can easily de-dupe.
-        for tag_by in self.options['tag_by']:
-            if tag_by in self.params:
-                tags_dict[tag_by] = self.params[tag_by]
-
-        # Add the additional tags, which we expect to be in key:val form. Skip
-        # any tags that are not in this form. Override existing tags if the keys
-        # match.
-        for tag in self.options['additional_tags']:
-            try:
-                key, val = tag.split(':')
-            except ValueError:
-                log.error('Invalid additional tag in configuration: %s' % tag)
-                continue
-            else:
-                tags_dict[key] = val
-
-        return [u"%s:%s" % (k, v) for k, v in tags_dict.iteritems()]
-
 
 def _subprocess_command(raw_command, params):
     """ Given a raw command from the Bernard config and a dictionary of check

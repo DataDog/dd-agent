@@ -40,9 +40,9 @@ def read_service_checks(confd_files, default_options):
 
             [{
                 'name': 'check_pg',
-                'command': '/usr/local/bin/check_pg',
-                'params': {'db': 'mydb', 'port': '5432', ...}
-                'options': {'timeout': 5, 'period': 15, 'tag_by': ['host'], ...}
+                'command': '/usr/local/bin/check_pg -d mydb -p 5432',
+                'tags': ['db:mydb', 'port:5432', ...],
+                'options': {'timeout': 5, 'period': 15}
             }, ...]
     """
     service_checks = []
@@ -57,48 +57,32 @@ def read_service_checks(confd_files, default_options):
             # the collector. We _will_ warn if the service check config
             # doesn't match what we expect.
             check_config = yaml.load(f.read(), Loader=yLoader)
-            init_config = check_config.get('init_config') or {}
-            init_service_checks = init_config.get('service_checks')
-            if not init_service_checks:
+            service_checks_config = check_config.get('service_checks') or []
+            if not service_checks_config:
                 log.debug("No service checks defined in %s" % confd_file)
                 continue
         finally:
             f.close()
 
-        instances = check_config.get('instances') or []
-        for i, instance in enumerate(instances):
-            instance_service_checks = instance.get('service_checks')
-            if not instance_service_checks:
-                continue
-            for instance_service_check in instance_service_checks:
-                if isinstance(instance_service_check, dict):
-                    # {'check_pg': {'options': ...}}
-                    name = instance_service_check.keys()[0]
-                    instance_opts = instance_service_check[name].get('options', {})
-                elif isinstance(instance_service_check, basestring):
-                    # 'check_pg'
-                    name = instance_service_check
-                    instance_opts = {}
-                else:
-                    log.error('Unexpected format for `service_checks` value in %s, instance #%d' % (confd_file, i))
-                    continue
-
-                # Merge the per-instance check with the global.
-                base_service_check = init_service_checks[name]
-                service_options = base_service_check['options'].copy()
-                service_options.update(instance_opts)
+        for name, checks in sorted(service_checks_config.iteritems()):
+            # Merge the given options with the defaults.
+            for check in checks:
+                options = check.get('options') or {}
 
                 # Make sure that every value in `default_options` has a
                 # value in the check options. If not, use the default.
                 for opt, default in default_options.iteritems():
-                    if opt not in service_options:
-                        service_options[opt] = default
+                    if opt not in options:
+                        options[opt] = default
+
+                tags_dict = check.get('tags') or {}
+                tags = ['%s:%s' % (k, v) for k, v in tags_dict.iteritems()]
 
                 service_checks.append({
                     'name': name,
-                    'command': base_service_check['command'],
-                    'params': instance,
-                    'options': service_options
+                    'command': check['command'],
+                    'tags': tags,
+                    'options': options
                 })
 
     return service_checks
@@ -109,7 +93,5 @@ def _get_default_options():
     c = get_config()
     return {
         'period': int(c.get('bernard_default_period', DEFAULT_PERIOD)),
-        'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT)),
-        'tag_by': ['host'],
-        'additional_tags': [],
+        'timeout': int(c.get('bernard_default_timeout', DEFAULT_TIMEOUT))
     }

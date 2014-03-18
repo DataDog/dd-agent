@@ -3,15 +3,6 @@
 #
 
 init_config:
-    service_checks:
-        check_pg:
-            command: /usr/local/bin/check_pg -h $host -P $port -d $dbname -u $username -p $password
-            options:
-                timeout: 2
-                period: 15
-                tag_by:
-                    - port
-                    - dbname
 
 instances:
     -   host: localhost
@@ -19,16 +10,25 @@ instances:
         username: my_username
         password: my_password
         dbname: postgres
-        service_checks:
-            - check_pg
 
-    # instance that overrides service check options
-    -   host: localhost
+service_checks:
+  check_postgres_db:
+    - command: /usr/local/bin/check_pg -p 5433 -U dogmonitor -d dogdatastaging -P1234
+      tags:
         port: 5433
-        username: my_username
-        password: my_password
-        dbname: proddb
-        service_checks:
-            - check_pg:
-                options:
-                    timeout: 10
+        db: dogdatastaging
+    - command: /usr/local/bin/check_pg -p 5433 -U dogmonitor -d dogdataprod -P1234
+      tags:
+        port: 5433
+        db: dogdataprod
+      options:
+        timeout: 5
+
+  check_postgres_logs:
+    - command: /usr/local/bin/check_postgres_logs -d /data/postgres
+      tags:
+        directory: /data/postgres
+
+    - command: /usr/local/bin/check_postgres_logs -d /data/postgres2
+      tags:
+        directory: /data/postgres2

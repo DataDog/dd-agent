@@ -155,29 +155,38 @@ class TestBernardCheck(unittest.TestCase):
         yaml_path = os.path.join(path, 'bernard_confd')
         defaults = _get_default_options()
 
-        # A single check without an associated agent check.
         check_configs = read_service_checks([os.path.join(yaml_path, 'ntp.yaml')], defaults)
         self.assertEqual(len(check_configs), 1)
         expected_options = defaults.copy()
         expected_options.update({'timeout': 5, 'period': 15})
         ntp_check = BernardCheck.from_config(check_configs[0])
         self.assertEqual(ntp_check.options, expected_options)
-        self.assertEqual(ntp_check.get_check_run_tags(), [])
+        self.assertEqual(ntp_check.tags, [])
 
-        # A single check with multiple instances.
         check_configs = read_service_checks([os.path.join(yaml_path, 'postgres.yaml')], defaults)
-        self.assertEqual(len(check_configs), 2)
+        self.assertEqual(len(check_configs), 4)
         expected_options = defaults.copy()
 
         pg_check1 = BernardCheck.from_config(check_configs[0])
-        expected_options.update({'timeout': 2, 'period': 15, 'tag_by': ['port', 'dbname']})
+        self.assertEqual(pg_check1.name, 'check_postgres_db')
         self.assertEqual(pg_check1.options, expected_options)
-        self.assertEqual(pg_check1.get_check_run_tags(), ['port:5432', 'dbname:postgres'])
+        self.assertEqual(set(pg_check1.tags), set(['port:5433', 'db:dogdatastaging']))
 
         pg_check2 = BernardCheck.from_config(check_configs[1])
-        expected_options.update({'timeout': 10})
+        expected_options.update({'timeout': 5})
+        self.assertEqual(pg_check2.name, 'check_postgres_db')
         self.assertEqual(pg_check2.options, expected_options)
-        self.assertEqual(pg_check2.get_check_run_tags(), ['port:5433', 'dbname:proddb'])
+        self.assertEqual(set(pg_check2.tags), set(['port:5433', 'db:dogdataprod']))
+
+        pg_check3 = BernardCheck.from_config(check_configs[2])
+        self.assertEqual(pg_check3.name, 'check_postgres_logs')
+        self.assertEqual(pg_check3.options, expected_options)
+        self.assertEqual(set(pg_check3.tags), set(['directory:/data/postgres']))
+
+        pg_check4 = BernardCheck.from_config(check_configs[3])
+        self.assertEqual(pg_check4.name, 'check_postgres_logs')
+        self.assertEqual(pg_check4.options, expected_options)
+        self.assertEqual(set(pg_check4.tags), set(['directory:/data/postgres2']))
 
         # Multiple checks with multiple instances, different checks per instance
         check_configs = read_service_checks([os.path.join(yaml_path, 'dd-redis.yaml')], defaults)
@@ -186,29 +195,24 @@ class TestBernardCheck(unittest.TestCase):
 
         redis_check1 = BernardCheck.from_config(check_configs[0])
         self.assertEqual(redis_check1.name, 'check_redis_latency')
-        expected_options.update({'timeout': 5, 'period': 15, 'tag_by': ['port', 'db']})
+        expected_options.update({'timeout': 5})
         self.assertEqual(redis_check1.options, expected_options)
-        self.assertEqual(set(redis_check1.get_check_run_tags()), set(['port:6380', 'db:0']))
+        self.assertEqual(set(redis_check1.tags), set([]))
 
         redis_check2 = BernardCheck.from_config(check_configs[1])
-        self.assertEqual(redis_check2.name, 'check_redis_queue')
-        expected_options.update({'additional_tags': ['redis_type:queue']})
+        self.assertEqual(redis_check2.name, 'check_redis_livecache')
         self.assertEqual(redis_check2.options, expected_options)
-        self.assertEqual(set(redis_check2.get_check_run_tags()), set(['port:6380', 'db:0', 'redis_type:queue']))
+        self.assertEqual(set(redis_check2.tags), set(['port:6379', 'db:11']))
 
         redis_check3 = BernardCheck.from_config(check_configs[2])
-        self.assertEqual(redis_check3.name, 'check_redis_latency')
-        expected_options.update({'additional_tags': []})
+        self.assertEqual(redis_check3.name, 'check_redis_livecache')
         self.assertEqual(redis_check3.options, expected_options)
-        self.assertEqual(set(redis_check3.get_check_run_tags()), set(['port:6379', 'db:1']))
-
+        self.assertEqual(set(redis_check3.tags), set(['port:6379', 'db:11', 'host:livecache1.datadoghq.com']))
 
         redis_check4 = BernardCheck.from_config(check_configs[3])
-        self.assertEqual(redis_check4.name, 'check_redis_livecache')
-        expected_options.update({'additional_tags': ['redis_type:livecache']})
+        self.assertEqual(redis_check4.name, 'check_redis_queue')
         self.assertEqual(redis_check4.options, expected_options)
-        self.assertEqual(set(redis_check4.get_check_run_tags()), set(['port:6379', 'db:1', 'redis_type:livecache']))
-
+        self.assertEqual(set(redis_check4.tags), set([]))
 
     def _get_test_checks(self):
         return [
@@ -235,7 +239,7 @@ class TestBernardCheck(unittest.TestCase):
                 'attempts': 3,
                 'timeout': 1,
             },
-            'params': {}
+            'tags': []
         }
 
 
