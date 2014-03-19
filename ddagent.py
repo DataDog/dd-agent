@@ -398,10 +398,16 @@ class Application(tornado.web.Application):
                 try:
                     http_server.listen(self._port, address = "localhost")
                 except gaierror:
-                    log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                    log.warning("localhost seems undefined in your host file, using 127.0.0.1 instead")
                     http_server.listen(self._port, address = "127.0.0.1")
+                except socket_error, e:
+                    if "Errno 99" in str(e):
+                        log.warning("IPv6 doesn't seem to be fully supported. Falling back to IPv4")
+                        http_server.listen(self._port, address = "127.0.0.1")
+                    else:
+                        raise
         except socket_error, e:
-            log.critical("Socket error %s. Is another application listening on the same port ? Exiting", e)
+            log.exception("Socket error %s. Is another application listening on the same port ? Exiting", e)
             sys.exit(1)
         except Exception, e:
             log.exception("Uncaught exception. Forwarder is exiting.")
