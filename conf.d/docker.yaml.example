@@ -1,3 +1,6 @@
+# Warning  
+# The user running the Datadog Agent (usually "dd-agent") must be part of the "docker" group
+
 init_config:
 
 instances:
