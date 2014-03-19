@@ -178,6 +178,7 @@ class Docker(AgentCheck):
         """Utility method to get and parse JSON streams."""
         if params:
             uri = "%s?%s" % (uri, urllib.urlencode(params))
+        self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
         try:
             request = urllib2.urlopen(req)
@@ -206,8 +207,15 @@ class Docker(AgentCheck):
 
     def _parse_cgroup_file(self, file_):
         """Parses a cgroup pseudo file for key/values."""
+        fp = None
         try:
-            fp = open(file_)
+            self.log.debug("Opening file: %s" % file_)
+            try:
+                fp = open(file_)
+            except IOError:
+                raise IOError("Can't open %s. If you are using Docker 0.9.0 or higher, the Datadog agent is not yet compatible with these versions. Please get in touch with Datadog Support for more information" % file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
+
         finally:
-            fp.close()
+            if fp is not None:
+                fp.close()
