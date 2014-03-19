@@ -223,6 +223,7 @@ class BernardCheck(object):
             'execution_time': result.execution_time,
         }
 
+
 def _subprocess_command(raw_command, params):
     """ Given a raw command from the Bernard config and a dictionary of check
         parameter, return a list that's subprocess-compatible for running the

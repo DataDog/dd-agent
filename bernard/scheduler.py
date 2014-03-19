@@ -129,5 +129,5 @@ class Scheduler(object):
                 status=result.status,
                 output=result.message,
                 timestamp=result.execution_date,
-                tags=check.get_check_run_tags(),
+                tags=check.tags,
                 host_name=self.hostname)
