@@ -163,7 +163,7 @@ class ElasticSearch(AgentCheck):
             data = self._get_data(config_url)
             version = map(int, data['version']['number'].split('.'))
         except Exception, e:
-            self.warning("Error while trying to get Elasticsearch version %s %s" % (str(e), data.get('version', {}).get('number')))
+            self.warning("Error while trying to get Elasticsearch version from %s %s" % (config_url, str(e)))
             version = [0, 0, 0]
 
         self.log.debug("Elasticsearch version is %s" % version)
