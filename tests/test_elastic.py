@@ -73,7 +73,7 @@ class TestElastic(unittest.TestCase):
 
         # Checks enabled for specific ES versions
         version = c._get_es_version('http://localhost:%s' % PORT)
-        if int(version[0:1]) >= 1 or version in ["0.90.10", "0.90.11"]:
+        if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             pass
         else:
