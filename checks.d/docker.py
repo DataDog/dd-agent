@@ -184,6 +184,7 @@ class Docker(AgentCheck):
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
+            raise
         response = request.read()
         return json.loads(response)
 
