@@ -367,7 +367,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     # Start the server on an IPv4 stack
     # Default to loopback
-    server_host = 'localhost'
+    server_host = c['bind_host']
     # If specified, bind to all addressses
     if non_local_traffic:
         server_host = ''
