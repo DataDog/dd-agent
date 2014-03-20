@@ -75,3 +75,6 @@ def get_check(name, config_str):
 
     return check_class.from_yaml(yaml_text=config_str, check_name=name,
         agentConfig=agentConfig)
+
+def read_test_data(filename):
+    return open(os.path.join(os.path.dirname(__file__), 'data', filename)).read()
