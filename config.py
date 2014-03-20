@@ -354,7 +354,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
-        agentConfig['autorestart'] = False
+        if config.has_option('Main', 'autorestart'):
+            agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
 
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
