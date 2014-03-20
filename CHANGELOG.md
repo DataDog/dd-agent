@@ -20,6 +20,7 @@ Changes
 #### Changes
 * [PERFORMANCE] Disable pup by default
 * [ENHANCEMENT] Use JMXFetch 0.3.0 ( [Changelog](https://github.com/DataDog/jmxfetch/blob/master/CHANGELOG.md) )
+* [ENHANCEMENT] Metric limit for JMX Checks is raised to 350 metrics per instance
 * [FEATURE] Add a "configtest" command alias of "configcheck": See [#838][]
 * [FEATURE] Add a Docker integration: See [#844][] (Thanks to [@steeve][])
 * [FEATURE] ElasticSearch: Support for newer versions (>= 0.90.10)
@@ -30,7 +31,6 @@ Changes
 * [FEATURE] MongoDB: Support SSL connections to server: See [#848][]
 * [FEATURE] Collect tags and hostname for Google Compute Engine hosts
 * [FEATURE] PostgreSQL: Support check on Windows
-* [FEATURE] Process: Support check on Windows
 * [ENHANCEMENT] Align the reporting of StatsD metrics to fixed time intervals for consistency in aggregation
 * [PERFORMANCE] StatsD events are now batched: See [#852][]
 * [PERFORMANCE] Add an optional timeout parameter to Couchbase integration: See [#826][]
