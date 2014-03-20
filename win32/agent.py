@@ -81,7 +81,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             proc.start()
 
         # Loop to keep the service running since all DD services are
-        # running in separate threads
+        # running in separate processes
         self.running = True
         while self.running:
             if self.running:
@@ -196,10 +196,9 @@ class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='pup')
         self.config = agentConfig
-        self.is_enabled = True
+        self.is_enabled = self.config.get('use_web_info_page', True)
 
     def run(self):
-        self.is_enabled = self.config.get('use_web_info_page', True)
         self.pup = pup
         if self.is_enabled:
             log.debug("Windows Service - Starting Pup")
