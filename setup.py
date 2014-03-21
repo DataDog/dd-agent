@@ -7,7 +7,7 @@ try:
     from setuptools import setup, find_packages
 
     # required to build the cython extensions
-    from distutils.extension import Extension
+    from distutils.extension import Extension #pylint: disable=no-name-in-module
 
 except ImportError:
     from ez_setup import use_setuptools
@@ -35,7 +35,7 @@ if sys.platform == 'win32':
         'simplejson==2.6.1',
         'mysql-python==1.2.3',
         'pymongo==2.3',
-        'psycopg2==2.4.5',
+        'psycopg2',
         'python-memcached==1.48',
         'redis==2.6.2',
         'adodbapi'
@@ -59,6 +59,7 @@ if sys.platform == 'win32':
         'pymongo',
         'MySQLdb',
         'psutil',
+        'psycopg2',
 
         # agent
         'checks.services_checks',

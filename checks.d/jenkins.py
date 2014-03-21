@@ -126,11 +126,12 @@ class Jenkins(AgentCheck):
         if not jenkins_home:
             raise Exception("No jenkins_home directory set in the config file")
 
-        job_dirs = glob(os.path.join(jenkins_home, 'jobs', '*'))
+        jenkins_jobs_dir = os.path.join(jenkins_home, 'jobs', '*')
+        job_dirs = glob(jenkins_jobs_dir)
 
         if not job_dirs:
             raise Exception('No jobs found in `%s`! '
-                            'Check `jenkins_home` in your config' % (job_dirs))
+                            'Check `jenkins_home` in your config' % (jenkins_jobs_dir))
 
         for job_dir in job_dirs:
             for output in self._get_build_results(instance.get('name'), job_dir):

@@ -24,19 +24,23 @@ import threading
 from urllib import urlencode
 
 # project
-from aggregator import MetricsAggregator
+from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural
+from util import json, PidFile, get_hostname, plural, get_uuid, chunks
 
 log = logging.getLogger('dogstatsd')
 
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
-FLUSH_LOGGING_PERIOD = 10
-FLUSH_LOGGING_INITIAL = 5
+# Since we call flush more often than the metrics aggregation interval, we should
+#  log a bunch of flushes in a row every so often.
+FLUSH_LOGGING_PERIOD = 70
+FLUSH_LOGGING_INITIAL = 10
+FLUSH_LOGGING_COUNT = 5
+EVENT_CHUNK_SIZE = 50
 
 def serialize_metrics(metrics):
     return json.dumps({"series" : metrics})
@@ -50,12 +54,13 @@ class Reporter(threading.Thread):
     server.
     """
 
-    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False):
+    def __init__(self, interval, metrics_aggregator, api_host, api_key=None, use_watchdog=False, event_chunk_size=None):
         threading.Thread.__init__(self)
         self.interval = int(interval)
         self.finished = threading.Event()
         self.metrics_aggregator = metrics_aggregator
         self.flush_count = 0
+        self.log_count = 0
 
         self.watchdog = None
         if use_watchdog:
@@ -64,6 +69,7 @@ class Reporter(threading.Thread):
 
         self.api_key = api_key
         self.api_host = api_host
+        self.event_chunk_size = event_chunk_size or EVENT_CHUNK_SIZE
 
         self.http_conn_cls = http_client.HTTPSConnection
 
@@ -100,41 +106,29 @@ class Reporter(threading.Thread):
     def flush(self):
         try:
             self.flush_count += 1
+            self.log_count += 1
             packets_per_second = self.metrics_aggregator.packets_per_second(self.interval)
             packet_count = self.metrics_aggregator.total_count
 
             metrics = self.metrics_aggregator.flush()
             count = len(metrics)
-            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.flush_count % FLUSH_LOGGING_PERIOD == 0
-            if not count:
-                if should_log:
-                    log.info("Flush #%s: No metrics to flush." % self.flush_count)
-                else:
-                    log.debug("Flush #%s: No metrics to flush." % self.flush_count)
-            else:
-                if should_log:
-                    log.info("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
-                else:
-                    log.debug("Flush #%s: flushing %s metric%s" % (self.flush_count, count, plural(count)))
-
+            if self.flush_count % FLUSH_LOGGING_PERIOD == 0:
+                self.log_count = 0
+            if count:
                 self.submit(metrics)
 
             events = self.metrics_aggregator.flush_events()
             event_count = len(events)
-            if not event_count:
-                if should_log:
-                    log.info("Flush #%s: No events to flush." % self.flush_count)
-                else:
-                    log.debug("Flush #%s: No events to flush." % self.flush_count)
-            else:
-                if should_log:
-                    log.info("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
-                else:
-                    log.debug("Flush #%s: flushing %s event%s" % (self.flush_count, len(events), plural(len(events))))
+            if event_count:
                 self.submit_events(events)
 
+            should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
+            log_func = log.info
+            if not should_log:
+                log_func = log.debug
+            log_func("Flush #%s: flushed %s metric%s and %s event%s" % (self.flush_count, count, plural(count), event_count, plural(event_count)))
             if self.flush_count == FLUSH_LOGGING_INITIAL:
-                log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+                log.info("First flushes done, %s flushes will be logged every %s flushes." % (FLUSH_LOGGING_COUNT, FLUSH_LOGGING_PERIOD))
 
             # Persist a status message.
             packet_count = self.metrics_aggregator.total_count
@@ -183,19 +177,28 @@ class Reporter(threading.Thread):
         headers = {'Content-Type':'application/json'}
         method = 'POST'
 
-        params = {}
-        if self.api_key:
-            params['api_key'] = self.api_key
-        url = '/api/v1/events?%s' % urlencode(params)
+        events_len = len(events)
+        event_chunk_size = self.event_chunk_size
 
-        status = None
-        conn = self.http_conn_cls(self.api_host)
-        try:
-            for event in events:
+        for chunk in chunks(events, event_chunk_size):
+            payload = {
+                'apiKey': self.api_key,
+                'events': {
+                    'api': chunk
+                },
+                'uuid': get_uuid(),
+                'internalHostname': get_hostname()
+            }
+            params = {}
+            if self.api_key:
+                params['api_key'] = self.api_key
+            url = '/intake?%s' % urlencode(params)
+
+            status = None
+            conn = self.http_conn_cls(self.api_host)
+            try:
                 start_time = time()
-                body = serialize_event(event)
-                log.debug('Sending event: %s' % body)
-                conn.request(method, url, body, headers)
+                conn.request(method, url, json.dumps(payload), headers)
 
                 response = conn.getresponse()
                 status = response.status
@@ -203,8 +206,9 @@ class Reporter(threading.Thread):
                 duration = round((time() - start_time) * 1000.0, 4)
                 log.debug("%s %s %s%s (%sms)" % (
                                 status, method, self.api_host, url, duration))
-        finally:
-            conn.close()
+
+            finally:
+                conn.close()
 
 class Server(object):
     """
@@ -221,7 +225,7 @@ class Server(object):
         self.running = False
 
         self.should_forward = forward_to_host is not None
-        
+
         self.forward_udp_sock = None
         # In case we want to forward every packet received to another statsd server
         if self.should_forward:
@@ -241,7 +245,13 @@ class Server(object):
         # IPv4 only
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        self.socket.bind(self.address)
+        try:
+            self.socket.bind(self.address)
+        except socket.gaierror:
+            if self.address[0] == 'localhost':
+                log.warning("Warning localhost seems undefined in your host file, using 127.0.0.1 instead")
+                self.address = ('127.0.0.1', self.address[1])
+                self.socket.bind(self.address)
 
         log.info('Listening on host & port: %s' % str(self.address))
 
@@ -294,12 +304,6 @@ class Dogstatsd(Daemon):
         log.debug("Caught sigterm. Stopping run loop.")
         self.server.stop()
 
-    def stop(self):
-        if self.autorestart:
-            parent_pid = os.getpgid(self.pid())
-            os.kill(parent_pid, signal.SIGTERM)
-        super(Dogstatsd, self).stop()
-
     def run(self):
         # Gracefully exit on sigterm.
         signal.signal(signal.SIGTERM, self._handle_sigterm)
@@ -339,10 +343,12 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     port      = c['dogstatsd_port']
     interval  = int(c['dogstatsd_interval'])
+    aggregator_interval  = int(c['dogstatsd_agregator_bucket_size'])
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
+    event_chunk_size = c.get('event_chunk_size')
 
     target = c['dd_url']
     if use_forwarder:
@@ -354,14 +360,14 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsAggregator(hostname, interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
 
     # Start the reporting thread.
-    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog)
+    reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
 
     # Start the server on an IPv4 stack
     # Default to loopback
-    server_host = '127.0.0.1'
+    server_host = 'localhost'
     # If specified, bind to all addressses
     if non_local_traffic:
         server_host = ''

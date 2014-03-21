@@ -4,7 +4,8 @@ case "$*" in
     /etc/init.d/datadog-agent stop
     ;;
   1)
-    # We're upgrading. Do nothing.
+    # We're upgrading. 
+    /etc/init.d/datadog-agent stop
     ;;
   *) 
     ;;

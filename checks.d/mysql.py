@@ -243,7 +243,7 @@ class MySql(AgentCheck):
                             else:
                                 self.gauge(metric, float(result[col_idx]), tags=tags)
                         else:
-                            self.log.debug("Recieved value is None for index %d" % col_idx)
+                            self.log.debug("Received value is None for index %d" % col_idx)
                     except ValueError:
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()

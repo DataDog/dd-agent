@@ -1,3 +1,4 @@
+# pylint: disable=method-hidden
 """HTTP/1.1 client library
 
 <intro stuff goes here>

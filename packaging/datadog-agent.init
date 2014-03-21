@@ -78,6 +78,12 @@ case "$1" in
             exit 0
         fi
 
+        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+        if [ $? -ne 0 ]; then
+            log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
+            log_daemon_msg "Resuming starting process."
+        fi
+
        
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
         start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
@@ -139,6 +145,11 @@ case "$1" in
         exit $?
         ;;
 
+    configtest)
+        su $AGENTUSER -c "$AGENTPATH configcheck"
+        exit $?
+        ;;
+
     jmx)
         shift
         su $AGENTUSER -c "$AGENTPATH jmx $@"
@@ -147,7 +158,7 @@ case "$1" in
 
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info|status|configcheck|jmx}"
+        echo "Usage: $N {start|stop|restart|info|status|configcheck|configtest|jmx}"
         exit 1
         ;;
 esac

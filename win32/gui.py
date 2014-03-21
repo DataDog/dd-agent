@@ -34,8 +34,8 @@ from config import (get_confd_path, get_config_path, get_config,
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'gearmand',
-    'hdfs', 'mcache', 'network', 'postgres',
-    'redis', 'postfix', 'gunicorn', 
+    'hdfs', 'kafka_consumer', 'mcache', 'network',
+    'redis', 'postfix', 'process', 'gunicorn', 'zk',
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"

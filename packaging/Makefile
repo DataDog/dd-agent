@@ -102,6 +102,7 @@ $(FPM_BUILD) -t rpm \
 --post-install   datadog-agent-base-rpm/post_install \
 --pre-uninstall  datadog-agent-base-rpm/pre_uninstall \
 --post-uninstall datadog-agent-base-rpm/post_uninstall \
+--posttrans datadog-agent-base-rpm/posttrans \
 .
 
 datadog_agent_rpm: clean install_full_rpm
@@ -119,7 +120,8 @@ $(FPM_BUILD) -t rpm \
 --pre-install	    datadog-agent-rpm/preinst \
 --post-install	    datadog-agent-rpm/postinst \
 --pre-uninstall	    datadog-agent-rpm/prerm \
---post-uninstall    datadog-agent-rpm/postrm \
+--post-uninstall   datadog-agent-rpm/postrm \
+--posttrans	    datadog-agent-rpm/posttrans \
 --config-files "/etc/dd-agent/supervisor.conf" \
 .
 
