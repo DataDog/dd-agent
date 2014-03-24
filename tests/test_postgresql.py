@@ -5,21 +5,25 @@ import time
 class TestMySql(unittest.TestCase):
 
     def testChecks(self):
-        agentConfig = { 
-            'version': '0.1',
-            'api_key': 'toto' }
 
-        # Initialize the check from checks.d
-        c = load_check('mysql', {'init_config': {}, 'instances': [{
-            'host': 'localhost',
-            'port': 5432,
-            'username': 'datadog',
-            'password': 'datadog',
-            'dbname': 'datadog_test',
-            'relations': ['persons'],
-            }]}, agentConfig)
-        conf = c.parse_agent_config(agentConfig)
-        self.check = load_check('postgres', conf, agentConfig)
+        config = {
+            'instances': [
+                {
+                'host': 'localhost',
+                'port': 5432,
+                'username': 'datadog',
+                'password': 'datadog',
+                'dbname': 'datadog_test',
+                'relations': ['persons'],
+                }
+            ]
+        }
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        self.check = load_check('postgresql', config, agentConfig)
 
         self.check.run()
         metrics = self.check.get_metrics()
