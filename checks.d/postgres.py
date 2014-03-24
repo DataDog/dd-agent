@@ -142,7 +142,7 @@ SELECT relname,
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
                 self.log.debug("Running query: %s with relations: %s" % (query, relations))
-                cursor.execute(query.replace(r'%', r'%%'), (relations, ))
+                cursor.execute(query, (relations, ))
             else:
                 query = scope['query'] % (", ".join(cols))
                 self.log.debug("Running query: %s" % query)

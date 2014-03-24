@@ -27,7 +27,7 @@ class TestPostgres(unittest.TestCase):
 
         self.check.run()
         metrics = self.check.get_metrics()
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.connection']) == 1, metrics)
+        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.connections']) == 1, metrics)
         self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.dead_rows']) == 1, metrics)
         self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.live_rows']) == 1, metrics)
         self.assertTrue(3 <= len(metrics) <= 4, metrics)
