@@ -7,8 +7,8 @@ services:
   - elasticsearch
   - memcache
   - redis-server
-before_script:
-  - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
+  - postgresql
+
 language: python
 python:
   - "2.6"
@@ -30,6 +30,12 @@ install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
 before_script:
+  - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
+  - psql -U postgres -c "create user datadog with password 'datadog'"
+  - psql -U postgres -c "grant SELECT ON pg_stat_database to datadog"
+  - psql -U postgres -c "CREATE DATABASE datadog_test" postgres
+  - psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE datadog_test to datadog"
+  - psql -U datadog -c "CREATE TABLE Persons (PersonID int, LastName varchar(255), FirstName varchar(255), Address varchar(255), City varchar(255))" datadog_test
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
   - curl -L http://apache.mirrors.multidist.eu/cassandra/2.0.6/apache-cassandra-2.0.6-bin.tar.gz > /tmp/cassandra2.tar.gz
   - tar -xzvf /tmp/cassandra2.tar.gz -C /tmp
