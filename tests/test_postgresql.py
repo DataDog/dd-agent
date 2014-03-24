@@ -2,7 +2,7 @@ import unittest
 from tests.common import load_check
 import time
 
-class TestMySql(unittest.TestCase):
+class TestPostgres(unittest.TestCase):
 
     def testChecks(self):
 
@@ -23,7 +23,7 @@ class TestMySql(unittest.TestCase):
             'api_key': 'toto'
         }
 
-        self.check = load_check('postgresql', config, agentConfig)
+        self.check = load_check('postgres', config, agentConfig)
 
         self.check.run()
         metrics = self.check.get_metrics()
