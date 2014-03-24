@@ -41,7 +41,7 @@ class JMXTestCase(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
-        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15)
+        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMXFetch.JMX_COLLECT_COMMAND)
 
 
     def tearDown(self):
