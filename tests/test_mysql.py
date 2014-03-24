@@ -7,7 +7,7 @@ class TestMySql(unittest.TestCase):
         # This should run on pre-2.7 python so no skiptest
         self.skip = False
         try:
-            import MySQLdb
+            import pymysql
         except ImportError:
             self.skip = True
 

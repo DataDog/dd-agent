@@ -9,3 +9,4 @@ psutil
 gearman
 pylint
 boto
+PyMySQL
