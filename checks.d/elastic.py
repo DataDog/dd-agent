@@ -140,7 +140,7 @@ class ElasticSearch(AgentCheck):
                 tags.append(tag)
 
         # Check ES version for this instance and define parameters (URLs and metrics) accordingly
-        version = self._get_es_version(config_url)
+        version = self._get_es_version(config_url, auth)
         self._define_params(version)
 
         # Load stats data.
@@ -154,13 +154,13 @@ class ElasticSearch(AgentCheck):
         self._process_health_data(config_url, health_data, tags=tags)
 
 
-    def _get_es_version(self, config_url):
+    def _get_es_version(self, config_url, auth):
         """
             Get the running version of Elastic Search
         """
 
         try:
-            data = self._get_data(config_url)
+            data = self._get_data(config_url, auth)
             version = map(int, data['version']['number'].split('.'))
         except Exception, e:
             self.warning("Error while trying to get Elasticsearch version from %s %s" % (config_url, str(e)))
