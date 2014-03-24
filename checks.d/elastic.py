@@ -154,7 +154,7 @@ class ElasticSearch(AgentCheck):
         self._process_health_data(config_url, health_data, tags=tags)
 
 
-    def _get_es_version(self, config_url, auth):
+    def _get_es_version(self, config_url, auth=None):
         """
             Get the running version of Elastic Search
         """
