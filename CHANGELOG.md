@@ -39,6 +39,7 @@ Changes
 * [BUGFIX] PostgreSQL: Reset the connection if it seems broken: See [#784][]
 * [BUGFIX] Process: Do not fail on older Linux Kernels: See [#849][]
 * [BUGFIX]  Windows: Do not restart pup on windows if it's not enabled: See [#815][]
+* [BUGFIX] JMX Checks: Properly ensure that only one instance of JMXFetch is running
 
 
 
