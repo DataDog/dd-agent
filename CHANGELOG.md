@@ -3,7 +3,7 @@ Changes
 
 # 4.2.0 - Unreleased
 
-### Integrations afffected
+### Integrations affected
 * Couchbase
 * Docker
 * ElasticSearch
