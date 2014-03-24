@@ -14,8 +14,8 @@ class TestMySql(unittest.TestCase):
     def testChecks(self):
         if not self.skip:
             agentConfig = { 'mysql_server': 'localhost',
-                'mysql_user': "datadog",
-                'mysql_pass': "phQOrbaXem0kP8JHri1qSMRS",
+                'mysql_user': "dog",
+                'mysql_pass': "dog",
                 'version': '0.1',
                 'api_key': 'toto' }
 
