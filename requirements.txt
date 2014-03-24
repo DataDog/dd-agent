@@ -10,3 +10,4 @@ gearman
 pylint
 boto
 PyMySQL
+pg8000
