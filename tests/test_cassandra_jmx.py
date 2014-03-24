@@ -6,7 +6,7 @@ from dogstatsd import Dogstatsd, init, Server
 from util import PidFile
 import os
 from config import get_logging_config
-from jmxfetch import JMXFetch
+from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 
 STATSD_PORT = 8121
 class DummyReporter(threading.Thread):
