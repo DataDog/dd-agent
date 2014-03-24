@@ -18,7 +18,7 @@ from cStringIO import StringIO
 
 # project
 from util import get_os, yaml, yLoader, Platform
-from jmxfetch import JMXFetch
+from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
 # CONSTANTS
@@ -661,7 +661,7 @@ def load_check_directory(agentConfig):
     migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
     # Start JMXFetch if needed
-    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMXFetch.JMX_COLLECT_COMMAND)
+    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
 
     # For backwards-compatability with old style checks, we have to load every
     # checks.d module and check for a corresponding config OR check if the old
