@@ -56,6 +56,7 @@ class JMXFetch(object):
     def init(cls, confd_path, agentConfig, logging_config,
         default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
+            command = command or JMX_COLLECT_COMMAND
             jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
             if len(invalid_checks) > 0:
                 try:
@@ -268,7 +269,7 @@ class JMXFetch(object):
                 pass
             log.info("Success")
         except Exception:
-            log.error("Couldn't kill jmxfetch pid %s" % pid)
+            log.exception("Couldn't kill jmxfetch pid %s" % pid)
 
     @classmethod
     def get_path_to_jmxfetch(cls):
@@ -279,10 +280,9 @@ class JMXFetch(object):
 
     @classmethod
     def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts,
-        default_check_frequency, jmx_checks, command=None, reporter=None):
+        default_check_frequency, jmx_checks, command, reporter=None):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
-        command = command or JMX_COLLECT_COMMAND
         if reporter is None:
             reporter = "statsd:%s" % str(statsd_port)
 
