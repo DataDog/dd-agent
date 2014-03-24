@@ -91,16 +91,6 @@ SELECT relname,
         self.dbs = {}
         self.versions = {}
 
-    def get_library_versions(self):
-        try:
-            import psycopg2
-            version = psycopg2.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-        return {"psycopg2": version}
-
     def _get_version(self, key, db):
         if key not in self.versions:
             cursor = db.cursor()
@@ -126,7 +116,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from psycopg2 import InterfaceError
+        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -152,11 +142,11 @@ SELECT relname,
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
                 self.log.debug("Running query: %s with relations: %s" % (query, relations))
-                cursor.execute(query, (relations, ))
+                cursor.execute(query.replace(r'%', r'%%'), (relations, ))
             else:
                 query = scope['query'] % (", ".join(cols))
                 self.log.debug("Running query: %s" % query)
-                cursor.execute(query)
+                cursor.execute(query.replace(r'%', r'%%'))
 
             results = cursor.fetchall()
             cursor.close()
@@ -202,9 +192,9 @@ SELECT relname,
 
         elif host != "" and user != "":
             try:
-                import psycopg2 as pg
+                import pg8000 as pg
             except ImportError:
-                raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
+                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
             
             if host == 'localhost' and password == '':
                 # Use ident method
@@ -221,12 +211,7 @@ SELECT relname,
             elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
 
-        try:
-            connection.autocommit = True
-        except AttributeError:
-            # connection.autocommit was added in version 2.4.2
-            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-            connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        connection.autocommit = True
         
         self.dbs[key] = connection
         return connection
