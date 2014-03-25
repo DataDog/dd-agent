@@ -1,3 +1,4 @@
+# stdlib
 import socket
 import subprocess
 import sys
@@ -5,9 +6,10 @@ import time
 import urlparse
 import urllib2
 
-from util import json, headers
+# project
 from checks import AgentCheck
 from checks.utils import add_basic_auth
+from util import json, headers
 
 
 class NodeNotFound(Exception): pass
@@ -117,6 +119,7 @@ class ElasticSearch(AgentCheck):
     def check(self, instance):
         config_url = instance.get('url')
         added_tags = instance.get('tags')
+        is_external = instance.get('is_external', False)
         if config_url is None:
             raise Exception("An url must be specified")
 
@@ -146,19 +149,17 @@ class ElasticSearch(AgentCheck):
         # Load stats data.
         url = urlparse.urljoin(config_url, self.STATS_URL)
         stats_data = self._get_data(url, auth)
-        self._process_stats_data(config_url, stats_data, auth, tags=tags)
+        self._process_stats_data(config_url, stats_data, auth, tags=tags,
+                                 is_external=is_external)
 
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
         health_data = self._get_data(url, auth)
         self._process_health_data(config_url, health_data, tags=tags)
 
-
     def _get_es_version(self, config_url, auth=None):
+        """ Get the running version of Elastic Search.
         """
-            Get the running version of Elastic Search
-        """
-
         try:
             data = self._get_data(config_url, auth)
             version = map(int, data['version']['number'].split('.'))
@@ -170,10 +171,9 @@ class ElasticSearch(AgentCheck):
         return version
 
     def _define_params(self, version):
+        """ Define the set of URLs and METRICS to use depending on the
+            running ES version.
         """
-            Define the set of URLs and METRICS to use depending on the running ES version
-        """
-
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             # Metrics architecture changed starting with version 0.90.10
@@ -224,44 +224,43 @@ class ElasticSearch(AgentCheck):
         response = request.read()
         return json.loads(response)
 
-    def _process_stats_data(self, config_url, data, auth, tags=None):
-        for node in data['nodes']:
-            node_data = data['nodes'][node]
-
-            def process_metric(metric, xtype, path, xform=None):
-                # closure over node_data
-                self._process_metric(node_data, metric, path, xform, tags=tags)
-
+    def _process_stats_data(self, config_url, data, auth, tags=None, is_external=False):
+        for node_name in data['nodes']:
+            node_data = data['nodes'][node_name]
             # On newer version of ES it's "host" not "hostname"
             node_hostname = node_data.get('hostname', node_data.get('host', None))
+            should_process = is_external or self.should_process_node(config_url,
+                                                node_name, node_hostname, auth)
+            if should_process:
+                for metric in self.METRICS:
+                    desc = self.METRICS[metric]
+                    self._process_metric(node_data, metric, *desc, tags=tags)
 
-            if node_hostname is not None:
-                # For ES >= 0.19
-                hostnames = (
-                    self.hostname.decode('utf-8'),
-                    socket.gethostname().decode('utf-8'),
-                    socket.getfqdn().decode('utf-8')
-                )
-                if node_hostname.decode('utf-8') in hostnames:
-                    for metric in self.METRICS:
-                        # metric description
-                        desc = self.METRICS[metric]
-                        process_metric(metric, *desc)
-            else:
-                # ES < 0.19
-                # Fetch interface address from ifconfig or ip addr and check
-                # against the primary IP from ES
-                try:
-                    nodes_url = urlparse.urljoin(config_url, self.NODES_URL)
-                    primary_addr = self._get_primary_addr(nodes_url, node, auth)
-                except NodeNotFound:
-                    # Skip any nodes that aren't found
-                    continue
-                if self._host_matches_node(primary_addr):
-                    for metric in self.METRICS:
-                        # metric description
-                        desc = self.METRICS[metric]
-                        process_metric(metric, *desc)
+    def should_process_node(self, config_url, node_name, node_hostname, auth):
+        """ The node stats API will return stats for every node so we
+            want to filter out nodes that we don't care about.
+        """
+        if node_hostname is not None:
+            # For ES >= 0.19
+            hostnames = (
+                self.hostname.decode('utf-8'),
+                socket.gethostname().decode('utf-8'),
+                socket.getfqdn().decode('utf-8')
+            )
+            if node_hostname.decode('utf-8') in hostnames:
+                return True
+        else:
+            # ES < 0.19
+            # Fetch interface address from ifconfig or ip addr and check
+            # against the primary IP from ES
+            try:
+                nodes_url = urlparse.urljoin(config_url, self.NODES_URL)
+                primary_addr = self._get_primary_addr(nodes_url, node_name, auth)
+            except NodeNotFound:
+                # Skip any nodes that aren't found
+                return False
+            if self._host_matches_node(primary_addr):
+                return True
 
     def _get_primary_addr(self, url, node_name, auth):
         """ Returns a list of primary interface addresses as seen by ES.
@@ -309,7 +308,7 @@ class ElasticSearch(AgentCheck):
         # Check the interface addresses against the primary address
         return primary_addrs in ips
 
-    def _process_metric(self, data, metric, path, xform=None, tags=None):
+    def _process_metric(self, data, metric, xtype, path, xform=None, tags=None):
         """data: dictionary containing all the stats
         metric: datadog metric
         path: corresponding path in data, flattened, e.g. thread_pool.bulk.queue
@@ -326,7 +325,7 @@ class ElasticSearch(AgentCheck):
 
         if value is not None:
             if xform: value = xform(value)
-            if self.METRICS[metric][0] == "gauge":
+            if xtype == "gauge":
                 self.gauge(metric, value, tags=tags)
             else:
                 self.rate(metric, value, tags=tags)
@@ -345,15 +344,10 @@ class ElasticSearch(AgentCheck):
             event = self._create_event(data['status'])
             self.event(event)
 
-
-        def process_metric(metric, xtype, path, xform=None):
-            # closure over data
-            self._process_metric(data, metric, path, xform, tags=tags)
-
         for metric in self.METRICS:
             # metric description
             desc = self.METRICS[metric]
-            process_metric(metric, *desc)
+            self._process_metric(data, metric, *desc, tags=tags)
 
 
     def _metric_not_found(self, metric, path):
