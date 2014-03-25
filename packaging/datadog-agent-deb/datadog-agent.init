@@ -1,16 +1,5 @@
 #!/bin/sh
 
-### BEGIN INIT INFO
-# Provides: dd-agent
-# Short-Description: Start and start dd-agent
-# Description: dd-agent is the monitoring Agent component for Datadog
-# Required-Start: $remote_fs
-# Required-Stop: $remote_fs
-# Default-Start: 2 3 4 5
-# Default-Stop: 0 1 6
-### END INIT INFO
-
-. /lib/lsb/init-functions
 PATH=$PATH:/sbin # add the location of start-stop-daemon on Debian
 
 AGENTPATH="/usr/bin/dd-agent"
@@ -26,9 +15,9 @@ SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
 SUPERVISORD=$(which supervisord)
 
-# This script is considered a configuration file and will not be
-# removed by dpkg unless the --purge option it set. Therefore we
-# make sure that the Agent is actually installed before we try to do anything:
+. /lib/lsb/init-functions
+
+
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
     exit 0
