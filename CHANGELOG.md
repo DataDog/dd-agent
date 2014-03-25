@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 4.2.0 - Unreleased
+# 4.2.0 - 03-25-2013
 
 ### Integrations affected
 * Couchbase
