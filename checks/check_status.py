@@ -20,7 +20,7 @@ from collections import defaultdict
 from util import get_os, yaml, yLoader
 
 # 3rd party
-from checks.libs import ntplib
+import ntplib
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
