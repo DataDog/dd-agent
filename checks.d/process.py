@@ -50,7 +50,12 @@ class ProcessCheck(AgentCheck):
                 else:
                     if not found:
                         try:
-                            if string in ' '.join(proc.cmdline):
+                            try:
+                                cmdline = proc.cmdline() # psutil >= 2.0
+                            except TypeError:
+                                cmdline = proc.cmdline  # psutil < 2.0
+
+                            if string in ' '.join(cmdline):
                                 found = True
                         except psutil.NoSuchProcess:
                             self.warning('Process disappeared while scanning')
