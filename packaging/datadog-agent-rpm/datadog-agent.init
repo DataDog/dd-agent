@@ -27,10 +27,11 @@ AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
-USE_SUPERVISOR="/usr/bin/dd-forwarder"
+FORWARDERPATH="/usr/bin/dd-forwarder"
 SUPERVISORD_PATH="PATH=$PATH:/opt/datadog-agent/embedded/bin /opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
+SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -44,7 +45,7 @@ check_status() {
     # run checks to determine if the service is running or use generic status
 
     # if the sock exists, we can use supervisorctl
-    if [ -e /var/tmp/datadog-supervisor.sock ]; then
+    if [ -e $SUPERVISOR_SOCK ]; then
 
         s=`$SUPERVISORCTL_PATH -c $SUPERVISOR_CONF status`
 
@@ -145,7 +146,7 @@ info() {
     COLLECTOR_RETURN=$?
     su $AGENTUSER -c "$DOGSTATSDPATH info"
     DOGSTATSD_RETURN=$?
-    su $AGENTUSER -c "$USE_SUPERVISOR info"
+    su $AGENTUSER -c "$FORWARDERPATH info"
     FORWARDER_RETURN=$?
     exit $(($FORWARDER_RETURN+$COLLECTOR_RETURN+DOGSTATSD_RETURN))
 }

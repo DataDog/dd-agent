@@ -9,11 +9,11 @@ AGENTUSER="dd-agent"
 FORWARDERPATH="/usr/bin/dd-forwarder"
 NAME="datadog-agent"
 DESC="Datadog Agent"
-DDAGENT_PID_PATH="/var/run/dd-agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
 SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
-SUPERVISORD=$(which supervisord)
+SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
+SUPERVISORD_PATH="PATH=$PATH:/opt/datadog-agent/embedded/bin /opt/datadog-agent/bin/supervisord"
 
 . /lib/lsb/init-functions
 
@@ -31,7 +31,7 @@ check_status() {
         # same as the number of programs specified in the supervisor config
         # file:
 
-        supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
+        supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
                                        grep -v pup |
                                        grep $NAME |
@@ -75,7 +75,7 @@ case "$1" in
 
        
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
-        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
         if [ $? -ne 0 ]; then
             log_end_msg 1
         fi
