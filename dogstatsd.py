@@ -19,6 +19,7 @@ import select
 import signal
 import socket
 import sys
+import zlib
 from time import time
 import threading
 from urllib import urlencode
@@ -43,7 +44,7 @@ FLUSH_LOGGING_COUNT = 5
 EVENT_CHUNK_SIZE = 50
 
 def serialize_metrics(metrics):
-    return json.dumps({"series" : metrics})
+    return zlib.compress(json.dumps({"series" : metrics}))
 
 def serialize_event(event):
     return json.dumps(event)
@@ -147,7 +148,8 @@ class Reporter(threading.Thread):
         # Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
         body = serialize_metrics(metrics)
-        headers = {'Content-Type':'application/json'}
+        headers = {'Content-Type': 'application/json',
+                   'Content-Encoding': 'deflate'}
         method = 'POST'
 
         params = {}
