@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 4.2.0 - Unreleased
+# 4.2.0 / 03-25-2013
 
 ### Integrations affected
 * Couchbase
@@ -43,7 +43,7 @@ Changes
 
 
 
-# 4.1.0 - 2014-02-04
+# 4.1.0 / 2014-02-04
 
 ### Integrations affected
 * PostgreSQL
