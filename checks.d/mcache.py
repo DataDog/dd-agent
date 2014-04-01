@@ -98,7 +98,7 @@ class Memcache(AgentCheck):
         mc = None  # client
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
-            mc = memcache.Client(["%s:%d" % (server, port)])
+            mc = memcache.Client(["%s:%s" % (server, port)])
             raw_stats = mc.get_stats()
 
             assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
@@ -154,9 +154,10 @@ class Memcache(AgentCheck):
         del mc
 
     def check(self, instance):
+        socket = instance.get('socket', None)
         server = instance.get('url', None)
-        if not server:
-            raise Exception("Missing or null 'url' in mcache config")
+        if not server and not socket:
+            raise Exception("Missing or null 'url' and 'socket' in mcache config")
 
         try:
             import memcache
@@ -170,7 +171,11 @@ class Memcache(AgentCheck):
         except Exception:
             pass
 
-        port = int(instance.get('port', self.DEFAULT_PORT))
+        if socket:
+            server = 'unix'
+            port = socket
+        else:
+            port = int(instance.get('port', self.DEFAULT_PORT))
         tags = instance.get('tags', None)
 
         self._get_metrics(server, port, tags, memcache)
@@ -180,12 +185,14 @@ class Memcache(AgentCheck):
         all_instances = []
 
         # Load the conf according to the old schema
+        memcache_socket = agentConfig.get("memcache_socket", None)
         memcache_url = agentConfig.get("memcache_server", None)
         memcache_port = agentConfig.get("memcache_port", Memcache.DEFAULT_PORT)
-        if memcache_url is not None:
+        if memcache_url is not None or memcache_socket is not None:
             instance = {
                 'url': memcache_url,
                 'port': memcache_port,
+                'socket': memcache_socket,
                 'tags': ["instance:%s_%s" % (memcache_url, memcache_port)]
             }
             all_instances.append(instance)
