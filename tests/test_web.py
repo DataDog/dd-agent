@@ -1,8 +1,9 @@
 import unittest
 import logging
+import os
 logger = logging.getLogger(__file__)
 
-from tests.common import get_check
+from tests.common import get_check, read_test_data
 
 class TestWeb(unittest.TestCase):
 
@@ -75,6 +76,14 @@ instances:
         nginx.check(instances[1])
         r = nginx.get_metrics()
         self.assertEquals(r[0][3].get('tags'), ['first_one'])
+
+    def testNginxPlus(self):
+        test_data = read_test_data('nginx_plus_in.json')
+        expected = eval(read_test_data('nginx_plus_out.python'))
+        nginx, instances = get_check('nginx', self.nginx_config)
+        parsed = nginx.parse_json(test_data)
+        parsed.sort()
+        self.assertEquals(parsed, expected)
 
     def testNginxOldConfig(self):
         nginx, _ = get_check('nginx', self.nginx_config)
