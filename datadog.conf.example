@@ -4,7 +4,7 @@
 dd_url: https://app.datadoghq.com
 
 # The loopback address the Agent will bind
-bind_host: localhost
+# bind_host: localhost
 
 # If you need a proxy to connect to the Internet, provide the settings here
 # proxy_host: my-proxy.com
