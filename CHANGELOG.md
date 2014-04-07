@@ -4,7 +4,7 @@ Changes
 Changes
 =======
 
-# 4.2.1 / 03-25-2013
+# 4.2.1 / Unreleased
 
 ### Integrations affected
 * ElasticSearch
