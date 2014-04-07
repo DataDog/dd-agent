@@ -947,6 +947,12 @@ If you use ganglia, you want this version.
 [#848]: https://github.com/DataDog/dd-agent/issues/848
 [#849]: https://github.com/DataDog/dd-agent/issues/849
 [#852]: https://github.com/DataDog/dd-agent/issues/852
+[#863]: https://github.com/DataDog/dd-agent/issues/863
+[#875]: https://github.com/DataDog/dd-agent/issues/875
+[#876]: https://github.com/DataDog/dd-agent/issues/876
+[#883]: https://github.com/DataDog/dd-agent/issues/883
+[#893]: https://github.com/DataDog/dd-agent/issues/893
+[#894]: https://github.com/DataDog/dd-agent/issues/894
 [@CaptTofu]: https://github.com/CaptTofu
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
