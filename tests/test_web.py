@@ -3,7 +3,7 @@ import logging
 import os
 logger = logging.getLogger(__file__)
 
-from tests.common import get_check, read_test_data
+from tests.common import get_check, read_data_from_file
 
 class TestWeb(unittest.TestCase):
 
@@ -78,8 +78,8 @@ instances:
         self.assertEquals(r[0][3].get('tags'), ['first_one'])
 
     def testNginxPlus(self):
-        test_data = read_test_data('nginx_plus_in.json')
-        expected = eval(read_test_data('nginx_plus_out.python'))
+        test_data = read_data_from_file('nginx_plus_in.json')
+        expected = eval(read_data_from_file('nginx_plus_out.python'))
         nginx, instances = get_check('nginx', self.nginx_config)
         parsed = nginx.parse_json(test_data)
         parsed.sort()
