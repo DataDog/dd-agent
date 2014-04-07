@@ -50,6 +50,10 @@ use_mount: no
 # https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration
 # non_local_traffic: no
 
+# Select the Tornado HTTP Client in the forwarder
+# Default to the simple http client
+# use_curl_http_client: False
+
 # ========================================================================== #
 # Pup configuration
 # ========================================================================== #

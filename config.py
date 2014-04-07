@@ -381,6 +381,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
+        if config.has_option("Main", "use_curl_http_client"):
+            agentConfig["use_curl_http_client"] = _is_affirmative(config.get("Main", "use_curl_http_client"))
+        else:
+            # Default to False as there are some issues with the curl client and ELB
+            agentConfig["use_curl_http_client"] = False
+
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}
             for key, value in config.items('WMI'):
