@@ -1,6 +1,26 @@
 Changes
 =======
 
+Changes
+=======
+
+# 4.2.1 / 03-25-2013
+
+### Integrations affected
+* ElasticSearch
+* Nginx
+* Process
+
+#### Changes
+* [BUGFIX] Fix bug in Dogstatsd in the bucketing change: See [#894]
+* [BUGFIX] Revert to the Simple HTTP Client by default in the forwarder as it's causing 599 in some cases. It's now configurable in datadog.conf
+* [FEATURE] Support for OpenShift cartridges: See [#875]
+* [PERFORMANCE] Compress Dogstatsd payloads: See [#893]
+* [BUGFIX] Fix process check compatibility with psutil 2.0: See [#863]
+* [FEATURE] Support additional NGINX Plus metrics: See [#876]
+* [PERFORMANCE] Better handling of external clusters in Elasticsearch check: See [#883]
+
+
 # 4.2.0 / 03-25-2013
 
 ### Integrations affected
