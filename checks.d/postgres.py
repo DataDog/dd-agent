@@ -237,7 +237,7 @@ SELECT relname,
         port = instance.get('port', '')
         user = instance.get('username', '')
         password = instance.get('password', '')
-        tags = instance.get('tags', [])
+        tags = list(instance.get('tags', []))
         dbname = instance.get('dbname', 'postgres')
         relations = instance.get('relations', [])
 
