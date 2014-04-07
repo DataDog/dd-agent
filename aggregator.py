@@ -468,7 +468,7 @@ class MetricsBucketAggregator(Aggregator):
         self.metric_by_bucket = {}
         self.last_sample_time_by_context = {}
         self.current_bucket = None
-        self.current_mbc = None
+        self.current_mbc = {}
         self.last_flush_cutoff_time = 0
         self.metric_type_to_class = {
             'g': BucketGauge,
@@ -577,7 +577,7 @@ class MetricsBucketAggregator(Aggregator):
         self.total_count += self.count
         self.count = 0
         self.current_bucket = None
-        self.current_mbc = None
+        self.current_mbc = {}
         self.last_flush_cutoff_time = flush_cutoff_time
         return metrics
 
