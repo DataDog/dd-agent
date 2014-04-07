@@ -217,7 +217,6 @@ class MetricTransaction(Transaction):
                 tornado_client_params['ca_certs'] = ssl_certificate
 
             req = tornado.httpclient.HTTPRequest(**tornado_client_params)
-            
             use_curl = force_use_curl or self._application.agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
             if use_curl:
                 log.debug("Using CurlAsyncHTTPClient")
@@ -225,7 +224,7 @@ class MetricTransaction(Transaction):
             else:
                 log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
-            
+
 
             # The success of this metric transaction should only depend on
             # whether or not it's successfully sent to datadoghq. If it fails
@@ -397,7 +396,7 @@ class Application(tornado.web.Application):
             else:
                 # localhost in lieu of 127.0.0.1 to support IPv6
                 try:
-                    http_server.listen(self._port, address = "localhost")
+                    http_server.listen(self._port, address = self._agentConfig['bind_host'])
                 except gaierror:
                     log.warning("localhost seems undefined in your host file, using 127.0.0.1 instead")
                     http_server.listen(self._port, address = "127.0.0.1")

@@ -205,6 +205,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
+        'bind_host': 'localhost'
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
@@ -240,7 +241,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
             agentConfig['use_forwarder'] = True
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
