@@ -69,6 +69,7 @@ case $action in
     start)
         if supervisor_running; then
             echo "Supervisor is already running"
+            execute_if_supervisor_running start all
             exit 0
         else
             echo "Starting supervisor"
