@@ -102,7 +102,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         json = util.generate_minjson_adapter()
         dogstatsd.json = json
         serialized = dogstatsd.serialize_metrics([api_formatter("foo", 12, 1, ('tag',), 'host')])
-        assert '"tags": ["tag"]' in serialized
+        assert '"tags": ["tag"]' in serialized[0]
 
     def test_counter(self):
         stats = MetricsAggregator('myhost')
