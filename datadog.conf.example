@@ -3,9 +3,6 @@
 # The host of the Datadog intake server to send Agent data to
 dd_url: https://app.datadoghq.com
 
-# The loopback address the Agent will bind
-# bind_host: localhost
-
 # If you need a proxy to connect to the Internet, provide the settings here
 # proxy_host: my-proxy.com
 # proxy_port: 3128
@@ -56,6 +53,10 @@ use_mount: no
 # Select the Tornado HTTP Client in the forwarder
 # Default to the simple http client
 # use_curl_http_client: False
+
+# The loopback address the Forwarder and Dogstatsd will bind.
+# Optional, it is mainly used when running the agent on Openshift
+# bind_host: localhost
 
 # ========================================================================== #
 # Pup configuration
