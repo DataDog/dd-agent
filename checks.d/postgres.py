@@ -237,7 +237,7 @@ SELECT relname,
         port = instance.get('port', '')
         user = instance.get('username', '')
         password = instance.get('password', '')
-        tags = list(instance.get('tags', []))
+        tags = instance.get('tags', [])
         dbname = instance.get('dbname', 'postgres')
         relations = instance.get('relations', [])
 
@@ -248,7 +248,9 @@ SELECT relname,
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
-        
+        else:
+            tags = list(set(tags))
+
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
