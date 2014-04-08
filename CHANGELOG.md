@@ -10,6 +10,7 @@ Changes
 * ElasticSearch
 * Nginx
 * Process
+* Postgres
 
 #### Changes
 * [BUGFIX] Fix bug in Dogstatsd in the bucketing change: See [#894]
@@ -19,6 +20,7 @@ Changes
 * [BUGFIX] Fix process check compatibility with psutil 2.0: See [#863]
 * [FEATURE] Support additional NGINX Plus metrics: See [#876]
 * [PERFORMANCE] Better handling of external clusters in Elasticsearch check: See [#883]
+* [BUGFIX] Fix an issue that is causing a high number of tags for postgresql metrics when custom tags are enabled.
 
 
 # 4.2.0 / 03-25-2013
