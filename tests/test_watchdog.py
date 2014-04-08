@@ -54,7 +54,7 @@ class TestWatchdog(unittest.TestCase):
         p.wait()
         duration = int(time.time() - start)
         # should die as soon as flush_trs has been called
-        self.assertTrue(duration, self.JITTER_FACTOR * 10)
+        self.assertTrue(duration < self.JITTER_FACTOR * 10)
 
         # Slow tornado, killed by the Watchdog
         start = time.time()
