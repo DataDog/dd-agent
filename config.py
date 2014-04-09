@@ -324,7 +324,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Dogstatsd config
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
-            'dogstatsd_target': 'http://localhost:17123',
+            'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
             'dogstatsd_interval': dogstatsd_interval,
             'dogstatsd_agregator_bucket_size': dogstatsd_agregator_bucket_size,
             'dogstatsd_normalize': 'yes',
