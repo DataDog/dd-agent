@@ -1,10 +1,7 @@
 Changes
 =======
 
-Changes
-=======
-
-# 4.2.1 / Unreleased
+# 4.2.1 / 04-09-2014
 
 ### Integrations affected
 * ElasticSearch
@@ -23,7 +20,7 @@ Changes
 * [BUGFIX] Fix an issue that is causing a high number of tags for postgresql metrics when custom tags are enabled.
 
 
-# 4.2.0 / 03-25-2013
+# 4.2.0 / 03-25-2014
 
 ### Integrations affected
 * Couchbase
