@@ -1,7 +1,10 @@
 import urllib2
-from util import json, headers
+from util import headers
 
 from checks import AgentCheck
+
+# 3rd party
+from simplejson import json
 
 class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API

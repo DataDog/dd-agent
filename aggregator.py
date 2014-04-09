@@ -663,10 +663,6 @@ class MetricsAggregator(Aggregator):
 
 def api_formatter(metric, value, timestamp, tags, hostname, device_name=None,
         metric_type=None, interval=None):
-    # Workaround for a bug in minjson serialization
-    # (https://github.com/DataDog/dd-agent/issues/422)
-    if tags is not None and isinstance(tags, tuple) and len(tags) == 1:
-        tags = list(tags)
     return {
         'metric': metric,
         'points': [(timestamp, value)],
