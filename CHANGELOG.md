@@ -1,9 +1,6 @@
 Changes
 =======
 
-Changes
-=======
-
 # 4.2.1 / 04-09-2014
 
 ### Integrations affected
