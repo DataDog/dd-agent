@@ -6,7 +6,7 @@ from checks import AgentCheck
 from checks.utils import add_basic_auth
 
 # 3rd party
-from simplejson import json
+import simplejson as json
 
 #Constants
 COUCHBASE_STATS_PATH = '/pools/nodes'
