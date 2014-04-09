@@ -19,6 +19,9 @@ from util import LaconicFilter, get_os, get_hostname
 from config import get_confd_path
 from checks import check_status
 
+# 3rd party
+import yaml
+
 log = logging.getLogger(__name__)
 
 # Konstants
@@ -497,7 +500,6 @@ class AgentCheck(object):
         """
         A method used for testing your check without running the agent.
         """
-        from util import yaml, yLoader
         if path_to_yaml:
             check_name = os.path.basename(path_to_yaml).split('.')[0]
             try:
@@ -507,7 +509,7 @@ class AgentCheck(object):
             yaml_text = f.read()
             f.close()
 
-        config = yaml.load(yaml_text, Loader=yLoader)
+        config = yaml.load(yaml_text, Loader=yaml.CLoader)
         check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
         return check, config.get('instances', [])

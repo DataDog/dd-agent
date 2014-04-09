@@ -3,7 +3,7 @@ from checks import AgentCheck
 from fnmatch import fnmatch
 import os
 import time
-from util import namedtuple
+from collections import namedtuple
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',

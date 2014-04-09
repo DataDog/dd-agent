@@ -17,10 +17,13 @@ from optparse import OptionParser, Values
 from cStringIO import StringIO
 
 # project
-from util import get_os, yaml, yLoader, Platform
+
+from util import get_os, Platform
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
+# 3rd party
+import yaml
 # CONSTANTS
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
@@ -620,7 +623,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yLoader)
+        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 

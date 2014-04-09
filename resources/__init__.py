@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 import time
 
-from util import namedtuple
+from collections import namedtuple
 
 
 class agg(object):

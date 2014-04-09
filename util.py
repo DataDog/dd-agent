@@ -11,15 +11,11 @@ import urllib2
 import uuid
 import tempfile
 import re
-from collections import namedtuple
-import yaml
-from yaml import CLoader as yLoader
 import simplejson as json
 import logging
 
-
 # Tornado
-from tornado import ioloop, version_info as tornado_version
+from tornado import ioloop
 from hashlib import md5
 
 
@@ -36,10 +32,7 @@ def plural(count):
     return "s"
 
 def get_tornado_ioloop():
-    if tornado_version[0] == 3:
         return ioloop.IOLoop.current()
-    else:
-        return ioloop.IOLoop.instance()
 
 def get_uuid():
     # Generate a unique name that will stay constant between
