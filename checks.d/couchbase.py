@@ -63,6 +63,8 @@ class Couchbase(AgentCheck):
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
+        else:
+            tags = list(set(tags))
         tags.append('instance:%s' % server)
         instance['is_recent_python'] = sys.version_info >= (2,6,0)
         data = self.get_data(server, instance)
