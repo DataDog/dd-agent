@@ -11,3 +11,5 @@ pylint
 boto
 PyMySQL
 pg8000
+ntplib
+
