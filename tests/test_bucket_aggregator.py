@@ -116,7 +116,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         json = util.generate_minjson_adapter()
         dogstatsd.json = json
         serialized = dogstatsd.serialize_metrics([api_formatter("foo", 12, 1, ('tag',), 'host')])
-        assert '"tags": ["tag"]' in serialized
+        self.assertTrue('"tags": ["tag"]' in serialized[0], serialized)
 
     def test_counter(self):
         ag_interval = 1.0

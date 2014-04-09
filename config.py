@@ -205,6 +205,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
+        'bind_host': 'localhost'
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
@@ -240,7 +241,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
             agentConfig['use_forwarder'] = True
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
@@ -323,7 +324,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Dogstatsd config
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
-            'dogstatsd_target': 'http://localhost:17123',
+            'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
             'dogstatsd_interval': dogstatsd_interval,
             'dogstatsd_agregator_bucket_size': dogstatsd_agregator_bucket_size,
             'dogstatsd_normalize': 'yes',
@@ -380,6 +381,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
+
+        if config.has_option("Main", "use_curl_http_client"):
+            agentConfig["use_curl_http_client"] = _is_affirmative(config.get("Main", "use_curl_http_client"))
+        else:
+            # Default to False as there are some issues with the curl client and ELB
+            agentConfig["use_curl_http_client"] = False
 
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}

@@ -82,6 +82,10 @@ class Varnish(AgentCheck):
         if instance.get("varnishstat", None) is None:
             raise Exception("varnishstat is not configured")
         tags = instance.get('tags', [])
+        if tags is None:
+            tags = []
+        else:
+            tags = list(set(tags))
         name = instance.get('name')
 
         # Get the varnish version from varnishstat

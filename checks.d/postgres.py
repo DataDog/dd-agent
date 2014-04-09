@@ -233,7 +233,9 @@ SELECT relname,
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
-        
+        else:
+            tags = list(set(tags))
+
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 

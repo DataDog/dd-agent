@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="4.2.0"
+tag="4.2.1"
 
 #######################
 # Define some helpers #
@@ -150,6 +150,12 @@ else
     start_agent=1
 fi
 
+if [ -n "$IS_OPENSHIFT" ]; then
+    is_openshift=$IS_OPENSHIFT
+else
+    is_openshift=0
+fi
+
 
 # Checking sysstat is installed
 if [ "$unamestr" != "Darwin" ]; then
@@ -216,7 +222,13 @@ printf "Operating System: $unamestr\n" >> $logfile
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
 $dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.X/virtualenv.py >> $logfile 2>&1
-python $dd_base/virtualenv.py --no-pip --no-setuptools $dd_base/venv >> $logfile 2>&1
+
+if [ "$is_openshift" = "1" ]; then
+    python $dd_base/virtualenv.py --no-pip --no-setuptools --system-site-packages $dd_base/venv >> $logfile 2>&1
+else
+    python $dd_base/virtualenv.py --no-pip --no-setuptools $dd_base/venv >> $logfile 2>&1
+fi
+
 . $dd_base/venv/bin/activate >> $logfile 2>&1
 print_done
 

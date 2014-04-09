@@ -12,6 +12,7 @@ import types
 import os
 import sys
 import traceback
+import copy
 from pprint import pprint
 
 from util import LaconicFilter, get_os, get_hostname
@@ -458,7 +459,7 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                self.check(instance)
+                self.check(copy.deepcopy(instance))
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,

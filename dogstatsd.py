@@ -19,6 +19,7 @@ import select
 import signal
 import socket
 import sys
+import zlib
 from time import time
 import threading
 from urllib import urlencode
@@ -41,9 +42,17 @@ FLUSH_LOGGING_PERIOD = 70
 FLUSH_LOGGING_INITIAL = 10
 FLUSH_LOGGING_COUNT = 5
 EVENT_CHUNK_SIZE = 50
+COMPRESS_THRESHOLD = 1024
 
 def serialize_metrics(metrics):
-    return json.dumps({"series" : metrics})
+    serialized = json.dumps({"series" : metrics})
+    if len(serialized) > COMPRESS_THRESHOLD:
+        headers = {'Content-Type': 'application/json',
+                   'Content-Encoding': 'deflate'}
+        serialized = zlib.compress(serialized)
+    else:
+        headers = {'Content-Type': 'application/json'}
+    return serialized, headers
 
 def serialize_event(event):
     return json.dumps(event)
@@ -146,8 +155,7 @@ class Reporter(threading.Thread):
     def submit(self, metrics):
         # Copy and pasted from dogapi, because it's a bit of a pain to distribute python
         # dependencies with the agent.
-        body = serialize_metrics(metrics)
-        headers = {'Content-Type':'application/json'}
+        body, headers = serialize_metrics(metrics)
         method = 'POST'
 
         params = {}
@@ -367,7 +375,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     # Start the server on an IPv4 stack
     # Default to loopback
-    server_host = 'localhost'
+    server_host = c['bind_host']
     # If specified, bind to all addressses
     if non_local_traffic:
         server_host = ''
