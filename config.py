@@ -25,6 +25,8 @@ from migration import migrate_old_style_configuration
 # 3rd party
 import yaml
 # CONSTANTS
+
+AGENT_VERSION = "5.0.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 DEFAULT_STATSD_FREQUENCY = 2  # seconds
@@ -66,7 +68,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "5.0.0"
+    return AGENT_VERSION
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
