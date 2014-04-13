@@ -7,6 +7,7 @@ PATH=$BASEDIR/../venv/bin:$PATH
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
 SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
 SOCK_FILE='supervisord/agent-supervisor.sock'
+PID_FILE='supervisord/supervisord.pid'
 action=$1
 
 if [ ! -n "$action" ]; then
@@ -16,8 +17,15 @@ fi
 supervisor_running() {
     # Returns true if the supervisor is running, and false if not.
     # We check if the supervisor is running by checking if
-    # SOCK_FILE exists.
-    [ -e $SOCK_FILE ]
+    # SOCK_FILE exists, and if there is a PID file we also verify
+    # if the PID is in use.
+    if [ -e $SOCK_FILE -a -f $PID_FILE ]; then
+        pid=$(cat $PID_FILE)
+        if kill -0 $pid > /dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
 }
 
 execute_if_supervisor_running() {
