@@ -185,14 +185,12 @@ class Memcache(AgentCheck):
         all_instances = []
 
         # Load the conf according to the old schema
-        memcache_socket = agentConfig.get("memcache_socket", None)
         memcache_url = agentConfig.get("memcache_server", None)
         memcache_port = agentConfig.get("memcache_port", Memcache.DEFAULT_PORT)
-        if memcache_url is not None or memcache_socket is not None:
+        if memcache_url is not None:
             instance = {
                 'url': memcache_url,
                 'port': memcache_port,
-                'socket': memcache_socket,
                 'tags': ["instance:%s_%s" % (memcache_url, memcache_port)]
             }
             all_instances.append(instance)
