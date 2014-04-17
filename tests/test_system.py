@@ -58,8 +58,7 @@ none                   3943856         0   3943856   0% /var/lock
 none                   3943856         0   3943856   0% /lib/init/rw
 /dev/sdb             433455904    305360 411132240   1% /mnt
 /dev/sdf              52403200  40909112  11494088  79% /data
-nfs:/abc/def/ghi/jkl/mno/pqr
-                      52403200  40909112  11494088  79% /data2
+nfs:/abc/def/ghi/jkl/mno/pqr 52403200  40909112  11494088  79% /data2
 /dev/sdg              52403200  40909112  11494088  79% /data3
 tmpfs           14039440       256  14039184   1% /run
 /dev/xvdf1     209612800 144149992  65462808  69% /var/lib/postgresql/9.1/main

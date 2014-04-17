@@ -33,7 +33,7 @@ class Disk(Check):
         platform_name = sys.platform
 
         try:
-            dfk_out = _get_subprocess_output(['df', '-k'])
+            dfk_out = _get_subprocess_output(['df', '-kP'])
             disks = self.parse_df_output(
                 dfk_out,
                 platform_name,
@@ -42,7 +42,7 @@ class Disk(Check):
             )
 
             # Collect inode metrics.
-            dfi_out = _get_subprocess_output(['df', '-i'])
+            dfi_out = _get_subprocess_output(['df', '-iP'])
             inodes = self.parse_df_output(
                 dfi_out,
                 platform_name,
@@ -133,20 +133,6 @@ class Disk(Check):
             return False
         return True
 
-    def _flatten_devices(self, devices):
-        # Some volumes are stored on their own line. Rejoin them here.
-        previous = None
-        for parts in devices:
-            if len(parts) == 1:
-                previous = parts[0]
-            elif previous and self._is_number(parts[0]):
-                # collate with previous line
-                parts.insert(0, previous)
-                previous = None
-            else:
-                previous = None
-        return devices
-
     def _transform_df_output(self, df_output, blacklist_re):
         """
         Given raw output for the df command, transform it into a normalized
@@ -158,9 +144,6 @@ class Disk(Check):
         # Skip the header row and empty lines.
         raw_devices = [l for l in all_devices[1:] if l]
 
-        # Flatten the disks that appear in the mulitple lines.
-        flattened_devices = self._flatten_devices(raw_devices)
-
         # Filter fake disks.
         def keep_device(device):
             if not self._is_real_device(device):
@@ -168,8 +151,8 @@ class Disk(Check):
             if blacklist_re and blacklist_re.match(device[0]):
                 return False
             return True
-                   
-        devices = filter(keep_device, flattened_devices)
+
+        devices = filter(keep_device, raw_devices)
 
         return devices
 
