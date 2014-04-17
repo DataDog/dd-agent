@@ -346,7 +346,7 @@ class CollectorStatus(AgentStatus):
             ntp_offset, ntp_styles = get_ntp_info()
             lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
         except Exception, e:
-            lines.append('  NTP offset: Unkwown (%s)' % str(e))
+            lines.append('  NTP offset: Unknown (%s)' % str(e))
         lines.append('  System UTC time: ' + datetime.datetime.utcnow().__str__())
         lines.append('')
 
