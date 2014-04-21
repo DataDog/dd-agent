@@ -10,7 +10,7 @@ class ProcessCheck(AgentCheck):
         'system.processes.mem.rss',
         'system.processes.mem.vms',
         'system.processes.mem.real',
-        'system.processes.open_file_decorators',
+        'system.processes.open_file_descriptors',
         'system.processes.ioread_count',
         'system.processes.iowrite_count',
         'system.processes.ioread_bytes',
