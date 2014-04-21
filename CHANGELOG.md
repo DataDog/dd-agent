@@ -5,7 +5,7 @@ Changes
 ### Integrations affected
 
 ### Changes
-
+* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
 
 # 4.2.1 / 04-09-2014
 
