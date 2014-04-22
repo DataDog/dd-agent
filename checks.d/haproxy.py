@@ -177,9 +177,10 @@ class HAProxy(AgentCheck):
             """
             hostname = data['svname']
             service_name = data['pxname']
-            tags = ["type:%s" % service_name, "instance_url:%s" % url]
-            tags.append("service:%s" % service_name)
-            tags.append("host:%s" % hostname)
+            tags = [
+                "type:%s" % service_name, "instance_url:%s" % url,
+                "host:%s" % hostname, "service:%s" % service_name
+            ]
 
             for key, value in data.items():
                 if HAProxy.METRICS.get(key):
