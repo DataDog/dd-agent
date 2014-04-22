@@ -262,6 +262,7 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
+    OK, WARNING, CRITICAL, UNKNOWN, NONE = (0, 1, 2, 3, 4)
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
@@ -284,6 +285,7 @@ class AgentCheck(object):
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter, recent_point_threshold=agentConfig.get('recent_point_threshold', None))
 
         self.events = []
+        self.service_checks = []
         self.instances = instances or []
         self.warnings = []
         self.library_versions = None
@@ -392,6 +394,23 @@ class AgentCheck(object):
             event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
+    def service_check(self, service_name, status, tags=None, timestamp=None):
+        """
+        Save a service check.
+
+        :param service_name: string, name of the service
+        :param status: int, describing the status. 0 for success, 1 for
+                       warning, 2 for failure
+        :param tags: list of strings, a list of tags for this run
+        :param timestamp: int, unix timestamp for when the run occurred
+        """
+        self.service_checks.append({
+            'service_name': service_name,
+            'status': status,
+            'tags': tags,
+            'timestamp': int(timestamp or time.time())
+        })
+
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -420,6 +439,18 @@ class AgentCheck(object):
         events = self.events
         self.events = []
         return events
+
+    def get_service_checks(self):
+        """
+        Return a list of the service checks saved by the check, if any
+        and clears them out of the instance's service_checks list
+
+        @return the list of service checks saved by this check
+        @rtype list of service check dicts
+        """
+        service_checks = self.service_checks
+        self.service_checks = []
+        return service_checks
 
     def has_warnings(self):
         """
