@@ -43,7 +43,7 @@ class Collector(object):
         # agent config is used during checks, system_stats can be accessed through the config
         self.os = get_os()
         self.plugins = None
-        self.emitters = emitters            
+        self.emitters = emitters
         self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
         self.metadata_start = time.time()
         socket.setdefaulttimeout(15)
@@ -107,7 +107,7 @@ class Collector(object):
         """
         Tell the collector to stop at the next logical point.
         """
-        # This is called when the process is being killed, so 
+        # This is called when the process is being killed, so
         # try to stop the collector as soon as possible.
         # Most importantly, don't try to submit to the emitters
         # because the forwarder is quite possibly already killed
@@ -116,7 +116,7 @@ class Collector(object):
         self.continue_running = False
         for check in self.initialized_checks_d:
             check.stop()
-    
+
     def run(self, checksd=None, start_event=True):
         """
         Collect data from each check and submit their data.
@@ -130,6 +130,7 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
+        service_checks = payload['service_checks']
         if checksd:
             self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
@@ -156,21 +157,21 @@ class Collector(object):
 
             load = sys_checks['load'].check(self.agentConfig)
             payload.update(load)
-                
+
             memory = sys_checks['memory'].check(self.agentConfig)
 
             if memory:
                 payload.update({
-                    'memPhysUsed' : memory.get('physUsed'), 
-                    'memPhysPctUsable' : memory.get('physPctUsable'), 
-                    'memPhysFree' : memory.get('physFree'), 
-                    'memPhysTotal' : memory.get('physTotal'), 
-                    'memPhysUsable' : memory.get('physUsable'), 
-                    'memSwapUsed' : memory.get('swapUsed'), 
-                    'memSwapFree' : memory.get('swapFree'), 
-                    'memSwapPctFree' : memory.get('swapPctFree'), 
-                    'memSwapTotal' : memory.get('swapTotal'), 
-                    'memCached' : memory.get('physCached'), 
+                    'memPhysUsed' : memory.get('physUsed'),
+                    'memPhysPctUsable' : memory.get('physPctUsable'),
+                    'memPhysFree' : memory.get('physFree'),
+                    'memPhysTotal' : memory.get('physTotal'),
+                    'memPhysUsable' : memory.get('physUsable'),
+                    'memSwapUsed' : memory.get('swapUsed'),
+                    'memSwapFree' : memory.get('swapFree'),
+                    'memSwapPctFree' : memory.get('swapPctFree'),
+                    'memSwapTotal' : memory.get('swapTotal'),
+                    'memCached' : memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
                 })
@@ -194,7 +195,7 @@ class Collector(object):
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
-           
+
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
@@ -211,7 +212,7 @@ class Collector(object):
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
 
-        # Process the event checks. 
+        # Process the event checks.
         for event_check in self._event_checks:
             event_data = event_check.check(log, self.agentConfig)
             if event_data:
@@ -226,12 +227,12 @@ class Collector(object):
                 if snaps:
                     has_resource = True
                     res_value = { 'snaps': snaps,
-                                  'format_version': resources_check.get_format_version() }                              
+                                  'format_version': resources_check.get_format_version() }
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format
                     payload['resources'][resources_check.RESOURCE_KEY] = res_value
-     
+
             if has_resource:
                 payload['resources']['meta'] = {
                             'api_key': self.agentConfig['api_key'],
@@ -250,7 +251,7 @@ class Collector(object):
             if not self.continue_running:
                 return
             log.info("Running check %s" % check.name)
-            instance_statuses = [] 
+            instance_statuses = []
             metric_count = 0
             event_count = 0
             try:
@@ -260,6 +261,7 @@ class Collector(object):
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
+                current_check_service_checks = check.get_service_checks()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -268,20 +270,24 @@ class Collector(object):
                         events[check.name] = current_check_events
                     else:
                         events[check.name] += current_check_events
+                if current_check_service_checks:
+                    service_checks.extend(current_check_service_checks)
 
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
-            except Exception, e:
+                service_check_count = len(current_check_service_checks)
+            except Exception:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, library_versions=check.get_library_info())
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
+                library_versions=check.get_library_info())
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
-            check_status = CheckStatus(check_name, None, None, None,
+            check_status = CheckStatus(check_name, None, None, None, None,
                                        init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
@@ -290,13 +296,14 @@ class Collector(object):
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
+        payload['service_checks'] = service_checks
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration, time.clock() - cpu_clock))
         else:
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
 
@@ -353,6 +360,7 @@ class Collector(object):
             'apiKey': self.agentConfig['api_key'],
             'events': {},
             'metrics': [],
+            'service_checks': [],
             'resources': {},
             'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
