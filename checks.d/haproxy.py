@@ -239,7 +239,7 @@ class HAProxy(AgentCheck):
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,
              "event_object": hostname,
-             "tags": ["service:%s" % service_name, "host:%s" % hostname, "haroxyhost:%s" % HAProxy_name]
+             "tags": ["service:%s" % service_name, "host:%s" % hostname, "haproxyhost:%s" % HAProxy_name]
         }
 
     @staticmethod
