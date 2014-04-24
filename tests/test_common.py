@@ -106,7 +106,11 @@ class TestCore(unittest.TestCase):
         check.service_check(service_name, status, tags, timestamp)
         self.assertEquals(len(check.service_checks), 1, check.service_checks)
         val = check.get_service_checks()
+        self.assertEquals(len(val), 1)
+        service_check_id = val[0].get('id', None)
+        self.assertNotEquals(service_check_id, None)
         self.assertEquals([{
+                    'id': service_check_id,
                     'check': service_name,
                     'status': status,
                     'tags': tags,

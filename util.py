@@ -149,6 +149,14 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+_IDS = {}
+def get_next_id(name):
+    global _IDS
+    current_id = _IDS.get(name, 0)
+    current_id += 1
+    _IDS[name] = current_id
+    return current_id
+
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
         'localhost',
