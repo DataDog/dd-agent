@@ -402,13 +402,13 @@ class AgentCheck(object):
         :param status: int, describing the status. 0 for success, 1 for
                        warning, 2 for failure
         :param tags: list of strings, a list of tags for this run
-        :param timestamp: int, unix timestamp for when the run occurred
+        :param timestamp: float, unix timestamp for when the run occurred
         """
         self.service_checks.append({
             'check': check_name,
             'status': status,
             'tags': tags,
-            'timestamp': int(timestamp or time.time())
+            'timestamp': float(timestamp or time.time())
         })
 
     def has_events(self):
