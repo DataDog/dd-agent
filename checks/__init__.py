@@ -395,7 +395,7 @@ class AgentCheck(object):
         self.events.append(event)
 
     def service_check(self, check_name, status, tags=None, timestamp=None,
-                      check_id=None):
+                      host_name=None, check_id=None):
         """
         Save a service check.
 
@@ -405,10 +405,15 @@ class AgentCheck(object):
         :param tags: list of strings, a list of tags for this run
         :param timestamp: float, unix timestamp for when the run occurred
         """
+        if host_name is None:
+            host_name = self.host_name
+        if check_id is None:
+            check_id = get_next_id('service_check')
         self.service_checks.append({
-            'id': check_id or get_next_id('service_check'),
+            'id': check_id,
             'check': check_name,
             'status': status,
+            'host_name': host_name,
             'tags': tags,
             'timestamp': float(timestamp or time.time())
         })
