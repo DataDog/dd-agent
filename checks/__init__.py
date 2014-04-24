@@ -395,7 +395,7 @@ class AgentCheck(object):
         self.events.append(event)
 
     def service_check(self, check_name, status, tags=None, timestamp=None,
-                      host_name=None, check_id=None):
+                      host_name=None, check_run_id=None):
         """
         Save a service check.
 
@@ -406,16 +406,16 @@ class AgentCheck(object):
         :param timestamp: (optional) float, unix timestamp for when the run occurred
         :param host_name: (optional) str, host that generated the service
                           check. Defaults to the host_name of the agent
-        :param check_id: (optional) int, id used for logging and tracing
-                         purposes. Don't need to be unique. If not specified,
-                         one will be generated.
+        :param check_run_id: (optional) int, id used for logging and tracing
+                             purposes. Don't need to be unique. If not
+                             specified, one will be generated.
         """
         if host_name is None:
             host_name = self.host_name
-        if check_id is None:
-            check_id = get_next_id('service_check')
+        if check_run_id is None:
+            check_run_id = get_next_id('service_check')
         self.service_checks.append({
-            'id': check_id,
+            'id': check_run_id,
             'check': check_name,
             'status': status,
             'host_name': host_name,
