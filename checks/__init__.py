@@ -394,18 +394,18 @@ class AgentCheck(object):
             event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
-    def service_check(self, service_name, status, tags=None, timestamp=None):
+    def service_check(self, check_name, status, tags=None, timestamp=None):
         """
         Save a service check.
 
-        :param service_name: string, name of the service
+        :param check_name: string, name of the service check
         :param status: int, describing the status. 0 for success, 1 for
                        warning, 2 for failure
         :param tags: list of strings, a list of tags for this run
         :param timestamp: int, unix timestamp for when the run occurred
         """
         self.service_checks.append({
-            'service_name': service_name,
+            'check': check_name,
             'status': status,
             'tags': tags,
             'timestamp': int(timestamp or time.time())
