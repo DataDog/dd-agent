@@ -15,7 +15,7 @@ import traceback
 import copy
 from pprint import pprint
 
-from util import LaconicFilter, get_os, get_hostname
+from util import LaconicFilter, get_os, get_hostname, get_next_id
 from config import get_confd_path
 from checks import check_status
 
@@ -394,7 +394,8 @@ class AgentCheck(object):
             event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
-    def service_check(self, check_name, status, tags=None, timestamp=None):
+    def service_check(self, check_name, status, tags=None, timestamp=None,
+                      host_name=None, check_id=None):
         """
         Save a service check.
 
@@ -402,13 +403,19 @@ class AgentCheck(object):
         :param status: int, describing the status. 0 for success, 1 for
                        warning, 2 for failure
         :param tags: list of strings, a list of tags for this run
-        :param timestamp: int, unix timestamp for when the run occurred
+        :param timestamp: float, unix timestamp for when the run occurred
         """
+        if host_name is None:
+            host_name = self.host_name
+        if check_id is None:
+            check_id = get_next_id('service_check')
         self.service_checks.append({
+            'id': check_id,
             'check': check_name,
             'status': status,
+            'host_name': host_name,
             'tags': tags,
-            'timestamp': int(timestamp or time.time())
+            'timestamp': float(timestamp or time.time())
         })
 
     def has_events(self):

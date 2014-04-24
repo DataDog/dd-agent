@@ -100,15 +100,21 @@ class TestCore(unittest.TestCase):
         service_name = 'test.service_check'
         status = AgentCheck.CRITICAL
         tags = ['host:test', 'other:thing']
-        timestamp = int(time.time())
+        host_name = 'foohost'
+        timestamp = time.time()
 
         check = AgentCheck('test', {}, {})
-        check.service_check(service_name, status, tags, timestamp)
+        check.service_check(service_name, status, tags, timestamp, host_name)
         self.assertEquals(len(check.service_checks), 1, check.service_checks)
         val = check.get_service_checks()
+        self.assertEquals(len(val), 1)
+        service_check_id = val[0].get('id', None)
+        self.assertNotEquals(service_check_id, None)
         self.assertEquals([{
-                    'service_name': service_name,
+                    'id': service_check_id,
+                    'check': service_name,
                     'status': status,
+                    'host_name': host_name,
                     'tags': tags,
                     'timestamp': timestamp
                 }], val)
