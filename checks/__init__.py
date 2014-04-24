@@ -400,10 +400,15 @@ class AgentCheck(object):
         Save a service check.
 
         :param check_name: string, name of the service check
-        :param status: int, describing the status. 0 for success, 1 for
-                       warning, 2 for failure
-        :param tags: list of strings, a list of tags for this run
-        :param timestamp: float, unix timestamp for when the run occurred
+        :param status: int, describing the status.
+                       0 for success, 1 for warning, 2 for failure
+        :param tags: (optional) list of strings, a list of tags for this run
+        :param timestamp: (optional) float, unix timestamp for when the run occurred
+        :param host_name: (optional) str, host that generated the service
+                          check. Defaults to the host_name of the agent
+        :param check_id: (optional) int, id used for logging and tracing
+                         purposes. Don't need to be unique. If not specified,
+                         one will be generated.
         """
         if host_name is None:
             host_name = self.host_name
