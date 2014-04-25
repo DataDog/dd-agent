@@ -37,7 +37,6 @@ if sys.platform == 'win32':
         'pymongo==2.3',
         'psycopg2',
         'python-memcached==1.48',
-        'redis==2.6.2',
         'adodbapi'
         'elementtree',
         'pycurl',
