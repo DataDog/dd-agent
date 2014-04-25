@@ -43,6 +43,7 @@ if sys.platform == 'win32':
         'pycurl',
         'MySQLdb',
         'psutil',
+        'redis',
     ])
 
     # Modules to force-include in the exe
@@ -60,6 +61,7 @@ if sys.platform == 'win32':
         'MySQLdb',
         'psutil',
         'psycopg2',
+        'redis',
 
         # agent
         'checks.services_checks',
