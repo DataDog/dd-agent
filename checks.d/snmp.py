@@ -37,6 +37,8 @@ class SnmpCheck(AgentCheck):
                 ip_address = instance["ip_address"]
                 self.counter_state[ip_address] = {}
                 self.interface_list[ip_address] = self.get_interfaces(instance)
+                tags = instance.get("tags",[])
+                tags.append("device:" + ip_address)
 
     def get_interfaces(self, instance):
 
@@ -100,15 +102,16 @@ class SnmpCheck(AgentCheck):
         return cmdgen.UdpTransportTarget((ip_address,port))
 
     def check(self, instance):
+        tags = instance.get("tags",[])
         results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
-            self.report_as_statsd(instance, oid, value, tags=None)
+            self.report_as_statsd(instance, oid, value, tags=tags)
 
         for interface, descr in self.interface_list[instance['ip_address']].items():
             oids = [(oid, interface) for oid in interface_oids]
             interface_results = SnmpCheck.snmp_get(instance, oids)
             for oid, value in interface_results:
-                self.report_as_statsd(instance, oid, value, tags = ["interface:"+descr])
+                self.report_as_statsd(instance, oid, value, tags = tags + ["interface:"+descr])
 
     @staticmethod
     def snmp_get(instance, oids):
@@ -153,12 +156,13 @@ class SnmpCheck(AgentCheck):
 
     def counter(self, instance, name, value, snmp_class, tags = []):
         current_state = self.counter_state[instance['ip_address']]
-        if name in current_state:
-            diff = value - current_state[name]
+        metric_id = name + str(tags)
+        if metric_id in current_state:
+            diff = value - current_state[metric_id]
             if diff < 0:
                 # Counters monotonically increase so it means the counter wrapped
                 diff += pow(2, 32 if snmp_class==snmp_type.Counter32 else 64)
             self.increment(name, diff,tags=tags)
         else:
             self.log.info("Setting up initial value for Counter {0}".format(name))
-        current_state[name] = value
+        current_state[metric_id] = value
