@@ -300,7 +300,10 @@ class Collector(object):
 
         # Add agent_chekcs if needed
         if self._should_send_metadata():
-            payload['agent_checks'] = [(c.name, c.instance_statuses[0].status) for c in check_statuses]
+            payload['agent_checks'] = [
+            (c.name, c.instance_statuses[0].status, c.instance_statuses[0].error)
+            for c in check_statuses
+        ]
 
         collect_duration = timer.step()
 
