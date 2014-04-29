@@ -1,0 +1,7 @@
+init_config:
+
+#instances:
+#    -   ip_address: localhost
+#        port: 1161
+#        community_string: public
+
