@@ -297,6 +297,11 @@ class Collector(object):
         payload['metrics'] = metrics
         payload['events'] = events
         payload['service_checks'] = service_checks
+
+        # Add agent_chekcs if needed
+        if self._should_send_metadata():
+            payload['agent_checks'] = [(c.name, c.instance_statuses[0].status) for c in check_statuses]
+
         collect_duration = timer.step()
 
         if self.os != 'windows':
@@ -379,7 +384,7 @@ class Collector(object):
                                  }]
 
         # Periodically send the host metadata.
-        if self._is_first_run() or self._should_send_metadata():
+        if self._should_send_metadata():
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
@@ -427,6 +432,8 @@ class Collector(object):
         return metadata
 
     def _should_send_metadata(self):
+        if self._is_first_run():
+            return True
         # If the interval has passed, send the metadata again
         now = time.time()
         if now - self.metadata_start >= self.metadata_interval:
