@@ -1,6 +1,7 @@
 from checks import AgentCheck
 
 from pysnmp.entity.rfc3413.oneliner import cmdgen
+from pysnmp.smi.exval import noSuchInstance
 import pysnmp.proto.rfc1902 as snmp_type
 
 snmp_counters = [snmp_type.Counter32, snmp_type.Counter64]
@@ -43,23 +44,43 @@ class SnmpCheck(AgentCheck):
 
         def get_interfaces_nb():
             result = SnmpCheck.snmp_get(instance, [(("IF-MIB","ifNumber"),0)])[0]
-            return int(result[1])
+            if noSuchInstance.isSameTypeWith(result[1]):
+                return None
+            else:
+                return int(result[1])
 
         interface_nb = get_interfaces_nb()
-        interfaces_descr_oids = []
-        for interface in range(interface_nb):
-            interface_index = interface + 1 #SNMP indexes start from 1
-            interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
-            interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
+        if interface_nb is not None:
+            interfaces_descr_oids = []
+            for interface in range(interface_nb):
+                interface_index = interface + 1 #SNMP indexes start from 1
+                interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
+                interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
 
-        interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
-        self.log.info(interfaces_description)
-        for i in range(interface_nb):
-            # order is guaranteed
-            descr = str(interfaces_description.pop(0)[1])
-            type = int(interfaces_description.pop(0)[1])
-            if type != 24:
-                interface_list[i+1] = descr
+            interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
+            self.log.info(interfaces_description)
+            for i in range(interface_nb):
+                # order is guaranteed
+                descr = str(interfaces_description.pop(0)[1])
+                type = int(interfaces_description.pop(0)[1])
+                if type != 24:
+                    interface_list[i+1] = descr
+        else:
+            empty_reply = False
+            interface_index = 1
+            while not empty_reply:
+                interfaces_descr_oids = []
+                interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
+                interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
+                interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
+                descr = interfaces_description.pop(0)[1]
+                if noSuchInstance.isSameTypeWith(descr):
+                    empty_reply= True
+                else:
+                    type = int(interfaces_description.pop(0)[1])
+                    if type != 24:
+                        interface_list[interface_index] = str(descr)
+                    interface_index += 1
 
         return interface_list
 
@@ -119,6 +140,8 @@ class SnmpCheck(AgentCheck):
                 return varBinds
 
     def report_as_statsd(self, instance, oid, snmp_value, tags=[]):
+        if noSuchInstance.isSameTypeWith(snmp_value):
+            return
         name = "snmp." + oid.getMibSymbol()[1]
         snmp_class = getattr(snmp_value, '__class__')
         value = int(snmp_value)
