@@ -1,9 +1,23 @@
 init_config:
 
 #instances:
+#    # SNMP v1-v2 configuration
 #    -   ip_address: localhost
 #        port: 1161
 #        community_string: public
+#        tags:
+#           - optional_tag_1
+#           - optional_tag_2
+#
+#    # SNMP v3 configuration
+#    # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+#    -   ip_address: localhost
+#        port: 1161
+#        user: user
+#        authKey: password
+#        privKey: private_key
+#        authProtocol: authProtocol
+#        privProtocol: privProtocol
 #        tags:
 #           - optional_tag_1
 #           - optional_tag_2

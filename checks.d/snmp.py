@@ -90,6 +90,24 @@ class SnmpCheck(AgentCheck):
     def get_auth_data(instance):
         if "community_string" in instance:
             return cmdgen.CommunityData(instance['community_string'])
+        elif "user" in instance:
+            user = instance["user"]
+            authKey = None
+            privKey = None
+            authProtocol = None
+            privProtocol = None
+            if "authKey" in instance:
+                authKey = instance["authKey"]
+                authProtocol = cmdgen.usmHMACMD5AuthProtocol
+            if "privKey" in instance:
+                privKey = instance["privKey"]
+                authProtocol = cmdgen.usmHMACMD5AuthProtocol
+                privProtocol = cmdgen.usmDESPrivProtocol
+            if "authProtocol" in instance:
+                authProtocol = getattr(cmdgen,instance["authProtocol"])
+            if "privProtocol" in instance:
+                privProtocol = getattr(cmdgen,instance["privProtocol"])
+            return cmdgen.UsmUserData(user, authKey, privKey, authProtocol, privProtocol)
         else:
             raise Exception("An authentication method needs to be provided")
 
