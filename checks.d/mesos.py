@@ -9,7 +9,7 @@ import urllib2
 class Mesos(AgentCheck):
     def check(self, instance):
         if 'url' not in instance:
-            self.log.info("Skipping instance, no url found.")
+            raise Exception('Mesos instance missing "url" value.')
             return
 
         # Load values from the instance config
@@ -17,7 +17,7 @@ class Mesos(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
 
-        response = self.master_roles(url, timeout)
+        response = self.get_master_roles(url, timeout)
         if response is not None:
             for role in response['roles']:
                 tags = ['mesos','role:' + role['name']]
@@ -28,12 +28,12 @@ class Mesos(AgentCheck):
                     if attr in resources:
                         self.gauge('mesos.role.' + attr, resources[attr], tags=tags)
 
-        response = self.master_stats(url, timeout)
+        response = self.get_master_stats(url, timeout)
         if response is not None:
             for key in iter(response):
                 self.gauge('mesos.stats.' + key, response[key], tags=['mesos'])
 
-        response = self.master_state(url, timeout)
+        response = self.get_master_state(url, timeout)
         if response is not None:
             for attr in ['deactivated_slaves','failed_tasks','finished_tasks','killed_tasks','lost_tasks','staged_tasks','started_tasks']:
                 tags = ['mesos']
@@ -53,13 +53,13 @@ class Mesos(AgentCheck):
                     if attr in resources:
                         self.gauge('mesos.state.slave.' + attr, resources[attr], tags=tags)
 
-    def master_roles(self, url, timeout):
+    def get_master_roles(self, url, timeout):
         return self.get_json(url + "/master/roles.json", timeout)
 
-    def master_stats(self, url, timeout):
+    def get_master_stats(self, url, timeout):
         return self.get_json(url + "/master/stats.json", timeout)
 
-    def master_state(self, url, timeout):
+    def get_master_state(self, url, timeout):
         return self.get_json(url + "/master/state.json", timeout)
 
     def get_json(self, url, timeout):
