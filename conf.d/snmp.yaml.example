@@ -1,12 +1,26 @@
 init_config:
 
-    #Add additional metrics to monitor
+    # Device metrics to monitor
+    metrics:
+        - MIB: UDP-MIB
+          symbol: udpInDatagrams
+          index: 0
+        - MIB: TCP-MIB
+          symbol: tcpCurrEstab
+          index: 0
+        - MIB: TCP-MIB
+          symbol: tcpActiveOpens
+          index: 0
+        - MIB: TCP-MIB
+          symbol: tcpPassiveOpens
+          index: 0
 
-#    metrics:
-#        - MIB: MIB-NAME
-#          symbol: metric-symbol
-#          index: 0
-
+    # Metrics to monitor on each interface
+    interface_metrics:
+        - MIB: IF-MIB
+          symbol: ifInOctets
+        - MIB: IF-MIB
+          symbol: ifOutOctets
 
 instances:
 
@@ -24,7 +38,7 @@ instances:
      # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
 
 #    -   ip_address: localhost
-#        port: 1161
+#        port: 161 # default value
 #        user: user
 #        authKey: password
 #        privKey: private_key

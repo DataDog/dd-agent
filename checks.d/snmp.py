@@ -9,23 +9,8 @@ snmp_gauges = [snmp_type.Gauge32]
 
 class SnmpCheck(AgentCheck):
 
-    interface_oids = [
-            ("IF-MIB", "ifInOctets"),
-            ("IF-MIB", "ifInErrors"),
-            ("IF-MIB", "ifInDiscards"),
-            ("IF-MIB", "ifOutOctets"),
-            ("IF-MIB", "ifOutErrors"),
-            ("IF-MIB", "ifOutDiscards")
-            ]
-
-    device_oids = [
-            (("UDP-MIB", "udpInDatagrams"),0),
-            (("TCP-MIB", "tcpCurrEstab"),0),
-            (("TCP-MIB", "tcpActiveOpens"),0),
-            (("TCP-MIB", "tcpPassiveOpens"),0)
-            ]
-
-
+    interface_oids = []
+    device_oids = []
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -40,7 +25,8 @@ class SnmpCheck(AgentCheck):
                 tags.append("snmp_device:" + ip_address)
         for metric in init_config["metrics"]:
             SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
-
+        for metric in init_config["interface_metrics"]:
+            SnmpCheck.interface_oids.append((metric["MIB"], metric["symbol"]))
 
     def get_interfaces(self, instance):
 
