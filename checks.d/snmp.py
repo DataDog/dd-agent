@@ -16,17 +16,20 @@ class SnmpCheck(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.counter_state = {}
         self.interface_list = {}
-        for instance in instances:
-            if 'ip_address' in instance:
-                ip_address = instance["ip_address"]
-                self.counter_state[ip_address] = {}
-                self.interface_list[ip_address] = self.get_interfaces(instance)
-                tags = instance.get("tags",[])
-                tags.append("snmp_device:" + ip_address)
-        for metric in init_config["metrics"]:
-            SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
-        for metric in init_config["interface_metrics"]:
-            SnmpCheck.interface_oids.append((metric["MIB"], metric["symbol"]))
+        if instances is not None:
+            for instance in instances:
+                if 'ip_address' in instance:
+                    ip_address = instance["ip_address"]
+                    self.counter_state[ip_address] = {}
+                    self.interface_list[ip_address] = self.get_interfaces(instance)
+                    tags = instance.get("tags",[])
+                    tags.append("snmp_device:" + ip_address)
+        if "metric" in init_config:
+            for metric in init_config["metrics"]:
+                SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
+        if "interface_metrics" in init_config:
+            for metric in init_config["interface_metrics"]:
+                SnmpCheck.interface_oids.append((metric["MIB"], metric["symbol"]))
 
     def get_interfaces(self, instance):
 
