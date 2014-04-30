@@ -48,7 +48,6 @@ class SnmpCheck(AgentCheck):
                 interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
 
             interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
-            self.log.info(interfaces_description)
             for i in range(interface_nb):
                 # order is guaranteed
                 descr = str(interfaces_description.pop(0)[1])
@@ -141,10 +140,10 @@ class SnmpCheck(AgentCheck):
                 )
 
         if errorIndication:
-            self.log.warning(errorIndication)
+            raise Exception(errorIndication)
         else:
             if errorStatus:
-                self.log.warning(errorStatus.prettyPrint())
+                raise Exception(errorStatus.prettyPrint())
             else:
                 return varBinds
 
