@@ -14,14 +14,15 @@ class Marathon(AgentCheck):
 
         # Load values from the instance config
         url = instance['url']
+        instance_tags = instance.get('tags', [])
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
 
         response = self.get_v2_apps(url, timeout)
         if response is not None:
-            self.gauge('marathon.apps', len(response['apps']), tags=['marathon'])
+            self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
-                tags = ['marathon', 'app_id:' + app['id'], 'version:' + app['version']]
+                tags = ['app_id:' + app['id'], 'version:' + app['version']] + instance_tags
                 for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
                     self.gauge('marathon.' + attr, app[attr], tags=tags)
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
