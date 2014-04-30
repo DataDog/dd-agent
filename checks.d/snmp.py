@@ -37,7 +37,7 @@ class SnmpCheck(AgentCheck):
                 self.counter_state[ip_address] = {}
                 self.interface_list[ip_address] = self.get_interfaces(instance)
                 tags = instance.get("tags",[])
-                tags.append("device:" + ip_address)
+                tags.append("snmp_device:" + ip_address)
         for metric in init_config["metrics"]:
             SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
 
