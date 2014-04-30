@@ -14,13 +14,14 @@ class Mesos(AgentCheck):
 
         # Load values from the instance config
         url = instance['url']
+        instance_tags = instance.get('tags', [])
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
 
         response = self.get_master_roles(url, timeout)
         if response is not None:
             for role in response['roles']:
-                tags = ['mesos','role:' + role['name']]
+                tags = ['role:' + role['name']] + instance_tags
                 self.gauge('mesos.role.frameworks', len(role['frameworks']), tags=tags)
                 self.gauge('mesos.role.weight', role['weight'], tags=tags)
                 resources = role['resources']
@@ -30,24 +31,25 @@ class Mesos(AgentCheck):
 
         response = self.get_master_stats(url, timeout)
         if response is not None:
+            tags = instance_tags
             for key in iter(response):
-                self.gauge('mesos.stats.' + key, response[key], tags=['mesos'])
+                self.gauge('mesos.stats.' + key, response[key], tags=tags)
 
         response = self.get_master_state(url, timeout)
         if response is not None:
+            tags = instance_tags
             for attr in ['deactivated_slaves','failed_tasks','finished_tasks','killed_tasks','lost_tasks','staged_tasks','started_tasks']:
-                tags = ['mesos']
                 self.gauge('mesos.state.' + attr, response[attr], tags=tags)
 
             for framework in response['frameworks']:
-                tags = ['mesos','framework:' + framework['id']]
+                tags = ['framework:' + framework['id']] + instance_tags
                 resources = framework['resources']
                 for attr in ['cpus','mem']:
                     if attr in resources:
                         self.gauge('mesos.state.framework.' + attr, resources[attr], tags=tags)
 
             for slave in response['slaves']:
-                tags = ['mesos','slave:' + slave['id']]
+                tags = ['mesos','slave:' + slave['id']] + instance_tags
                 resources = slave['resources']
                 for attr in ['cpus','mem','disk']:
                     if attr in resources:
