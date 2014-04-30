@@ -1,7 +1,17 @@
 init_config:
 
-#instances:
-#    # SNMP v1-v2 configuration
+    #Add additional metrics to monitor
+
+#    metrics:
+#        - MIB: MIB-NAME
+#          symbol: metric-symbol
+#          index: 0
+
+
+instances:
+
+     # SNMP v1-v2 configuration
+
 #    -   ip_address: localhost
 #        port: 1161
 #        community_string: public
@@ -9,8 +19,10 @@ init_config:
 #           - optional_tag_1
 #           - optional_tag_2
 #
-#    # SNMP v3 configuration
-#    # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+
+     # SNMP v3 configuration
+     # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+
 #    -   ip_address: localhost
 #        port: 1161
 #        user: user
