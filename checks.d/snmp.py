@@ -9,9 +9,6 @@ snmp_gauges = [snmp_type.Gauge32]
 
 class SnmpCheck(AgentCheck):
 
-    interface_oids = []
-    device_oids = []
-
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.counter_state = {}
@@ -24,6 +21,8 @@ class SnmpCheck(AgentCheck):
                     self.interface_list[ip_address] = self.get_interfaces(instance)
                     tags = instance.get("tags",[])
                     tags.append("snmp_device:" + ip_address)
+        SnmpCheck.interface_oids = []
+        SnmpCheck.device_oids = []
         if "metrics" in init_config:
             for metric in init_config["metrics"]:
                 SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
