@@ -27,8 +27,27 @@ class TestSNMP(unittest.TestCase):
     def testInit(self):
         # Initialize the check from checks.d
         self.check = load_check('snmp', self.config, self.agentConfig)
-        self.assertTrue(self.check.counter_state.keys() > 0)
-        self.assertTrue(self.check.interface_list.keys() > 0)
+        # Assert the counter state dictionary was initialized
+        self.assertTrue(len(self.check.counter_state.keys()) > 0)
+        # Assert that some interface got detected on the host
+        self.assertTrue(len(self.check.interface_list["localhost"]) > 0)
+        # Assert that the device-level metrics is accessible
+        for item in dir(self.check):
+            print item, getattr(self.check,item)
+        self.assertEqual(len(self.check.device_oids), 1)
+
+
+    def testSNMPCheck(self):
+
+        self.check = load_check('snmp', self.config, self.agentConfig)
+
+        self.check.check(self.config['instances'][0])
+
+        # Metric assertions
+        metrics = self.check.get_metrics()
+        assert metrics
+        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(len(metrics) > 0)
 
 if __name__ == "__main__":
     unittest.main()
