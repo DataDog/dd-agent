@@ -27,8 +27,8 @@ class TestSNMP(unittest.TestCase):
     def testInit(self):
         # Initialize the check from checks.d
         self.check = load_check('snmp', self.config, self.agentConfig)
-        self.assertGreater(self.check.counter_state.keys(), 0)
-        self.assertGreater(self.check.interface_list.keys(), 0)
+        self.assertTrue(self.check.counter_state.keys() > 0)
+        self.assertTrue(self.check.interface_list.keys() > 0)
 
 if __name__ == "__main__":
     unittest.main()
