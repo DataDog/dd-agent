@@ -32,8 +32,6 @@ class TestSNMP(unittest.TestCase):
         # Assert that some interface got detected on the host
         self.assertTrue(len(self.check.interface_list["localhost"]) > 0)
         # Assert that the device-level metrics is accessible
-        for item in dir(self.check):
-            print item, getattr(self.check,item)
         self.assertEqual(len(self.check.device_oids), 1)
 
 
