@@ -82,7 +82,8 @@ class GraphiteConnection(object):
 
         ts = datapoint[0]
         value = datapoint[1]
-        self.app.appendMetric("graphite", name, host, device, ts, value)        
+        if self.app is not None:
+            self.app.appendMetric("graphite", name, host, device, ts, value)
 
     def _processMetric(self, metric, datapoint):
         """Parse the metric name to fetch (host, metric, device) and
@@ -114,7 +115,8 @@ class GraphiteConnection(object):
         self.stream.read_bytes(4, self._on_read_header)
 
 def start_graphite_listener(port):
-    echo_server = GraphiteServer()
+    from util import get_hostname
+    echo_server = GraphiteServer(None,get_hostname(None))
     echo_server.listen(port)
     IOLoop.instance().start()
 
