@@ -13,7 +13,7 @@ class TestMemCache(unittest.TestCase):
             "memcache_instance_1": "localhost:11211:mytag",
             "memcache_instance_2": "localhost:11211:mythirdtag",
         }
-        self.c = load_check('mcache', {'init_config': {}, 'instances': {}}, self.agent_config)
+        self.c = load_check('memcache', {'init_config': {}, 'instances': {}}, self.agent_config)
         self.conf = self.c.parse_agent_config(self.agent_config)
 
     def _countConnections(self, port):
