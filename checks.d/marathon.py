@@ -1,5 +1,4 @@
 import time
-import requests
 
 from checks import AgentCheck
 from util import json, headers
@@ -10,7 +9,6 @@ class Marathon(AgentCheck):
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('Marathon instance missing "url" value.')
-            return
 
         # Load values from the instance config
         url = instance['url']
@@ -32,36 +30,41 @@ class Marathon(AgentCheck):
     def get_v2_apps(self, url, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
+        import requests
 
         try:
-            response = requests.get(url + "/v2/apps", timeout=timeout)
-            apps = response.json()
-            return apps
+            r = requests.get(url + "/v2/apps", timeout=timeout)
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
-            return None
+            raise Exception("Timeout when hitting %s" % url)
 
         if r.status_code != 200:
             self.status_code_event(url, r, aggregation_key)
-            return None
+            raise Exception("Got %s when hitting %s" % (r.status_code, url))
+
+        return r.json
 
     def get_v2_app_versions(self, url, app_id, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
+        
+        import requests
 
         try:
-            response = requests.get(url + "/v2/apps/" + app_id + "/versions", timeout=timeout)
-            apps = response.json()
-            return apps
+            r = requests.get(url + "/v2/apps/" + app_id + "/versions", timeout=timeout)
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
+            self.warning("Timeout when hitting %s" % url)
             return None
 
         if r.status_code != 200:
             self.status_code_event(url, r, aggregation_key)
+            self.warning("Got %s when hitting %s" % (r.status_code, url))
             return None
+
+        return r.json()
 
     def timeout_event(self, url, timeout, aggregation_key):
         self.event({
@@ -80,17 +83,3 @@ class Marathon(AgentCheck):
             'msg_text': '%s returned a status of %s' % (url, r.status_code),
             'aggregation_key': aggregation_key
         })
-
-if __name__ == '__main__':
-    check, instances = Marathon.from_yaml('/etc/dd-agent/conf.d/marathon.yaml')
-    for instance in instances:
-        print "\nRunning the check against url: %s" % (instance['url'])
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-
-        i = 0
-        print 'Metrics:\n'
-        for metric in check.get_metrics():
-            print "  %d: %s" % (i, metric)
-            i += 1
