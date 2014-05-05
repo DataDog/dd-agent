@@ -5,6 +5,7 @@ Changes
 ### Integrations affected
 
 ### Changes
+* [FEATURE] Add support to Memcached delete_misses and delete_hits: See [#928]
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
 
 # 4.2.2 / 04-25-2014
