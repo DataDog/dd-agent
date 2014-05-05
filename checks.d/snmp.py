@@ -24,6 +24,14 @@ class SnmpCheck(AgentCheck):
                     tags.append("snmp_device:" + ip_address)
 
     def get_interfaces(self, instance):
+        '''
+        Return all the network interfaces of an instance to be used to get metrics
+        on those interfaces.
+        If available, get the number of interfaces from the ifNumber MIB
+        and then query all of them in one request for their description.
+        If this info is not available, repeatedly query the interface description
+        in order to discover them all.
+        '''
 
         interface_list = {}
 
@@ -47,9 +55,11 @@ class SnmpCheck(AgentCheck):
                 # order is guaranteed
                 descr = str(interfaces_description.pop(0)[1])
                 type = int(interfaces_description.pop(0)[1])
-                if type != 24:
+                if type != 24: # ignore localhost loopback
                     interface_list[i+1] = descr
         else:
+            # ifNumber is not available, query the interfaces dor description
+            # until blank one
             empty_reply = False
             interface_index = 1
             while not empty_reply:
@@ -62,7 +72,7 @@ class SnmpCheck(AgentCheck):
                     empty_reply= True
                 else:
                     type = int(interfaces_description.pop(0)[1])
-                    if type != 24:
+                    if type != 24: # ignore localhost loopback
                         interface_list[interface_index] = str(descr)
                     interface_index += 1
 
@@ -71,8 +81,10 @@ class SnmpCheck(AgentCheck):
     @staticmethod
     def get_auth_data(instance):
         if "community_string" in instance:
+            # SNMP v1 - SNMP v2
             return cmdgen.CommunityData(instance['community_string'])
         elif "user" in instance:
+            # SNMP v3
             user = instance["user"]
             authKey = None
             privKey = None
@@ -98,7 +110,7 @@ class SnmpCheck(AgentCheck):
         if "ip_address" not in instance:
             raise Exception("An IP address needs to be specified")
         ip_address = instance["ip_address"]
-        port = instance.get("port", 161)
+        port = instance.get("port", 161) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address,port))
 
     def check(self, instance):
