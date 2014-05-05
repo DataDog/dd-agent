@@ -1,5 +1,7 @@
 from checks import AgentCheck
 
+from collections import defaultdict
+
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.smi.exval import noSuchInstance
 import pysnmp.proto.rfc1902 as snmp_type
@@ -11,24 +13,15 @@ class SnmpCheck(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
-        self.counter_state = {}
+        self.counter_state = defaultdict(dict)
         self.interface_list = {}
         if instances is not None:
             for instance in instances:
                 if 'ip_address' in instance:
                     ip_address = instance["ip_address"]
-                    self.counter_state[ip_address] = {}
                     self.interface_list[ip_address] = self.get_interfaces(instance)
                     tags = instance.get("tags",[])
                     tags.append("snmp_device:" + ip_address)
-        SnmpCheck.interface_oids = []
-        SnmpCheck.device_oids = []
-        if "metrics" in init_config:
-            for metric in init_config["metrics"]:
-                SnmpCheck.device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
-        if "interface_metrics" in init_config:
-            for metric in init_config["interface_metrics"]:
-                SnmpCheck.interface_oids.append((metric["MIB"], metric["symbol"]))
 
     def get_interfaces(self, instance):
 
@@ -110,12 +103,18 @@ class SnmpCheck(AgentCheck):
 
     def check(self, instance):
         tags = instance.get("tags",[])
-        results = SnmpCheck.snmp_get(instance, SnmpCheck.device_oids)
+        device_oids = []
+        interface_oids = []
+        for metric in instance.get('metrics',[]):
+            device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
+        results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
             self.report_as_statsd(instance, oid, value, tags=tags)
 
+        for metric in instance.get('interface_metrics',[]):
+            interface_oids.append((metric["MIB"],metric["symbol"]))
         for interface, descr in self.interface_list[instance['ip_address']].items():
-            oids = [(oid, interface) for oid in SnmpCheck.interface_oids]
+            oids = [(oid, interface) for oid in interface_oids]
             interface_results = SnmpCheck.snmp_get(instance, oids)
             for oid, value in interface_results:
                 self.report_as_statsd(instance, oid, value, tags = tags + ["interface:"+descr])

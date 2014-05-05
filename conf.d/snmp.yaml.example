@@ -1,38 +1,38 @@
 init_config:
 
-    # Device metrics to monitor
-    metrics:
-        - MIB: UDP-MIB
-          symbol: udpInDatagrams
-          index: 0
-        - MIB: TCP-MIB
-          symbol: tcpCurrEstab
-          index: 0
-        - MIB: TCP-MIB
-          symbol: tcpActiveOpens
-          index: 0
-        - MIB: TCP-MIB
-          symbol: tcpPassiveOpens
-          index: 0
-
-    # Metrics to monitor on each interface
-    interface_metrics:
-        - MIB: IF-MIB
-          symbol: ifInOctets
-        - MIB: IF-MIB
-          symbol: ifOutOctets
 
 instances:
 
      # SNMP v1-v2 configuration
 
 #    -   ip_address: localhost
-#        port: 1161
+#        port: 161
 #        community_string: public
 #        tags:
-#           - optional_tag_1
-#           - optional_tag_2
+#            - optional_tag_1
+#            - optional_tag_2
 #
+#        # Device metrics to monitor
+#        metrics:
+#            - MIB: UDP-MIB
+#              symbol: udpInDatagrams
+#              index: 0
+#            - MIB: TCP-MIB
+#              symbol: tcpCurrEstab
+#              index: 0
+#            - MIB: TCP-MIB
+#              symbol: tcpActiveOpens
+#              index: 0
+#            - MIB: TCP-MIB
+#              symbol: tcpPassiveOpens
+#              index: 0
+#
+#        # Metrics to monitor on each interface
+#        interface_metrics:
+#            - MIB: IF-MIB
+#              symbol: ifInOctets
+#            - MIB: IF-MIB
+#              symbol: ifOutOctets
 
      # SNMP v3 configuration
      # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
@@ -47,3 +47,10 @@ instances:
 #        tags:
 #           - optional_tag_1
 #           - optional_tag_2
+#
+#        # Metrics to monitor on each interface
+#        interface_metrics:
+#            - MIB: IF-MIB
+#              symbol: ifInOctets
+#            - MIB: IF-MIB
+#              symbol: ifOutOctets
