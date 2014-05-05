@@ -116,7 +116,7 @@ class GraphiteConnection(object):
 
 def start_graphite_listener(port):
     from util import get_hostname
-    echo_server = GraphiteServer(None,get_hostname(None))
+    echo_server = GraphiteServer(None, get_hostname(None))
     echo_server.listen(port)
     IOLoop.instance().start()
 
