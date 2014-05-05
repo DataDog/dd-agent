@@ -565,20 +565,6 @@ class DdForwarder(object):
             return {}
 
 
-def testDogStream():
-    import logging
-
-    logger = logging.getLogger("ddagent.checks.datadog")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
-    dogstream = Dogstream(logger)
-
-    while True:
-        events = dogstream.check({'api_key':'my_apikey', 'dogstream_log': sys.argv[1]}, move_end=True)
-        for e in events:
-            print "Event:", e
-        time.sleep(5)
-
 def testddForwarder():
     import logging
 
