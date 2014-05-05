@@ -1,5 +1,21 @@
 Changes
 =======
+# 5.0.0 / Unreleased
+
+### Integrations affected
+
+### Changes
+* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
+
+# 4.2.2 / 04-25-2014
+
+**Windows Only**
+
+### Integrations affected
+* Redis
+
+### Changes
+* [FEATURE] Support Redis check on Windows: See [#917]
 
 # 4.2.1 / 04-09-2014
 
@@ -952,6 +968,8 @@ If you use ganglia, you want this version.
 [#883]: https://github.com/DataDog/dd-agent/issues/883
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
+[#904]: https://github.com/DataDog/dd-agent/issues/904
+[#917]: https://github.com/DataDog/dd-agent/issues/917
 [@CaptTofu]: https://github.com/CaptTofu
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net

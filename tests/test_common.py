@@ -2,13 +2,14 @@ import time
 import unittest
 import logging
 logger = logging.getLogger()
-from checks import Check, CheckException, UnknownValue, CheckException, Infinity
+from checks import (Check, AgentCheck,
+    CheckException, UnknownValue, CheckException, Infinity)
 from checks.collector import Collector
 from aggregator import MetricsAggregator
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
-    
+
     def setUp(self):
         self.c = Check(logger)
         self.c.gauge("test-metric")
@@ -94,6 +95,30 @@ class TestCore(unittest.TestCase):
         assert "hostname" in c._get_metadata()
         assert "socket-fqdn" in c._get_metadata()
         assert "socket-hostname" in c._get_metadata()
+
+    def test_service_check(self):
+        check_name = 'test.service_check'
+        status = AgentCheck.CRITICAL
+        tags = ['host:test', 'other:thing']
+        host_name = 'foohost'
+        timestamp = time.time()
+
+        check = AgentCheck('test', {}, {})
+        check.service_check(check_name, status, tags, timestamp, host_name)
+        self.assertEquals(len(check.service_checks), 1, check.service_checks)
+        val = check.get_service_checks()
+        self.assertEquals(len(val), 1)
+        check_run_id = val[0].get('id', None)
+        self.assertNotEquals(check_run_id, None)
+        self.assertEquals([{
+                    'id': check_run_id,
+                    'check': check_name,
+                    'status': status,
+                    'host_name': host_name,
+                    'tags': tags,
+                    'timestamp': timestamp
+                }], val)
+        self.assertEquals(len(check.service_checks), 0, check.service_checks)
 
 class TestAggregator(unittest.TestCase):
     def setUp(self):
