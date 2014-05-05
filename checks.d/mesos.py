@@ -1,5 +1,4 @@
 import time
-import requests
 
 from checks import AgentCheck
 from util import json, headers
@@ -10,7 +9,6 @@ class Mesos(AgentCheck):
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('Mesos instance missing "url" value.')
-            return
 
         # Load values from the instance config
         url = instance['url']
@@ -67,19 +65,22 @@ class Mesos(AgentCheck):
     def get_json(self, url, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
+        import requests
 
         try:
-            response = requests.get(url, timeout=timeout)
-            parsed = response.json()
-            return parsed
+            r = requests.get(url, timeout=timeout)
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
+            self.warning("Timeout when hitting %s" % url)
             return None
 
         if r.status_code != 200:
             self.status_code_event(url, r, aggregation_key)
+            self.warning("Got %s when hitting %s" % (r.status_code, url))
             return None
+
+        return r.json()
 
 
     def timeout_event(self, url, timeout, aggregation_key):
@@ -99,17 +100,3 @@ class Mesos(AgentCheck):
             'msg_text': '%s returned a status of %s' % (url, r.status_code),
             'aggregation_key': aggregation_key
         })
-
-if __name__ == '__main__':
-    check, instances = Mesos.from_yaml('/etc/dd-agent/conf.d/mesos.yaml')
-    for instance in instances:
-        print "\nRunning the check against url: %s" % (instance['url'])
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-
-        i = 0
-        print 'Metrics:\n'
-        for metric in check.get_metrics():
-            print "  %d: %s" % (i, metric)
-            i += 1
