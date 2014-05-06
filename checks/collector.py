@@ -280,7 +280,8 @@ class Collector(object):
                 log.exception("Error running check %s" % check.name)
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
-                library_versions=check.get_library_info())
+                library_versions=check.get_library_info(),
+                check_source_type_name=check.SOURCE_TYPE_NAME or check.name)
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():
@@ -304,7 +305,8 @@ class Collector(object):
                 for instance_status in check.instance_statuses:
                     agent_checks.append(
                         (
-                            check.name, instance_status.instance_id,
+                            check.name, check.source_type_name,
+                            instance_status.instance_id,
                             instance_status.status, instance_status.error
                         )
                     )
