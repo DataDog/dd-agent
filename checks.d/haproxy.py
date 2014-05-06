@@ -122,17 +122,15 @@ class HAProxy(AgentCheck):
                 except (TypeError, ZeroDivisionError):
                     pass
 
-            service = data_dict['svname']
-
             if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
-                hosts_statuses[(data_dict['pxname'], data_dict['status'])] += 1
+                hosts_statuses[(data_dict['pxname'], data_dict['svname'], data_dict['status'])] += 1
 
 
             if data_dict['svname'] in Services.ALL:
                 data_list.append(data_dict)
 
                 # Send the list of data to the metric and event callbacks
-                self._process_metrics(data_list, service, url)
+                self._process_metrics(data_list, url)
                 if process_events:
                     self._process_events(data_list, url)
 
@@ -148,23 +146,23 @@ class HAProxy(AgentCheck):
 
     def _process_status_metric(self, hosts_statuses):
         agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
-        for (service, status), count in hosts_statuses.iteritems():
+        for (pxname, svname, status), count in hosts_statuses.iteritems():
             status = status.lower()
 
-            tags = ['status:%s' % status, 'service:%s' % service]
+            tags = ['status:%s' % status, 'service:%s' % pxname, 'haproxyclass:%s' % svname]
             self.gauge("haproxy.count_per_status", count, tags=tags)
 
             if 'up' in status:
-                agg_statuses[service]['available'] += count
+                agg_statuses[pxname]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
-                agg_statuses[service]['unavailable'] += count
+                agg_statuses[pxname]['unavailable'] += count
 
         for service in agg_statuses:
             for status, count in agg_statuses[service].iteritems():
-                tags = ['status:%s' % status, 'service:%s' % service]
+                tags = ['status:%s' % status, 'service:%s' % pxname, 'haproxyclass:%s' % svname]
                 self.gauge("haproxy.count_per_status", count, tags=tags)
 
-    def _process_metrics(self, data_list, service, url):
+    def _process_metrics(self, data_list, url):
         for data in data_list:
             """
             Each element of data_list is a dictionary related to one host
@@ -177,18 +175,17 @@ class HAProxy(AgentCheck):
                 ...
             ]
             """
-            tags = ["type:%s" % service, "instance_url:%s" % url]
-            hostname = data['svname']
-            service_name = data['pxname']
-
-            if service == Services.BACKEND:
-                tags.append('backend:%s' % hostname)
-            tags.append("service:%s" % service_name)
+            svname = data['svname']
+            pxname = data['pxname']
+            tags = [
+                "type:%s" % pxname, "instance_url:%s" % url,
+                "haproxyclass:%s" % svname, "service:%s" % pxname
+            ]
 
             for key, value in data.items():
                 if HAProxy.METRICS.get(key):
                     suffix = HAProxy.METRICS[key][1]
-                    name = "haproxy.%s.%s" % (service.lower(), suffix)
+                    name = "haproxy.%s.%s" % (svname.lower(), suffix)
                     if HAProxy.METRICS[key][0] == 'rate':
                         self.rate(name, value, tags=tags)
                     else:
@@ -198,9 +195,9 @@ class HAProxy(AgentCheck):
         ''' Main event processing loop. Events will be created for a service
         status change '''
         for data in data_list:
-            hostname = data['svname']
-            service_name = data['pxname']
-            key = "%s:%s" % (hostname,service_name)
+            svname = data['svname']
+            pxname = data['pxname']
+            key = "%s:%s" % (svname,pxname)
             status = self.host_status[url][key]
 
             if status is None:
@@ -215,32 +212,34 @@ class HAProxy(AgentCheck):
                     lastchg = 0
 
                 # Create the event object
-                ev = self._create_event(data['status'], hostname, lastchg, service_name)
+                ev = self._create_event(data['status'], svname, lastchg, pxname)
                 self.event(ev)
 
                 # Store this host status so we can check against it later
                 self.host_status[url][key] = data['status']
 
-    def _create_event(self, status, hostname, lastchg, service_name):
+    def _create_event(self, status, svname, lastchg, pxname):
+        HAProxy_agent = self.hostname.decode('utf-8')
+
         if status == "DOWN":
             alert_type = "error"
-            title = "HAProxy %s front-end reported %s %s" % (service_name, hostname, status)
+            title = "HAProxy %s reported %s:%s %s" % (HAProxy_agent, pxname, svname, status)
         else:
             if status == "UP":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "HAProxy %s front-end reported %s back and %s" % (service_name, hostname, status)
+            title = "HAProxy %s reported %s:%s back and %s" % (HAProxy_agent, pxname, svname, status)
 
         return {
              'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
-             'host': hostname,
+             'host': svname,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,
-             "event_object": hostname,
-             "tags": ["frontend:%s" % service_name, "host:%s" % hostname]
+             "event_object": "%s:%s" % (pxname, svname),
+             "tags": ["service:%s" % pxname, "haproxyclass:%s" % svname, "haproxyagent:%s" % HAProxy_agent]
         }
 
     @staticmethod
