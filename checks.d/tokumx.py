@@ -48,6 +48,9 @@ class TokuMX(AgentCheck):
         "ft.compressionRatio.nonleaf",
         "ft.compressionRatio.overall",
         "ft.checkpoint.lastComplete.time",
+
+        "ft.alerts.locktreeRequestsPending",
+        "ft.alerts.checkpointFailures",
     ]
 
     RATES = [
@@ -141,6 +144,18 @@ class TokuMX(AgentCheck):
         "ft.serializeTime.leaf.compress",
         "ft.serializeTime.leaf.decompress",
         "ft.serializeTime.leaf.deserialize",
+
+        "ft.alerts.longWaitEvents.logBufferWait",
+        "ft.alerts.longWaitEvents.fsync.count",
+        "ft.alerts.longWaitEvents.fsync.time",
+        "ft.alerts.longWaitEvents.cachePressure.count",
+        "ft.alerts.longWaitEvents.cachePressure.time",
+        "ft.alerts.longWaitEvents.checkpointBegin.count",
+        "ft.alerts.longWaitEvents.checkpointBegin.time",
+        "ft.alerts.longWaitEvents.locktreeWait.count",
+        "ft.alerts.longWaitEvents.locktreeWait.time",
+        "ft.alerts.longWaitEvents.locktreeWaitEscalation.count",
+        "ft.alerts.longWaitEvents.locktreeWaitEscalation.time",
     ]
 
     METRICS = GAUGES + RATES
