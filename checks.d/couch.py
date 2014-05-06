@@ -87,8 +87,5 @@ class CouchDb(AgentCheck):
         return {
             'instances': [{
                 'server': agentConfig.get('couchdb_server'),
-                'user': agentConfig.get('couchdb_user'),
-                'password': agentConfig.get('couchdb_password'),
-
             }]
         }
