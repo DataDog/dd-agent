@@ -15,6 +15,8 @@ from util import Platform
 
 class Network(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'system'
+
     TCP_STATES = {
         "ESTABLISHED": "established",
         "SYN_SENT": "opening",
