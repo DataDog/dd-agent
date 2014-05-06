@@ -13,7 +13,7 @@ DEFAULT_MAX_CONTAINERS = 20
 LXC_METRICS = [
     {
         "cgroup": "memory",
-        "file": "lxc/%s/memory.stat",
+        "file": "%s/%s/memory.stat",
         "metrics": {
             "active_anon": ("docker.mem.active_anon", "gauge"),
             "active_file": ("docker.mem.active_file", "gauge"),
@@ -47,7 +47,7 @@ LXC_METRICS = [
     },
     {
         "cgroup": "cpuacct",
-        "file": "lxc/%s/cpuacct.stat",
+        "file": "%s/%s/cpuacct.stat",
         "metrics": {
             "user": ("docker.cpu.user", "gauge"),
             "system": ("docker.cpu.system", "gauge"),
@@ -103,12 +103,30 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     def __init__(self, *args, **kwargs):
         super(Docker, self).__init__(*args, **kwargs)
-        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler()))
         self._mounpoints = {}
+        self.cgroup_path_prefix = None # Depending on the version 
         for metric in LXC_METRICS:
             self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
+        self._path_prefix = None
+
+    @property
+    def path_prefix(self):
+        if self._path_prefix is None:
+            metric = LXC_METRICS[0]
+            mountpoint = self._mounpoints[metric["cgroup"]]
+            stat_file_lxc = os.path.join(mountpoint, "lxc")
+            stat_file_docker = os.path.join(mountpoint, "docker")
+
+            if os.path.exists(stat_file_lxc):
+                self._path_prefix = "lxc"
+            elif os.path.exists(stat_file_docker):
+                self._path_prefix = "docker"
+            else:
+                raise Exception("Cannot find Docker cgroup file. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.10.1")
+        return self._path_prefix
 
     def check(self, instance):
+        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
         containers = self._get_containers(instance)
         if not containers:
@@ -143,7 +161,7 @@ class Docker(AgentCheck):
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for metric in LXC_METRICS:
                 mountpoint = self._mounpoints[metric["cgroup"]]
-                stat_file = os.path.join(mountpoint, metric["file"] % container["Id"])
+                stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
                     if key in stats:
@@ -213,7 +231,7 @@ class Docker(AgentCheck):
             try:
                 fp = open(file_)
             except IOError:
-                raise IOError("Can't open %s. If you are using Docker 0.9.0 or higher, the Datadog agent is not yet compatible with these versions. Please get in touch with Datadog Support for more information" % file_)
+                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.10.1" % file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
 
         finally:

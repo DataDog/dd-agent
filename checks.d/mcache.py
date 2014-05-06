@@ -29,6 +29,9 @@ from checks import *
 #                            found present
 # get_misses        64u      Number of items that have been requested
 #                            and not found
+# delete_misses     64u      Number of deletions reqs for missing keys
+# delete_hits       64u      Number of deletion reqs resulting in
+#                            an item being removed.
 # evictions         64u      Number of valid items removed from cache
 #                            to free memory for new items
 # bytes_read        64u      Total number of bytes read by this server
@@ -80,6 +83,8 @@ class Memcache(AgentCheck):
         "cmd_flush",
         "get_hits",
         "get_misses",
+        "delete_misses",
+        "delete_hits",
         "evictions",
         "bytes_read",
         "bytes_written",

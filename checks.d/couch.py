@@ -1,5 +1,6 @@
 import urllib2
 from util import json, headers
+from checks.utils import add_basic_auth
 
 from checks import AgentCheck
 
@@ -7,6 +8,7 @@ class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
     http://wiki.apache.org/couchdb/Runtime_Statistics
     """
+
     SOURCE_TYPE_NAME = 'couchdb'
 
     def _create_metric(self, data, tags=None):
@@ -26,10 +28,13 @@ class CouchDb(AgentCheck):
                     self.gauge(metric_name, val, tags=metric_tags, device_name=db_name)
 
 
-    def _get_stats(self, url):
+    def _get_stats(self, url, instance):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchdb stats at url: %s' % url)
         req = urllib2.Request(url, None, headers(self.agentConfig))
+
+        if 'user' in instance and 'password' in instance:
+            add_basic_auth(req, instance['user'], instance['password'])
 
         # Do the request, log any errors
         request = urllib2.urlopen(req)
@@ -40,10 +45,10 @@ class CouchDb(AgentCheck):
         server = instance.get('server', None)
         if server is None:
             raise Exception("A server must be specified")
-        data = self.get_data(server)
+        data = self.get_data(server, instance)
         self._create_metric(data, tags=['instance:%s' % server])
 
-    def get_data(self, server):
+    def get_data(self, server, instance):
         # The dictionary to be returned.
         couchdb = {'stats': None, 'databases': {}}
 
@@ -51,7 +56,7 @@ class CouchDb(AgentCheck):
         endpoint = '/_stats/'
 
         url = '%s%s' % (server, endpoint)
-        overall_stats = self._get_stats(url)
+        overall_stats = self._get_stats(url, instance)
 
         # No overall stats? bail out now
         if overall_stats is None:
@@ -63,14 +68,15 @@ class CouchDb(AgentCheck):
         endpoint = '/_all_dbs/'
 
         url = '%s%s' % (server, endpoint)
-        databases = self._get_stats(url)
+        databases = self._get_stats(url, instance)
 
         if databases is not None:
             for dbName in databases:
                 endpoint = '/%s/' % dbName
 
                 url = '%s%s' % (server, endpoint)
-                db_stats = self._get_stats(url)
+
+                db_stats = self._get_stats(url, instance)
                 if db_stats is not None:
                     couchdb['databases'][dbName] = db_stats
 
@@ -80,7 +86,6 @@ class CouchDb(AgentCheck):
     def parse_agent_config(agentConfig):
         if not agentConfig.get('couchdb_server'):
             return False
-
 
         return {
             'instances': [{
