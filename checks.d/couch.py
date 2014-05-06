@@ -7,6 +7,8 @@ class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
     http://wiki.apache.org/couchdb/Runtime_Statistics
     """
+    SOURCE_TYPE_NAME = 'couchdb'
+
     def _create_metric(self, data, tags=None):
         overall_stats = data.get('stats', {})
         for key, stats in overall_stats.items():
@@ -14,7 +16,7 @@ class CouchDb(AgentCheck):
                 if val['current'] is not None:
                     metric_name = '.'.join(['couchdb', key, metric])
                     self.gauge(metric_name, val['current'], tags=tags)
-        
+
         for db_name, db_stats in data.get('databases', {}).items():
             for name, val in db_stats.items():
                 if name in ['doc_count', 'disk_size'] and val is not None:
@@ -23,7 +25,7 @@ class CouchDb(AgentCheck):
                     metric_tags.append('db:%s' % db_name)
                     self.gauge(metric_name, val, tags=metric_tags, device_name=db_name)
 
-        
+
     def _get_stats(self, url):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchdb stats at url: %s' % url)
@@ -79,7 +81,7 @@ class CouchDb(AgentCheck):
         if not agentConfig.get('couchdb_server'):
             return False
 
-        
+
         return {
             'instances': [{
                 'server': agentConfig.get('couchdb_server'),

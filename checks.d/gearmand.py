@@ -2,6 +2,8 @@ from checks import AgentCheck
 
 class Gearman(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'germand'
+
     def get_library_versions(self):
         try:
             import gearman
@@ -28,7 +30,7 @@ class Gearman(AgentCheck):
         running = 0
         queued = 0
         workers = 0
-        
+
         for stat in data:
             running += stat['running']
             queued += stat['queued']
