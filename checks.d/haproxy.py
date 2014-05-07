@@ -104,9 +104,9 @@ class HAProxy(AgentCheck):
 
         hosts_statuses = defaultdict(int)
 
-        service = None
+        back_or_front = None
 
-        # Skip the first line, go backwards to know the appropriate svname
+        # Skip the first line, go backwards to set back_or_front
         for line in data[:0:-1]:
             if not line.strip():
                 continue
@@ -189,9 +189,9 @@ class HAProxy(AgentCheck):
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host):
         agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
         for host_status, count in hosts_statuses.iteritems():
-            if collect_status_metrics_by_host:
+            try:
                 service, hostname, status = host_status
-            else:
+            except:
                 service, status = host_status
             status = status.lower()
 
