@@ -122,7 +122,7 @@ class Docker(AgentCheck):
             elif os.path.exists(stat_file_docker):
                 self._path_prefix = "docker"
             else:
-                raise Exception("Cannot find Docker cgroup file. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.10.1")
+                raise Exception("Cannot find Docker cgroup file. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11")
         return self._path_prefix
 
     def check(self, instance):
@@ -231,7 +231,7 @@ class Docker(AgentCheck):
             try:
                 fp = open(file_)
             except IOError:
-                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.10.1" % file_)
+                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11" % file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
 
         finally:
