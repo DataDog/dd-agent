@@ -130,7 +130,10 @@ class Docker(AgentCheck):
         tags = instance.get("tags") or []
         containers = self._get_containers(instance)
         if not containers:
-            self.warning("No containers are running.")
+            self.gauge("docker.containers.running", 0)
+            raise Exception("No containers are running.")
+
+        self.gauge("docker.containers.running", len(containers))
 
         max_containers = instance.get('max_containers', DEFAULT_MAX_CONTAINERS)
 
