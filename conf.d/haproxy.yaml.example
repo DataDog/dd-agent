@@ -7,3 +7,4 @@ instances:
 #        status_check: False
 #        collect_aggregates_only: True
 #        collect_status_metrics: False
+#        collect_status_metrics_by_host: False
