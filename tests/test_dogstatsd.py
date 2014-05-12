@@ -333,6 +333,42 @@ class TestUnitDogStatsd(unittest.TestCase):
         assert counter['points'][0][1] == 2
         assert gauge['points'][0][1] == 1
 
+    def test_monokey_batching_notags(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('test_hist:1|ms:2|ms|@0.5:3|ms')
+
+        stats_ref = MetricsAggregator('refhost')
+        packets = [
+                'test_hist:1|ms',
+                'test_hist:2|ms|@0.5',
+                'test_hist:3|ms'
+        ]
+        stats_ref.submit_packets("\n".join(packets))
+
+        metrics = stats.flush()
+        metrics_ref = stats_ref.flush()
+
+        for i in range(0,5):
+            nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
+
+    def test_monokey_batching_withtags(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('test_gauge:1|g|#tag1:one,tag2:two:2|g|#tag3:three:3|g')
+
+        stats_ref = MetricsAggregator('refhost')
+        packets = [
+                'test_gauge:1|g|#tag1:one,tag2:two',
+                'test_gauge:2|g|#tag3:three',
+                'test_gauge:3|g'
+        ]
+        stats_ref.submit_packets("\n".join(packets))
+
+        metrics = self.sort_metrics(stats.flush())
+        metrics_ref = self.sort_metrics(stats_ref.flush())
+
+        for i in range(0,3):
+            nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
+            nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
 
     def test_bad_packets_throw_errors(self):
         packets = [

@@ -311,48 +311,70 @@ class Aggregator(object):
         return round(float(self.count)/interval, 2)
 
     def parse_metric_packet(self, packet):
+        """
+        Schema of a dogstatsd metric:
+        <name>:<value>|<metric_type>|@<sample_rate>|#<tag1_name>:<tag1_value>,<tag2_name>:<tag2_value>:<value>|<metric_type>...
+        """
+        parsed_packets = []
         name_and_metadata = packet.split(':', 1)
 
         if len(name_and_metadata) != 2:
             raise Exception('Unparseable metric packet: %s' % packet)
 
         name = name_and_metadata[0]
-        metadata = name_and_metadata[1].split('|')
+        broken_split = name_and_metadata[1].split(':')
+        data = []
+        partial_datum = None
+        for token in broken_split:
+            # We need to fix the tag groups that got broken by the : split
+            if partial_datum is None:
+                partial_datum = token
+            elif "|" not in token:
+                partial_datum += ":" + token
+            else:
+                data.append(partial_datum)
+                partial_datum = token
+        data.append(partial_datum)
 
-        if len(metadata) < 2:
-            raise Exception('Unparseable metric packet: %s' % packet)
+        for datum in data:
+            value_and_metadata = datum.split('|')
 
-        # Submit the metric
-        raw_value = metadata[0]
-        metric_type = metadata[1]
+            if len(value_and_metadata) < 2:
+                raise Exception('Unparseable metric packet: %s' % packet)
 
-        if metric_type in self.ALLOW_STRINGS:
-            value = raw_value
-        else:
-            # Try to cast as an int first to avoid precision issues, then as a
-            # float.
-            try:
-                value = int(raw_value)
-            except ValueError:
+            # Submit the metric
+            raw_value = value_and_metadata[0]
+            metric_type = value_and_metadata[1]
+
+            if metric_type in self.ALLOW_STRINGS:
+                value = raw_value
+            else:
+                # Try to cast as an int first to avoid precision issues, then as a
+                # float.
                 try:
-                    value = float(raw_value)
+                    value = int(raw_value)
                 except ValueError:
-                    # Otherwise, raise an error saying it must be a number
-                    raise Exception('Metric value must be a number: %s, %s' % (name, raw_value))
+                    try:
+                        value = float(raw_value)
+                    except ValueError:
+                        # Otherwise, raise an error saying it must be a number
+                        raise Exception('Metric value must be a number: %s, %s' % (name, raw_value))
 
 
-        # Parse the optional values - sample rate & tags.
-        sample_rate = 1
-        tags = None
-        for m in metadata[2:]:
-            # Parse the sample rate
-            if m[0] == '@':
-                sample_rate = float(m[1:])
-                assert 0 <= sample_rate <= 1
-            elif m[0] == '#':
-                tags = tuple(sorted(m[1:].split(',')))
+            # Parse the optional values - sample rate & tags.
+            sample_rate = 1
+            tags = None
+            for m in value_and_metadata[2:]:
+                # Parse the sample rate
+                if m[0] == '@':
+                    sample_rate = float(m[1:])
+                    assert 0 <= sample_rate <= 1
+                elif m[0] == '#':
+                    tags = tuple(sorted(m[1:].split(',')))
 
-        return name, value, metric_type, tags, sample_rate
+            parsed_packets.append((name, value, metric_type, tags,sample_rate))
+
+        return parsed_packets
 
     def _unescape_event_text(self, string):
         return string.replace('\\n', '\n')
@@ -406,8 +428,9 @@ class Aggregator(object):
                 self.event(**event)
             else:
                 self.count += 1
-                name, value, mtype, tags, sample_rate = self.parse_metric_packet(packet)
-                self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
+                parsed_packets = self.parse_metric_packet(packet)
+                for name, value, mtype, tags, sample_rate in parsed_packets:
+                    self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
