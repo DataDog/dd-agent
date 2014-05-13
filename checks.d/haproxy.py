@@ -19,6 +19,10 @@ class Services(object):
     BACKEND = 'BACKEND'
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
+    ALL_STATUSES = (
+            'up', 'up_1/3', 'up_2/3', 'open', 'no_check', 'down', 'down_1/2',
+            'maint', 'nolb'
+        )
 
 class HAProxy(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
@@ -195,10 +199,10 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
-            tags = ['status:%s' % status, 'service:%s' % service]
+            tags = ['service:%s' % service]
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
-            self.gauge("haproxy.count_per_status", count, tags=tags)
+            self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
 
             if 'up' in status:
                 agg_statuses[service]['available'] += count
@@ -209,6 +213,13 @@ class HAProxy(AgentCheck):
             for status, count in agg_statuses[service].iteritems():
                 tags = ['status:%s' % status, 'service:%s' % service]
                 self.gauge("haproxy.count_per_status", count, tags=tags)
+
+    def _gauge_all_statuses(self, metric_name, count, status, tags):
+        self.gauge(metric_name, count, tags + ['status:%s' % status])
+        for state in Services.ALL_STATUSES:
+            if state != status:
+                self.gauge(metric_name, 0, tags + ['status:%s' % state])
+
 
     def _process_metrics(self, data, url):
         """
