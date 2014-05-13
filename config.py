@@ -192,7 +192,7 @@ def get_default_bind_host():
     except gaierror:
         log.warning("localhost seems undefined in your hosts file, using 127.0.0.1 instead")
         return '127.0.0.1'
-    return 'locahost'
+    return 'localhost'
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
