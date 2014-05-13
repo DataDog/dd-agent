@@ -178,6 +178,42 @@ class Network(AgentCheck):
                 }
                 self._submit_devicemetrics(iface, metrics)
 
+
+        proc = open('/proc/net/snmp', 'r')
+        # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
+        # IP:      2            64         377145470      0            ...
+        # Icmp:    InMsgs       InErrors   InDestUnreachs InTimeExcds  ...
+        # Icmp:    1644495      1238       1643257        0            ...
+        # IcmpMsg: InType3      OutType3
+        # IcmpMsg: 1643257      1643257
+        # Tcp:     RtoAlgorithm RtoMin     RtoMax         MaxConn      ...
+        # Tcp:     1            200        120000         -1           ...
+        # Udp:     InDatagrams  NoPorts    InErrors       OutDatagrams ...
+        # Udp:     24249494     1643257    0              25892947     ...
+        # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
+        # UdpLite: 0            0          0              0            ...
+        try:
+            lines = proc.readlines()
+        finally:
+            proc.close()
+
+        column_names = lines[6].strip().split()
+        values = lines[7].strip().split()
+
+        tcp_metrics = dict(zip(column_names,values))
+
+        # line start indicating what kind of metrics we're looking at
+        assert(tcp_metrics['Tcp:']=='Tcp:')
+
+        tcp_metrics_name = {
+            'RetransSegs': 'system.net.tcp.retrans_segs',
+            'InSegs'     : 'system.net.tcp.in_segs',
+            'OutSegs'    : 'system.net.tcp.out_segs'
+            }
+
+        for key, metric in tcp_metrics_name.iteritems():
+            self.gauge(metric, self._parse_value(tcp_metrics[key]))
+
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                    stdout=subprocess.PIPE,
