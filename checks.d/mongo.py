@@ -17,6 +17,8 @@ class MongoDb(AgentCheck):
     GAUGES = [
         "indexCounters.btree.missRatio",
         "globalLock.ratio",
+        "globalLock.totalTime",
+        "globalLock.lockTime",
         "connections.current",
         "connections.available",
         "mem.resident",
