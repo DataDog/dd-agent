@@ -280,6 +280,39 @@ class Network(AgentCheck):
                 }
                 self._submit_devicemetrics(iface, metrics)
 
+
+        netstat = subprocess.Popen(["netstat", "-s","-p" "tcp"],
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
+        #3651535 packets sent
+        #        972097 data packets (615753248 bytes)
+        #        5009 data packets (2832232 bytes) retransmitted
+        #        0 resends initiated by MTU discovery
+        #        2086952 ack-only packets (471 delayed)
+        #        0 URG only packets
+        #        0 window probe packets
+        #        310851 window update packets
+        #        336829 control packets
+        #        0 data packets sent after flow control
+        #        3058232 checksummed in software
+        #        3058232 segments (571218834 bytes) over IPv4
+        #        0 segments (0 bytes) over IPv6
+        #4807551 packets received
+        #        1143534 acks (for 616095538 bytes)
+        #        165400 duplicate acks
+        #        ...
+        lines=netstat.split("\n")
+        metrics = {
+                re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"): 'system.net.tcp.retrans_packs',
+                re.compile("^\s*(\d+) packets sent\s*$"): 'system.net.tcp.sent_packs',
+                re.compile("^\s*(\d+) packets received\s*$"): 'system.net.tcp.rcv_packs'
+                }
+        for line in lines:
+            for regex, metric in metrics.iteritems():
+                value = re.match(regex, line)
+                if value:
+                    self.gauge(metric,self.parse_value(value.group(1)))
+
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
         # Default to kstat -p link:0:
