@@ -182,5 +182,3 @@ class ServicesCheck(AgentCheck):
             if now - start_time > TIMEOUT:
                 self.log.critical("Restarting Pool. One check is stuck.")
                 self.restart_pool()
-                
-   

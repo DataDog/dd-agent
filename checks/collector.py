@@ -15,6 +15,7 @@ from config import get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
+from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.nagios import Nagios
@@ -292,6 +293,9 @@ class Collector(object):
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
 
+        # Add a service check for the agent
+        service_checks.append(create_service_check('agent.up', AgentCheck.OK,
+            hostname=self.metadata_cache.get('hostname')))
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
