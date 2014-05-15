@@ -330,6 +330,15 @@ class Network(AgentCheck):
         netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
                                     stdout=subprocess.PIPE,
                                     close_fds=True).communicate()[0]
+        # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
+        # tcpRtoMax           = 60000 tcpMaxConn          =    -1
+        # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
+        # tcpAttemptFails     =     1 tcpEstabResets      =     0
+        # tcpCurrEstab        =     0 tcpOutSegs          =   254
+        # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
+        # tcpRetransSegs      =     0 tcpRetransBytes     =     0
+        # tcpOutAck           =   185 tcpOutAckDelayed    =     4
+        # ...
         metrics = {
             re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
             re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
