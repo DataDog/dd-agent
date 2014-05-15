@@ -116,6 +116,14 @@ class Network(AgentCheck):
             except ValueError:
                 return 0
 
+    def _submit_regexed_values(self, output, regex_dict):
+        lines=output.split("\n")
+        for line in lines:
+            for regex, metric in regex_dict.iteritems():
+                value = re.match(regex, line)
+                if value:
+                    self.gauge(metric, self._parse_value(value.group(1)))
+
     def _check_linux(self, instance):
         if self._collect_cx_state:
             netstat = subprocess.Popen(["netstat", "-n", "-u", "-t", "-a"],
@@ -301,17 +309,13 @@ class Network(AgentCheck):
         #        1143534 acks (for 616095538 bytes)
         #        165400 duplicate acks
         #        ...
-        lines=netstat.split("\n")
         metrics = {
                 re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"): 'system.net.tcp.retrans_packs',
                 re.compile("^\s*(\d+) packets sent\s*$"): 'system.net.tcp.sent_packs',
                 re.compile("^\s*(\d+) packets received\s*$"): 'system.net.tcp.rcv_packs'
                 }
-        for line in lines:
-            for regex, metric in metrics.iteritems():
-                value = re.match(regex, line)
-                if value:
-                    self.gauge(metric, self._parse_value(value.group(1)))
+        self._submit_regexed_values(netstat, metrics)
+
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -326,18 +330,12 @@ class Network(AgentCheck):
         netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
                                     stdout=subprocess.PIPE,
                                     close_fds=True).communicate()[0]
-        lines=netstat.split("\n")
         metrics = {
             re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
             re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
             re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"):'system.net.tcp.out_segs'
             }
-        for line in lines:
-            for regex, metric in metrics.iteritems():
-                value = re.match(regex, line)
-                if value:
-                    self.gauge(metric, self._parse_value(value.group(1)))
-
+        self._submit_regexed_values(netstat, metrics)
 
     def _parse_solaris_netstat(self, netstat_output):
         """
