@@ -311,7 +311,7 @@ class Network(AgentCheck):
             for regex, metric in metrics.iteritems():
                 value = re.match(regex, line)
                 if value:
-                    self.gauge(metric,self.parse_value(value.group(1)))
+                    self.gauge(metric, self.parse_value(value.group(1)))
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -322,6 +322,22 @@ class Network(AgentCheck):
         metrics_by_interface = self._parse_solaris_netstat(netstat)
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
+
+        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
+                                    stdout=subprocess.PIPE,
+                                    close_fds=True).communicate()[0]
+        lines=netstat.split("\n")
+        metrics = {
+            re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
+            re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
+            re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"):'system.net.tcp.out_segs'
+            }
+        for line in lines:
+            for regex, metric in metrics.iteritems():
+                value = re.match(regex, line)
+                if value:
+                    self.gauge(metric, self.parse_value(value.group(1)))
+
 
     def _parse_solaris_netstat(self, netstat_output):
         """
