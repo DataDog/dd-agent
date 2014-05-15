@@ -33,6 +33,10 @@ from util import json, PidFile, get_hostname, plural, get_uuid, chunks
 
 log = logging.getLogger('dogstatsd')
 
+# Dogstatsd constants in seconds
+DOGSTATSD_FLUSH_INTERVAL = 10
+DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
+
 
 WATCHDOG_TIMEOUT = 120
 UDP_SOCKET_TIMEOUT = 5
@@ -149,7 +153,7 @@ class Reporter(threading.Thread):
                 event_count=event_count,
             ).persist()
 
-        except Exception, e:
+        except Exception:
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
@@ -244,7 +248,7 @@ class Server(object):
             try:
                 self.forward_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.forward_udp_sock.connect((forward_to_host, forward_to_port))
-            except Exception, e:
+            except Exception:
                 log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
@@ -292,7 +296,7 @@ class Server(object):
                     raise
             except (KeyboardInterrupt, SystemExit):
                 break
-            except Exception, e:
+            except Exception:
                 log.exception('Error receiving datagram')
 
     def stop(self):
@@ -350,13 +354,14 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     log.debug("Configuration dogstatsd")
 
     port      = c['dogstatsd_port']
-    interval  = int(c['dogstatsd_interval'])
-    aggregator_interval  = int(c['dogstatsd_agregator_bucket_size'])
+    interval  = DOGSTATSD_FLUSH_INTERVAL
+    aggregator_interval  = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
     api_key   = c['api_key']
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
+    recent_point_threshold = c.get('recent_point_threshold', None)
 
     target = c['dd_url']
     if use_forwarder:
@@ -368,7 +373,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
