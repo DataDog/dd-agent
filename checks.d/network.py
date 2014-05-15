@@ -311,7 +311,7 @@ class Network(AgentCheck):
             for regex, metric in metrics.iteritems():
                 value = re.match(regex, line)
                 if value:
-                    self.gauge(metric, self.parse_value(value.group(1)))
+                    self.gauge(metric, self._parse_value(value.group(1)))
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -336,7 +336,7 @@ class Network(AgentCheck):
             for regex, metric in metrics.iteritems():
                 value = re.match(regex, line)
                 if value:
-                    self.gauge(metric, self.parse_value(value.group(1)))
+                    self.gauge(metric, self._parse_value(value.group(1)))
 
 
     def _parse_solaris_netstat(self, netstat_output):
