@@ -355,8 +355,8 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
 
     port      = c['dogstatsd_port']
     interval  = DOGSTATSD_FLUSH_INTERVAL
-    aggregator_interval  = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
     api_key   = c['api_key']
+    aggregator_interval = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
