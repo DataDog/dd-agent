@@ -201,7 +201,7 @@ class HAProxy(AgentCheck):
                 tags.append('backend:%s' % hostname)
             self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
 
-            if 'up' in status:
+            if 'up' in status or 'open' in status:
                 agg_statuses[service]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
                 agg_statuses[service]['unavailable'] += count
