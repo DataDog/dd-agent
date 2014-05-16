@@ -52,7 +52,7 @@ class Network(AgentCheck):
             raise Exception("Network check only supports one configured instance.")
 
     def check(self, instance):
-        a == b
+        1/0
         if instance is None:
             instance = {}
 
