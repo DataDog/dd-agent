@@ -1,9 +1,7 @@
-import urlparse
 import urllib2
-import socket
 
 from checks import AgentCheck
-from util import json, headers
+from util import headers
 
 import time
 
@@ -20,8 +18,7 @@ class Services(object):
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
     ALL_STATUSES = (
-            'up', 'up_1/3', 'up_2/3', 'open', 'no_check', 'down', 'down_1/2',
-            'maint', 'nolb'
+            'up', 'open', 'no_check', 'down', 'maint', 'nolb'
         )
 
 class HAProxy(AgentCheck):
