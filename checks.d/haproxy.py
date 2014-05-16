@@ -120,16 +120,17 @@ class HAProxy(AgentCheck):
 
             self._update_data_dict(data_dict, back_or_front)
 
-            self._update_hosts_statuses_if_needed(
-                collect_status_metrics, collect_status_metrics_by_host,
-                data_dict, hosts_statuses
-            )
 
             if self._should_process(data_dict, collect_aggregates_only):
+                # update status
+                self._update_hosts_statuses_if_needed(
+                    collect_status_metrics, collect_status_metrics_by_host,
+                    data_dict, hosts_statuses
+                )
                 # Send the list of data to the metric and event callbacks
                 self._process_metrics(data_dict, url)
-            if process_events:
-                self._process_event(data_dict, url)
+                if process_events:
+                    self._process_event(data_dict, url)
 
         if collect_status_metrics:
             self._process_status_metric(hosts_statuses, collect_status_metrics_by_host)

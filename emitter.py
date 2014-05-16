@@ -52,7 +52,6 @@ def http_emitter(message, log, agentConfig):
     urllib2 = get_http_library(proxy_settings, agentConfig['use_forwarder'])
 
     try:
-        import pdb; pdb.set_trace()
         request = urllib2.Request(url, zipped, headers)
         # Do the request, log any errors
         opener = get_opener(log, proxy_settings, agentConfig['use_forwarder'], urllib2)
