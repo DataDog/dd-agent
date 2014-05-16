@@ -183,7 +183,7 @@ class HAProxy(AgentCheck):
             if self._is_aggregate(data_dict):
                 return True
             return False
-        elif data_dict['svname'] is Services.BACKEND:
+        elif data_dict['svname'] == Services.BACKEND:
             return False
         return True
 
