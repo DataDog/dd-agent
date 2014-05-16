@@ -46,6 +46,7 @@ class MongoDb(AgentCheck):
         "indexCounters.btree.accesses",
         "indexCounters.btree.hits",
         "indexCounters.btree.misses",
+        "extra_info.page_faults",
         "opcounters.insert",
         "opcounters.query",
         "opcounters.update",
