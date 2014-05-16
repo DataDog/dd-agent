@@ -18,7 +18,7 @@ def get_http_library(proxy_settings, use_forwarder):
     else:
         # Python version < 2.6.3
         import urllib2proxy as urllib2
-    return urllib2 
+    return urllib2
 
 def post_headers(agentConfig, payload):
     return {
@@ -52,6 +52,7 @@ def http_emitter(message, log, agentConfig):
     urllib2 = get_http_library(proxy_settings, agentConfig['use_forwarder'])
 
     try:
+        import pdb; pdb.set_trace()
         request = urllib2.Request(url, zipped, headers)
         # Do the request, log any errors
         opener = get_opener(log, proxy_settings, agentConfig['use_forwarder'], urllib2)
@@ -75,13 +76,13 @@ def get_opener(log, proxy_settings, use_forwarder, urllib2):
         log.debug("Not using proxy settings")
     else:
         proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-        
+
         if proxy_settings.get('user') is not None:
             proxy_auth = proxy_settings['user']
             if proxy_settings.get('password') is not None:
                 proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
             proxy_url = '%s@%s' % (proxy_auth, proxy_url)
-        
+
         proxy = {'https': proxy_url}
         log.debug("Using proxy settings %s" % proxy)
 
