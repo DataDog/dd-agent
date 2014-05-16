@@ -16,6 +16,7 @@ class MongoDb(AgentCheck):
 
     GAUGES = [
         "indexCounters.btree.missRatio",
+        "indexCounters.missRatio",
         "globalLock.ratio",
         "globalLock.totalTime",
         "globalLock.lockTime",
@@ -49,6 +50,10 @@ class MongoDb(AgentCheck):
         "indexCounters.btree.accesses",
         "indexCounters.btree.hits",
         "indexCounters.btree.misses",
+        "indexCounters.accesses",
+        "indexCounters.hits",
+        "indexCounters.misses",
+        "indexCounters.resets",
         "extra_info.page_faults",
         "opcounters.insert",
         "opcounters.query",
