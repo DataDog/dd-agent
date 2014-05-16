@@ -272,13 +272,13 @@ class HAProxy(AgentCheck):
     def _create_event(self, status, hostname, lastchg, service_name):
         if status == "DOWN":
             alert_type = "error"
-            title = "HAProxy %s reported %s %s" % (service_name, hostname, status)
+            title = "%s reported %s %s" % (service_name, hostname, status)
         else:
             if status == "UP":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "HAProxy %s reported %s back and %s" % (service_name, hostname, status)
+            title = "%s reported %s back and %s" % (service_name, hostname, status)
 
         return {
              'timestamp': int(time.time() - lastchg),
