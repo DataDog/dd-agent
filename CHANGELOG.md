@@ -5,7 +5,16 @@ Changes
 ### Integrations affected
 
 ### Changes
+
+# 4.3.0 / Unreleased
+
+### Integrations affected
+* MongoDB
+* Process
+
+#### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
+* [FEATURE] Add some mongo2.2+ metrics to check: See [#951]
 
 # 4.2.2 / 04-25-2014
 
@@ -970,6 +979,7 @@ If you use ganglia, you want this version.
 [#894]: https://github.com/DataDog/dd-agent/issues/894
 [#904]: https://github.com/DataDog/dd-agent/issues/904
 [#917]: https://github.com/DataDog/dd-agent/issues/917
+[#951]: https://github.com/DataDog/dd-agent/issues/951
 [@CaptTofu]: https://github.com/CaptTofu
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
