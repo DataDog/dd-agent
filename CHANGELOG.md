@@ -22,13 +22,13 @@ Changes
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
 * [FEATURE] Add some mongo2.2+ metrics to check: See [#951]
-* [FEATURE] Collect checks statuses
+* [FEATURE] Collect checks statuses: See [#922]
 * [FEATURE] CouchDB: Support basic authentication: See [#930]
 * [FEATURE] Docker: Support Docker 0.11
 * [FEATURE] Docker: Collect events from the events api
-* [FEATURE] HAProxy: Allow collection of metrics per host with the option `collect_status_metrics_by_host`.
-* [BUGFIX] HAProxy: Fix inaccuracy of count_per_status metric.
-* [BUGFIX] HAProxy: Update event's titles.
+* [FEATURE] HAProxy: Allow collection of metrics per host with the option `collect_status_metrics_by_host`: See [#935]
+* [BUGFIX] HAProxy: Fix inaccuracy of count_per_status metric: See [#940]
+* [BUGFIX] HAProxy: Update event's titles: See [#935]
 * [FEATURE] Add Marathon integration: See [#921]
 * [FEATURE] Add Mesos integration: See [#919]
 * [FEATURE] Memcached: Add delete_misses/delete_hits: See [#928]
@@ -1003,8 +1003,11 @@ If you use ganglia, you want this version.
 [#917]: https://github.com/DataDog/dd-agent/issues/917
 [#919]: https://github.com/DataDog/dd-agent/issues/919
 [#921]: https://github.com/DataDog/dd-agent/issues/921
+[#922]: https://github.com/DataDog/dd-agent/issues/922
 [#928]: https://github.com/DataDog/dd-agent/issues/928
 [#930]: https://github.com/DataDog/dd-agent/issues/930
+[#935]: https://github.com/DataDog/dd-agent/issues/935
+[#940]: https://github.com/DataDog/dd-agent/issues/940
 [#947]: https://github.com/DataDog/dd-agent/issues/947
 [#951]: https://github.com/DataDog/dd-agent/issues/951
 [@CaptTofu]: https://github.com/CaptTofu
