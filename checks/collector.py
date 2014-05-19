@@ -281,7 +281,7 @@ class Collector(object):
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                check_source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name)
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():
