@@ -11,7 +11,17 @@ import re
 # project
 from checks import AgentCheck
 from util import Platform
+BSD_TCP_METRICS = {
+        re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"): 'system.net.tcp.retrans_packs',
+        re.compile("^\s*(\d+) packets sent\s*$"): 'system.net.tcp.sent_packs',
+        re.compile("^\s*(\d+) packets received\s*$"): 'system.net.tcp.rcv_packs'
+        }
 
+SOLARIS_TCP_METRICS = {
+        re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
+        re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
+        re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"):'system.net.tcp.out_segs'
+        }
 
 class Network(AgentCheck):
 
@@ -309,12 +319,8 @@ class Network(AgentCheck):
         #        1143534 acks (for 616095538 bytes)
         #        165400 duplicate acks
         #        ...
-        metrics = {
-                re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"): 'system.net.tcp.retrans_packs',
-                re.compile("^\s*(\d+) packets sent\s*$"): 'system.net.tcp.sent_packs',
-                re.compile("^\s*(\d+) packets received\s*$"): 'system.net.tcp.rcv_packs'
-                }
-        self._submit_regexed_values(netstat, metrics)
+
+        self._submit_regexed_values(netstat, BSD_TCP_METRICS)
 
 
     def _check_solaris(self, instance):
@@ -339,12 +345,8 @@ class Network(AgentCheck):
         # tcpRetransSegs      =     0 tcpRetransBytes     =     0
         # tcpOutAck           =   185 tcpOutAckDelayed    =     4
         # ...
-        metrics = {
-            re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
-            re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
-            re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"):'system.net.tcp.out_segs'
-            }
-        self._submit_regexed_values(netstat, metrics)
+        self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+
 
     def _parse_solaris_netstat(self, netstat_output):
         """
