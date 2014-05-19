@@ -407,14 +407,3 @@ class TokuMX(AgentCheck):
                 if m in self.RATES:
                     m = self.normalize(m, 'tokumx') + "ps"
                     self.rate(m, value, tags=tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('tokumx_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agentConfig.get('tokumx_server')
-            }]
-        }
