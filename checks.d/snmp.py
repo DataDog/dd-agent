@@ -6,8 +6,8 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.smi.exval import noSuchInstance
 import pysnmp.proto.rfc1902 as snmp_type
 
-snmp_counters = [snmp_type.Counter32, snmp_type.Counter64]
-snmp_gauges = [snmp_type.Gauge32]
+SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64]
+SNMP_GAUGES = [snmp_type.Gauge32]
 
 class SnmpCheck(AgentCheck):
 
@@ -20,8 +20,6 @@ class SnmpCheck(AgentCheck):
                 if 'ip_address' in instance:
                     ip_address = instance["ip_address"]
                     self.interface_list[ip_address] = self.get_interfaces(instance)
-                    tags = instance.get("tags",[])
-                    tags.append("snmp_device:" + ip_address)
 
     def get_interfaces(self, instance):
         '''
@@ -115,13 +113,14 @@ class SnmpCheck(AgentCheck):
 
     def check(self, instance):
         tags = instance.get("tags",[])
+        ip_address = instance["ip_address"]
         device_oids = []
         interface_oids = []
         for metric in instance.get('metrics',[]):
             device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
         results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
-            self.report_as_statsd(instance, oid, value, tags=tags)
+            self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address])
 
         for metric in instance.get('interface_metrics',[]):
             interface_oids.append((metric["MIB"],metric["symbol"]))
@@ -129,7 +128,8 @@ class SnmpCheck(AgentCheck):
             oids = [(oid, interface) for oid in interface_oids]
             interface_results = SnmpCheck.snmp_get(instance, oids)
             for oid, value in interface_results:
-                self.report_as_statsd(instance, oid, value, tags = tags + ["interface:"+descr])
+                self.submit_metric(instance, oid, value, tags = tags + ["snmp_device:" + ip_address,
+                                                                            "interface:"+descr])
 
     @staticmethod
     def snmp_get(instance, oids):
@@ -160,27 +160,14 @@ class SnmpCheck(AgentCheck):
             else:
                 return varBinds
 
-    def report_as_statsd(self, instance, oid, snmp_value, tags=[]):
+    def submit_metric(self, instance, oid, snmp_value, tags=[]):
         if noSuchInstance.isSameTypeWith(snmp_value):
             return
         name = "snmp." + oid.getMibSymbol()[1]
         snmp_class = getattr(snmp_value, '__class__')
         value = int(snmp_value)
-        if snmp_class in snmp_counters:
-            self.counter(instance, name, value, snmp_class, tags)
-        elif snmp_class in snmp_gauges:
+        if snmp_class in SNMP_COUNTERS:
+            self.rate(name, value, tags)
+        elif snmp_class in SNMP_GAUGES:
             self.gauge(name, value, tags)
 
-
-    def counter(self, instance, name, value, snmp_class, tags = []):
-        current_state = self.counter_state[instance['ip_address']]
-        metric_id = name + str(tags)
-        if metric_id in current_state:
-            diff = value - current_state[metric_id]
-            if diff < 0:
-                # Counters monotonically increase so it means the counter wrapped
-                diff += pow(2, 32 if snmp_class==snmp_type.Counter32 else 64)
-            self.increment(name, diff,tags=tags)
-        else:
-            self.log.info("Setting up initial value for Counter {0}".format(name))
-        current_state[metric_id] = value
