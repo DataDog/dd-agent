@@ -11,10 +11,26 @@ Changes
 ### Integrations affected
 * MongoDB
 * Process
+* CouchDB
+* Docker
+* Marathon
+* Memcached
+* Mesos
+* MySQL
 
 #### Changes
-* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
+* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
 * [FEATURE] Add some mongo2.2+ metrics to check: See [#951]
+* [FEATURE] CouchDB: Support basic authentication
+* [FEATURE] Docker: Support Docker 0.11
+* [FEATURE] Docker: Collect events from the events api
+* [FEATURE] Add Marathon integration
+* [FEATURE] Add Mesos integration
+* [FEATURE] Memcached: Add delete_misses/delete_hits: See [#928]
+* [BUGFIX] MySQL: Only collect MySQL metrics from /proc on unix machines: See [#947]
+* [BUGFIX] MySQL: Fix duplicate metric bug: See [#899]
+* [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
+
 
 # 4.2.2 / 04-25-2014
 
@@ -977,8 +993,11 @@ If you use ganglia, you want this version.
 [#883]: https://github.com/DataDog/dd-agent/issues/883
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
+[#899]: https://github.com/DataDog/dd-agent/issues/899
 [#904]: https://github.com/DataDog/dd-agent/issues/904
 [#917]: https://github.com/DataDog/dd-agent/issues/917
+[#928]: https://github.com/DataDog/dd-agent/issues/928
+[#947]: https://github.com/DataDog/dd-agent/issues/947
 [#951]: https://github.com/DataDog/dd-agent/issues/951
 [@CaptTofu]: https://github.com/CaptTofu
 [@brettlangdon]: https://github.com/brettlangdon
