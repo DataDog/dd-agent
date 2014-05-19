@@ -1,9 +1,7 @@
-import urlparse
 import urllib2
-import socket
 
 from checks import AgentCheck
-from util import json, headers
+from util import headers
 
 import time
 
@@ -19,6 +17,9 @@ class Services(object):
     BACKEND = 'BACKEND'
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
+    ALL_STATUSES = (
+            'up', 'open', 'no_check', 'down', 'maint', 'nolb'
+        )
 
 class HAProxy(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
@@ -119,16 +120,17 @@ class HAProxy(AgentCheck):
 
             self._update_data_dict(data_dict, back_or_front)
 
-            self._update_hosts_statuses_if_needed(
-                collect_status_metrics, collect_status_metrics_by_host,
-                data_dict, hosts_statuses
-            )
 
             if self._should_process(data_dict, collect_aggregates_only):
+                # update status
+                self._update_hosts_statuses_if_needed(
+                    collect_status_metrics, collect_status_metrics_by_host,
+                    data_dict, hosts_statuses
+                )
                 # Send the list of data to the metric and event callbacks
                 self._process_metrics(data_dict, url)
-            if process_events:
-                self._process_event(data_dict, url)
+                if process_events:
+                    self._process_event(data_dict, url)
 
         if collect_status_metrics:
             self._process_status_metric(hosts_statuses, collect_status_metrics_by_host)
@@ -182,7 +184,7 @@ class HAProxy(AgentCheck):
             if self._is_aggregate(data_dict):
                 return True
             return False
-        elif data_dict['svname'] is Services.BACKEND:
+        elif data_dict['svname'] == Services.BACKEND:
             return False
         return True
 
@@ -195,12 +197,12 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
-            tags = ['status:%s' % status, 'service:%s' % service]
+            tags = ['service:%s' % service]
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
-            self.gauge("haproxy.count_per_status", count, tags=tags)
+            self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
 
-            if 'up' in status:
+            if 'up' in status or 'open' in status:
                 agg_statuses[service]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
                 agg_statuses[service]['unavailable'] += count
@@ -209,6 +211,13 @@ class HAProxy(AgentCheck):
             for status, count in agg_statuses[service].iteritems():
                 tags = ['status:%s' % status, 'service:%s' % service]
                 self.gauge("haproxy.count_per_status", count, tags=tags)
+
+    def _gauge_all_statuses(self, metric_name, count, status, tags):
+        self.gauge(metric_name, count, tags + ['status:%s' % status])
+        for state in Services.ALL_STATUSES:
+            if state != status:
+                self.gauge(metric_name, 0, tags + ['status:%s' % state])
+
 
     def _process_metrics(self, data, url):
         """
@@ -263,13 +272,13 @@ class HAProxy(AgentCheck):
     def _create_event(self, status, hostname, lastchg, service_name):
         if status == "DOWN":
             alert_type = "error"
-            title = "HAProxy %s front-end reported %s %s" % (service_name, hostname, status)
+            title = "%s reported %s %s" % (service_name, hostname, status)
         else:
             if status == "UP":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "HAProxy %s front-end reported %s back and %s" % (service_name, hostname, status)
+            title = "%s reported %s back and %s" % (service_name, hostname, status)
 
         return {
              'timestamp': int(time.time() - lastchg),
