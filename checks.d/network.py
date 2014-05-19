@@ -122,7 +122,7 @@ class Network(AgentCheck):
             for regex, metric in regex_dict.iteritems():
                 value = re.match(regex, line)
                 if value:
-                    self.gauge(metric, self._parse_value(value.group(1)))
+                    self.rate(metric, self._parse_value(value.group(1)))
 
     def _check_linux(self, instance):
         if self._collect_cx_state:
@@ -220,7 +220,7 @@ class Network(AgentCheck):
             }
 
         for key, metric in tcp_metrics_name.iteritems():
-            self.gauge(metric, self._parse_value(tcp_metrics[key]))
+            self.rate(metric, self._parse_value(tcp_metrics[key]))
 
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
