@@ -4,16 +4,22 @@ import httplib
 import socket
 import os
 import re
+import time
 from urlparse import urlsplit, urljoin
 from util import json, headers
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
 from checks import AgentCheck
 
 DEFAULT_MAX_CONTAINERS = 20
+EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
 LXC_METRICS = [
     {
         "cgroup": "memory",
-        "file": "lxc/%s/memory.stat",
+        "file": "%s/%s/memory.stat",
         "metrics": {
             "active_anon": ("docker.mem.active_anon", "gauge"),
             "active_file": ("docker.mem.active_file", "gauge"),
@@ -47,7 +53,7 @@ LXC_METRICS = [
     },
     {
         "cgroup": "cpuacct",
-        "file": "lxc/%s/cpuacct.stat",
+        "file": "%s/%s/cpuacct.stat",
         "metrics": {
             "user": ("docker.cpu.user", "gauge"),
             "system": ("docker.cpu.system", "gauge"),
@@ -103,16 +109,41 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     def __init__(self, *args, **kwargs):
         super(Docker, self).__init__(*args, **kwargs)
-        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler()))
         self._mounpoints = {}
+        self.cgroup_path_prefix = None # Depending on the version 
         for metric in LXC_METRICS:
             self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
+        self._path_prefix = None
+        self._last_event_collection_ts = defaultdict(lambda: None)
+
+    @property
+    def path_prefix(self):
+        if self._path_prefix is None:
+            metric = LXC_METRICS[0]
+            mountpoint = self._mounpoints[metric["cgroup"]]
+            stat_file_lxc = os.path.join(mountpoint, "lxc")
+            stat_file_docker = os.path.join(mountpoint, "docker")
+
+            if os.path.exists(stat_file_lxc):
+                self._path_prefix = "lxc"
+            elif os.path.exists(stat_file_docker):
+                self._path_prefix = "docker"
+            else:
+                raise Exception("Cannot find Docker cgroup file. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11")
+        return self._path_prefix
 
     def check(self, instance):
+        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
+
+        self._process_events(self._get_events(instance))
+
         containers = self._get_containers(instance)
         if not containers:
-            self.warning("No containers are running.")
+            self.gauge("docker.containers.running", 0)
+            raise Exception("No containers are running.")
+
+        self.gauge("docker.containers.running", len(containers))
 
         max_containers = instance.get('max_containers', DEFAULT_MAX_CONTAINERS)
 
@@ -143,11 +174,24 @@ class Docker(AgentCheck):
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for metric in LXC_METRICS:
                 mountpoint = self._mounpoints[metric["cgroup"]]
-                stat_file = os.path.join(mountpoint, metric["file"] % container["Id"])
+                stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+
+    def _process_events(self, events):
+        for ev in events:
+            self.log.debug("Creating event for %s" % ev)
+            self.event({
+                'timestamp': ev['time'],
+                'host': self.hostname,
+                'event_type': EVENT_TYPE,
+                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname), 
+                'source_type_name': EVENT_TYPE,
+                'event_object': ev['from'],
+            })
+
 
     def _make_tag(self, key, value):
         return "%s:%s" % (key.lower(), value.strip())
@@ -174,7 +218,19 @@ class Docker(AgentCheck):
         """Get container information from Docker, gived a container Id."""
         return self._get_json("%s/containers/%s/json" % (instance["url"], cid))
 
-    def _get_json(self, uri, params=None):
+    def _get_events(self, instance):
+        """Get the list of events """
+        now = int(time.time())
+        result = self._get_json("%s/events" % instance["url"], params={
+                "until": now,
+                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+            }, multi=True)
+        self._last_event_collection_ts[instance["url"]] = now
+        if type(result) == dict:
+            result = [result]
+        return result
+
+    def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
         if params:
             uri = "%s?%s" % (uri, urllib.urlencode(params))
@@ -187,6 +243,12 @@ class Docker(AgentCheck):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
             raise
         response = request.read()
+        if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
+            response = "[{0}]".format(response.replace("}{", "},{"))
+
+        if not response:
+            return []
+
         return json.loads(response)
 
     def _find_cgroup(self, hierarchy):
@@ -213,7 +275,7 @@ class Docker(AgentCheck):
             try:
                 fp = open(file_)
             except IOError:
-                raise IOError("Can't open %s. If you are using Docker 0.9.0 or higher, the Datadog agent is not yet compatible with these versions. Please get in touch with Datadog Support for more information" % file_)
+                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11" % file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
 
         finally:
