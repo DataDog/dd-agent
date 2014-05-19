@@ -85,6 +85,16 @@ SELECT relname,
         'relation': True,
     }
 
+    INSTANCE_METRICS = {
+    #Instance metrics map where key is postgresql query and value is (metric_name, submit_function)
+        'SHOW max_connections;'  : ('postgresql.max_connections', GAUGE),
+        'SELECT sum(numbackends) FROM pg_stat_database;' : ('postgresql.total_connections', GAUGE),
+    }
+
+    HOT_STANDBY_METRICS = {
+    #Metrics for postgres server in hot_standby mode (allowing queries)
+        'select now() - pg_last_xact_replay_timestamp() AS replication_delay;' : ('postgresql.replication_delay', GAUGE),
+    }
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -194,6 +204,26 @@ SELECT relname,
                 # tags are
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
             
+    def _collect_misc_stats(self, key, db, instance_tags):
+        # Query for miscellaneous metrics
+        from psycopg2 import InterfaceError
+        try:
+            cursor = db.cursor()
+        except InterfaceError, e:
+            self.log.error("Connection seems broken: %s" % str(e))
+            raise ShouldRestartException
+        for query in self.INSTANCE_METRICS.keys():
+            cursor.execute(query)
+            result = cursor.fetchone()
+            self.INSTANCE_METRICS[query][1](self, self.INSTANCE_METRICS[query][0], result[0], tags=instance_tags)
+        #check if hot_standby is on before running hot standby metrics (replication delay)
+        cursor.execute('show hot_standby;')
+        result = True if cursor.fetchone()[0]=='on' else False
+        if result:
+            for query in self.HOT_STANDBY_METRICS.keys():
+                cursor.execute(query)
+                result = cursor.fetchone()
+                self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result[0], tags=instance_tags)
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
@@ -265,7 +295,12 @@ SELECT relname,
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
-
+        try:
+            self._collect_misc_stats(key, db, tags)
+        except ShouldRestartException:
+            self.log.info("Resetting the connection")
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            self._collect_misc_stats(key, db, tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):
