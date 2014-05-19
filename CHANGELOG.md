@@ -35,6 +35,7 @@ Changes
 * [BUGFIX] MySQL: Only collect MySQL metrics from /proc on unix machines: See [#947]
 * [BUGFIX] MySQL: Fix duplicate metric bug: See [#899]
 * [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
+* [FEATURE] Add an option to disable Dogstastsd: See [#927]
 
 
 # 4.2.2 / 04-25-2014
@@ -1004,6 +1005,7 @@ If you use ganglia, you want this version.
 [#919]: https://github.com/DataDog/dd-agent/issues/919
 [#921]: https://github.com/DataDog/dd-agent/issues/921
 [#922]: https://github.com/DataDog/dd-agent/issues/922
+[#927]: https://github.com/DataDog/dd-agent/issues/927
 [#928]: https://github.com/DataDog/dd-agent/issues/928
 [#930]: https://github.com/DataDog/dd-agent/issues/930
 [#935]: https://github.com/DataDog/dd-agent/issues/935
