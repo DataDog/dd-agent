@@ -110,6 +110,8 @@ class ElasticSearch(AgentCheck):
         "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red":0,"yellow":1,"green":2}.get(v, -1)),
     }
 
+    SOURCE_TYPE_NAME = 'elasticsearch'
+
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 

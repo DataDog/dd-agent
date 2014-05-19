@@ -14,6 +14,8 @@ DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'mongodb'
+
     GAUGES = [
         "indexCounters.btree.missRatio",
         "indexCounters.missRatio",

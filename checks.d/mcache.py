@@ -58,6 +58,9 @@ from checks import *
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
 class Memcache(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'memcached'
+
     DEFAULT_PORT = 11211
 
     GAUGES = [

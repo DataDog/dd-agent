@@ -28,7 +28,7 @@ class Gearman(AgentCheck):
         running = 0
         queued = 0
         workers = 0
-        
+
         for stat in data:
             running += stat['running']
             queued += stat['queued']

@@ -257,7 +257,6 @@ class Collector(object):
             try:
                 # Run the check.
                 instance_statuses = check.run()
-
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
@@ -281,7 +280,8 @@ class Collector(object):
                 log.exception("Error running check %s" % check.name)
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
-                library_versions=check.get_library_info())
+                library_versions=check.get_library_info(),
+                source_type_name=check.SOURCE_TYPE_NAME or check.name)
             check_statuses.append(check_status)
 
         for check_name, info in self.init_failed_checks_d.iteritems():
@@ -297,6 +297,21 @@ class Collector(object):
         payload['metrics'] = metrics
         payload['events'] = events
         payload['service_checks'] = service_checks
+
+        # Add agent_checks if needed
+        if self._should_send_metadata():
+            agent_checks = []
+            for check in check_statuses:
+                for instance_status in check.instance_statuses:
+                    agent_checks.append(
+                        (
+                            check.name, check.source_type_name,
+                            instance_status.instance_id,
+                            instance_status.status, instance_status.error
+                        )
+                    )
+            payload['agent_checks'] = agent_checks
+
         collect_duration = timer.step()
 
         if self.os != 'windows':
@@ -379,7 +394,7 @@ class Collector(object):
                                  }]
 
         # Periodically send the host metadata.
-        if self._is_first_run() or self._should_send_metadata():
+        if self._should_send_metadata():
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
             self.metadata_cache = payload['meta']
@@ -427,6 +442,8 @@ class Collector(object):
         return metadata
 
     def _should_send_metadata(self):
+        if self._is_first_run():
+            return True
         # If the interval has passed, send the metadata again
         now = time.time()
         if now - self.metadata_start >= self.metadata_interval:

@@ -15,6 +15,8 @@ from util import Platform
 
 class Network(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'system'
+
     TCP_STATES = {
         "ESTABLISHED": "established",
         "SYN_SENT": "opening",
@@ -88,7 +90,7 @@ class Network(AgentCheck):
 
         # For reasons i don't understand only these metrics are skipped if a
         # particular interface is in the `excluded_interfaces` config list.
-        # Not sure why the others aren't included. Until I understand why, I'm 
+        # Not sure why the others aren't included. Until I understand why, I'm
         # going to keep the same behaviour.
         exclude_iface_metrics = [
             'packets_in.count',
@@ -238,7 +240,7 @@ class Network(AgentCheck):
                     'bytes_rcvd': self._parse_value(x[-5]),
                     'bytes_sent': self._parse_value(x[-2]),
                     'packets_in.count': self._parse_value(x[-7]),
-                    'packets_in.error': self._parse_value(x[-6]), 
+                    'packets_in.error': self._parse_value(x[-6]),
                     'packets_out.count': self._parse_value(x[-4]),
                     'packets_out.error':self._parse_value(x[-3]),
                 }
