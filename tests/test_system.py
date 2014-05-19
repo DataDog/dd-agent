@@ -236,6 +236,9 @@ instances:
 
         assert 'system.net.bytes_rcvd' in metric_names
         assert 'system.net.bytes_sent' in metric_names
+        assert 'system.net.tcp.retrans_segs' in metric_names
+        assert 'system.net.tcp.in_segs' in metric_names
+        assert 'system.net.tcp.out_segs' in metric_names
 
 
 if __name__ == "__main__":
