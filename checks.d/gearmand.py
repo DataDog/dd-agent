@@ -2,8 +2,6 @@ from checks import AgentCheck
 
 class Gearman(AgentCheck):
 
-    SOURCE_TYPE_NAME = 'gearmand'
-
     def get_library_versions(self):
         try:
             import gearman
