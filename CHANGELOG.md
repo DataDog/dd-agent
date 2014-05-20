@@ -20,6 +20,7 @@ Changes
 * MySQL
 * TokuMX
 * ElasticSearch
+* Network
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
@@ -41,6 +42,9 @@ Changes
 * [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
 * [FEATURE] Add TokuMX integration: See [#933][] (Thanks to [@leifwalsh][])
 * [BUGFIX] ElasticSearch: Added correct GC metrics for ES 1.x: See [#900][] (Thanks to [@joningle][])
+* [FEATURE] Network: Add additional metrics for TCP: See [#949][]
+
+>>>>>>> origin/additional_tcp_metrics
 
 # 4.2.2 / 04-25-2014
 
@@ -1018,6 +1022,7 @@ If you use ganglia, you want this version.
 [#935]: https://github.com/DataDog/dd-agent/issues/935
 [#940]: https://github.com/DataDog/dd-agent/issues/940
 [#947]: https://github.com/DataDog/dd-agent/issues/947
+[#949]: https://github.com/DataDog/dd-agent/issues/949
 [#951]: https://github.com/DataDog/dd-agent/issues/951
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
