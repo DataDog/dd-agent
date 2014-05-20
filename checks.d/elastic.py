@@ -189,7 +189,11 @@ class ElasticSearch(AgentCheck):
                 "elasticsearch.cache.filter.size": ("gauge", "indices.filter_cache.memory_size_in_bytes"),
                 "elasticsearch.id_cache.size": ("gauge","indices.id_cache.memory_size_in_bytes"),
                 "elasticsearch.fielddata.size": ("gauge","indices.fielddata.memory_size_in_bytes"),
-                "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions")
+                "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions"),
+                "jvm.gc.collectors.young.count": ("gauge", "jvm.gc.collectors.young.collection_count"),
+                "jvm.gc.collectors.young.collection_time": ("gauge", "jvm.gc.collectors.young.collection_time_in_millis", lambda v: float(v)/1000),
+                "jvm.gc.collectors.old.count": ("gauge", "jvm.gc.collectors.old.collection_count"),
+                "jvm.gc.collectors.old.collection_time": ("gauge", "jvm.gc.collectors.old.collection_time_in_millis", lambda v: float(v)/1000)
             }
 
         else:
