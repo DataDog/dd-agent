@@ -21,7 +21,7 @@ Changes
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
-* [FEATURE] Add some mongo2.2+ metrics to check: See [#951[] (Thanks to [@ckrough][])
+* [FEATURE] Add some mongo2.2+ metrics to check: See [#951][] (Thanks to [@ckrough][])
 * [FEATURE] Collect checks statuses: See [#922]
 * [FEATURE] CouchDB: Support basic authentication: See [#930]
 * [FEATURE] Docker: Support Docker 0.11
