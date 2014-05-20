@@ -19,6 +19,7 @@ Changes
 * Mesos
 * MySQL
 * TokuMX
+* ElasticSearch
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
@@ -39,6 +40,7 @@ Changes
 * [FEATURE] Add an option to disable Dogstastsd: See [#927]
 * [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
 * [FEATURE] Add TokuMX integration: See [#933][] (Thanks to [@leifwalsh][])
+* [BUGFIX] ElasticSearch: Added correct GC metrics for ES 1.x: See [#900][] (Thanks to [@joningle][])
 
 # 4.2.2 / 04-25-2014
 
@@ -1003,6 +1005,7 @@ If you use ganglia, you want this version.
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
 [#899]: https://github.com/DataDog/dd-agent/issues/899
+[#900]: https://github.com/DataDog/dd-agent/issues/900
 [#904]: https://github.com/DataDog/dd-agent/issues/904
 [#917]: https://github.com/DataDog/dd-agent/issues/917
 [#919]: https://github.com/DataDog/dd-agent/issues/919
@@ -1031,6 +1034,7 @@ If you use ganglia, you want this version.
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
+[@joningle]: https://github.com/joningle
 [@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux
