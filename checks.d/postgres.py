@@ -85,10 +85,10 @@ SELECT relname,
         'relation': True,
     }
 
-    #Individual metrics with array of [query, metric_name, metric_type]
-    MAX_CONNECTIONS_METRIC = ['SHOW max_connections;','postgresql.max_connections', GAUGE]
+    # Individual metrics with tuple of (query, metric_name, metric_type)
+    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;','postgresql.max_connections', GAUGE)
 
-    HOT_STANDBY_METRIC = ['select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE]
+    HOT_STANDBY_METRIC = ('select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE)
 
 
     def __init__(self, name, init_config, agentConfig):
@@ -215,14 +215,16 @@ SELECT relname,
         percent_usage = float(current_conn) / float(max_conn)
         self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
 
-        #check if hot_standby is on before running hot standby metrics (replication delay)
+        # check if hot_standby is on before running hot standby metrics (replication delay)
         cursor.execute('show hot_standby;')
         is_standby = cursor.fetchone()[0]=='on'
         if is_standby:
             query = self.HOT_STANDBY_METRIC[0]
             cursor.execute(query)
+            # Python interprets the return value of the replication delay output from postgres as a timedelta
+            # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
             result = cursor.fetchone()[0].seconds
-            self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRICS[1], result, tags=instance_tags)
+            self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
