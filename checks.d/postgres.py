@@ -206,10 +206,10 @@ SELECT relname,
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
 
         # Query for miscellaneous metrics
-        for query in self.INSTANCE_METRICS.keys():
-            cursor.execute(query)
-            result = cursor.fetchone()
-            self.INSTANCE_METRICS[query][1](self, self.INSTANCE_METRICS[query][0], result[0], tags=instance_tags)
+        query = self.INSTANCE_METRICS.keys()[0]
+        cursor.execute(query)
+        result = cursor.fetchone()
+        self.INSTANCE_METRICS[query][1](self, self.INSTANCE_METRICS[query][0], result[0], tags=instance_tags)
 
         # Query for percent usage of max_connections
         cursor.execute('show max_connections;')
@@ -217,18 +217,16 @@ SELECT relname,
         cursor.execute('SELECT sum(numbackends ) FROM pg_stat_database;')
         current_conn = cursor.fetchone()[0]
         percent_usage = float(current_conn) / float(max_conn)
-        AgentCheck.gauge(self, 'postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
+        self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
 
         #check if hot_standby is on before running hot standby metrics (replication delay)
         cursor.execute('show hot_standby;')
-        result = False
-        if cursor.fetchone()[0]=='on':
-            result = True
-        if result:
-            for query in self.HOT_STANDBY_METRICS.keys():
-                cursor.execute(query)
-                result = cursor.fetchone()
-                self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result[0], tags=instance_tags)
+        is_standby = cursor.fetchone()[0]=='on'
+        if is_standby:
+            query = self.HOT_STANDBY_METRICS.keys()[0]
+            cursor.execute(query)
+            result = cursor.fetchone()
+            self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result[0], tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
