@@ -18,6 +18,7 @@ Changes
 * Memcached
 * Mesos
 * MySQL
+* TokuMX
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
@@ -37,7 +38,7 @@ Changes
 * [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
 * [FEATURE] Add an option to disable Dogstastsd: See [#927]
 * [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
-
+* [FEATURE] Add TokuMX integration: See [#933][] (Thanks to [@leifwalsh][])
 
 # 4.2.2 / 04-25-2014
 
@@ -1010,6 +1011,7 @@ If you use ganglia, you want this version.
 [#927]: https://github.com/DataDog/dd-agent/issues/927
 [#928]: https://github.com/DataDog/dd-agent/issues/928
 [#930]: https://github.com/DataDog/dd-agent/issues/930
+[#933]: https://github.com/DataDog/dd-agent/issues/933
 [#935]: https://github.com/DataDog/dd-agent/issues/935
 [#940]: https://github.com/DataDog/dd-agent/issues/940
 [#947]: https://github.com/DataDog/dd-agent/issues/947
@@ -1029,6 +1031,7 @@ If you use ganglia, you want this version.
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
+[@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
