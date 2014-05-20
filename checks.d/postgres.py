@@ -225,8 +225,8 @@ SELECT relname,
         if is_standby:
             query = self.HOT_STANDBY_METRICS.keys()[0]
             cursor.execute(query)
-            result = cursor.fetchone()
-            self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result[0], tags=instance_tags)
+            result = cursor.fetchone()[0].seconds
+            self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
