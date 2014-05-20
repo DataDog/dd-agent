@@ -85,15 +85,11 @@ SELECT relname,
         'relation': True,
     }
 
-    INSTANCE_METRICS = {
-    #Instance metrics map where key is postgresql query and value is (metric_name, submit_function)
-        'SHOW max_connections;'  : ('postgresql.max_connections', GAUGE),
-    }
+    #Individual metrics with array of [query, metric_name, metric_type]
+    MAX_CONNECTIONS_METRIC = ['SHOW max_connections;','postgresql.max_connections', GAUGE]
 
-    HOT_STANDBY_METRICS = {
-    #Metrics for postgres server in hot_standby mode (allowing queries)
-        'select now() - pg_last_xact_replay_timestamp() AS replication_delay;' : ('postgresql.replication_delay', GAUGE),
-    }
+    HOT_STANDBY_METRIC = ['select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE]
+
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -206,10 +202,10 @@ SELECT relname,
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
 
         # Query for miscellaneous metrics
-        query = self.INSTANCE_METRICS.keys()[0]
+        query = self.MAX_CONNECTIONS_METRIC[0]
         cursor.execute(query)
         result = cursor.fetchone()
-        self.INSTANCE_METRICS[query][1](self, self.INSTANCE_METRICS[query][0], result[0], tags=instance_tags)
+        self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
 
         # Query for percent usage of max_connections
         cursor.execute('show max_connections;')
@@ -223,10 +219,10 @@ SELECT relname,
         cursor.execute('show hot_standby;')
         is_standby = cursor.fetchone()[0]=='on'
         if is_standby:
-            query = self.HOT_STANDBY_METRICS.keys()[0]
+            query = self.HOT_STANDBY_METRIC[0]
             cursor.execute(query)
             result = cursor.fetchone()[0].seconds
-            self.HOT_STANDBY_METRICS[query][1](self, self.HOT_STANDBY_METRICS[query][0], result, tags=instance_tags)
+            self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRICS[1], result, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
