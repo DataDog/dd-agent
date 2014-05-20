@@ -63,6 +63,12 @@ class MongoDb(AgentCheck):
         "opcounters.delete",
         "opcounters.getmore",
         "opcounters.command",
+        "opcountersRepl.insert",
+        "opcountersRepl.query",
+        "opcountersRepl.update",
+        "opcountersRepl.delete",
+        "opcountersRepl.getmore",
+        "opcountersRepl.command",
         "asserts.regular",
         "asserts.warning",
         "asserts.msg",
@@ -233,7 +239,7 @@ class MongoDb(AgentCheck):
 
                 # If we have both we can compute a lag time
                 if current is not None and primary is not None:
-                    lag = current['optimeDate'] - primary['optimeDate']
+                    lag = primary['optimeDate'] - current['optimeDate']
                     # Python 2.7 has this built in, python < 2.7 don't...
                     if hasattr(lag,'total_seconds'):
                         data['replicationLag'] = lag.total_seconds()
