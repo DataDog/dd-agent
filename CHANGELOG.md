@@ -18,6 +18,7 @@ Changes
 * Memcached
 * Mesos
 * MySQL
+* Network
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
@@ -37,6 +38,7 @@ Changes
 * [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
 * [FEATURE] Add an option to disable Dogstastsd: See [#927]
 * [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
+* [FEATURE] Network: Add additional metrics for TCP: See [#949]
 
 
 # 4.2.2 / 04-25-2014
