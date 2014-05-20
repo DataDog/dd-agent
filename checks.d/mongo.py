@@ -14,9 +14,17 @@ DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'mongodb'
+
     GAUGES = [
         "indexCounters.btree.missRatio",
+        "indexCounters.missRatio",
         "globalLock.ratio",
+        "globalLock.totalTime",
+        "globalLock.lockTime",
+        "globalLock.currentQueue.total",
+        "globalLock.currentQueue.readers",
+        "globalLock.currentQueue.writers",
         "connections.current",
         "connections.available",
         "mem.resident",
@@ -44,6 +52,11 @@ class MongoDb(AgentCheck):
         "indexCounters.btree.accesses",
         "indexCounters.btree.hits",
         "indexCounters.btree.misses",
+        "indexCounters.accesses",
+        "indexCounters.hits",
+        "indexCounters.misses",
+        "indexCounters.resets",
+        "extra_info.page_faults",
         "opcounters.insert",
         "opcounters.query",
         "opcounters.update",

@@ -65,7 +65,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.2.2"
+    return "4.3.0"
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -273,6 +273,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
             agentConfig['use_pup'] = False
+
+        if config.has_option('Main', 'use_dogstatsd'):
+            agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
+        else:
+            agentConfig['use_dogstatsd'] = True
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):

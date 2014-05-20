@@ -267,8 +267,9 @@ class CheckStatus(object):
     def __init__(self, check_name, instance_statuses, metric_count=None,
                  event_count=None, service_check_count=None,
                  init_failed_error=None, init_failed_traceback=None,
-                 library_versions=None):
+                 library_versions=None, source_type_name=None):
         self.name = check_name
+        self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count or 0
         self.event_count = event_count or 0
