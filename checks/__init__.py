@@ -267,6 +267,8 @@ class Check(object):
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN, NONE = (0, 1, 2, 3, 4)
 
+    SOURCE_TYPE_NAME = None
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
@@ -277,7 +279,6 @@ class AgentCheck(object):
         :param instances: A list of configuration objects for each instance.
         """
         from aggregator import MetricsAggregator
-
 
         self.name = name
         self.init_config = init_config

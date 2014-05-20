@@ -4,11 +4,17 @@ import httplib
 import socket
 import os
 import re
+import time
 from urlparse import urlsplit, urljoin
 from util import json, headers
+try:
+    from collections import defaultdict
+except ImportError:
+    from compat.defaultdict import defaultdict
 from checks import AgentCheck
 
 DEFAULT_MAX_CONTAINERS = 20
+EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
 LXC_METRICS = [
     {
@@ -108,6 +114,7 @@ class Docker(AgentCheck):
         for metric in LXC_METRICS:
             self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
+        self._last_event_collection_ts = defaultdict(lambda: None)
 
     @property
     def path_prefix(self):
@@ -128,9 +135,15 @@ class Docker(AgentCheck):
     def check(self, instance):
         urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
+
+        self._process_events(self._get_events(instance))
+
         containers = self._get_containers(instance)
         if not containers:
-            self.warning("No containers are running.")
+            self.gauge("docker.containers.running", 0)
+            raise Exception("No containers are running.")
+
+        self.gauge("docker.containers.running", len(containers))
 
         max_containers = instance.get('max_containers', DEFAULT_MAX_CONTAINERS)
 
@@ -167,6 +180,19 @@ class Docker(AgentCheck):
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
+    def _process_events(self, events):
+        for ev in events:
+            self.log.debug("Creating event for %s" % ev)
+            self.event({
+                'timestamp': ev['time'],
+                'host': self.hostname,
+                'event_type': EVENT_TYPE,
+                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname), 
+                'source_type_name': EVENT_TYPE,
+                'event_object': ev['from'],
+            })
+
+
     def _make_tag(self, key, value):
         return "%s:%s" % (key.lower(), value.strip())
 
@@ -192,7 +218,19 @@ class Docker(AgentCheck):
         """Get container information from Docker, gived a container Id."""
         return self._get_json("%s/containers/%s/json" % (instance["url"], cid))
 
-    def _get_json(self, uri, params=None):
+    def _get_events(self, instance):
+        """Get the list of events """
+        now = int(time.time())
+        result = self._get_json("%s/events" % instance["url"], params={
+                "until": now,
+                "since": self._last_event_collection_ts[instance["url"]] or now - 60,
+            }, multi=True)
+        self._last_event_collection_ts[instance["url"]] = now
+        if type(result) == dict:
+            result = [result]
+        return result
+
+    def _get_json(self, uri, params=None, multi=False):
         """Utility method to get and parse JSON streams."""
         if params:
             uri = "%s?%s" % (uri, urllib.urlencode(params))
@@ -205,6 +243,12 @@ class Docker(AgentCheck):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
             raise
         response = request.read()
+        if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
+            response = "[{0}]".format(response.replace("}{", "},{"))
+
+        if not response:
+            return []
+
         return json.loads(response)
 
     def _find_cgroup(self, hierarchy):

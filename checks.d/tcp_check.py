@@ -6,6 +6,8 @@ class BadConfException(Exception): pass
 
 class TCPCheck(ServicesCheck):
 
+    SOURCE_TYPE_NAME = 'system'
+
     def _load_conf(self, instance):
         # Fetches the conf
 

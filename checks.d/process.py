@@ -4,6 +4,8 @@ import time
 
 class ProcessCheck(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'system'
+
     PROCESS_GAUGE = (
         'system.processes.threads',
         'system.processes.cpu.pct',

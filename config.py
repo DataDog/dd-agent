@@ -13,6 +13,8 @@ import inspect
 import traceback
 import re
 import imp
+import socket
+from socket import gaierror
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
@@ -189,6 +191,13 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
+def get_default_bind_host():
+    try:
+        socket.gethostbyname('localhost')
+    except gaierror:
+        log.warning("localhost seems undefined in your hosts file, using 127.0.0.1 instead")
+        return '127.0.0.1'
+    return 'localhost'
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
@@ -210,7 +219,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
-        'bind_host': 'localhost'
+        'bind_host': get_default_bind_host(),
     }
 
     dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
@@ -269,6 +278,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
             agentConfig['use_pup'] = False
+
+        if config.has_option('Main', 'use_dogstatsd'):
+            agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
+        else:
+            agentConfig['use_dogstatsd'] = True
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):

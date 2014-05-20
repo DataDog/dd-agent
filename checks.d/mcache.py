@@ -58,6 +58,9 @@ from checks import *
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
 class Memcache(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'memcached'
+
     DEFAULT_PORT = 11211
 
     GAUGES = [
@@ -103,7 +106,7 @@ class Memcache(AgentCheck):
         mc = None  # client
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
-            mc = memcache.Client(["%s:%d" % (server, port)])
+            mc = memcache.Client(["%s:%s" % (server, port)])
             raw_stats = mc.get_stats()
 
             assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
@@ -159,9 +162,10 @@ class Memcache(AgentCheck):
         del mc
 
     def check(self, instance):
+        socket = instance.get('socket', None)
         server = instance.get('url', None)
-        if not server:
-            raise Exception("Missing or null 'url' in mcache config")
+        if not server and not socket:
+            raise Exception("Missing or null 'url' and 'socket' in mcache config")
 
         try:
             import memcache
@@ -175,7 +179,11 @@ class Memcache(AgentCheck):
         except Exception:
             pass
 
-        port = int(instance.get('port', self.DEFAULT_PORT))
+        if socket:
+            server = 'unix'
+            port = socket
+        else:
+            port = int(instance.get('port', self.DEFAULT_PORT))
         tags = instance.get('tags', None)
 
         self._get_metrics(server, port, tags, memcache)

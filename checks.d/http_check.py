@@ -6,6 +6,8 @@ from httplib2 import Http, HttpLib2Error
 
 class HTTPCheck(ServicesCheck):
 
+    SOURCE_TYPE_NAME = 'system'
+
     def _load_conf(self, instance):
         # Fetches the conf
         tags = instance.get('tags', [])

@@ -5,6 +5,7 @@ import re
 import traceback
 
 from checks import AgentCheck
+from util import Platform
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -69,7 +70,8 @@ class MySql(AgentCheck):
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
-        self._collect_system_metrics(host, db, tags)
+        if Platform.is_unix():
+            self._collect_system_metrics(host, db, tags)
 
     def _get_config(self, instance):
         host = instance.get('server', '')

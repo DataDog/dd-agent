@@ -21,6 +21,9 @@ except ImportError:
 import random
 
 class KafkaCheck(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'kafka'
+
     def check(self, instance):
         consumer_groups = self.read_config(instance, 'consumer_groups',
                                            cast=self._validate_consumer_groups)
