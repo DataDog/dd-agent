@@ -44,8 +44,6 @@ Changes
 * [BUGFIX] ElasticSearch: Added correct GC metrics for ES 1.x: See [#900][] (Thanks to [@joningle][])
 * [FEATURE] Network: Add additional metrics for TCP: See [#949][]
 
->>>>>>> origin/additional_tcp_metrics
-
 # 4.2.2 / 04-25-2014
 
 **Windows Only**
