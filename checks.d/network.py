@@ -11,17 +11,17 @@ import re
 # project
 from checks import AgentCheck
 from util import Platform
-BSD_TCP_METRICS = {
-        re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"): 'system.net.tcp.retrans_packs',
-        re.compile("^\s*(\d+) packets sent\s*$"): 'system.net.tcp.sent_packs',
-        re.compile("^\s*(\d+) packets received\s*$"): 'system.net.tcp.rcv_packs'
-        }
+BSD_TCP_METRICS = [
+        (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
+        (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
+        (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
+        ]
 
-SOLARIS_TCP_METRICS = {
-        re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"):'system.net.tcp.retrans_segs',
-        re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"):'system.net.tcp.in_segs',
-        re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"):'system.net.tcp.out_segs'
-        }
+SOLARIS_TCP_METRICS = [
+        (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
+        (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
+        (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
+        ]
 
 class Network(AgentCheck):
 
@@ -126,10 +126,10 @@ class Network(AgentCheck):
             except ValueError:
                 return 0
 
-    def _submit_regexed_values(self, output, regex_dict):
+    def _submit_regexed_values(self, output, regex_list):
         lines=output.split("\n")
         for line in lines:
-            for regex, metric in regex_dict.iteritems():
+            for regex, metric in regex_list:
                 value = re.match(regex, line)
                 if value:
                     self.rate(metric, self._parse_value(value.group(1)))
