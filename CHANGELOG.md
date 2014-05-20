@@ -21,7 +21,7 @@ Changes
 
 #### Changes
 * [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
-* [FEATURE] Add some mongo2.2+ metrics to check: See [#951] (Thanks to [@ckrough][])
+* [FEATURE] Add some mongo2.2+ metrics to check: See [#951[] (Thanks to [@ckrough][])
 * [FEATURE] Collect checks statuses: See [#922]
 * [FEATURE] CouchDB: Support basic authentication: See [#930]
 * [FEATURE] Docker: Support Docker 0.11
@@ -29,14 +29,14 @@ Changes
 * [FEATURE] HAProxy: Allow collection of metrics per host with the option `collect_status_metrics_by_host`: See [#935]
 * [BUGFIX] HAProxy: Fix inaccuracy of count_per_status metric: See [#940]
 * [BUGFIX] HAProxy: Update event's titles: See [#935]
-* [FEATURE] Add Marathon integration: See [#921] (Thanks to [@graemej][])
-* [FEATURE] Add Mesos integration: See [#919] (Thanks to [@graemej][])
-* [FEATURE] Memcached: Add delete_misses/delete_hits: See [#928] (Thanks to [@arthurnn][])
+* [FEATURE] Add Marathon integration: See [#921][] (Thanks to [@graemej][])
+* [FEATURE] Add Mesos integration: See [#919][] (Thanks to [@graemej][])
+* [FEATURE] Memcached: Add delete_misses/delete_hits: See [#928][] (Thanks to [@arthurnn][])
 * [BUGFIX] MySQL: Only collect MySQL metrics from /proc on unix machines: See [#947]
 * [BUGFIX] MySQL: Fix duplicate metric bug: See [#899]
 * [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
 * [FEATURE] Add an option to disable Dogstastsd: See [#927]
-* [FEATURE] Memcached: Add support for local unix socket connections: See [#891] (Thanks to [@mike-lerch][])
+* [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
 
 
 # 4.2.2 / 04-25-2014
