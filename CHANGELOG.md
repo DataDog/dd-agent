@@ -36,6 +36,7 @@ Changes
 * [BUGFIX] MySQL: Fix duplicate metric bug: See [#899]
 * [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
 * [FEATURE] Add an option to disable Dogstastsd: See [#927]
+* [FEATURE] Memcached: Add support for local unix socket connections: See [#891] (Thanks to [@mike-lerch][])
 
 
 # 4.2.2 / 04-25-2014
@@ -997,6 +998,7 @@ If you use ganglia, you want this version.
 [#875]: https://github.com/DataDog/dd-agent/issues/875
 [#876]: https://github.com/DataDog/dd-agent/issues/876
 [#883]: https://github.com/DataDog/dd-agent/issues/883
+[#891]: https://github.com/DataDog/dd-agent/issues/891
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
 [#899]: https://github.com/DataDog/dd-agent/issues/899
@@ -1027,6 +1029,7 @@ If you use ganglia, you want this version.
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
+[@mike-lerch]: https://github.com/mike-lerch
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@ordenull]: https://github.com/ordenull
 [@rl-0x0]: https://github.com/rl-0x0
