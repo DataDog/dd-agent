@@ -309,6 +309,8 @@ class Collector(object):
                                 check.name, check.source_type_name,
                                 instance_status.instance_id,
                                 instance_status.status,
+                                # put error message or list of warning messages in the same field
+                                # it will be handled by the UI
                                 instance_status.error or instance_status.warnings or ""
                             )
                         )
