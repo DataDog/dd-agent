@@ -217,8 +217,9 @@ class Network(AgentCheck):
         finally:
             proc.close()
 
-        column_names = lines[6].strip().split()
-        values = lines[7].strip().split()
+        tcp_lines = [line for line in lines if line.startswith('Tcp:')]
+        column_names = tcp_lines[0].strip().split()
+        values = tcp_lines[1].strip().split()
 
         tcp_metrics = dict(zip(column_names,values))
 

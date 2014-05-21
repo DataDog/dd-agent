@@ -308,11 +308,19 @@ class Collector(object):
                             (
                                 check.name, check.source_type_name,
                                 instance_status.instance_id,
-                                instance_status.status, instance_status.error
+                                instance_status.status,
+                                instance_status.error or instance_status.warnings or ""
                             )
                         )
+                else:
+                    agent_checks.append(
+                        (
+                            check.name, check.source_type_name,
+                            "initialization",
+                            check.status, repr(check.init_failed_error)
+                        )
+                    )
             payload['agent_checks'] = agent_checks
-
         collect_duration = timer.step()
 
         if self.os != 'windows':
