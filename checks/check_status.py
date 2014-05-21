@@ -251,10 +251,10 @@ class InstanceStatus(object):
     def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None):
         self.instance_id = instance_id
         self.status = status
-        if error:
+        if error is not None:
             self.error = repr(error)
         else:
-            self.error = error
+            self.error = None
         self.traceback = tb
         self.warnings = warnings
         self.metric_count = metric_count
