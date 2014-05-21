@@ -302,14 +302,15 @@ class Collector(object):
         if self._should_send_metadata():
             agent_checks = []
             for check in check_statuses:
-                for instance_status in check.instance_statuses:
-                    agent_checks.append(
-                        (
-                            check.name, check.source_type_name,
-                            instance_status.instance_id,
-                            instance_status.status, instance_status.error
+                if check.instance_statuses is not None:
+                    for instance_status in check.instance_statuses:
+                        agent_checks.append(
+                            (
+                                check.name, check.source_type_name,
+                                instance_status.instance_id,
+                                instance_status.status, instance_status.error
+                            )
                         )
-                    )
             payload['agent_checks'] = agent_checks
 
         collect_duration = timer.step()
