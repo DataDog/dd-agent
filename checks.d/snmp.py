@@ -25,55 +25,29 @@ class SnmpCheck(AgentCheck):
         '''
         Return all the network interfaces of an instance to be used to get metrics
         on those interfaces.
-        If available, get the number of interfaces from the ifNumber MIB
-        and then query all of them in one request for their description.
-        If this info is not available, repeatedly query the interface description
+        Repeatedly query the interface description
         in order to discover them all.
         '''
 
         interface_list = {}
 
-        def get_interfaces_nb():
-            result = SnmpCheck.snmp_get(instance, [(("IF-MIB","ifNumber"),0)])[0]
-            if noSuchInstance.isSameTypeWith(result[1]):
-                return None
-            else:
-                return int(result[1])
-
-        interface_nb = get_interfaces_nb()
-        if interface_nb is not None:
+        empty_reply = False
+        interface_index = 1
+        while not empty_reply:
             interfaces_descr_oids = []
-            for interface in range(interface_nb):
-                interface_index = interface + 1 #SNMP indexes start from 1
-                interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
-                interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
-
+            interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
+            interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
             interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
-            for i in range(interface_nb):
-                # order is guaranteed
-                descr = str(interfaces_description.pop(0)[1])
-                type = int(interfaces_description.pop(0)[1])
-                if type != 24: # ignore localhost loopback
-                    interface_list[i+1] = descr
-        else:
-            # ifNumber is not available, query the interfaces dor description
-            # until blank one
-            empty_reply = False
-            interface_index = 1
-            while not empty_reply:
-                interfaces_descr_oids = []
-                interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
-                interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
-                interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
-                descr = interfaces_description.pop(0)[1]
-                if noSuchInstance.isSameTypeWith(descr):
-                    empty_reply= True
-                else:
-                    type = int(interfaces_description.pop(0)[1])
-                    if type != 24: # ignore localhost loopback
-                        interface_list[interface_index] = str(descr)
-                    interface_index += 1
-
+            descr = interfaces_description.pop(0)[1]
+            if noSuchInstance.isSameTypeWith(descr):
+                empty_reply= True
+            else:
+                type = interfaces_description.pop(0)[1]
+                if not noSuchInstance.isSameTypeWith(type) and int(type) !=24:
+                    # ignore localhost loopback
+                    interface_list[interface_index] = str(descr)
+                    self.log.info("Discovered interface %s" % str(descr))
+                interface_index += 1
         return interface_list
 
     @staticmethod
@@ -153,15 +127,16 @@ class SnmpCheck(AgentCheck):
                 )
 
         if errorIndication:
-            raise Exception(errorIndication)
+            raise Exception("{0} for instance {1}".format(errorIndication,instance["ip_address"]))
         else:
             if errorStatus:
-                raise Exception(errorStatus.prettyPrint())
+                raise Exception("{0} for instance {1}".format(errorStatus.prettyPrint(),instance["ip_address"]))
             else:
                 return varBinds
 
     def submit_metric(self, instance, oid, snmp_value, tags=[]):
         if noSuchInstance.isSameTypeWith(snmp_value):
+            self.log.warning("No such Mib available: %s" %oid.getMibSymbol()[1])
             return
         name = "snmp." + oid.getMibSymbol()[1]
         snmp_class = getattr(snmp_value, '__class__')
