@@ -298,8 +298,8 @@ class Collector(object):
         payload['events'] = events
         payload['service_checks'] = service_checks
 
-        # Add agent_checks if needed
         if self._should_send_metadata():
+            # Add agent checks statuses and error/warning messages
             agent_checks = []
             for check in check_statuses:
                 if check.instance_statuses is not None:
@@ -309,6 +309,8 @@ class Collector(object):
                                 check.name, check.source_type_name,
                                 instance_status.instance_id,
                                 instance_status.status,
+                                # put error message or list of warning messages in the same field
+                                # it will be handled by the UI
                                 instance_status.error or instance_status.warnings or ""
                             )
                         )
