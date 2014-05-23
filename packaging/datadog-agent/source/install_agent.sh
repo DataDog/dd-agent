@@ -82,18 +82,18 @@ else
 fi
 
 # Root user detection
-current_user=`echo "$UID"`
+current_user=$(echo "$UID")
 if [ $current_user = "0" ]; then
-    is_root="yes"
+    is_root=true
 else
-    is_root="no"
+    is_root=false
 fi
 
 # Install the necessary package sources
 if [ $OS = "RedHat" ]; then
     echo -e "\033[34m\n* Installing YUM sources for Datadog\n\033[0m"
     echo_cmd="echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
-    if [ $is_root = "yes"]; then
+    if $is_root; then
         sh -c $echo_cmd
     else
         sudo sh -c $echo_cmd
@@ -102,13 +102,13 @@ if [ $OS = "RedHat" ]; then
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
     if $DDBASE; then
-        if [ $is_root = "yes"]; then
+        if $is_root; then
             yum -y install datadog-agent-base
         else
             sudo yum -y install datadog-agent-base
         fi
     else
-        if [ $is_root = "yes" ]; then
+        if $is_root; then
             yum -y install datadog-agent
         else
             sudo yum -y install datadog-agent
@@ -117,7 +117,7 @@ if [ $OS = "RedHat" ]; then
 elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     echo_cmd="echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog.list"
-    if [ $is_root = "yes" ]; then
+    if $is_root; then
         sh -c $echo_cmd
         apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
     else
@@ -126,19 +126,19 @@ elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     fi
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
-    if [ $is_root = "yes" ]; then
+    if $is_root; then
         apt-get update
     else
         sudo apt-get update
     fi
     if $DDBASE; then
-        if [ $is_root = "yes" ]; then
+        if $is_root; then
             apt-get install -y --force-yes datadog-agent-base
         else
             sudo apt-get install -y --force-yes datadog-agent-base
         fi
     else
-        if [ $is_root = "yes" ]; then
+        if $is_root; then
             apt-get install -y --force-yes datadog-agent
         else
             sudo apt-get install -y --force-yes datadog-agent
@@ -156,14 +156,14 @@ printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agen
 
 if $DDBASE; then
     sed_cmd="sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example | sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' > /etc/dd-agent/datadog.conf"
-    if [ $is_root = "yes" ]; then
+    if $is_root; then
         sh -c $sed_cmd
     else
         sudo sh -c $sed_cmd
     fi
 else
     sed_cmd="sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
-    if [ $is_root = "yes" ]; then
+    if $is_root; then
         sh -c $sed_cmd
     else
         sudo sh -c $sed_cmd
@@ -171,7 +171,7 @@ else
 fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
-if [ $is_root = "yes" ]; then
+if $is_root; then
     /etc/init.d/datadog-agent restart
 else
     sudo /etc/init.d/datadog-agent restart
