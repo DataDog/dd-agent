@@ -177,6 +177,16 @@ class Redis(AgentCheck):
         self.rate('redis.net.commands', info['total_commands_processed'],
                   tags=tags)
 
+        # Check some key lengths if asked
+        if instance.get('keys') is not None:
+            l_tags = list(tags)
+            for key in instance.get('keys'):
+                if conn.exists(key):
+                    key_tags = l_tags + ["key:" + key]
+                    self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                else:
+                    self.warning("{0} key not found in redis".format(key))
+
     def check(self, instance):
         try:
             import redis
