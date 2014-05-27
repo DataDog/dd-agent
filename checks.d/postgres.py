@@ -5,7 +5,6 @@ class ShouldRestartException(Exception): pass
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
-
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
 
@@ -223,8 +222,9 @@ SELECT relname,
             cursor.execute(query)
             # Python interprets the return value of the replication delay output from postgres as a timedelta
             # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
-            result = cursor.fetchone()[0].seconds
-            self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result, tags=instance_tags)
+            result = cursor.fetchone()[0]
+            if result is not None:
+                self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.seconds, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
