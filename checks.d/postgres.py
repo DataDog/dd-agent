@@ -5,6 +5,7 @@ class ShouldRestartException(Exception): pass
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
+    SOURCE_TYPE_NAME = 'postgresql'
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
 
