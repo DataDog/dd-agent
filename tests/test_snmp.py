@@ -13,6 +13,7 @@ class TestSNMP(unittest.TestCase):
 
         self.config = {
                 "init_config": {
+                    'mibs_folder':'/etc/mibs'
                     },
                 "instances": [{
                     "ip_address": "localhost",
@@ -35,6 +36,14 @@ class TestSNMP(unittest.TestCase):
         # Assert that some interface got detected on the host
         self.assertTrue(len(self.check.interface_list["localhost"]) > 0)
 
+        mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
+                .mibInstrumController.mibBuilder.getMibSources()
+        custom_folder_represented = False
+        for folder in mib_folders:
+            if '/etc/mibs' == folder.fullPath():
+                custom_folder_represented = True
+                break
+        self.assertTrue(custom_folder_represented)
 
     def testSNMPCheck(self):
 
