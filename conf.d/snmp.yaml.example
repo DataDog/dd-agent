@@ -14,11 +14,9 @@ instances:
 #
 #        # Device metrics to monitor
 #        metrics:
+#        # You can specify metrics using MIBS
 #            - MIB: UDP-MIB
 #              symbol: udpInDatagrams
-#              index: 0
-#            - MIB: TCP-MIB
-#              symbol: tcpCurrEstab
 #              index: 0
 #            - MIB: TCP-MIB
 #              symbol: tcpActiveOpens
@@ -26,6 +24,10 @@ instances:
 #            - MIB: TCP-MIB
 #              symbol: tcpPassiveOpens
 #              index: 0
+#        # You can also specify an oid and the name under which it should appear
+#        # in Datadog
+#            - OID: 1.3.6.1.2.1.6.9.0
+#              name: tcpConnections
 #
 #        # Metrics to monitor on each interface
 #        interface_metrics:

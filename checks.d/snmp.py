@@ -90,11 +90,19 @@ class SnmpCheck(AgentCheck):
         ip_address = instance["ip_address"]
         device_oids = []
         interface_oids = []
+        oid_names ={}
         for metric in instance.get('metrics',[]):
-            device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
+            if 'MIB' in metric:
+                device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
+            elif 'OID' in metric:
+                device_oids.append(metric['OID'])
+                oid_names[metric['OID']]=metric['name']
+            else:
+                raise Exception('Unsupported metrics format in config file')
         results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
-            self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address])
+            self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address],
+                                                     oid_names = oid_names)
 
         for metric in instance.get('interface_metrics',[]):
             interface_oids.append((metric["MIB"],metric["symbol"]))
@@ -134,11 +142,18 @@ class SnmpCheck(AgentCheck):
             else:
                 return varBinds
 
-    def submit_metric(self, instance, oid, snmp_value, tags=[]):
+    def submit_metric(self, instance, oid, snmp_value, tags=[], oid_names={}):
         if noSuchInstance.isSameTypeWith(snmp_value):
             self.log.warning("No such Mib available: %s" %oid.getMibSymbol()[1])
             return
-        name = "snmp." + oid.getMibSymbol()[1]
+        if str(oid.getOid()) in oid_names:
+            name = "snmp."+ oid_names[str(oid.getOid())]
+        else:
+            try:
+                name = "snmp." + oid.getMibSymbol()[1]
+            except:
+                self.log.warning("Couldn't find a name for oid {0}".format(oid))
+
         snmp_class = getattr(snmp_value, '__class__')
         value = int(snmp_value)
         if snmp_class in SNMP_COUNTERS:

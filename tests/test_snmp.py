@@ -19,9 +19,8 @@ class TestSNMP(unittest.TestCase):
                     "port":161,
                     "community_string": "public",
                     "metrics": [{
-                        "MIB": "UDP-MIB",
-                        "symbol": "udpInDatagrams",
-                        "index": "0"
+                        "OID": "1.3.6.1.2.1.7.1.0",
+                        "name": "udpDatagrams"
                         },{
                         "MIB": "TCP-MIB",
                         "symbol": "tcpCurrEstab",
@@ -56,7 +55,7 @@ class TestSNMP(unittest.TestCase):
         metrics = self.check.get_metrics()
 
         self.assertEqual(len(metrics) ,2)
-        expected_metrics = ['snmp.udpInDatagrams','snmp.tcpCurrEstab']
+        expected_metrics = ['snmp.udpDatagrams','snmp.tcpCurrEstab']
         for metric in expected_metrics:
             metric_present=False
             for result in metrics:
