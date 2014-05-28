@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.smi.exval import noSuchInstance
+from pysnmp.smi import builder
 import pysnmp.proto.rfc1902 as snmp_type
 
 SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64]
@@ -11,15 +12,32 @@ SNMP_GAUGES = [snmp_type.Gauge32]
 
 class SnmpCheck(AgentCheck):
 
+    cmd_generator = None
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.counter_state = defaultdict(dict)
         self.interface_list = {}
+        mibs_path = None
+        if init_config is not None:
+            mibs_path = init_config.get("mibs_folder")
+        SnmpCheck.create_command_generator(mibs_path)
         if instances is not None:
             for instance in instances:
                 if 'ip_address' in instance:
                     ip_address = instance["ip_address"]
                     self.interface_list[ip_address] = self.get_interfaces(instance)
+
+    @classmethod
+    def create_command_generator(cls, mibs_path=None):
+        cls.cmd_generator = cmdgen.CommandGenerator()
+        if mibs_path is not None:
+            mibBuilder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
+                         mibInstrumController.mibBuilder
+            mibSources = mibBuilder.getMibSources() + (
+                    builder.DirMibSource(mibs_path),
+                    )
+            mibBuilder.setMibSources(*mibSources)
 
     def get_interfaces(self, instance):
         '''
@@ -50,8 +68,8 @@ class SnmpCheck(AgentCheck):
                 interface_index += 1
         return interface_list
 
-    @staticmethod
-    def get_auth_data(instance):
+    @classmethod
+    def get_auth_data(cls, instance):
         if "community_string" in instance:
             # SNMP v1 - SNMP v2
             return cmdgen.CommunityData(instance['community_string'])
@@ -77,8 +95,8 @@ class SnmpCheck(AgentCheck):
         else:
             raise Exception("An authentication method needs to be provided")
 
-    @staticmethod
-    def get_transport_target(instance):
+    @classmethod
+    def get_transport_target(cls, instance):
         if "ip_address" not in instance:
             raise Exception("An IP address needs to be specified")
         ip_address = instance["ip_address"]
@@ -113,19 +131,18 @@ class SnmpCheck(AgentCheck):
                 self.submit_metric(instance, oid, value, tags = tags + ["snmp_device:" + ip_address,
                                                                             "interface:"+descr])
 
-    @staticmethod
-    def snmp_get(instance, oids):
+    @classmethod
+    def snmp_get(cls, instance, oids):
         """
         Perform a snmp get command to the device that instance
         describe and return a list of tuble (name, values)
         corresponding to the elements in oids.
         """
-        transport_target = SnmpCheck.get_transport_target(instance)
-        auth_data = SnmpCheck.get_auth_data(instance)
+        transport_target = cls.get_transport_target(instance)
+        auth_data = cls.get_auth_data(instance)
 
-        cmd_generator = cmdgen.CommandGenerator()
 
-        snmp_command = cmd_generator.getCmd
+        snmp_command = cls.cmd_generator.getCmd
         errorIndication, errorStatus, errorIndex, varBinds = snmp_command(
                 auth_data,
                 transport_target,
