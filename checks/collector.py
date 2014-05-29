@@ -17,7 +17,6 @@ import checks.system.unix as u
 import checks.system.win32 as w32
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
-from checks.nagios import Nagios
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -95,7 +94,6 @@ class Collector(object):
 
         # Event Checks
         self._event_checks = [
-            Nagios(get_hostname()),
         ]
 
         # Resource Checks

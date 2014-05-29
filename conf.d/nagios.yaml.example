@@ -1,0 +1,4 @@
+init_config:
+
+instances:
+#    - nagios_log: /var/log/nagios3/nagios.log

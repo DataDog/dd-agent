@@ -1,7 +1,8 @@
 import time
 import re
 from util import namedtuple, get_hostname
-from utils import TailFile
+from checks.utils import TailFile
+from checks import AgentCheck
 
 # Event types we know about but decide to ignore in the parser
 IGNORE_EVENT_TYPES = []
@@ -52,26 +53,43 @@ def create_event(timestamp, event_type, hostname, fields):
         d["host"] = hostname
     return d
 
-class Nagios(object):
+class Nagios(AgentCheck):
 
-    key = "Nagios"
 
-    def __init__(self, hostname):
-        """hostname is the name of the machine where the nagios log lives
-        """
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        # Override the name or the events don't make it
+        AgentCheck.__init__(self, 'Nagios', init_config, agentConfig, instances)
+        self.nagios_tails = {}
+        hostname = get_hostname(agentConfig)
+        if instances is not None:
+            for instance in instances:
+                if 'nagios_log' in instance:
+                    log_path = instance['nagios_log']
+                    self.nagios_tails[instance['nagios_log']] = NagiosTailer(log_path,
+                                                                             self.log,
+                                                                             hostname,
+                                                                             self.event)
+
+    def check(self, instance):
+        if 'nagios_log' not in instance:
+            self.log.info("Skipping Instance, no log file found")
+        self.nagios_tails[instance['nagios_log']].check()
+
+class NagiosTailer(object):
+
+    def __init__(self, log_path, logger, hostname, event_func):
         # Regex alternation ends up being tricker than expected, and much less readable
         #self.re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
         self.re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
         self.re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
-
-        self.logger = None
+        self.log_path = log_path
+        self.logger = logger
         self.gen = None
         self.tail = None
-        self.events = None
-        self.apikey = ""
         self.hostname = hostname
-
+        self._event = event_func
         self._line_parsed = 0
+        self._event_sent = 0
 
     def _parse_line(self, line):
         """Actual nagios parsing
@@ -97,7 +115,7 @@ class Nagios(object):
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
-                self.logger.warn("Ignoring unknown nagios event for line: %s" % (line[:-1]))
+                self.logger.warning("Ignoring unknown nagios event for line: %s" % (line[:-1]))
                 return False
 
             # and parse the rest of the line
@@ -106,9 +124,9 @@ class Nagios(object):
             parts = parts[:len(fields._fields)]
 
             event = create_event(tstamp, event_type, self.hostname, fields._make(parts))
-            event.update({'api_key': self.apikey})
 
-            self.events.append(event)
+            self._event(event)
+            self._event_sent += 1
             self.logger.debug("Nagios event: %s" % (event))
 
             return True
@@ -116,49 +134,25 @@ class Nagios(object):
             self.logger.exception("Unable to create a nagios event from line: [%s]" % (line))
             return False
 
-    def check(self, logger, agentConfig, move_end=True):
-
-        self.logger = logger
-
-        # Check arguments
-        log_path = agentConfig.get('nagios_log',None)
-        if log_path is None:
-            self.logger.debug("Not checking nagios because nagios_log is not set in config file")
-            return False
-
-        self.apikey = agentConfig['api_key']
-        self.events = []
+    def check(self, move_end=True):
+        self._event_sent = 0
         self._line_parsed = 0
 
         # Build our tail -f
         if self.gen is None:
-            self.tail = TailFile(logger,log_path,self._parse_line)
+            self.tail = TailFile(self.logger,self.log_path,self._parse_line)
             self.gen = self.tail.tail(line_by_line=False, move_end=move_end)
 
         # read until the end of file
         try:
-            self.logger.debug("Start nagios check for file %s" % (log_path))
+            self.logger.debug("Start nagios check for file %s" % (self.log_path))
             self.tail._log = self.logger
             self.gen.next()
             self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
-                (log_path,self._line_parsed,len(self.events)))
+                (self.log_path,self._line_parsed, self._event_sent))
         except StopIteration, e:
             self.logger.exception(e)
-            self.logger.warn("Can't tail %s file" % (log_path))
-
-        return self.events
-
-def parse_log(api_key, log_file):
-    import logging
-    import socket
-    import sys
-
-    logger = logging.getLogger("ddagent.checks.nagios")
-    nagios = Nagios(get_hostname())
-
-    events = nagios.check(logger, {'api_key': api_key, 'nagios_log': log_file}, move_end=False)
-    for e in events:
-        yield e
+            self.logger.warning("Can't tail %s file" % (self.log_path))
 
 if __name__ == "__main__":
     import logging
