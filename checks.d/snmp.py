@@ -10,8 +10,8 @@ import pysnmp.proto.rfc1902 as snmp_type
 convention_type_builder = builder.MibBuilder()
 (CounterBasedGauge64, ZeroBasedCounter64) = convention_type_builder.importSymbols("HCNUM-TC","CounterBasedGauge64", "ZeroBasedCounter64")
 
-SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64, ZeroBasedCounter64]
-SNMP_GAUGES = [snmp_type.Gauge32, CounterBasedGauge64]
+SNMP_COUNTERS = [snmp_type.Counter32.__name__, snmp_type.Counter64.__name__, ZeroBasedCounter64.__name__]
+SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
 
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
@@ -179,12 +179,15 @@ class SnmpCheck(AgentCheck):
                 self.log.warning("Couldn't find a name for oid {0}".format(oid))
                 return
 
-        snmp_class = getattr(snmp_value, '__class__')
+        snmp_class = snmp_value.__class__.__name__
         value = int(snmp_value)
-        if snmp_class in SNMP_COUNTERS:
-            self.rate(name, value, tags)
-        elif snmp_class in SNMP_GAUGES:
-            self.gauge(name, value, tags)
-        else:
-            self.log.warning("Unsupported metric type %s", snmp_class)
+        for counter_class in SNMP_COUNTERS:
+            if snmp_class==counter_class:
+                self.rate(name, value, tags)
+                return
+        for gauge_class in SNMP_GAUGES:
+            if snmp_class==gauge_class:
+                self.gauge(name, value, tags)
+                return
+        self.log.warning("Unsupported metric type %s", snmp_class)
 
