@@ -89,7 +89,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
@@ -151,7 +151,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 

@@ -5,10 +5,10 @@ class ShouldRestartException(Exception): pass
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
-
+    SOURCE_TYPE_NAME = 'postgresql'
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
-    
+
     # turning columns into tags
     DB_METRICS = {
         'descriptors': [
@@ -85,6 +85,11 @@ SELECT relname,
         'relation': True,
     }
 
+    # Individual metrics with tuple of (query, metric_name, metric_type)
+    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;','postgresql.max_connections', GAUGE)
+
+    HOT_STANDBY_METRIC = ('select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE)
+
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -137,17 +142,19 @@ SELECT relname,
             metric_scope = (self.DB_METRICS,)
         else:
             metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
-  
+
+        try:
+            cursor = db.cursor()
+        except InterfaceError, e:
+            self.log.error("Connection seems broken: %s" % str(e))
+            raise ShouldRestartException
+
         for scope in metric_scope:
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-            try:
-                cursor = db.cursor()
-            except InterfaceError, e:
-                self.log.error("Connection seems broken: %s" % str(e))
-                raise ShouldRestartException
-            
+
+
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
@@ -159,8 +166,8 @@ SELECT relname,
                 cursor.execute(query)
 
             results = cursor.fetchall()
-            cursor.close()
-                
+
+
             # parse & submit results
             # A row should look like this
             # (descriptor, descriptor, ..., value, value, value, value, ...)
@@ -170,7 +177,7 @@ SELECT relname,
                 desc = scope['descriptors']
                 # Check that all columns will be processed
                 assert len(row) == len(cols) + len(desc)
-                
+
                 # Build tags
                 # descriptors are: (pg_name, dd_tag_name): value
                 # Special-case the "db" tag, which overrides the one that is passed as instance_tag
@@ -187,13 +194,39 @@ SELECT relname,
                 # metric-map is: (dd_name, "rate"|"gauge")
                 # shift the results since the first columns will be the "descriptors"
                 values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
-                
+
                 # To submit simply call the function for each value v
                 # v[0] == (metric_name, submit_function)
                 # v[1] == the actual value
                 # tags are
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
-            
+
+        # Query for miscellaneous metrics
+        query = self.MAX_CONNECTIONS_METRIC[0]
+        cursor.execute(query)
+        result = cursor.fetchone()
+        self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
+
+        # Query for percent usage of max_connections
+        cursor.execute('show max_connections;')
+        max_conn = cursor.fetchone()[0]
+        cursor.execute('SELECT sum(numbackends ) FROM pg_stat_database;')
+        current_conn = cursor.fetchone()[0]
+        percent_usage = float(current_conn) / float(max_conn)
+        self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
+
+        # check if hot_standby is on before running hot standby metrics (replication delay)
+        cursor.execute('show hot_standby;')
+        is_standby = cursor.fetchone()[0]=='on'
+        if is_standby:
+            query = self.HOT_STANDBY_METRIC[0]
+            cursor.execute(query)
+            # Python interprets the return value of the replication delay output from postgres as a timedelta
+            # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
+            result = cursor.fetchone()[0]
+            if result is not None:
+                self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.seconds, tags=instance_tags)
+        cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
@@ -205,7 +238,7 @@ SELECT relname,
                 import psycopg2 as pg
             except ImportError:
                 raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
-            
+
             if host == 'localhost' and password == '':
                 # Use ident method
                 connection = pg.connect("user=%s dbname=%s" % (user, dbname))
@@ -227,7 +260,7 @@ SELECT relname,
             # connection.autocommit was added in version 2.4.2
             from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
             connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        
+
         self.dbs[key] = connection
         return connection
 
@@ -257,7 +290,7 @@ SELECT relname,
         # Check version
         version = self._get_version(key, db)
         self.log.debug("Running check against version %s" % version)
-            
+
         # Collect metrics
         try:
             self._collect_stats(key, db, tags, relations)
@@ -265,7 +298,6 @@ SELECT relname,
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
-
 
     @staticmethod
     def parse_agent_config(agentConfig):

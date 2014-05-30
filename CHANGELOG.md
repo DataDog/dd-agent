@@ -5,7 +5,44 @@ Changes
 ### Integrations affected
 
 ### Changes
-* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]
+
+# 4.3.0 / 05-22-2014
+
+### Integrations affected
+* MongoDB
+* Process
+* CouchDB
+* Docker
+* HAProxy
+* Marathon
+* Memcached
+* Mesos
+* MySQL
+* TokuMX
+* ElasticSearch
+* Network
+
+#### Changes
+* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
+* [FEATURE] Add some mongo2.2+ metrics to check: See [#951][] (Thanks to [@ckrough][])
+* [FEATURE] Collect checks statuses: See [#922]
+* [FEATURE] CouchDB: Support basic authentication: See [#930]
+* [FEATURE] Docker: Support Docker 0.11
+* [FEATURE] Docker: Collect events from the events api
+* [FEATURE] HAProxy: Allow collection of metrics per host with the option `collect_status_metrics_by_host`: See [#935]
+* [BUGFIX] HAProxy: Fix inaccuracy of count_per_status metric: See [#940]
+* [BUGFIX] HAProxy: Update event's titles: See [#935]
+* [FEATURE] Add Marathon integration: See [#921][] (Thanks to [@graemej][])
+* [FEATURE] Add Mesos integration: See [#919][] (Thanks to [@graemej][])
+* [FEATURE] Memcached: Add delete_misses/delete_hits: See [#928][] (Thanks to [@arthurnn][])
+* [BUGFIX] MySQL: Only collect MySQL metrics from /proc on unix machines: See [#947]
+* [BUGFIX] MySQL: Fix duplicate metric bug: See [#899]
+* [BUGFIX] Varnish: Fix a bug that was causing tags to be continuously added in some cases.
+* [FEATURE] Add an option to disable Dogstastsd: See [#927]
+* [FEATURE] Memcached: Add support for local unix socket connections: See [#891][] (Thanks to [@mike-lerch][])
+* [FEATURE] Add TokuMX integration: See [#933][] (Thanks to [@leifwalsh][])
+* [BUGFIX] ElasticSearch: Added correct GC metrics for ES 1.x: See [#900][] (Thanks to [@joningle][])
+* [FEATURE] Network: Add additional metrics for TCP: See [#949][]
 
 # 4.2.2 / 04-25-2014
 
@@ -202,7 +239,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.3...3.11.0
 https://github.com/DataDog/dd-agent/compare/3.9.2...3.9.3
 
 
-# 3.10.0 / 2013-09-06 
+# 3.10.0 / 2013-09-06
 
 **Linux or Source Install only**
 
@@ -236,7 +273,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.10.0
 
 #### Changes
 * [FEATURE] Default SQL Server to integrated security if no username/password is provided ([#622](https://github.com/DataDog/dd-agent/pull/622
-))(Thanks to [@jamescrowley](https://github.com/jamescrowley)) 
+))(Thanks to [@jamescrowley](https://github.com/jamescrowley))
 * [FEATURE] Allow skipping ssl certificate validation (useful when the agent runs behind haproxy)  ([#641](https://github.com/DataDog/dd-agent/issues/641))
 * [BUGFIX] Fix proxy support on Windows
 * [BUGFIX] Better management of config files with the GUI
@@ -295,7 +332,7 @@ https://github.com/DataDog/dd-agent/compare/3.9.0...3.9.1
 * [BUGFIX] Nginx check no longer asserts number of connections ([#569](https://github.com/DataDog/dd-agent/issues/569))
 * [BUGFIX] Deb and RPM `start` command will now poll the Agent status when starting instead of waiting a fixed amount of time ([#582](https://github.com/DataDog/dd-agent/issues/582))
 * [BUGFIX] RedisDB check will now cast a parsed port to an integer ([#600](https://github.com/DataDog/dd-agent/pull/600))
-* [BUGFIX] `supervisord` location is no longer hardcoded on Debian ([#580](https://github.com/DataDog/dd-agent/issues/580)) (Thanks to [@mastrolinux][]) 
+* [BUGFIX] `supervisord` location is no longer hardcoded on Debian ([#580](https://github.com/DataDog/dd-agent/issues/580)) (Thanks to [@mastrolinux][])
 
 #### Details
 https://github.com/DataDog/dd-agent/compare/3.8.0...3.9.0
@@ -347,7 +384,7 @@ https://github.com/DataDog/dd-agent/compare/3.7.0...3.7.1
 * [FEATURE] Add a gearman check ([#435](https://github.com/DataDog/dd-agent/pull/429)) (Thanks to [@CaptTofu](https://github.com/CaptTofu))
 * [FEATURE] Add a Web Info Page to check the status of the agent (http://localhost:17125/status) ([#483](https://github.com/DataDog/dd-agent/pull/483))
 * [FEATURE] Create an info page for the source install ([#481](https://github.com/DataDog/dd-agent/pull/481))
-* [FEATURE] Add a “warning” method to the AgentCheck class that will display warnings in the info page 
+* [FEATURE] Add a “warning” method to the AgentCheck class that will display warnings in the info page
 * [BUGFIX] Customizable Java directory for JMX Checks ([#472](https://github.com/DataDog/dd-agent/issues/472))
 * [BUGFIX] Do not try to write logs in /var/log when using the source install ([#478](https://github.com/DataDog/dd-agent/issues/478))
 * [BUGFIX] Use a Unix socket in supervisor for the source installation
@@ -382,7 +419,7 @@ https://github.com/DataDog/dd-agent/compare/3.6.2...3.6.3
 #### Changes
 * [FEATURE] Port MySQL to checks.d ([#408](https://github.com/DataDog/dd-agent/pull/408)) (Thanks to [@CaptTofu](https://github.com/CaptTofu))
 * [FEATURE] Add KyotoTycoon Check ([#426](https://github.com/DataDog/dd-agent/pull/426)) (Thanks to [@dcrosta](https://github.com/dcrosta))
-* [FEATURE] Add command line option to run a particular agent check ([#408](https://github.com/DataDog/dd-agent/pull/417)) 
+* [FEATURE] Add command line option to run a particular agent check ([#408](https://github.com/DataDog/dd-agent/pull/417))
 * [BUGFIX} Force include elementtree.ElementTree in Windows install ([#423](https://github.com/DataDog/dd-agent/issues/423))
 * [BUGFIX} Fix elasticsearch check for version < 0.19 ([#419](https://github.com/DataDog/dd-agent/issues/419))
 * [BUGFIX} Disable HAProxy events by default
@@ -442,7 +479,7 @@ https://github.com/DataDog/dd-agent/compare/3.5.0...3.5.1
 * [FEATURE] Port CouchDB and ElasticSearch to checks.d ([#311](https://github.com/DataDog/dd-agent/pull/311))
 * [FEATURE] New System Metrics: `system.mem.pct_usable` and `system.swap.pct_free` ([#334](https://github.com/DataDog/dd-agent/pull/334))
 * [FEATURE] SmartOS support (see [the agent setup page](https://app.datadoghq.com/account/settings#agent))
-* [FEATURE] Invoke custom emitters from the forwarder, instead of the agent, to capture statsd output ([#271](https://github.com/DataDog/dd-agent/pull/272). Thanks to [@charles-dyfis-net][]) 
+* [FEATURE] Invoke custom emitters from the forwarder, instead of the agent, to capture statsd output ([#271](https://github.com/DataDog/dd-agent/pull/272). Thanks to [@charles-dyfis-net][])
 * [FEATURE] Allow strings to be elements in dogstatsd sets ([#300](https://github.com/DataDog/dd-agent/issues/326))
 * [BUGFIX] Limit the number of threads used by service checks ([#351](https://github.com/DataDog/dd-agent/issues/351))
 * [PERFORMANCE] Better JMX performance ([#313](https://github.com/DataDog/dd-agent/issues/313), [#348](https://github.com/DataDog/dd-agent/issues/348))
@@ -707,7 +744,7 @@ to get the new versions up-and-running.
 * [BUGFIX] [#80](https://github.com/DataDog/dd-agent/issues/80) Agent now runs happily in locales with different radix separator
 * [FEATURE] [#73](https://github.com/DataDog/dd-agent/issues/73) Allow checks to record tag metrics
 
-# 2.2.26 
+# 2.2.26
 
 #### Changes
 * [BUGFIX][#76](https://github.com/DataDog/dd-agent/issues/76) Fixes nagios perfdata parsing (if templates contained brackets)
@@ -966,25 +1003,46 @@ If you use ganglia, you want this version.
 [#875]: https://github.com/DataDog/dd-agent/issues/875
 [#876]: https://github.com/DataDog/dd-agent/issues/876
 [#883]: https://github.com/DataDog/dd-agent/issues/883
+[#891]: https://github.com/DataDog/dd-agent/issues/891
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
+[#899]: https://github.com/DataDog/dd-agent/issues/899
+[#900]: https://github.com/DataDog/dd-agent/issues/900
 [#904]: https://github.com/DataDog/dd-agent/issues/904
 [#917]: https://github.com/DataDog/dd-agent/issues/917
+[#919]: https://github.com/DataDog/dd-agent/issues/919
+[#921]: https://github.com/DataDog/dd-agent/issues/921
+[#922]: https://github.com/DataDog/dd-agent/issues/922
+[#927]: https://github.com/DataDog/dd-agent/issues/927
+[#928]: https://github.com/DataDog/dd-agent/issues/928
+[#930]: https://github.com/DataDog/dd-agent/issues/930
+[#933]: https://github.com/DataDog/dd-agent/issues/933
+[#935]: https://github.com/DataDog/dd-agent/issues/935
+[#940]: https://github.com/DataDog/dd-agent/issues/940
+[#947]: https://github.com/DataDog/dd-agent/issues/947
+[#949]: https://github.com/DataDog/dd-agent/issues/949
+[#951]: https://github.com/DataDog/dd-agent/issues/951
 [@CaptTofu]: https://github.com/CaptTofu
+[@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
+[@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
 [@dcrosta]: https://github.com/dcrosta
 [@echohead]: https://github.com/echohead
+[@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
 [@imlucas]: https://github.com/imlucas
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
+[@joningle]: https://github.com/joningle
+[@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
+[@mike-lerch]: https://github.com/mike-lerch
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@ordenull]: https://github.com/ordenull
 [@rl-0x0]: https://github.com/rl-0x0

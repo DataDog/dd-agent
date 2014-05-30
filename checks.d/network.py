@@ -11,9 +11,21 @@ import re
 # project
 from checks import AgentCheck
 from util import Platform
+BSD_TCP_METRICS = [
+        (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
+        (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
+        (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
+        ]
 
+SOLARIS_TCP_METRICS = [
+        (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
+        (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
+        (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
+        ]
 
 class Network(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'system'
 
     TCP_STATES = {
         "ESTABLISHED": "established",
@@ -88,7 +100,7 @@ class Network(AgentCheck):
 
         # For reasons i don't understand only these metrics are skipped if a
         # particular interface is in the `excluded_interfaces` config list.
-        # Not sure why the others aren't included. Until I understand why, I'm 
+        # Not sure why the others aren't included. Until I understand why, I'm
         # going to keep the same behaviour.
         exclude_iface_metrics = [
             'packets_in.count',
@@ -115,6 +127,14 @@ class Network(AgentCheck):
                 return long(v)
             except ValueError:
                 return 0
+
+    def _submit_regexed_values(self, output, regex_list):
+        lines=output.split("\n")
+        for line in lines:
+            for regex, metric in regex_list:
+                value = re.match(regex, line)
+                if value:
+                    self.rate(metric, self._parse_value(value.group(1)))
 
     def _check_linux(self, instance):
         if self._collect_cx_state:
@@ -178,6 +198,43 @@ class Network(AgentCheck):
                 }
                 self._submit_devicemetrics(iface, metrics)
 
+
+        proc = open('/proc/net/snmp', 'r')
+        # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
+        # IP:      2            64         377145470      0            ...
+        # Icmp:    InMsgs       InErrors   InDestUnreachs InTimeExcds  ...
+        # Icmp:    1644495      1238       1643257        0            ...
+        # IcmpMsg: InType3      OutType3
+        # IcmpMsg: 1643257      1643257
+        # Tcp:     RtoAlgorithm RtoMin     RtoMax         MaxConn      ...
+        # Tcp:     1            200        120000         -1           ...
+        # Udp:     InDatagrams  NoPorts    InErrors       OutDatagrams ...
+        # Udp:     24249494     1643257    0              25892947     ...
+        # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
+        # UdpLite: 0            0          0              0            ...
+        try:
+            lines = proc.readlines()
+        finally:
+            proc.close()
+
+        tcp_lines = [line for line in lines if line.startswith('Tcp:')]
+        column_names = tcp_lines[0].strip().split()
+        values = tcp_lines[1].strip().split()
+
+        tcp_metrics = dict(zip(column_names,values))
+
+        # line start indicating what kind of metrics we're looking at
+        assert(tcp_metrics['Tcp:']=='Tcp:')
+
+        tcp_metrics_name = {
+            'RetransSegs': 'system.net.tcp.retrans_segs',
+            'InSegs'     : 'system.net.tcp.in_segs',
+            'OutSegs'    : 'system.net.tcp.out_segs'
+            }
+
+        for key, metric in tcp_metrics_name.iteritems():
+            self.rate(metric, self._parse_value(tcp_metrics[key]))
+
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],
                                    stdout=subprocess.PIPE,
@@ -238,11 +295,36 @@ class Network(AgentCheck):
                     'bytes_rcvd': self._parse_value(x[-5]),
                     'bytes_sent': self._parse_value(x[-2]),
                     'packets_in.count': self._parse_value(x[-7]),
-                    'packets_in.error': self._parse_value(x[-6]), 
+                    'packets_in.error': self._parse_value(x[-6]),
                     'packets_out.count': self._parse_value(x[-4]),
                     'packets_out.error':self._parse_value(x[-3]),
                 }
                 self._submit_devicemetrics(iface, metrics)
+
+
+        netstat = subprocess.Popen(["netstat", "-s","-p" "tcp"],
+                                   stdout=subprocess.PIPE,
+                                   close_fds=True).communicate()[0]
+        #3651535 packets sent
+        #        972097 data packets (615753248 bytes)
+        #        5009 data packets (2832232 bytes) retransmitted
+        #        0 resends initiated by MTU discovery
+        #        2086952 ack-only packets (471 delayed)
+        #        0 URG only packets
+        #        0 window probe packets
+        #        310851 window update packets
+        #        336829 control packets
+        #        0 data packets sent after flow control
+        #        3058232 checksummed in software
+        #        3058232 segments (571218834 bytes) over IPv4
+        #        0 segments (0 bytes) over IPv6
+        #4807551 packets received
+        #        1143534 acks (for 616095538 bytes)
+        #        165400 duplicate acks
+        #        ...
+
+        self._submit_regexed_values(netstat, BSD_TCP_METRICS)
+
 
     def _check_solaris(self, instance):
         # Can't get bytes sent and received via netstat
@@ -253,6 +335,21 @@ class Network(AgentCheck):
         metrics_by_interface = self._parse_solaris_netstat(netstat)
         for interface, metrics in metrics_by_interface.iteritems():
             self._submit_devicemetrics(interface, metrics)
+
+        netstat = subprocess.Popen(["netstat", "-s","-P" "tcp"],
+                                    stdout=subprocess.PIPE,
+                                    close_fds=True).communicate()[0]
+        # TCP: tcpRtoAlgorithm=     4 tcpRtoMin           =   200
+        # tcpRtoMax           = 60000 tcpMaxConn          =    -1
+        # tcpActiveOpens      =    57 tcpPassiveOpens     =    50
+        # tcpAttemptFails     =     1 tcpEstabResets      =     0
+        # tcpCurrEstab        =     0 tcpOutSegs          =   254
+        # tcpOutDataSegs      =   995 tcpOutDataBytes     =1216733
+        # tcpRetransSegs      =     0 tcpRetransBytes     =     0
+        # tcpOutAck           =   185 tcpOutAckDelayed    =     4
+        # ...
+        self._submit_regexed_values(netstat, SOLARIS_TCP_METRICS)
+
 
     def _parse_solaris_netstat(self, netstat_output):
         """

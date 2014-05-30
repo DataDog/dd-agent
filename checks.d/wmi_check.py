@@ -29,7 +29,7 @@ class WMICheck(AgentCheck):
     def check(self, instance):
         if wmi is None:
             raise Exception("Missing 'wmi' module")
-        
+
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)

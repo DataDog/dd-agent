@@ -20,7 +20,7 @@ import signal
 import socket
 import sys
 import zlib
-from time import time
+from time import time, sleep
 import threading
 from urllib import urlencode
 
@@ -343,11 +343,21 @@ class Dogstatsd(Daemon):
         return DogstatsdStatus.print_latest_status()
 
 
-def init(config_path=None, use_watchdog=False, use_forwarder=False):
+def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
-    log.debug("Configuration dogstatsd")
+
+    if not c['use_dogstatsd'] and \
+        (args and args[0] in ['start', 'restart'] or not args):
+        log.info("Dogstatsd is disabled. Exiting")
+        # We're exiting purposefully, so exit with zero (supervisor's expected
+        # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
+        # and thus can exit cleanly.
+        sleep(4)
+        sys.exit(0)
+
+    log.debug("Configurating     dogstatsd")
 
     port      = c['dogstatsd_port']
     interval  = int(c['dogstatsd_interval'])
@@ -391,7 +401,7 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
+    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
     pid_file = PidFile('dogstatsd')
     daemon = Dogstatsd(pid_file.get_path(), server, reporter,
             cnf.get('autorestart', False))
@@ -420,7 +430,6 @@ def main(config_path=None):
             parser.print_help()
             return 1
         return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())
