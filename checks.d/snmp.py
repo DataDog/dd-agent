@@ -7,8 +7,11 @@ from pysnmp.smi.exval import noSuchInstance, noSuchObject
 from pysnmp.smi import builder
 import pysnmp.proto.rfc1902 as snmp_type
 
-SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64]
-SNMP_GAUGES = [snmp_type.Gauge32]
+convention_type_builder = builder.MibBuilder()
+(CounterBasedGauge64, ZeroBasedCounter64) = convention_type_builder.importSymbols("HCNUM-TC","CounterBasedGauge64", "ZeroBasedCounter64")
+
+SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64, ZeroBasedCounter64]
+SNMP_GAUGES = [snmp_type.Gauge32, CounterBasedGauge64]
 
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
@@ -119,6 +122,7 @@ class SnmpCheck(AgentCheck):
                 oid_names[metric['OID']]=metric['name']
             else:
                 raise Exception('Unsupported metrics format in config file')
+        self.log.debug("Querying device %s for %s oids",ip_address, len(device_oids))
         results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
             self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address],
@@ -128,6 +132,7 @@ class SnmpCheck(AgentCheck):
             interface_oids.append((metric["MIB"],metric["symbol"]))
         for interface, descr in self.interface_list[instance['ip_address']].items():
             oids = [(oid, interface) for oid in interface_oids]
+            self.log.debug("Querying device %s for %s oids",ip_address, len(oids))
             interface_results = SnmpCheck.snmp_get(instance, oids)
             for oid, value in interface_results:
                 self.submit_metric(instance, oid, value, tags = tags + ["snmp_device:" + ip_address,
@@ -172,6 +177,7 @@ class SnmpCheck(AgentCheck):
                 name = "snmp." + oid.getMibSymbol()[1]
             except:
                 self.log.warning("Couldn't find a name for oid {0}".format(oid))
+                return
 
         snmp_class = getattr(snmp_value, '__class__')
         value = int(snmp_value)
@@ -179,4 +185,6 @@ class SnmpCheck(AgentCheck):
             self.rate(name, value, tags)
         elif snmp_class in SNMP_GAUGES:
             self.gauge(name, value, tags)
+        else:
+            self.log.warning("Unsupported metric type %s", snmp_class)
 
