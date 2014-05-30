@@ -3,12 +3,16 @@ from checks import AgentCheck
 from collections import defaultdict
 
 from pysnmp.entity.rfc3413.oneliner import cmdgen
-from pysnmp.smi.exval import noSuchInstance
+from pysnmp.smi.exval import noSuchInstance, noSuchObject
 from pysnmp.smi import builder
 import pysnmp.proto.rfc1902 as snmp_type
 
 SNMP_COUNTERS = [snmp_type.Counter32, snmp_type.Counter64]
 SNMP_GAUGES = [snmp_type.Gauge32]
+
+def reply_invalid(oid):
+    return noSuchInstance.isSameTypeWith(oid) or \
+           noSuchObject.isSameTypeWith(oid)
 
 class SnmpCheck(AgentCheck):
 
@@ -57,15 +61,13 @@ class SnmpCheck(AgentCheck):
             interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
             interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
             descr = interfaces_description.pop(0)[1]
-            if noSuchInstance.isSameTypeWith(descr):
-                empty_reply= True
-            else:
-                type = interfaces_description.pop(0)[1]
-                if not noSuchInstance.isSameTypeWith(type) and int(type) !=24:
-                    # ignore localhost loopback
-                    interface_list[interface_index] = str(descr)
-                    self.log.info("Discovered interface %s" % str(descr))
-                interface_index += 1
+            empty_reply= reply_invalid(descr)
+            type = interfaces_description.pop(0)[1]
+            if not reply_invalid(type) and int(type) !=24:
+                # ignore localhost loopback
+                interface_list[interface_index] = str(descr)
+                self.log.info("Discovered interface %s" % str(descr))
+            interface_index += 1
         return interface_list
 
     @classmethod
@@ -160,7 +162,7 @@ class SnmpCheck(AgentCheck):
                 return varBinds
 
     def submit_metric(self, instance, oid, snmp_value, tags=[], oid_names={}):
-        if noSuchInstance.isSameTypeWith(snmp_value):
+        if reply_invalid(snmp_value):
             self.log.warning("No such Mib available: %s" %oid.getMibSymbol()[1])
             return
         if str(oid.getOid()) in oid_names:
