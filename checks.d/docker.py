@@ -109,10 +109,10 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     def __init__(self, *args, **kwargs):
         super(Docker, self).__init__(*args, **kwargs)
-        self._mounpoints = {}
+        self._mountpoints = {}
         self.cgroup_path_prefix = None # Depending on the version
         for metric in LXC_METRICS:
-            self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
+            self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
 
@@ -120,7 +120,7 @@ class Docker(AgentCheck):
     def path_prefix(self):
         if self._path_prefix is None:
             metric = LXC_METRICS[0]
-            mountpoint = self._mounpoints[metric["cgroup"]]
+            mountpoint = self._mountpoints[metric["cgroup"]]
             stat_file_lxc = os.path.join(mountpoint, "lxc")
             stat_file_docker = os.path.join(mountpoint, "docker")
 
@@ -144,7 +144,7 @@ class Docker(AgentCheck):
         try:
             containers = self._get_containers(instance)
         except:
-            raise Exception('Cannot get containers list: timeout during socket connection.')
+            raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
 
         if not containers:
             self.gauge("docker.containers.running", 0)
@@ -180,7 +180,7 @@ class Docker(AgentCheck):
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for metric in LXC_METRICS:
-                mountpoint = self._mounpoints[metric["cgroup"]]
+                mountpoint = self._mountpoints[metric["cgroup"]]
                 stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
