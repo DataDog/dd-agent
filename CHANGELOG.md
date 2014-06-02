@@ -15,9 +15,9 @@ Changes
 * HAProxy
 
 ### Changes
-* [IMPROVEMENT] Don't collect Docker total_ metrics by default. See [#964]
-* [BUGFIX] Report Docker CPU metrics as rate. See [#964]
-* [BUGFIX] Add HAProxy reporter name in HAProxy event's titles. See [#960]
+* [IMPROVEMENT] Don't collect Docker total_ metrics by default. See [#964][]
+* [BUGFIX] Report Docker CPU metrics as rate. See [#964][]
+* [BUGFIX] Add HAProxy reporter name in HAProxy event's titles. See [#960][]
 
 # 4.3.0 / 05-22-2014
 
@@ -36,7 +36,7 @@ Changes
 * Network
 
 #### Changes
-* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
+* [BUGFIX] Fix incorrect open file descriptors metric name in process check: See [#904][]. Warning: As the metric name will be changed. Your dashboards will have to be updated.
 * [FEATURE] Add some mongo2.2+ metrics to check: See [#951][] (Thanks to [@ckrough][])
 * [FEATURE] Collect checks statuses: See [#922]
 * [FEATURE] CouchDB: Support basic authentication: See [#930]
@@ -1035,6 +1035,8 @@ If you use ganglia, you want this version.
 [#947]: https://github.com/DataDog/dd-agent/issues/947
 [#949]: https://github.com/DataDog/dd-agent/issues/949
 [#951]: https://github.com/DataDog/dd-agent/issues/951
+[#960]: https://github.com/DataDog/dd-agent/issues/960
+[#964]: https://github.com/DataDog/dd-agent/issues/964
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
