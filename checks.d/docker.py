@@ -5,8 +5,8 @@ import socket
 import os
 import re
 import time
-from urlparse import urlsplit, urljoin
-from util import json, headers
+from urlparse import urlsplit
+from util import json
 try:
     from collections import defaultdict
 except ImportError:
@@ -55,8 +55,8 @@ LXC_METRICS = [
         "cgroup": "cpuacct",
         "file": "%s/%s/cpuacct.stat",
         "metrics": {
-            "user": ("docker.cpu.user", "gauge"),
-            "system": ("docker.cpu.system", "gauge"),
+            "user": ("docker.cpu.user", "rate"),
+            "system": ("docker.cpu.system", "rate"),
         },
     },
 ]
@@ -110,7 +110,7 @@ class Docker(AgentCheck):
     def __init__(self, *args, **kwargs):
         super(Docker, self).__init__(*args, **kwargs)
         self._mounpoints = {}
-        self.cgroup_path_prefix = None # Depending on the version 
+        self.cgroup_path_prefix = None # Depending on the version
         for metric in LXC_METRICS:
             self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
@@ -136,9 +136,16 @@ class Docker(AgentCheck):
         urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
 
-        self._process_events(self._get_events(instance))
+        try:
+            self._process_events(self._get_events(instance))
+        except socket.timeout:
+            self.warning('Timeout during socket connection. Events will be missing.')
 
-        containers = self._get_containers(instance)
+        try:
+            containers = self._get_containers(instance)
+        except:
+            raise Exception('Cannot get containers list: timeout during socket connection.')
+
         if not containers:
             self.gauge("docker.containers.running", 0)
             raise Exception("No containers are running.")
@@ -187,7 +194,7 @@ class Docker(AgentCheck):
                 'timestamp': ev['time'],
                 'host': self.hostname,
                 'event_type': EVENT_TYPE,
-                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname), 
+                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname),
                 'source_type_name': EVENT_TYPE,
                 'event_object': ev['from'],
             })
