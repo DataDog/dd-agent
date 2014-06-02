@@ -33,10 +33,10 @@ instances:
 
 # Sub-cgroups metrics
 #
-# If you want to include sub-cgroups metrics, turn the total option on.
+# If you want to include sub-cgroups metrics, turn the collect_total option on.
 # It is useless for a normal usage, as total_ metrics will be the same as normal ones.
 #
 # Example:
 # instances:
 #     - url: "unix://var/run/docker.sock"
-#       total: true
+#       collect_total: true

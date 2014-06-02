@@ -143,7 +143,7 @@ class Docker(AgentCheck):
 
         try:
             containers = self._get_containers(instance)
-        except:
+        except socket.timeout:
             raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
 
         if not containers:
@@ -184,7 +184,7 @@ class Docker(AgentCheck):
                 stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
-                    if key.startswith("total_") and not instance.get("total"):
+                    if key.startswith("total_") and not instance.get("collect_total"):
                         continue
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
