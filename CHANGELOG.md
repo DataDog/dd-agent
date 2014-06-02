@@ -8,14 +8,16 @@ Changes
 
 # 4.3.1 / 06-02-2014
 
+**Linux or Source Install only**
+
 ### Integrations affected
 * Docker
 * HAProxy
 
 ### Changes
-* [FEATURE] Add a configuration option to collect Docker total_ metrics. See [#964]
+* [IMPROVEMENT] Don't collect Docker total_ metrics by default. See [#964]
 * [BUGFIX] Report Docker CPU metrics as rate. See [#964]
-* [FEATURE] Add HAProxy reporter name in HAProxy event's titles. See [#960]
+* [BUGFIX] Add HAProxy reporter name in HAProxy event's titles. See [#960]
 
 # 4.3.0 / 05-22-2014
 
