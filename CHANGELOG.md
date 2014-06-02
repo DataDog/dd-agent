@@ -6,7 +6,7 @@ Changes
 
 ### Changes
 
-# 4.3.0 / Unreleased
+# 4.3.0 / 05-22-2014
 
 ### Integrations affected
 * MongoDB
