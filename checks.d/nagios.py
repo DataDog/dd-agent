@@ -70,10 +70,10 @@ class Nagios(AgentCheck):
             for instance in instances:
                 if 'nagios_log' in instance:
                     log_path = instance['nagios_log']
-                    self.nagios_tails[instance['nagios_log']] = NagiosTailer(log_path,
-                                                                             self.log,
-                                                                             hostname,
-                                                                             self.event)
+                    self.nagios_tails[log_path] = NagiosTailer(log_path,
+                                                               self.log,
+                                                               hostname,
+                                                               self.event)
 
     def check(self, instance):
         if 'nagios_log' not in instance:
@@ -91,6 +91,9 @@ class NagiosTailer(object):
         self._event = event_func
         self._line_parsed = 0
         self._event_sent = 0
+        self.tail = TailFile(self.logger,self.log_path,self._parse_line)
+        self.gen = self.tail.tail(line_by_line=False, move_end=True)
+
 
     def _parse_line(self, line):
         """Actual nagios parsing
@@ -135,14 +138,9 @@ class NagiosTailer(object):
             self.logger.exception("Unable to create a nagios event from line: [%s]" % (line))
             return False
 
-    def check(self, move_end=True):
+    def check(self):
         self._event_sent = 0
         self._line_parsed = 0
-
-        # Build our tail -f
-        if self.gen is None:
-            self.tail = TailFile(self.logger,self.log_path,self._parse_line)
-            self.gen = self.tail.tail(line_by_line=False, move_end=move_end)
 
         # read until the end of file
         try:

@@ -3,24 +3,35 @@ import logging; logger = logging.getLogger(__file__)
 import os
 import tempfile
 
-from checks.nagios import *
+from tests.common import load_check
 
 NAGIOS_TEST_LOG = os.path.join(os.path.dirname(__file__), "nagios.log")
 
 class TestNagios(unittest.TestCase):
-    def setUp(self):
-        self.nagios = Nagios("localhost")
+
+    def _setupAgentCheck(self, path_to_log):
+        self.agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+                }
+        self.config = {
+                'init_config' : {},
+                'instances': [{
+                    'nagios_log': path_to_log
+                    }]
+                }
+        self.check = load_check('nagios', self.config, self.agentConfig)
 
     def testParseLine(self):
         """Test line parser"""
-        self.nagios.logger = logger
-        self.nagios.events = []
+        self._setupAgentCheck(NAGIOS_TEST_LOG)
+        nagios_tailer = self.check.nagios_tails[NAGIOS_TEST_LOG]
         counters = {}
 
         for line in open(NAGIOS_TEST_LOG).readlines():
-            parsed = self.nagios._parse_line(line)
+            parsed = nagios_tailer._parse_line(line)
             if parsed:
-                event = self.nagios.events[-1]
+                event = self.check.get_events()[-1]
                 t = event["event_type"]
                 assert t in line
                 assert int(event["timestamp"]) > 0, line
@@ -60,22 +71,24 @@ class TestNagios(unittest.TestCase):
         self.assertEquals(counters["ACKNOWLEDGE_SVC_PROBLEM"], 4)
         assert "ACKNOWLEDGE_HOST_PROBLEM" not in counters
 
-    def testBulkParsing(self):
-        """Make sure the log is read in one fell swoop"""
-        events = self.nagios.check(logger, {"nagios_log": NAGIOS_TEST_LOG, "api_key": "123"}, move_end=False)
-        self.assertEquals(len(events), 503) # There are 503 events
-        assert len([e for e in events if e["api_key"] == "123"]) > 500, "Missing api-keys in events"
-
     def testContinuousBulkParsing(self):
         """Make sure the tailer continues to parse nagios as the file grows"""
         x = open(NAGIOS_TEST_LOG).read()
         events = []
         ITERATIONS = 10
         f = tempfile.NamedTemporaryFile(mode="a+b")
+        f.write(x)
+        f.flush()
+        self._setupAgentCheck(f.name)
+        self.check.check(self.config['instances'][0])
+
+        # Make sure that the lines before we start the agent are ignored
+        self.assertEquals(len(self.check.get_events()), 0)
         for i in range(ITERATIONS):
             f.write(x)
             f.flush()
-            events.extend(self.nagios.check(logger, {"nagios_log": f.name, "api_key": "123"}, move_end=False))
+            self.check.check(self.config['instances'][0])
+            events.extend(self.check.get_events())
         f.close()
         self.assertEquals(len(events), ITERATIONS * 503)
             
