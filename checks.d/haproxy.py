@@ -126,8 +126,8 @@ class HAProxy(AgentCheck):
                 )
                 # Send the list of data to the metric and event callbacks
                 self._process_metrics(data_dict, url)
-                if process_events:
-                    self._process_event(data_dict, url)
+            if process_events:
+                self._process_event(data_dict, url)
 
         if collect_status_metrics:
             self._process_status_metric(hosts_statuses, collect_status_metrics_by_host)
@@ -260,32 +260,39 @@ class HAProxy(AgentCheck):
                 lastchg = 0
 
             # Create the event object
-            ev = self._create_event(data['status'], hostname, lastchg, service_name)
+            ev = self._create_event(
+                data['status'], hostname, lastchg, service_name,
+                data['back_or_front']
+            )
             self.event(ev)
 
             # Store this host status so we can check against it later
             self.host_status[url][key] = data['status']
 
-    def _create_event(self, status, hostname, lastchg, service_name):
+    def _create_event(self, status, hostname, lastchg, service_name, back_or_front):
+        HAProxy_agent = self.hostname.decode('utf-8')
         if status == "DOWN":
             alert_type = "error"
-            title = "%s reported %s %s" % (service_name, hostname, status)
+            title = "%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status)
         else:
             if status == "UP":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "%s reported %s back and %s" % (service_name, hostname, status)
+            title = "%s reported %s:%s back and %s" % (HAProxy_agent, service_name, hostname, status)
 
+        tags = ["service:%s" % service_name]
+        if back_or_front == Services.BACKEND:
+            tags.append('backend:%s' % hostname)
         return {
              'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
-             'host': hostname,
+             'host': HAProxy_agent,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,
              "event_object": hostname,
-             "tags": ["frontend:%s" % service_name, "host:%s" % hostname]
+             "tags": tags
         }
 
     @staticmethod
