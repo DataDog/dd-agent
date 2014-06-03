@@ -40,6 +40,11 @@ EVENT_FIELDS = {
     'SERVICE DOWNTIME ALERT': namedtuple('E_ServiceDowntime', 'host, check_name, downtime_start_stop, payload'),
 }
 
+# Regex alternation ends up being tricker than expected, and much less readable
+#re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
+re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
+re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
+
 def create_event(timestamp, event_type, hostname, fields):
     """Factory method called by the parsers
     """
@@ -78,10 +83,6 @@ class Nagios(AgentCheck):
 class NagiosTailer(object):
 
     def __init__(self, log_path, logger, hostname, event_func):
-        # Regex alternation ends up being tricker than expected, and much less readable
-        #self.re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
-        self.re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
-        self.re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
         self.log_path = log_path
         self.logger = logger
         self.gen = None
@@ -99,9 +100,9 @@ class NagiosTailer(object):
         try:
             self._line_parsed = self._line_parsed + 1
 
-            m  = self.re_line_reg.match(line)
+            m  = re_line_reg.match(line)
             if m is None:
-                m = self.re_line_ext.match(line)
+                m = re_line_ext.match(line)
             if m is None:
                 return False
 
