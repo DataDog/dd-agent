@@ -154,18 +154,3 @@ class NagiosTailer(object):
         except StopIteration, e:
             self.logger.exception(e)
             self.logger.warning("Can't tail %s file" % (self.log_path))
-
-if __name__ == "__main__":
-    import logging
-    import socket
-
-    logger = logging.getLogger("ddagent.checks.nagios")
-    nagios = Nagios(get_hostname())
-
-    config = {'api_key':'apikey_2','nagios_log': '/var/log/nagios3/nagios.log'}
-    events = nagios.check(logger, config,move_end = False)
-    while True:
-        #for e in events:
-        #    print "Event:", e
-        time.sleep(5)
-        events = nagios.check(logger, config)
