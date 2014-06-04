@@ -162,7 +162,7 @@ class NTPStats(NTPPacket):
 class NTPClient(object):
     """Client session - for now, a mere wrapper for NTP requests"""
     
-    def request(self, host, version=2, port='ntp'):
+    def request(self, host, version=2, port='ntp', timeout=5):
         """make a NTP request to a server - return a NTPStats object"""
         # lookup server address
         addrinfo = socket.getaddrinfo(host, port)[0]
@@ -170,7 +170,7 @@ class NTPClient(object):
 
         # create the socket
         s = socket.socket(family, socket.SOCK_DGRAM)
-        s.settimeout(5)
+        s.settimeout(timeout)
 
         # create the request packet - mode 3 is client
         query = NTPPacket(mode=3, version=version,
