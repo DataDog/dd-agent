@@ -45,18 +45,6 @@ EVENT_FIELDS = {
 re_line_reg = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
 re_line_ext = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
-def create_event(timestamp, event_type, hostname, fields):
-    """Factory method called by the parsers
-    """
-    # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
-    # but couldn't think of anything smarter
-    d = fields._asdict()
-    d.update({ 'timestamp': timestamp, 'event_type': event_type })
-    # if host is localhost, turn that into the internal host name
-    host = d.get('host', None)
-    if host == "localhost":
-        d["host"] = hostname
-    return d
 
 class Nagios(AgentCheck):
 
@@ -70,10 +58,10 @@ class Nagios(AgentCheck):
             for instance in instances:
                 if 'nagios_log' in instance:
                     log_path = instance['nagios_log']
-                    self.nagios_tails[log_path] = NagiosTailer(log_path,
-                                                               self.log,
-                                                               hostname,
-                                                               self.event)
+                    self.nagios_tails[log_path] = NagiosEventLogTailer(log_path,
+                                                                       self.log,
+                                                                       hostname,
+                                                                       self.event)
 
     def check(self, instance):
         if 'nagios_log' not in instance:
@@ -94,6 +82,22 @@ class NagiosTailer(object):
         self.tail = TailFile(self.logger,self.log_path,self._parse_line)
         self.gen = self.tail.tail(line_by_line=False, move_end=True)
 
+    def check(self):
+        self._event_sent = 0
+        self._line_parsed = 0
+
+        # read until the end of file
+        try:
+            self.logger.debug("Start nagios check for file %s" % (self.log_path))
+            self.tail._log = self.logger
+            self.gen.next()
+            self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
+                (self.log_path,self._line_parsed, self._event_sent))
+        except StopIteration, e:
+            self.logger.exception(e)
+            self.logger.warning("Can't tail %s file" % (self.log_path))
+
+class NagiosEventLogTailer(NagiosTailer):
 
     def _parse_line(self, line):
         """Actual nagios parsing
@@ -127,7 +131,7 @@ class NagiosTailer(object):
             # Chop parts we don't recognize
             parts = parts[:len(fields._fields)]
 
-            event = create_event(tstamp, event_type, self.hostname, fields._make(parts))
+            event = self.create_event(tstamp, event_type, self.hostname, fields._make(parts))
 
             self._event(event)
             self._event_sent += 1
@@ -138,17 +142,16 @@ class NagiosTailer(object):
             self.logger.exception("Unable to create a nagios event from line: [%s]" % (line))
             return False
 
-    def check(self):
-        self._event_sent = 0
-        self._line_parsed = 0
+    def create_event(self,timestamp, event_type, hostname, fields):
+        """Factory method called by the parsers
+        """
+        # FIXME Oli: kind of ugly to have to go through a named dict for this, and inefficient too
+        # but couldn't think of anything smarter
+        d = fields._asdict()
+        d.update({ 'timestamp': timestamp, 'event_type': event_type })
+        # if host is localhost, turn that into the internal host name
+        host = d.get('host', None)
+        if host == "localhost":
+            d["host"] = hostname
+        return d
 
-        # read until the end of file
-        try:
-            self.logger.debug("Start nagios check for file %s" % (self.log_path))
-            self.tail._log = self.logger
-            self.gen.next()
-            self.logger.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
-                (self.log_path,self._line_parsed, self._event_sent))
-        except StopIteration, e:
-            self.logger.exception(e)
-            self.logger.warning("Can't tail %s file" % (self.log_path))
