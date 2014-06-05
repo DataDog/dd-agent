@@ -361,39 +361,6 @@ class NagiosPerfData(object):
     def underscorize(s):
         return s.replace(' ', '_').lower()
 
-    @classmethod
-    def parse_nagios_config(cls, filename):
-        output = {}
-        keys = [
-            'host_perfdata_file_template',
-            'service_perfdata_file_template',
-            'host_perfdata_file',
-            'service_perfdata_file',
-        ]
-
-        f = None
-        try:
-            try:
-                f = open(filename)
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    for key in keys:
-                        if line.startswith(key + '='):
-                            eq_pos = line.find('=')
-                            if eq_pos:
-                                output[key] = line[eq_pos + 1:]
-                                break
-                return output
-            except Exception:
-                # Can't parse, assume it's just not working
-                # Don't return an incomplete config
-                return {}
-        finally:
-            if f is not None:
-                f.close()
-
     def __init__(self, logger, line_pattern, datafile):
         if isinstance(line_pattern, (str, unicode)):
             self.line_pattern = re.compile(line_pattern)

@@ -10,6 +10,9 @@ NAGIOS_TEST_LOG = os.path.join(os.path.dirname(__file__), "nagios.log")
 class TestNagios(unittest.TestCase):
 
     def _setupAgentCheck(self, path_to_log):
+        self.nagios_cfg = tempfile.NamedTemporaryFile(mode="a+b")
+        self.nagios_cfg.write('\n'.join(["log_file={0}".format(path_to_log)]))
+        self.nagios_cfg.flush()
         self.agentConfig = {
             'version': '0.1',
             'api_key': 'toto'
@@ -17,7 +20,8 @@ class TestNagios(unittest.TestCase):
         self.config = {
                 'init_config' : {},
                 'instances': [{
-                    'nagios_log': path_to_log
+                    'nagios_conf': self.nagios_cfg.name,
+                    'events': True
                     }]
                 }
         self.check = load_check('nagios', self.config, self.agentConfig)
@@ -25,7 +29,7 @@ class TestNagios(unittest.TestCase):
     def testParseLine(self):
         """Test line parser"""
         self._setupAgentCheck(NAGIOS_TEST_LOG)
-        nagios_tailer = self.check.nagios_tails[NAGIOS_TEST_LOG]
+        nagios_tailer = self.check.nagios_tails[self.nagios_cfg.name][0]
         counters = {}
 
         for line in open(NAGIOS_TEST_LOG).readlines():

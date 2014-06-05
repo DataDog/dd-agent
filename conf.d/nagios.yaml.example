@@ -1,4 +1,7 @@
 init_config:
 
 instances:
-#    - nagios_log: /var/log/nagios3/nagios.log
+#    - nagios_conf: /etc/nagios3/nagios.cfg
+#      events: True
+#      host_perf: True
+#      service_perf: True

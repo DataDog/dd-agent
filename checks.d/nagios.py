@@ -56,17 +56,56 @@ class Nagios(AgentCheck):
         hostname = get_hostname(agentConfig)
         if instances is not None:
             for instance in instances:
-                if 'nagios_log' in instance:
-                    log_path = instance['nagios_log']
-                    self.nagios_tails[log_path] = NagiosEventLogTailer(log_path,
-                                                                       self.log,
-                                                                       hostname,
-                                                                       self.event)
+                if 'nagios_conf' in instance:
+                    conf_path = instance['nagios_conf']
+                    nagios_conf = self.parse_nagios_config(conf_path)
+                    tailers = []
+                    if ('log_file' in nagios_conf) and instance.get('events',False):
+                        tailers.append(NagiosEventLogTailer(nagios_conf['log_file'],
+                                                            self.log, hostname,
+                                                            self.event))
+                    self.nagios_tails[conf_path] = tailers
+
+    @classmethod
+    def parse_nagios_config(cls, filename):
+        output = {}
+        keys = [
+            'log_file',
+            'host_perfdata_file_template',
+            'service_perfdata_file_template',
+            'host_perfdata_file',
+            'service_perfdata_file',
+        ]
+
+        f = None
+        try:
+            try:
+                f = open(filename)
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    for key in keys:
+                        if line.startswith(key + '='):
+                            eq_pos = line.find('=')
+                            if eq_pos:
+                                output[key] = line[eq_pos + 1:]
+                                break
+                return output
+            except Exception:
+                # Can't parse, assume it's just not working
+                # Don't return an incomplete config
+                return {}
+        finally:
+            if f is not None:
+                f.close()
+
 
     def check(self, instance):
         if 'nagios_log' not in instance:
             self.log.info("Skipping Instance, no log file found")
-        self.nagios_tails[instance['nagios_log']].check()
+        for tailer in self.nagios_tails[instance['nagios_conf']]:
+            tailer.check()
 
 class NagiosTailer(object):
 
