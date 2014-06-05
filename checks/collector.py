@@ -410,8 +410,17 @@ class Collector(object):
 
         # Periodically send the host metadata.
         if self._should_send_metadata():
+            # gather metadata with gohai
+            try:
+                gohai_metadata = subprocess.Popen(
+                    ["gohai"], stdout=subprocess.PIPE, close_fds=True
+                ).communicate()[0]
+                payload['gohai'] = gohai_metadata
+            except Exception as e:
+                log.warning("gohai command failed with error %s" % str(e))
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
+
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             host_tags = []
