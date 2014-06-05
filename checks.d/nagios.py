@@ -62,8 +62,29 @@ class Nagios(AgentCheck):
                     tailers = []
                     if ('log_file' in nagios_conf) and instance.get('events',False):
                         tailers.append(NagiosEventLogTailer(nagios_conf['log_file'],
-                                                            self.log, hostname,
-                                                            self.event))
+                                                            None,
+                                                            self.log,
+                                                            hostname,
+                                                            self.event,
+                                                            self.gauge))
+                    if ('host_perfdata_file' in nagios_conf) and \
+                       ('host_perfdata_file_template' in nagios_conf) and \
+                       instance.get('host_perf', False):
+                        tailers.append(NagiosHostPerfDataTailer(nagios_conf['host_perfdata_file'],
+                                                                nagios_conf['host_perfdata_file_template'],
+                                                                self.log,
+                                                                hostname,
+                                                                self.event,
+                                                                self.gauge))
+                    if ('service_perfdata_file' in nagios_conf) and \
+                       ('service_perfdata_file_template' in nagios_conf) and \
+                       instance.get('service_perf', False):
+                        tailers.append(NagiosServicePerfDataTailer(nagios_conf['service_perfdata_file'],
+                                                                nagios_conf['service_perfdata_file_template'],
+                                                                self.log,
+                                                                hostname,
+                                                                self.event,
+                                                                self.gauge))
                     self.nagios_tails[conf_path] = tailers
 
     @classmethod
@@ -109,15 +130,20 @@ class Nagios(AgentCheck):
 
 class NagiosTailer(object):
 
-    def __init__(self, log_path, logger, hostname, event_func):
+    def __init__(self, log_path, file_template, logger, hostname, event_func, gauge_func):
         self.log_path = log_path
         self.logger = logger
         self.gen = None
         self.tail = None
         self.hostname = hostname
         self._event = event_func
+        self._gauge = gauge_func
         self._line_parsed = 0
         self._event_sent = 0
+
+        if file_template is not None:
+            self.compile_file_template(file_template)
+
         self.tail = TailFile(self.logger,self.log_path,self._parse_line)
         self.gen = self.tail.tail(line_by_line=False, move_end=True)
 
@@ -135,6 +161,17 @@ class NagiosTailer(object):
         except StopIteration, e:
             self.logger.exception(e)
             self.logger.warning("Can't tail %s file" % (self.log_path))
+
+    def compile_file_template(self, file_template):
+        try:
+            # Escape characters that will be interpreted as regex bits
+            # e.g. [ and ] in "[SERVICEPERFDATA]"
+            regex = re.sub(r'[[\]*]', r'.', file_template)
+            regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
+            self.line_pattern = re.compile(regex)
+        except Exception, e:
+            raise InvalidDataTemplate("%s (%s)"% (file_template, e))
+
 
 class NagiosEventLogTailer(NagiosTailer):
 
@@ -194,3 +231,90 @@ class NagiosEventLogTailer(NagiosTailer):
             d["host"] = hostname
         return d
 
+class NagiosPerfDataTailer(NagiosTailer):
+    perfdata_field = '' # Should be overriden by subclasses
+    metric_prefix = 'nagios'
+    pair_pattern = re.compile(r"".join([
+            r"'?(?P<label>[^=']+)'?=",
+            r"(?P<value>[-0-9.]+)",
+            r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
+            r"(;(?P<warn>@?[-0-9.~]*:?[-0-9.~]*))?",
+            r"(;(?P<crit>@?[-0-9.~]*:?[-0-9.~]*))?",
+            r"(;(?P<min>[-0-9.]*))?",
+            r"(;(?P<max>[-0-9.]*))?",
+        ]))
+
+
+
+    @staticmethod
+    def underscorize(s):
+        return s.replace(' ', '_').lower()
+
+    def _get_metric_prefix(self, data):
+        # Should be overridded by subclasses
+        return [self.metric_prefix]
+
+    def _parse_line(self, logger, line):
+        matched = self.line_pattern.match(line)
+        output = []
+        if matched:
+            data = matched.groupdict()
+            metric_prefix = self._get_metric_prefix(data)
+
+            # Parse the prefdata values, which are a space-delimited list of:
+            #   'label'=value[UOM];[warn];[crit];[min];[max]
+            perf_data = data.get(self.perfdata_field, '').split(' ')
+            for pair in perf_data:
+                pair_match = self.pair_pattern.match(pair)
+                if not pair_match:
+                    continue
+                else:
+                    pair_data = pair_match.groupdict()
+
+                label = pair_data['label']
+                timestamp = data.get('TIMET', None)
+                value = pair_data['value']
+
+                device_name = None
+
+                if '/' in label:
+                    # Special case: if the label begins
+                    # with a /, treat the label as the device
+                    # and use the metric prefix as the metric name
+                    metric = '.'.join(metric_prefix)
+                    device_name = label
+
+                else:
+                    # Otherwise, append the label to the metric prefix
+                    # and use that as the metric name
+                    metric = '.'.join(metric_prefix + [label])
+
+                host_name = data.get('HOSTNAME', self.hostname)
+
+                optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
+                tags = []
+                for key in optional_keys:
+                    attr_val = pair_data.get(key, None)
+                    if attr_val is not None and attr_val != '':
+                        tags.append("{0}:{1}".format(key,attr_val))
+
+                self._gauge(metric, value, tags, host_name, device_name, timestamp)
+
+class NagiosHostPerfDataTailer(NagiosPerfDataTailer):
+    perfdata_field = 'HOSTPERFDATA'
+
+    def _get_metric_prefix(self, line_data):
+        return [self.metric_prefix, 'host']
+
+
+class NagiosServicePerfDataTailer(NagiosPerfDataTailer):
+    perfdata_field = 'SERVICEPERFDATA'
+
+    def _get_metric_prefix(self, line_data):
+        metric = [self.metric_prefix]
+        middle_name = line_data.get('SERVICEDESC', None)
+        if middle_name:
+            metric.append(middle_name.replace(' ', '_').lower())
+        return metric
+
+class InvalidDataTemplate(Exception): pass
