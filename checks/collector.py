@@ -45,8 +45,10 @@ class Collector(object):
         self.os = get_os()
         self.plugins = None
         self.emitters = emitters
-        self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
+        self.metadata_interval = int(agentConfig.get('metadata_interval', 4 * 60 * 60))
         self.metadata_start = time.time()
+        self.agent_checks_start = time.time()
+        self.agent_checks_interval = int(agentConfig.get('agent_checks_interval', 10 * 60))
         socket.setdefaulttimeout(15)
         self.run_count = 0
         self.continue_running = True
@@ -302,7 +304,7 @@ class Collector(object):
         payload['events'] = events
         payload['service_checks'] = service_checks
 
-        if self._should_send_metadata():
+        if self._should_send_additional_data('agent_checks'):
             # Add agent checks statuses and error/warning messages
             agent_checks = []
             for check in check_statuses:
@@ -409,7 +411,7 @@ class Collector(object):
                                  }]
 
         # Periodically send the host metadata.
-        if self._should_send_metadata():
+        if self._should_send_additional_data('metadata'):
             # gather metadata with gohai
             try:
                 gohai_metadata = subprocess.Popen(
@@ -465,14 +467,18 @@ class Collector(object):
 
         return metadata
 
-    def _should_send_metadata(self):
+    def _should_send_additional_data(self, data_name):
         if self._is_first_run():
             return True
+        DATA_TIME_TUPLES = {
+            'metadata': ('metadata_start', 'metadata_interval'),
+            'agent_checks': ('agent_checks_start', 'agent_checks_interval')
+        }
         # If the interval has passed, send the metadata again
         now = time.time()
-        if now - self.metadata_start >= self.metadata_interval:
+        if now - getattr(self, DATA_TIME_TUPLES[data_name][0]) >= getattr(self, DATA_TIME_TUPLES[data_name][1]):
             log.debug('Metadata interval has passed. Sending metadata.')
-            self.metadata_start = now
+            setattr(self, DATA_TIME_TUPLES[data_name][0], now)
             return True
 
         return False
