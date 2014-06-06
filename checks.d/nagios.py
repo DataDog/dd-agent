@@ -123,7 +123,7 @@ class Nagios(AgentCheck):
 
 
     def check(self, instance):
-        if 'nagios_log' not in instance:
+        if 'nagios_conf' not in instance:
             self.log.info("Skipping Instance, no log file found")
         for tailer in self.nagios_tails[instance['nagios_conf']]:
             tailer.check()
@@ -146,6 +146,7 @@ class NagiosTailer(object):
 
         self.tail = TailFile(self.logger,self.log_path,self._parse_line)
         self.gen = self.tail.tail(line_by_line=False, move_end=True)
+        self.gen.next()
 
     def check(self):
         self._event_sent = 0
@@ -254,7 +255,7 @@ class NagiosPerfDataTailer(NagiosTailer):
         # Should be overridded by subclasses
         return [self.metric_prefix]
 
-    def _parse_line(self, logger, line):
+    def _parse_line(self, line):
         matched = self.line_pattern.match(line)
         output = []
         if matched:
@@ -273,7 +274,7 @@ class NagiosPerfDataTailer(NagiosTailer):
 
                 label = pair_data['label']
                 timestamp = data.get('TIMET', None)
-                value = pair_data['value']
+                value = float(pair_data['value'])
 
                 device_name = None
 
