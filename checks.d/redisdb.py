@@ -179,16 +179,17 @@ class Redis(AgentCheck):
 
         # Check some key lengths if asked
         key_list = instance.get('keys')
-        if not isinstance(key_list, list) or len(key_list) == 0:
-            self.warning("keys in redis configuration is either not a list or empty")
-        else:
-            l_tags = list(tags)
-            for key in key_list:
-                if conn.exists(key):
-                    key_tags = l_tags + ["key:" + key]
-                    self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
-                else:
-                    self.warning("{0} key not found in redis".format(key))
+        if key_list is not None:
+            if not isinstance(key_list, list) or len(key_list) == 0:
+                self.warning("keys in redis configuration is either not a list or empty")
+            else:
+                l_tags = list(tags)
+                for key in key_list:
+                    if conn.exists(key):
+                        key_tags = l_tags + ["key:" + key]
+                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    else:
+                        self.warning("{0} key not found in redis".format(key))
 
     def check(self, instance):
         try:
