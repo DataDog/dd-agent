@@ -109,7 +109,7 @@ class GUnicornCheck(AgentCheck):
     def _get_master_proc_by_name(self, name):
         """ Return a psutil process for the master gunicorn process with the given name. """
         master_name = GUnicornCheck._get_master_proc_name(name)
-        master_procs = [p for p in psutil.process_iter() if p.cmdline and p.cmdline[0] == master_name]
+        master_procs = [p for p in psutil.process_iter() if p.cmdline() and p.cmdline()[0] == master_name]
         if len(master_procs) == 0:
             raise GUnicornCheckError("Found no master process with name: %s" % master_name)
         elif len(master_procs) > 1:
