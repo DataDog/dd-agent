@@ -40,7 +40,7 @@ class ProcessCheck(AgentCheck):
             for string in search_string:
                 if exact_match:
                     try:
-                        if proc.name == string:
+                        if proc.name() == string:
                             found = True
                     except psutil.NoSuchProcess:
                         self.log.warning('Process disappeared while scanning')
@@ -149,7 +149,7 @@ class ProcessCheck(AgentCheck):
                         write_bytes += io_counters.write_bytes
                     except psutil.AccessDenied:
                         self.log.info('DD user agent does not have access \
-                            to I/O counters for process %d: %s' % (pid, p.name))
+                            to I/O counters for process %d: %s' % (pid, p.name()))
                         read_count = None
                         write_count = None
                         read_bytes = None
