@@ -178,9 +178,12 @@ class Redis(AgentCheck):
                   tags=tags)
 
         # Check some key lengths if asked
-        if instance.get('keys') is not None:
+        key_list = instance.get('keys')
+        if not isinstance(key_list, list) or len(key_list) == 0:
+            self.warning("keys in redis configuration is either not a list or empty")
+        else:
             l_tags = list(tags)
-            for key in instance.get('keys'):
+            for key in key_list:
                 if conn.exists(key):
                     key_tags = l_tags + ["key:" + key]
                     self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
