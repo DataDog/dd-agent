@@ -320,18 +320,3 @@ class MySql(AgentCheck):
                 self.log.exception("Error while fetching mysql pid from ps")
 
         return pid
-
-    @staticmethod
-    def parse_agent_config(agent_config):
-        if not agent_config.get('mysql_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agent_config.get('mysql_server',''),
-                'sock': agent_config.get('mysql_sock',''),
-                'user': agent_config.get('mysql_user',''),
-                'pass': agent_config.get('mysql_pass',''),
-                'options': {'replication': True},
-            }]
-        }

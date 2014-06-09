@@ -283,22 +283,3 @@ SELECT relname,
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        server = agentConfig.get('postgresql_server','')
-        port = agentConfig.get('postgresql_port','')
-        user = agentConfig.get('postgresql_user','')
-        passwd = agentConfig.get('postgresql_pass','')
-
-        if server != '' and user != '':
-            return {
-                'instances': [{
-                    'host': server,
-                    'port': port,
-                    'username': user,
-                    'password': passwd
-                }]
-            }
-
-        return False
