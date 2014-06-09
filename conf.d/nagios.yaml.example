@@ -1,7 +1,9 @@
 init_config:
+#     - check_freq: 15
 
 instances:
 #    - nagios_conf: /etc/nagios3/nagios.cfg
+#      # All the following default to False
 #      events: True
 #      host_perf: True
 #      service_perf: True
