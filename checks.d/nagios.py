@@ -54,6 +54,7 @@ class Nagios(AgentCheck):
         AgentCheck.__init__(self, 'Nagios', init_config, agentConfig, instances)
         self.nagios_tails = {}
         hostname = get_hostname(agentConfig)
+        check_freq = init_config.get("check_freq", 15)
         if instances is not None:
             for instance in instances:
                 if 'nagios_conf' in instance:
@@ -66,7 +67,8 @@ class Nagios(AgentCheck):
                                                             self.log,
                                                             hostname,
                                                             self.event,
-                                                            self.gauge))
+                                                            self.gauge,
+                                                            check_freq))
                     if ('host_perfdata_file' in nagios_conf) and \
                        ('host_perfdata_file_template' in nagios_conf) and \
                        instance.get('host_perf', False):
@@ -75,7 +77,8 @@ class Nagios(AgentCheck):
                                                                 self.log,
                                                                 hostname,
                                                                 self.event,
-                                                                self.gauge))
+                                                                self.gauge,
+                                                                check_freq))
                     if ('service_perfdata_file' in nagios_conf) and \
                        ('service_perfdata_file_template' in nagios_conf) and \
                        instance.get('service_perf', False):
@@ -84,7 +87,8 @@ class Nagios(AgentCheck):
                                                                 self.log,
                                                                 hostname,
                                                                 self.event,
-                                                                self.gauge))
+                                                                self.gauge,
+                                                                check_freq))
                     self.nagios_tails[conf_path] = tailers
 
     @classmethod
@@ -130,7 +134,7 @@ class Nagios(AgentCheck):
 
 class NagiosTailer(object):
 
-    def __init__(self, log_path, file_template, logger, hostname, event_func, gauge_func):
+    def __init__(self, log_path, file_template, logger, hostname, event_func, gauge_func, freq):
         self.log_path = log_path
         self.logger = logger
         self.gen = None
@@ -140,6 +144,7 @@ class NagiosTailer(object):
         self._gauge = gauge_func
         self._line_parsed = 0
         self._event_sent = 0
+        self._freq = freq
 
         if file_template is not None:
             self.compile_file_template(file_template)
@@ -274,8 +279,9 @@ class NagiosPerfDataTailer(NagiosTailer):
 
                 label = pair_data['label']
                 timestamp = data.get('TIMET', None)
+                if timestamp is not None:
+                    timestamp = (int(float(timestamp)) / self._freq) * self._freq
                 value = float(pair_data['value'])
-
                 device_name = None
 
                 if '/' in label:

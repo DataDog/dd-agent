@@ -24,7 +24,7 @@ class TestNagios(unittest.TestCase):
             'api_key': 'toto'
                 }
         self.config = {
-                'init_config' : {},
+                'init_config' : {'check_freq' : 5},
                 'instances': [{
                     'nagios_conf': self.nagios_cfg.name,
                     'events': events,
@@ -124,7 +124,7 @@ class TestNagiosPerfData(TestNagios):
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ]), service_perf=True)
 
-        point_time = int(time.time())
+        point_time = (int(time.time()) / 15) * 15
 
         log_data = [
             ("DATATYPE::SERVICEPERFDATA",
@@ -197,7 +197,7 @@ class TestNagiosPerfData(TestNagios):
             "service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$",
         ]), service_perf=True)
 
-        point_time = int(time.time())
+        point_time = (int(time.time()) / 15) * 15
 
         log_data = [
             (   "DATATYPE::SERVICEPERFDATA",
@@ -316,7 +316,7 @@ class TestNagiosPerfData(TestNagios):
             "host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$",
         ]), host_perf=True)
 
-        point_time = int(time.time())
+        point_time = (int(time.time()) / 15) * 15
 
         log_data = [
             ("DATATYPE::HOSTPERFDATA",
@@ -377,7 +377,7 @@ class TestNagiosPerfData(TestNagios):
         metrics = self.check.get_metrics()
 
         expected_output = [
-                ('nagios.current_users.users', 1339511443, 1.0,
+                ('nagios.current_users.users', 1339511440, 1.0,
                     {'type': 'gauge',
                      'hostname': 'localhost',
                      'tags':['warn:20',
@@ -385,7 +385,7 @@ class TestNagiosPerfData(TestNagios):
                          'min:0']
                      }
                     ),
-                ('nagios.ping.pl', 1339511503, 0.0,
+                ('nagios.ping.pl', 1339511500, 0.0,
                      {'type': 'gauge',
                      'hostname': 'localhost',
                      'tags':['unit:%',
@@ -394,7 +394,7 @@ class TestNagiosPerfData(TestNagios):
                          'min:0']
                      }
                     ),
-                ('nagios.ping.rta', 1339511503, 0.065,
+                ('nagios.ping.rta', 1339511500, 0.065,
                     {'type': 'gauge',
                      'hostname': 'localhost',
                      'tags':['unit:ms',
@@ -404,7 +404,7 @@ class TestNagiosPerfData(TestNagios):
                          ]
                      }
                     ),
-                ('nagios.root_partition', 1339511563, 2470.0,
+                ('nagios.root_partition', 1339511560, 2470.0,
                     {'type': 'gauge',
                      'hostname': 'localhost',
                      'device_name': '/',
@@ -440,7 +440,7 @@ class TestNagiosPerfData(TestNagios):
         metrics = self.check.get_metrics()
 
         expected_output = [
-                ('nagios.host.pl', 1339511443, 0.0,
+                ('nagios.host.pl', 1339511440, 0.0,
                     {
                      'type': 'gauge',
                      'hostname': 'localhost',
@@ -451,12 +451,12 @@ class TestNagiosPerfData(TestNagios):
                          ]
                      }
                     ),
-                ('nagios.host.rta', 1339511443, 0.048,
+                ('nagios.host.rta', 1339511440, 0.048,
                     {
                      'type': 'gauge',
                      'hostname': 'localhost',
                      'tags':['unit:ms',
-                         'warn:3000.000000'
+                         'warn:3000.000000',
                          'crit:5000.000000',
                          'min:0.000000'
                          ]
