@@ -444,7 +444,7 @@ class TestNagiosPerfData(TestNagios):
                     {
                      'type': 'gauge',
                      'hostname': 'localhost',
-                     'tags': ['unit:%'
+                     'tags': ['unit:%',
                          'warn:80',
                          'crit:100',
                          'min:0'
