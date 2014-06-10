@@ -191,6 +191,9 @@ SELECT relname,
                 # tags are
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
 
+        if not results:
+            self.warning('No results were found for query: "%s"' % query)
+
         # Query for miscellaneous metrics
         query = self.MAX_CONNECTIONS_METRIC[0]
         cursor.execute(query)
@@ -256,8 +259,14 @@ SELECT relname,
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('dbname', 'postgres')
+        dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
+
+        if relations and not dbname:
+            self.warning('"dbname" parameter must be set when using the "relations" parameter.')
+
+        if dbname is None:
+            dbname = 'postgres'
 
         key = '%s:%s:%s' % (host, port,dbname)
         db = self.get_connection(key, host, port, user, password, dbname)

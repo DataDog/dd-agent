@@ -263,6 +263,7 @@ class Collector(object):
             instance_statuses = []
             metric_count = 0
             event_count = 0
+            check_start_time = time.time()
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -292,6 +293,8 @@ class Collector(object):
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
             check_statuses.append(check_status)
+
+            log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
