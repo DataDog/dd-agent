@@ -25,7 +25,7 @@ SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
-SYSTEM_PATH=$PATH:/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin
+SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
