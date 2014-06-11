@@ -26,8 +26,8 @@ from migration import migrate_old_style_configuration
 
 # 3rd party
 import yaml
-# CONSTANTS
 
+# CONSTANTS
 AGENT_VERSION = "5.0.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
