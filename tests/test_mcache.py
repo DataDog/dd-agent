@@ -14,9 +14,9 @@ class TestMemCache(unittest.TestCase):
             "memcache_instance_2": "localhost:11211:mythirdtag",
         }
         self.conf = {'init_config': {}, 'instances': [
-            {'ur': "localhost"},
-            {'ur': "localhost", 'port': 11211, 'tags': ['instance:mytag']},
-            {'ur': "localhost", 'port': 11211, 'tags': ['instance:mythirdtag']},
+            {'url': "localhost"},
+            {'url': "localhost", 'port': 11211, 'tags': ['instance:mytag']},
+            {'url': "localhost", 'port': 11211, 'tags': ['instance:mythirdtag']},
          ]}
         self.c = load_check('mcache', self.conf, self.agent_config)
 
@@ -34,7 +34,7 @@ class TestMemCache(unittest.TestCase):
             # Count open connections to localhost:11211, should be 0
             self.assertEquals(self._countConnections(11211), 0)
             new_conf =  {'init_config': {}, 'instances': [
-                {'ur': "localhost"},]
+                {'url': "localhost"},]
             }
             self.c.check(new_conf['instances'][0])
             # Verify that the count is still 0
@@ -75,7 +75,7 @@ class TestMemCache(unittest.TestCase):
         conf = {
             'init_config': {},
             'instances': [{
-                'ur': 'localhost',
+                'url': 'localhost',
                 'port': 11211,
                 }
             ]
