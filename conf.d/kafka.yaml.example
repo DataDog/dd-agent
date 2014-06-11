@@ -1,10 +1,10 @@
 
 instances:
 #    -   host: localhost
-#        port: 9999
-#        name: jmx_instance
-#        user: username
-#        password: password
+#         name: kafka_instance
+#         port: 9999 # This is the JMX port on which Kafka exposes its metrics (usually 9999)
+#         user: username # If JMX authentication is enabled, set the username and the password here
+#         password: password
 #        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 #        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
 #        #trust_store_password: password
