@@ -3,7 +3,9 @@ init_config:
 
 instances:
 #    - nagios_conf: /etc/nagios3/nagios.cfg
-#      # All the following default to False
-#      events: True
-#      host_perf: True
-#      service_perf: True
+#      # Default to True
+#      collect_events: True
+#
+#      # Default to False
+#      collect_host_performance_data: False
+#      collect_service_performance_data: False

@@ -27,9 +27,9 @@ class TestNagios(unittest.TestCase):
                 'init_config' : {'check_freq' : 5},
                 'instances': [{
                     'nagios_conf': self.nagios_cfg.name,
-                    'events': events,
-                    'service_perf': service_perf,
-                    'host_perf': host_perf
+                    'collect_events': events,
+                    'collect_service_performance_data': service_perf,
+                    'collect_host_performance_data': host_perf
                     }]
                 }
         self.check = load_check('nagios', self.config, self.agentConfig)
