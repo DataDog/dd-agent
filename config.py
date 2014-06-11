@@ -40,6 +40,24 @@ LOGGING_MAX_BYTES = 5 * 1024 * 1024
 log = logging.getLogger(__name__)
 windows_file_handler_added = False
 
+OLD_STYLE_PARAMETERS = [
+    'apache_status_url',
+    'cacti_mysql_server',
+    'couchdb_server',
+    'elasticsearch',
+    'haproxy_url',
+    'hudson_home',
+    'memcache_',
+    'mongodb_server',
+    'mysql_server',
+    'nginx_status_url',
+    'postgresql_server',
+    'redis_urls',
+    'varnishstat',
+    'WMI',
+
+]
+
 class PathNotFound(Exception):
     pass
 
@@ -663,6 +681,11 @@ def load_check_directory(agentConfig):
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from checks import AgentCheck
+
+    deprecated_configs_enabled = [k.split("_")[0] for k in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    for deprecated_config in deprecated_configs_enabled:
+        log.error("Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config)
+
 
     initialized_checks = {}
     init_failed_checks = {}
