@@ -37,14 +37,20 @@ EVENT_FIELDS = {
     'SERVICE DOWNTIME ALERT': namedtuple('E_ServiceDowntime', 'host, check_name, downtime_start_stop, payload'),
 }
 
-# Regex alternation ends up being tricker than expected, and much less readable
-#re_line = re.compile('^\[(\d+)\] (?:EXTERNAL COMMAND: (\w+);)|(?:([^:]+): )(.*)$')
+# Regex for the Nagios event log
 RE_LINE_REG = re.compile('^\[(\d+)\] EXTERNAL COMMAND: (\w+);(.*)$')
 RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
 
 class Nagios(AgentCheck):
 
+    NAGIOS_CONF_KEYS = [
+            re.compile('^(?P<key>log_file)\s*=\s*(?P<value>.+)$'),
+            re.compile('^(?P<key>host_perfdata_file_template)\s*=\s*(?P<value>.+)$'),
+            re.compile('^(?P<key>service_perfdata_file_template)\s*=\s*(?P<value>.+)$'),
+            re.compile('^(?P<key>host_perfdata_file)\s*=\s*(?P<value>.+)$'),
+            re.compile('^(?P<key>service_perfdata_file)\s*=\s*(?P<value>.+)$'),
+        ]
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         # Override the name or the events don't make it
@@ -87,18 +93,9 @@ class Nagios(AgentCheck):
                                                                 gauge_func=self.gauge,
                                                                 freq=check_freq))
                     self.nagios_tails[conf_path] = tailers
-                else:
-                    raise Exception("Instance not pointing to any Nagios configuration file")
 
     def parse_nagios_config(self, filename):
         output = {}
-        keys = [
-            'log_file',
-            'host_perfdata_file_template',
-            'service_perfdata_file_template',
-            'host_perfdata_file',
-            'service_perfdata_file',
-        ]
 
         f = None
         try:
@@ -107,12 +104,11 @@ class Nagios(AgentCheck):
                 line = line.strip()
                 if not line:
                     continue
-                for key in keys:
-                    if line.startswith(key + '='):
-                        eq_pos = line.find('=')
-                        if eq_pos:
-                            output[key] = line[eq_pos + 1:]
-                            break
+                for key in self.NAGIOS_CONF_KEYS:
+                    m = key.match(line)
+                    if m:
+                        output[m.group('key')] = m.group('value')
+                        break
             return output
         except Exception as e:
             # Can't parse, assume it's just not working
@@ -126,6 +122,8 @@ class Nagios(AgentCheck):
 
 
     def check(self, instance):
+        if 'nagios_conf' not in instance:
+            raise Exception('No Nagios configuration file specified, skipping')
         for tailer in self.nagios_tails[instance['nagios_conf']]:
             tailer.check()
 
