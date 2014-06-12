@@ -12,7 +12,7 @@ class NtpCheck(AgentCheck):
             'host':    instance.get('host', 'pool.ntp.org'),
             'port':    instance.get('port', 'ntp'),
             'version': int(instance.get('version', 3)),
-            'timeout': float(instance.get('timeout', 5)),
+            'timeout': float(instance.get('timeout', 1)),
         }
         ntp_stats = ntplib.NTPClient().request(**req_args)
         ntp_offset = ntp_stats.offset
