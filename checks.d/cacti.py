@@ -246,24 +246,3 @@ class Cacti(AgentCheck):
         For backwards compatability with pre-checks.d configuration.
         Convert old-style config to new-style config.
     '''
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        required = ['cacti_mysql_server', 'cacti_mysql_user', 'cacti_rrd_path']
-        for param in required:
-            if not agentConfig.get(param):
-                return False
-
-        # There was a version of this check that used `cacti_mysql_password`
-        # while the sample used `cacti_mysql_pass`. For backwards-compatibility
-        # sake, we'll allow both when parsing old versions.
-        mysql_pass = agentConfig.get('cacti_mysql_password') or agentConfig.get('cacti_mysql_pass')
-
-        return {
-            'instances': [{
-                'mysql_host': agentConfig.get('cacti_mysql_server'),
-                'mysql_user': agentConfig.get('cacti_mysql_user'),
-                'mysql_password': mysql_pass,
-                'rrd_path': agentConfig.get('cacti_rrd_path'),
-                'rrd_whitelist': agentConfig.get('cacti_rrd_whitelist')
-            }]
-        }

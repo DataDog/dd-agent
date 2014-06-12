@@ -295,15 +295,3 @@ class HAProxy(AgentCheck):
              "tags": tags
         }
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('haproxy_url'):
-            return False
-
-        return {
-            'instances': [{
-                'url': agentConfig.get('haproxy_url'),
-                'username': agentConfig.get('haproxy_user'),
-                'password': agentConfig.get('haproxy_password')
-            }]
-        }

@@ -84,14 +84,3 @@ class CouchDb(AgentCheck):
                     couchdb['databases'][dbName] = db_stats
 
         return couchdb
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('couchdb_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agentConfig.get('couchdb_server'),
-            }]
-        }
