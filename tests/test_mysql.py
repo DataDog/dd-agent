@@ -7,21 +7,23 @@ class TestMySql(unittest.TestCase):
         # This should run on pre-2.7 python so no skiptest
         self.skip = False
         try:
-            import MySQLdb
+            import pymysql
         except ImportError:
             self.skip = True
 
     def testChecks(self):
         if not self.skip:
-            agentConfig = { 'mysql_server': 'localhost',
-                'mysql_user': "datadog",
-                'mysql_pass': "phQOrbaXem0kP8JHri1qSMRS",
+            agentConfig = { 
                 'version': '0.1',
                 'api_key': 'toto' }
 
+            conf = {'init_config': {}, 'instances': [{
+                'server': 'localhost',
+                'user': 'dog',
+                'pass': 'dog',
+                'options': {'replication': True},
+            }]}
             # Initialize the check from checks.d
-            c = load_check('mysql', {'init_config': {}, 'instances': {}}, agentConfig)
-            conf = c.parse_agent_config(agentConfig)
             self.check = load_check('mysql', conf, agentConfig)
 
             self.check.run()

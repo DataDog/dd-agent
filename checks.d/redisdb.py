@@ -201,28 +201,3 @@ class Redis(AgentCheck):
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
         self._check_db(instance,custom_tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('redis_urls'):
-            return False
-
-        urls = agentConfig.get('redis_urls')
-        instances = []
-        for url in [u.strip() for u in urls.split(',')]:
-            password = None
-            if '@' in url:
-                password, host_port = url.split('@')
-                host, port = host_port.split(':')
-            else:
-                host, port = url.split(':')
-
-            instances.append({
-                'host': host,
-                'port': int(port),
-                'password': password
-            })
-
-        return {
-            'instances': instances
-        }

@@ -19,17 +19,40 @@ from optparse import OptionParser, Values
 from cStringIO import StringIO
 
 # project
-from util import get_os, yaml, yLoader, Platform
+
+from util import get_os, Platform
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
+# 3rd party
+import yaml
+
 # CONSTANTS
+AGENT_VERSION = "5.0.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
 windows_file_handler_added = False
+
+OLD_STYLE_PARAMETERS = [
+    'apache_status_url',
+    'cacti_mysql_server',
+    'couchdb_server',
+    'elasticsearch',
+    'haproxy_url',
+    'hudson_home',
+    'memcache_',
+    'mongodb_server',
+    'mysql_server',
+    'nginx_status_url',
+    'postgresql_server',
+    'redis_urls',
+    'varnishstat',
+    'WMI',
+
+]
 
 class PathNotFound(Exception):
     pass
@@ -61,7 +84,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.3.0"
+    return AGENT_VERSION
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -618,7 +641,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yLoader)
+        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 
@@ -642,6 +665,11 @@ def load_check_directory(agentConfig):
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
     from checks import AgentCheck
+
+    deprecated_configs_enabled = [k.split("_")[0] for k in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    for deprecated_config in deprecated_configs_enabled:
+        log.error("Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config)
+
 
     initialized_checks = {}
     init_failed_checks = {}
@@ -668,32 +696,46 @@ def load_check_directory(agentConfig):
     # Start JMXFetch if needed
     JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
 
-    # For backwards-compatability with old style checks, we have to load every
-    # checks.d module and check for a corresponding config OR check if the old
-    # config will "activate" the check.
-    #
-    # Once old-style checks aren't supported, we'll just read the configs and
-    # import the corresponding check module
+
+
+    # We don't support old style configs anymore
+    # So we iterate over the files in the checks.d directory
+    # If there is a matching configuration file in the conf.d directory 
+    # then we import the check
     for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
+        check_config = None
         if check_name in initialized_checks or check_name in init_failed_checks:
             log.debug('Skipping check %s because it has already been loaded from another location', check)
             continue
+
+        # Let's see if there is a conf.d for this check
+        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+        if os.path.exists(conf_path):
+            f = open(conf_path)
+            try:
+                check_config = check_yaml(conf_path)
+            except Exception, e:
+                log.exception("Unable to parse yaml config in %s" % conf_path)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                continue
+        else:
+            log.debug("No configuration file for %s" % check_name)
+            continue
+
+        # If we are here, there is a valid matching configuration file. 
+        # Let's try to import the check
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except Exception, e:
             traceback_message = traceback.format_exc()
-
-            # Let's see if there is a conf.d for this check
-            conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-            if os.path.exists(conf_path):
-                # There is a configuration file for that check but the module can't be imported
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-                log.exception('Unable to import check module %s.py from checks.d' % check_name)
-            else: # There is no conf for that check. Let's not spam the logs for it.
-                log.debug('Unable to import check module %s.py from checks.d' % check_name)
+            # There is a configuration file for that check but the module can't be imported
+            init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+            log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
+        # We make sure that there is an AgentCheck class defined
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for _, clsmember in classes:
@@ -708,36 +750,6 @@ def load_check_directory(agentConfig):
 
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
-            continue
-
-        # Check if the config exists OR we match the old-style config
-        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-        if os.path.exists(conf_path):
-            f = open(conf_path)
-            try:
-                check_config = check_yaml(conf_path)
-            except Exception, e:
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-                continue
-        elif hasattr(check_class, 'parse_agent_config'):
-            # FIXME: Remove this check once all old-style checks are gone
-            try:
-                check_config = check_class.parse_agent_config(agentConfig)
-            except Exception, e:
-                continue
-            if not check_config:
-                continue
-            d = [
-                "Configuring %s in datadog.conf is deprecated." % (check_name),
-                "Please use conf.d. In a future release, support for the",
-                "old style of configuration will be dropped.",
-            ]
-            log.warn(" ".join(d))
-
-        else:
-            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Look for the per-check config, which *must* exist
