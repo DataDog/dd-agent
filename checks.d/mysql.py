@@ -51,14 +51,14 @@ class MySql(AgentCheck):
 
     def get_library_versions(self):
         try:
-            import MySQLdb
-            version = MySQLdb.__version__
+            import pymysql
+            version = pymysql.__version__
         except ImportError:
             version = "Not Found"
         except AttributeError:
             version = "Unknown"
 
-        return {"MySQLdb": version}
+        return {"pymysql": version}
 
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
@@ -87,24 +87,24 @@ class MySql(AgentCheck):
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
         try:
-            import MySQLdb
+            import pymysql
         except ImportError:
-            raise Exception("Cannot import MySQLdb module. Check the instructions "
+            raise Exception("Cannot import pymysql module. Check the instructions "
                 "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
 
         if defaults_file != '':
-            db = MySQLdb.connect(read_default_file=defaults_file)
+            db = pymysql.connect(read_default_file=defaults_file)
         elif  mysql_sock != '':
-            db = MySQLdb.connect(unix_socket=mysql_sock,
+            db = pymysql.connect(unix_socket=mysql_sock,
                                     user=user,
                                     passwd=password)
         elif port:
-            db = MySQLdb.connect(host=host,
+            db = pymysql.connect(host=host,
                                     port=port,
                                     user=user,
                                     passwd=password)
         else:
-            db = MySQLdb.connect(host=host,
+            db = pymysql.connect(host=host,
                                     user=user,
                                     passwd=password)
         self.log.debug("Connected to MySQL")
@@ -320,18 +320,3 @@ class MySql(AgentCheck):
                 self.log.exception("Error while fetching mysql pid from ps")
 
         return pid
-
-    @staticmethod
-    def parse_agent_config(agent_config):
-        if not agent_config.get('mysql_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agent_config.get('mysql_server',''),
-                'sock': agent_config.get('mysql_sock',''),
-                'user': agent_config.get('mysql_user',''),
-                'pass': agent_config.get('mysql_pass',''),
-                'options': {'replication': True},
-            }]
-        }

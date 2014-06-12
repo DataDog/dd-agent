@@ -13,14 +13,15 @@ import sys
 import tempfile
 import traceback
 import time
+from collections import defaultdict
 
 # project
 import config
-from compat.defaultdict import defaultdict
-from util import get_os, yaml, yLoader
+from util import get_os
 
 # 3rd party
-from checks.libs import ntplib
+import ntplib
+import yaml
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'

@@ -177,6 +177,20 @@ class Redis(AgentCheck):
         self.rate('redis.net.commands', info['total_commands_processed'],
                   tags=tags)
 
+        # Check some key lengths if asked
+        key_list = instance.get('keys')
+        if key_list is not None:
+            if not isinstance(key_list, list) or len(key_list) == 0:
+                self.warning("keys in redis configuration is either not a list or empty")
+            else:
+                l_tags = list(tags)
+                for key in key_list:
+                    if conn.exists(key):
+                        key_tags = l_tags + ["key:" + key]
+                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    else:
+                        self.warning("{0} key not found in redis".format(key))
+
     def check(self, instance):
         try:
             import redis
@@ -187,28 +201,3 @@ class Redis(AgentCheck):
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
         self._check_db(instance,custom_tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('redis_urls'):
-            return False
-
-        urls = agentConfig.get('redis_urls')
-        instances = []
-        for url in [u.strip() for u in urls.split(',')]:
-            password = None
-            if '@' in url:
-                password, host_port = url.split('@')
-                host, port = host_port.split(':')
-            else:
-                host, port = url.split(':')
-
-            instances.append({
-                'host': host,
-                'port': int(port),
-                'password': password
-            })
-
-        return {
-            'instances': instances
-        }
