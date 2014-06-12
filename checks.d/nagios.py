@@ -4,6 +4,8 @@ from collections import namedtuple
 from checks.utils import TailFile
 from checks import AgentCheck
 
+DEFAULT_CONF_PATH = "old check retrocompatible"
+
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {
     'CURRENT HOST STATE':       namedtuple('E_CurrentHostState', 'host, event_state, event_soft_hard, return_code, payload'),
@@ -61,45 +63,60 @@ class Nagios(AgentCheck):
         check_freq = init_config.get("check_freq", 15)
         if instances is not None:
             for instance in instances:
-                if 'nagios_conf' in instance:
+                tailers = []
+                nagios_conf = {}
+                conf_path = None
+
+                if 'nagios_conf' in instance: # conf.d check
                     conf_path = instance['nagios_conf']
                     nagios_conf = self.parse_nagios_config(conf_path)
-                    tailers = []
-                    if 'log_file' in nagios_conf and \
-                       instance.get('collect_events', True):
-                        self.log.debug("Starting to tail the event log")
-                        tailers.append(NagiosEventLogTailer(log_path=nagios_conf['log_file'],
-                                                            file_template=None,
+                # Retrocompatibility Code
+                elif 'nagios_perf_cfg' in instance:
+                    conf_path = instance['nagios_perf_cfg']
+                    nagios_conf = self.parse_nagios_config(conf_path)
+                    instance["collect_host_performance_data"] = True
+                    instance["collect_service_performance_data"] = True
+                if 'nagios_log' in instance:
+                    conf_path = conf_path or DEFAULT_CONF_PATH
+                    nagios_conf["log_file"] = instance['nagios_log']
+                # End of retrocompatibility code
+                if not nagios_conf:
+                    self.log.warning("Missing path to nagios_conf")
+                    continue
+
+                if 'log_file' in nagios_conf and \
+                   instance.get('collect_events', True):
+                    self.log.debug("Starting to tail the event log")
+                    tailers.append(NagiosEventLogTailer(log_path=nagios_conf['log_file'],
+                                                        file_template=None,
+                                                        logger=self.log,
+                                                        hostname=self.hostname,
+                                                        event_func=self.event,
+                                                        gauge_func=self.gauge,
+                                                        freq=check_freq))
+                if 'host_perfdata_file' in nagios_conf and \
+                   'host_perfdata_file_template' in nagios_conf and \
+                   instance.get('collect_host_performance_data', False):
+                    self.log.debug("Starting to tail the host_perfdata file")
+                    tailers.append(NagiosHostPerfDataTailer(log_path=nagios_conf['host_perfdata_file'],
+                                                            file_template=nagios_conf['host_perfdata_file_template'],
                                                             logger=self.log,
                                                             hostname=self.hostname,
                                                             event_func=self.event,
                                                             gauge_func=self.gauge,
                                                             freq=check_freq))
-                    if 'host_perfdata_file' in nagios_conf and \
-                       'host_perfdata_file_template' in nagios_conf and \
-                       instance.get('collect_host_perfomance_data', False):
-                        self.log.debug("Starting to tail the host_perfdata file")
-                        tailers.append(NagiosHostPerfDataTailer(log_path=nagios_conf['host_perfdata_file'],
-                                                                file_template=nagios_conf['host_perfdata_file_template'],
-                                                                logger=self.log,
-                                                                hostname=self.hostname,
-                                                                event_func=self.event,
-                                                                gauge_func=self.gauge,
-                                                                freq=check_freq))
-                    if 'service_perfdata_file' in nagios_conf and \
-                       'service_perfdata_file_template' in nagios_conf and \
-                       instance.get('collect_service_performance_data', False):
-                        self.log.debug("Starting to tail the service_perfdata file")
-                        tailers.append(NagiosServicePerfDataTailer(log_path=nagios_conf['service_perfdata_file'],
-                                                                file_template=nagios_conf['service_perfdata_file_template'],
-                                                                logger=self.log,
-                                                                hostname=self.hostname,
-                                                                event_func=self.event,
-                                                                gauge_func=self.gauge,
-                                                                freq=check_freq))
-                    self.nagios_tails[conf_path] = tailers
-                else:
-                    self.log.warning("Missing path to nagios_conf")
+                if 'service_perfdata_file' in nagios_conf and \
+                   'service_perfdata_file_template' in nagios_conf and \
+                   instance.get('collect_service_performance_data', False):
+                    self.log.debug("Starting to tail the service_perfdata file")
+                    tailers.append(NagiosServicePerfDataTailer(log_path=nagios_conf['service_perfdata_file'],
+                                                            file_template=nagios_conf['service_perfdata_file_template'],
+                                                            logger=self.log,
+                                                            hostname=self.hostname,
+                                                            event_func=self.event,
+                                                            gauge_func=self.gauge,
+                                                            freq=check_freq))
+                self.nagios_tails[conf_path] = tailers
 
     def parse_nagios_config(self, filename):
         output = {}
@@ -127,11 +144,14 @@ class Nagios(AgentCheck):
             if f is not None:
                 f.close()
 
-
     def check(self, instance):
-        if 'nagios_conf' not in instance:
+        conf_path = instance.get('nagios_conf', instance.get('nagios_perf_cfg', None))
+        if DEFAULT_CONF_PATH in self.nagios_tails:
+            # Special case of old style config with no point to nagios configuration
+            conf_path = DEFAULT_CONF_PATH
+        if not conf_path:
             raise Exception('No Nagios configuration file specified')
-        for tailer in self.nagios_tails[instance['nagios_conf']]:
+        for tailer in self.nagios_tails[conf_path]:
             tailer.check()
 
 class NagiosTailer(object):

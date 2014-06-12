@@ -54,6 +54,11 @@ OLD_STYLE_PARAMETERS = [
 
 ]
 
+NAGIOS_OLD_CONF_KEYS = [
+    'nagios_log',
+    'nagios_perf_cfg'
+    ]
+
 class PathNotFound(Exception):
     pass
 
@@ -721,8 +726,15 @@ def load_check_directory(agentConfig):
                 init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
                 continue
         else:
-            log.debug("No configuration file for %s" % check_name)
-            continue
+            if check_name == 'nagios':
+                if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
+                    log.warning("Configuring Nagios in datadog.conf is deprecated. Please use conf.d")
+                    check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
+                else:
+                    continue
+            else:
+                log.debug("No configuration file for %s" % check_name)
+                continue
 
         # If we are here, there is a valid matching configuration file. 
         # Let's try to import the check
