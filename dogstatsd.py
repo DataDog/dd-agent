@@ -383,7 +383,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold)
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=recent_point_threshold)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
