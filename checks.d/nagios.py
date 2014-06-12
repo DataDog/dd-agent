@@ -67,6 +67,7 @@ class Nagios(AgentCheck):
                     tailers = []
                     if 'log_file' in nagios_conf and \
                        instance.get('collect_events', True):
+                        self.log.debug("Starting to tail the event log")
                         tailers.append(NagiosEventLogTailer(log_path=nagios_conf['log_file'],
                                                             file_template=None,
                                                             logger=self.log,
@@ -77,6 +78,7 @@ class Nagios(AgentCheck):
                     if 'host_perfdata_file' in nagios_conf and \
                        'host_perfdata_file_template' in nagios_conf and \
                        instance.get('collect_host_perfomance_data', False):
+                        self.log.debug("Starting to tail the host_perfdata file")
                         tailers.append(NagiosHostPerfDataTailer(log_path=nagios_conf['host_perfdata_file'],
                                                                 file_template=nagios_conf['host_perfdata_file_template'],
                                                                 logger=self.log,
@@ -87,6 +89,7 @@ class Nagios(AgentCheck):
                     if 'service_perfdata_file' in nagios_conf and \
                        'service_perfdata_file_template' in nagios_conf and \
                        instance.get('collect_service_performance_data', False):
+                        self.log.debug("Starting to tail the service_perfdata file")
                         tailers.append(NagiosServicePerfDataTailer(log_path=nagios_conf['service_perfdata_file'],
                                                                 file_template=nagios_conf['service_perfdata_file_template'],
                                                                 logger=self.log,
@@ -95,6 +98,8 @@ class Nagios(AgentCheck):
                                                                 gauge_func=self.gauge,
                                                                 freq=check_freq))
                     self.nagios_tails[conf_path] = tailers
+                else:
+                    self.log.warning("Missing path to nagios_conf")
 
     def parse_nagios_config(self, filename):
         output = {}
@@ -125,7 +130,7 @@ class Nagios(AgentCheck):
 
     def check(self, instance):
         if 'nagios_conf' not in instance:
-            raise Exception('No Nagios configuration file specified, skipping')
+            raise Exception('No Nagios configuration file specified')
         for tailer in self.nagios_tails[instance['nagios_conf']]:
             tailer.check()
 
@@ -199,7 +204,7 @@ class NagiosEventLogTailer(NagiosTailer):
                 m = RE_LINE_EXT.match(line)
             if m is None:
                 return False
-
+            self.log.debug("Matching line found %s" % line)
             (tstamp, event_type, remainder) = m.groups()
             tstamp = int(tstamp)
 
@@ -265,6 +270,7 @@ class NagiosPerfDataTailer(NagiosTailer):
         matched = self.line_pattern.match(line)
         output = []
         if matched:
+            self.log.debug("Matching line found %s" % line)
             data = matched.groupdict()
             metric_prefix = self._get_metric_prefix(data)
 
