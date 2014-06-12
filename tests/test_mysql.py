@@ -21,6 +21,7 @@ class TestMySql(unittest.TestCase):
                 'server': 'localhost',
                 'user': 'dog',
                 'pass': 'dog',
+                'options': {'replication': True},
             }]}
             # Initialize the check from checks.d
             self.check = load_check('mysql', conf, agentConfig)
