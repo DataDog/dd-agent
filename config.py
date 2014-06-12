@@ -400,6 +400,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
 
+        agentConfig["collect_instance_metadata"] = True
+        if config.has_option("Main", "collect_instance_metadata"):
+            agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
+
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))

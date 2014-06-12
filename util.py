@@ -198,7 +198,7 @@ def get_hostname(config=None):
 
     #Try to get GCE instance name
     if hostname is None:
-        gce_hostname = GCE.get_hostname()
+        gce_hostname = GCE.get_hostname(config)
         if gce_hostname is not None:
             if is_valid_hostname(gce_hostname):
                 return gce_hostname
@@ -222,7 +222,7 @@ def get_hostname(config=None):
 
     # if we have an ec2 default hostname, see if there's an instance-id available
     if hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
-        instanceid = EC2.get_instance_id()
+        instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
 
@@ -249,8 +249,12 @@ class GCE(object):
 
 
     @staticmethod
-    def _get_metadata():
+    def _get_metadata(agentConfig):
         if GCE.metadata is not None:
+            return GCE.metadata
+
+        if not agentConfig['collect_instance_metadata']:
+            GCE.metadata = {}
             return GCE.metadata
 
         socket_to = None
@@ -279,10 +283,12 @@ class GCE(object):
 
 
     @staticmethod
-    def get_tags():
+    def get_tags(agentConfig):
+        if not agentConfig['collect_instance_metadata']:
+            return []
 
         try:
-            host_metadata = GCE._get_metadata()
+            host_metadata = GCE._get_metadata(agentConfig)
             tags = []
 
             for key, value in host_metadata['instance'].get('attributes', {}).iteritems():
@@ -303,9 +309,9 @@ class GCE(object):
             return None
 
     @staticmethod
-    def get_hostname():
+    def get_hostname(agentConfig):
         try:
-            host_metadata = GCE._get_metadata()
+            host_metadata = GCE._get_metadata(agentConfig)
             return host_metadata['instance']['hostname'].split('.')[0]
         except Exception:
             return None
@@ -320,7 +326,10 @@ class EC2(object):
     metadata = {}
 
     @staticmethod
-    def get_tags():
+    def get_tags(agentConfig):
+        if not agentConfig['collect_instance_metadata']:
+            return []
+
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -352,7 +361,7 @@ class EC2(object):
 
 
     @staticmethod
-    def get_metadata():
+    def get_metadata(agentConfig):
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
         """
         # >>> import urllib2
@@ -366,6 +375,10 @@ class EC2(object):
         # Every call may add TIMEOUT seconds in latency so don't abuse this call
         # python 2.4 does not support an explicit timeout argument so force it here
         # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
+
+        if not agentConfig['collect_instance_metadata']:
+            return {}
+
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -391,9 +404,9 @@ class EC2(object):
         return EC2.metadata
 
     @staticmethod
-    def get_instance_id():
+    def get_instance_id(agentConfig):
         try:
-            return EC2.get_metadata().get("instance-id", None)
+            return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
 
