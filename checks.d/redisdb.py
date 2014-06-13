@@ -8,6 +8,9 @@ from checks import AgentCheck
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     subkeys = ['keys', 'expires']
+
+    SOURCE_TYPE_NAME = 'redis'
+
     GAUGE_KEYS = {
         # Append-only metrics
         'aof_last_rewrite_time_sec':    'redis.aof.last_rewrite_time',
@@ -106,7 +109,7 @@ class Redis(AgentCheck):
         key = self._generate_instance_key(instance)
         if key not in self.connections:
             try:
-                
+
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
                     'connection_pool', 'charset', 'errors', 'unix_socket_path']
@@ -139,12 +142,12 @@ class Redis(AgentCheck):
         try:
             info = conn.info()
         except ValueError, e:
-            # This is likely a know issue with redis library 2.0.0 
+            # This is likely a know issue with redis library 2.0.0
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
             raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
                 Minimum required version: 2.4.11
-                Your current version: %s 
+                Your current version: %s
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
 
         latency_ms = round((time.time() - start) * 1000, 2)
@@ -173,6 +176,20 @@ class Redis(AgentCheck):
         # Save the number of commands.
         self.rate('redis.net.commands', info['total_commands_processed'],
                   tags=tags)
+
+        # Check some key lengths if asked
+        key_list = instance.get('keys')
+        if key_list is not None:
+            if not isinstance(key_list, list) or len(key_list) == 0:
+                self.warning("keys in redis configuration is either not a list or empty")
+            else:
+                l_tags = list(tags)
+                for key in key_list:
+                    if conn.exists(key):
+                        key_tags = l_tags + ["key:" + key]
+                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    else:
+                        self.warning("{0} key not found in redis".format(key))
 
     def check(self, instance):
         try:

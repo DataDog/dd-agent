@@ -20,7 +20,7 @@ import signal
 import socket
 import sys
 import zlib
-from time import time
+from time import time, sleep
 import threading
 from urllib import urlencode
 
@@ -32,6 +32,10 @@ from daemon import Daemon, AgentSupervisor
 from util import json, PidFile, get_hostname, plural, get_uuid, chunks
 
 log = logging.getLogger('dogstatsd')
+
+# Dogstatsd constants in seconds
+DOGSTATSD_FLUSH_INTERVAL = 10
+DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
 
 
 WATCHDOG_TIMEOUT = 120
@@ -149,7 +153,7 @@ class Reporter(threading.Thread):
                 event_count=event_count,
             ).persist()
 
-        except Exception, e:
+        except Exception:
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
@@ -244,7 +248,7 @@ class Server(object):
             try:
                 self.forward_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.forward_udp_sock.connect((forward_to_host, forward_to_port))
-            except Exception, e:
+            except Exception:
                 log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
@@ -292,7 +296,7 @@ class Server(object):
                     raise
             except (KeyboardInterrupt, SystemExit):
                 break
-            except Exception, e:
+            except Exception:
                 log.exception('Error receiving datagram')
 
     def stop(self):
@@ -343,20 +347,31 @@ class Dogstatsd(Daemon):
         return DogstatsdStatus.print_latest_status()
 
 
-def init(config_path=None, use_watchdog=False, use_forwarder=False):
+def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     """Configure the server and the reporting thread.
     """
     c = get_config(parse_args=False, cfg_path=config_path)
-    log.debug("Configuration dogstatsd")
+
+    if not c['use_dogstatsd'] and \
+        (args and args[0] in ['start', 'restart'] or not args):
+        log.info("Dogstatsd is disabled. Exiting")
+        # We're exiting purposefully, so exit with zero (supervisor's expected
+        # code). HACK: Sleep a little bit so supervisor thinks we've started cleanly
+        # and thus can exit cleanly.
+        sleep(4)
+        sys.exit(0)
+
+    log.debug("Configurating     dogstatsd")
 
     port      = c['dogstatsd_port']
-    interval  = int(c['dogstatsd_interval'])
-    aggregator_interval  = int(c['dogstatsd_agregator_bucket_size'])
+    interval  = DOGSTATSD_FLUSH_INTERVAL
     api_key   = c['api_key']
+    aggregator_interval = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
+    recent_point_threshold = c.get('recent_point_threshold', None)
 
     target = c['dd_url']
     if use_forwarder:
@@ -368,7 +383,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=recent_point_threshold)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
@@ -391,7 +406,7 @@ def main(config_path=None):
                         dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder)
+    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
     pid_file = PidFile('dogstatsd')
     daemon = Dogstatsd(pid_file.get_path(), server, reporter,
             cnf.get('autorestart', False))
@@ -420,7 +435,6 @@ def main(config_path=None):
             parser.print_help()
             return 1
         return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

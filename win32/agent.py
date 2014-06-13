@@ -178,19 +178,23 @@ class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='dogstatsd')
         self.config = agentConfig
-        self.is_enabled = True
+        self.is_enabled = self.config.get('use_dogstatsd', True)
 
     def run(self):
-        log.debug("Windows Service - Starting Dogstatsd server")
-        self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
-        self.reporter.start()
-        self.server.start()
+        if self.is_enabled:
+            log.debug("Windows Service - Starting Dogstatsd server")
+            self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
+            self.reporter.start()
+            self.server.start()
+        else:
+            log.info("Dogstatsd is not enabled, not starting it.")
 
     def stop(self):
-        log.debug("Windows Service - Stopping Dogstatsd server")
-        self.server.stop()
-        self.reporter.stop()
-        self.reporter.join()
+        if self.is_enabled:
+            log.debug("Windows Service - Stopping Dogstatsd server")
+            self.server.stop()
+            self.reporter.stop()
+            self.reporter.join()
 
 class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):

@@ -33,7 +33,7 @@ from config import (get_confd_path, get_config_path, get_config,
     _windows_commondata_path)
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'cacti', 'directory', 'gearmand',
+    'cacti', 'directory', 'docker', 'gearmand',
     'hdfs', 'kafka_consumer', 'mcache', 'network',
     'postfix', 'process', 'gunicorn', 'zk',
     ]

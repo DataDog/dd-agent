@@ -8,6 +8,9 @@ class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
     http://wiki.apache.org/couchdb/Runtime_Statistics
     """
+
+    SOURCE_TYPE_NAME = 'couchdb'
+
     def _create_metric(self, data, tags=None):
         overall_stats = data.get('stats', {})
         for key, stats in overall_stats.items():
