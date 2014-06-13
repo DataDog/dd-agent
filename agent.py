@@ -182,7 +182,7 @@ class Agent(Daemon):
         # in the config file.
         # DEPRECATED
         if agentConfig.get('hostname') is None and agentConfig.get('use_ec2_instance_id'):
-            instanceId = EC2.get_instance_id()
+            instanceId = EC2.get_instance_id(agentConfig)
             if instanceId is not None:
                 log.info("Running on EC2, instanceId: %s" % instanceId)
                 agentConfig['hostname'] = instanceId

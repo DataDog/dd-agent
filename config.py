@@ -37,21 +37,20 @@ log = logging.getLogger(__name__)
 windows_file_handler_added = False
 
 OLD_STYLE_PARAMETERS = [
-    'apache_status_url',
-    'cacti_mysql_server',
-    'couchdb_server',
-    'elasticsearch',
-    'haproxy_url',
-    'hudson_home',
-    'memcache_',
-    'mongodb_server',
-    'mysql_server',
-    'nginx_status_url',
-    'postgresql_server',
-    'redis_urls',
-    'varnishstat',
-    'WMI',
-
+    ('apache_status_url', "apache"),
+    ('cacti_mysql_server' , "cacti"),
+    ('couchdb_server', "couchdb"),
+    ('elasticsearch', "elasticsearch"),
+    ('haproxy_url', "haproxy"),
+    ('hudson_home', "Jenkins"),
+    ('memcache_', "memcached"),
+    ('mongodb_server', "mongodb"),
+    ('mysql_server', "mysql"),
+    ('nginx_status_url', "nginx"),
+    ('postgresql_server', "postgres"),
+    ('redis_urls', "redis"),
+    ('varnishstat', "varnish"),
+    ('WMI', "WMI"),
 ]
 
 NAGIOS_OLD_CONF_KEYS = [
@@ -428,6 +427,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
 
+        agentConfig["collect_instance_metadata"] = True
+        if config.has_option("Main", "collect_instance_metadata"):
+            agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
+
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
@@ -671,14 +674,16 @@ def load_check_directory(agentConfig):
     file in conf.d will be returned. '''
     from checks import AgentCheck
 
-    deprecated_configs_enabled = [k.split("_")[0] for k in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
-    for deprecated_config in deprecated_configs_enabled:
-        log.error("Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config)
-
-
     initialized_checks = {}
     init_failed_checks = {}
+    deprecated_checks = {}
 
+    deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    for deprecated_config in deprecated_configs_enabled:
+        msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
+        deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
+        log.error(msg)
+    
     osname = get_os()
     checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
 
@@ -805,6 +810,7 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
+    init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % initialized_checks.keys())
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),

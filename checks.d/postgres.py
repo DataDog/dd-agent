@@ -218,7 +218,10 @@ SELECT relname,
             # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
             result = cursor.fetchone()[0]
             if result is not None:
-                self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
+                if result.days < 0:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], 0, tags=instance_tags)
+                else:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):

@@ -26,6 +26,14 @@ api_key:
 # Collect AWS EC2 custom tags as agent tags
 # collect_ec2_tags: no
 
+# Collect instance metadata
+# The Agent will try to collect instance metadata for EC2 and GCE instances by 
+# trying to connect to the local endpoint: http://169.254.169.254
+# See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AESDG-chapter-instancedata.html
+# and https://developers.google.com/compute/docs/metadata
+# for more information
+# collect_instance_metadata: yes
+
 # Set the threshold for accepting points to allow anything
 # with recent_point_threshold seconds
 # Defaults to 30 seconds if no value is provided

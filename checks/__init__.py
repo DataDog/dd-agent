@@ -265,7 +265,7 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
-    OK, WARNING, CRITICAL, UNKNOWN, NONE = (0, 1, 2, 3, 4)
+    OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
     SOURCE_TYPE_NAME = None
 

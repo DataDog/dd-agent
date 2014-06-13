@@ -77,7 +77,7 @@ class TestMemCache(unittest.TestCase):
             'instances': [{
                 'url': 'localhost',
                 'port': 11211,
-                'tags': "instance:localhost_11211",
+                'tags': ["instance:localhost_11211"],
                 }
             ]
         }
