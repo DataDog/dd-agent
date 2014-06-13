@@ -13,6 +13,14 @@ convention_type_builder = builder.MibBuilder()
 SNMP_COUNTERS = [snmp_type.Counter32.__name__, snmp_type.Counter64.__name__, ZeroBasedCounter64.__name__]
 SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
 
+# IF-MIB magic values
+IF_TABLE_TYPE_POS = 9
+IF_TABLE_INDEX_POS = 10
+IF_INDEX = 1
+IF_DESCR = 2
+IF_TYPE = 3
+LOCALHOST_INTERFACE = 24
+
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
            noSuchObject.isSameTypeWith(oid)
@@ -47,30 +55,38 @@ class SnmpCheck(AgentCheck):
             mibBuilder.setMibSources(*mibSources)
 
     def get_interfaces(self, instance):
-        '''
-        Return all the network interfaces of an instance to be used to get metrics
-        on those interfaces.
-        Repeatedly query the interface description
-        in order to discover them all.
-        '''
-
         interface_list = {}
+        transport_target = self.get_transport_target(instance)
+        auth_data = self.get_auth_data(instance)
 
-        empty_reply = False
-        interface_index = 1
-        while not empty_reply:
-            interfaces_descr_oids = []
-            interfaces_descr_oids.append((("IF-MIB","ifDescr"),interface_index))
-            interfaces_descr_oids.append((("IF-MIB","ifType"),interface_index))
-            interfaces_description = SnmpCheck.snmp_get(instance, interfaces_descr_oids)
-            descr = interfaces_description.pop(0)[1]
-            empty_reply= reply_invalid(descr)
-            type = interfaces_description.pop(0)[1]
-            if not reply_invalid(type) and int(type) !=24:
-                # ignore localhost loopback
-                interface_list[interface_index] = str(descr)
-                self.log.info("Discovered interface %s" % str(descr))
-            interface_index += 1
+        snmp_command = self.cmd_generator.nextCmd
+        errorIndication, errorStatus, errorIndex, varBinds = snmp_command(
+            auth_data,
+            transport_target,
+            '.1.3.6.1.2.1.2.2.1.',
+            lookupValues = True
+            )
+
+        ifTable = defaultdict(dict)
+        if errorIndication:
+            raise Exception("{0} for instance {1}".format(errorIndication,instance["ip_address"]))
+        else:
+            if errorStatus:
+                raise Exception("{0} for instance {1}".format(errorStatus.prettyPrint(),instance["ip_address"]))
+            else:
+                for tableRow in varBinds:
+                    for name, val in tableRow:
+                        ifTable[name.asTuple()[IF_TABLE_INDEX_POS]][name.asTuple()[IF_TABLE_TYPE_POS]] = val
+
+        self.log.debug("Interface Table discovered %s" % ifTable)
+        for index in ifTable:
+            type = ifTable[index].get(IF_TYPE)
+            descr = ifTable[index].get(IF_DESCR)
+            if not reply_invalid(type):
+                if int(type) != LOCALHOST_INTERFACE and not reply_invalid(descr):
+                    interface_list[index] = str(descr)
+                    self.log.info("Discovered interface %s" % str(descr))
+
         return interface_list
 
     @classmethod
