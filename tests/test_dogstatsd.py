@@ -335,12 +335,12 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_monokey_batching_notags(self):
         stats = MetricsAggregator('myhost')
-        stats.submit_packets('test_hist:1|ms:2|ms|@0.5:3|ms')
+        stats.submit_packets('test_hist:0.3|ms:2.5|ms|@0.5:3|ms')
 
         stats_ref = MetricsAggregator('refhost')
         packets = [
-                'test_hist:1|ms',
-                'test_hist:2|ms|@0.5',
+                'test_hist:0.3|ms',
+                'test_hist:2.5|ms|@0.5',
                 'test_hist:3|ms'
         ]
         stats_ref.submit_packets("\n".join(packets))
@@ -353,12 +353,12 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_monokey_batching_withtags(self):
         stats = MetricsAggregator('myhost')
-        stats.submit_packets('test_gauge:1|g|#tag1:one,tag2:two:2|g|#tag3:three:3|g')
+        stats.submit_packets('test_gauge:1.5|g|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g')
 
         stats_ref = MetricsAggregator('refhost')
         packets = [
-                'test_gauge:1|g|#tag1:one,tag2:two',
-                'test_gauge:2|g|#tag3:three',
+                'test_gauge:1.5|g|#tag1:one,tag2:two',
+                'test_gauge:2.3|g|#tag3:three',
                 'test_gauge:3|g'
         ]
         stats_ref.submit_packets("\n".join(packets))

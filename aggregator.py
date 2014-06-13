@@ -312,7 +312,7 @@ class Aggregator(object):
 
     def parse_metric_packet(self, packet):
         """
-        Schema of a dogstatsd metric:
+        Schema of a dogstatsd packet:
         <name>:<value>|<metric_type>|@<sample_rate>|#<tag1_name>:<tag1_value>,<tag2_name>:<tag2_value>:<value>|<metric_type>...
         """
         parsed_packets = []
