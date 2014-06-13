@@ -728,7 +728,9 @@ def load_check_directory(agentConfig):
         else:
             if check_name == 'nagios':
                 if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
-                    log.warning("Configuring Nagios in datadog.conf is deprecated. Please use conf.d")
+                    log.warning("Configuring Nagios in datadog.conf is deprecated "
+                                "and will be removed in a future version. "
+                                "Please use conf.d")
                     check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
                 else:
                     continue
