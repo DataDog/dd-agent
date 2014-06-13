@@ -1,14 +1,16 @@
-from checks import AgentCheck
-
+# std
 from collections import defaultdict
 
+# project
+from checks import AgentCheck
+
+# 3rd party
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.smi.exval import noSuchInstance, noSuchObject
 from pysnmp.smi import builder
 import pysnmp.proto.rfc1902 as snmp_type
 
-convention_type_builder = builder.MibBuilder()
-(CounterBasedGauge64, ZeroBasedCounter64) = convention_type_builder.importSymbols("HCNUM-TC","CounterBasedGauge64", "ZeroBasedCounter64")
+(CounterBasedGauge64, ZeroBasedCounter64) = builder.MibBuilder().importSymbols("HCNUM-TC","CounterBasedGauge64", "ZeroBasedCounter64")
 
 SNMP_COUNTERS = [snmp_type.Counter32.__name__, snmp_type.Counter64.__name__, ZeroBasedCounter64.__name__]
 SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
