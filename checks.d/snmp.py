@@ -175,18 +175,19 @@ class SnmpCheck(AgentCheck):
         else:
             try:
                 name = "snmp." + oid.getMibSymbol()[1]
-            except:
+            except Exception:
                 self.log.warning("Couldn't find a name for oid {0}".format(oid))
                 return
 
         snmp_class = snmp_value.__class__.__name__
-        value = int(snmp_value)
         for counter_class in SNMP_COUNTERS:
             if snmp_class==counter_class:
+                value = int(snmp_value)
                 self.rate(name, value, tags)
                 return
         for gauge_class in SNMP_GAUGES:
             if snmp_class==gauge_class:
+                value = int(snmp_value)
                 self.gauge(name, value, tags)
                 return
         self.log.warning("Unsupported metric type %s", snmp_class)
