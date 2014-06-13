@@ -1,10 +1,11 @@
+# std
 import time
 import re
 from collections import namedtuple
+
+# project
 from checks.utils import TailFile
 from checks import AgentCheck
-
-DEFAULT_CONF_PATH = "old check retrocompatible"
 
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {
@@ -57,7 +58,6 @@ class Nagios(AgentCheck):
         ]
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        # Override the name or the events don't make it
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.nagios_tails = {}
         check_freq = init_config.get("check_freq", 15)
@@ -65,20 +65,22 @@ class Nagios(AgentCheck):
             for instance in instances:
                 tailers = []
                 nagios_conf = {}
-                conf_path = None
+                instance_key = None
 
                 if 'nagios_conf' in instance: # conf.d check
                     conf_path = instance['nagios_conf']
                     nagios_conf = self.parse_nagios_config(conf_path)
+                    instance_key = conf_path
                 # Retrocompatibility Code
                 elif 'nagios_perf_cfg' in instance:
                     conf_path = instance['nagios_perf_cfg']
                     nagios_conf = self.parse_nagios_config(conf_path)
                     instance["collect_host_performance_data"] = True
                     instance["collect_service_performance_data"] = True
+                    instance_key = conf_path
                 if 'nagios_log' in instance:
-                    conf_path = conf_path or DEFAULT_CONF_PATH
                     nagios_conf["log_file"] = instance['nagios_log']
+                    instance_key = conf_path or instance['nagios_log']
                 # End of retrocompatibility code
                 if not nagios_conf:
                     self.log.warning("Missing path to nagios_conf")
@@ -116,7 +118,8 @@ class Nagios(AgentCheck):
                                                             event_func=self.event,
                                                             gauge_func=self.gauge,
                                                             freq=check_freq))
-                self.nagios_tails[conf_path] = tailers
+
+                self.nagios_tails[instance_key] = tailers
 
     def parse_nagios_config(self, filename):
         output = {}
@@ -139,19 +142,26 @@ class Nagios(AgentCheck):
             # Don't return an incomplete config
             self.log.exception(e)
             raise Exception("Could not parse Nagios config file")
-            return {}
         finally:
             if f is not None:
                 f.close()
 
     def check(self, instance):
-        conf_path = instance.get('nagios_conf', instance.get('nagios_perf_cfg', None))
-        if DEFAULT_CONF_PATH in self.nagios_tails:
-            # Special case of old style config with no point to nagios configuration
-            conf_path = DEFAULT_CONF_PATH
-        if not conf_path:
+        '''
+        Parse until the end of each tailer associated with this instance.
+        We match instance and tailers based on the path to the Nagios configuration file
+
+        Special case: Compatibility with the old conf when no conf file is specified
+        but the path to the event_log is given
+        '''
+        instance_key = instance.get('nagios_conf',
+                                    instance.get('nagios_perf_cfg',
+                                                 instance.get('nagios_log',
+                                                              None)))
+        # Bad configuration: This instance does not contain any necessary configuration
+        if not instance_key or instance_key not in self.nagios_tails:
             raise Exception('No Nagios configuration file specified')
-        for tailer in self.nagios_tails[conf_path]:
+        for tailer in self.nagios_tails[instance_key]:
             tailer.check()
 
 class NagiosTailer(object):
@@ -174,7 +184,6 @@ class NagiosTailer(object):
         self._event = event_func
         self._gauge = gauge_func
         self._line_parsed = 0
-        self._event_sent = 0
         self._freq = freq
 
         if file_template is not None:
@@ -185,15 +194,14 @@ class NagiosTailer(object):
         self.gen.next()
 
     def check(self):
-        self._event_sent = 0
         self._line_parsed = 0
 
         # read until the end of file
         try:
             self.log.debug("Start nagios check for file %s" % (self.log_path))
             self.gen.next()
-            self.log.debug("Done nagios check for file %s (parsed %s line(s), generated %s event(s))" %
-                (self.log_path,self._line_parsed, self._event_sent))
+            self.log.debug("Done nagios check for file %s (parsed %s line(s))" %
+                (self.log_path,self._line_parsed))
         except StopIteration, e:
             self.log.exception(e)
             self.log.warning("Can't tail %s file" % (self.log_path))
@@ -242,7 +250,6 @@ class NagiosEventLogTailer(NagiosTailer):
             event = self.create_event(tstamp, event_type, self.hostname, fields._make(parts))
 
             self._event(event)
-            self._event_sent += 1
             self.log.debug("Nagios event: %s" % (event))
 
             return True
