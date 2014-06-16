@@ -141,15 +141,15 @@ class Redis(AgentCheck):
         tags = sorted(tags.union(tags_to_add))
 
         # Ping the database for info, and track the latency.
-        # Also process the service check: the check passes if we can connect to Redis
+        # Process the service check: the check passes if we can connect to Redis
         start = time.time()
         try:
             info = conn.info()
             status = AgentCheck.OK
-            self.service_check('redis.can_connect', status)
+            self.service_check('redis.can_connect', status, tags=tags)
         except ValueError, e:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status)
+            self.service_check('redis.can_connect', status, tags=tags)
             # This is likely a know issue with redis library 2.0.0
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
@@ -159,9 +159,8 @@ class Redis(AgentCheck):
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
         except Exception, e:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status)
+            self.service_check('redis.can_connect', status, tags=tags)
             raise Exception(e)
-
 
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
@@ -213,7 +212,7 @@ class Redis(AgentCheck):
         if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
-        self._check_db(instance,custom_tags)
+        self._check_db(instance, custom_tags)
 
     @staticmethod
     def parse_agent_config(agentConfig):

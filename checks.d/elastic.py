@@ -160,7 +160,6 @@ class ElasticSearch(AgentCheck):
         health_data = self._get_data(url, auth)
         self._process_health_data(config_url, health_data, tags=tags)
 
-
     def _get_es_version(self, config_url, auth=None):
         """ Get the running version of Elastic Search.
         """
@@ -365,8 +364,6 @@ class ElasticSearch(AgentCheck):
             status = AgentCheck.WARNING
         else:
             status = AgentCheck.CRITICAL
-        self.log.info('ES status: %s' % status)
-        self.log.info(tags)
         self.service_check('elasticsearch.cluster_status', status)
 
 

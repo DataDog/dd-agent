@@ -221,14 +221,14 @@ SELECT relname,
                 self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
         cursor.close()
 
-    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
+    def get_connection(self, key, host, port, user, password, dbname, use_cached=True, tags=None):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
 
         elif host != "" and user != "":
             try:
-                import psycopg2 as pg
+                import pg8000 as pg
             except ImportError:
                 raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
 
@@ -242,10 +242,10 @@ SELECT relname,
                 else:
                     connection = pg.connect(host=host, user=user, password=password,
                         database=dbname)
-
                 status = AgentCheck.OK
-                self.service_check('postgres.can_connect', status)
+                self.service_check('postgres.can_connect', status, tags)
                 self.log.info('pg status: %s' % status)
+
             except Exception, e:
                 status = AgentCheck.CRITICAL
                 self.service_check('postgres.can_connect', status)
@@ -300,9 +300,8 @@ SELECT relname,
             self._collect_stats(key, db, tags, relations)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
-            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False, tags=tags)
             self._collect_stats(key, db, tags, relations)
-
 
     @staticmethod
     def parse_agent_config(agentConfig):
