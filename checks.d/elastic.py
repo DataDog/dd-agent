@@ -5,6 +5,7 @@ import sys
 import time
 import urlparse
 import urllib2
+import time
 
 # project
 from checks import AgentCheck
@@ -158,6 +159,7 @@ class ElasticSearch(AgentCheck):
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
         health_data = self._get_data(url, auth)
         self._process_health_data(config_url, health_data, tags=tags)
+
 
     def _get_es_version(self, config_url, auth=None):
         """ Get the running version of Elastic Search.
@@ -354,6 +356,18 @@ class ElasticSearch(AgentCheck):
             # metric description
             desc = self.METRICS[metric]
             self._process_metric(data, metric, *desc, tags=tags)
+
+        # Process the service check
+        cluster_status = data['status']
+        if cluster_status == 'green':
+            status = AgentCheck.OK
+        elif cluster_status == 'yellow':
+            status = AgentCheck.WARNING
+        else:
+            status = AgentCheck.CRITICAL
+        self.log.info('ES status: %s' % status)
+        self.log.info(tags)
+        self.service_check('elasticsearch.cluster_status', status)
 
 
     def _metric_not_found(self, metric, path):

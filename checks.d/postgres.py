@@ -121,7 +121,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from pg8000 import InterfaceError
+        from psycopg2 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -228,19 +228,29 @@ SELECT relname,
 
         elif host != "" and user != "":
             try:
-                import pg8000 as pg
+                import psycopg2 as pg
             except ImportError:
                 raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
 
-            if host == 'localhost' and password == '':
-                # Use ident method
-                connection = pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                connection = pg.connect(host=host, port=port, user=user,
-                    password=password, database=dbname)
-            else:
-                connection = pg.connect(host=host, user=user, password=password,
-                    database=dbname)
+            try:
+                if host == 'localhost' and password == '':
+                    # Use ident method
+                    connection = pg.connect("user=%s dbname=%s" % (user, dbname))
+                elif port != '':
+                    connection = pg.connect(host=host, port=port, user=user,
+                        password=password, database=dbname)
+                else:
+                    connection = pg.connect(host=host, user=user, password=password,
+                        database=dbname)
+
+                status = AgentCheck.OK
+                self.service_check('postgres.can_connect', status)
+                self.log.info('pg status: %s' % status)
+            except Exception, e:
+                status = AgentCheck.CRITICAL
+                self.service_check('postgres.can_connect', status)
+                self.log.info('pg status: %s' % status)
+                raise Exception(e)
         else:
             if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
@@ -292,6 +302,7 @@ SELECT relname,
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
+
 
     @staticmethod
     def parse_agent_config(agentConfig):
