@@ -121,7 +121,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from psycopg2 import InterfaceError
+        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
