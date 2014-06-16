@@ -47,8 +47,6 @@ RE_LINE_EXT = re.compile('^\[(\d+)\] ([^:]+): (.*)$')
 
 class Nagios(AgentCheck):
 
-    SOURCE_TYPE_NAME = 'Nagios'
-
     NAGIOS_CONF_KEYS = [
             re.compile('^(?P<key>log_file)\s*=\s*(?P<value>.+)$'),
             re.compile('^(?P<key>host_perfdata_file_template)\s*=\s*(?P<value>.+)$'),
@@ -262,8 +260,7 @@ class NagiosEventLogTailer(NagiosTailer):
         """
         d = fields._asdict()
         d.update({ 'timestamp': timestamp,
-                   'event_type': event_type,
-                   'source_type_name': Nagios.SOURCE_TYPE_NAME })
+                   'event_type': event_type })
 
         # if host is localhost, turn that into the internal host name
         host = d.get('host', None)
