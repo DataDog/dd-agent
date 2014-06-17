@@ -80,6 +80,9 @@ class Memcache(AgentCheck):
         "evictions",
         "bytes_read",
         "bytes_written",
+        "cas_misses",
+        "cas_hits",
+        "cas_badval",
         "total_connections"
     ]
 
