@@ -60,12 +60,12 @@ class SnmpCheck(AgentCheck):
         '''
         cls.cmd_generator = cmdgen.CommandGenerator()
         if mibs_path is not None:
-            mibBuilder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
-                         mibInstrumController.mibBuilder
-            mibSources = mibBuilder.getMibSources() + (
+            mib_builder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
+                          mibInstrumController.mibBuilder
+            mib_sources = mib_builder.getMibSources() + (
                     builder.DirMibSource(mibs_path),
                     )
-            mibBuilder.setMibSources(*mibSources)
+            mib_builder.setMibSources(*mib_sources)
 
     def get_interfaces(self, instance):
         '''
@@ -84,28 +84,28 @@ class SnmpCheck(AgentCheck):
         auth_data = self.get_auth_data(instance)
 
         snmp_command = self.cmd_generator.nextCmd
-        errorIndication, errorStatus, errorIndex, varBinds = snmp_command(
+        error_indication, error_status, error_index, var_binds = snmp_command(
             auth_data,
             transport_target,
             IF_TABLE_OID,
             lookupValues = True
             )
 
-        ifTable = defaultdict(dict)
-        if errorIndication:
-            raise Exception("{0} for instance {1}".format(errorIndication,instance["ip_address"]))
+        if_table = defaultdict(dict)
+        if error_indication:
+            raise Exception("{0} for instance {1}".format(error_indication, instance["ip_address"]))
         else:
-            if errorStatus:
-                raise Exception("{0} for instance {1}".format(errorStatus.prettyPrint(),instance["ip_address"]))
+            if error_status:
+                raise Exception("{0} for instance {1}".format(error_status.prettyPrint(), instance["ip_address"]))
             else:
-                for tableRow in varBinds:
-                    for name, val in tableRow:
-                        ifTable[name.asTuple()[IF_TABLE_INDEX_POS]][name.asTuple()[IF_TABLE_TYPE_POS]] = val
+                for table_row in var_binds:
+                    for name, val in table_row:
+                        if_table[name.asTuple()[IF_TABLE_INDEX_POS]][name.asTuple()[IF_TABLE_TYPE_POS]] = val
 
-        self.log.debug("Interface Table discovered %s" % ifTable)
-        for index in ifTable:
-            type = ifTable[index].get(IF_TYPE)
-            descr = ifTable[index].get(IF_DESCR)
+        self.log.debug("Interface Table discovered %s" % if_table)
+        for index in if_table:
+            type = if_table[index].get(IF_TYPE)
+            descr = if_table[index].get(IF_DESCR)
             if not reply_invalid(type):
                 if int(type) != LOCALHOST_INTERFACE and not reply_invalid(descr):
                     interface_list[index] = str(descr)
@@ -125,22 +125,22 @@ class SnmpCheck(AgentCheck):
         elif "user" in instance:
             # SNMP v3
             user = instance["user"]
-            authKey = None
-            privKey = None
-            authProtocol = None
-            privProtocol = None
+            auth_key = None
+            priv_key = None
+            auth_protocol = None
+            priv_protocol = None
             if "authKey" in instance:
-                authKey = instance["authKey"]
-                authProtocol = cmdgen.usmHMACMD5AuthProtocol
+                auth_key = instance["authKey"]
+                auth_protocol = cmdgen.usmHMACMD5AuthProtocol
             if "privKey" in instance:
-                privKey = instance["privKey"]
-                authProtocol = cmdgen.usmHMACMD5AuthProtocol
-                privProtocol = cmdgen.usmDESPrivProtocol
+                priv_key = instance["privKey"]
+                auth_protocol = cmdgen.usmHMACMD5AuthProtocol
+                priv_protocol = cmdgen.usmDESPrivProtocol
             if "authProtocol" in instance:
-                authProtocol = getattr(cmdgen,instance["authProtocol"])
+                auth_protocol = getattr(cmdgen, instance["authProtocol"])
             if "privProtocol" in instance:
-                privProtocol = getattr(cmdgen,instance["privProtocol"])
-            return cmdgen.UsmUserData(user, authKey, privKey, authProtocol, privProtocol)
+                priv_protocol = getattr(cmdgen, instance["privProtocol"])
+            return cmdgen.UsmUserData(user, auth_key, priv_key, auth_protocol, priv_protocol)
         else:
             raise Exception("An authentication method needs to be provided")
 
@@ -153,7 +153,7 @@ class SnmpCheck(AgentCheck):
             raise Exception("An IP address needs to be specified")
         ip_address = instance["ip_address"]
         port = instance.get("port", 161) # Default SNMP port
-        return cmdgen.UdpTransportTarget((ip_address,port))
+        return cmdgen.UdpTransportTarget((ip_address, port))
 
     def check(self, instance):
         tags = instance.get("tags",[])
@@ -162,16 +162,16 @@ class SnmpCheck(AgentCheck):
         oid_names ={}
 
         # Check the metrics completely defined
-        for metric in instance.get('metrics',[]):
+        for metric in instance.get('metrics', []):
             if 'MIB' in metric:
-                device_oids.append(((metric["MIB"],metric["symbol"]),metric["index"]))
+                device_oids.append(((metric["MIB"], metric["symbol"]), metric["index"]))
             elif 'OID' in metric:
                 device_oids.append(metric['OID'])
                 # Associate the name to the OID so that we can perform the matching
-                oid_names[metric['OID']]=metric['name']
+                oid_names[metric['OID']] = metric['name']
             else:
                 raise Exception('Unsupported metrics format in config file')
-        self.log.debug("Querying device %s for %s oids",ip_address, len(device_oids))
+        self.log.debug("Querying device %s for %s oids", ip_address, len(device_oids))
         results = SnmpCheck.snmp_get(instance, device_oids)
         for oid, value in results:
             self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address],
@@ -180,11 +180,11 @@ class SnmpCheck(AgentCheck):
         # Check the metrics defined per interface by appending the index
         # of the table to create a fully defined metric
         interface_oids = []
-        for metric in instance.get('interface_metrics',[]):
-            interface_oids.append((metric["MIB"],metric["symbol"]))
+        for metric in instance.get('interface_metrics', []):
+            interface_oids.append((metric["MIB"], metric["symbol"]))
         for interface, descr in self.interface_list[instance['ip_address']].items():
             oids = [(oid, interface) for oid in interface_oids]
-            self.log.debug("Querying device %s for %s oids",ip_address, len(oids))
+            self.log.debug("Querying device %s for %s oids", ip_address, len(oids))
             interface_results = SnmpCheck.snmp_get(instance, oids)
             for oid, value in interface_results:
                 self.submit_metric(instance, oid, value, tags = tags + ["snmp_device:" + ip_address,
@@ -202,7 +202,7 @@ class SnmpCheck(AgentCheck):
 
 
         snmp_command = cls.cmd_generator.getCmd
-        errorIndication, errorStatus, errorIndex, varBinds = snmp_command(
+        error_indication, error_status, error_index, var_binds = snmp_command(
                 auth_data,
                 transport_target,
                 *oids,
@@ -210,13 +210,13 @@ class SnmpCheck(AgentCheck):
                 lookupValues=True
                 )
 
-        if errorIndication:
-            raise Exception("{0} for instance {1}".format(errorIndication,instance["ip_address"]))
+        if error_indication:
+            raise Exception("{0} for instance {1}".format(error_indication, instance["ip_address"]))
         else:
-            if errorStatus:
-                raise Exception("{0} for instance {1}".format(errorStatus.prettyPrint(),instance["ip_address"]))
+            if error_status:
+                raise Exception("{0} for instance {1}".format(error_status.prettyPrint(), instance["ip_address"]))
             else:
-                return varBinds
+                return var_binds
 
     def submit_metric(self, instance, oid, snmp_value, tags=[], oid_names={}):
         '''
