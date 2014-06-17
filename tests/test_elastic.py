@@ -80,12 +80,17 @@ class TestElastic(unittest.TestCase):
             # ES version 0.90.9 and below
             self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
 
+        # Service checks
+        r = self.check.get_service_checks()
+        self.assertTrue(type(r) == type([]))
+        self.assertTrue(len(r) > 0)
+        self.assertEquals(len([sc for sc in r if sc['check'] == "elasticsearch.cluster_status"]), 1, r)
+
 
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"
         self.check.check(conf['instances'][0])
         events = self.check.get_events()
         self.assertEquals(len(events),1,events)
-
 
 
 if __name__ == "__main__":
