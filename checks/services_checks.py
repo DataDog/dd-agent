@@ -23,6 +23,12 @@ class EventType:
 
 class ServicesCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
+    SERVICE_CHECK_PREFIX = 'service_check'
+
+    STATUS_TO_SERVICE_CHECK = {
+            Status.UP  : AgentCheck.OK,
+            Status.DOWN : AgentCheck.CRITICAL
+        }
 
     """
     Services checks inherits from this class.
@@ -130,6 +136,8 @@ class ServicesCheck(AgentCheck):
                     self.nb_failures = 0
                     self.restart_pool()
                 continue
+
+            self.report_as_service_check(name, status, queue_instance)
 
             event = None
 
