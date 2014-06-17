@@ -1,6 +1,7 @@
 import time
 import re
-from util import namedtuple, get_hostname
+from collections import namedtuple
+from util import get_hostname
 from utils import TailFile
 
 # Event types we know about but decide to ignore in the parser

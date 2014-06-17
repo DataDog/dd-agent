@@ -5,8 +5,8 @@ import socket
 import os
 import re
 import time
-from urlparse import urlsplit, urljoin
-from util import json, headers
+from urlparse import urlsplit
+from util import json
 try:
     from collections import defaultdict
 except ImportError:
@@ -55,8 +55,8 @@ LXC_METRICS = [
         "cgroup": "cpuacct",
         "file": "%s/%s/cpuacct.stat",
         "metrics": {
-            "user": ("docker.cpu.user", "gauge"),
-            "system": ("docker.cpu.system", "gauge"),
+            "user": ("docker.cpu.user", "rate"),
+            "system": ("docker.cpu.system", "rate"),
         },
     },
 ]
@@ -109,10 +109,10 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     def __init__(self, *args, **kwargs):
         super(Docker, self).__init__(*args, **kwargs)
-        self._mounpoints = {}
-        self.cgroup_path_prefix = None # Depending on the version 
+        self._mountpoints = {}
+        self.cgroup_path_prefix = None # Depending on the version
         for metric in LXC_METRICS:
-            self._mounpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
+            self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
 
@@ -120,7 +120,7 @@ class Docker(AgentCheck):
     def path_prefix(self):
         if self._path_prefix is None:
             metric = LXC_METRICS[0]
-            mountpoint = self._mounpoints[metric["cgroup"]]
+            mountpoint = self._mountpoints[metric["cgroup"]]
             stat_file_lxc = os.path.join(mountpoint, "lxc")
             stat_file_docker = os.path.join(mountpoint, "docker")
 
@@ -136,9 +136,16 @@ class Docker(AgentCheck):
         urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
 
-        self._process_events(self._get_events(instance))
+        try:
+            self._process_events(self._get_events(instance))
+        except socket.timeout:
+            self.warning('Timeout during socket connection. Events will be missing.')
 
-        containers = self._get_containers(instance)
+        try:
+            containers = self._get_containers(instance)
+        except socket.timeout:
+            raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
+
         if not containers:
             self.gauge("docker.containers.running", 0)
             raise Exception("No containers are running.")
@@ -173,10 +180,12 @@ class Docker(AgentCheck):
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for metric in LXC_METRICS:
-                mountpoint = self._mounpoints[metric["cgroup"]]
+                mountpoint = self._mountpoints[metric["cgroup"]]
                 stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
                 for key, (dd_key, metric_type) in metric["metrics"].items():
+                    if key.startswith("total_") and not instance.get("collect_total"):
+                        continue
                     if key in stats:
                         getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
@@ -187,7 +196,7 @@ class Docker(AgentCheck):
                 'timestamp': ev['time'],
                 'host': self.hostname,
                 'event_type': EVENT_TYPE,
-                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname), 
+                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname),
                 'source_type_name': EVENT_TYPE,
                 'event_object': ev['from'],
             })

@@ -96,16 +96,6 @@ SELECT relname,
         self.dbs = {}
         self.versions = {}
 
-    def get_library_versions(self):
-        try:
-            import psycopg2
-            version = psycopg2.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-        return {"psycopg2": version}
-
     def _get_version(self, key, db):
         if key not in self.versions:
             cursor = db.cursor()
@@ -131,7 +121,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from psycopg2 import InterfaceError
+        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -163,7 +153,7 @@ SELECT relname,
             else:
                 query = scope['query'] % (", ".join(cols))
                 self.log.debug("Running query: %s" % query)
-                cursor.execute(query)
+                cursor.execute(query.replace(r'%', r'%%'))
 
             results = cursor.fetchall()
 
@@ -201,6 +191,9 @@ SELECT relname,
                 # tags are
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
 
+        if not results:
+            self.warning('No results were found for query: "%s"' % query)
+
         # Query for miscellaneous metrics
         query = self.MAX_CONNECTIONS_METRIC[0]
         cursor.execute(query)
@@ -225,7 +218,10 @@ SELECT relname,
             # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
             result = cursor.fetchone()[0]
             if result is not None:
-                self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.seconds, tags=instance_tags)
+                if result.days < 0:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], 0, tags=instance_tags)
+                else:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
         cursor.close()
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
@@ -235,9 +231,9 @@ SELECT relname,
 
         elif host != "" and user != "":
             try:
-                import psycopg2 as pg
+                import pg8000 as pg
             except ImportError:
-                raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
+                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
 
             if host == 'localhost' and password == '':
                 # Use ident method
@@ -254,12 +250,7 @@ SELECT relname,
             elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
 
-        try:
-            connection.autocommit = True
-        except AttributeError:
-            # connection.autocommit was added in version 2.4.2
-            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-            connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        connection.autocommit = True
 
         self.dbs[key] = connection
         return connection
@@ -271,8 +262,14 @@ SELECT relname,
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('dbname', 'postgres')
+        dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
+
+        if relations and not dbname:
+            self.warning('"dbname" parameter must be set when using the "relations" parameter.')
+
+        if dbname is None:
+            dbname = 'postgres'
 
         key = '%s:%s:%s' % (host, port,dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
@@ -298,22 +295,3 @@ SELECT relname,
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        server = agentConfig.get('postgresql_server','')
-        port = agentConfig.get('postgresql_port','')
-        user = agentConfig.get('postgresql_user','')
-        passwd = agentConfig.get('postgresql_pass','')
-
-        if server != '' and user != '':
-            return {
-                'instances': [{
-                    'host': server,
-                    'port': port,
-                    'username': user,
-                    'password': passwd
-                }]
-            }
-
-        return False

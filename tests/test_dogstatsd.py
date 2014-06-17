@@ -99,8 +99,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         import dogstatsd
         from aggregator import api_formatter
 
-        json = util.generate_minjson_adapter()
-        dogstatsd.json = json
         serialized = dogstatsd.serialize_metrics([api_formatter("foo", 12, 1, ('tag',), 'host')])
         assert '"tags": ["tag"]' in serialized[0]
 

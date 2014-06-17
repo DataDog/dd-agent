@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/datadog-agent/embedded/bin/python
 """
 A Python Statsd implementation with some datadog special sauce.
 """
@@ -29,9 +29,16 @@ from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural, get_uuid, chunks
+from util import PidFile, get_hostname, plural, get_uuid, chunks
+
+# 3rd party
+import simplejson as json
 
 log = logging.getLogger('dogstatsd')
+
+# Dogstatsd constants in seconds
+DOGSTATSD_FLUSH_INTERVAL = 10
+DOGSTATSD_AGGREGATOR_BUCKET_SIZE = 10
 
 
 WATCHDOG_TIMEOUT = 120
@@ -149,7 +156,7 @@ class Reporter(threading.Thread):
                 event_count=event_count,
             ).persist()
 
-        except Exception, e:
+        except Exception:
             log.exception("Error flushing metrics")
 
     def submit(self, metrics):
@@ -244,7 +251,7 @@ class Server(object):
             try:
                 self.forward_udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.forward_udp_sock.connect((forward_to_host, forward_to_port))
-            except Exception, e:
+            except Exception:
                 log.exception("Error while setting up connection to external statsd server")
 
     def start(self):
@@ -292,7 +299,7 @@ class Server(object):
                     raise
             except (KeyboardInterrupt, SystemExit):
                 break
-            except Exception, e:
+            except Exception:
                 log.exception('Error receiving datagram')
 
     def stop(self):
@@ -360,13 +367,14 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     log.debug("Configurating     dogstatsd")
 
     port      = c['dogstatsd_port']
-    interval  = int(c['dogstatsd_interval'])
-    aggregator_interval  = int(c['dogstatsd_agregator_bucket_size'])
+    interval  = DOGSTATSD_FLUSH_INTERVAL
     api_key   = c['api_key']
+    aggregator_interval = DOGSTATSD_AGGREGATOR_BUCKET_SIZE
     non_local_traffic = c['non_local_traffic']
     forward_to_host = c.get('statsd_forward_host')
     forward_to_port = c.get('statsd_forward_port')
     event_chunk_size = c.get('event_chunk_size')
+    recent_point_threshold = c.get('recent_point_threshold', None)
 
     target = c['dd_url']
     if use_forwarder:
@@ -378,7 +386,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=c.get('recent_point_threshold', None))
+    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=recent_point_threshold)
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)

@@ -1,9 +1,6 @@
 import re
 import urllib2
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
+from collections import defaultdict
 
 from checks import AgentCheck
 

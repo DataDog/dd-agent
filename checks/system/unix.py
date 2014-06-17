@@ -15,8 +15,6 @@ import time
 # project
 from checks import Check, UnknownValue
 from util import get_hostname, Platform
-from compat import any
-
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))

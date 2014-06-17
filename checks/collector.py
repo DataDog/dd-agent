@@ -45,8 +45,16 @@ class Collector(object):
         self.os = get_os()
         self.plugins = None
         self.emitters = emitters
-        self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
-        self.metadata_start = time.time()
+        self.push_times = {
+            'metadata': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
+            },
+            'agent_checks': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
+            }
+        }
         socket.setdefaulttimeout(15)
         self.run_count = 0
         self.continue_running = True
@@ -255,6 +263,7 @@ class Collector(object):
             instance_statuses = []
             metric_count = 0
             event_count = 0
+            check_start_time = time.time()
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -285,6 +294,8 @@ class Collector(object):
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
             check_statuses.append(check_status)
 
+            log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
+
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
@@ -302,7 +313,7 @@ class Collector(object):
         payload['events'] = events
         payload['service_checks'] = service_checks
 
-        if self._should_send_metadata():
+        if self._should_send_additional_data('agent_checks'):
             # Add agent checks statuses and error/warning messages
             agent_checks = []
             for check in check_statuses:
@@ -409,9 +420,18 @@ class Collector(object):
                                  }]
 
         # Periodically send the host metadata.
-        if self._should_send_metadata():
+        if self._should_send_additional_data('metadata'):
+            # gather metadata with gohai
+            try:
+                gohai_metadata = subprocess.Popen(
+                    ["gohai"], stdout=subprocess.PIPE, close_fds=True
+                ).communicate()[0]
+                payload['gohai'] = gohai_metadata
+            except Exception as e:
+                log.warning("gohai command failed with error %s" % str(e))
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
+
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             host_tags = []
@@ -419,12 +439,12 @@ class Collector(object):
                 host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
             if self.agentConfig['collect_ec2_tags']:
-                host_tags.extend(EC2.get_tags())
+                host_tags.extend(EC2.get_tags(self.agentConfig))
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
 
-            GCE_tags = GCE.get_tags()
+            GCE_tags = GCE.get_tags(self.agentConfig)
             if GCE_tags is not None:
                 payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
@@ -435,7 +455,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = EC2.get_metadata()
+        metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']
@@ -456,14 +476,14 @@ class Collector(object):
 
         return metadata
 
-    def _should_send_metadata(self):
+    def _should_send_additional_data(self, data_name):
         if self._is_first_run():
             return True
         # If the interval has passed, send the metadata again
         now = time.time()
-        if now - self.metadata_start >= self.metadata_interval:
-            log.debug('Metadata interval has passed. Sending metadata.')
-            self.metadata_start = now
+        if now - self.push_times[data_name]['start'] >= self.push_times[data_name]['interval']:
+            log.debug('%s interval has passed. Sending it.' % data_name)
+            self.push_times[data_name]['start'] = now
             return True
 
         return False

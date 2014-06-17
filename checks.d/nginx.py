@@ -144,37 +144,3 @@ class Nginx(AgentCheck):
             output.append((metric_base, val, tags, 'gauge'))
 
         return output
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        instances = []
-
-        # Try loading from the very old format
-        nginx_url = agentConfig.get("nginx_status_url", None)
-        if nginx_url is not None:
-            instances.append({
-                'nginx_status_url': nginx_url
-            })
-
-        # Try the older multi-instance style
-        # nginx_status_url_1: http://www.example.com/nginx_status:first_tag
-        # nginx_status_url_2: http://www.example2.com/nginx_status:8080:second_tag
-        # nginx_status_url_2: http://www.example3.com/nginx_status:third_tag
-        def load_conf(index=1):
-            instance = agentConfig.get("nginx_status_url_%s" % index, None)
-            if instance is not None:
-                instance = instance.split(":")
-                instances.append({
-                    'nginx_status_url': ":".join(instance[:-1]),
-                    'tags': ['instance:%s' % instance[-1]]
-                })
-                load_conf(index+1)
-
-        load_conf()
-
-        if not instances:
-            return False
-
-        return {
-            'instances': instances
-        }
