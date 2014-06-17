@@ -5,6 +5,7 @@ Changes
 ### Integrations affected
 
 * Redis
+* Memcached
 * MySQL
 * PostgreSQL
 * NTP
@@ -15,6 +16,7 @@ Changes
 * [FEATURE] MySQL: Collect more metrics. See [#972][]
 * [BUGFIX] PostgreSQL: Handle negative replication delay. See [#977][]
 * [FEATURE] Add a NTP Service check. See [#971][]
+* [ENHANCEMENT] Collect more Memcached stats. See [#982][]
 
 ### Changes
 
@@ -1054,6 +1056,7 @@ If you use ganglia, you want this version.
 [#972]: https://github.com/DataDog/dd-agent/issues/972
 [#975]: https://github.com/DataDog/dd-agent/issues/975
 [#977]: https://github.com/DataDog/dd-agent/issues/977
+[#982]: https://github.com/DataDog/dd-agent/issues/982
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
