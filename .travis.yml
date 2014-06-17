@@ -26,7 +26,6 @@ before_install:
   - sudo apt-get install couchdb
   - sudo apt-get install lighttpd
   - sudo apt-get install gearman
-  - sudo apt-get install snmpd
 install:
   - pip install -r requirements.txt --use-mirrors
   - pip install . --use-mirrors
@@ -47,14 +46,11 @@ before_script:
   - sudo mkdir -p /etc/dd-agent/
   - sudo install -d -o "$(id -u)" /var/log/datadog
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
-  - sudo service snmpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/SNMP_checks/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf" # referring wrong branch during development
   - sudo service apache2 start
   - sudo service nginx start
   - sudo /etc/init.d/lighttpd start
   - sudo service tomcat6 restart
   - sudo service couchdb start
-  - sudo service snmpd start
 env:
   - DB=redis
 script:

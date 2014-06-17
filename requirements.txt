@@ -9,5 +9,3 @@ psutil
 gearman
 pylint
 boto
-pysnmp
-pysnmp-mibs
