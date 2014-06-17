@@ -146,10 +146,10 @@ class Redis(AgentCheck):
         try:
             info = conn.info()
             status = AgentCheck.OK
-            self.service_check('redis.can_connect', status, tags=tags)
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
         except ValueError, e:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags)
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
             # This is likely a know issue with redis library 2.0.0
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
@@ -159,7 +159,7 @@ class Redis(AgentCheck):
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
         except Exception, e:
             status = AgentCheck.CRITICAL
-            self.service_check('redis.can_connect', status, tags=tags)
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
             raise Exception(e)
 
         latency_ms = round((time.time() - start) * 1000, 2)

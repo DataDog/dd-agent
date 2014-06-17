@@ -233,6 +233,13 @@ SELECT relname,
                 raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
 
             try:
+                service_check_tags = [
+                    "pg_host:%s" % host,
+                    "pg_port:%s" % port
+                ]
+                if dbname:
+                    service_check_tags.append("db:%s" % dbname)
+
                 if host == 'localhost' and password == '':
                     # Use ident method
                     connection = pg.connect("user=%s dbname=%s" % (user, dbname))
@@ -243,12 +250,12 @@ SELECT relname,
                     connection = pg.connect(host=host, user=user, password=password,
                         database=dbname)
                 status = AgentCheck.OK
-                self.service_check('postgres.can_connect', status, tags)
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
                 self.log.info('pg status: %s' % status)
 
             except Exception, e:
                 status = AgentCheck.CRITICAL
-                self.service_check('postgres.can_connect', status)
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
                 self.log.info('pg status: %s' % status)
                 raise Exception(e)
         else:
@@ -278,7 +285,7 @@ SELECT relname,
         if dbname is None:
             dbname = 'postgres'
 
-        key = '%s:%s:%s' % (host, port,dbname)
+        key = '%s:%s:%s' % (host, port, dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance
