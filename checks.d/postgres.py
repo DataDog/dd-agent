@@ -221,7 +221,7 @@ SELECT relname,
                 self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
         cursor.close()
 
-    def get_connection(self, key, host, port, user, password, dbname, use_cached=True, tags=None):
+    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
             return self.dbs[key]
@@ -307,7 +307,7 @@ SELECT relname,
             self._collect_stats(key, db, tags, relations)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
-            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False, tags=tags)
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
 
     @staticmethod
