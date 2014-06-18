@@ -91,7 +91,7 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
 
     def test_metadata(self):
-        c = Collector({}, None, {})
+        c = Collector({"collect_instance_metadata": True}, None, {})
         assert "hostname" in c._get_metadata()
         assert "socket-fqdn" in c._get_metadata()
         assert "socket-hostname" in c._get_metadata()

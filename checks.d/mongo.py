@@ -291,14 +291,3 @@ class MongoDb(AgentCheck):
             if m in self.RATES:
                 m = self.normalize(m.lower(), 'mongodb') + "ps"
                 self.rate(m, value, tags=tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('mongodb_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agentConfig.get('mongodb_server')
-            }]
-        }

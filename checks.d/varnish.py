@@ -163,11 +163,4 @@ class Varnish(AgentCheck):
                     self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
                     self.rate(metric_name, float(gauge_val), tags=tags)
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('varnishstat'):
-            return False
-
-        return {
-            'instances': [{'varnishstat': agentConfig.get('varnishstat')}]
-        }
+   

@@ -74,13 +74,3 @@ class Apache(AgentCheck):
                 self.check(instance)
             else:
                 raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['apache_status_url'])
-
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('apache_status_url'):
-            return False
-
-        return {
-            'instances': [{'apache_status_url': agentConfig.get('apache_status_url')}]
-        }

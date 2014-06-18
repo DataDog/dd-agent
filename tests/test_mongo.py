@@ -130,28 +130,23 @@ class TestMongo(unittest.TestCase):
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
     def testMongoOldConfig(self):
-        self.agentConfig1 = {
-            'mongodb_server': "mongodb://localhost:%s/test" % PORT1,
-            'version': '0.1',
-            'api_key': 'toto'
+        conf = {
+            'init_config': {},
+            'instances': [
+                {'server': "mongodb://localhost:%s/test" % PORT1},
+                {'server': "mongodb://localhost:%s/test" % PORT2},
+            ]
         }
-        conf1 = self.check.parse_agent_config(self.agentConfig1)
-        self.agentConfig2 = {
-            'mongodb_server': "mongodb://localhost:%s/test" % PORT2,
-            'version': '0.1',
-            'api_key': 'toto'
-        }
-        conf2 = self.check.parse_agent_config(self.agentConfig2)
 
         # Test the first mongodb instance
-        self.check = load_check('mongo', conf1, self.agentConfig1)
+        self.check = load_check('mongo', conf, {})
 
         # Run the check against our running server
-        self.check.check(conf1['instances'][0])
+        self.check.check(conf['instances'][0])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(conf1['instances'][0])
+        self.check.check(conf['instances'][0])
 
         # Metric assertions
         metrics = self.check.get_metrics()
@@ -172,15 +167,12 @@ class TestMongo(unittest.TestCase):
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-        # Test the second mongodb instance
-        self.check = load_check('mongo', conf2, self.agentConfig2)
-
         # Run the check against our running server
-        self.check.check(conf2['instances'][0])
+        self.check.check(conf['instances'][1])
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
         # Run the check again so we get the rates
-        self.check.check(conf2['instances'][0])
+        self.check.check(conf['instances'][1])
 
         # Metric assertions
         metrics = self.check.get_metrics()

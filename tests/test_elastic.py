@@ -49,9 +49,14 @@ class TestElastic(unittest.TestCase):
               'version': '0.1',
               'api_key': 'toto' }
 
+        conf = {
+                   'init_config': {}, 
+                   'instances':
+                       [
+                           {'url': 'http://localhost:%s' % PORT},
+                       ]
+            }
         # Initialize the check from checks.d
-        c = load_check('elastic', {'init_config': {}, 'instances':{}},agentConfig)
-        conf = c.parse_agent_config(agentConfig)
         self.check = load_check('elastic', conf, agentConfig)
 
         self.check.check(conf['instances'][0])
@@ -72,7 +77,7 @@ class TestElastic(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.active_shards"]), 1, r)
 
         # Checks enabled for specific ES versions
-        version = c._get_es_version('http://localhost:%s' % PORT)
+        version = self.check._get_es_version('http://localhost:%s' % PORT)
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             pass

@@ -18,7 +18,6 @@ import checks.system.win32 as w32
 from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
-from checks.nagios import Nagios
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -101,11 +100,6 @@ class Collector(object):
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
-
-        # Event Checks
-        self._event_checks = [
-            Nagios(get_hostname()),
-        ]
 
         # Resource Checks
         self._resources_checks = [
@@ -220,12 +214,6 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
-
-        # Process the event checks.
-        for event_check in self._event_checks:
-            event_data = event_check.check(log, self.agentConfig)
-            if event_data:
-                events[event_check.key] = event_data
 
         # Resources checks
         if self.os != 'windows':
@@ -439,12 +427,12 @@ class Collector(object):
                 host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
             if self.agentConfig['collect_ec2_tags']:
-                host_tags.extend(EC2.get_tags())
+                host_tags.extend(EC2.get_tags(self.agentConfig))
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
 
-            GCE_tags = GCE.get_tags()
+            GCE_tags = GCE.get_tags(self.agentConfig)
             if GCE_tags is not None:
                 payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
@@ -455,7 +443,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = EC2.get_metadata()
+        metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']

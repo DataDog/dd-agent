@@ -150,15 +150,3 @@ class Jenkins(AgentCheck):
                     else:
                         self.increment('jenkins.job.failure', tags=tags)
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('hudson_home'):
-            return False
-
-        return {
-            'instances': [{
-                'name': 'default',
-                'jenkins_home': agentConfig.get('hudson_home'),
-            }]
-        }
-

@@ -13,8 +13,12 @@ class TestMemCache(unittest.TestCase):
             "memcache_instance_1": "localhost:11211:mytag",
             "memcache_instance_2": "localhost:11211:mythirdtag",
         }
-        self.c = load_check('mcache', {'init_config': {}, 'instances': {}}, self.agent_config)
-        self.conf = self.c.parse_agent_config(self.agent_config)
+        self.conf = {'init_config': {}, 'instances': [
+            {'url': "localhost"},
+            {'url': "localhost", 'port': 11211, 'tags': ['instance:mytag']},
+            {'url': "localhost", 'port': 11211, 'tags': ['instance:mythirdtag']},
+         ]}
+        self.c = load_check('mcache', self.conf, self.agent_config)
 
     def _countConnections(self, port):
         pid = os.getpid()
@@ -29,7 +33,9 @@ class TestMemCache(unittest.TestCase):
         for i in range(3):
             # Count open connections to localhost:11211, should be 0
             self.assertEquals(self._countConnections(11211), 0)
-            new_conf = self.c.parse_agent_config({"memcache_server": "localhost"})
+            new_conf =  {'init_config': {}, 'instances': [
+                {'url': "localhost"},]
+            }
             self.c.check(new_conf['instances'][0])
             # Verify that the count is still 0
             self.assertEquals(self._countConnections(11211), 0)
@@ -47,7 +53,7 @@ class TestMemCache(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "memcache.total_items"]), 3, r)
 
         # Check that we got 23 metrics for a specific host
-        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 23, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:mythirdtag"]]), 26, r)
 
     def testTagging(self):
         instance = {
@@ -64,13 +70,18 @@ class TestMemCache(unittest.TestCase):
         r = self.c.get_metrics()
 
         # Check the tags
-        self.assertEquals(len([t for t in r if t[3].get('tags') == ["regular_old_tag"]]), 23, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["regular_old_tag"]]), 26, r)
 
         conf = {
-            'memcache_server': 'localhost',
-            'memcache_port': 11211
+            'init_config': {},
+            'instances': [{
+                'url': 'localhost',
+                'port': 11211,
+                'tags': ["instance:localhost_11211"],
+                }
+            ]
         }
-        instance = self.c.parse_agent_config(conf)['instances'][0]
+        instance = conf['instances'][0]
 
         self.c.check(instance)
         # Sleep for 1 second so the rate interval >=1
@@ -80,11 +91,10 @@ class TestMemCache(unittest.TestCase):
         r = self.c.get_metrics()
 
         # Check the tags
-        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:localhost_11211"]]), 23, r)
+        self.assertEquals(len([t for t in r if t[3].get('tags') == ["instance:localhost_11211"]]), 26, r)
 
     def testDummyHost(self):
-        new_conf = self.c.parse_agent_config({"memcache_instance_1": "dummy:11211:myothertag"})
-        self.assertRaises(Exception, self.c.check, new_conf['instances'][0])
+        self.assertRaises(Exception, self.c.check, {'url': 'dummy', 'port': 11211, 'tags': ['instance:myothertag']})
 
     def testMemoryLeak(self):
         for instance in self.conf['instances']:
