@@ -357,6 +357,14 @@ class ElasticSearch(AgentCheck):
             self._process_metric(data, metric, *desc, tags=tags)
 
         # Process the service check
+        parsed_url = urlparse.urlparse(config_url)
+        host = parsed_url.hostname
+        port = parsed_url.port
+        service_check_tags = [
+            'elasticsearch_host:%s' % host,
+            'elasticsearch_port:%s' % port
+        ]
+
         cluster_status = data['status']
         if cluster_status == 'green':
             status = AgentCheck.OK
@@ -364,7 +372,7 @@ class ElasticSearch(AgentCheck):
             status = AgentCheck.WARNING
         else:
             status = AgentCheck.CRITICAL
-        self.service_check('elasticsearch.cluster_status', status)
+        self.service_check('elasticsearch.cluster_status', status, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):

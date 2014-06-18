@@ -81,10 +81,14 @@ class TestElastic(unittest.TestCase):
             self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
 
         # Service checks
-        r = self.check.get_service_checks()
-        self.assertTrue(type(r) == type([]))
-        self.assertTrue(len(r) > 0)
-        self.assertEquals(len([sc for sc in r if sc['check'] == "elasticsearch.cluster_status"]), 1, r)
+        service_checks = self.check.get_service_checks()
+        service_checks_count = len(service_checks)
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(service_checks_count > 0)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "elasticsearch.cluster_status"]), 1, service_checks)
+        # Assert that all service checks have the proper tags: host and port
+        self.assertEquals(len([sc for sc in service_checks if "elasticsearch_host:localhost" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "elasticsearch_port:%s" % PORT in sc['tags']]), service_checks_count, service_checks)
 
 
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"
