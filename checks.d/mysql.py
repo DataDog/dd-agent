@@ -71,7 +71,7 @@ class MySql(AgentCheck):
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
-        if Platform.is_unix():
+        if Platform.is_linux():
             self._collect_system_metrics(host, db, tags)
 
     def _get_config(self, instance):
