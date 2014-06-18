@@ -59,6 +59,11 @@ instances:
 #           Host: alternative.host.example.com
 #           X-Auth-Token: SOME-AUTH-TOKEN
 
+         # The (optional) skip_event parameter will instruct the check to not
+         # create any event to avoid duplicates with a server side service check
+
+#        skip_event: true
+
 #        tags:
 #            - url:http://alternative.host.example.com
 #            - env:production

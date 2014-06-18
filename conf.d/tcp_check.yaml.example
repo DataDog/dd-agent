@@ -26,6 +26,11 @@ instances:
 
 #        collect_response_time: true
 
+         # The (optional) skip_event parameter will instruct the check to not
+         # create any event to avoid duplicates with a server side service check
+
+#        skip_event: true
+
 #    -   name: My second service
 #        host: 127.0.0.1
 #        port: 80
