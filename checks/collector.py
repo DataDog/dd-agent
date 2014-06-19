@@ -279,7 +279,7 @@ class Collector(object):
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
 
-            # Service check for agent failures
+            # Service check for Agent checks failures
             service_check_tags = ["service:%s" % check.name]
             if check_status.status == STATUS_OK:
                 status = AgentCheck.OK
