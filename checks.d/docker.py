@@ -116,6 +116,7 @@ class Docker(AgentCheck):
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
+        self.url_opener = urllib2.build_opener(UnixSocketHandler())
 
     @property
     def path_prefix(self):
@@ -134,7 +135,6 @@ class Docker(AgentCheck):
         return self._path_prefix
 
     def check(self, instance):
-        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
 
         try:
@@ -247,7 +247,7 @@ class Docker(AgentCheck):
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
         try:
-            request = urllib2.urlopen(req)
+            request = self.url_opener.open(req)
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
