@@ -252,14 +252,9 @@ class Collector(object):
             metric_count = 0
             event_count = 0
             check_start_time = time.time()
-            service_check_tags = ["service:%s" % check.name]
             try:
                 # Run the check.
                 instance_statuses = check.run()
-
-                # Service check for agent failures
-                status = AgentCheck.OK
-                check.service_check('agent_reporting', status, tags=service_check_tags)
 
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
@@ -278,10 +273,6 @@ class Collector(object):
                 event_count = len(current_check_events)
             except Exception:
                 log.exception("Error running check %s" % check.name)
-
-                # Service check for agent failures
-                status = AgentCheck.CRITICAL
-                check.service_check('agent_reporting', status, tags=service_check_tags)
 
             # Collect the service checks and save them in the payload
             current_check_service_checks = check.get_service_checks()
