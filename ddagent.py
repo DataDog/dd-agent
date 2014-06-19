@@ -207,6 +207,7 @@ class MetricTransaction(Transaction):
                 # When using a proxy we do a CONNECT request why shouldn't include Content-Length
                 # This is pretty hacky though as it should be done in pycurl or curl or tornado
                 del tornado_client_params['headers']['Content-Length']
+                log.debug("Removing Content-Length header.")
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
