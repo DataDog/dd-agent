@@ -119,6 +119,7 @@ class Docker(AgentCheck):
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
         self.url_opener = urllib2.build_opener(UnixSocketHandler())
+        self.should_get_size = True
 
     @property
     def path_prefix(self):
@@ -144,11 +145,16 @@ class Docker(AgentCheck):
         except socket.timeout:
             self.warning('Timeout during socket connection. Events will be missing.')
 
-        try:
-            containers = self._get_containers(instance)
-        except socket.timeout:
-            # Probably because of: https://github.com/DataDog/dd-agent/issues/963
-            # Try again without the size
+        if self.should_get_size:
+            try:
+                containers = self._get_containers(instance, with_size=True)
+            except socket.timeout:
+                # Probably because of: https://github.com/DataDog/dd-agent/issues/963
+                # Then we should stop trying to get size info
+                self.log.info('Cannot get container size because of API timeout. Turn size flag off.')
+                self.should_get_size = False
+
+        if not self.should_get_size:
             containers = self._get_containers(instance, with_size=False)
 
         if not containers:
