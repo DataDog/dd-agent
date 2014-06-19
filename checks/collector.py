@@ -422,12 +422,12 @@ class Collector(object):
                 host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
             if self.agentConfig['collect_ec2_tags']:
-                host_tags.extend(EC2.get_tags())
+                host_tags.extend(EC2.get_tags(self.agentConfig))
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
 
-            GCE_tags = GCE.get_tags()
+            GCE_tags = GCE.get_tags(self.agentConfig)
             if GCE_tags is not None:
                 payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
@@ -438,7 +438,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = EC2.get_metadata()
+        metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']
