@@ -70,6 +70,8 @@ DOCKER_TAGS = [
     "Image",
 ]
 
+SOCKET_TIMEOUT = 5
+
 class UnixHTTPConnection(httplib.HTTPConnection, object):
     """Class used in conjuction with UnixSocketHandler to make urllib2
     compatible with Unix sockets."""
@@ -79,6 +81,7 @@ class UnixHTTPConnection(httplib.HTTPConnection, object):
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self._unix_socket)
+        sock.settimeout(SOCKET_TIMEOUT)
         self.sock = sock
 
     def __call__(self, *args, **kwargs):
