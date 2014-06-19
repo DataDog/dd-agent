@@ -146,7 +146,7 @@ class HTTPCheck(ServicesCheck):
         }
 
     def report_as_service_check(self, name, status, instance):
-        service_check_name = "%s.%s" % (self.SERVICE_CHECK_PREFIX, name)
+        service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         url = instance.get('url', None)
         self.service_check(service_check_name,
                            ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
