@@ -27,7 +27,8 @@ instances:
 #        collect_response_time: true
 
          # The (optional) skip_event parameter will instruct the check to not
-         # create any event to avoid duplicates with a server side service check
+         # create any event to avoid duplicates with a server side service check.
+         # This default to False.
 
 #        skip_event: true
 
