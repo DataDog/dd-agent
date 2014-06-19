@@ -62,7 +62,6 @@ LXC_METRICS = [
 ]
 
 DOCKER_METRICS = {
-    # Temporary disabled because of https://github.com/DataDog/dd-agent/issues/963
     "SizeRw": ("docker.disk.size", "gauge"),
 }
 
@@ -145,7 +144,9 @@ class Docker(AgentCheck):
         try:
             containers = self._get_containers(instance)
         except socket.timeout:
-            raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
+            # Probably because of: https://github.com/DataDog/dd-agent/issues/963
+            # Try again without the size
+            containers = self._get_containers(instance, with_size=False)
 
         if not containers:
             self.gauge("docker.containers.running", 0)
@@ -220,13 +221,9 @@ class Docker(AgentCheck):
                 return True
         return False
 
-    def _get_containers(self, instance):
+    def _get_containers(self, instance, with_size=True):
         """Gets the list of running containers in Docker."""
-        return self._get_json("%(url)s/containers/json" % instance)
-
-    def _get_container(self, instance, cid):
-        """Get container information from Docker, gived a container Id."""
-        return self._get_json("%s/containers/%s/json" % (instance["url"], cid))
+        return self._get_json("%(url)s/containers/json" % instance, params={'size': with_size})
 
     def _get_events(self, instance):
         """Get the list of events """
