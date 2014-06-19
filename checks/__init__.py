@@ -495,23 +495,17 @@ class AgentCheck(object):
 
     def run(self):
         """ Run all instances. """
-        service_check_tags = ["service:%s" % self.name]
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
                 self.check(copy.deepcopy(instance))
                 if self.has_warnings():
-                    status = AgentCheck.WARNING
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,
                         warnings=self.get_warnings()
                     )
                 else:
-                    status = AgentCheck.OK
                     instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
-
-                # Service check for agent failures
-                self.service_check('agent_reporting', status, tags=service_check_tags)
 
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
@@ -520,10 +514,6 @@ class AgentCheck(object):
                     error=e,
                     tb=traceback.format_exc()
                 )
-
-                # Service check for agent failures
-                status = AgentCheck.CRITICAL
-                self.service_check('agent_reporting', status, tags=service_check_tags)
 
             instance_statuses.append(instance_status)
         return instance_statuses
