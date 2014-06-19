@@ -285,7 +285,7 @@ class Collector(object):
                 status = AgentCheck.OK
             elif check_status.status == STATUS_ERROR:
                 status = AgentCheck.CRITICAL
-            check.service_check('agent_reporting', status, tags=service_check_tags)
+            check.service_check('agent_check_status', status, tags=service_check_tags)
 
             # Collect the service checks and save them in the payload
             current_check_service_checks = check.get_service_checks()
