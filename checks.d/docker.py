@@ -62,6 +62,7 @@ LXC_METRICS = [
 ]
 
 DOCKER_METRICS = {
+    # Temporary disabled because of https://github.com/DataDog/dd-agent/issues/963
     "SizeRw": ("docker.disk.size", "gauge"),
 }
 
@@ -221,7 +222,7 @@ class Docker(AgentCheck):
 
     def _get_containers(self, instance):
         """Gets the list of running containers in Docker."""
-        return self._get_json("%(url)s/containers/json" % instance, params={"size": 1})
+        return self._get_json("%(url)s/containers/json" % instance)
 
     def _get_container(self, instance, cid):
         """Get container information from Docker, gived a container Id."""
