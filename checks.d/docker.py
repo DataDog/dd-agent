@@ -147,8 +147,8 @@ class Docker(AgentCheck):
             raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
 
         if not containers:
-            self.gauge("docker.containers.running", 0)
-            raise Exception("No containers are running.")
+            containers = []
+            self.warning("No containers are running.")
 
         self.gauge("docker.containers.running", len(containers))
 
