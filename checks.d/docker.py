@@ -135,6 +135,7 @@ class Docker(AgentCheck):
     def check(self, instance):
         urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
+        self.skipped_cgroup = 0
 
         try:
             self._process_events(self._get_events(instance))
@@ -171,11 +172,6 @@ class Docker(AgentCheck):
             if not self._is_container_included(instance, container_tags):
                 continue
 
-            collected_containers += 1
-            if collected_containers > max_containers:
-                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
-                break
-
             for key, (dd_key, metric_type) in DOCKER_METRICS.items():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
@@ -183,11 +179,20 @@ class Docker(AgentCheck):
                 mountpoint = self._mountpoints[metric["cgroup"]]
                 stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
-                for key, (dd_key, metric_type) in metric["metrics"].items():
-                    if key.startswith("total_") and not instance.get("collect_total"):
-                        continue
-                    if key in stats:
-                        getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+                if stats:
+                    for key, (dd_key, metric_type) in metric["metrics"].items():
+                        if key.startswith("total_") and not instance.get("collect_total"):
+                            continue
+                        if key in stats:
+                            getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+
+            collected_containers += 1
+            if collected_containers > max_containers:
+                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
+                break
+
+        if self.skipped_cgroup and self.skipped_cgroup == collected_containers * len(LXC_METRICS):
+            raise IOError("We were unable to open cgroup files. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11")
 
     def _process_events(self, events):
         for ev in events:
@@ -279,14 +284,16 @@ class Docker(AgentCheck):
     def _parse_cgroup_file(self, file_):
         """Parses a cgroup pseudo file for key/values."""
         fp = None
+        self.log.debug("Opening file: %s" % file_)
         try:
-            self.log.debug("Opening file: %s" % file_)
-            try:
-                fp = open(file_)
-            except IOError:
-                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11" % file_)
+            fp = open(file_)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
-
+        except IOError:
+            # Can be because of Docker 0.9/0.10 bug or because the container got stopped
+            # Count this kind of exception, if it happens to often it is because of the bug
+            self.log.info("Can't open %s. Metrics for this container are skipped." % file_)
+            self.self.skipped_cgroup += 1
+            return None
         finally:
             if fp is not None:
                 fp.close()
