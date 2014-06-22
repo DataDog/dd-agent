@@ -64,7 +64,7 @@ class EmitterThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         self.__name = kwargs['name']
-        self.__emitter = kwargs.pop('emitter')
+        self.__emitter = kwargs.pop('emitter')()
         self.__logger = kwargs.pop('logger')
         self.__config = kwargs.pop('config')
         self.__max_queue_size = kwargs.pop('max_queue_size', 100)
