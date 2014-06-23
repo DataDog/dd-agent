@@ -254,6 +254,7 @@ class GCE(object):
             return GCE.metadata
 
         if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
             GCE.metadata = {}
             return GCE.metadata
 
@@ -328,6 +329,7 @@ class EC2(object):
     @staticmethod
     def get_tags(agentConfig):
         if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
             return []
 
         socket_to = None
@@ -377,6 +379,7 @@ class EC2(object):
         # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
 
         if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
             return {}
 
         socket_to = None
