@@ -70,6 +70,8 @@ DOCKER_TAGS = [
     "Image",
 ]
 
+SOCKET_TIMEOUT = 5
+
 class UnixHTTPConnection(httplib.HTTPConnection, object):
     """Class used in conjuction with UnixSocketHandler to make urllib2
     compatible with Unix sockets."""
@@ -79,6 +81,7 @@ class UnixHTTPConnection(httplib.HTTPConnection, object):
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self._unix_socket)
+        sock.settimeout(SOCKET_TIMEOUT)
         self.sock = sock
 
     def __call__(self, *args, **kwargs):
@@ -115,6 +118,8 @@ class Docker(AgentCheck):
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
+        self.url_opener = urllib2.build_opener(UnixSocketHandler())
+        self.should_get_size = True
 
     @property
     def path_prefix(self):
@@ -133,22 +138,30 @@ class Docker(AgentCheck):
         return self._path_prefix
 
     def check(self, instance):
-        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
+        skipped_cgroup = 0
 
         try:
             self._process_events(self._get_events(instance))
         except socket.timeout:
             self.warning('Timeout during socket connection. Events will be missing.')
 
-        try:
-            containers = self._get_containers(instance)
-        except socket.timeout:
-            raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
+        if self.should_get_size:
+            try:
+                containers = self._get_containers(instance, with_size=True)
+            except socket.timeout:
+                # Probably because of: https://github.com/DataDog/dd-agent/issues/963
+                # Then we should stop trying to get size info
+                self.log.info('Cannot get container size because of API timeout. Turn size flag off.')
+                self.should_get_size = False
+
+        if not self.should_get_size:
+            containers = self._get_containers(instance, with_size=False)
 
         if not containers:
-            self.gauge("docker.containers.running", 0)
-            raise Exception("No containers are running.")
+            containers = []
+            self.warning("No containers are running.")
+            return
 
         self.gauge("docker.containers.running", len(containers))
 
@@ -171,11 +184,6 @@ class Docker(AgentCheck):
             if not self._is_container_included(instance, container_tags):
                 continue
 
-            collected_containers += 1
-            if collected_containers > max_containers:
-                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
-                break
-
             for key, (dd_key, metric_type) in DOCKER_METRICS.items():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
@@ -183,11 +191,22 @@ class Docker(AgentCheck):
                 mountpoint = self._mountpoints[metric["cgroup"]]
                 stat_file = os.path.join(mountpoint, metric["file"] % (self.path_prefix, container["Id"]))
                 stats = self._parse_cgroup_file(stat_file)
-                for key, (dd_key, metric_type) in metric["metrics"].items():
-                    if key.startswith("total_") and not instance.get("collect_total"):
-                        continue
-                    if key in stats:
-                        getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+                if stats:
+                    for key, (dd_key, metric_type) in metric["metrics"].items():
+                        if key.startswith("total_") and not instance.get("collect_total"):
+                            continue
+                        if key in stats:
+                            getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+                else:
+                    skipped_cgroup += 1
+
+            collected_containers += 1
+            if collected_containers >= max_containers:
+                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
+                break
+
+        if skipped_cgroup and skipped_cgroup == collected_containers * len(LXC_METRICS):
+            raise IOError("We were unable to open cgroup files. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11")
 
     def _process_events(self, events):
         for ev in events:
@@ -219,13 +238,9 @@ class Docker(AgentCheck):
                 return True
         return False
 
-    def _get_containers(self, instance):
+    def _get_containers(self, instance, with_size=True):
         """Gets the list of running containers in Docker."""
-        return self._get_json("%(url)s/containers/json" % instance, params={"size": 1})
-
-    def _get_container(self, instance, cid):
-        """Get container information from Docker, gived a container Id."""
-        return self._get_json("%s/containers/%s/json" % (instance["url"], cid))
+        return self._get_json("%(url)s/containers/json" % instance, params={'size': with_size})
 
     def _get_events(self, instance):
         """Get the list of events """
@@ -246,7 +261,7 @@ class Docker(AgentCheck):
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
         try:
-            request = urllib2.urlopen(req)
+            request = self.url_opener.open(req)
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
@@ -279,14 +294,16 @@ class Docker(AgentCheck):
     def _parse_cgroup_file(self, file_):
         """Parses a cgroup pseudo file for key/values."""
         fp = None
+        self.log.debug("Opening file: %s" % file_)
         try:
-            self.log.debug("Opening file: %s" % file_)
             try:
                 fp = open(file_)
+                return dict(map(lambda x: x.split(), fp.read().splitlines()))
             except IOError:
-                raise IOError("Can't open %s. If you are using Docker 0.9 or 0.10, it is a known bug in Docker fixed in Docker 0.11" % file_)
-            return dict(map(lambda x: x.split(), fp.read().splitlines()))
-
+                # Can be because of Docker 0.9/0.10 bug or because the container got stopped
+                # Count this kind of exception, if it happens to often it is because of the bug
+                self.log.info("Can't open %s. Metrics for this container are skipped." % file_)
+                return None
         finally:
             if fp is not None:
                 fp.close()
