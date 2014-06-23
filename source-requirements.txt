@@ -1,6 +1,6 @@
 pymongo==2.6.3
 tornado==3.2.2
-redis==2.8.2
+python-redis==2.9.1
 python-memcached==1.53
 pyyaml==3.10
 simplejson==3.3.3
