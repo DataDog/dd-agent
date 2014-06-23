@@ -1,0 +1,15 @@
+pymongo==2.6.3
+tornado==3.2.2
+redis==2.8.2
+python-memcached==1.53
+pyyaml==3.10
+simplejson==3.3.3
+psutil==2.1.1
+gearman==2.0.2
+boto==2.25.0
+pysnmp==4.2.5
+pysnmp-mibs==0.1.4
+PyMySQL==0.6.1
+pg8000==1.9.6
+ntplib==0.3.2
+httplib2==0.9
