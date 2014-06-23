@@ -11,16 +11,7 @@ You're looking at the source code right now. We provide a number of
 
 # How to contribute code
 
-First of all and most importantly, **thank you** for sharing.
-
-If you want to submit code, please fork this repository and submit pull requests against the `master` branch.
-
-Please note that the Agent is licensed for simplicity's sake
-under a simplified BSD license, as indicated in the `LICENSE` file.
-Exceptions are marked with LICENSE-xxx where xxx is the component name.
-If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
-please email us at <info@datadoghq.com> before submitting your
-pull request.
+See CONTRIBUTING.md.
 
 # How to configure the Agent
 
