@@ -32,8 +32,6 @@ Changes
 * [BUGFIX] Remove Content-Length header in CONNECT HTTP Requests (when using a proxy), as CONNECT Requests shouldn't have that header and some proxies don't support it.
 
 
-### Changes
-
 # 4.3.1 / 06-03-2014
 
 **Linux or Source Install only**
