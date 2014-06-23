@@ -70,6 +70,8 @@ DOCKER_TAGS = [
     "Image",
 ]
 
+SOCKET_TIMEOUT = 5
+
 class UnixHTTPConnection(httplib.HTTPConnection, object):
     """Class used in conjuction with UnixSocketHandler to make urllib2
     compatible with Unix sockets."""
@@ -79,6 +81,7 @@ class UnixHTTPConnection(httplib.HTTPConnection, object):
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self._unix_socket)
+        sock.settimeout(SOCKET_TIMEOUT)
         self.sock = sock
 
     def __call__(self, *args, **kwargs):
@@ -115,6 +118,8 @@ class Docker(AgentCheck):
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"])
         self._path_prefix = None
         self._last_event_collection_ts = defaultdict(lambda: None)
+        self.url_opener = urllib2.build_opener(UnixSocketHandler())
+        self.should_get_size = True
 
     @property
     def path_prefix(self):
@@ -133,7 +138,6 @@ class Docker(AgentCheck):
         return self._path_prefix
 
     def check(self, instance):
-        urllib2.install_opener(urllib2.build_opener(UnixSocketHandler())) # We need to reinstall the opener every time as it gets uninstalled
         tags = instance.get("tags") or []
 
         try:
@@ -141,10 +145,17 @@ class Docker(AgentCheck):
         except socket.timeout:
             self.warning('Timeout during socket connection. Events will be missing.')
 
-        try:
-            containers = self._get_containers(instance)
-        except socket.timeout:
-            raise Exception('Cannot get containers list: timeout during socket connection. Try to refine the containers to collect by editing the configuration file.')
+        if self.should_get_size:
+            try:
+                containers = self._get_containers(instance, with_size=True)
+            except socket.timeout:
+                # Probably because of: https://github.com/DataDog/dd-agent/issues/963
+                # Then we should stop trying to get size info
+                self.log.info('Cannot get container size because of API timeout. Turn size flag off.')
+                self.should_get_size = False
+
+        if not self.should_get_size:
+            containers = self._get_containers(instance, with_size=False)
 
         if not containers:
             self.gauge("docker.containers.running", 0)
@@ -219,13 +230,9 @@ class Docker(AgentCheck):
                 return True
         return False
 
-    def _get_containers(self, instance):
+    def _get_containers(self, instance, with_size=True):
         """Gets the list of running containers in Docker."""
-        return self._get_json("%(url)s/containers/json" % instance, params={"size": 1})
-
-    def _get_container(self, instance, cid):
-        """Get container information from Docker, gived a container Id."""
-        return self._get_json("%s/containers/%s/json" % (instance["url"], cid))
+        return self._get_json("%(url)s/containers/json" % instance, params={'size': with_size})
 
     def _get_events(self, instance):
         """Get the list of events """
@@ -246,7 +253,7 @@ class Docker(AgentCheck):
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
         try:
-            request = urllib2.urlopen(req)
+            request = self.url_opener.open(req)
         except urllib2.URLError, e:
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
