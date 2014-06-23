@@ -286,7 +286,7 @@ class GCE(object):
     @staticmethod
     def get_tags(agentConfig):
         if not agentConfig['collect_instance_metadata']:
-            return []
+            return None
 
         try:
             host_metadata = GCE._get_metadata(agentConfig)
