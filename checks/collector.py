@@ -417,6 +417,7 @@ class Collector(object):
                 payload['gohai'] = gohai_metadata
             except Exception as e:
                 log.warning("gohai command failed with error %s" % str(e))
+
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
 

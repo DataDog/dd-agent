@@ -116,7 +116,8 @@ class TestCore(unittest.TestCase):
                     'status': status,
                     'host_name': host_name,
                     'tags': tags,
-                    'timestamp': timestamp
+                    'timestamp': timestamp,
+                    'message': None,
                 }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
 
