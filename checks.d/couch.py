@@ -1,8 +1,11 @@
 import urllib2
-from util import json, headers
+from util import headers
 from checks.utils import add_basic_auth
 
 from checks import AgentCheck
+
+# 3rd party
+import simplejson as json
 
 class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
@@ -81,14 +84,3 @@ class CouchDb(AgentCheck):
                     couchdb['databases'][dbName] = db_stats
 
         return couchdb
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('couchdb_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agentConfig.get('couchdb_server'),
-            }]
-        }

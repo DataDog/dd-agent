@@ -18,7 +18,6 @@ import checks.system.win32 as w32
 from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
-from checks.nagios import Nagios
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
 from resources.processes import Processes as ResProcesses
@@ -48,7 +47,7 @@ class Collector(object):
         self.push_times = {
             'metadata': {
                 'start': time.time(),
-                'interval': int(agentConfig.get('metadata_interval', 10 * 60))
+                'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
             },
             'agent_checks': {
                 'start': time.time(),
@@ -101,11 +100,6 @@ class Collector(object):
                 log.warning("Old format custom checks are deprecated. They should be moved to the checks.d interface as old custom checks will be removed in a next version")
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
-
-        # Event Checks
-        self._event_checks = [
-            Nagios(get_hostname()),
-        ]
 
         # Resource Checks
         self._resources_checks = [
@@ -220,12 +214,6 @@ class Collector(object):
         # metrics about the forwarder
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
-
-        # Process the event checks.
-        for event_check in self._event_checks:
-            event_data = event_check.check(log, self.agentConfig)
-            if event_data:
-                events[event_check.key] = event_data
 
         # Resources checks
         if self.os != 'windows':
@@ -421,8 +409,18 @@ class Collector(object):
 
         # Periodically send the host metadata.
         if self._should_send_additional_data('metadata'):
+            # gather metadata with gohai
+            try:
+                gohai_metadata = subprocess.Popen(
+                    ["gohai"], stdout=subprocess.PIPE, close_fds=True
+                ).communicate()[0]
+                payload['gohai'] = gohai_metadata
+            except Exception as e:
+                log.warning("gohai command failed with error %s" % str(e))
+
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
+
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             host_tags = []

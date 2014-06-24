@@ -8,7 +8,10 @@ import tempfile
 import time
 
 # datadog
-from util import PidFile, yaml, yLoader, get_os
+from util import PidFile, get_os
+
+# 3rd party
+import yaml
 
 log = logging.getLogger(__name__)
 
@@ -122,7 +125,7 @@ class JMXFetch(object):
             if os.path.exists(conf):
                 f = open(conf)
                 try:
-                    check_config = yaml.load(f.read(), Loader=yLoader)
+                    check_config = yaml.load(f.read(), Loader=yaml.CLoader)
                     assert check_config is not None
                     f.close()
                 except Exception:

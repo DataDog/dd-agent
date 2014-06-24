@@ -386,14 +386,4 @@ class ElasticSearch(AgentCheck):
                  "event_object": hostname
             }
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('elasticsearch'):
-            return False
-
-        return {
-            'instances': [{
-                'url': agentConfig.get('elasticsearch'),
-            }]
-        }
-
+  

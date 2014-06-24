@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/datadog-agent/embedded/bin/python
 """
 A Python Statsd implementation with some datadog special sauce.
 """
@@ -29,7 +29,10 @@ from aggregator import MetricsBucketAggregator
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
-from util import json, PidFile, get_hostname, plural, get_uuid, chunks
+from util import PidFile, get_hostname, plural, get_uuid, chunks
+
+# 3rd party
+import simplejson as json
 
 log = logging.getLogger('dogstatsd')
 
