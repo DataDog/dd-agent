@@ -1,0 +1,2 @@
+pymongo==2.6.3
+psutil==2.1.1
