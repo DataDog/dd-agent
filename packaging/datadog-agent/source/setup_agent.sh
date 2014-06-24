@@ -247,6 +247,12 @@ $dd_base/venv/bin/pip install -r $dd_base/requirements.txt >> $logfile 2>&1
 rm $dd_base/requirements.txt
 print_done
 
+printf "Trying to install optional dependencies using pip....." | tee -a $logfile
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-optional-requirements.txt  >> $logfile 2>&1
+($dd_base/venv/bin/pip install -r $dd_base/requirements.txt || printf "Cannot install optional dependencies. There is probably no Compiler on the system." >> $logfile 2>&1
+rm $dd_base/requirements.txt
+print_done
+
 # set up the Agent
 mkdir -p $dd_base/agent >> $logfile 2>&1
 

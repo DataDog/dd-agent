@@ -1,10 +1,8 @@
-pymongo==2.6.3
 tornado==3.2.2
-python-redis==2.9.1
+redis==2.10.1
 python-memcached==1.53
-pyyaml==3.10
+pyyaml==3.11
 simplejson==3.3.3
-psutil==2.1.1
 gearman==2.0.2
 boto==2.25.0
 pysnmp==4.2.5
