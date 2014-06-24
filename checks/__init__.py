@@ -396,7 +396,7 @@ class AgentCheck(object):
         self.events.append(event)
 
     def service_check(self, check_name, status, tags=None, timestamp=None,
-                      hostname=None, check_run_id=None):
+                      hostname=None, check_run_id=None, message=None):
         """
         Save a service check.
 
@@ -414,7 +414,7 @@ class AgentCheck(object):
         if hostname is None:
             hostname = self.hostname
         self.service_checks.append(create_service_check(check_name, status,
-            tags, timestamp, hostname, check_run_id))
+            tags, timestamp, hostname, check_run_id, message))
 
     def has_events(self):
         """
@@ -634,7 +634,7 @@ def run_check(name, path=None):
         pprint(check.get_metrics(), indent=4)
 
 def create_service_check(check_name, status, tags=None, timestamp=None,
-                  hostname=None, check_run_id=None):
+                  hostname=None, check_run_id=None, message=None):
     """ Create a service_check dict. See AgentCheck.service_check() for
         docs on the parameters.
     """
@@ -646,5 +646,6 @@ def create_service_check(check_name, status, tags=None, timestamp=None,
         'status': status,
         'host_name': hostname,
         'tags': tags,
-        'timestamp': float(timestamp or time.time())
+        'timestamp': float(timestamp or time.time()),
+        'message': message
     }
