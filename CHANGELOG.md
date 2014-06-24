@@ -9,7 +9,7 @@ Changes
 ### Changes
 * [FEATURE] Add a NTP Service check. See [#971][]
 
-# 4.4.0 / Unreleased
+# 4.4.0 / 06-24-2014
 
 ### Integrations affected
 
