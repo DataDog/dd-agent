@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="omnibus_bundling"
+tag="5.0.0"
 
 #######################
 # Define some helpers #
