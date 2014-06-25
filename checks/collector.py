@@ -19,7 +19,7 @@ from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
 
 
@@ -251,14 +251,15 @@ class Collector(object):
             instance_statuses = []
             metric_count = 0
             event_count = 0
+            service_check_count = 0
             check_start_time = time.time()
             try:
                 # Run the check.
                 instance_statuses = check.run()
+
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
-                current_check_service_checks = check.get_service_checks()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -267,19 +268,33 @@ class Collector(object):
                         events[check.name] = current_check_events
                     else:
                         events[check.name] += current_check_events
-                if current_check_service_checks:
-                    service_checks.extend(current_check_service_checks)
 
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
-                service_check_count = len(current_check_service_checks)
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
+
+            # Service check for Agent checks failures
+            service_check_tags = ["check:%s" % check.name]
+            if check_status.status == STATUS_OK:
+                status = AgentCheck.OK
+            elif check_status.status == STATUS_ERROR:
+                status = AgentCheck.CRITICAL
+            check.service_check('datadog.agent.check_status', status, tags=service_check_tags)
+
+            # Collect the service checks and save them in the payload
+            current_check_service_checks = check.get_service_checks()
+            if current_check_service_checks:
+                service_checks.extend(current_check_service_checks)
+            service_check_count = len(current_check_service_checks)
+
+            # Update the check status with the correct service_check_count
+            check_status.service_check_count = service_check_count
             check_statuses.append(check_status)
 
             log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
@@ -293,7 +308,7 @@ class Collector(object):
             check_statuses.append(check_status)
 
         # Add a service check for the agent
-        service_checks.append(create_service_check('agent.up', AgentCheck.OK,
+        service_checks.append(create_service_check('datadog.agent.up', AgentCheck.OK,
             hostname=self.metadata_cache.get('hostname')))
 
         # Store the metrics and events in the payload.
