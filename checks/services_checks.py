@@ -23,6 +23,12 @@ class EventType:
 
 class ServicesCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
+    SERVICE_CHECK_PREFIX = 'service_check'
+
+    STATUS_TO_SERVICE_CHECK = {
+            Status.UP  : AgentCheck.OK,
+            Status.DOWN : AgentCheck.CRITICAL
+        }
 
     """
     Services checks inherits from this class.
@@ -131,39 +137,45 @@ class ServicesCheck(AgentCheck):
                     self.restart_pool()
                 continue
 
-            event = None
+            self.report_as_service_check(name, status, queue_instance)
 
-            if not name in self.statuses:
-                self.statuses[name] = []
+            # Don't create any event to avoid duplicates with server side
+            # service_checks
+            skip_event = queue_instance.get('skip_event', False)
+            if not skip_event:
+                event = None
 
-            self.statuses[name].append(status)
+                if not name in self.statuses:
+                    self.statuses[name] = []
 
-            window = int(queue_instance.get('window', 1))
+                self.statuses[name].append(status)
 
-            if window > 256:
-                self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
-                window = 256
+                window = int(queue_instance.get('window', 1))
+
+                if window > 256:
+                    self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
+                    window = 256
 
 
 
-            threshold = queue_instance.get('threshold', 1)
+                threshold = queue_instance.get('threshold', 1)
 
-            if len(self.statuses[name]) > window:
-                self.statuses[name].pop(0)
+                if len(self.statuses[name]) > window:
+                    self.statuses[name].pop(0)
 
-            nb_failures = self.statuses[name].count(Status.DOWN)
+                nb_failures = self.statuses[name].count(Status.DOWN)
 
-            if nb_failures >= threshold:
-                if self.notified.get(name, Status.UP) != Status.DOWN:
-                    event = self._create_status_event(status, msg, queue_instance)
-                    self.notified[name] = Status.DOWN
-            else:
-                if self.notified.get(name, Status.UP) != Status.UP:
-                    event = self._create_status_event(status, msg, queue_instance)
-                    self.notified[name] = Status.UP
+                if nb_failures >= threshold:
+                    if self.notified.get(name, Status.UP) != Status.DOWN:
+                        event = self._create_status_event(status, msg, queue_instance)
+                        self.notified[name] = Status.DOWN
+                else:
+                    if self.notified.get(name, Status.UP) != Status.UP:
+                        event = self._create_status_event(status, msg, queue_instance)
+                        self.notified[name] = Status.UP
 
-            if event is not None:
-                self.events.append(event)
+                if event is not None:
+                    self.events.append(event)
 
             # The job is finished here, this instance can be re processed
             del self.jobs_status[name]
