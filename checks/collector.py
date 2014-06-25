@@ -280,7 +280,7 @@ class Collector(object):
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
 
             # Service check for Agent checks failures
-            service_check_tags = ["service:%s" % check.name]
+            service_check_tags = ["check:%s" % check.name]
             if check_status.status == STATUS_OK:
                 status = AgentCheck.OK
             elif check_status.status == STATUS_ERROR:
