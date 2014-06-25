@@ -141,8 +141,8 @@ class ElasticSearch(AgentCheck):
         port = parsed.port
         host = parsed.hostname
         service_check_tags = [
-            'elasticsearch_host:%s' % host,
-            'elasticsearch_port:%s' % port
+            'host:%s' % host,
+            'port:%s' % port
         ]
 
         # Tag by URL so we can differentiate the metrics from multiple instances
@@ -370,7 +370,7 @@ class ElasticSearch(AgentCheck):
             status = AgentCheck.WARNING
         else:
             status = AgentCheck.CRITICAL
-        self.service_check('elasticsearch.cluster_status', status, tags=service_check_tags)
+        self.service_check('elasticsearch.cluster_health', status, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):
@@ -403,4 +403,4 @@ class ElasticSearch(AgentCheck):
                  "event_object": hostname
             }
 
-  
+

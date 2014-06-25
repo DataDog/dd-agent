@@ -50,7 +50,7 @@ class TestElastic(unittest.TestCase):
               'api_key': 'toto' }
 
         conf = {
-                   'init_config': {}, 
+                   'init_config': {},
                    'instances':
                        [
                            {'url': 'http://localhost:%s' % PORT},
@@ -90,10 +90,10 @@ class TestElastic(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "elasticsearch.cluster_status"]), 1, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "elasticsearch.cluster_health"]), 1, service_checks)
         # Assert that all service checks have the proper tags: host and port
-        self.assertEquals(len([sc for sc in service_checks if "elasticsearch_host:localhost" in sc['tags']]), service_checks_count, service_checks)
-        self.assertEquals(len([sc for sc in service_checks if "elasticsearch_port:%s" % PORT in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT in sc['tags']]), service_checks_count, service_checks)
 
 
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"

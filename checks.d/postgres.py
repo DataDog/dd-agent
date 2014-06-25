@@ -237,8 +237,8 @@ SELECT relname,
 
             try:
                 service_check_tags = [
-                    "pg_host:%s" % host,
-                    "pg_port:%s" % port
+                    "host:%s" % host,
+                    "port:%s" % port
                 ]
                 if dbname:
                     service_check_tags.append("db:%s" % dbname)
@@ -260,7 +260,7 @@ SELECT relname,
                 status = AgentCheck.CRITICAL
                 self.service_check('postgres.can_connect', status, tags=service_check_tags)
                 self.log.info('pg status: %s' % status)
-                raise Exception(e)
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
