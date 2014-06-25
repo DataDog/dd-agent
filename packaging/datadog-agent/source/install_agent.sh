@@ -66,21 +66,6 @@ Please use the 1-step script available at https://app.datadoghq.com/account/sett
     exit 1;
 fi
 
-# Python Detection
-has_python=$(which python || echo "no")
-if [ $has_python = "no" ]; then
-    printf "\033[31mPython is required to install the Datadog Agent.\033[0m\n"
-    exit 1;
-fi
-
-PY_VERSION=$(python -c 'import sys; print "%d.%d" % (sys.version_info[0], sys.version_info[1])')
-
-if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
-    DDBASE=true
-else
-    DDBASE=false
-fi
-
 # Root user detection
 if [ $(echo "$UID") = "0" ]; then
     sudo_cmd=''
@@ -91,7 +76,14 @@ fi
 # Install the necessary package sources
 if [ $OS = "RedHat" ]; then
     echo -e "\033[34m\n* Installing YUM sources for Datadog\n\033[0m"
-    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
+
+    UNAME_M=$(uname -m)
+    if [ "$UNAME_M"  == "i686" || "$UNAME_M"  == "i386" || "$UNAME_M"  == "x86" ]; then
+        ARCHI="i386"
+    else
+        ARCHI="x86_64"
+    fi
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/$ARCHI/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
@@ -102,7 +94,7 @@ if [ $OS = "RedHat" ]; then
     fi
 elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
-    $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog.list"
+    $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
