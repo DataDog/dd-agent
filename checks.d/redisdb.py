@@ -114,6 +114,9 @@ class Redis(AgentCheck):
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
                     'connection_pool', 'charset', 'errors', 'unix_socket_path']
 
+                # Set a default timeout (in seconds) if no timeout is specified in the instance config
+                instance['socket_timeout'] = instance.get('socket_timeout', 5)
+
                 connection_params = dict((k, instance[k]) for k in list_params if k in instance)
 
                 self.connections[key] = redis.Redis(**connection_params)
@@ -138,10 +141,15 @@ class Redis(AgentCheck):
         tags = sorted(tags.union(tags_to_add))
 
         # Ping the database for info, and track the latency.
+        # Process the service check: the check passes if we can connect to Redis
         start = time.time()
         try:
             info = conn.info()
+            status = AgentCheck.OK
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
         except ValueError, e:
+            status = AgentCheck.CRITICAL
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
             # This is likely a know issue with redis library 2.0.0
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
@@ -149,6 +157,10 @@ class Redis(AgentCheck):
                 Minimum required version: 2.4.11
                 Your current version: %s
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
+        except Exception, e:
+            status = AgentCheck.CRITICAL
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            raise Exception(e)
 
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
