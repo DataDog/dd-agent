@@ -5,6 +5,7 @@ import sys
 import time
 import urlparse
 import urllib2
+import time
 
 # project
 from checks import AgentCheck
@@ -137,6 +138,12 @@ class ElasticSearch(AgentCheck):
         parsed = urlparse.urlparse(config_url)
         if parsed[2] != "":
             config_url = "%s://%s" % (parsed[0], parsed[1])
+        port = parsed.port
+        host = parsed.hostname
+        service_check_tags = [
+            'elasticsearch_host:%s' % host,
+            'elasticsearch_port:%s' % port
+        ]
 
         # Tag by URL so we can differentiate the metrics from multiple instances
         tags = ['url:%s' % config_url]
@@ -157,7 +164,7 @@ class ElasticSearch(AgentCheck):
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
         health_data = self._get_data(url, auth)
-        self._process_health_data(config_url, health_data, tags=tags)
+        self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
 
     def _get_es_version(self, config_url, auth=None):
         """ Get the running version of Elastic Search.
@@ -338,7 +345,7 @@ class ElasticSearch(AgentCheck):
         else:
             self._metric_not_found(metric, path)
 
-    def _process_health_data(self, config_url, data, tags=None):
+    def _process_health_data(self, config_url, data, tags=None, service_check_tags=None):
         if self.cluster_status.get(config_url, None) is None:
             self.cluster_status[config_url] = data['status']
             if data['status'] in ["yellow", "red"]:
@@ -354,6 +361,16 @@ class ElasticSearch(AgentCheck):
             # metric description
             desc = self.METRICS[metric]
             self._process_metric(data, metric, *desc, tags=tags)
+
+        # Process the service check
+        cluster_status = data['status']
+        if cluster_status == 'green':
+            status = AgentCheck.OK
+        elif cluster_status == 'yellow':
+            status = AgentCheck.WARNING
+        else:
+            status = AgentCheck.CRITICAL
+        self.service_check('elasticsearch.cluster_status', status, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):
