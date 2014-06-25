@@ -24,13 +24,13 @@ instances:
          # check to create a metric 'network.tcp.response_time', tagged with
          # the url, reporting the response time in seconds.
 
-#        collect_response_time: true
+#        collect_response_time: false
 
          # The (optional) skip_event parameter will instruct the check to not
          # create any event to avoid duplicates with a server side service check.
          # This default to False.
 
-#        skip_event: true
+#        skip_event: false
 
 #    -   name: My second service
 #        host: 127.0.0.1
