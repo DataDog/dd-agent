@@ -4,21 +4,33 @@ Changes
 
 ### Integrations affected
 
+* NTP
+
+### Changes
+* [FEATURE] Add a NTP Service check. See [#971][]
+
+# 4.4.0 / 06-24-2014
+
+### Integrations affected
+
+* Docker
 * Redis
 * Memcached
 * MySQL
 * PostgreSQL
-* NTP
 
 ### Changes
+* [BUGFIX] Docker: Don't raise Exception if we fail to get some Docker croup info. See [#981][]
+* [BUGFIX] Docker: Don't raise Exception if no Docker containers are running. See [#980][]
+* [BUGFIX] Docker: Fix integration timeout issue. See [#963][]
 * [ENHANCEMENT] Let the possibility to disable metadata collection from 169.254.169.254. See [#975][]
 * [FEATURE] Redis: Add a metric to track key length. See [#962][]
 * [FEATURE] MySQL: Collect more metrics. See [#972][]
+* [BUGFIX] MySQL: Only collect metrics from /proc on linux machines. See [#984][]
 * [BUGFIX] PostgreSQL: Handle negative replication delay. See [#977][]
-* [FEATURE] Add a NTP Service check. See [#971][]
 * [ENHANCEMENT] Collect more Memcached stats. See [#982][]
+* [BUGFIX] Remove Content-Length header in CONNECT HTTP Requests (when using a proxy), as CONNECT Requests shouldn't have that header and some proxies don't support it.
 
-### Changes
 
 # 4.3.1 / 06-03-2014
 
@@ -1051,12 +1063,16 @@ If you use ganglia, you want this version.
 [#951]: https://github.com/DataDog/dd-agent/issues/951
 [#960]: https://github.com/DataDog/dd-agent/issues/960
 [#962]: https://github.com/DataDog/dd-agent/issues/962
+[#963]: https://github.com/DataDog/dd-agent/issues/963
 [#964]: https://github.com/DataDog/dd-agent/issues/964
 [#971]: https://github.com/DataDog/dd-agent/issues/971
 [#972]: https://github.com/DataDog/dd-agent/issues/972
 [#975]: https://github.com/DataDog/dd-agent/issues/975
 [#977]: https://github.com/DataDog/dd-agent/issues/977
+[#980]: https://github.com/DataDog/dd-agent/issues/980
+[#981]: https://github.com/DataDog/dd-agent/issues/981
 [#982]: https://github.com/DataDog/dd-agent/issues/982
+[#984]: https://github.com/DataDog/dd-agent/issues/984
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon

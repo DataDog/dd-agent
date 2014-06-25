@@ -64,7 +64,7 @@ class EmitterThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         self.__name = kwargs['name']
-        self.__emitter = kwargs.pop('emitter')
+        self.__emitter = kwargs.pop('emitter')()
         self.__logger = kwargs.pop('logger')
         self.__config = kwargs.pop('config')
         self.__max_queue_size = kwargs.pop('max_queue_size', 100)
@@ -203,6 +203,12 @@ class MetricTransaction(Transaction):
             force_use_curl = False
 
             if proxy_settings is not None and endpoint != PUP_ENDPOINT:
+
+                # When using a proxy we do a CONNECT request why shouldn't include Content-Length
+                # This is pretty hacky though as it should be done in pycurl or curl or tornado
+                if 'Content-Length' in tornado_client_params['headers']:
+                    del tornado_client_params['headers']['Content-Length']
+                    log.debug("Removing Content-Length header.")
 
                 log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                     proxy_settings['host'], proxy_settings['port']))
