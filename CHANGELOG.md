@@ -9,7 +9,7 @@ Changes
 ### Changes
 * [FEATURE] Add a NTP Service check. See [#971][]
 
-# 4.4.0 / Unreleased
+# 4.4.0 / 06-24-2014
 
 ### Integrations affected
 
@@ -31,8 +31,6 @@ Changes
 * [ENHANCEMENT] Collect more Memcached stats. See [#982][]
 * [BUGFIX] Remove Content-Length header in CONNECT HTTP Requests (when using a proxy), as CONNECT Requests shouldn't have that header and some proxies don't support it.
 
-
-### Changes
 
 # 4.3.1 / 06-03-2014
 
