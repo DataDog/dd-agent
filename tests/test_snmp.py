@@ -2,6 +2,10 @@ import unittest
 import time
 from tests.common import load_check
 
+# This test is dependent of having a fully open snmpd responding at localhost:161
+# with an authentication by the Community String "public"
+# This setup should normally be handled by the .travis.yml file, look there if
+# you want to see how to run these tests locally
 
 class TestSNMP(unittest.TestCase):
 

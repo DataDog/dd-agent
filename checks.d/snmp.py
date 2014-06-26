@@ -104,6 +104,16 @@ class SnmpCheck(AgentCheck):
         return cmdgen.UdpTransportTarget((ip_address, port))
 
     def check_table(self, instance, oids, lookup_names):
+        '''
+        Perform a snmpwalk on the domain specified by the oids, on the device
+        configured in instance.
+        lookup_names is a boolean to specify whether or not to use the mibs to
+        resolve the name and values.
+
+        Returns a dictionary:
+        dict[oid/metric_name][row index] = value
+        In case of scalar objects, the row index is just 0
+        '''
         interface_list = {}
         transport_target = self.get_transport_target(instance)
         auth_data = self.get_auth_data(instance)
@@ -141,10 +151,15 @@ class SnmpCheck(AgentCheck):
         return results
 
     def check(self, instance):
+        '''
+        Perform two series of SNMP requests, one for all that have MIB asociated
+        and should be looked up and one for those specified by oids
+        '''
         tags = instance.get("tags",[])
         ip_address = instance["ip_address"]
         table_oids = []
         raw_oids = []
+
         # Check the metrics completely defined
         for metric in instance.get('metrics', []):
             if 'MIB' in metric:
@@ -165,17 +180,25 @@ class SnmpCheck(AgentCheck):
                     raw_oids.append(metric['OID'])
             else:
                 raise Exception('Unsupported metric in config file: %s' % metric)
-        self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
 
         if table_oids:
+            self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
             table_results = self.check_table(instance, table_oids, True)
             self.report_table_metrics(instance, table_results)
 
         if raw_oids:
+            self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
             raw_results = self.check_table(instance, raw_oids, False)
             self.report_raw_metrics(instance, raw_results)
 
     def report_raw_metrics(self, instance, results):
+        '''
+        For all the metrics that are specified as oid,
+        the conf oid is going to be a prefix of the oid sent back by the device
+        Use the instance configuration to find the name to give to the metric
+
+        Submit the results to the aggregator.
+        '''
         tags = instance.get("tags", [])
         tags = tags + ["snmp_device:"+instance.get('ip_address')]
         for metric in instance.get('metrics', []):
@@ -193,6 +216,12 @@ class SnmpCheck(AgentCheck):
                 self.submit_metric(name, value, tags)
 
     def report_table_metrics(self, instance, results):
+        '''
+        For each of the metrics specified as needing to be resolved with mib,
+        gather the tags requested in the instance conf for each row.
+
+        Submit the results to the aggregator.
+        '''
         tags = instance.get("tags", [])
         tags = tags + ["snmp_device:"+instance.get('ip_address')]
 
@@ -224,10 +253,25 @@ class SnmpCheck(AgentCheck):
                 raise Exception('Unsupported metric in config file: %s' % metric)
 
     def get_index_tags(self, index, results, index_tags, column_tags):
+        '''
+        Gather the tags for this row of the table (index) based on the
+        results (all the results from the query).
+        index_tags and column_tags are the tags to gather.
+         - Those specified in index_tags contain the tag_group name and the
+           index of the value we want to extract from the index tuple.
+           cf. 1 for ipVersion in the IP-MIB::ipSystemStatsTable for example
+         - Those specified in column_tags contain the name of a column, which
+           could be a potential result, to use as a tage
+           cf. ifDescr in the IF-MIB::ifTable for example
+        '''
         tags = []
         for idx_tag in index_tags:
             tag_group = idx_tag[0]
-            tag_value = index[idx_tag[1] - 1].prettyPrint()
+            try:
+                tag_value = index[idx_tag[1] - 1].prettyPrint()
+            except IndexError:
+                self.log.warning("Not enough indexes, skipping this tag")
+                continue
             tags.append("{0}:{1}".format(tag_group, tag_value))
         for col_tag in column_tags:
             tag_group = col_tag[0]
