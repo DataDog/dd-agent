@@ -16,16 +16,18 @@ class TestSNMP(unittest.TestCase):
                     'mibs_folder':'/etc/mibs'
                     },
                 "instances": [{
-                    "ip_address": "localhost",
+                    "ip_address": "192.168.34.10",
                     "port":161,
                     "community_string": "public",
                     "metrics": [{
-                        "OID": "1.3.6.1.2.1.7.1.0",
+                        "OID": "1.3.6.1.2.1.7.1.0", # Counter (needlessly specify the index)
                         "name": "udpDatagrams"
                         },{
-                        "MIB": "TCP-MIB",
+                        "OID": "1.3.6.1.2.1.6.10", # Counter
+                        "name": "tcpInSegs"
+                        },{
+                        "MIB": "TCP-MIB",          # Gauge
                         "symbol": "tcpCurrEstab",
-                        "index":"0"
                         }]
                     }]
                 }
@@ -33,8 +35,6 @@ class TestSNMP(unittest.TestCase):
     def testInit(self):
         # Initialize the check from checks.d
         self.check = load_check('snmp', self.config, self.agentConfig)
-        # Assert that some interface got detected on the host
-        self.assertTrue(len(self.check.interface_list["localhost"]) > 0)
 
         mib_folders = self.check.cmd_generator.snmpEngine.msgAndPduDsp\
                 .mibInstrumController.mibBuilder.getMibSources()
@@ -52,8 +52,8 @@ class TestSNMP(unittest.TestCase):
         self.check.check(self.config['instances'][0])
         metrics = self.check.get_metrics()
 
-        # Assert that there is only the gauge metric because the counter is used
-        # as a rate so we don't report with 1 point
+        # Assert that there is only the gauge metric because the counters are
+        # used as rate so we don't report them with 1 point
         self.assertEqual(len(metrics), 1)
         self.assertEqual(metrics[0][0], 'snmp.tcpCurrEstab')
 
@@ -63,15 +63,14 @@ class TestSNMP(unittest.TestCase):
         self.check.check(self.config['instances'][0])
         metrics = self.check.get_metrics()
 
-        self.assertEqual(len(metrics) ,2)
-        expected_metrics = ['snmp.udpDatagrams','snmp.tcpCurrEstab']
+        self.assertEqual(len(metrics) ,3)
+        expected_metrics = ['snmp.udpDatagrams', 'snmp.tcpCurrEstab', 'snmp.tcpInSegs']
         for metric in expected_metrics:
-            metric_present=False
             for result in metrics:
                 if result[0] == metric:
-                    metric_present = True
                     break
-            self.assertTrue(metric_present)
+            else:
+                self.fail("Missing metric: %s" % metric)
 
 if __name__ == "__main__":
     unittest.main()

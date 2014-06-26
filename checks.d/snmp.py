@@ -156,7 +156,13 @@ class SnmpCheck(AgentCheck):
                     self.log.warning("Can't generate MIB object for variable : %s\n"
                                      "Exception: %s", metric, e)
             elif 'OID' in metric:
-                raw_oids.append(metric['OID'])
+                if metric['OID'].endswith('.0'):
+                    # oid containing the .0 index, as it's a scalar
+                    # because we are querying using getnext, we need to remove it
+                    self.log.debug("Removing the trailing .0 in the oid")
+                    raw_oids.append(metric['OID'][:-2])
+                else:
+                    raw_oids.append(metric['OID'])
             else:
                 raise Exception('Unsupported metric in config file: %s' % metric)
         self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
