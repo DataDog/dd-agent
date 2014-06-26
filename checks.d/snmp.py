@@ -32,8 +32,6 @@ class SnmpCheck(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-        self.interface_list = {}
-
         # Load Custom MIB directory
         mibs_path = None
         if init_config is not None:
@@ -114,7 +112,6 @@ class SnmpCheck(AgentCheck):
         dict[oid/metric_name][row index] = value
         In case of scalar objects, the row index is just 0
         '''
-        interface_list = {}
         transport_target = self.get_transport_target(instance)
         auth_data = self.get_auth_data(instance)
 
@@ -233,8 +230,10 @@ class SnmpCheck(AgentCheck):
                     tag_key = metric_tag['tag']
                     if 'index' in metric_tag:
                         index_based_tags.append((tag_key, metric_tag.get('index')))
-                    if 'column' in metric_tag:
+                    elif 'column' in metric_tag:
                         column_based_tags.append((tag_key, metric_tag.get('column')))
+                    else:
+                        self.log.warning("No indication on what value to use for this tag")
 
                 for value_to_collect in metric.get("symbols", []):
                     for index, val in results[value_to_collect].items():
@@ -245,10 +244,14 @@ class SnmpCheck(AgentCheck):
 
             elif 'symbol' in metric:
                 name = metric['symbol']
-                for _, val in results[name].items():
-                    self.submit_metric(name, val, tags)
+                results = results[name].items()
+                if len(results) > 1:
+                    self.log("Several rows corresponding while the metric is supposed to be a scalar")
+                    continue
+                val = results[0][1]
+                self.submit_metric(name, val, tags)
             elif 'OID' in metric:
-                pass
+                pass # This one is already handled by the other batch of requests
             else:
                 raise Exception('Unsupported metric in config file: %s' % metric)
 
@@ -275,7 +278,11 @@ class SnmpCheck(AgentCheck):
             tags.append("{0}:{1}".format(tag_group, tag_value))
         for col_tag in column_tags:
             tag_group = col_tag[0]
-            tag_value = results[col_tag[1]][index]
+            try:
+                tag_value = results[col_tag[1]][index]
+            except KeyError:
+                self.log.warning("Column %s not present in the table, skipping this tag", col_tag[1])
+                continue
             if reply_invalid(tag_value):
                 self.log.warning("Can't deduct tag from column for tag %s",
                                  tag_group)
