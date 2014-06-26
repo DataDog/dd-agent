@@ -221,12 +221,12 @@ class SnmpCheck(AgentCheck):
         for counter_class in SNMP_COUNTERS:
             if snmp_class==counter_class:
                 value = int(snmp_value)
-                self.rate(name, value, tags)
+                self.rate(metric_name, value, tags)
                 return
         for gauge_class in SNMP_GAUGES:
             if snmp_class==gauge_class:
                 value = int(snmp_value)
-                self.gauge(name, value, tags)
+                self.gauge(metric_name, value, tags)
                 return
 
         self.log.warning("Unsupported metric type %s", snmp_class)
