@@ -16,7 +16,7 @@ class TestSNMP(unittest.TestCase):
                     'mibs_folder':'/etc/mibs'
                     },
                 "instances": [{
-                    "ip_address": "192.168.34.10",
+                    "ip_address": "localhost",
                     "port":161,
                     "community_string": "public",
                     "metrics": [{
