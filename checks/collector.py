@@ -434,6 +434,11 @@ class Collector(object):
                     [command], stdout=subprocess.PIPE
                 ).communicate()[0]
                 payload['gohai'] = gohai_metadata
+            except OSError as e:
+                if e.errno == 2:  # file not found, expected when install from source
+                    log.info("gohai file not found")
+                else:
+                    raise e
             except Exception as e:
                 log.warning("gohai command failed with error %s" % str(e))
 
