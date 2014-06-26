@@ -225,7 +225,7 @@ class SnmpCheck(AgentCheck):
         tags = []
         for idx_tag in index_tags:
             tag_group = idx_tag[0]
-            tag_value = index[idx_tag[1] - 1]
+            tag_value = index[idx_tag[1] - 1].prettyPrint()
             tags.append("{0}:{1}".format(tag_group, tag_value))
         for col_tag in column_tags:
             tag_group = col_tag[0]
@@ -234,6 +234,7 @@ class SnmpCheck(AgentCheck):
                 self.log.warning("Can't deduct tag from column for tag %s",
                                  tag_group)
                 continue
+            tag_value = tag_value.prettyPrint()
             tags.append("{0}:{1}".format(tag_group, tag_value))
         return tags
 
@@ -249,9 +250,6 @@ class SnmpCheck(AgentCheck):
 
         metric_name = self.normalize(name, prefix="snmp")
 
-        self.log.warning("metric: %s\n"
-                         "value: %s\n"
-                         "tags: %s\n\n", metric_name, snmp_value, tags)
         # Ugly hack but couldn't find a cleaner way
         # Proper way would be to use the ASN1 method isSameTypeWith but it
         # wrongfully returns True in the case of CounterBasedGauge64
