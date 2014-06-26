@@ -13,13 +13,13 @@ class SQLServer(AgentCheck):
 
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'gauge', 'Buffer cache hit ratio'),
-        ('sqlserver.buffer.page_life_expectancy', 'gauge', 'Page life expectancy'),
-        ('sqlserver.stats.batch_requests', 'gauge', 'Batch Requests/sec'),
-        ('sqlserver.stats.sql_compilations', 'gauge', 'SQL Compilations/sec'),
+        ('sqlserver.buffer.page_life_expectancy', 'rate', 'Page life expectancy'),
+        ('sqlserver.stats.batch_requests', 'rate', 'Batch Requests/sec'),
+        ('sqlserver.stats.sql_compilations', 'rate', 'SQL Compilations/sec'),
         ('sqlserver.stats.sql_recompilations', 'gauge', 'SQL Re-Compilations/sec'),
         ('sqlserver.stats.connections', 'gauge', 'User connections'),
-        ('sqlserver.stats.lock_waits', 'gauge', 'Lock Waits/sec', '_Total'),
-        ('sqlserver.access.page_splits', 'gauge', 'Page Splits/sec'),
+        ('sqlserver.stats.lock_waits', 'rate', 'Lock Waits/sec', '_Total'),
+        ('sqlserver.access.page_splits', 'rate', 'Page Splits/sec'),
         ('sqlserver.stats.procs_blocked', 'gauge', 'Processes Blocked'),
         ('sqlserver.buffer.checkpoint_pages', 'gauge', 'Checkpoint pages/sec')
     ]
