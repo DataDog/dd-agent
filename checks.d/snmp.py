@@ -17,14 +17,6 @@ import pysnmp.proto.rfc1902 as snmp_type
 SNMP_COUNTERS = [snmp_type.Counter32.__name__, snmp_type.Counter64.__name__, ZeroBasedCounter64.__name__]
 SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
 
-# IF-MIB magic values
-IF_TABLE_OID = '.1.3.6.1.2.1.2.2.1.'
-IF_TABLE_TYPE_POS = 9
-IF_TABLE_INDEX_POS = 10
-IF_DESCR = 2
-IF_TYPE = 3
-LOCALHOST_INTERFACE = 24
-
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
            noSuchObject.isSameTypeWith(oid)
@@ -44,13 +36,6 @@ class SnmpCheck(AgentCheck):
             mibs_path = init_config.get("mibs_folder")
         SnmpCheck.create_command_generator(mibs_path)
 
-        # Detect the interfaces of the instance and retain their indexes
-        if instances is not None:
-            for instance in instances:
-                if 'ip_address' in instance:
-                    ip_address = instance["ip_address"]
-                    self.interface_list[ip_address] = self.get_interfaces(instance)
-
     @classmethod
     def create_command_generator(cls, mibs_path=None):
         '''
@@ -66,52 +51,6 @@ class SnmpCheck(AgentCheck):
                     builder.DirMibSource(mibs_path),
                     )
             mib_builder.setMibSources(*mib_sources)
-
-    def get_interfaces(self, instance):
-        '''
-        Query the IF-MIB table to get the list of interfaces and their description
-        Ignore the interfaces that are loopback (localhost)
-        The nextCmd will return all the value in a format like this:
-
-            [(1.3.6.1.2.1.2.2.1.{what type of information}.{index of the interface}, information)]
-
-        For now we only care about the index, the description(eg. interface name eth0) and the type
-        to ignore the loopback interface
-        See http://www.alvestrand.no/objectid/1.3.6.1.2.1.2.2.1.html for more info about the table
-        '''
-        interface_list = {}
-        transport_target = self.get_transport_target(instance)
-        auth_data = self.get_auth_data(instance)
-
-        snmp_command = self.cmd_generator.nextCmd
-        error_indication, error_status, error_index, var_binds = snmp_command(
-            auth_data,
-            transport_target,
-            IF_TABLE_OID,
-            lookupValues = True
-            )
-
-        if_table = defaultdict(dict)
-        if error_indication:
-            raise Exception("{0} for instance {1}".format(error_indication, instance["ip_address"]))
-        else:
-            if error_status:
-                raise Exception("{0} for instance {1}".format(error_status.prettyPrint(), instance["ip_address"]))
-            else:
-                for table_row in var_binds:
-                    for name, val in table_row:
-                        if_table[name.asTuple()[IF_TABLE_INDEX_POS]][name.asTuple()[IF_TABLE_TYPE_POS]] = val
-
-        self.log.debug("Interface Table discovered %s" % if_table)
-        for index in if_table:
-            type = if_table[index].get(IF_TYPE)
-            descr = if_table[index].get(IF_DESCR)
-            if not reply_invalid(type):
-                if int(type) != LOCALHOST_INTERFACE and not reply_invalid(descr):
-                    interface_list[index] = str(descr)
-                    self.log.info("Discovered interface %s" % str(descr))
-
-        return interface_list
 
     @classmethod
     def get_auth_data(cls, instance):
@@ -155,90 +94,96 @@ class SnmpCheck(AgentCheck):
         port = instance.get("port", 161) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address, port))
 
-    def check(self, instance):
-        tags = instance.get("tags",[])
-        ip_address = instance["ip_address"]
-        device_oids = []
-        oid_names ={}
+    def check_table(self, instance, oids):
+        interface_list = {}
+        transport_target = self.get_transport_target(instance)
+        auth_data = self.get_auth_data(instance)
 
-        # Check the metrics completely defined
-        for metric in instance.get('metrics', []):
-            if 'MIB' in metric:
-                device_oids.append(((metric["MIB"], metric["symbol"]), metric["index"]))
-            elif 'OID' in metric:
-                device_oids.append(metric['OID'])
-                # Associate the name to the OID so that we can perform the matching
-                oid_names[metric['OID']] = metric['name']
-            else:
-                raise Exception('Unsupported metrics format in config file')
-        self.log.debug("Querying device %s for %s oids", ip_address, len(device_oids))
-        results = SnmpCheck.snmp_get(instance, device_oids)
-        for oid, value in results:
-            self.submit_metric(instance, oid, value, tags=tags + ["snmp_device:" + ip_address],
-                                                     oid_names = oid_names)
-
-        # Check the metrics defined per interface by appending the index
-        # of the table to create a fully defined metric
-        interface_oids = []
-        for metric in instance.get('interface_metrics', []):
-            interface_oids.append((metric["MIB"], metric["symbol"]))
-        for interface, descr in self.interface_list[instance['ip_address']].items():
-            oids = [(oid, interface) for oid in interface_oids]
-            self.log.debug("Querying device %s for %s oids", ip_address, len(oids))
-            interface_results = SnmpCheck.snmp_get(instance, oids)
-            for oid, value in interface_results:
-                self.submit_metric(instance, oid, value, tags = tags + ["snmp_device:" + ip_address,
-                                                                            "interface:"+descr])
-
-    @classmethod
-    def snmp_get(cls, instance, oids):
-        """
-        Perform a snmp get command to the device that instance
-        describe and return a list of tuble (name, values)
-        corresponding to the elements in oids.
-        """
-        transport_target = cls.get_transport_target(instance)
-        auth_data = cls.get_auth_data(instance)
-
-
-        snmp_command = cls.cmd_generator.getCmd
+        snmp_command = self.cmd_generator.nextCmd
         error_indication, error_status, error_index, var_binds = snmp_command(
-                auth_data,
-                transport_target,
-                *oids,
-                lookupNames=True,
-                lookupValues=True
-                )
+            auth_data,
+            transport_target,
+            *oids,
+            lookupValues = True,
+            lookupNames = True
+            )
 
+        results = defaultdict(dict)
         if error_indication:
             raise Exception("{0} for instance {1}".format(error_indication, instance["ip_address"]))
         else:
             if error_status:
                 raise Exception("{0} for instance {1}".format(error_status.prettyPrint(), instance["ip_address"]))
             else:
-                return var_binds
+                for table_row in var_binds:
+                    for result_oid, value in table_row:
+                        object = result_oid.getMibSymbol()
+                        metric =  object[1]
+                        indexes = object[2]
+                        results[metric][indexes] = value
 
-    def submit_metric(self, instance, oid, snmp_value, tags=[], oid_names={}):
+        return results
+
+    def check(self, instance):
+        tags = instance.get("tags",[])
+        ip_address = instance["ip_address"]
+        table_oids = []
+        # Check the metrics completely defined
+        for metric in instance.get('metrics', []):
+            if 'MIB' in metric:
+                try:
+                    assert "table" in metric or "symbol" in metric
+                    to_query = metric.get("table", metric.get("symbol"))
+                    table_oids.append(cmdgen.MibVariable(metric["MIB"], to_query))
+                except Exception as e:
+                    self.log.warning("Can't generate MIB object for variable : %s\nException: %s", metric, e)
+            else:
+                raise Exception('Unsupported metrics format in config file')
+        self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
+        results = self.check_table(instance, table_oids)
+        self.report_table_metrics(instance, results)
+
+    def report_table_metrics(self, instance, results):
+        tags = instance.get("tags", [])
+        tags = tags + ["snmp_device:"+instance.get('ip_address')]
+
+        for metric in instance.get('metrics', []):
+            if 'table' in metric:
+                index_tags = []
+                column_tags = []
+                for metric_tag in metric.get('metric_tags', []):
+                    tag_key = metric_tag['tag']
+                    if 'index' in metric_tag:
+                        index_tags.append((tag_key, metric_tag.get('index')))
+                    if 'column' in metric_tag:
+                        column_tags.append((tag_key, metric_tag.get('column')))
+
+                for value_to_collect in metric.get("symbols", []):
+                    for index, val in results[value_to_collect].items():
+                        tag_for_this_index = tags + ["{0}:{1}".format(idx_tag[0], index[idx_tag[1] - 1]) for idx_tag in index_tags]
+                        tag_for_this_index.extend(["{0}:{1}".format(col_tag[0], results[col_tag[1]][index]) for col_tag in column_tags])
+
+                        self.submit_metric(value_to_collect, val, tag_for_this_index)
+
+            elif 'symbol' in metric:
+                name = metric['symbol']
+                for _, val in results[name].items():
+                    self.submit_metric(name, val, tags)
+
+
+    def submit_metric(self, name, snmp_value, tags=[]):
         '''
         Convert the values reported as pysnmp-Managed Objects to values and
         report them to the aggregator
         '''
         if reply_invalid(snmp_value):
             # Metrics not present in the queried object
-            self.log.warning("No such Mib available: %s" %oid.getMibSymbol()[1])
+            self.log.warning("No such Mib available: %s" % name)
             return
 
-        # Get the name for the OID either from the name that we can decode
-        # or from the name that was specified for it
-        if str(oid.getOid()) in oid_names:
-            name = "snmp."+ oid_names[str(oid.getOid())]
-        else:
-            try:
-                name = "snmp." + oid.getMibSymbol()[1]
-            except Exception:
-                self.log.warning("Couldn't find a name for oid {0}".format(oid))
-                return
+        metric_name = "snmp." + name
 
+        self.log.warning("metric: %s\nvalue: %s\ntags: %s\n\n", metric_name, snmp_value, tags)
         # Ugly hack but couldn't find a cleaner way
         # Proper way would be to use the ASN1 method isSameTypeWith but this
         # returns True in the case of CounterBasedGauge64 and Counter64 for example
