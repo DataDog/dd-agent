@@ -167,11 +167,13 @@ class SnmpCheck(AgentCheck):
                 raise Exception('Unsupported metric in config file: %s' % metric)
         self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
 
-        table_results = self.check_table(instance, table_oids, True)
-        self.report_table_metrics(instance, table_results)
+        if table_oids:
+            table_results = self.check_table(instance, table_oids, True)
+            self.report_table_metrics(instance, table_results)
 
-        raw_results = self.check_table(instance, raw_oids, False)
-        self.report_raw_metrics(instance, raw_results)
+        if raw_oids:
+            raw_results = self.check_table(instance, raw_oids, False)
+            self.report_raw_metrics(instance, raw_results)
 
     def report_raw_metrics(self, instance, results):
         tags = instance.get("tags", [])
