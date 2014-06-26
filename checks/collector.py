@@ -426,8 +426,12 @@ class Collector(object):
         if self._should_send_additional_data('metadata'):
             # gather metadata with gohai
             try:
+                if get_os() != 'windows':
+                    command = "./gohai"
+                else:
+                    command = "gohai\gohai.exe"
                 gohai_metadata = subprocess.Popen(
-                    ["gohai"], stdout=subprocess.PIPE, close_fds=True
+                    [command], stdout=subprocess.PIPE
                 ).communicate()[0]
                 payload['gohai'] = gohai_metadata
             except Exception as e:
