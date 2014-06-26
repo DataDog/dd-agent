@@ -20,8 +20,9 @@ instances:
 #              symbol: udpInDatagrams
 #            - MIB: TCP-MIB
 #              symbol: tcpActiveOpens
-#            - MIB: TCP-MIB
-#              symbol: tcpPassiveOpens
+#            # If it's just a scalar, you can specify by OID and name it
+#            - OID: 1.3.6.1.2.1.6.5
+#              name: tcpPassiveOpens
 #
 #            # You can also query a table and specify
 #            #   - which columns to report as value (symbols)

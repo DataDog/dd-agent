@@ -103,7 +103,7 @@ class SnmpCheck(AgentCheck):
         port = instance.get("port", 161) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address, port))
 
-    def check_table(self, instance, oids):
+    def check_table(self, instance, oids, lookup_names):
         interface_list = {}
         transport_target = self.get_transport_target(instance)
         auth_data = self.get_auth_data(instance)
@@ -113,8 +113,8 @@ class SnmpCheck(AgentCheck):
             auth_data,
             transport_target,
             *oids,
-            lookupValues = True,
-            lookupNames = True
+            lookupValues = lookup_names,
+            lookupNames = lookup_names
             )
 
         results = defaultdict(dict)
@@ -128,10 +128,15 @@ class SnmpCheck(AgentCheck):
             else:
                 for table_row in var_binds:
                     for result_oid, value in table_row:
-                        object = result_oid.getMibSymbol()
-                        metric =  object[1]
-                        indexes = object[2]
-                        results[metric][indexes] = value
+                        if lookup_names:
+                            object = result_oid.getMibSymbol()
+                            metric =  object[1]
+                            indexes = object[2]
+                            results[metric][indexes] = value
+                        else:
+                            oid = result_oid.asTuple()
+                            matching = ".".join([str(i) for i in oid])
+                            results[matching] = value
 
         return results
 
@@ -139,6 +144,7 @@ class SnmpCheck(AgentCheck):
         tags = instance.get("tags",[])
         ip_address = instance["ip_address"]
         table_oids = []
+        raw_oids = []
         # Check the metrics completely defined
         for metric in instance.get('metrics', []):
             if 'MIB' in metric:
@@ -149,11 +155,34 @@ class SnmpCheck(AgentCheck):
                 except Exception as e:
                     self.log.warning("Can't generate MIB object for variable : %s\n"
                                      "Exception: %s", metric, e)
+            elif 'OID' in metric:
+                raw_oids.append(metric['OID'])
             else:
-                raise Exception('Unsupported metrics format in config file')
+                raise Exception('Unsupported metric in config file: %s' % metric)
         self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-        results = self.check_table(instance, table_oids)
-        self.report_table_metrics(instance, results)
+
+        table_results = self.check_table(instance, table_oids, True)
+        self.report_table_metrics(instance, table_results)
+
+        raw_results = self.check_table(instance, raw_oids, False)
+        self.report_raw_metrics(instance, raw_results)
+
+    def report_raw_metrics(self, instance, results):
+        tags = instance.get("tags", [])
+        tags = tags + ["snmp_device:"+instance.get('ip_address')]
+        for metric in instance.get('metrics', []):
+            if 'OID' in metric:
+                queried_oid = metric['OID']
+                for oid in results:
+                    if oid.startswith(queried_oid):
+                        value = results[oid]
+                        break
+                else:
+                    self.log.warning("No matching results found for oid %s",
+                                                                  queried_oid)
+                    continue
+                name = metric.get('name','unnamed_metric')
+                self.submit_metric(name, value, tags)
 
     def report_table_metrics(self, instance, results):
         tags = instance.get("tags", [])
@@ -181,6 +210,10 @@ class SnmpCheck(AgentCheck):
                 name = metric['symbol']
                 for _, val in results[name].items():
                     self.submit_metric(name, val, tags)
+            elif 'OID' in metric:
+                pass
+            else:
+                raise Exception('Unsupported metric in config file: %s' % metric)
 
     def get_index_tags(self, index, results, index_tags, column_tags):
         tags = []
