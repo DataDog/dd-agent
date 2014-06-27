@@ -108,7 +108,7 @@ class TestSNMP(unittest.TestCase):
         metrics = self.check.get_metrics()
         # nb of metrics depends on the nb of interfaces on the test machine
         # so it's not possible to specify an excat number
-        self.assertGreater(len(metrics), 0)
+        self.assertTrue(len(metrics)>0, "No metrics")
         for metric in metrics:
             self.assertTrue(metric[0] in ['snmp.ifInOctets', 'snmp.ifOutOctets'],
                             metric[0])
