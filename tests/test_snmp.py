@@ -120,12 +120,14 @@ class TestSNMP(unittest.TestCase):
                 tag_group = tag.split(":")[0]
                 self.assertTrue(tag_group in tag_group_expected, tag_group)
                 if tag_group == "interface":
-                    # Assert that the column tags are properly represented and
-                    # not left to their numerical equivalent form.
-                    # If this assertion fails, it may be that the list is non exhaustive
                     interface_type = tag.split(":")[1]
-                    self.assertTrue(interface_type in ["lo", "eth0", "eth1"],
-                                    interface_type)
+                    try:
+                        float(interface_type)
+                    except:
+                        pass
+                    else:
+                        self.fail("Tag discovered not pretty printed %s",
+                                                                interface_type)
 
 if __name__ == "__main__":
     unittest.main()
