@@ -126,8 +126,7 @@ class TestSNMP(unittest.TestCase):
                     except:
                         pass
                     else:
-                        self.fail("Tag discovered not pretty printed %s",
-                                                                interface_type)
+                        self.fail("Tag discovered not pretty printed %s" % interface_type)
 
 if __name__ == "__main__":
     unittest.main()
