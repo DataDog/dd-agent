@@ -38,8 +38,8 @@ before_script:
   - psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE datadog_test to datadog"
   - psql -U datadog -c "CREATE TABLE Persons (PersonID int, LastName varchar(255), FirstName varchar(255), Address varchar(255), City varchar(255))" datadog_test
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl http://apache.mirrors.multidist.eu/cassandra/2.0.8/apache-cassandra-2.0.8-bin.tar.gz | tar -C /tmp -xzv
-  - sudo /tmp/apache-cassandra-2.0.8/bin/cassandra
+  - curl http://apache.mirrors.multidist.eu/cassandra/2.0.9/apache-cassandra-2.0.9-bin.tar.gz | tar -C /tmp -xzv
+  - sudo /tmp/apache-cassandra-2.0.9/bin/cassandra
   - sudo service haproxy restart
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat_cfg.xml > /etc/tomcat6/server.xml"
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat6 >> /etc/default/tomcat6"
