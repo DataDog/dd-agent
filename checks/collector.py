@@ -427,7 +427,7 @@ class Collector(object):
             # gather metadata with gohai
             try:
                 if get_os() != 'windows':
-                    command = "./gohai"
+                    command = "gohai"
                 else:
                     command = "gohai\gohai.exe"
                 gohai_metadata = subprocess.Popen(
