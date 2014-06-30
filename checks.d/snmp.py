@@ -244,11 +244,11 @@ class SnmpCheck(AgentCheck):
 
             elif 'symbol' in metric:
                 name = metric['symbol']
-                results = results[name].items()
-                if len(results) > 1:
+                result = results[name].items()
+                if len(result) > 1:
                     self.log("Several rows corresponding while the metric is supposed to be a scalar")
                     continue
-                val = results[0][1]
+                val = result[0][1]
                 self.submit_metric(name, val, tags)
             elif 'OID' in metric:
                 pass # This one is already handled by the other batch of requests
