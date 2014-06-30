@@ -170,8 +170,14 @@ class Redis(AgentCheck):
             if self.db_key_pattern.match(key):
                 db_tags = list(tags) + ["redis_db:" + key]
                 # allows tracking percentage of expired keys as DD does not
-                # currently allow subtraction of 2 values in monitoring
-                self.gauge("redis.expires.percent", 100.0 * info[key]["expires"] / info[key]["keys"], tags=db_tags)
+                # currently allow arithmetic on metric for monitoring
+                expires_keys = info[key]["expires"]
+                total_keys   = info[key]["keys"]
+                persist_keys = total_keys - expires_keys
+                self.gauge("redis.persist", persist_keys, tags=db_tags)
+                self.gauge("redis.persist.percent", 100.0 * persist_keys / total_keys, tags=db_tags)
+                self.gauge("redis.expires.percent", 100.0 * expires_keys / total_keys, tags=db_tags)
+
                 for subkey in self.subkeys:
                     # Old redis module on ubuntu 10.04 (python-redis 0.6.1) does not
                     # returns a dict for those key but a string: keys=3,expires=0
