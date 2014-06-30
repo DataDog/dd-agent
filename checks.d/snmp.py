@@ -130,7 +130,7 @@ class SnmpCheck(AgentCheck):
                                                           instance["ip_address"]))
         else:
             if error_status:
-                raise Exception("{0} for instance {1}".format(error_status.prettyPrint(),
+                self.log.warning("{0} for instance {1}".format(error_status.prettyPrint(),
                                                               instance["ip_address"]))
             else:
                 for table_row in var_binds:
