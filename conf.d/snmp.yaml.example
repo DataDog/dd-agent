@@ -32,7 +32,7 @@ instances:
 #              symbols:
 #                - ifInOctets
 #                - ifOutOctets
-#              metric_tags :
+#              metric_tags:
 #                - tag: interface
 #                  column: ifDescr  # specify which column to read the tag value from
 #            - MIB: IP-MIB
@@ -57,10 +57,8 @@ instances:
 #        tags:
 #           - optional_tag_1
 #           - optional_tag_2
-#
-#        # Metrics to monitor on each interface
-#        interface_metrics:
-#            - MIB: IF-MIB
-#              symbol: ifInOctets
-#            - MIB: IF-MIB
-#              symbol: ifOutOctets
+#        metrics:
+#            - MIB: UDP-MIB
+#              symbol: udpInDatagrams
+#            - MIB: TCP-MIB
+#              symbol: tcpActiveOpens
