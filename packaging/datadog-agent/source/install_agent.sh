@@ -66,6 +66,16 @@ Please use the 1-step script available at https://app.datadoghq.com/account/sett
     exit 1;
 fi
 
+DDBASE=false
+# Python Detection
+has_python=$(which python || echo "no")
+if [ $has_python != "no" ]; then
+    PY_VERSION=$(python -c 'import sys; print "%d.%d" % (sys.version_info[0], sys.version_info[1])')
+    if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
+        DDBASE=true
+    fi
+fi 
+
 # Root user detection
 if [ $(echo "$UID") = "0" ]; then
     sudo_cmd=''
@@ -88,10 +98,13 @@ if [ $OS = "RedHat" ]; then
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
     if $DDBASE; then
-        $sudo_cmd yum -y install datadog-agent-base
-    else
-        $sudo_cmd yum -y install datadog-agent
+        dd-base-installed=$(yum list installed datadog-agent-base || echo "no")
+        if [ $dd-base-installed != "no"]; then
+            echo -e "\033[34m\n* Uninstall datadog-agent-base\n\033[0m"
+            $sudo_cmd yum -y remove datadog-agent-base
+        fi
     fi
+    $sudo_cmd yum -y install datadog-agent
 elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
