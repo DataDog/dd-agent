@@ -66,6 +66,9 @@ use_mount: no
 # Optional, it is mainly used when running the agent on Openshift
 # bind_host: localhost
 
+# If enabled the collector will capture a metric for check run times.
+# check_timings: false
+
 # ========================================================================== #
 # Pup configuration
 # ========================================================================== #
