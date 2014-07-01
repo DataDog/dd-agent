@@ -74,7 +74,7 @@ if [ $has_python != "no" ]; then
     if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
         DDBASE=true
     fi
-fi 
+fi
 
 # Root user detection
 if [ $(echo "$UID") = "0" ]; then
@@ -88,7 +88,7 @@ if [ $OS = "RedHat" ]; then
     echo -e "\033[34m\n* Installing YUM sources for Datadog\n\033[0m"
 
     UNAME_M=$(uname -m)
-    if [ "$UNAME_M"  == "i686" || "$UNAME_M"  == "i386" || "$UNAME_M"  == "x86" ]; then
+    if [ "$UNAME_M"  == "i686" -o "$UNAME_M"  == "i386" -o "$UNAME_M"  == "x86" ]; then
         ARCHI="i386"
     else
         ARCHI="x86_64"
@@ -98,8 +98,8 @@ if [ $OS = "RedHat" ]; then
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
     if $DDBASE; then
-        dd-base-installed=$(yum list installed datadog-agent-base || echo "no")
-        if [ $dd-base-installed != "no"]; then
+        DD_BASE_INSTALLED=$(yum list installed datadog-agent-base || echo "no")
+        if [ $DD_BASE_INSTALLED != "no"]; then
             echo -e "\033[34m\n* Uninstall datadog-agent-base\n\033[0m"
             $sudo_cmd yum -y remove datadog-agent-base
         fi
