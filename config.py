@@ -683,7 +683,7 @@ def load_check_directory(agentConfig):
         msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
         deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
         log.error(msg)
-    
+
     osname = get_os()
     checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
 
@@ -710,7 +710,7 @@ def load_check_directory(agentConfig):
 
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
-    # If there is a matching configuration file in the conf.d directory 
+    # If there is a matching configuration file in the conf.d directory
     # then we import the check
     for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
@@ -745,7 +745,7 @@ def load_check_directory(agentConfig):
                 log.debug("No configuration file for %s" % check_name)
                 continue
 
-        # If we are here, there is a valid matching configuration file. 
+        # If we are here, there is a valid matching configuration file.
         # Let's try to import the check
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
