@@ -336,6 +336,18 @@ class AgentCheck(object):
         """
         self.aggregator.decrement(metric, value, tags, hostname, device_name)
 
+    def count(self, metric, value=0, tags=None, hostname=None, device_name=None):
+        """
+        Submit a raw count with optional tags, hostname and device name
+
+        :param metric: The name of the metric
+        :param value: The value
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.count(metric, value, tags, hostname, device_name)
+
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
         Submit a point for a metric that will be calculated as a rate on flush.

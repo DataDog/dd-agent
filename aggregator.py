@@ -96,6 +96,37 @@ class BucketGauge(Gauge):
 
         return []
 
+class Count(Metric):
+    """ A metric that tracks a count. """
+
+    def __init__(self, formatter, name, tags, hostname, device_name):
+        self.formatter = formatter
+        self.name = name
+        self.value = 0
+        self.tags = tags
+        self.hostname = hostname
+        self.device_name = device_name
+        self.last_sample_time = None
+
+    def sample(self, value, sample_rate, timestamp=None):
+        self.value += value
+        self.last_sample_time = time()
+
+    def flush(self, timestamp, interval):
+        try:
+            return [self.formatter(
+                metric=self.name,
+                value=self.value,
+                timestamp=timestamp,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name,
+                metric_type=MetricTypes.COUNT,
+                interval=interval,
+            )]
+        finally:
+            self.value = 0
+
 class Counter(Metric):
     """ A metric that tracks a counter value. """
 
@@ -472,6 +503,7 @@ class MetricsBucketAggregator(Aggregator):
         self.last_flush_cutoff_time = 0
         self.metric_type_to_class = {
             'g': BucketGauge,
+            'ct': Count,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
@@ -592,6 +624,7 @@ class MetricsAggregator(Aggregator):
         self.metrics = {}
         self.metric_type_to_class = {
             'g': Gauge,
+            'ct': Count,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
@@ -628,6 +661,9 @@ class MetricsAggregator(Aggregator):
 
     def rate(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
+
+    def count(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'ct', tags, hostname, device_name)
 
     def histogram(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'h', tags, hostname, device_name)
