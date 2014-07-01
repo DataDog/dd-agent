@@ -346,7 +346,7 @@ class AgentCheck(object):
         :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
         :param device_name: (optional) The device name for this metric
         """
-        self.aggregator.count(metric, value, tags, hostname, device_name)
+        self.aggregator.submit_count(metric, value, tags, hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """

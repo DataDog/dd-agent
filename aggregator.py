@@ -662,7 +662,7 @@ class MetricsAggregator(Aggregator):
     def rate(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
 
-    def count(self, name, value, tags=None, hostname=None, device_name=None):
+    def submit_count(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'ct', tags, hostname, device_name)
 
     def histogram(self, name, value, tags=None, hostname=None, device_name=None):
