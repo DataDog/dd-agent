@@ -69,7 +69,7 @@ fi
 DDBASE=false
 # Python Detection
 has_python=$(which python || echo "no")
-if [ $has_python != "no" ]; then
+if [ "$has_python" != "no" ]; then
     PY_VERSION=$(python -c 'import sys; print "%d.%d" % (sys.version_info[0], sys.version_info[1])')
     if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
         DDBASE=true
@@ -98,8 +98,8 @@ if [ $OS = "RedHat" ]; then
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
     if $DDBASE; then
-        DD_BASE_INSTALLED=$(yum list installed datadog-agent-base || echo "no")
-        if [ $DD_BASE_INSTALLED != "no"]; then
+        DD_BASE_INSTALLED=$(yum list installed datadog-agent-base > /dev/null 2>&1 || echo "no")
+        if [ "$DD_BASE_INSTALLED" != "no" ]; then
             echo -e "\033[34m\n* Uninstall datadog-agent-base\n\033[0m"
             $sudo_cmd yum -y remove datadog-agent-base
         fi
