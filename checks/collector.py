@@ -60,7 +60,7 @@ class Collector(object):
         self.continue_running = True
         self.metadata_cache = None
         self.initialized_checks_d = []
-        self.init_failed_checks_d = []
+        self.init_failed_checks_d = {}
 
         # Unix System Checks
         self._unix_system_checks = {
@@ -378,6 +378,7 @@ class Collector(object):
             log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
 
+        return payload
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """

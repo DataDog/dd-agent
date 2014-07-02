@@ -6,6 +6,7 @@ from checks import (Check, AgentCheck,
     CheckException, UnknownValue, CheckException, Infinity)
 from checks.collector import Collector
 from aggregator import MetricsAggregator
+from common import load_check
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -120,6 +121,41 @@ class TestCore(unittest.TestCase):
                     'message': None,
                 }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
+
+    def test_collector(self):
+        agentConfig = {
+            'api_key': 'test_apikey',
+            'check_timings': True,
+            'collect_ec2_tags': True,
+            'collect_instance_metadata': False,
+            'version': 'test',
+            'tags': '',
+        }
+
+        # Run a single checks.d check as part of the collector.
+        redis_config = {
+            "init_config": {},
+            "instances": [{"host": "localhost", "port": 6379}]
+        }
+        checks = [load_check('redisdb', redis_config, agentConfig)]
+
+        c = Collector(agentConfig, [], {})
+        payload = c.run({
+            'initialized_checks': checks,
+            'init_failed_checks': {}
+        })
+        metrics = payload['metrics']
+
+        # Check that we got a timing metric for all checks.
+        timing_metrics = [m for m in metrics
+            if m[0] == 'datadog.agent.check_run_time']
+        all_tags = []
+        for metric in timing_metrics:
+            all_tags.extend(metric[3]['tags'])
+        for check in checks:
+            tag = "check:%s" % check.name
+            assert tag in all_tags, all_tags
+
 
 class TestAggregator(unittest.TestCase):
     def setUp(self):
