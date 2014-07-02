@@ -1,0 +1,23 @@
+#init_config:
+#
+#instances:
+#    # See http://godoc.org/runtime#MemStats for explanation on
+#    # the memstats metrics that are exported by default
+#    - expvar_url: http://192.168.34.10:8080/debug/vars
+#      tags:
+#        - "app:demoapp"
+#        - "env:test"
+#      metrics:
+#        - path: random_walk
+#          name: random_walk
+#          type: gauge
+#        - path: steps
+#          name: steps
+#          type: rate
+#        - path: memstats/PauseTotalNs
+#          name: gc.pauseTime
+#          type: rate
+#        - path: random_value
+#          name: random_value
+#          type: gauge
+#        - path: memstats/BySize/1/Mallocs
