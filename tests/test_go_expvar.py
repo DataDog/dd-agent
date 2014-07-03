@@ -1,5 +1,6 @@
 import unittest
 import time
+import os
 from tests.common import load_check
 
 
@@ -15,7 +16,7 @@ class TestGoExpVar(unittest.TestCase):
                 "init_config": {
                     },
                 "instances": [{
-                    "expvar_url": "http://localhost/expvar_output", # piggyback on the fact that the other tests run a webserver
+                    "expvar_url": os.path.join(os.path.dirname(__file__), "go_expvar", "expvar_output"),
                     "tags": ["optionaltag1", "optionaltag2"],
                     "metrics": [
                         {
@@ -37,6 +38,12 @@ class TestGoExpVar(unittest.TestCase):
 
         self.check = load_check('go_expvar', self.config, self.agentConfig)
 
+        def _get_data_mock(instance):
+            with open(instance.get('expvar_url'), 'r') as go_output:
+                return go_output.read()
+
+        self.check._get_data = _get_data_mock
+
     def testGoExpVar(self):
 
         self.check.check(self.config['instances'][0])
@@ -54,12 +61,11 @@ class TestGoExpVar(unittest.TestCase):
         metrics = self.check.get_metrics()
 
         self.assertEqual(len(metrics) ,3)
-        self.assertEqual(metrics[0][0], 'go_expvar.gc.pause')
-        self.assertEqual(metrics[0][3]['type'],'rate')
-        self.assertEqual(metrics[1][0], 'go_expvar.Mallocs') # Verify the correct default value for metric name
-        self.assertEqual(metrics[1][3]['type'],'gauge')
-        self.assertEqual(metrics[2][0], 'go_expvar.gauge1')
-        self.assertEqual(metrics[2][3]['type'],'gauge')
+        metrics.sort(key=lambda x:x[0])
+        self.check.log.info(metrics)
+        self.assertEqual(metrics[0][0], 'go_expvar.Mallocs') # Verify the correct default value for metric name
+        self.assertEqual(metrics[1][0], 'go_expvar.gauge1')
+        self.assertEqual(metrics[2][0], 'go_expvar.gc.pause')
         for metric in metrics:
             tags = metric[3]['tags']
             self.assertEqual(len(tags), 2)

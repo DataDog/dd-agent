@@ -43,7 +43,7 @@ class GoExpvar(AgentCheck):
 
             metric_name = metric.get("name", keys[-1])
             metric_name = self.normalize(metric_name, "go_expvar")
-            self.log.warning("%s %s" % (metric, value))
+
             self.func[metric_type](metric_name, value, tags)
 
     def deep_get(self, content, keys):

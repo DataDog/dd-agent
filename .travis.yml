@@ -57,7 +57,6 @@ before_script:
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf"
   - sudo service apache2 start
   - sudo service nginx start
-  - sudo bash -c "curl -L https://raw.githubusercontent.com/DataDog/dd-agent/rudy/golang-expvars/tests/go_expvar/expvar_output > /var/www/expvar_output" # referring wrong branch during development
   - sudo /etc/init.d/lighttpd start
   - sudo service tomcat6 restart
   - sudo service couchdb start
