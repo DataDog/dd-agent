@@ -30,9 +30,13 @@ class GoExpvar(AgentCheck):
     def parse_expvar_data(self, instance, content):
         tags = instance.get("tags", [])
         for metric in instance.get("metrics", []):
-            assert "path" in metric, "Metric %s has no path" % metric
+            if "path" not in metric:
+                self.warning("Metric %s has no path" % metric)
+                continue
             metric_type = metric.get("type", "gauge")
-            assert metric_type in self.func, "Metric type %s not supported for this check" % metric_type
+            if metric_type not in self.func:
+                self.warning("Metric type %s not supported for this check" % metric_type)
+                continue
 
             path = metric.get("path")
             keys = path.split("/")
