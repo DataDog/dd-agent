@@ -70,9 +70,9 @@ class Php(AgentCheck):
                     continue
 
                 # Send metric as a rate, if applicable
-                if metric in self.RATES:
-                    metric_name = self.RATES[metric]
-                    self.rate(metric_name, value, tags=tags)
+                if metric in self.GAUGES:
+                    metric_name = self.GAUGES[metric]
+                    self.gauge(metric_name, value, tags=tags)
 
                 # Send metric as a increment, if applicable
                 if metric in self.COUNTERS:
