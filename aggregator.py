@@ -167,7 +167,7 @@ class CountFromCounter(Metric):
                 interval=interval
             )]
         finally:
-            self.initial_count = None
+            self.initial_count = self.current_count
             self.current_count = None
 
 class Counter(Metric):
@@ -546,8 +546,6 @@ class MetricsBucketAggregator(Aggregator):
         self.last_flush_cutoff_time = 0
         self.metric_type_to_class = {
             'g': BucketGauge,
-            'ct': Count,
-            'ct-c': CountFromCounter,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,

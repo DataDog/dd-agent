@@ -49,3 +49,19 @@ class TestCountType(unittest.TestCase):
         nt.assert_equal(metric, ret_metric, msg="Metric name is incorrect")
         nt.ok_(abs(flush_ts-timestamp) <= 1, msg="Time is off by more than a second")
         nt.assert_equal(counters[-1]-counters[0], value)
+
+        # add a single point
+        counters = [30]
+        for counter in counters:
+            agent_check.count_from_counter(metric, counter, tags=tags,
+                                           hostname=hostname,
+                                           device_name=device_name)
+        flush_ts = time.time()
+        results = agent_check.get_metrics()
+        nt.assert_true(results is not None)
+        nt.assert_equal(1, len(results))
+        result = results[0]
+        ret_metric, timestamp, value = result[0], result[1], result[2]
+        nt.assert_equal(metric, ret_metric, msg="Metric name is incorrect")
+        nt.ok_(abs(flush_ts-timestamp) <= 1, msg="Time is off by more than a second")
+        nt.assert_equal(10, value)
