@@ -141,12 +141,11 @@ class CountFromCounter(Metric):
         self.last_sample_time = None
 
     def sample(self, value, sample_rate, timestamp=None):
-        ts = time()
         if self.initial_count is None:
             self.initial_count = value
         else:
             self.current_count = value
-        self.last_sample_time = ts
+        self.last_sample_time = time()
 
     def flush(self, timestamp, interval):
         if self.initial_count is None or self.current_count is None:
