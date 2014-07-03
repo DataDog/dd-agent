@@ -8,3 +8,6 @@ instances:
 #       tags:
 #            - optional_tag1
 #            - optional_tag2
+#       keys: # check the length of these keys
+#            - key1
+#            - key2

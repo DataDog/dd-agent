@@ -14,9 +14,17 @@ DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
 
+    SOURCE_TYPE_NAME = 'mongodb'
+
     GAUGES = [
         "indexCounters.btree.missRatio",
+        "indexCounters.missRatio",
         "globalLock.ratio",
+        "globalLock.totalTime",
+        "globalLock.lockTime",
+        "globalLock.currentQueue.total",
+        "globalLock.currentQueue.readers",
+        "globalLock.currentQueue.writers",
         "connections.current",
         "connections.available",
         "mem.resident",
@@ -44,12 +52,23 @@ class MongoDb(AgentCheck):
         "indexCounters.btree.accesses",
         "indexCounters.btree.hits",
         "indexCounters.btree.misses",
+        "indexCounters.accesses",
+        "indexCounters.hits",
+        "indexCounters.misses",
+        "indexCounters.resets",
+        "extra_info.page_faults",
         "opcounters.insert",
         "opcounters.query",
         "opcounters.update",
         "opcounters.delete",
         "opcounters.getmore",
         "opcounters.command",
+        "opcountersRepl.insert",
+        "opcountersRepl.query",
+        "opcountersRepl.update",
+        "opcountersRepl.delete",
+        "opcountersRepl.getmore",
+        "opcountersRepl.command",
         "asserts.regular",
         "asserts.warning",
         "asserts.msg",
@@ -143,6 +162,19 @@ class MongoDb(AgentCheck):
             return
 
         server = instance['server']
+
+        ssl_params = {
+            'ssl': instance.get('ssl', None),
+            'ssl_keyfile': instance.get('ssl_keyfile', None),
+            'ssl_certfile': instance.get('ssl_certfile', None),
+            'ssl_cert_reqs':  instance.get('ssl_cert_reqs', None),
+            'ssl_ca_certs': instance.get('ssl_ca_certs', None)
+        }
+
+        for key, param in ssl_params.items():
+            if param is None:
+                del ssl_params[key]
+
         tags = instance.get('tags', [])
         tags.append('server:%s' % server)
         # de-dupe tags to avoid a memory leak
@@ -178,7 +210,8 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT)
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
+            **ssl_params)
         db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
@@ -206,7 +239,7 @@ class MongoDb(AgentCheck):
 
                 # If we have both we can compute a lag time
                 if current is not None and primary is not None:
-                    lag = current['optimeDate'] - primary['optimeDate']
+                    lag = primary['optimeDate'] - current['optimeDate']
                     # Python 2.7 has this built in, python < 2.7 don't...
                     if hasattr(lag,'total_seconds'):
                         data['replicationLag'] = lag.total_seconds()
@@ -258,14 +291,3 @@ class MongoDb(AgentCheck):
             if m in self.RATES:
                 m = self.normalize(m.lower(), 'mongodb') + "ps"
                 self.rate(m, value, tags=tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('mongodb_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agentConfig.get('mongodb_server')
-            }]
-        }

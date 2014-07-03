@@ -33,6 +33,8 @@ from StringIO import StringIO
 class Zookeeper(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
+    SOURCE_TYPE_NAME = 'zookeeper'
+
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))

@@ -5,6 +5,7 @@ import re
 import traceback
 
 from checks import AgentCheck
+from util import Platform
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -18,7 +19,7 @@ STATUS_VARS = {
     'Innodb_data_reads': ('mysql.innodb.data_reads', RATE),
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
-    'Innodb_data_reads': ('mysql.innodb.buffer_pool_size', RATE),
+    'Innodb_buffer_pool_size': ('mysql.innodb.buffer_pool_size', RATE),
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
     'Queries': ('mysql.performance.queries', RATE),
@@ -40,6 +41,7 @@ STATUS_VARS = {
     'Innodb_row_lock_waits': ('mysql.innodb.row_lock_waits', RATE),
     'Innodb_row_lock_time': ('mysql.innodb.row_lock_time', RATE),
     'Innodb_current_row_locks': ('mysql.innodb.current_row_locks', GAUGE),
+    'Open_tables': ('mysql.performance.open_tables', GAUGE),
 }
 
 class MySql(AgentCheck):
@@ -50,14 +52,14 @@ class MySql(AgentCheck):
 
     def get_library_versions(self):
         try:
-            import MySQLdb
-            version = MySQLdb.__version__
+            import pymysql
+            version = pymysql.__version__
         except ImportError:
             version = "Not Found"
         except AttributeError:
             version = "Unknown"
 
-        return {"MySQLdb": version}
+        return {"pymysql": version}
 
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
@@ -69,7 +71,8 @@ class MySql(AgentCheck):
 
         # Metric collection
         self._collect_metrics(host, db, tags, options)
-        self._collect_system_metrics(host, db, tags)
+        if Platform.is_linux():
+            self._collect_system_metrics(host, db, tags)
 
     def _get_config(self, instance):
         host = instance.get('server', '')
@@ -85,24 +88,24 @@ class MySql(AgentCheck):
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
         try:
-            import MySQLdb
+            import pymysql
         except ImportError:
-            raise Exception("Cannot import MySQLdb module. Check the instructions "
+            raise Exception("Cannot import pymysql module. Check the instructions "
                 "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
 
         if defaults_file != '':
-            db = MySQLdb.connect(read_default_file=defaults_file)
+            db = pymysql.connect(read_default_file=defaults_file)
         elif  mysql_sock != '':
-            db = MySQLdb.connect(unix_socket=mysql_sock,
+            db = pymysql.connect(unix_socket=mysql_sock,
                                     user=user,
                                     passwd=password)
         elif port:
-            db = MySQLdb.connect(host=host,
+            db = pymysql.connect(host=host,
                                     port=port,
                                     user=user,
                                     passwd=password)
         else:
-            db = MySQLdb.connect(host=host,
+            db = pymysql.connect(host=host,
                                     user=user,
                                     passwd=password)
         self.log.debug("Connected to MySQL")
@@ -112,32 +115,43 @@ class MySql(AgentCheck):
     def _collect_metrics(self, host, db, tags, options):
         cursor = db.cursor()
         cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
-        results = dict(cursor.fetchall())
-        self._rate_or_gauge_statuses(STATUS_VARS, results, tags)
+        status_results = dict(cursor.fetchall())
+        self._rate_or_gauge_statuses(STATUS_VARS, status_results, tags)
+        cursor.execute("SHOW VARIABLES LIKE 'Key%';")
+        variables_results = dict(cursor.fetchall())
         cursor.close()
         del cursor
 
+        #Compute key cache utilization metric
+        key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
+        key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
+        key_buffer_size = self._collect_scalar('key_buffer_size', variables_results)
+        key_cache_utilization = 1 - ((key_blocks_unused * key_cache_block_size) / key_buffer_size)
+        self.gauge("mysql.performance.key_cache_utilization", key_cache_utilization, tags=tags)
+
         # Compute InnoDB buffer metrics
         # Be sure InnoDB is enabled
-        if 'Innodb_page_size' in results:
-            page_size = self._collect_scalar('Innodb_page_size', results)
-            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', results)
-            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', results)
+        if 'Innodb_page_size' in status_results:
+            page_size = self._collect_scalar('Innodb_page_size', status_results)
+            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', status_results)
+            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', status_results)
             innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
             innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
             innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
+            innodb_buffer_pool_pages_utilization = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
 
             self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
+            self.gauge("mysql.innodb.buffer_pool_utilization", innodb_buffer_pool_pages_utilization, tags=tags)
 
         if 'galera_cluster' in options and options['galera_cluster']:
-            value = self._collect_scalar('wsrep_cluster_size', results)
+            value = self._collect_scalar('wsrep_cluster_size', status_results)
             self.gauge('mysql.galera.wsrep_cluster_size', value, tags=tags)
 
         if 'replication' in options and options['replication']:
             # get slave running form global status page
-            slave_running = self._collect_string('Slave_running', results)
+            slave_running = self._collect_string('Slave_running', status_results)
             if slave_running is not None:
                 if slave_running.lower().strip() == 'on':
                     slave_running = 1
@@ -243,7 +257,7 @@ class MySql(AgentCheck):
                             else:
                                 self.gauge(metric, float(result[col_idx]), tags=tags)
                         else:
-                            self.log.debug("Recieved value is None for index %d" % col_idx)
+                            self.log.debug("Received value is None for index %d" % col_idx)
                     except ValueError:
                         self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
             cursor.close()
@@ -318,18 +332,3 @@ class MySql(AgentCheck):
                 self.log.exception("Error while fetching mysql pid from ps")
 
         return pid
-
-    @staticmethod
-    def parse_agent_config(agent_config):
-        if not agent_config.get('mysql_server'):
-            return False
-
-        return {
-            'instances': [{
-                'server': agent_config.get('mysql_server',''),
-                'sock': agent_config.get('mysql_sock',''),
-                'user': agent_config.get('mysql_user',''),
-                'pass': agent_config.get('mysql_pass',''),
-                'options': {'replication': True},
-            }]
-        }

@@ -13,23 +13,50 @@ import inspect
 import traceback
 import re
 import imp
+import socket
+from socket import gaierror
 from optparse import OptionParser, Values
 from cStringIO import StringIO
 
 # project
-from util import get_os, yaml, yLoader, Platform
-from jmxfetch import JMXFetch
+
+from util import get_os, Platform
+from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
+# 3rd party
+import yaml
+
 # CONSTANTS
+AGENT_VERSION = "5.0.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
-DEFAULT_STATSD_FREQUENCY = 10  # seconds
-PUP_STATSD_FREQUENCY = 2       # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
 windows_file_handler_added = False
+
+OLD_STYLE_PARAMETERS = [
+    ('apache_status_url', "apache"),
+    ('cacti_mysql_server' , "cacti"),
+    ('couchdb_server', "couchdb"),
+    ('elasticsearch', "elasticsearch"),
+    ('haproxy_url', "haproxy"),
+    ('hudson_home', "Jenkins"),
+    ('memcache_', "memcached"),
+    ('mongodb_server', "mongodb"),
+    ('mysql_server', "mysql"),
+    ('nginx_status_url', "nginx"),
+    ('postgresql_server', "postgres"),
+    ('redis_urls', "redis"),
+    ('varnishstat', "varnish"),
+    ('WMI', "WMI"),
+]
+
+NAGIOS_OLD_CONF_KEYS = [
+    'nagios_log',
+    'nagios_perf_cfg'
+    ]
 
 class PathNotFound(Exception):
     pass
@@ -61,7 +88,7 @@ def get_parsed_args():
 
 
 def get_version():
-    return "4.1.0"
+    return AGENT_VERSION
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -182,6 +209,13 @@ def get_config_path(cfg_path=None, os_name=None):
     sys.stderr.write("Please supply a configuration file at %s or in the directory where the Agent is currently deployed.\n" % bad_path)
     sys.exit(3)
 
+def get_default_bind_host():
+    try:
+        socket.gethostbyname('localhost')
+    except gaierror:
+        log.warning("localhost seems undefined in your hosts file, using 127.0.0.1 instead")
+        return '127.0.0.1'
+    return 'localhost'
 
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
@@ -190,7 +224,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'dogstatsd_interval': DEFAULT_STATSD_FREQUENCY,
         'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
@@ -202,9 +235,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
+        'bind_host': get_default_bind_host(),
     }
-
-    dogstatsd_interval = DEFAULT_STATSD_FREQUENCY
 
     # Config handling
     try:
@@ -236,7 +268,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             listen_port = 17123
             if config.has_option('Main', 'listen_port'):
                 listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://localhost:" + str(listen_port)
+            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
             agentConfig['use_forwarder'] = True
         elif options is not None and not options.disable_dd and options.dd_url:
             agentConfig['dd_url'] = options.dd_url
@@ -258,7 +290,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_pup'):
             agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
         else:
-            agentConfig['use_pup'] = True
+            agentConfig['use_pup'] = False
+
+        if config.has_option('Main', 'use_dogstatsd'):
+            agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
+        else:
+            agentConfig['use_dogstatsd'] = True
 
         # Concerns only Windows
         if config.has_option('Main', 'use_web_info_page'):
@@ -274,10 +311,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
             if config.has_option('Main', 'pup_port'):
                 agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
-
-        # Increases the frequency of statsd metrics when only sending to Pup
-        if not agentConfig['use_dd'] and agentConfig['use_pup']:
-            dogstatsd_interval = PUP_STATSD_FREQUENCY
 
         if not agentConfig['use_dd'] and not agentConfig['use_pup']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
@@ -318,8 +351,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Dogstatsd config
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
-            'dogstatsd_target': 'http://localhost:17123',
-            'dogstatsd_interval': dogstatsd_interval,
+            'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
             'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
@@ -375,6 +407,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "nagios_perf_cfg"):
             agentConfig["nagios_perf_cfg"] = config.get("Main", "nagios_perf_cfg")
 
+        if config.has_option("Main", "use_curl_http_client"):
+            agentConfig["use_curl_http_client"] = _is_affirmative(config.get("Main", "use_curl_http_client"))
+        else:
+            # Default to False as there are some issues with the curl client and ELB
+            agentConfig["use_curl_http_client"] = False
+
         if config.has_section('WMI'):
             agentConfig['WMI'] = {}
             for key, value in config.items('WMI'):
@@ -388,6 +426,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option("Main", "skip_ssl_validation"):
             agentConfig["skip_ssl_validation"] = _is_affirmative(config.get("Main", "skip_ssl_validation"))
+
+        agentConfig["collect_instance_metadata"] = True
+        if config.has_option("Main", "collect_instance_metadata"):
+            agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
 
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
@@ -423,7 +465,7 @@ def get_system_stats():
     }
 
     platf = sys.platform
-    
+
     if  Platform.is_linux(platf):
         grep = subprocess.Popen(['grep', 'model name', '/proc/cpuinfo'], stdout=subprocess.PIPE, close_fds=True)
         wc = subprocess.Popen(['wc', '-l'], stdin=grep.stdout, stdout=subprocess.PIPE, close_fds=True)
@@ -607,7 +649,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yLoader)
+        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 
@@ -634,7 +676,14 @@ def load_check_directory(agentConfig):
 
     initialized_checks = {}
     init_failed_checks = {}
+    deprecated_checks = {}
 
+    deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
+    for deprecated_config in deprecated_configs_enabled:
+        msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
+        deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
+        log.error(msg)
+    
     osname = get_os()
     checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
 
@@ -655,27 +704,59 @@ def load_check_directory(agentConfig):
     migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
     # Start JMXFetch if needed
-    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY)
+    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
 
-    # For backwards-compatability with old style checks, we have to load every
-    # checks.d module and check for a corresponding config OR check if the old
-    # config will "activate" the check.
-    #
-    # Once old-style checks aren't supported, we'll just read the configs and
-    # import the corresponding check module
+
+
+    # We don't support old style configs anymore
+    # So we iterate over the files in the checks.d directory
+    # If there is a matching configuration file in the conf.d directory 
+    # then we import the check
     for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
+        check_config = None
         if check_name in initialized_checks or check_name in init_failed_checks:
             log.debug('Skipping check %s because it has already been loaded from another location', check)
             continue
+
+        # Let's see if there is a conf.d for this check
+        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+        if os.path.exists(conf_path):
+            f = open(conf_path)
+            try:
+                check_config = check_yaml(conf_path)
+            except Exception, e:
+                log.exception("Unable to parse yaml config in %s" % conf_path)
+                traceback_message = traceback.format_exc()
+                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                continue
+        else:
+            # Compatibility code for the Nagios checks if it's still configured
+            # in datadog.conf - Should be removed in ulterior major version
+            if check_name == 'nagios':
+                if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
+                    log.warning("Configuring Nagios in datadog.conf is deprecated "
+                                "and will be removed in a future version. "
+                                "Please use conf.d")
+                    check_config = {'instances':[dict((key, agentConfig[key]) for key in agentConfig if key in NAGIOS_OLD_CONF_KEYS)]}
+                else:
+                    continue
+            else:
+                log.debug("No configuration file for %s" % check_name)
+                continue
+
+        # If we are here, there is a valid matching configuration file. 
+        # Let's try to import the check
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)
         except Exception, e:
             traceback_message = traceback.format_exc()
+            # There is a configuration file for that check but the module can't be imported
             init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
             log.exception('Unable to import check module %s.py from checks.d' % check_name)
             continue
 
+        # We make sure that there is an AgentCheck class defined
         check_class = None
         classes = inspect.getmembers(check_module, inspect.isclass)
         for _, clsmember in classes:
@@ -690,36 +771,6 @@ def load_check_directory(agentConfig):
 
         if not check_class:
             log.error('No check class (inheriting from AgentCheck) found in %s.py' % check_name)
-            continue
-
-        # Check if the config exists OR we match the old-style config
-        conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-        if os.path.exists(conf_path):
-            f = open(conf_path)
-            try:
-                check_config = check_yaml(conf_path)
-            except Exception, e:
-                log.exception("Unable to parse yaml config in %s" % conf_path)
-                traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
-                continue
-        elif hasattr(check_class, 'parse_agent_config'):
-            # FIXME: Remove this check once all old-style checks are gone
-            try:
-                check_config = check_class.parse_agent_config(agentConfig)
-            except Exception, e:
-                continue
-            if not check_config:
-                continue
-            d = [
-                "Configuring %s in datadog.conf is deprecated." % (check_name),
-                "Please use conf.d. In a future release, support for the",
-                "old style of configuration will be dropped.",
-            ]
-            log.warn(" ".join(d))
-
-        else:
-            log.debug('No conf.d/%s.yaml found for checks.d/%s.py' % (check_name, check_name))
             continue
 
         # Look for the per-check config, which *must* exist
@@ -761,6 +812,7 @@ def load_check_directory(agentConfig):
 
         log.debug('Loaded check.d/%s.py' % check_name)
 
+    init_failed_checks.update(deprecated_checks)
     log.info('initialized checks.d checks: %s' % initialized_checks.keys())
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
@@ -927,10 +979,10 @@ def initialize_logging(logger_name):
             try:
                 from logging.handlers import NTEventLogHandler
                 nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
-                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name)))
+                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
                 nt_event_handler.setLevel(logging.ERROR)
                 app_log = logging.getLogger(logger_name)
-                app_log.addHandler(nt_event_handler)    
+                app_log.addHandler(nt_event_handler)
             except Exception, e:
                 sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
                 traceback.print_exc()

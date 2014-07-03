@@ -18,7 +18,7 @@ def get_http_library(proxy_settings, use_forwarder):
     else:
         # Python version < 2.6.3
         import urllib2proxy as urllib2
-    return urllib2 
+    return urllib2
 
 def post_headers(agentConfig, payload):
     return {
@@ -29,16 +29,16 @@ def post_headers(agentConfig, payload):
         'Content-MD5': md5(payload).hexdigest()
     }
 
-def http_emitter(message, logger, agentConfig):
+def http_emitter(message, log, agentConfig):
     "Send payload"
 
-    logger.debug('http_emitter: attempting postback to ' + agentConfig['dd_url'])
+    log.debug('http_emitter: attempting postback to ' + agentConfig['dd_url'])
 
     # Post back the data
     payload = json.dumps(message)
     zipped = zlib.compress(payload)
 
-    logger.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f" % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f" % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
 
     # Build the request handler
     apiKey = message.get('apiKey', None)
@@ -53,39 +53,38 @@ def http_emitter(message, logger, agentConfig):
 
     try:
         request = urllib2.Request(url, zipped, headers)
-        # Do the request, logger any errors
-        opener = get_opener(logger, proxy_settings, agentConfig['use_forwarder'], urllib2)
+        # Do the request, log any errors
+        opener = get_opener(log, proxy_settings, agentConfig['use_forwarder'], urllib2)
         if opener is not None:
             urllib2.install_opener(opener)
         response = urllib2.urlopen(request)
         try:
-            logger.debug('http_emitter: postback response: ' + str(response.read()))
+            log.debug('http_emitter: postback response: ' + str(response.read()))
         finally:
             response.close()
     except urllib2.HTTPError, e:
         if e.code == 202:
-            logger.debug("http payload accepted")
+            log.debug("http payload accepted")
         else:
             raise
 
-def get_opener(logger, proxy_settings, use_forwarder, urllib2):
-    if use_forwarder:
+def get_opener(log, proxy_settings, use_forwarder, urllib2):
+    if use_forwarder or proxy_settings is None:
         # We are using the forwarder, so it's local trafic. We don't use the proxy
-        return None
+        proxy = {}
+        log.debug("Not using proxy settings")
+    else:
+        proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
 
-    if proxy_settings is None:
-        # urllib2 will figure out how to connect automatically        
-        return None
+        if proxy_settings.get('user') is not None:
+            proxy_auth = proxy_settings['user']
+            if proxy_settings.get('password') is not None:
+                proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
+            proxy_url = '%s@%s' % (proxy_auth, proxy_url)
 
-    proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-    if proxy_settings.get('user') is not None:
-        proxy_auth = proxy_settings['user']
-        if proxy_settings.get('password') is not None:
-            proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
-        proxy_url = '%s@%s' % (proxy_auth, proxy_url)
-        
-    proxy = {'https': proxy_url}
-    logger.info("Using proxy settings %s" % proxy)
+        proxy = {'https': proxy_url}
+        log.debug("Using proxy settings %s" % proxy)
+
     proxy_handler = urllib2.ProxyHandler(proxy)
     opener = urllib2.build_opener(proxy_handler)
     return opener

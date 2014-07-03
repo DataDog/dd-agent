@@ -9,34 +9,37 @@ from checks import *
 # version           string   Version string of this server
 # pointer_size      32       Default size of pointers on the host OS
 #                            (generally 32 or 64)
-# rusage_user       32u:32u  Accumulated user time for this process 
+# rusage_user       32u:32u  Accumulated user time for this process
 #                            (seconds:microseconds)
-# rusage_system     32u:32u  Accumulated system time for this process 
+# rusage_system     32u:32u  Accumulated system time for this process
 #                            (seconds:microseconds)
 # curr_items        32u      Current number of items stored by the server
-# total_items       32u      Total number of items stored by this server 
+# total_items       32u      Total number of items stored by this server
 #                            ever since it started
-# bytes             64u      Current number of bytes used by this server 
+# bytes             64u      Current number of bytes used by this server
 #                            to store items
 # curr_connections  32u      Number of open connections
-# total_connections 32u      Total number of connections opened since 
+# total_connections 32u      Total number of connections opened since
 #                            the server started running
-# connection_structures 32u  Number of connection structures allocated 
+# connection_structures 32u  Number of connection structures allocated
 #                            by the server
 # cmd_get           64u      Cumulative number of retrieval requests
 # cmd_set           64u      Cumulative number of storage requests
-# get_hits          64u      Number of keys that have been requested and 
+# get_hits          64u      Number of keys that have been requested and
 #                            found present
-# get_misses        64u      Number of items that have been requested 
+# get_misses        64u      Number of items that have been requested
 #                            and not found
+# delete_misses     64u      Number of deletions reqs for missing keys
+# delete_hits       64u      Number of deletion reqs resulting in
+#                            an item being removed.
 # evictions         64u      Number of valid items removed from cache
 #                            to free memory for new items
-# bytes_read        64u      Total number of bytes read by this server 
+# bytes_read        64u      Total number of bytes read by this server
 #                            from network
-# bytes_written     64u      Total number of bytes sent by this server to 
+# bytes_written     64u      Total number of bytes sent by this server to
 #                            network
 # limit_maxbytes    32u      Number of bytes this server is allowed to
-#                            use for storage. 
+#                            use for storage.
 # threads           32u      Number of worker threads requested.
 #                            (see doc/threads.txt)
 #     >>> mc.get_stats()
@@ -55,6 +58,9 @@ from checks import *
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
 class Memcache(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'memcached'
+
     DEFAULT_PORT = 11211
 
     GAUGES = [
@@ -77,9 +83,14 @@ class Memcache(AgentCheck):
         "cmd_flush",
         "get_hits",
         "get_misses",
+        "delete_misses",
+        "delete_hits",
         "evictions",
         "bytes_read",
         "bytes_written",
+        "cas_misses",
+        "cas_hits",
+        "cas_badval",
         "total_connections"
     ]
 
@@ -98,7 +109,7 @@ class Memcache(AgentCheck):
         mc = None  # client
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
-            mc = memcache.Client(["%s:%d" % (server, port)])
+            mc = memcache.Client(["%s:%s" % (server, port)])
             raw_stats = mc.get_stats()
 
             assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
@@ -154,9 +165,10 @@ class Memcache(AgentCheck):
         del mc
 
     def check(self, instance):
+        socket = instance.get('socket', None)
         server = instance.get('url', None)
-        if not server:
-            raise Exception("Missing or null 'url' in mcache config")
+        if not server and not socket:
+            raise Exception("Missing or null 'url' and 'socket' in mcache config")
 
         try:
             import memcache
@@ -170,60 +182,11 @@ class Memcache(AgentCheck):
         except Exception:
             pass
 
-        port = int(instance.get('port', self.DEFAULT_PORT))
+        if socket:
+            server = 'unix'
+            port = socket
+        else:
+            port = int(instance.get('port', self.DEFAULT_PORT))
         tags = instance.get('tags', None)
 
         self._get_metrics(server, port, tags, memcache)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        all_instances = []
-
-        # Load the conf according to the old schema
-        memcache_url = agentConfig.get("memcache_server", None)
-        memcache_port = agentConfig.get("memcache_port", Memcache.DEFAULT_PORT)
-        if memcache_url is not None:
-            instance = {
-                'url': memcache_url,
-                'port': memcache_port,
-                'tags': ["instance:%s_%s" % (memcache_url, memcache_port)]
-            }
-            all_instances.append(instance)
-
-        # Load the conf according to the new schema
-        #memcache_instance_1: first_host:first_port:first_tag
-        #memcache_instance_2: second_host:second_port:second_tag
-        #memcache_instance_3: third_host:third_port:third_tag
-        index = 1
-        instance = agentConfig.get("memcache_instance_%s" % index, None)
-        while instance:
-            instance = instance.split(":")
-
-            url = instance[0]
-            port = Memcache.DEFAULT_PORT
-            tags = None
-
-            if len(instance) > 1:
-                port = instance[1]
-
-            if len(instance) == 3:
-                tags = ["instance:%s" % instance[2]]
-
-            if not tags:
-                tags = ["instance:%s_%s" % (url, port)]
-
-            all_instances.append({
-                'url': url,
-                'port': port,
-                'tags': tags
-            })
-
-            index = index + 1
-            instance = agentConfig.get("memcache_instance_%s" % index, None)
-
-        if len(all_instances) == 0:
-            return False
-
-        return {
-            'instances': all_instances
-        }

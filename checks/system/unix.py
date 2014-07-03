@@ -16,7 +16,6 @@ import time
 from checks import Check, UnknownValue
 from util import get_hostname, Platform
 
-
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
 
@@ -372,8 +371,6 @@ class IO(Check):
 
 
 class Load(Check):
-    def __init__(self, logger):
-        Check.__init__(self, logger)
     
     def check(self, agentConfig):
         if Platform.is_linux():
@@ -702,8 +699,6 @@ class Memory(Check):
             return False
 
 class Processes(Check):
-    def __init__(self, logger):
-        Check.__init__(self, logger)
 
     def check(self, agentConfig):
         # Get output from ps
@@ -730,20 +725,28 @@ class Processes(Check):
                  'host':        get_hostname(agentConfig) }
             
 class Cpu(Check):
-    def __init__(self, logger):
-        Check.__init__(self, logger)
 
     def check(self, agentConfig):
         """Return an aggregate of CPU stats across all CPUs
         When figures are not available, False is sent back.
         """
         def format_results(us, sy, wa, idle, st):
-            return { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
+            data = { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
+            for key in data.keys():
+                if data[key] is None:
+                    del data[key]
+            return data
+
                     
-        def get_value(legend, data, name):
+        def get_value(legend, data, name, filter_value=None):
             "Using the legend and a metric name, get the value or None from the data line"
             if name in legend:
-                return to_float(data[legend.index(name)])
+                value = to_float(data[legend.index(name)])
+                if filter_value is not None:
+                    if value > filter_value:
+                        return None
+                return value
+
             else:
                 # FIXME return a float or False, would trigger type error if not python
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
@@ -779,26 +782,29 @@ class Cpu(Check):
                 # Userland
                 # Debian lenny says %user so we look for both 
                 # One of them will be 0
-                cpu_usr = get_value(headers, data, "%usr")
-                cpu_usr2 = get_value(headers, data, "%user")
-                cpu_nice = get_value(headers, data, "%nice")
-                # I/O
-                cpu_wait = get_value(headers, data, "%iowait")
-                # Idling
-                cpu_idle = get_value(headers, data, "%idle")
-                # Kernel + Interrupts, soft and hard
-                cpu_sys = get_value(headers, data, "%sys")
-                cpu_hirq = get_value(headers, data, "%irq")
-                cpu_sirq = get_value(headers, data, "%soft")
-                # VM-related
-                cpu_st = get_value(headers, data, "%steal")
-                cpu_guest = get_value(headers, data, "%guest")
+                cpu_metrics = {
+                    "%usr":None, "%user":None, "%nice":None, 
+                    "%iowait":None, "%idle":None, "%sys":None,
+                     "%irq":None, "%soft":None, "%steal":None, 
+                }
 
-                # (cpu_user & cpu_usr) == 0
-                return format_results(cpu_usr + cpu_usr2 + cpu_nice,
-                                      cpu_sys + cpu_hirq + cpu_sirq,
-                                      cpu_wait, cpu_idle,
-                                      cpu_st)
+                for cpu_m in cpu_metrics:
+                    cpu_metrics[cpu_m] = get_value(headers, data, cpu_m, filter_value=110)
+
+                if any([v is None for v in cpu_metrics.values()]):
+                    self.logger.warning("Invalid mpstat data: %s" % data)
+
+                cpu_user = cpu_metrics["%usr"] + cpu_metrics["%user"] + cpu_metrics["%nice"]
+                cpu_system = cpu_metrics["%sys"] + cpu_metrics["%irq"] + cpu_metrics["%soft"]
+                cpu_wait = cpu_metrics["%iowait"]
+                cpu_idle = cpu_metrics["%idle"]
+                cpu_stolen = cpu_metrics["%steal"]
+
+                return format_results(cpu_user,
+                                      cpu_system,
+                                      cpu_wait, 
+                                      cpu_idle,
+                                      cpu_stolen)
             else:
                 return False
             

@@ -1,8 +1,9 @@
 import unittest
 import logging
+import os
 logger = logging.getLogger(__file__)
 
-from tests.common import get_check
+from tests.common import get_check, read_data_from_file
 
 class TestWeb(unittest.TestCase):
 
@@ -58,14 +59,6 @@ instances:
         metrics = a.get_metrics()
         self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
 
-    def testApacheOldConfig(self):
-        a, _ = get_check('apache', self.apache_config)
-        config = {
-            'apache_status_url': 'http://example.com/server-status?auto'
-        }
-        instances = a.parse_agent_config(config)['instances']
-        assert instances[0]['apache_status_url'] == config['apache_status_url']
-
     def testNginx(self):
         nginx, instances = get_check('nginx', self.nginx_config)
         nginx.check(instances[0])
@@ -76,17 +69,13 @@ instances:
         r = nginx.get_metrics()
         self.assertEquals(r[0][3].get('tags'), ['first_one'])
 
-    def testNginxOldConfig(self):
-        nginx, _ = get_check('nginx', self.nginx_config)
-        config = {
-            'nginx_status_url_1': 'http://www.example.com/nginx_status:first_tag',
-            'nginx_status_url_2': 'http://www.example2.com/nginx_status:8080:second_tag',
-            'nginx_status_url_3': 'http://www.example3.com/nginx_status:third_tag'
-        }
-        instances = nginx.parse_agent_config(config)['instances']
-        self.assertEquals(len(instances), 3)
-        for i, instance in enumerate(instances):
-            assert ':'.join(config.values()[i].split(':')[:-1]) == instance['nginx_status_url']
+    def testNginxPlus(self):
+        test_data = read_data_from_file('nginx_plus_in.json')
+        expected = eval(read_data_from_file('nginx_plus_out.python'))
+        nginx, instances = get_check('nginx', self.nginx_config)
+        parsed = nginx.parse_json(test_data)
+        parsed.sort()
+        self.assertEquals(parsed, expected)
 
     def testLighttpd(self):
         l, instances = get_check('lighttpd', self.lighttpd_config)

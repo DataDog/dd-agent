@@ -81,29 +81,36 @@ else
     DDBASE=false
 fi
 
+# Root user detection
+if [ $(echo "$UID") = "0" ]; then
+    sudo_cmd=''
+else
+    sudo_cmd='sudo'
+fi
+
 # Install the necessary package sources
 if [ $OS = "RedHat" ]; then
     echo -e "\033[34m\n* Installing YUM sources for Datadog\n\033[0m"
-    sudo sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
+    $sudo_cmd sh -c "echo -e '[datadog]\nname = Datadog, Inc.\nbaseurl = http://yum.datadoghq.com/rpm/\nenabled=1\ngpgcheck=0\npriority=1' > /etc/yum.repos.d/datadog.repo"
 
     printf "\033[34m* Installing the Datadog Agent package\n\033[0m\n"
 
     if $DDBASE; then
-        sudo yum -y install datadog-agent-base
+        $sudo_cmd yum -y install datadog-agent-base
     else
-        sudo yum -y install datadog-agent
+        $sudo_cmd yum -y install datadog-agent
     fi
 elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
-    sudo sh -c "echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog.list"
-    sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
+    $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ unstable main' > /etc/apt/sources.list.d/datadog.list"
+    $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
-    sudo apt-get update
+    $sudo_cmd apt-get update
     if $DDBASE; then
-        sudo apt-get install -y --force-yes datadog-agent-base
+        $sudo_cmd apt-get install -y --force-yes datadog-agent-base
     else
-        sudo apt-get install -y --force-yes datadog-agent
+        $sudo_cmd apt-get install -y --force-yes datadog-agent
     fi
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
@@ -116,13 +123,13 @@ fi
 printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
 
 if $DDBASE; then
-    sudo sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example | sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' > /etc/dd-agent/datadog.conf"
+    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example | sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' > /etc/dd-agent/datadog.conf"
 else
-    sudo sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
-sudo /etc/init.d/datadog-agent restart
+$sudo_cmd /etc/init.d/datadog-agent restart
 
 # Datadog "base" installs don't have a forwarder, so we can't use the same
 # check for the initial payload being sent.

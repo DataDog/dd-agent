@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 import time
 
-from util import namedtuple
+from collections import namedtuple
 
 
 class agg(object):
@@ -75,7 +75,6 @@ class ResourcePlugin(object):
 
     @staticmethod
     def _group_by(keys, lines):
-
         if keys is None:
             return lines
 
@@ -91,13 +90,6 @@ class ResourcePlugin(object):
                 group[k].append(line)
             else:
                 group[k] = [line]
-
-        #Refine groups if needed
-        newkeys = keys[1:]
-        if len(newkeys) > 0:
-            for k in group:
-                lines = group[k]
-                group[k] = self._group_by(newkeys,lines)
 
         return group
 

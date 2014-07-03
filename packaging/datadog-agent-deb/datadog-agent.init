@@ -2,7 +2,7 @@
 
 ### BEGIN INIT INFO
 # Provides: dd-agent
-# Short-Description: Start and start dd-agent
+# Short-Description: Start and stop dd-agent
 # Description: dd-agent is the monitoring Agent component for Datadog
 # Required-Start: $remote_fs
 # Required-Stop: $remote_fs
@@ -20,15 +20,13 @@ AGENTUSER="dd-agent"
 FORWARDERPATH="/usr/bin/dd-forwarder"
 NAME="datadog-agent"
 DESC="Datadog Agent"
-DDAGENT_PID_PATH="/var/run/dd-agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
 SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
-SUPERVISORD=$(which supervisord)
+SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
+SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
-# This script is considered a configuration file and will not be
-# removed by dpkg unless the --purge option it set. Therefore we
-# make sure that the Agent is actually installed before we try to do anything:
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
     exit 0
@@ -42,7 +40,7 @@ check_status() {
         # same as the number of programs specified in the supervisor config
         # file:
 
-        supervisor_processes=$(supervisorctl -c $SUPERVISOR_FILE status)
+        supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
                                        grep -v pup |
                                        grep $NAME |
@@ -78,9 +76,15 @@ case "$1" in
             exit 0
         fi
 
+        su $AGENTUSER -c "$AGENTPATH configcheck" > /dev/null
+        if [ $? -ne 0 ]; then
+            log_daemon_msg "Invalid check configuration. Please run sudo /etc/init.d/datadog-agent configtest for more details."
+            log_daemon_msg "Resuming starting process."
+        fi
+
        
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
-        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        PATH=$SYSTEM_PATH start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
         if [ $? -ne 0 ]; then
             log_end_msg 1
         fi
@@ -139,6 +143,11 @@ case "$1" in
         exit $?
         ;;
 
+    configtest)
+        su $AGENTUSER -c "$AGENTPATH configcheck"
+        exit $?
+        ;;
+
     jmx)
         shift
         su $AGENTUSER -c "$AGENTPATH jmx $@"
@@ -147,7 +156,7 @@ case "$1" in
 
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info|status|configcheck|jmx}"
+        echo "Usage: $N {start|stop|restart|info|status|configcheck|configtest|jmx}"
         exit 1
         ;;
 esac

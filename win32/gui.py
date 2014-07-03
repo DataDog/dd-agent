@@ -27,14 +27,17 @@ from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
 
 # Datadog
-from util import yaml, yLoader
 from util import get_os
-from config import get_confd_path, get_config_path, get_config, _windows_commondata_path
+from config import (get_confd_path, get_config_path, get_config, 
+    _windows_commondata_path)
+
+# 3rd Party
+import yaml
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'cacti', 'directory', 'gearmand',
-    'hdfs', 'mcache', 'network', 'postgres',
-    'process', 'redis', 'postfix', 'gunicorn', 
+    'cacti', 'directory', 'docker', 'gearmand',
+    'hdfs', 'kafka_consumer', 'mcache', 'network',
+    'postfix', 'process', 'gunicorn', 'zk',
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
@@ -432,7 +435,7 @@ def save_file(properties):
     
 def check_yaml_syntax(content):
     try:
-        yaml.load(content, Loader=yLoader)
+        yaml.load(content, Loader=yaml.CLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise

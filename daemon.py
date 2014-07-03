@@ -177,7 +177,11 @@ class Daemon(object):
             try:
                 if self.autorestart:
                     # Try killing the supervising process
-                    os.kill(os.getpgid(pid), signal.SIGTERM)
+                    try:
+                        os.kill(os.getpgid(pid), signal.SIGTERM)
+                    except OSError:
+                        log.warn("Couldn't not kill parent pid %s. Killing pid." % os.getpgid(pid))
+                        os.kill(pid, signal.SIGTERM)
                 else:
                     # No supervising process present
                     os.kill(pid, signal.SIGTERM)

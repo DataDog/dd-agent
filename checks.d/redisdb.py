@@ -8,6 +8,9 @@ from checks import AgentCheck
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     subkeys = ['keys', 'expires']
+
+    SOURCE_TYPE_NAME = 'redis'
+
     GAUGE_KEYS = {
         # Append-only metrics
         'aof_last_rewrite_time_sec':    'redis.aof.last_rewrite_time',
@@ -106,10 +109,13 @@ class Redis(AgentCheck):
         key = self._generate_instance_key(instance)
         if key not in self.connections:
             try:
-                
+
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
                     'connection_pool', 'charset', 'errors', 'unix_socket_path']
+
+                # Set a default timeout (in seconds) if no timeout is specified in the instance config
+                instance['socket_timeout'] = instance.get('socket_timeout', 5)
 
                 connection_params = dict((k, instance[k]) for k in list_params if k in instance)
 
@@ -135,17 +141,26 @@ class Redis(AgentCheck):
         tags = sorted(tags.union(tags_to_add))
 
         # Ping the database for info, and track the latency.
+        # Process the service check: the check passes if we can connect to Redis
         start = time.time()
         try:
             info = conn.info()
+            status = AgentCheck.OK
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
         except ValueError, e:
-            # This is likely a know issue with redis library 2.0.0 
+            status = AgentCheck.CRITICAL
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            # This is likely a know issue with redis library 2.0.0
             # See https://github.com/DataDog/dd-agent/issues/374 for details
             import redis
             raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
                 Minimum required version: 2.4.11
-                Your current version: %s 
+                Your current version: %s
                 Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
+        except Exception, e:
+            status = AgentCheck.CRITICAL
+            self.service_check('redis.can_connect', status, tags=tags_to_add)
+            raise Exception(e)
 
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
@@ -174,6 +189,20 @@ class Redis(AgentCheck):
         self.rate('redis.net.commands', info['total_commands_processed'],
                   tags=tags)
 
+        # Check some key lengths if asked
+        key_list = instance.get('keys')
+        if key_list is not None:
+            if not isinstance(key_list, list) or len(key_list) == 0:
+                self.warning("keys in redis configuration is either not a list or empty")
+            else:
+                l_tags = list(tags)
+                for key in key_list:
+                    if conn.exists(key):
+                        key_tags = l_tags + ["key:" + key]
+                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    else:
+                        self.warning("{0} key not found in redis".format(key))
+
     def check(self, instance):
         try:
             import redis
@@ -184,28 +213,3 @@ class Redis(AgentCheck):
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
         self._check_db(instance,custom_tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('redis_urls'):
-            return False
-
-        urls = agentConfig.get('redis_urls')
-        instances = []
-        for url in [u.strip() for u in urls.split(',')]:
-            password = None
-            if '@' in url:
-                password, host_port = url.split('@')
-                host, port = host_port.split(':')
-            else:
-                host, port = url.split(':')
-
-            instances.append({
-                'host': host,
-                'port': int(port),
-                'password': password
-            })
-
-        return {
-            'instances': instances
-        }
