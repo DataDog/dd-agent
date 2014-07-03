@@ -1,7 +1,6 @@
 import re
 import types
 import time
-from datetime import datetime
 
 from checks import AgentCheck
 from util import get_hostname
@@ -10,6 +9,8 @@ from util import get_hostname
 # Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
 mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
+
+DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
 
@@ -33,7 +34,10 @@ class MongoDb(AgentCheck):
 
         "replSet.health",
         "replSet.state",
-        "replSet.replicationLag"
+        "replSet.replicationLag",
+        "metrics.repl.buffer.count",
+        "metrics.repl.buffer.maxSizeBytes",
+        "metrics.repl.buffer.sizeBytes",
     ]
 
     RATES = [
@@ -50,22 +54,57 @@ class MongoDb(AgentCheck):
         "asserts.warning",
         "asserts.msg",
         "asserts.user",
-        "asserts.rollovers"
+        "asserts.rollovers",
+        "metrics.document.deleted",
+        "metrics.document.inserted",
+        "metrics.document.returned",
+        "metrics.document.updated",
+        "metrics.getLastError.wtime.num",
+        "metrics.getLastError.wtime.totalMillis",
+        "metrics.getLastError.wtimeouts",
+        "metrics.operation.fastmod",
+        "metrics.operation.idhack",
+        "metrics.operation.scanAndOrder",
+        "metrics.queryExecutor.scanned",
+        "metrics.record.moves",
+        "metrics.repl.apply.batches.num",
+        "metrics.repl.apply.batches.totalMillis",
+        "metrics.repl.apply.ops",
+        "metrics.repl.network.bytes",
+        "metrics.repl.network.getmores.num",
+        "metrics.repl.network.getmores.totalMillis",
+        "metrics.repl.network.ops",
+        "metrics.repl.network.readersCreated",
+        "metrics.repl.oplog.insert.num",
+        "metrics.repl.oplog.insert.totalMillis",
+        "metrics.repl.oplog.insertBytes",
+        "metrics.ttl.deletedDocuments",
+        "metrics.ttl.passes",
     ]
 
     METRICS = GAUGES + RATES
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
+        self._last_state_by_server = {}
 
-        self._last_state = -1
+    def get_library_versions(self):
+        try:
+            import pymongo
+            version = pymongo.version
+        except ImportError:
+            version = "Not Found"
+        except AttributeError:
+            version = "Unknown"
 
-    def checkLastState(self, state, agentConfig):
-        if self._last_state != state:
-            self._last_state = state
-            return self.create_event(state, agentConfig)
+        return {"pymongo": version}
 
-    def create_event(self, state, agentConfig):
+    def check_last_state(self, state, server, agentConfig):
+        if self._last_state_by_server.get(server, -1) != state:
+            self._last_state_by_server[server] = state
+            return self.create_event(state, server, agentConfig)
+
+    def create_event(self, state, server, agentConfig):
         """Create an event with a message describing the replication
             state of a mongo node"""
 
@@ -83,8 +122,8 @@ class MongoDb(AgentCheck):
 
         status = get_state_description(state)
         hostname = get_hostname(agentConfig)
-        msg_title = "%s is %s" % (hostname, status)
-        msg = "MongoDB: %s just reported as %s" % (hostname, status)
+        msg_title = "%s is %s" % (server, status)
+        msg = "MongoDB %s just reported as %s" % (server, status)
 
         self.event({
             'timestamp': int(time.time()),
@@ -103,7 +142,11 @@ class MongoDb(AgentCheck):
             self.log.warn("Missing 'server' in mongo config")
             return
 
+        server = instance['server']
         tags = instance.get('tags', [])
+        tags.append('server:%s' % server)
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
 
         try:
             from pymongo import Connection
@@ -114,32 +157,35 @@ class MongoDb(AgentCheck):
         try:
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(instance['server'])
+            parsed = uri_parser.parse_uri(server)
         except ImportError:
             # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(instance['server'])
+            matches = mongo_uri_re.match(server)
             if matches:
                 parsed = matches.groupdict()
             else:
                 parsed = {}
         username = parsed.get('username')
         password = parsed.get('password')
+        db_name = parsed.get('database')
+
+        if not db_name:
+            self.log.info('No MongoDB database found in URI. Defaulting to admin.')
+            db_name = 'admin'
 
         do_auth = True
         if username is None or password is None:
-            self.log.debug("Mongo: cannot extract username and password from config %s" % instance['server'])
+            self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(instance['server'])
-        db = conn['admin']
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT)
+        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % instance['server'])
+                self.log.error("Mongo: cannot connect with config %s" % server)
 
-        status = db.command('serverStatus')     # Shorthand for {'serverStatus': 1}
+        status = db["$cmd"].find_one({"serverStatus": 1})
         status['stats'] = db.command('dbstats')
-
-        results = {}
 
         # Handle replica data, if any
         # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
@@ -172,7 +218,7 @@ class MongoDb(AgentCheck):
                     data['health'] = current['health']
 
                 data['state'] = replSet['myState']
-                self.checkLastState(data['state'], self.agentConfig)
+                self.check_last_state(data['state'], server, self.agentConfig)
                 status['replSet'] = data
         except Exception, e:
             if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):

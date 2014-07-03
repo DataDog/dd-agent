@@ -1,122 +1,72 @@
 import unittest
-from checks.jmx_connector import JmxCheck
-import logging
-import subprocess
 import time
-import urllib2
-from nose.plugins.skip import SkipTest
+import threading
+from aggregator import MetricsAggregator
+from dogstatsd import Dogstatsd, init, Server
+from util import PidFile
+import os
+from config import get_logging_config
+from jmxfetch import JMXFetch
 
-from tests.common import kill_subprocess, load_check
+STATSD_PORT = 8127
+class DummyReporter(threading.Thread):
+    def __init__(self, metrics_aggregator):
+        threading.Thread.__init__(self)
+        self.finished = threading.Event()
+        self.metrics_aggregator = metrics_aggregator
+        self.interval = 10
+        self.metrics = None
+        self.finished = False
+        self.start()
 
 
+    def run(self):
+        while not self.finished:
+            time.sleep(self.interval)
+            self.flush()
+
+    def flush(self):
+        metrics = self.metrics_aggregator.flush()
+        if metrics:
+            self.metrics = metrics
 
 
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
-        pass
+        aggregator = MetricsAggregator("test_host")
+        self.server = Server(aggregator, "localhost", STATSD_PORT)
+        pid_file = PidFile('dogstatsd')
+        self.reporter = DummyReporter(aggregator)
+        
+        self.t1 = threading.Thread(target=self.server.start)
+        self.t1.start()
+
+        confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
+        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15)
+
 
     def tearDown(self):
-        pass
+        self.server.stop()
+        self.reporter.finished = True
+        JMXFetch.stop()
 
-    
-    def testSolrMetrics(self):
-        agentConfig = {
-            'solr_jmx_instance_1': 'localhost:8090',
-            'solr_jmx_instance_2': 'dummyurl:4444:fake_url',
-            'version': '0.1',
-            'api_key': 'toto'
-        }
 
-        config = JmxCheck.parse_agent_config(agentConfig, 'solr')
-        config['init_config'] = SOLR_CONFIG
+    def testTomcatMetrics(self):
+        count = 0
+        while self.reporter.metrics is None:
+            time.sleep(1)
+            count += 1
+            if count > 20:
+                raise Exception("No metrics were received in 20 seconds")
 
-        metrics_check = load_check('solr', config, agentConfig)
-
-        timers_first_check = []
-
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_first_check.append(time.time() - start)
-            except Exception,e:
-                print e
-                continue
-        
-        
-        metrics = metrics_check.get_metrics()
-        
+        metrics = self.reporter.metrics
         
 
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 8, metrics)
-        self.assertEquals(len([t for t in metrics if t[3].get('device_name') == "solr" and t[0] == "jvm.thread_count"]), 1, metrics)
-        self.assertTrue(len([t for t in metrics if "jvm." in t[0]]) > 4, [t for t in metrics if "jvm." in t[0]])
-        self.assertTrue(len([t for t in metrics if "solr." in t[0]]) > 4, [t for t in metrics if "solr." in t[0]])
+        self.assertEquals(len([t for t in metrics if 'instance:solr_instance' in t['tags'] and t['metric'] == "jvm.thread_count"]), 1, metrics)
+        self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and 'instance:solr_instance' in t['tags']]) > 4, metrics)
+        self.assertTrue(len([t for t in metrics if "solr." in t['metric'] and 'instance:solr_instance' in t['tags']]) > 4, metrics)
 
-        timers_second_check = []
-        for instance in config['instances']:
-            try:
-                start = time.time()
-                metrics_check.check(instance)
-                timers_second_check.append(time.time() - start)
-            except Exception,e:
-                continue
-
-        self.assertEquals(len([t for t in timers_first_check if t > 10]), 0, timers_first_check)
-        self.assertEquals(len([t for t in timers_second_check if t > 2]), 0, timers_second_check)
-
-        metrics_check.kill_jmx_connectors()
-
-
-
-SOLR_CONFIG = {
-'conf': 
-[{'include': 
-{'attribute': 
-{'maxDoc': 
-{'alias': 'solr.searcher.maxdoc',
-'metric_type': 'gauge'},
-'numDocs': 
-{'alias': 'solr.searcher.numdocs',
-'metric_type': 'gauge'},
-'warmupTime': 
-{'alias': 'solr.searcher.warmup',
-'metric_type': 'gauge'}},
-'type': 'searcher'}},
-{'include': 
-{'attribute': 
-{'cumulative_evictions': 
-{'alias': 'solr.cache.evictions',
-'metric_type': 'counter'},
-'cumulative_hits': {'alias': 'solr.cache.hits',
-'metric_type': 'counter'},
-'cumulative_inserts': {'alias': 'solr.cache.inserts',
-'metric_type': 'counter'},
-'cumulative_lookups': {'alias': 'solr.cache.lookups',
-'metric_type': 'counter'}},
-'id': 'org.apache.solr.search.FastLRUCache'}},
-{'include': {'attribute': {'cumulative_evictions': {'alias': 'solr.cache.evictions',
-'metric_type': 'counter'},
-'cumulative_hits': {'alias': 'solr.cache.hits',
-'metric_type': 'counter'},
-'cumulative_inserts': {'alias': 'solr.cache.inserts',
-'metric_type': 'counter'},
-'cumulative_lookups': {'alias': 'solr.cache.lookups',
-'metric_type': 'counter'}},
-'id': 'org.apache.solr.search.LRUCache'}},
-{'include': {'attribute': {'avgRequestsPerSecond': {'alias': 'solr.search_handler.avg_requests_per_sec',
-'metric_type': 'gauge'},
-'avgTimePerRequest': {'alias': 'solr.search_handler.avg_time_per_req',
-'metric_type': 'gauge'},
-'errors': {'alias': 'solr.search_handler.errors',
-'metric_type': 'counter'},
-'requests': {'alias': 'solr.search_handler.requests',
-'metric_type': 'counter'},
-'timeouts': {'alias': 'solr.search_handler.timeouts',
-'metric_type': 'counter'},
-'totalTime': {'alias': 'solr.search_handler.time',
-'metric_type': 'counter'}},
-'id': 'org.apache.solr.handler.component.SearchHandler'}}]}
 if __name__ == "__main__":
     unittest.main()

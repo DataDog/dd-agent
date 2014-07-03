@@ -8,7 +8,7 @@ import logging
 
 from util import get_hostname
 from tests.common import load_check, kill_subprocess
-
+from nose.plugins.attrib import attr
 logging.basicConfig()
 
 MAX_WAIT = 30
@@ -30,7 +30,7 @@ class HaproxyTestCase(unittest.TestCase):
                 req = urllib2.Request(url)
                 request = urllib2.urlopen(req)
                 break
-            except:
+            except Exception:
                 time.sleep(0.5)
                 loop+=1
                 if loop >= MAX_WAIT:
@@ -58,9 +58,10 @@ class HaproxyTestCase(unittest.TestCase):
 
             # Wait for it to really start
             self._wait("http://localhost:3834/stats")
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot instantiate haproxy")
 
+    @attr('haproxy')
     def testCheck(self):
         config = {
             'init_config': {},
@@ -68,7 +69,8 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'datadog',
                 'password': 'isdevops',
-                'status_check': True
+                'status_check': True,
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -87,19 +89,19 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
         inst = config['instances'][0]
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
         new_data = [l.replace("OPEN", "DOWN") for l in data]
-        self.check._process_data(new_data, get_hostname(self.agentConfig),
-            event_cb=self.check._process_events, url=inst['url'])
+        self.check._process_data(new_data, False, True, inst['url']),
 
         assert self.check.has_events()
         assert len(self.check.get_events()) == 1
 
+    @attr('haproxy')
     def testWrongConfig(self):
         # Same check, with wrong data
         config = {
@@ -108,6 +110,7 @@ class HaproxyTestCase(unittest.TestCase):
                 'url': 'http://localhost:3834/stats',
                 'username': 'wrong',
                 'password': 'isdevops',
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -123,12 +126,14 @@ class HaproxyTestCase(unittest.TestCase):
         assert len(metrics) == 0
         assert self.check.has_events() == False
 
+    @attr('haproxy')
     def testOpenConfig(self):
         # No passwords this time
         config = {
             'init_config': {},
             'instances': [{
                 'url': 'http://localhost:3834/stats',
+                'collect_aggregates_only': False,
             }]
         }
         self.start_server(HAPROXY_OPEN_CFG, config)
@@ -146,7 +151,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(metrics) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 2, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 4, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
 
@@ -157,3 +162,4 @@ class HaproxyTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

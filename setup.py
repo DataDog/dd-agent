@@ -1,6 +1,7 @@
 import platform
 import sys
 from config import *
+from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
     from setuptools import setup, find_packages
@@ -28,7 +29,7 @@ if sys.platform == 'win32':
     from glob import glob
     import py2exe
     install_requires.extend([
-        'tornado==2.1',
+        'tornado==3.0.1',
         'pywin32==217',
         'wmi==1.4.9',
         'simplejson==2.6.1',
@@ -40,6 +41,7 @@ if sys.platform == 'win32':
         'adodbapi'
         'elementtree',
         'pycurl',
+        'MySQLdb',
     ])
 
     # Modules to force-include in the exe
@@ -53,11 +55,19 @@ if sys.platform == 'win32':
         'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
+        'pymongo',
+        'MySQLdb',
 
         # agent
         'checks.services_checks',
         'checks.libs.httplib2',
-        'checks.jmx_connector',
+
+        # pup
+        'pup',
+        'pup.pup',
+        'tornado.websocket',
+        'tornado.web',
+        'tornado.ioloop',
     ]
 
     class Target(object):
@@ -65,27 +75,33 @@ if sys.platform == 'win32':
             self.__dict__.update(kw) 
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
-            self.copyright = 'Copyright 2012 Datadog, Inc.'
+            self.copyright = 'Copyright 2013 Datadog, Inc.'
             self.cmdline_style = 'pywin32'
 
-    agent_svc = Target(name='Datadog Agent', modules='win32.agent')
+    agent_svc = Target(name='Datadog Agent', modules='win32.agent', dest_base='ddagent')
 
     extra_args = {
         'options': {
             'py2exe': {
                 'includes': ','.join(include_modules),
-                'optimize': 2,
-                'compressed': 1,
-                'bundle_files': 1,
+                'optimize': 0,
+                'compressed': True,
+                'bundle_files': 3,
             },
         },
         'console': ['win32\shell.py'],
         'service': [agent_svc],
-        'zipfile': None,
+        'windows': [{'script': 'win32\gui.py',
+                     'dest_base': "agent-manager",
+                     'uac_info': "requireAdministrator", # The manager needs to be administrator to stop/start the service
+                     'icon_resources': [(1, r"packaging\datadog-agent\win32\install_files\dd_agent_win_256.ico")],
+                     }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
+            ('pup', glob('pup/pup.html')),
             ('pup', glob('pup/status.html')),
             ('pup/static', glob('pup/static/*.*')),
+            ('jmxfetch', glob('checks/libs/%s' % JMX_FETCH_JAR_NAME)),
         ],
     }
 

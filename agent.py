@@ -11,7 +11,7 @@
 '''
 
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('collector')
+from config import get_version, initialize_logging; initialize_logging('collector')
 
 import os; os.umask(022)
 
@@ -21,6 +21,7 @@ import os.path
 import signal
 import sys
 import time
+import glob
 
 # Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
 # were only introduced in 2.4.
@@ -31,16 +32,18 @@ if int(sys.version_info[1]) <= 3:
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory
+from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2
+from util import Watchdog, PidFile, EC2, get_os
+from jmxfetch import JMXFetch
 
 
 # Constants
 PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
+START_COMMANDS = ['start', 'restart', 'foreground']
 
 # Globals
 log = logging.getLogger('collector')
@@ -59,6 +62,10 @@ class Agent(Daemon):
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
+
+        if JMXFetch.is_running():
+            JMXFetch.stop()
+
         if self.collector:
             self.collector.stop()
         log.debug("Collector is stopped.")
@@ -93,10 +100,10 @@ class Agent(Daemon):
         agentConfig = self._set_agent_config_hostname(config)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
-        self.collector = Collector(agentConfig, emitters, systemStats)
-
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig)
+
+        self.collector = Collector(agentConfig, emitters, systemStats)
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
@@ -108,8 +115,34 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
+            
+            # enable profiler if needed
+            profiled = False
+            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
+                try:
+                    import cProfile
+                    profiler = cProfile.Profile()
+                    profiled = True
+                    profiler.enable()
+                    log.debug("Agent profiling is enabled")
+                except Exception:
+                    log.warn("Cannot enable profiler")
+                    
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
+
+            # disable profiler and printout stats to stdout
+            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes' and profiled:
+                try:
+                    profiler.disable()
+                    import pstats
+                    from cStringIO import StringIO
+                    s = StringIO()
+                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+                    ps.print_stats()
+                    log.debug(s.getvalue())
+                except Exception:
+                    log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -125,7 +158,7 @@ class Agent(Daemon):
         # Now clean-up.
         try:
             CollectorStatus.remove_latest_status()
-        except:
+        except Exception:
             pass
 
         # Explicitly kill the process, because it might be running
@@ -139,7 +172,7 @@ class Agent(Daemon):
     def _get_watchdog(self, check_freq, agentConfig):
         watchdog = None
         if agentConfig.get("watchdog", True):
-            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER, 
+            watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
                 max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
@@ -181,6 +214,8 @@ def main():
         'status',
         'info',
         'check',
+        'configcheck',
+        'jmx',
     ]
 
     if len(args) < 1:
@@ -198,6 +233,9 @@ def main():
         pid_file.clean()
 
     agent = Agent(pid_file.get_path(), autorestart)
+
+    if command in START_COMMANDS:
+        log.info('Agent version %s' % get_version())
 
     if 'start' == command:
         log.info('Start daemon')
@@ -247,8 +285,53 @@ def main():
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
-                    print check.get_metrics()
-                    print check.get_events()
+                        print check.get_metrics()
+                        print check.get_events()
+
+    elif 'configcheck' == command:
+        osname = get_os()
+        all_valid = True
+        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
+            basename = os.path.basename(conf_path)
+            try:
+                check_yaml(conf_path)
+            except Exception, e:
+                all_valid = False
+                print "%s contains errors:\n%s\n" % (basename, e)
+            else:
+                print "%s is valid\n" % basename
+        if all_valid:
+            print "All yaml files passed. You can now run the Datadog agent."
+        else:
+            print("Fix the invalid yaml files above in order to start the Datadog agent. "
+                    "A useful external tool for yaml parsing can be found at "
+                    "http://yaml-online-parser.appspot.com/")
+
+    elif 'jmx' == command:
+        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
+       
+        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
+            print "#" * 80
+            print "JMX tool to be used to help configuring your JMX checks."
+            print "See http://docs.datadoghq.com/integrations/java/ for more information"
+            print "#" * 80
+            print "\n"
+            print "You have to specify one of the following command:" 
+            for command, desc in JMX_LIST_COMMANDS.iteritems():
+                print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
+            print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"
+            print "\n"
+
+        else:
+            jmx_command = args[1]
+            checks_list = args[2:]
+            confd_directory = get_confd_path(get_os())
+            should_run  = JMXFetch.init(confd_directory, agentConfig, get_logging_config(), 15, jmx_command, checks_list, reporter="console")
+            if not should_run:
+                print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
+                print "Have you enabled any JMX check ?"
+                print "If you think it's not normal please get in touch with Datadog Support"
+
 
     return 0
 
@@ -260,7 +343,6 @@ if __name__ == '__main__':
         # Try our best to log the error.
         try:
             log.exception("Uncaught error running the Agent")
-        except:
+        except Exception:
             pass
         raise
-

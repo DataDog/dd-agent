@@ -37,7 +37,7 @@ class CouchDb(AgentCheck):
     def check(self, instance):
         server = instance.get('server', None)
         if server is None:
-            return False
+            raise Exception("A server must be specified")
         data = self.get_data(server)
         self._create_metric(data, tags=['instance:%s' % server])
 
@@ -53,9 +53,9 @@ class CouchDb(AgentCheck):
 
         # No overall stats? bail out now
         if overall_stats is None:
-            return False
-        else:
-            couchdb['stats'] = overall_stats
+            raise Exception("No stats could be retrieved from %s" % url)
+
+        couchdb['stats'] = overall_stats
 
         # Next, get all database names.
         endpoint = '/_all_dbs/'

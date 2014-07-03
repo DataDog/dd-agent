@@ -8,6 +8,7 @@ class HTTPCheck(ServicesCheck):
 
     def _load_conf(self, instance):
         # Fetches the conf
+        tags = instance.get('tags', [])
         username = instance.get('username', None)
         password = instance.get('password', None)
         timeout = int(instance.get('timeout', 10))
@@ -17,15 +18,18 @@ class HTTPCheck(ServicesCheck):
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
-        return url, username, password, timeout, include_content, headers, response_time
+        ssl = instance.get('disable_ssl_validation', True)
+        return url, username, password, timeout, include_content, headers, response_time, tags, ssl
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation = self._load_conf(instance)
         content = ''
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
-            h = Http(timeout=timeout, disable_ssl_certificate_validation=True)
+            if disable_ssl_validation:
+                self.warning("Skipping SSL certificate validation for %s based on configuration" % addr)
+            h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
             resp, content = h.request(addr, "GET", headers=headers)
@@ -51,7 +55,13 @@ class HTTPCheck(ServicesCheck):
             raise
 
         if response_time:
-            self.gauge('network.http.response_time', time.time() - start, tags=['url:%s' % addr])
+           # Stop the timer as early as possible
+           running_time = time.time() - start
+           # Store tags in a temporary list so that we don't modify the global tags data structure
+           tags_list = []
+           tags_list.extend(tags)
+           tags_list.append('url:%s' % addr)
+           self.gauge('network.http.response_time', running_time, tags=tags_list)
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
@@ -68,7 +78,11 @@ class HTTPCheck(ServicesCheck):
         name = instance.get('name', None)
         nb_failures = self.statuses[name].count(Status.DOWN)
         nb_tries = len(self.statuses[name])
-
+        tags = instance.get('tags', [])
+        url = instance.get('url', None)
+        tags_list = []
+        tags_list.extend(tags)
+        tags_list.append('url:%s' % url)
 
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
@@ -121,13 +135,12 @@ class HTTPCheck(ServicesCheck):
              'timestamp': int(time.time()),
              'event_type': event_type,
              'host': self.hostname,
-             'api_key': self.agentConfig['api_key'],
              'msg_text': msg,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": source_type,
              "event_object": name,
+             "tags": tags_list
         }
-
 
 

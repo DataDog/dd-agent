@@ -35,10 +35,10 @@ class ServiceCheckTestCase(unittest.TestCase):
 
         self.init_check(config, 'http_check')
         time.sleep(1)
-        nt.assert_equals(self.check.pool.get_nworkers(), 2)
 
         # We launch each instance twice to be sure to get the results
         self.check.run()
+        nt.assert_equals(self.check.pool.get_nworkers(), 2)
         time.sleep(1)
         self.check.run()
         time.sleep(1)
@@ -96,10 +96,11 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.init_check(config, 'tcp_check')
         time.sleep(1)
 
-        nt.assert_equals(self.check.pool.get_nworkers(), 3)
+        
 
         # We launch each instance twice to be sure to get the results
         self.check.run()
+        nt.assert_equals(self.check.pool.get_nworkers(), 3)
         time.sleep(2)
         self.check.run()
 

@@ -12,13 +12,21 @@ import platform
 import sys
 import tempfile
 import traceback
+import time
 
 # project
 import config
+from compat.defaultdict import defaultdict
+from util import get_os, yaml, yLoader
+
+# 3rd party
+from checks.libs import ntplib
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
 STATUS_WARNING = 'WARNING'
+
+NTP_OFFSET_THRESHOLD = 600
 
 
 log = logging.getLogger(__name__)
@@ -83,6 +91,14 @@ def logger_info():
     else:
         loggers.append("No loggers configured")
     return ', '.join(loggers)
+
+def get_ntp_info():
+    ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
+    if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
+        ntp_styles = ['red', 'bold']
+    else:
+        ntp_styles = []
+    return ntp_offset, ntp_styles
 
 class AgentStatus(object):
     """
@@ -232,12 +248,13 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None, warnings=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None):
         self.instance_id = instance_id
         self.status = status
         self.error = repr(error)
         self.traceback = tb
         self.warnings = warnings
+        self.metric_count = metric_count
 
     def has_error(self):
         return self.status == STATUS_ERROR
@@ -249,13 +266,14 @@ class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count,
                  event_count, init_failed_error=None,
-                 init_failed_traceback=None):
+                 init_failed_traceback=None, library_versions=None):
         self.name = check_name
         self.instance_statuses = instance_statuses
         self.metric_count = metric_count
         self.event_count = event_count
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
+        self.library_versions = library_versions
 
     @property
     def status(self):
@@ -318,12 +336,50 @@ class CollectorStatus(AgentStatus):
             'instance-id'
         ]
 
-        # Hostnames
+
         lines = [
+            'Clocks',
+            '======',
+            ''
+        ]
+        try:
+            ntp_offset, ntp_styles = get_ntp_info()
+            lines.append('  ' + style('NTP offset', *ntp_styles) + ': ' +  style('%s s' % round(ntp_offset, 4), *ntp_styles))
+        except Exception, e:
+            lines.append('  NTP offset: Unkwown (%s)' % str(e))
+        lines.append('  System UTC time: ' + datetime.datetime.utcnow().__str__())
+        lines.append('')
+
+        # Paths to checks.d/conf.d
+        lines += [
+            'Paths',
+            '=====',
+            ''
+        ]
+
+        osname = config.get_os()
+
+        try:
+            confd_path = config.get_confd_path(osname)
+        except config.PathNotFound:
+            confd_path = 'Not found'
+        
+        try:
+            checksd_path = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            checksd_path = 'Not found'
+
+        lines.append('  conf.d: ' + confd_path)
+        lines.append('  checks.d: ' + checksd_path)
+        lines.append('')
+
+        # Hostnames
+        lines += [
             'Hostnames',
             '=========',
             ''
         ]
+
         if not self.metadata:
             lines.append("  No host information available yet.")
         else:
@@ -341,10 +397,11 @@ class CollectorStatus(AgentStatus):
             '======',
             ''
         ]
-        if not self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        if not check_statuses:
             lines.append("  No checks have run yet.")
         else:
-            for cs in self.check_statuses:
+            for cs in check_statuses:
                 check_lines = [
                     '  ' + cs.name,
                     '  ' + '-' * len(cs.name)
@@ -367,6 +424,8 @@ class CollectorStatus(AgentStatus):
                                  s.instance_id, style(s.status, c))
                         if s.has_error():
                             line += u": %s" % s.error
+                        if s.metric_count is not None:
+                            line += " collected %s metrics" % s.metric_count
 
                         check_lines.append(line)
 
@@ -384,8 +443,16 @@ class CollectorStatus(AgentStatus):
 
                     check_lines += [
                         "    - Collected %s metrics & %s events" % (cs.metric_count, cs.event_count),
-                        ""
                     ]
+
+                    if cs.library_versions is not None:
+                        check_lines += [
+                            "    - Dependencies:"]
+                        for library, version in cs.library_versions.iteritems():
+                            check_lines += [
+                            "        - %s: %s" % (library, version)]
+
+                    check_lines += [""]
 
                 lines += check_lines
 
@@ -430,20 +497,27 @@ class CollectorStatus(AgentStatus):
 
         # Checks.d Status
         status_info['checks'] = {}
-        for cs in self.check_statuses:
+        check_statuses = self.check_statuses + get_jmx_status()
+        for cs in check_statuses:
             status_info['checks'][cs.name] = {'instances': {}}
-            for s in cs.instance_statuses:
-                status_info['checks'][cs.name]['instances'][s.instance_id] = {
-                    'status': s.status,
-                    'has_error': s.has_error(),
-                    'has_warnings': s.has_warnings(),
-                }
-                if s.has_error():
-                    status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
-                if s.has_warnings():
-                    status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
-            status_info['checks'][cs.name]['metric_count'] = cs.metric_count
-            status_info['checks'][cs.name]['event_count'] = cs.event_count
+            if cs.init_failed_error:
+                status_info['checks'][cs.name]['init_failed'] = True
+                status_info['checks'][cs.name]['traceback'] = cs.init_failed_traceback
+            else:
+                status_info['checks'][cs.name] = {'instances': {}}
+                status_info['checks'][cs.name]['init_failed'] = False
+                for s in cs.instance_statuses:
+                    status_info['checks'][cs.name]['instances'][s.instance_id] = {
+                        'status': s.status,
+                        'has_error': s.has_error(),
+                        'has_warnings': s.has_warnings(),
+                    }
+                    if s.has_error():
+                        status_info['checks'][cs.name]['instances'][s.instance_id]['error'] = s.error
+                    if s.has_warnings():
+                        status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
+                status_info['checks'][cs.name]['metric_count'] = cs.metric_count
+                status_info['checks'][cs.name]['event_count'] = cs.event_count
 
         # Emitter status
         status_info['emitter'] = []
@@ -456,6 +530,18 @@ class CollectorStatus(AgentStatus):
             if es.has_error():
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
+
+        osname = config.get_os()
+
+        try:
+            status_info['confd_path'] = config.get_confd_path(osname)
+        except config.PathNotFound:
+            status_info['confd_path'] = 'Not found'
+        
+        try:
+            status_info['checksd_path'] = config.get_checksd_path(osname)
+        except config.PathNotFound:
+            status_info['checksd_path'] = 'Not found'
 
         return status_info
 
@@ -502,17 +588,22 @@ class ForwarderStatus(AgentStatus):
 
     NAME = 'Forwarder'
 
-    def __init__(self, queue_length=0, queue_size=0, flush_count=0):
+    def __init__(self, queue_length=0, queue_size=0, flush_count=0, transactions_received=0,
+            transactions_flushed=0):
         AgentStatus.__init__(self)
         self.queue_length = queue_length
         self.queue_size = queue_size
         self.flush_count = flush_count
+        self.transactions_received = transactions_received
+        self.transactions_flushed = transactions_flushed
 
     def body_lines(self):
         lines = [
-            "Queue Size: %s" % self.queue_size,
+            "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
+            "Transactions received: %s" % self.transactions_received,
+            "Transactions flushed: %s" % self.transactions_flushed
         ]
         return lines
 
@@ -527,3 +618,104 @@ class ForwarderStatus(AgentStatus):
             'queue_size': self.queue_size,
         })
         return status_info
+
+def get_jmx_instance_status(instance_name, status, message, metric_count):
+    if status == STATUS_ERROR:
+        instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
+
+    elif status == STATUS_WARNING:
+        instance_status = InstanceStatus(instance_name, STATUS_WARNING, warnings=[message], metric_count=metric_count)
+
+    elif status == STATUS_OK:
+        instance_status = InstanceStatus(instance_name, STATUS_OK, metric_count=metric_count)
+
+    return instance_status
+
+
+def get_jmx_status():
+    """This function tries to read the 2 jmxfetch status file which are yaml file
+    located in the temp directory.
+
+    There are 2 files:
+        - One generated by the Agent itself, for jmx checks that can't be initialized because
+        there are missing stuff.
+        Its format is as following:
+
+        ###
+        invalid_checks:
+              jmx: !!python/object/apply:jmxfetch.InvalidJMXConfiguration [You need to have at
+                              least one instance defined in the YAML file for this check]
+        timestamp: 1391040927.136523
+        ###
+
+        - One generated by jmxfetch that return information about the collection of metrics
+        its format is as following:
+    
+        ###
+        timestamp: 1391037347435
+        checks:
+          failed_checks:
+            jmx:
+            - {message: Unable to create instance. Please check your yaml file, status: ERROR}
+          initialized_checks:
+            tomcat:
+            - {message: null, status: OK, metric_count: 7, instance_name: jmx-remihakim.fr-3000}
+        ###
+    """
+    check_statuses = []
+    java_status_path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+    python_status_path = os.path.join(tempfile.gettempdir(), "jmx_status_python.yaml")
+    if not os.path.exists(java_status_path) and not os.path.exists(python_status_path):
+        log.debug("There is no jmx_status file at: %s or at: %s" % (java_status_path, python_status_path))
+        return []
+
+    check_data = defaultdict(lambda: defaultdict(list))
+    try:
+        if os.path.exists(java_status_path):
+            java_jmx_stats = yaml.load(file(java_status_path))
+
+            status_age = time.time() - java_jmx_stats.get('timestamp')/1000 # JMX timestamp is saved in milliseconds
+            jmx_checks = java_jmx_stats.get('checks', {})
+
+            if status_age > 60:
+                check_statuses.append(CheckStatus("jmx", [InstanceStatus(
+                                                    0, 
+                                                    STATUS_ERROR, 
+                                                    error="JMXfetch didn't return any metrics during the last minute"
+                                                    )], 0, 0))
+            else:
+
+                for check_name, instances in jmx_checks.get('failed_checks', {}).iteritems():
+                    for info in instances:
+                        message = info.get('message', None)
+                        metric_count = info.get('metric_count', 0)
+                        status = info.get('status')
+                        instance_name = info.get('instance_name', None)
+                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
+                        check_data[check_name]['metric_count'].append(metric_count)
+               
+                for check_name, instances in jmx_checks.get('initialized_checks', {}).iteritems():
+                    for info in instances:
+                        message = info.get('message', None)
+                        metric_count = info.get('metric_count', 0)
+                        status = info.get('status')
+                        instance_name = info.get('instance_name', None)
+                        check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
+                        check_data[check_name]['metric_count'].append(metric_count)
+
+                for check_name, data in check_data.iteritems():
+                    check_status = CheckStatus(check_name, data['statuses'], sum(data['metric_count']), 0)
+                    check_statuses.append(check_status)
+
+        if os.path.exists(python_status_path):
+            python_jmx_stats = yaml.load(file(python_status_path))
+            jmx_checks = python_jmx_stats.get('invalid_checks', {})
+            for check_name, excep in jmx_checks.iteritems():
+                check_statuses.append(CheckStatus(check_name, [], 0, 0, init_failed_error=excep))
+
+
+        return check_statuses
+
+    except Exception, e:
+        log.exception("Couldn't load latest jmx status")
+        return []

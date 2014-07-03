@@ -15,7 +15,7 @@ def parse_date(date_val, date_format=None):
             try:
                 dt = datetime.strptime(date_val, fmt)
                 break
-            except:
+            except Exception:
                 pass
         else:
             raise ParseError(date_val)

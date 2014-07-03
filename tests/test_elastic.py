@@ -20,7 +20,7 @@ class TestElastic(unittest.TestCase):
                 req = urllib2.Request(url, None)
                 request = urllib2.urlopen(req)
                 break
-            except:
+            except Exception:
                 time.sleep(0.5)
                 loop = loop + 1
                 if loop >= MAX_WAIT:
@@ -38,7 +38,7 @@ class TestElastic(unittest.TestCase):
 
             # Wait for it to really start
             self._wait("http://localhost:%s" % PORT)
-        except:
+        except Exception:
             logging.getLogger().exception("Cannot instantiate elasticsearch")
 
     def tearDown(self):
@@ -56,7 +56,6 @@ class TestElastic(unittest.TestCase):
         self.check = load_check('elastic', conf, agentConfig)
         
         self.check.check(conf['instances'][0])
-
         r = self.check.get_metrics()
 
         self.assertTrue(type(r) == type([]))
