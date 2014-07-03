@@ -134,10 +134,20 @@ class TestRedis(unittest.TestCase):
         self.assertEquals(2, len(db_metrics))
 
         self.assertEquals('redis.expires', db_metrics[0][0])
-        self.assertEquals(1, db_metrics[0][2]) 
+        self.assertEquals(1, db_metrics[0][2])
 
         self.assertEquals('redis.keys', db_metrics[1][0])
-        self.assertEquals(3, db_metrics[1][2]) 
+        self.assertEquals(3, db_metrics[1][2])
+
+        # Service checks
+        service_checks = r.get_service_checks()
+        service_checks_count = len(service_checks)
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(service_checks_count > 0)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "redis.can_connect"]), 1, service_checks)
+        # Assert that all service checks have the proper tags: host and port
+        self.assertEquals(len([sc for sc in service_checks if "redis_host:localhost" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "redis_port:%s" % port in sc['tags']]), service_checks_count, service_checks)
 
         # Run one more check and ensure we get total command count
         # and other rates

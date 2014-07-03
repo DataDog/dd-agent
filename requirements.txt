@@ -9,3 +9,9 @@ psutil
 gearman
 pylint
 boto
+pysnmp
+pysnmp-mibs
+PyMySQL
+pg8000
+ntplib
+httplib2

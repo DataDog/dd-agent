@@ -11,69 +11,28 @@ import urllib2
 import uuid
 import tempfile
 import re
+import simplejson as json
+import logging
 
 # Tornado
-try:
-    from tornado import ioloop, version_info as tornado_version
-except ImportError:
-    pass # We are likely running the agent without the forwarder and tornado is not installed
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import md5
+from tornado import ioloop
+from hashlib import md5
+
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
-# Import json for the agent. Try simplejson first, then the stdlib version and
-# if all else fails, use minjson which we bundle with the agent.
-def generate_minjson_adapter():
-    import minjson
-    class json(object):
-        @staticmethod
-        def dumps(data):
-            return minjson.write(data)
 
-        @staticmethod
-        def loads(data):
-            return minjson.safeRead(data)
-    return json
-
-try:
-    import simplejson as json
-except ImportError:
-    try:
-        import json
-    except ImportError:
-        json = generate_minjson_adapter()
-
-
-
-import yaml
-try:
-    from yaml import CLoader as yLoader
-except ImportError:
-    from yaml import Loader as yLoader
-
-try:
-    from collections import namedtuple
-except ImportError:
-    from compat.namedtuple import namedtuple
-
-import logging
 log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
 def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+    if count == 1:
+        return ""
+    return "s"
 
 def get_tornado_ioloop():
-    if tornado_version[0] == 3:
         return ioloop.IOLoop.current()
-    else:
-        return ioloop.IOLoop.instance()
 
 def get_uuid():
     # Generate a unique name that will stay constant between
@@ -116,7 +75,7 @@ def getTopIndex():
     macV = None
     if sys.platform == 'darwin':
         macV = platform.mac_ver()
-        
+
     # Output from top is slightly modified on OS X 10.6 (case #28239)
     if macV and macV[0].startswith('10.6.'):
         return 6
@@ -148,6 +107,14 @@ def cast_metric_val(val):
         raise ValueError
     return val
 
+_IDS = {}
+def get_next_id(name):
+    global _IDS
+    current_id = _IDS.get(name, 0)
+    current_id += 1
+    _IDS[name] = current_id
+    return current_id
+
 def is_valid_hostname(hostname):
     if hostname.lower() in set([
         'localhost',
@@ -164,7 +131,7 @@ def is_valid_hostname(hostname):
         log.warning("Hostname: %s is not complying with RFC 1123" % hostname)
         return False
     return True
-    
+
 
 def get_hostname(config=None):
     """
@@ -185,8 +152,14 @@ def get_hostname(config=None):
         config = get_config(parse_args=True)
     config_hostname = config.get('hostname')
     if config_hostname and is_valid_hostname(config_hostname):
-        hostname = config_hostname
+        return config_hostname
 
+    #Try to get GCE instance name
+    if hostname is None:
+        gce_hostname = GCE.get_hostname(config)
+        if gce_hostname is not None:
+            if is_valid_hostname(gce_hostname):
+                return gce_hostname
     # then move on to os-specific detection
     if hostname is None:
         def _get_hostname_unix():
@@ -207,7 +180,7 @@ def get_hostname(config=None):
 
     # if we have an ec2 default hostname, see if there's an instance-id available
     if hostname is not None and True in [hostname.lower().startswith(p) for p in [u'ip-', u'domu']]:
-        instanceid = EC2.get_instance_id()
+        instanceid = EC2.get_instance_id(config)
         if instanceid:
             hostname = instanceid
 
@@ -226,6 +199,84 @@ def get_hostname(config=None):
     else:
         return hostname
 
+class GCE(object):
+    URL = "http://169.254.169.254/computeMetadata/v1/?recursive=true"
+    TIMEOUT = 0.1 # second
+    SOURCE_TYPE_NAME = 'google cloud platform'
+    metadata = None
+
+
+    @staticmethod
+    def _get_metadata(agentConfig):
+        if GCE.metadata is not None:
+            return GCE.metadata
+
+        if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
+            GCE.metadata = {}
+            return GCE.metadata
+
+        socket_to = None
+        try:
+            socket_to = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(GCE.TIMEOUT)
+        except Exception:
+            pass
+
+        try:
+            opener = urllib2.build_opener()
+            opener.addheaders = [('X-Google-Metadata-Request','True')]
+            GCE.metadata = json.loads(opener.open(GCE.URL).read().strip())
+
+        except Exception:
+            GCE.metadata = {}
+
+        try:
+            if socket_to is None:
+                socket_to = 3
+            socket.setdefaulttimeout(socket_to)
+        except Exception:
+            pass
+        return GCE.metadata
+
+
+
+    @staticmethod
+    def get_tags(agentConfig):
+        if not agentConfig['collect_instance_metadata']:
+            return None
+
+        try:
+            host_metadata = GCE._get_metadata(agentConfig)
+            tags = []
+
+            for key, value in host_metadata['instance'].get('attributes', {}).iteritems():
+                tags.append("%s:%s" % (key, value))
+
+            tags.extend(host_metadata['instance'].get('tags', []))
+            tags.append('zone:%s' % host_metadata['instance']['zone'].split('/')[-1])
+            tags.append('instance-type:%s' % host_metadata['instance']['machineType'].split('/')[-1])
+            tags.append('internal-hostname:%s' % host_metadata['instance']['hostname'])
+            tags.append('instance-id:%s' % host_metadata['instance']['id'])
+            tags.append('project:%s' % host_metadata['project']['projectId'])
+            tags.append('numeric_project_id:%s' % host_metadata['project']['numericProjectId'])
+
+            GCE.metadata['hostname'] = host_metadata['instance']['hostname'].split('.')[0]
+
+            return tags
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_hostname(agentConfig):
+        try:
+            host_metadata = GCE._get_metadata(agentConfig)
+            return host_metadata['instance']['hostname'].split('.')[0]
+        except Exception:
+            return None
+
+
+
 class EC2(object):
     """Retrieve EC2 metadata
     """
@@ -234,7 +285,11 @@ class EC2(object):
     metadata = {}
 
     @staticmethod
-    def get_tags():
+    def get_tags(agentConfig):
+        if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
+            return []
+
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -245,7 +300,7 @@ class EC2(object):
         try:
             iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
             iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
-            from checks.libs.boto.ec2.connection import EC2Connection
+            from boto.ec2.connection import EC2Connection
             connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
 
@@ -266,7 +321,7 @@ class EC2(object):
 
 
     @staticmethod
-    def get_metadata():
+    def get_metadata(agentConfig):
         """Use the ec2 http service to introspect the instance. This adds latency if not running on EC2
         """
         # >>> import urllib2
@@ -280,6 +335,11 @@ class EC2(object):
         # Every call may add TIMEOUT seconds in latency so don't abuse this call
         # python 2.4 does not support an explicit timeout argument so force it here
         # Rather than monkey-patching urllib2, just lower the timeout globally for these calls
+
+        if not agentConfig['collect_instance_metadata']:
+            log.info("Instance metadata collection is disabled. Not collecting it.")
+            return {}
+
         socket_to = None
         try:
             socket_to = socket.getdefaulttimeout()
@@ -305,9 +365,9 @@ class EC2(object):
         return EC2.metadata
 
     @staticmethod
-    def get_instance_id():
+    def get_instance_id(agentConfig):
         try:
-            return EC2.get_metadata().get("instance-id", None)
+            return EC2.get_metadata(agentConfig).get("instance-id", None)
         except Exception:
             return None
 
@@ -509,3 +569,23 @@ class Platform(object):
     def is_win32(name=None):
         name = name or sys.platform
         return name == "win32"
+
+"""
+Iterable Recipes
+"""
+
+def chunks(iterable, chunk_size):
+    """Generate sequences of `chunk_size` elements from `iterable`."""
+    iterable = iter(iterable)
+    while True:
+        chunk = [None] * chunk_size
+        count = 0
+        try:
+            for _ in range(chunk_size):
+                chunk[count] = iterable.next()
+                count += 1
+            yield chunk[:count]
+        except StopIteration:
+            if count:
+                yield chunk[:count]
+            break

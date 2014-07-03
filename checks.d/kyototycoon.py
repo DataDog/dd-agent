@@ -1,9 +1,6 @@
 import re
 import urllib2
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
+from collections import defaultdict
 
 from checks import AgentCheck
 
@@ -14,6 +11,7 @@ class KyotoTycoonCheck(AgentCheck):
     """Report statistics about the Kyoto Tycoon DBM-style
     database server (http://fallabs.com/kyototycoon/)
     """
+    SOURCE_TYPE_NAME = 'kyoto tycoon'
 
     GAUGES = {
         'repl_delay':         'replication.delay',
@@ -68,7 +66,7 @@ class KyotoTycoonCheck(AgentCheck):
             if key in self.GAUGES:
                 name = self.GAUGES[key]
                 self.gauge('kyototycoon.%s' % name, float(value), tags=tags)
-            
+
             elif key in self.RATES:
                 name = self.RATES[key]
                 self.rate('kyototycoon.%s_per_s' % name, float(value), tags=tags)

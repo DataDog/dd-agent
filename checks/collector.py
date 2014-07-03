@@ -10,16 +10,16 @@ import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2
+from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
 from config import get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
+from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
-from checks.nagios import Nagios
 from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
 
 
@@ -43,9 +43,17 @@ class Collector(object):
         # agent config is used during checks, system_stats can be accessed through the config
         self.os = get_os()
         self.plugins = None
-        self.emitters = emitters            
-        self.metadata_interval = int(agentConfig.get('metadata_interval', 10 * 60))
-        self.metadata_start = time.time()
+        self.emitters = emitters
+        self.push_times = {
+            'metadata': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
+            },
+            'agent_checks': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
+            }
+        }
         socket.setdefaulttimeout(15)
         self.run_count = 0
         self.continue_running = True
@@ -93,11 +101,6 @@ class Collector(object):
             except Exception, e:
                 log.exception('Unable to load custom check module %s' % module_spec)
 
-        # Event Checks
-        self._event_checks = [
-            Nagios(get_hostname()),
-        ]
-
         # Resource Checks
         self._resources_checks = [
             ResProcesses(log,self.agentConfig)
@@ -107,7 +110,7 @@ class Collector(object):
         """
         Tell the collector to stop at the next logical point.
         """
-        # This is called when the process is being killed, so 
+        # This is called when the process is being killed, so
         # try to stop the collector as soon as possible.
         # Most importantly, don't try to submit to the emitters
         # because the forwarder is quite possibly already killed
@@ -116,7 +119,7 @@ class Collector(object):
         self.continue_running = False
         for check in self.initialized_checks_d:
             check.stop()
-    
+
     def run(self, checksd=None, start_event=True):
         """
         Collect data from each check and submit their data.
@@ -130,6 +133,7 @@ class Collector(object):
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
+        service_checks = payload['service_checks']
         if checksd:
             self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
@@ -156,21 +160,21 @@ class Collector(object):
 
             load = sys_checks['load'].check(self.agentConfig)
             payload.update(load)
-                
+
             memory = sys_checks['memory'].check(self.agentConfig)
 
             if memory:
                 payload.update({
-                    'memPhysUsed' : memory.get('physUsed'), 
-                    'memPhysPctUsable' : memory.get('physPctUsable'), 
-                    'memPhysFree' : memory.get('physFree'), 
-                    'memPhysTotal' : memory.get('physTotal'), 
-                    'memPhysUsable' : memory.get('physUsable'), 
-                    'memSwapUsed' : memory.get('swapUsed'), 
-                    'memSwapFree' : memory.get('swapFree'), 
-                    'memSwapPctFree' : memory.get('swapPctFree'), 
-                    'memSwapTotal' : memory.get('swapTotal'), 
-                    'memCached' : memory.get('physCached'), 
+                    'memPhysUsed' : memory.get('physUsed'),
+                    'memPhysPctUsable' : memory.get('physPctUsable'),
+                    'memPhysFree' : memory.get('physFree'),
+                    'memPhysTotal' : memory.get('physTotal'),
+                    'memPhysUsable' : memory.get('physUsable'),
+                    'memSwapUsed' : memory.get('swapUsed'),
+                    'memSwapFree' : memory.get('swapFree'),
+                    'memSwapPctFree' : memory.get('swapPctFree'),
+                    'memSwapTotal' : memory.get('swapTotal'),
+                    'memCached' : memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
                 })
@@ -194,7 +198,7 @@ class Collector(object):
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
-           
+
         # dogstream
         if dogstreamData:
             dogstreamEvents = dogstreamData.get('dogstreamEvents', None)
@@ -211,12 +215,6 @@ class Collector(object):
         if ddforwarderData:
             payload['datadog'] = ddforwarderData
 
-        # Process the event checks. 
-        for event_check in self._event_checks:
-            event_data = event_check.check(log, self.agentConfig)
-            if event_data:
-                events[event_check.key] = event_data
-
         # Resources checks
         if self.os != 'windows':
             has_resource = False
@@ -226,12 +224,12 @@ class Collector(object):
                 if snaps:
                     has_resource = True
                     res_value = { 'snaps': snaps,
-                                  'format_version': resources_check.get_format_version() }                              
+                                  'format_version': resources_check.get_format_version() }
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format
                     payload['resources'][resources_check.RESOURCE_KEY] = res_value
-     
+
             if has_resource:
                 payload['resources']['meta'] = {
                             'api_key': self.agentConfig['api_key'],
@@ -250,9 +248,11 @@ class Collector(object):
             if not self.continue_running:
                 return
             log.info("Running check %s" % check.name)
-            instance_statuses = [] 
+            instance_statuses = []
             metric_count = 0
             event_count = 0
+            service_check_count = 0
+            check_start_time = time.time()
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -272,31 +272,82 @@ class Collector(object):
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
-            except Exception, e:
+            except Exception:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, library_versions=check.get_library_info())
+            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
+                library_versions=check.get_library_info(),
+                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+
+            # Service check for Agent checks failures
+            service_check_tags = ["check:%s" % check.name]
+            if check_status.status == STATUS_OK:
+                status = AgentCheck.OK
+            elif check_status.status == STATUS_ERROR:
+                status = AgentCheck.CRITICAL
+            check.service_check('datadog.agent.check_status', status, tags=service_check_tags)
+
+            # Collect the service checks and save them in the payload
+            current_check_service_checks = check.get_service_checks()
+            if current_check_service_checks:
+                service_checks.extend(current_check_service_checks)
+            service_check_count = len(current_check_service_checks)
+
+            # Update the check status with the correct service_check_count
+            check_status.service_check_count = service_check_count
             check_statuses.append(check_status)
+
+            log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
                 return
-            check_status = CheckStatus(check_name, None, None, None,
+            check_status = CheckStatus(check_name, None, None, None, None,
                                        init_failed_error=info['error'],
                                        init_failed_traceback=info['traceback'])
             check_statuses.append(check_status)
 
+        # Add a service check for the agent
+        service_checks.append(create_service_check('datadog.agent.up', AgentCheck.OK,
+            hostname=self.metadata_cache.get('hostname')))
 
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
+        payload['service_checks'] = service_checks
+
+        if self._should_send_additional_data('agent_checks'):
+            # Add agent checks statuses and error/warning messages
+            agent_checks = []
+            for check in check_statuses:
+                if check.instance_statuses is not None:
+                    for instance_status in check.instance_statuses:
+                        agent_checks.append(
+                            (
+                                check.name, check.source_type_name,
+                                instance_status.instance_id,
+                                instance_status.status,
+                                # put error message or list of warning messages in the same field
+                                # it will be handled by the UI
+                                instance_status.error or instance_status.warnings or ""
+                            )
+                        )
+                else:
+                    agent_checks.append(
+                        (
+                            check.name, check.source_type_name,
+                            "initialization",
+                            check.status, repr(check.init_failed_error)
+                        )
+                    )
+            payload['agent_checks'] = agent_checks
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration, time.clock() - cpu_clock))
         else:
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig, 
+            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
 
@@ -353,6 +404,7 @@ class Collector(object):
             'apiKey': self.agentConfig['api_key'],
             'events': {},
             'metrics': [],
+            'service_checks': [],
             'resources': {},
             'internalHostname' : get_hostname(self.agentConfig),
             'uuid' : get_uuid(),
@@ -371,9 +423,28 @@ class Collector(object):
                                  }]
 
         # Periodically send the host metadata.
-        if self._is_first_run() or self._should_send_metadata():
+        if self._should_send_additional_data('metadata'):
+            # gather metadata with gohai
+            try:
+                if get_os() != 'windows':
+                    command = "gohai"
+                else:
+                    command = "gohai\gohai.exe"
+                gohai_metadata = subprocess.Popen(
+                    [command], stdout=subprocess.PIPE
+                ).communicate()[0]
+                payload['gohai'] = gohai_metadata
+            except OSError as e:
+                if e.errno == 2:  # file not found, expected when install from source
+                    log.info("gohai file not found")
+                else:
+                    raise e
+            except Exception as e:
+                log.warning("gohai command failed with error %s" % str(e))
+
             payload['systemStats'] = get_system_stats()
             payload['meta'] = self._get_metadata()
+
             self.metadata_cache = payload['meta']
             # Add static tags from the configuration file
             host_tags = []
@@ -381,10 +452,14 @@ class Collector(object):
                 host_tags.extend([unicode(tag.strip()) for tag in self.agentConfig['tags'].split(",")])
 
             if self.agentConfig['collect_ec2_tags']:
-                host_tags.extend(EC2.get_tags())
+                host_tags.extend(EC2.get_tags(self.agentConfig))
 
             if host_tags:
                 payload['host-tags']['system'] = host_tags
+
+            GCE_tags = GCE.get_tags(self.agentConfig)
+            if GCE_tags is not None:
+                payload['host-tags'][GCE.SOURCE_TYPE_NAME] = GCE_tags
 
             # Log the metadata on the first run
             if self._is_first_run():
@@ -393,7 +468,7 @@ class Collector(object):
         return payload
 
     def _get_metadata(self):
-        metadata = EC2.get_metadata()
+        metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
             metadata['ec2-hostname'] = metadata.get('hostname')
             del metadata['hostname']
@@ -414,12 +489,14 @@ class Collector(object):
 
         return metadata
 
-    def _should_send_metadata(self):
+    def _should_send_additional_data(self, data_name):
+        if self._is_first_run():
+            return True
         # If the interval has passed, send the metadata again
         now = time.time()
-        if now - self.metadata_start >= self.metadata_interval:
-            log.debug('Metadata interval has passed. Sending metadata.')
-            self.metadata_start = now
+        if now - self.push_times[data_name]['start'] >= self.push_times[data_name]['interval']:
+            log.debug('%s interval has passed. Sending it.' % data_name)
+            self.push_times[data_name]['start'] = now
             return True
 
         return False

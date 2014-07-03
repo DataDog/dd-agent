@@ -1,5 +1,5 @@
 """
-Module that tries to migration old style configuration to checks.d interface
+Module that tries to migrate old style configuration to checks.d interface
 for checks that don't support old style configuration anymore
 
 It also comments out related lines in datadog.conf.
@@ -14,12 +14,7 @@ import logging
 import string
 
 # 3rd party
-from yaml import dump as dump_to_yaml
-try:
-    from yaml import CDumper as Dumper
-except ImportError:
-    from yaml import Dumper
-
+import yaml
 
 log = logging.getLogger(__name__)
 
@@ -299,7 +294,7 @@ def _write_conf(check_name, config, confd_dir):
         raise NoConfigToMigrateException()
 
     try:
-        yaml_config = dump_to_yaml(config, Dumper=Dumper, default_flow_style=False)
+        yaml_config = yaml.dump(config, Dumper=yaml.CDumper, default_flow_style=False)
     except Exception, e:
         log.exception("Couldn't create yaml from config: %s" % config)
         return

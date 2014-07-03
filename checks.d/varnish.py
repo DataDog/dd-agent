@@ -82,6 +82,10 @@ class Varnish(AgentCheck):
         if instance.get("varnishstat", None) is None:
             raise Exception("varnishstat is not configured")
         tags = instance.get('tags', [])
+        if tags is None:
+            tags = []
+        else:
+            tags = list(set(tags))
         name = instance.get('name')
 
         # Get the varnish version from varnishstat
@@ -159,11 +163,4 @@ class Varnish(AgentCheck):
                     self.log.debug("Varnish (rate) %s %d" % (metric_name, int(gauge_val)))
                     self.rate(metric_name, float(gauge_val), tags=tags)
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('varnishstat'):
-            return False
-
-        return {
-            'instances': [{'varnishstat': agentConfig.get('varnishstat')}]
-        }
+   

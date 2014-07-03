@@ -5,7 +5,6 @@ import subprocess
 import time
 import urllib2
 import urlparse
-
 from tests.common import load_check
 
 PORT = 9200
@@ -24,9 +23,9 @@ class TestElastic(unittest.TestCase):
                 time.sleep(0.5)
                 loop = loop + 1
                 if loop >= MAX_WAIT:
-                    break              
+                    break
 
-    
+
     def setUp(self):
         self.process = None
         try:
@@ -44,17 +43,22 @@ class TestElastic(unittest.TestCase):
     def tearDown(self):
         if self.process is not None:
             self.process.terminate()
-    
+
     def testElasticChecksD(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
               'version': '0.1',
               'api_key': 'toto' }
 
+        conf = {
+                   'init_config': {},
+                   'instances':
+                       [
+                           {'url': 'http://localhost:%s' % PORT},
+                       ]
+            }
         # Initialize the check from checks.d
-        c = load_check('elastic', {'init_config': {}, 'instances':{}},agentConfig)
-        conf = c.parse_agent_config(agentConfig)
         self.check = load_check('elastic', conf, agentConfig)
-        
+
         self.check.check(conf['instances'][0])
         r = self.check.get_metrics()
 
@@ -62,7 +66,6 @@ class TestElastic(unittest.TestCase):
         self.assertTrue(len(r) > 0)
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.get.total"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.search.fetch.total"]), 1, r)
-        self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_committed"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "jvm.mem.heap_used"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "jvm.threads.count"]), 1, r)
@@ -73,12 +76,31 @@ class TestElastic(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.thread_pool.snapshot.queue"]), 1, r)
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.active_shards"]), 1, r)
 
+        # Checks enabled for specific ES versions
+        version = self.check._get_es_version('http://localhost:%s' % PORT)
+        if version >= [0,90,10]:
+            # ES versions 0.90.10 and above
+            pass
+        else:
+            # ES version 0.90.9 and below
+            self.assertEquals(len([t for t in r if t[0] == "jvm.gc.collection_time"]), 1, r)
+
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        service_checks_count = len(service_checks)
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(service_checks_count > 0)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "elasticsearch.cluster_health"]), 1, service_checks)
+        # Assert that all service checks have the proper tags: host and port
+        self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT in sc['tags']]), service_checks_count, service_checks)
+
+
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"
         self.check.check(conf['instances'][0])
         events = self.check.get_events()
         self.assertEquals(len(events),1,events)
 
-        
 
 if __name__ == "__main__":
     unittest.main()

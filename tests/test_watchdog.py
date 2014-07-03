@@ -54,7 +54,7 @@ class TestWatchdog(unittest.TestCase):
         p.wait()
         duration = int(time.time() - start)
         # should die as soon as flush_trs has been called
-        self.assertTrue(duration, self.JITTER_FACTOR * 10)
+        self.assertTrue(duration < self.JITTER_FACTOR * 10)
 
         # Slow tornado, killed by the Watchdog
         start = time.time()
@@ -107,13 +107,13 @@ class PseudoAgent(object):
             w.reset()
 
     def slow_tornado(self):
-        a = Application(12345, {})
+        a = Application(12345, {"bind_host": "localhost"})
         a._watchdog = Watchdog(4)
         a._tr_manager = MockTxManager()
         a.run()
 
     def fast_tornado(self):
-        a = Application(12345, {})
+        a = Application(12345, {"bind_host": "localhost"})
         a._watchdog = Watchdog(6)
         a._tr_manager = MockTxManager()
         a.run()
@@ -121,7 +121,7 @@ class PseudoAgent(object):
     def use_lots_of_memory(self):
         # Skip this step on travis
         if os.environ.get('TRAVIS', False): return
-        a = Application(12345, {})
+        a = Application(12345, {"bind_host": "localhost"})
         a._watchdog = Watchdog(30, 50)
         a._tr_manager = MemoryHogTxManager()
         a.run()

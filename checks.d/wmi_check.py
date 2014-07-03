@@ -29,7 +29,7 @@ class WMICheck(AgentCheck):
     def check(self, instance):
         if wmi is None:
             raise Exception("Missing 'wmi' module")
-        
+
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)
@@ -86,19 +86,3 @@ class WMICheck(AgentCheck):
 
                 # submit the metric to datadog
                 func(name, val, tags=tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('WMI'):
-            return False
-
-        config = []
-        metrics = agentConfig['WMI']
-        for metric_name, wmi_conf in metrics.items():
-            wmi_class, wmi_prop = wmi_conf.split(':')
-            config.append({
-                'class': wmi_class,
-                'metrics': [[wmi_prop, metric_name, 'gauge']]
-            })
-
-        return config

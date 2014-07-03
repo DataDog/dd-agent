@@ -2,9 +2,12 @@ from checks.services_checks import ServicesCheck, Status, EventType
 from util import headers
 import socket
 import time
-from checks.libs.httplib2 import Http, HttpLib2Error
+from httplib2 import Http, HttpLib2Error
 
 class HTTPCheck(ServicesCheck):
+
+    SOURCE_TYPE_NAME = 'system'
+    SERVICE_CHECK_PREFIX = 'http_check'
 
     def _load_conf(self, instance):
         # Fetches the conf
@@ -79,7 +82,6 @@ class HTTPCheck(ServicesCheck):
         nb_failures = self.statuses[name].count(Status.DOWN)
         nb_tries = len(self.statuses[name])
         tags = instance.get('tags', [])
-        url = instance.get('url', None)
         tags_list = []
         tags_list.extend(tags)
         tags_list.append('url:%s' % url)
@@ -143,4 +145,11 @@ class HTTPCheck(ServicesCheck):
              "tags": tags_list
         }
 
+    def report_as_service_check(self, name, status, instance):
+        service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
+        url = instance.get('url', None)
+        self.service_check(service_check_name,
+                           ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags= ['url:%s' % url]
+                           )
 

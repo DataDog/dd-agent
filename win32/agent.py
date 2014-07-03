@@ -81,13 +81,13 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             proc.start()
 
         # Loop to keep the service running since all DD services are
-        # running in separate threads
+        # running in separate processes
         self.running = True
         while self.running:
             if self.running:
                 # Restart any processes that might have died.
                 for name, proc in self.procs.iteritems():
-                    if not proc.is_alive():
+                    if not proc.is_alive() and proc.is_enabled:
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
@@ -118,6 +118,7 @@ class DDAgent(multiprocessing.Process):
         self.start_event = start_event
         # FIXME: `running` flag should be handled by the service
         self.running = True
+        self.is_enabled = True
 
     def run(self):
         log.debug("Windows Service - Starting collector")
@@ -155,6 +156,7 @@ class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='ddforwarder')
         self.config = agentConfig
+        self.is_enabled = True
 
     def run(self):
         log.debug("Windows Service - Starting forwarder")
@@ -176,26 +178,31 @@ class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='dogstatsd')
         self.config = agentConfig
+        self.is_enabled = self.config.get('use_dogstatsd', True)
 
     def run(self):
-        log.debug("Windows Service - Starting Dogstatsd server")
-        self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
-        self.reporter.start()
-        self.server.start()
+        if self.is_enabled:
+            log.debug("Windows Service - Starting Dogstatsd server")
+            self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
+            self.reporter.start()
+            self.server.start()
+        else:
+            log.info("Dogstatsd is not enabled, not starting it.")
 
     def stop(self):
-        log.debug("Windows Service - Stopping Dogstatsd server")
-        self.server.stop()
-        self.reporter.stop()
-        self.reporter.join()
+        if self.is_enabled:
+            log.debug("Windows Service - Stopping Dogstatsd server")
+            self.server.stop()
+            self.reporter.stop()
+            self.reporter.join()
 
 class PupProcess(multiprocessing.Process):
     def __init__(self, agentConfig):
         multiprocessing.Process.__init__(self, name='pup')
         self.config = agentConfig
+        self.is_enabled = self.config.get('use_web_info_page', True)
 
     def run(self):
-        self.is_enabled = self.config.get('use_web_info_page', True)
         self.pup = pup
         if self.is_enabled:
             log.debug("Windows Service - Starting Pup")

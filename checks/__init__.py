@@ -12,11 +12,15 @@ import types
 import os
 import sys
 import traceback
+import copy
 from pprint import pprint
 
-from util import LaconicFilter, get_os, get_hostname
+from util import LaconicFilter, get_os, get_hostname, get_next_id
 from config import get_confd_path
 from checks import check_status
+
+# 3rd party
+import yaml
 
 log = logging.getLogger(__name__)
 
@@ -261,6 +265,9 @@ class Check(object):
         return metrics
 
 class AgentCheck(object):
+    OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
+
+    SOURCE_TYPE_NAME = None
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
@@ -273,7 +280,6 @@ class AgentCheck(object):
         """
         from aggregator import MetricsAggregator
 
-
         self.name = name
         self.init_config = init_config
         self.agentConfig = agentConfig
@@ -283,6 +289,7 @@ class AgentCheck(object):
         self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter, recent_point_threshold=agentConfig.get('recent_point_threshold', None))
 
         self.events = []
+        self.service_checks = []
         self.instances = instances or []
         self.warnings = []
         self.library_versions = None
@@ -391,6 +398,27 @@ class AgentCheck(object):
             event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
 
+    def service_check(self, check_name, status, tags=None, timestamp=None,
+                      hostname=None, check_run_id=None, message=None):
+        """
+        Save a service check.
+
+        :param check_name: string, name of the service check
+        :param status: int, describing the status.
+                       0 for success, 1 for warning, 2 for failure
+        :param tags: (optional) list of strings, a list of tags for this run
+        :param timestamp: (optional) float, unix timestamp for when the run occurred
+        :param hostname: (optional) str, host that generated the service
+                          check. Defaults to the host_name of the agent
+        :param check_run_id: (optional) int, id used for logging and tracing
+                             purposes. Don't need to be unique. If not
+                             specified, one will be generated.
+        """
+        if hostname is None:
+            hostname = self.hostname
+        self.service_checks.append(create_service_check(check_name, status,
+            tags, timestamp, hostname, check_run_id, message))
+
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -419,6 +447,18 @@ class AgentCheck(object):
         events = self.events
         self.events = []
         return events
+
+    def get_service_checks(self):
+        """
+        Return a list of the service checks saved by the check, if any
+        and clears them out of the instance's service_checks list
+
+        @return the list of service checks saved by this check
+        @rtype list of service check dicts
+        """
+        service_checks = self.service_checks
+        self.service_checks = []
+        return service_checks
 
     def has_warnings(self):
         """
@@ -458,7 +498,7 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                self.check(instance)
+                self.check(copy.deepcopy(instance))
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,
@@ -496,7 +536,6 @@ class AgentCheck(object):
         """
         A method used for testing your check without running the agent.
         """
-        from util import yaml, yLoader
         if path_to_yaml:
             check_name = os.path.basename(path_to_yaml).split('.')[0]
             try:
@@ -506,7 +545,7 @@ class AgentCheck(object):
             yaml_text = f.read()
             f.close()
 
-        config = yaml.load(yaml_text, Loader=yLoader)
+        config = yaml.load(yaml_text, Loader=yaml.CLoader)
         check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
         return check, config.get('instances', [])
@@ -534,6 +573,17 @@ class AgentCheck(object):
         else:
             return name
 
+    @staticmethod
+    def read_config(instance, key, message=None, cast=None):
+        val = instance.get(key)
+        if val is None:
+            message = message or 'Must provide `%s` value in instance config' % key
+            raise Exception(message)
+
+        if cast is None:
+            return val
+        else:
+            return cast(val)
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
                                                 metric_type=None, interval=None):
@@ -584,3 +634,20 @@ def run_check(name, path=None):
             pprint(check.get_events(), indent=4)
         print "Metrics:\n"
         pprint(check.get_metrics(), indent=4)
+
+def create_service_check(check_name, status, tags=None, timestamp=None,
+                  hostname=None, check_run_id=None, message=None):
+    """ Create a service_check dict. See AgentCheck.service_check() for
+        docs on the parameters.
+    """
+    if check_run_id is None:
+        check_run_id = get_next_id('service_check')
+    return {
+        'id': check_run_id,
+        'check': check_name,
+        'status': status,
+        'host_name': hostname,
+        'tags': tags,
+        'timestamp': float(timestamp or time.time()),
+        'message': message
+    }

@@ -1,12 +1,14 @@
 from checks import AgentCheck, CheckException
 
+class ShouldRestartException(Exception): pass
+
 class PostgreSql(AgentCheck):
     """Collects per-database, and optionally per-relation metrics
     """
-
+    SOURCE_TYPE_NAME = 'postgresql'
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
-    
+
     # turning columns into tags
     DB_METRICS = {
         'descriptors': [
@@ -83,21 +85,16 @@ SELECT relname,
         'relation': True,
     }
 
+    # Individual metrics with tuple of (query, metric_name, metric_type)
+    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;','postgresql.max_connections', GAUGE)
+
+    HOT_STANDBY_METRIC = ('select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE)
+
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.dbs = {}
         self.versions = {}
-
-    def get_library_versions(self):
-        try:
-            import psycopg2
-            version = psycopg2.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-        return {"psycopg2": version}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -124,6 +121,7 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
+        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -134,13 +132,19 @@ SELECT relname,
             metric_scope = (self.DB_METRICS,)
         else:
             metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
-  
+
+        try:
+            cursor = db.cursor()
+        except InterfaceError, e:
+            self.log.error("Connection seems broken: %s" % str(e))
+            raise ShouldRestartException
+
         for scope in metric_scope:
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-            cursor = db.cursor()
-            
+
+
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
                 query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
@@ -149,11 +153,11 @@ SELECT relname,
             else:
                 query = scope['query'] % (", ".join(cols))
                 self.log.debug("Running query: %s" % query)
-                cursor.execute(query)
+                cursor.execute(query.replace(r'%', r'%%'))
 
             results = cursor.fetchall()
-            cursor.close()
-                
+
+
             # parse & submit results
             # A row should look like this
             # (descriptor, descriptor, ..., value, value, value, value, ...)
@@ -163,7 +167,7 @@ SELECT relname,
                 desc = scope['descriptors']
                 # Check that all columns will be processed
                 assert len(row) == len(cols) + len(desc)
-                
+
                 # Build tags
                 # descriptors are: (pg_name, dd_tag_name): value
                 # Special-case the "db" tag, which overrides the one that is passed as instance_tag
@@ -180,47 +184,91 @@ SELECT relname,
                 # metric-map is: (dd_name, "rate"|"gauge")
                 # shift the results since the first columns will be the "descriptors"
                 values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
-                
+
                 # To submit simply call the function for each value v
                 # v[0] == (metric_name, submit_function)
                 # v[1] == the actual value
                 # tags are
                 [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
-            
 
-    def get_connection(self, key, host, port, user, password, dbname):
+        if not results:
+            self.warning('No results were found for query: "%s"' % query)
+
+        # Query for miscellaneous metrics
+        query = self.MAX_CONNECTIONS_METRIC[0]
+        cursor.execute(query)
+        result = cursor.fetchone()
+        self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
+
+        # Query for percent usage of max_connections
+        cursor.execute('show max_connections;')
+        max_conn = cursor.fetchone()[0]
+        cursor.execute('SELECT sum(numbackends ) FROM pg_stat_database;')
+        current_conn = cursor.fetchone()[0]
+        percent_usage = float(current_conn) / float(max_conn)
+        self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
+
+        # check if hot_standby is on before running hot standby metrics (replication delay)
+        cursor.execute('show hot_standby;')
+        is_standby = cursor.fetchone()[0]=='on'
+        if is_standby:
+            query = self.HOT_STANDBY_METRIC[0]
+            cursor.execute(query)
+            # Python interprets the return value of the replication delay output from postgres as a timedelta
+            # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
+            result = cursor.fetchone()[0]
+            if result is not None:
+                if result.days < 0:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], 0, tags=instance_tags)
+                else:
+                    self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
+        cursor.close()
+
+    def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
-        if key in self.dbs:
+        if key in self.dbs and use_cached:
             return self.dbs[key]
 
         elif host != "" and user != "":
             try:
-                import psycopg2 as pg
+                import pg8000 as pg
             except ImportError:
-                raise ImportError("psycopg2 library cannot be imported. Please check the installation instruction on the Datadog Website.")
-            
-            if host == 'localhost' and password == '':
-                # Use ident method
-                connection = pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                connection = pg.connect(host=host, port=port, user=user,
-                    password=password, database=dbname)
-            else:
-                connection = pg.connect(host=host, user=user, password=password,
-                    database=dbname)
+                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
+
+            try:
+                service_check_tags = [
+                    "host:%s" % host,
+                    "port:%s" % port
+                ]
+                if dbname:
+                    service_check_tags.append("db:%s" % dbname)
+
+                if host == 'localhost' and password == '':
+                    # Use ident method
+                    connection = pg.connect("user=%s dbname=%s" % (user, dbname))
+                elif port != '':
+                    connection = pg.connect(host=host, port=port, user=user,
+                        password=password, database=dbname)
+                else:
+                    connection = pg.connect(host=host, user=user, password=password,
+                        database=dbname)
+                status = AgentCheck.OK
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+
+            except Exception, e:
+                status = AgentCheck.CRITICAL
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
             elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
 
-        try:
-            connection.autocommit = True
-        except AttributeError:
-            # connection.autocommit was added in version 2.4.2
-            from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-            connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        
+        connection.autocommit = True
+
         self.dbs[key] = connection
         return connection
 
@@ -231,42 +279,36 @@ SELECT relname,
         user = instance.get('username', '')
         password = instance.get('password', '')
         tags = instance.get('tags', [])
-        dbname = instance.get('dbname', 'postgres')
+        dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
 
-        key = '%s:%s:%s' % (host, port,dbname)
+        if relations and not dbname:
+            self.warning('"dbname" parameter must be set when using the "relations" parameter.')
+
+        if dbname is None:
+            dbname = 'postgres'
+
+        key = '%s:%s:%s' % (host, port, dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
         if tags is None:
             tags = []
-        
+        else:
+            tags = list(set(tags))
+
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
         # Check version
         version = self._get_version(key, db)
         self.log.debug("Running check against version %s" % version)
-            
+
         # Collect metrics
-        self._collect_stats(key, db, tags, relations)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        server = agentConfig.get('postgresql_server','')
-        port = agentConfig.get('postgresql_port','')
-        user = agentConfig.get('postgresql_user','')
-        passwd = agentConfig.get('postgresql_pass','')
-
-        if server != '' and user != '':
-            return {
-                'instances': [{
-                    'host': server,
-                    'port': port,
-                    'username': user,
-                    'password': passwd
-                }]
-            }
-
-        return False
+        try:
+            self._collect_stats(key, db, tags, relations)
+        except ShouldRestartException:
+            self.log.info("Resetting the connection")
+            db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
+            self._collect_stats(key, db, tags, relations)

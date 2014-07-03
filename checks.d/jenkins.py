@@ -1,22 +1,11 @@
 import os
 import time
 
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
-
+from collections import defaultdict
 from datetime import datetime
 from glob import glob
 
-try:
-    from xml.etree.ElementTree import ElementTree
-except ImportError:
-    try:
-        from elementtree import ElementTree
-    except ImportError:
-        pass
-
+from xml.etree.ElementTree import ElementTree
 from util import get_hostname
 from checks import AgentCheck
 
@@ -137,11 +126,12 @@ class Jenkins(AgentCheck):
         if not jenkins_home:
             raise Exception("No jenkins_home directory set in the config file")
 
-        job_dirs = glob(os.path.join(jenkins_home, 'jobs', '*'))
+        jenkins_jobs_dir = os.path.join(jenkins_home, 'jobs', '*')
+        job_dirs = glob(jenkins_jobs_dir)
 
         if not job_dirs:
             raise Exception('No jobs found in `%s`! '
-                            'Check `jenkins_home` in your config' % (job_dirs))
+                            'Check `jenkins_home` in your config' % (jenkins_jobs_dir))
 
         for job_dir in job_dirs:
             for output in self._get_build_results(instance.get('name'), job_dir):
@@ -159,16 +149,4 @@ class Jenkins(AgentCheck):
                         self.increment('jenkins.job.success', tags=tags)
                     else:
                         self.increment('jenkins.job.failure', tags=tags)
-
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('hudson_home'):
-            return False
-
-        return {
-            'instances': [{
-                'name': 'default',
-                'jenkins_home': agentConfig.get('hudson_home'),
-            }]
-        }
 

@@ -17,6 +17,9 @@ class DirectoryCheck(AgentCheck):
         "pattern" - string, the `fnmatch` pattern to use when reading the "directory"'s files. default "*"
         "recursive" - boolean, when true the stats will recurse into directories. default False
     """
+
+    SOURCE_TYPE_NAME = 'system'
+
     def check(self, instance):
         if "directory" not in instance:
             raise Exception('DirectoryCheck: missing "directory" in config')

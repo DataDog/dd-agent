@@ -8,6 +8,9 @@ ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
 class SQLServer(AgentCheck):
+
+    SOURCE_TYPE_NAME = 'sql server'
+
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'gauge', 'Buffer cache hit ratio'),
         ('sqlserver.buffer.page_life_expectancy', 'gauge', 'Page life expectancy'),
