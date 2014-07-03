@@ -96,6 +96,7 @@ class BucketGauge(Gauge):
 
         return []
 
+
 class Count(Metric):
     """ A metric that tracks a count. """
 
@@ -126,6 +127,49 @@ class Count(Metric):
             )]
         finally:
             self.value = 0
+
+class CountFromCounter(Metric):
+
+    def __init__(self, formatter, name, tags, hostname, device_name):
+        self.formatter = formatter
+        self.name = name
+        self.tags = tags
+        self.hostname = hostname
+        self.device_name = device_name
+        self.initial_count = None
+        self.current_count = None
+        self.last_sample_time = None
+
+    def sample(self, value, sample_rate, timestamp=None):
+        ts = time()
+        if self.initial_count is None:
+            self.initial_count = value
+        else:
+            self.current_count = value
+        self.last_sample_time = ts
+
+    def flush(self, timestamp, interval):
+        if self.initial_count is None or self.current_count is None:
+            return []
+        try:
+            count = self.current_count - self.initial_count
+            if count < 0:
+                log.info('Metric %s has a rate < 0. Counter may have been Reset.' % self.name)
+                return []
+
+            return [self.formatter(
+                hostname=self.hostname,
+                device_name=self.device_name,
+                tags=self.tags,
+                metric=self.name,
+                value=count,
+                timestamp=timestamp,
+                metric_type=MetricTypes.COUNT,
+                interval=interval
+            )]
+        finally:
+            self.initial_count = None
+            self.current_count = None
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -504,6 +548,7 @@ class MetricsBucketAggregator(Aggregator):
         self.metric_type_to_class = {
             'g': BucketGauge,
             'ct': Count,
+            'ct-c': CountFromCounter,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
@@ -625,6 +670,7 @@ class MetricsAggregator(Aggregator):
         self.metric_type_to_class = {
             'g': Gauge,
             'ct': Count,
+            'ct-c': CountFromCounter,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
@@ -654,16 +700,27 @@ class MetricsAggregator(Aggregator):
         self.submit_metric(name, value, 'g', tags, hostname, device_name, timestamp)
 
     def increment(self, name, value=1, tags=None, hostname=None, device_name=None):
+        """
+        DEPRECATED and will be removed from future versions
+        """
         self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
     def decrement(self, name, value=-1, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'c', tags, hostname, device_name)
 
     def rate(self, name, value, tags=None, hostname=None, device_name=None):
+        """
+        DEPRECATED and will be removed from future versions
+        """
         self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
 
     def submit_count(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'ct', tags, hostname, device_name)
+
+    def count_from_counter(self, name, value, tags=None,
+                           hostname=None, device_name=None):
+        self.submit_metric(name, value, 'ct-c', tags,
+                           hostname, device_name)
 
     def histogram(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'h', tags, hostname, device_name)

@@ -542,13 +542,12 @@ class TestUnitDogStatsd(unittest.TestCase):
         stats.submit_metric('my.2.counter', 20, 'c', timestamp=timestamp_within_threshold)
         stats.submit_metric('my.3.set', 20, 's', timestamp=timestamp_within_threshold)
         stats.submit_metric('my.4.histogram', 20, 'h', timestamp=timestamp_within_threshold)
-        stats.submit_metric('my.5.count', 20, 'ct', timestamp=timestamp_within_threshold)
 
         flush_timestamp = time.time()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 9)
+        nt.assert_equal(len(metrics), 8)
 
-        first, second, third, h1, h2, h3, h4, h5, ct5 = metrics
+        first, second, third, h1, h2, h3, h4, h5 = metrics
         nt.assert_equals(first['metric'], 'my.1.gauge')
         nt.assert_equals(first['points'][0][1], 1)
         nt.assert_equals(first['host'], 'myhost')
@@ -569,11 +568,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(h1['points'][0][0], h3['points'][0][0])
         nt.assert_equal(h1['points'][0][0], h4['points'][0][0])
         nt.assert_equal(h1['points'][0][0], h5['points'][0][0])
-
-        nt.assert_equals(ct5['metric'], 'my.5.count')
-        nt.assert_equals(ct5['points'][0][1], 20)
-        self.assert_almost_equal(ct5['points'][0][0], flush_timestamp, 0.1)
-
 
 if __name__ == "__main__":
     unittest.main()
