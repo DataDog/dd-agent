@@ -36,6 +36,26 @@ SELECT datname,
         'relation': False,
     }
 
+    LOCK_METRICS = {
+        'descriptors': [
+            ('mode', 'lock_mode'),
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'lock_count'       : ('postgresql.locks', GAUGE),
+        },
+        'query': """
+SELECT mode,
+       pc.relname,
+       count(*) AS %s
+  FROM pg_locks l
+  JOIN pg_class pc ON (l.relation = pc.oid)
+ WHERE l.mode IS NOT NULL
+   AND pc.relname NOT LIKE 'pg_%%'
+ GROUP BY pc.relname, mode""",
+        'relation': False,
+    }
+
     NEWER_92_METRICS = {
         'deadlocks'         : ('postgresql.deadlocks', GAUGE),
         'temp_bytes'        : ('postgresql.temp_bytes', RATE),
@@ -129,9 +149,9 @@ SELECT relname,
 
         # Do we need relation-specific metrics?
         if not relations:
-            metric_scope = (self.DB_METRICS,)
+            metric_scope = (self.DB_METRICS, self.LOCK_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
+            metric_scope = (self.DB_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS)
 
         try:
             cursor = db.cursor()
@@ -143,7 +163,6 @@ SELECT relname,
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-
 
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
