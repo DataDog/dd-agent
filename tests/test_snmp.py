@@ -123,7 +123,7 @@ class TestSNMP(unittest.TestCase):
                     interface_type = tag.split(":")[1]
                     try:
                         float(interface_type)
-                    except:
+                    except ValueError:
                         pass
                     else:
                         self.fail("Tag discovered not pretty printed %s" % interface_type)
