@@ -44,6 +44,7 @@ class GoExpvar(AgentCheck):
                 value = self.deep_get(content, keys)
             except KeyError:
                 self.log.warning("Could not get value for path %s" % path)
+                continue
 
             metric_name = metric.get("name", keys[-1])
             metric_name = self.normalize(metric_name, "go_expvar")
