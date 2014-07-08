@@ -52,8 +52,8 @@ class TestGoExpVar(unittest.TestCase):
         # The rate is not here so only 2
         self.assertEqual(len(metrics), 2)
         metrics.sort(key=lambda x:x[0])
-        self.assertEqual(metrics[0][0], 'go_expvar.gauge1') # Verify the correct default value for metric name
-        self.assertEqual(metrics[1][0], 'go_expvar.mallocs')
+        self.assertEqual(metrics[0][0], 'go_expvar.gauge1')
+        self.assertEqual(metrics[1][0], 'go_expvar.memstats.by_size.1.mallocs') # Verify the correct default value for metric name
 
         # Sleep for 1 second so the rate interval >=1
         time.sleep(1)
@@ -66,7 +66,7 @@ class TestGoExpVar(unittest.TestCase):
         self.check.log.info(metrics)
         self.assertEqual(metrics[0][0], 'go_expvar.gauge1')
         self.assertEqual(metrics[1][0], 'go_expvar.gc.pause')
-        self.assertEqual(metrics[2][0], 'go_expvar.mallocs') # Verify the correct default value for metric name
+        self.assertEqual(metrics[2][0], 'go_expvar.memstats.by_size.1.mallocs') # Verify the correct default value for metric name
         for metric in metrics:
             tags = metric[3]['tags']
             self.assertEqual(len(tags), 2)

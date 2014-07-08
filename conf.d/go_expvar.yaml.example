@@ -9,14 +9,14 @@
 #        - "optionaltag2"
 #      metrics:
 #        - path: memstats/PauseTotalNs
-#          name: gc.pauseTime
+#          name: gc.pause_time_in_ns
 #          type: rate
-#        - path: Memstats/Alloc # metric will be reported as a gauge by default
+#        - path: memstats/Alloc            # metric will be reported as a gauge by default
 #        - path: Memstats/Lookups
 #          type: rate
-#        - path: Memstats/Mallocs
+#        - path: memstats/Mallocs          # with no name specified, the metric name will default to a path based name
 #          type: rate
-#        - path: Memstats/Frees
+#        - path: memstats/Frees
 #          type: rate
 #        - path: memstats/BySize/1/Mallocs # You can get nested values by separating them with "/"
 #        - path: myvariable
