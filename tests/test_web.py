@@ -75,7 +75,7 @@ instances:
         nginx.check(instances[1])
         r = nginx.get_metrics()
         self.assertEquals(r[0][3].get('tags'), ['first_one'])
-        service_checks = r.get_service_checks()
+        service_checks = nginx.get_service_checks()
         can_connect = [sc for sc in service_checks if sc['check'] == 'nginx.can_connect']
         for i in range(len(can_connect)):
             self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:44441']), service_checks)
