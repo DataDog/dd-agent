@@ -15,6 +15,9 @@ class TestCore(unittest.TestCase):
         self.c.gauge("test-metric")
         self.c.counter("test-counter")
 
+    def setUpAgentCheck(self):
+        self.ac = AgentCheck('test', {}, {})
+
     def test_gauge(self):
         self.assertEquals(self.c.is_gauge("test-metric"), True)
         self.assertEquals(self.c.is_counter("test-metric"), False)
@@ -89,6 +92,17 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.normalize("__metric__", "prefix"), "prefix.metric")
         self.assertEquals(self.c.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
         self.assertEquals(self.c.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
+
+        # Same tests for the AgentCheck
+        self.setUpAgentCheck()
+        self.assertEquals(self.ac.normalize("metric"), "metric")
+        self.assertEquals(self.ac.normalize("metric", "prefix"), "prefix.metric")
+        self.assertEquals(self.ac.normalize("__metric__", "prefix"), "prefix.metric")
+        self.assertEquals(self.ac.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
+        self.assertEquals(self.ac.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
+
+        self.assertEqual(self.ac.normalize("PauseTotalNs", "prefix", fix_case = True), "prefix.pause_total_ns")
+        self.assertEqual(self.ac.normalize("Metric.wordThatShouldBeSeparated", "prefix", fix_case = True), "prefix.metric.word_that_should_be_separated")
 
     def test_metadata(self):
         c = Collector({"collect_instance_metadata": True}, None, {})
