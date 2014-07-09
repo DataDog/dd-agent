@@ -205,6 +205,8 @@ class ElasticSearch(AgentCheck):
                 "jvm.gc.collection_time": ("gauge", "jvm.gc.collection_time_in_millis", lambda v: float(v)/1000),
             }
 
+        self.METRICS.update(additional_metrics)
+
         if version >= [0,90,5]:
             # ES versions 0.90.5 and above
             additional_metrics = {
