@@ -34,7 +34,7 @@ class TestCountType(unittest.TestCase):
         nt.ok_(abs(flush_ts-timestamp) <= 1, msg=self.DELAYED_TS)
         nt.assert_equal(sum(counts), value)
 
-    def test_counter_delta(self):
+    def test_monotonic_count(self):
         metric = 'test.count.type.2'
         tags = ['test', 'type:count']
         hostname = 'test.host'
@@ -42,7 +42,7 @@ class TestCountType(unittest.TestCase):
         agent_check = AgentCheck('test_count_check', {}, {})
         counters = [0, 1, 2, 4, 7, 12, 20]
         for counter in counters:
-            agent_check.counter_delta(metric, counter, tags=tags,
+            agent_check.monotonic_count(metric, counter, tags=tags,
                                            hostname=hostname,
                                            device_name=device_name)
         flush_ts = time.time()
@@ -58,7 +58,7 @@ class TestCountType(unittest.TestCase):
         # add a single point
         counters = [30]
         for counter in counters:
-            agent_check.counter_delta(metric, counter, tags=tags,
+            agent_check.monotonic_count(metric, counter, tags=tags,
                                            hostname=hostname,
                                            device_name=device_name)
         flush_ts = time.time()
@@ -74,7 +74,7 @@ class TestCountType(unittest.TestCase):
         # test non-monotonic sequence
         counters = [40, 35, 40, 45, 30, 32]
         for counter in counters:
-            agent_check.counter_delta(metric, counter, tags=tags,
+            agent_check.monotonic_count(metric, counter, tags=tags,
                                            hostname=hostname,
                                            device_name=device_name)
         flush_ts = time.time()

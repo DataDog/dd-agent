@@ -130,7 +130,7 @@ class Count(Metric):
         finally:
             self.value = None
 
-class MonotonicCounter(Metric):
+class MonotonicCount(Metric):
 
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
@@ -674,7 +674,7 @@ class MetricsAggregator(Aggregator):
         self.metric_type_to_class = {
             'g': Gauge,
             'ct': Count,
-            'ct-c': MonotonicCounter,
+            'ct-c': MonotonicCount,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,

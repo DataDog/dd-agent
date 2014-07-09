@@ -348,12 +348,12 @@ class AgentCheck(object):
         """
         self.aggregator.submit_count(metric, value, tags, hostname, device_name)
 
-    def counter_delta(self, metric, value=0, tags=None,
+    def monotonic_count(self, metric, value=0, tags=None,
                       hostname=None, device_name=None):
         """
         Submits a raw count with optional tags, hostname and device name
-        based on increase counter values. E.g. 1, 3, 5, 7 will submit
-        6 on flush.
+        based on increasing counter values. E.g. 1, 3, 5, 7 will submit
+        6 on flush. Note that reset counters are skipped.
 
         :param metric: The name of the metric
         :param value: The value of the rate
