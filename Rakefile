@@ -1,3 +1,9 @@
+#!/usr/bin/env rake
+# encoding: utf-8
+
+require 'rake/clean'
+
+CLOBBER.include '**/*.pyc'
 
 desc "Run tests"
 task :test, [:attrs] do |t, args|
@@ -51,4 +57,3 @@ task "pup:tag" do
 end
 
 task :default => [:test]
-
