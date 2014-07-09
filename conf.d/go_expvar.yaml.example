@@ -9,7 +9,7 @@
 #        - "optionaltag2"
 #      metrics:
 #        - path: memstats/PauseTotalNs
-#          name: gc.pause_time_in_ns
+#          alias: go_expvar.gc.pause_time_in_ns
 #          type: rate
 #        - path: memstats/Alloc            # metric will be reported as a gauge by default
 #        - path: Memstats/Lookups
@@ -20,5 +20,5 @@
 #          type: rate
 #        - path: memstats/BySize/1/Mallocs # You can get nested values by separating them with "/"
 #        - path: myvariable
-#          name: my_custom_name
+#          alias: go_expvar.my_custom_name
 #          type: gauge

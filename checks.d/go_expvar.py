@@ -56,10 +56,9 @@ class GoExpvar(AgentCheck):
                                  " check the schema of your json" % path)
                 continue
 
-            metric_name = metric.get("name")
+            metric_name = metric.get("alias")
             if metric_name is None:
-                metric_name = ".".join(keys)
-            metric_name = self.normalize(metric_name, "go_expvar", fix_case=True)
+                metric_name = self.normalize(".".join(keys), "go_expvar", fix_case=True)
 
             self.func[metric_type](metric_name, value, tags)
 

@@ -21,7 +21,7 @@ class TestGoExpVar(unittest.TestCase):
                     "metrics": [
                         {
                             "path":"memstats/PauseTotalNs",
-                            "name":"gc.pause",
+                            "alias":"go_expvar.gc.pause",
                             "type":"rate"
                         },
                         {
@@ -29,7 +29,7 @@ class TestGoExpVar(unittest.TestCase):
                         },
                         {
                             "path":"random_walk",
-                            "name":"gauge1",
+                            "alias":"go_expvar.gauge1",
                             "type":"gauge"
                         }
                         ]
