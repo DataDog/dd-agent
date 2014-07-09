@@ -395,7 +395,7 @@ class Aggregator(object):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
-        for packet in packets.split("\n"):
+        for packet in packets.splitlines():
 
             if not packet.strip():
                 continue
