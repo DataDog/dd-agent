@@ -183,9 +183,9 @@ class ElasticSearch(AgentCheck):
         """ Define the set of URLs and METRICS to use depending on the
             running ES version.
         """
-        if version >= [0,90,10]:
-            # ES versions 0.90.10 and above
-            # Metrics architecture changed starting with version 0.90.10
+        if version >= [0,90,7]:
+            # ES versions 0.90.7 and above
+            # Metrics architecture changed starting with version 0.90.7
             self.HEALTH_URL = "/_cluster/health?pretty=true"
             self.STATS_URL = "/_nodes/stats?all=true"
             self.NODES_URL = "/_nodes?network=true"
@@ -204,7 +204,7 @@ class ElasticSearch(AgentCheck):
             }
 
         else:
-            # ES version 0.90.9 and below
+            # ES version 0.90.6 and below
             self.HEALTH_URL = "/_cluster/health?pretty=true"
             self.STATS_URL = "/_cluster/nodes/stats?all=true"
             self.NODES_URL = "/_cluster/nodes?network=true"
