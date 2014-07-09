@@ -15,12 +15,13 @@ class Services(object):
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
     ALL_STATUSES = (
-            'up', 'open', 'no_check', 'down', 'maint', 'nolb'
+            'up', 'open', 'no check', 'down', 'maint', 'nolb'
         )
     STATUSES_TO_SERVICE_CHECK = {
             'UP'       : AgentCheck.OK,
             'DOWN'     : AgentCheck.CRITICAL,
-            'no check' : AgentCheck.UNKNOWN
+            'no check' : AgentCheck.UNKNOWN,
+            'MAINT'    : AgentCheck.CRITICAL
             }
 
 class HAProxy(AgentCheck):
@@ -219,7 +220,7 @@ class HAProxy(AgentCheck):
         self.gauge(metric_name, count, tags + ['status:%s' % status])
         for state in Services.ALL_STATUSES:
             if state != status:
-                self.gauge(metric_name, 0, tags + ['status:%s' % state])
+                self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ","_")])
 
 
     def _process_metrics(self, data, url):
@@ -313,7 +314,7 @@ class HAProxy(AgentCheck):
         '''
         service_name = data['pxname']
         status = data['status']
-        if data['status'] in ('UP', 'DOWN', 'no check'):
+        if data['status'] in ('UP', 'DOWN', 'no check', 'MAINT'):
             service_check_tags = ["service:%s" % service_name]
             if data['back_or_front'] == Services.BACKEND:
                 hostname = data['svname']
