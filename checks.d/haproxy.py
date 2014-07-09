@@ -196,7 +196,7 @@ class HAProxy(AgentCheck):
         for host_status, count in hosts_statuses.iteritems():
             try:
                 service, hostname, status = host_status
-            except:
+            except Exception:
                 service, status = host_status
             status = status.lower()
 
@@ -305,6 +305,12 @@ class HAProxy(AgentCheck):
         }
 
     def _process_service_check(self, data, url):
+        '''
+        Report a service check, tagged by the service and the backend.
+        Report as OK if the status is UP
+                  CRITICAL            DOWN
+                  UNKNOWN             no check
+        '''
         service_name = data['pxname']
         status = data['status']
         if data['status'] in ('UP', 'DOWN', 'no check'):
