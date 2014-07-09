@@ -103,17 +103,19 @@ class Count(Metric):
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
         self.name = name
-        self.value = 0
+        self.value = None
         self.tags = tags
         self.hostname = hostname
         self.device_name = device_name
         self.last_sample_time = None
 
     def sample(self, value, sample_rate, timestamp=None):
-        self.value += value
+        self.value = (self.value or 0) + value
         self.last_sample_time = time()
 
     def flush(self, timestamp, interval):
+        if self.value is None:
+            return []
         try:
             return [self.formatter(
                 metric=self.name,
@@ -126,9 +128,9 @@ class Count(Metric):
                 interval=interval,
             )]
         finally:
-            self.value = 0
+            self.value = None
 
-class CountFromCounter(Metric):
+class MonotonicCounter(Metric):
 
     def __init__(self, formatter, name, tags, hostname, device_name):
         self.formatter = formatter
@@ -136,39 +138,44 @@ class CountFromCounter(Metric):
         self.tags = tags
         self.hostname = hostname
         self.device_name = device_name
-        self.initial_count = None
-        self.current_count = None
+        self.prev_counter = None
+        self.curr_counter = None
+        self.count = None
         self.last_sample_time = None
 
     def sample(self, value, sample_rate, timestamp=None):
-        if self.initial_count is None:
-            self.initial_count = value
+        if self.curr_counter is None:
+            self.curr_counter = value
         else:
-            self.current_count = value
+            self.prev_counter = self.curr_counter
+            self.curr_counter = value
+
+        prev = self.prev_counter
+        curr = self.curr_counter
+        if prev is not None and curr is not None:
+            self.count = (self.count or 0) + max(0, curr - prev)
+
         self.last_sample_time = time()
 
     def flush(self, timestamp, interval):
-        if self.initial_count is None or self.current_count is None:
+        if self.count is None:
             return []
         try:
-            count = self.current_count - self.initial_count
-            if count < 0:
-                log.info('Metric %s has a rate < 0. Counter may have been Reset.' % self.name)
-                return []
-
             return [self.formatter(
                 hostname=self.hostname,
                 device_name=self.device_name,
                 tags=self.tags,
                 metric=self.name,
-                value=count,
+                value=self.count,
                 timestamp=timestamp,
                 metric_type=MetricTypes.COUNT,
                 interval=interval
             )]
         finally:
-            self.initial_count = self.current_count
-            self.current_count = None
+            self.prev_counter = self.curr_counter
+            self.curr_counter = None
+            self.count = None
+
 
 class Counter(Metric):
     """ A metric that tracks a counter value. """
@@ -667,7 +674,7 @@ class MetricsAggregator(Aggregator):
         self.metric_type_to_class = {
             'g': Gauge,
             'ct': Count,
-            'ct-c': CountFromCounter,
+            'ct-c': MonotonicCounter,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,

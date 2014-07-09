@@ -314,8 +314,6 @@ class AgentCheck(object):
 
     def increment(self, metric, value=1, tags=None, hostname=None, device_name=None):
         """
-        DEPRECATED method and will be removed from future versions
-
         Increment a counter with optional tags, hostname and device name.
 
         :param metric: The name of the metric
@@ -338,7 +336,7 @@ class AgentCheck(object):
         """
         self.aggregator.decrement(metric, value, tags, hostname, device_name)
 
-    def submit_count(self, metric, value=0, tags=None, hostname=None, device_name=None):
+    def count(self, metric, value=0, tags=None, hostname=None, device_name=None):
         """
         Submit a raw count with optional tags, hostname and device name
 
@@ -350,8 +348,8 @@ class AgentCheck(object):
         """
         self.aggregator.submit_count(metric, value, tags, hostname, device_name)
 
-    def count_from_counter(self, metric, value=0, tags=None,
-                           hostname=None, device_name=None):
+    def counter_delta(self, metric, value=0, tags=None,
+                      hostname=None, device_name=None):
         """
         Submits a raw count with optional tags, hostname and device name
         based on increase counter values. E.g. 1, 3, 5, 7 will submit
@@ -368,8 +366,6 @@ class AgentCheck(object):
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
-        DEPRECATED method and will be removed from future versions
-
         Submit a point for a metric that will be calculated as a rate on flush.
         Values will persist across each call to `check` if there is not enough
         point to generate a rate on the flush.
