@@ -11,6 +11,7 @@ Changes
 * [FEATURE] Add a NTP Service check. See [#971][]
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
+* [BUGFIX] Support Windows EOL \r character. See [#1023][]
 
 # 4.4.0 / 06-24-2014
 
@@ -1078,6 +1079,7 @@ If you use ganglia, you want this version.
 [#984]: https://github.com/DataDog/dd-agent/issues/984
 [#1013]: https://github.com/DataDog/dd-agent/issues/1013
 [#1015]: https://github.com/DataDog/dd-agent/issues/1015
+[#1023]: https://github.com/DataDog/dd-agent/issues/1023
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
