@@ -8,6 +8,7 @@ Changes
 * Redis
 
 ### Changes
+* [FEATURE] Add support of Centos 7 and Fedora Core 19-20
 * [FEATURE] Add a NTP Service check. See [#971][]
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
