@@ -2,12 +2,30 @@ Changes
 =======
 # 5.0.0 / Unreleased
 
+### Notes
+
+This is a major version of the Datadog-Agent.
+Packaging of the Agent has changed for RPM and DEB packages. 
+To BETA test this version of the agent (at your own risks), please read this guide: 
+https://gist.github.com/remh/1426ccb24ec36162ba2b
+
+
+### What will break ?
+* If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
+     * 
+       ``` 
+           sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
+       ```
+* Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory. 
+
+
 ### Integrations affected
 
 * NTP
 * Redis
 * ElasticSearch
 * Golang-expvar
+* Process
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -17,6 +35,7 @@ Changes
 * [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
+* [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 
 # 4.4.0 / 06-24-2014
 
@@ -1070,6 +1089,7 @@ If you use ganglia, you want this version.
 [#947]: https://github.com/DataDog/dd-agent/issues/947
 [#949]: https://github.com/DataDog/dd-agent/issues/949
 [#951]: https://github.com/DataDog/dd-agent/issues/951
+[#958]: https://github.com/DataDog/dd-agent/issues/958
 [#960]: https://github.com/DataDog/dd-agent/issues/960
 [#962]: https://github.com/DataDog/dd-agent/issues/962
 [#963]: https://github.com/DataDog/dd-agent/issues/963
