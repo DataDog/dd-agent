@@ -26,6 +26,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * ElasticSearch
 * Golang-expvar
 * Process
+* SNMP
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -33,6 +34,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
 * [FEATURE] Add a Golang-expvars integration. See [#1016][]
+* [FEATURE] Add an SNMP Check. See [#299][]
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
@@ -953,6 +955,7 @@ If you use ganglia, you want this version.
 [#291]: https://github.com/DataDog/dd-agent/issues/291
 [#293]: https://github.com/DataDog/dd-agent/issues/293
 [#297]: https://github.com/DataDog/dd-agent/issues/297
+[#299]: https://github.com/DataDog/dd-agent/issues/299
 [#300]: https://github.com/DataDog/dd-agent/issues/300
 [#307]: https://github.com/DataDog/dd-agent/issues/307
 [#310]: https://github.com/DataDog/dd-agent/issues/310
