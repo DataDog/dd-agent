@@ -2,12 +2,43 @@ Changes
 =======
 # 5.0.0 / Unreleased
 
+### Notes
+
+This is a major version of the Datadog-Agent.
+Packaging of the Agent has changed for RPM and DEB packages. 
+To BETA test this version of the agent (at your own risks), please read this guide: 
+https://gist.github.com/remh/1426ccb24ec36162ba2b
+
+
+### What will break ?
+* If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
+     * 
+       ``` 
+           sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
+       ```
+* Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory. 
+
+
 ### Integrations affected
 
 * NTP
+* Redis
+* ElasticSearch
+* Golang-expvar
+* Process
+* SNMP
 
 ### Changes
+* [FEATURE] Add support of Centos 7 and Fedora Core 19-20
 * [FEATURE] Add a NTP Service check. See [#971][]
+* [FEATURE] Add an option to instrument check runs time. See [#1013][]
+* [FEATURE] Add derived Redis metrics. See [#1015][]
+* [FEATURE] Add a Golang-expvars integration. See [#1016][]
+* [FEATURE] Add an SNMP Check. See [#299][]
+* [BUGFIX] Support Windows EOL \r character. See [#1023][]
+* [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
+* [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
+* [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
 
 # 4.4.0 / 06-24-2014
 
@@ -925,6 +956,7 @@ If you use ganglia, you want this version.
 [#291]: https://github.com/DataDog/dd-agent/issues/291
 [#293]: https://github.com/DataDog/dd-agent/issues/293
 [#297]: https://github.com/DataDog/dd-agent/issues/297
+[#299]: https://github.com/DataDog/dd-agent/issues/299
 [#300]: https://github.com/DataDog/dd-agent/issues/300
 [#307]: https://github.com/DataDog/dd-agent/issues/307
 [#310]: https://github.com/DataDog/dd-agent/issues/310
@@ -1061,6 +1093,7 @@ If you use ganglia, you want this version.
 [#947]: https://github.com/DataDog/dd-agent/issues/947
 [#949]: https://github.com/DataDog/dd-agent/issues/949
 [#951]: https://github.com/DataDog/dd-agent/issues/951
+[#958]: https://github.com/DataDog/dd-agent/issues/958
 [#960]: https://github.com/DataDog/dd-agent/issues/960
 [#962]: https://github.com/DataDog/dd-agent/issues/962
 [#963]: https://github.com/DataDog/dd-agent/issues/963
@@ -1073,6 +1106,12 @@ If you use ganglia, you want this version.
 [#981]: https://github.com/DataDog/dd-agent/issues/981
 [#982]: https://github.com/DataDog/dd-agent/issues/982
 [#984]: https://github.com/DataDog/dd-agent/issues/984
+[#1002]: https://github.com/DataDog/dd-agent/issues/1002
+[#1013]: https://github.com/DataDog/dd-agent/issues/1013
+[#1015]: https://github.com/DataDog/dd-agent/issues/1015
+[#1016]: https://github.com/DataDog/dd-agent/issues/1016
+[#1023]: https://github.com/DataDog/dd-agent/issues/1023
+[#1024]: https://github.com/DataDog/dd-agent/issues/1024
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon

@@ -1,5 +1,6 @@
 import re
 import urllib2
+import urlparse
 
 from util import headers, json
 from checks import AgentCheck
@@ -48,7 +49,23 @@ class Nginx(AgentCheck):
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'user' in instance and 'password' in instance:
             add_basic_auth(req, instance['user'], instance['password'])
-        response = urllib2.urlopen(req)
+
+        # Submit a service check for status page availability.
+        parsed_url = urlparse.urlparse(url)
+        nginx_host = parsed_url.hostname
+        nginx_port = parsed_url.port or 80
+        service_check_name = 'nginx.can_connect'
+        service_check_tags = ['host:%s' % nginx_host, 'port:%s' % nginx_port]
+        try:
+            response = urllib2.urlopen(req)
+        except Exception:
+            self.service_check(service_check_name, AgentCheck.CRITICAL,
+                               tags=service_check_tags)
+            raise
+        else:
+            self.service_check(service_check_name, AgentCheck.OK,
+                               tags=service_check_tags)
+
         body = response.read()
         resp_headers = response.info()
         return body, resp_headers.get('Content-Type', 'text/plain')

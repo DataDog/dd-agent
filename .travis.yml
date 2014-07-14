@@ -54,7 +54,7 @@ before_script:
   - sudo install -d -o "$(id -u)" /var/log/datadog
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
   - sudo service snmpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf" # referring wrong branch during development
+  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf"
   - sudo service apache2 start
   - sudo service nginx start
   - sudo /etc/init.d/lighttpd start

@@ -44,6 +44,7 @@ class Collector(object):
         self.os = get_os()
         self.plugins = None
         self.emitters = emitters
+        self.check_timings = agentConfig.get('check_timings')
         self.push_times = {
             'metadata': {
                 'start': time.time(),
@@ -59,7 +60,7 @@ class Collector(object):
         self.continue_running = True
         self.metadata_cache = None
         self.initialized_checks_d = []
-        self.init_failed_checks_d = []
+        self.init_failed_checks_d = {}
 
         # Unix System Checks
         self._unix_system_checks = {
@@ -297,7 +298,14 @@ class Collector(object):
             check_status.service_check_count = service_check_count
             check_statuses.append(check_status)
 
-            log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
+            check_run_time = time.time() - check_start_time
+            log.debug("Check %s ran in %.2f s" % (check.name, check_run_time))
+
+            # Intrument check run timings if enabled.
+            if self.check_timings:
+                metric = 'datadog.agent.check_run_time'
+                meta = {'tags': ["check:%s" % check.name]}
+                metrics.append((metric, time.time(), check_run_time, meta))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
@@ -370,6 +378,7 @@ class Collector(object):
             log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
 
+        return payload
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """
