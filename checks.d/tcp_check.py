@@ -148,12 +148,13 @@ class TCPCheck(ServicesCheck):
              "event_object": name,
         }
 
-    def report_as_service_check(self, name, status, instance):
+    def report_as_service_check(self, name, status, instance, msg=None):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         host = instance.get('host', None)
         port = instance.get('port', None)
         self.service_check(service_check_name,
                            ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
                            tags= ['target_host:%s' % host,
-                                  'port:%s' % port]
+                                  'port:%s' % port],
+                           message=msg
                            )
