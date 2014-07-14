@@ -550,15 +550,22 @@ class AgentCheck(object):
 
         return check, config.get('instances', [])
 
-    def normalize(self, metric, prefix=None):
+    def normalize(self, metric, prefix=None, fix_case = False):
         """
         Turn a metric into a well-formed metric name
         prefix.b.c
 
         :param metric The metric name to normalize
         :param prefix A prefix to to add to the normalized name, default None
+        :param fix_case A boolean, indicating whether to make sure that
+                        the metric name returned is in underscore_case
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        if fix_case:
+            name = self.convert_to_underscore_separated(metric)
+            if prefix is not None:
+                prefix = self.convert_to_underscore_separated(prefix)
+        else:
+            name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -572,6 +579,22 @@ class AgentCheck(object):
             return prefix + "." + name
         else:
             return name
+
+    FIRST_CAP_RE = re.compile('(.)([A-Z][a-z]+)')
+    ALL_CAP_RE = re.compile('([a-z0-9])([A-Z])')
+    METRIC_REPLACEMENT = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
+    DOT_UNDERSCORE_CLEANUP = re.compile(r'_*\._*')
+
+
+    def convert_to_underscore_separated(self, name):
+        """
+        Convert from CamelCase to camel_case
+        And substitute illegal metric characters
+        """
+        metric_name = self.FIRST_CAP_RE.sub(r'\1_\2', name)
+        metric_name = self.ALL_CAP_RE.sub(r'\1_\2', metric_name).lower()
+        metric_name = self.METRIC_REPLACEMENT.sub('_', metric_name)
+        return self.DOT_UNDERSCORE_CLEANUP.sub('.', metric_name).strip('_')
 
     @staticmethod
     def read_config(instance, key, message=None, cast=None):
