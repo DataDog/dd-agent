@@ -220,6 +220,8 @@ class Redis(AgentCheck):
                     else:
                         # If the type is unknown, it might be because the key doesn't exist,
                         # which can be because the list is empty. So always send 0 in that case.
+                        if instance.get("warn_on_missing_keys", True):
+                            self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
     def check(self, instance):
