@@ -145,11 +145,12 @@ class HTTPCheck(ServicesCheck):
              "tags": tags_list
         }
 
-    def report_as_service_check(self, name, status, instance):
+    def report_as_service_check(self, name, status, instance, msg=None):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         url = instance.get('url', None)
         self.service_check(service_check_name,
                            ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags= ['url:%s' % url]
+                           tags= ['url:%s' % url],
+                           message=msg
                            )
 
