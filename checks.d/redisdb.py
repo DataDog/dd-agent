@@ -206,11 +206,21 @@ class Redis(AgentCheck):
             else:
                 l_tags = list(tags)
                 for key in key_list:
-                    if conn.exists(key):
-                        key_tags = l_tags + ["key:" + key]
-                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    key_type = conn.type(key)
+                    key_tags = l_tags + ['key:' + key]
+
+                    if key_type == 'list':
+                        self.gauge('redis.key.length', conn.llen(key), tags=key_tags)
+                    elif key_type == 'set':
+                        self.gauge('redis.key.length', conn.scard(key), tags=key_tags)
+                    elif key_type == 'zset':
+                        self.gauge('redis.key.length', conn.zcard(key), tags=key_tags)
+                    elif key_type == 'hash':
+                        self.gauge('redis.key.length', conn.hlen(key), tags=key_tags)
                     else:
-                        self.warning("{0} key not found in redis".format(key))
+                        # If the type is unknown, it might be because the key doesn't exist,
+                        # which can be because the list is empty. So always send 0 in that case.
+                        self.gauge('redis.key.length', 0, tags=key_tags)
 
     def check(self, instance):
         try:
