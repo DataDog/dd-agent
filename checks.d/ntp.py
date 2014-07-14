@@ -48,7 +48,7 @@ class NtpCheck(AgentCheck):
             # case the agent host's clock is messed up.
             ntp_ts = ntp_stats.recv_time
 
-            if ntp_offset > offset_threshold:
+            if abs(ntp_offset) > offset_threshold:
                 status = AgentCheck.CRITICAL
             else:
                 status = AgentCheck.OK
