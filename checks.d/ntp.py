@@ -54,3 +54,4 @@ class NtpCheck(AgentCheck):
                 status = AgentCheck.OK
 
         self.service_check('ntp.in_sync', status, timestamp=ntp_ts)
+        self.gauge('ntp.offset', ntp_offset, timestamp=ntp_ts)
