@@ -42,10 +42,10 @@ check_status() {
 
         supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
-                                       grep -v pup |
+                                       egrep -v '(pup|dogstatsd)' |
                                        grep $NAME |
                                        grep -c RUNNING)
-        supervisor_config_programs=$(grep -v pup $SUPERVISOR_FILE |
+        supervisor_config_programs=$(egrep -v '(pup|dogstatsd)' $SUPERVISOR_FILE |
                                      grep -c '\[program:')
 
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
