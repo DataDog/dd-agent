@@ -48,10 +48,12 @@ class NtpCheck(AgentCheck):
             # case the agent host's clock is messed up.
             ntp_ts = ntp_stats.recv_time
 
+            service_check_msg = None
             if ntp_offset > offset_threshold:
                 status = AgentCheck.CRITICAL
+                service_check_msg = "Offset {0} secs higher than offset threshold ({1} secs)".format(ntp_offset, offset_threshold)
             else:
                 status = AgentCheck.OK
 
-        self.service_check('ntp.in_sync', status, timestamp=ntp_ts)
+        self.service_check('ntp.in_sync', status, timestamp=ntp_ts, message=service_check_msg)
         self.gauge('ntp.offset', ntp_offset, timestamp=ntp_ts)
