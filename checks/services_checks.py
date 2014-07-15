@@ -143,6 +143,7 @@ class ServicesCheck(AgentCheck):
             # service_checks
             skip_event = queue_instance.get('skip_event', False)
             if not skip_event:
+                self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
                 event = None
 
                 if not name in self.statuses:
