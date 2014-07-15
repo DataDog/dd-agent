@@ -27,6 +27,9 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * Golang-expvar
 * Process
 * SNMP
+* Kafka
+* Kafka consumer
+* Redis
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -35,10 +38,14 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Add derived Redis metrics. See [#1015][]
 * [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [FEATURE] Add an SNMP Check. See [#299][]
+* [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
+* [BUGFIX] Fix kafka metrics by sending them as gauges instead of rate. See [#1029][]
+* [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
+
 
 # 4.4.0 / 06-24-2014
 
@@ -1106,12 +1113,15 @@ If you use ganglia, you want this version.
 [#981]: https://github.com/DataDog/dd-agent/issues/981
 [#982]: https://github.com/DataDog/dd-agent/issues/982
 [#984]: https://github.com/DataDog/dd-agent/issues/984
+[#996]: https://github.com/DataDog/dd-agent/issues/996
 [#1002]: https://github.com/DataDog/dd-agent/issues/1002
 [#1013]: https://github.com/DataDog/dd-agent/issues/1013
 [#1015]: https://github.com/DataDog/dd-agent/issues/1015
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
 [#1023]: https://github.com/DataDog/dd-agent/issues/1023
 [#1024]: https://github.com/DataDog/dd-agent/issues/1024
+[#1028]: https://github.com/DataDog/dd-agent/issues/1028
+[#1029]: https://github.com/DataDog/dd-agent/issues/1029
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon

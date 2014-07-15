@@ -49,7 +49,7 @@ class NtpCheck(AgentCheck):
             ntp_ts = ntp_stats.recv_time
 
             service_check_msg = None
-            if ntp_offset > offset_threshold:
+            if abs(ntp_offset) > offset_threshold:
                 status = AgentCheck.CRITICAL
                 service_check_msg = "Offset {0} secs higher than offset threshold ({1} secs)".format(ntp_offset, offset_threshold)
             else:

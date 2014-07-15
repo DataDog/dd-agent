@@ -28,8 +28,7 @@ class KafkaCheck(AgentCheck):
         consumer_groups = self.read_config(instance, 'consumer_groups',
                                            cast=self._validate_consumer_groups)
         zk_connect_str = self.read_config(instance, 'zk_connect_str')
-        kafka_host_ports = self.read_config(instance, 'kafka_connect_str',
-                                            cast=self._parse_connect_str)
+        kafka_host_ports = self.read_config(instance, 'kafka_connect_str')
 
         # Construct the Zookeeper path pattern
         zk_prefix = instance.get('zk_prefix', '')
@@ -66,8 +65,7 @@ class KafkaCheck(AgentCheck):
                 self.log.exception('Error cleaning up Zookeeper connection')
 
         # Connect to Kafka
-        kafka_host, kafka_port = random.choice(kafka_host_ports)
-        kafka_conn = KafkaClient(kafka_host, kafka_port)
+        kafka_conn = KafkaClient(kafka_host_ports)
 
         try:
             # Query Kafka for the broker offsets
@@ -123,15 +121,3 @@ consumer_groups:
     mytopic0: [0, 1, 2]
     mytopic1: [10, 12]
 ''')
-
-    def _parse_connect_str(self, val):
-        try:
-            host_port_strs = val.split(',')
-            host_ports = []
-            for hp in host_port_strs:
-                host, port = hp.strip().split(':')
-                host_ports.append((host, int(port)))
-            return host_ports
-        except Exception, e:
-            self.log.exception(e)
-            raise Exception('Could not parse %s. Must be in the form of `host0:port0,host1:port1,host2:port2`' % val)
