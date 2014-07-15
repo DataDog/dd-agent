@@ -152,6 +152,10 @@ class TCPCheck(ServicesCheck):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         host = instance.get('host', None)
         port = instance.get('port', None)
+
+        if status == Status.UP:
+            msg=None
+
         self.service_check(service_check_name,
                            ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
                            tags= ['target_host:%s' % host,
