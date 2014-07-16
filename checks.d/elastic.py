@@ -5,12 +5,15 @@ import sys
 import time
 import urlparse
 import urllib2
+import time
 
 # project
 from checks import AgentCheck
 from checks.utils import add_basic_auth
-from util import json, headers
+from util import headers
 
+# 3rd party
+import simplejson as json
 
 class NodeNotFound(Exception): pass
 
@@ -90,10 +93,6 @@ class ElasticSearch(AgentCheck):
         "elasticsearch.thread_pool.snapshot.queue": ("gauge", "thread_pool.snapshot.queue"),
         "elasticsearch.http.current_open": ("gauge", "http.current_open"),
         "elasticsearch.http.total_opened": ("gauge", "http.total_opened"),
-        "jvm.gc.concurrent_mark_sweep.count": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_count"),
-        "jvm.gc.concurrent_mark_sweep.collection_time": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_time_in_millis", lambda v: float(v)/1000),
-        "jvm.gc.par_new.count": ("gauge", "jvm.gc.collectors.ParNew.collection_count"),
-        "jvm.gc.par_new.collection_time": ("gauge", "jvm.gc.collectors.ParNew.collection_time_in_millis", lambda v: float(v)/1000),
         "jvm.mem.heap_committed": ("gauge", "jvm.mem.heap_committed_in_bytes"),
         "jvm.mem.heap_used": ("gauge", "jvm.mem.heap_used_in_bytes"),
         "jvm.mem.non_heap_committed": ("gauge", "jvm.mem.non_heap_committed_in_bytes"),
@@ -137,6 +136,12 @@ class ElasticSearch(AgentCheck):
         parsed = urlparse.urlparse(config_url)
         if parsed[2] != "":
             config_url = "%s://%s" % (parsed[0], parsed[1])
+        port = parsed.port
+        host = parsed.hostname
+        service_check_tags = [
+            'host:%s' % host,
+            'port:%s' % port
+        ]
 
         # Tag by URL so we can differentiate the metrics from multiple instances
         tags = ['url:%s' % config_url]
@@ -157,7 +162,7 @@ class ElasticSearch(AgentCheck):
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
         health_data = self._get_data(url, auth)
-        self._process_health_data(config_url, health_data, tags=tags)
+        self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
 
     def _get_es_version(self, config_url, auth=None):
         """ Get the running version of Elastic Search.
@@ -178,11 +183,34 @@ class ElasticSearch(AgentCheck):
         """
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
-            # Metrics architecture changed starting with version 0.90.10
             self.HEALTH_URL = "/_cluster/health?pretty=true"
             self.STATS_URL = "/_nodes/stats?all=true"
             self.NODES_URL = "/_nodes?network=true"
 
+            additional_metrics = {
+                "jvm.gc.collectors.young.count": ("gauge", "jvm.gc.collectors.young.collection_count"),
+                "jvm.gc.collectors.young.collection_time": ("gauge", "jvm.gc.collectors.young.collection_time_in_millis", lambda v: float(v)/1000),
+                "jvm.gc.collectors.old.count": ("gauge", "jvm.gc.collectors.old.collection_count"),
+                "jvm.gc.collectors.old.collection_time": ("gauge", "jvm.gc.collectors.old.collection_time_in_millis", lambda v: float(v)/1000)
+            }
+        else:
+            self.HEALTH_URL = "/_cluster/health?pretty=true"
+            self.STATS_URL = "/_cluster/nodes/stats?all=true"
+            self.NODES_URL = "/_cluster/nodes?network=true"
+
+            additional_metrics = {
+                "jvm.gc.concurrent_mark_sweep.count": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_count"),
+                "jvm.gc.concurrent_mark_sweep.collection_time": ("gauge", "jvm.gc.collectors.ConcurrentMarkSweep.collection_time_in_millis", lambda v: float(v)/1000),
+                "jvm.gc.par_new.count": ("gauge", "jvm.gc.collectors.ParNew.collection_count"),
+                "jvm.gc.par_new.collection_time": ("gauge", "jvm.gc.collectors.ParNew.collection_time_in_millis", lambda v: float(v)/1000),
+                "jvm.gc.collection_count": ("gauge", "jvm.gc.collection_count"),
+                "jvm.gc.collection_time": ("gauge", "jvm.gc.collection_time_in_millis", lambda v: float(v)/1000),
+            }
+
+        self.METRICS.update(additional_metrics)
+
+        if version >= [0,90,5]:
+            # ES versions 0.90.5 and above
             additional_metrics = {
                 "elasticsearch.search.fetch.open_contexts": ("gauge", "indices.search.open_contexts"),
                 "elasticsearch.cache.filter.evictions": ("gauge", "indices.filter_cache.evictions"),
@@ -190,31 +218,15 @@ class ElasticSearch(AgentCheck):
                 "elasticsearch.id_cache.size": ("gauge","indices.id_cache.memory_size_in_bytes"),
                 "elasticsearch.fielddata.size": ("gauge","indices.fielddata.memory_size_in_bytes"),
                 "elasticsearch.fielddata.evictions": ("gauge","indices.fielddata.evictions"),
-                "jvm.gc.collectors.young.count": ("gauge", "jvm.gc.collectors.young.collection_count"),
-                "jvm.gc.collectors.young.collection_time": ("gauge", "jvm.gc.collectors.young.collection_time_in_millis", lambda v: float(v)/1000),
-                "jvm.gc.collectors.old.count": ("gauge", "jvm.gc.collectors.old.collection_count"),
-                "jvm.gc.collectors.old.collection_time": ("gauge", "jvm.gc.collectors.old.collection_time_in_millis", lambda v: float(v)/1000)
             }
-
         else:
-            # ES version 0.90.9 and below
-            self.HEALTH_URL = "/_cluster/health?pretty=true"
-            self.STATS_URL = "/_cluster/nodes/stats?all=true"
-            self.NODES_URL = "/_cluster/nodes?network=true"
-
+            # ES version 0.90.4 and below
             additional_metrics = {
                 "elasticsearch.cache.field.evictions": ("gauge", "indices.cache.field_evictions"),
                 "elasticsearch.cache.field.size": ("gauge", "indices.cache.field_size_in_bytes"),
                 "elasticsearch.cache.filter.count": ("gauge", "indices.cache.filter_count"),
                 "elasticsearch.cache.filter.evictions": ("gauge", "indices.cache.filter_evictions"),
                 "elasticsearch.cache.filter.size": ("gauge", "indices.cache.filter_size_in_bytes"),
-                "elasticsearch.thread_pool.cache.active": ("gauge", "thread_pool.cache.active"),
-                "elasticsearch.thread_pool.cache.threads": ("gauge", "thread_pool.cache.threads"),
-                "elasticsearch.thread_pool.cache.queue": ("gauge", "thread_pool.cache.queue"),
-                "jvm.gc.collection_count": ("gauge", "jvm.gc.collection_count"),
-                "jvm.gc.collection_time": ("gauge", "jvm.gc.collection_time_in_millis", lambda v: float(v)/1000),
-                "jvm.gc.copy.count": ("gauge", "jvm.gc.collectors.Copy.collection_count"),
-                "jvm.gc.copy.collection_time": ("gauge", "jvm.gc.collectors.Copy.collection_time_in_millis", lambda v: float(v)/1000)
             }
 
         self.METRICS.update(additional_metrics)
@@ -338,7 +350,7 @@ class ElasticSearch(AgentCheck):
         else:
             self._metric_not_found(metric, path)
 
-    def _process_health_data(self, config_url, data, tags=None):
+    def _process_health_data(self, config_url, data, tags=None, service_check_tags=None):
         if self.cluster_status.get(config_url, None) is None:
             self.cluster_status[config_url] = data['status']
             if data['status'] in ["yellow", "red"]:
@@ -354,6 +366,16 @@ class ElasticSearch(AgentCheck):
             # metric description
             desc = self.METRICS[metric]
             self._process_metric(data, metric, *desc, tags=tags)
+
+        # Process the service check
+        cluster_status = data['status']
+        if cluster_status == 'green':
+            status = AgentCheck.OK
+        elif cluster_status == 'yellow':
+            status = AgentCheck.WARNING
+        else:
+            status = AgentCheck.CRITICAL
+        self.service_check('elasticsearch.cluster_health', status, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):
@@ -386,4 +408,4 @@ class ElasticSearch(AgentCheck):
                  "event_object": hostname
             }
 
-  
+

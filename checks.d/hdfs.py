@@ -1,16 +1,14 @@
+# project
 from checks import AgentCheck
 
+# 3rd party
+import snakebite.client
 
 class HDFSCheck(AgentCheck):
     """Report on free space and space used in HDFS.
     """
 
     def check(self, instance):
-        try:
-            import snakebite.client
-        except ImportError:
-            raise ImportError('HDFSCheck requires the snakebite module')
-
         if 'namenode' not in instance:
             raise ValueError('Missing key \'namenode\' in HDFSCheck config')
 
@@ -40,10 +38,3 @@ class HDFSCheck(AgentCheck):
                 tags=tags)
         self.gauge('hdfs.missing_blocks', stats['missing_blocks'], tags=tags)
         self.gauge('hdfs.corrupt_blocks', stats['corrupt_blocks'], tags=tags)
-
-if __name__ == '__main__':
-    check, instances = HDFSCheck.from_yaml('./hdfs.yaml')
-    for instance in instances:
-        check.check(instance)
-        print "Events: %r" % check.get_events()
-        print "Metrics: %r" % check.get_metrics()

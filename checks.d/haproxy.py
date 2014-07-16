@@ -1,11 +1,11 @@
+# stdlib
 import urllib2
+import time
+from collections import defaultdict
 
+# project
 from checks import AgentCheck
 from util import headers
-
-import time
-
-from collections import defaultdict
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
@@ -100,7 +100,7 @@ class HAProxy(AgentCheck):
         # "# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,"
         fields = [f.strip() for f in data[0][2:].split(',') if f]
 
-        hosts_statuses = defaultdict(int)
+        self.hosts_statuses = defaultdict(int)
 
         back_or_front = None
 
@@ -118,19 +118,20 @@ class HAProxy(AgentCheck):
             self._update_data_dict(data_dict, back_or_front)
 
 
+            self._update_hosts_statuses_if_needed(
+                collect_status_metrics, collect_status_metrics_by_host,
+                data_dict, self.hosts_statuses
+            )
+
             if self._should_process(data_dict, collect_aggregates_only):
                 # update status
-                self._update_hosts_statuses_if_needed(
-                    collect_status_metrics, collect_status_metrics_by_host,
-                    data_dict, hosts_statuses
-                )
                 # Send the list of data to the metric and event callbacks
                 self._process_metrics(data_dict, url)
             if process_events:
                 self._process_event(data_dict, url)
 
         if collect_status_metrics:
-            self._process_status_metric(hosts_statuses, collect_status_metrics_by_host)
+            self._process_status_metric(self.hosts_statuses, collect_status_metrics_by_host)
 
         return data
 
@@ -167,6 +168,8 @@ class HAProxy(AgentCheck):
     ):
         if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
             if collect_status_metrics_by_host and 'svname' in data_dict:
+                if data_dict['svname'] == Services.BACKEND:
+                    return
                 key = (data_dict['pxname'], data_dict['svname'], data_dict['status'])
             else:
                 key = (data_dict['pxname'], data_dict['status'])

@@ -19,7 +19,7 @@ from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
 
 
@@ -44,6 +44,7 @@ class Collector(object):
         self.os = get_os()
         self.plugins = None
         self.emitters = emitters
+        self.check_timings = agentConfig.get('check_timings')
         self.push_times = {
             'metadata': {
                 'start': time.time(),
@@ -59,7 +60,7 @@ class Collector(object):
         self.continue_running = True
         self.metadata_cache = None
         self.initialized_checks_d = []
-        self.init_failed_checks_d = []
+        self.init_failed_checks_d = {}
 
         # Unix System Checks
         self._unix_system_checks = {
@@ -251,14 +252,15 @@ class Collector(object):
             instance_statuses = []
             metric_count = 0
             event_count = 0
+            service_check_count = 0
             check_start_time = time.time()
             try:
                 # Run the check.
                 instance_statuses = check.run()
+
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
-                current_check_service_checks = check.get_service_checks()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -267,22 +269,43 @@ class Collector(object):
                         events[check.name] = current_check_events
                     else:
                         events[check.name] += current_check_events
-                if current_check_service_checks:
-                    service_checks.extend(current_check_service_checks)
 
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
-                service_check_count = len(current_check_service_checks)
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name)
+
+            # Service check for Agent checks failures
+            service_check_tags = ["check:%s" % check.name]
+            if check_status.status == STATUS_OK:
+                status = AgentCheck.OK
+            elif check_status.status == STATUS_ERROR:
+                status = AgentCheck.CRITICAL
+            check.service_check('datadog.agent.check_status', status, tags=service_check_tags)
+
+            # Collect the service checks and save them in the payload
+            current_check_service_checks = check.get_service_checks()
+            if current_check_service_checks:
+                service_checks.extend(current_check_service_checks)
+            service_check_count = len(current_check_service_checks)
+
+            # Update the check status with the correct service_check_count
+            check_status.service_check_count = service_check_count
             check_statuses.append(check_status)
 
-            log.debug("Check %s ran in %.2f s" % (check.name, time.time() - check_start_time))
+            check_run_time = time.time() - check_start_time
+            log.debug("Check %s ran in %.2f s" % (check.name, check_run_time))
+
+            # Intrument check run timings if enabled.
+            if self.check_timings:
+                metric = 'datadog.agent.check_run_time'
+                meta = {'tags': ["check:%s" % check.name]}
+                metrics.append((metric, time.time(), check_run_time, meta))
 
         for check_name, info in self.init_failed_checks_d.iteritems():
             if not self.continue_running:
@@ -293,7 +316,7 @@ class Collector(object):
             check_statuses.append(check_status)
 
         # Add a service check for the agent
-        service_checks.append(create_service_check('agent.up', AgentCheck.OK,
+        service_checks.append(create_service_check('datadog.agent.up', AgentCheck.OK,
             hostname=self.metadata_cache.get('hostname')))
 
         # Store the metrics and events in the payload.
@@ -355,6 +378,7 @@ class Collector(object):
             log.debug("Finished run #%s. Collection time: %ss. Emit time: %ss" %
                     (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
 
+        return payload
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """
@@ -411,10 +435,19 @@ class Collector(object):
         if self._should_send_additional_data('metadata'):
             # gather metadata with gohai
             try:
+                if get_os() != 'windows':
+                    command = "gohai"
+                else:
+                    command = "gohai\gohai.exe"
                 gohai_metadata = subprocess.Popen(
-                    ["gohai"], stdout=subprocess.PIPE, close_fds=True
+                    [command], stdout=subprocess.PIPE
                 ).communicate()[0]
                 payload['gohai'] = gohai_metadata
+            except OSError as e:
+                if e.errno == 2:  # file not found, expected when install from source
+                    log.info("gohai file not found")
+                else:
+                    raise e
             except Exception as e:
                 log.warning("gohai command failed with error %s" % str(e))
 

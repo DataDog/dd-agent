@@ -1,7 +1,9 @@
+# stdlib
 import re
 import urllib2
 from collections import defaultdict
 
+# project
 from checks import AgentCheck
 
 db_stats = re.compile(r'^db_(\d)+$')

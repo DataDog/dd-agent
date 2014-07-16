@@ -1,9 +1,15 @@
+# stdlib
 import time
-
-from checks import AgentCheck
-from util import json, headers
 from hashlib import md5
 import urllib2
+
+# project
+from checks import AgentCheck
+from util import headers
+
+# 3rd party
+import simplejson as json
+import requests
 
 class Mesos(AgentCheck):
     def check(self, instance):
@@ -65,8 +71,6 @@ class Mesos(AgentCheck):
     def get_json(self, url, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
-        import requests
-
         try:
             r = requests.get(url, timeout=timeout)
         except requests.exceptions.Timeout as e:

@@ -5,12 +5,11 @@ Generic WMI check. This check allows you to specify particular metrics that you
 want from WMI in your configuration. Check wmi.yaml.example in your conf.d
 directory for more details on configuration.
 '''
-try:
-    import wmi
-except Exception:
-    wmi = None
-
+# project
 from checks import AgentCheck
+
+# 3rd party
+import wmi
 
 UP_METRIC = 'Up'
 SEARCH_WILDCARD = '*'
@@ -27,9 +26,6 @@ class WMICheck(AgentCheck):
         return self.wmi_conns[key]
 
     def check(self, instance):
-        if wmi is None:
-            raise Exception("Missing 'wmi' module")
-
         host = instance.get('host', None)
         user = instance.get('username', None)
         password = instance.get('password', None)

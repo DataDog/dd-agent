@@ -1,3 +1,4 @@
+# stdlib
 import urllib2
 import urllib
 import httplib
@@ -7,10 +8,9 @@ import re
 import time
 from urlparse import urlsplit
 from util import json
-try:
-    from collections import defaultdict
-except ImportError:
-    from compat.defaultdict import defaultdict
+from collections import defaultdict
+
+# project
 from checks import AgentCheck
 
 DEFAULT_MAX_CONTAINERS = 20

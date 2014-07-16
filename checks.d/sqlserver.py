@@ -1,8 +1,14 @@
 '''
 Check the performance counters from SQL Server
 '''
-from checks import AgentCheck
+# stdlib
 import traceback
+
+# project
+from checks import AgentCheck
+
+# 3rd party
+import adodbapi
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
@@ -57,11 +63,6 @@ class SQLServer(AgentCheck):
         return conn_str
 
     def check(self, instance):
-        try:
-            import adodbapi
-        except ImportError:
-            raise Exception("Unable to import adodbapi module.")
-
         host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
         password = instance.get('password')

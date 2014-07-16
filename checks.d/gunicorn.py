@@ -3,21 +3,16 @@ Collects metrics from the gunicorn web server.
 
 http://gunicorn.org/
 """
+# project
+from checks import AgentCheck
 
 # stdlib
 import os
 import sys
 import time
 
-# 3p
-try:
-    import psutil
-except ImportError:
-    psutil = None
-
-# project
-from checks import AgentCheck
-
+# 3rd party
+import psutil
 
 class GUnicornCheck(AgentCheck):
 
@@ -32,21 +27,10 @@ class GUnicornCheck(AgentCheck):
     WORKING_TAGS = ["state:working"]
 
     def get_library_versions(self):
-        try:
-            import psutil
-            version = psutil.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"psutil": version}
+        return {"psutil": psutil.__version__}
 
     def check(self, instance):
         """ Collect metrics for the given gunicorn instance. """
-        if not psutil:
-            raise GUnicornCheckError("gunicorn check requires the psutil python package")
-
         self.log.debug("Running instance: %s", instance)
 
         # Validate the config.

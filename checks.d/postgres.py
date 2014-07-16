@@ -1,4 +1,9 @@
+# project
 from checks import AgentCheck, CheckException
+
+# 3rd party
+import pg8000 as pg
+from pg8000 import InterfaceError
 
 class ShouldRestartException(Exception): pass
 
@@ -121,7 +126,6 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -231,19 +235,31 @@ SELECT relname,
 
         elif host != "" and user != "":
             try:
-                import pg8000 as pg
-            except ImportError:
-                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
+                service_check_tags = [
+                    "host:%s" % host,
+                    "port:%s" % port
+                ]
+                if dbname:
+                    service_check_tags.append("db:%s" % dbname)
 
-            if host == 'localhost' and password == '':
-                # Use ident method
-                connection = pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                connection = pg.connect(host=host, port=port, user=user,
-                    password=password, database=dbname)
-            else:
-                connection = pg.connect(host=host, user=user, password=password,
-                    database=dbname)
+                if host == 'localhost' and password == '':
+                    # Use ident method
+                    connection = pg.connect("user=%s dbname=%s" % (user, dbname))
+                elif port != '':
+                    connection = pg.connect(host=host, port=port, user=user,
+                        password=password, database=dbname)
+                else:
+                    connection = pg.connect(host=host, user=user, password=password,
+                        database=dbname)
+                status = AgentCheck.OK
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+
+            except Exception, e:
+                status = AgentCheck.CRITICAL
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
@@ -271,7 +287,7 @@ SELECT relname,
         if dbname is None:
             dbname = 'postgres'
 
-        key = '%s:%s:%s' % (host, port,dbname)
+        key = '%s:%s:%s' % (host, port, dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance

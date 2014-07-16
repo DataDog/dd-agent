@@ -1,6 +1,12 @@
+# stdlib
+import time
+
+# project
 from checks import AgentCheck
 from util import Platform
-import time
+
+# 3rd party
+import psutil
 
 class ProcessCheck(AgentCheck):
 
@@ -21,15 +27,7 @@ class ProcessCheck(AgentCheck):
         'system.processes.involuntary_ctx_switches',
         )
 
-    def is_psutil_version_later_than(self, v):
-        try:
-            import psutil
-            vers = psutil.version_info
-            return vers >= v
-        except Exception:
-            return False
-
-    def find_pids(self, search_string, psutil, exact_match=True):
+    def find_pids(self, search_string, exact_match=True):
         """
         Create a set of pids of selected processes.
         Search for search_string
@@ -52,11 +50,7 @@ class ProcessCheck(AgentCheck):
                 else:
                     if not found:
                         try:
-                            try:
-                                cmdline = proc.cmdline() # psutil >= 2.0
-                            except TypeError:
-                                cmdline = proc.cmdline  # psutil < 2.0
-
+                            cmdline = proc.cmdline()
                             if string in ' '.join(cmdline):
                                 found = True
                         except psutil.NoSuchProcess:
@@ -72,7 +66,7 @@ class ProcessCheck(AgentCheck):
 
         return set(found_process_list)
 
-    def get_process_metrics(self, pids, psutil, cpu_check_interval):
+    def get_process_metrics(self, pids, cpu_check_interval, ignore_denied_access=True):
 
         # initialize process metrics
         # process metrics available for all versions of psutil
@@ -80,27 +74,18 @@ class ProcessCheck(AgentCheck):
         vms = 0
         cpu = 0
         thr = 0
-
+        voluntary_ctx_switches = 0
+        involuntary_ctx_switches = 0
+            
         # process metrics available for psutil versions 0.6.0 and later
-        extended_metrics_0_6_0 = self.is_psutil_version_later_than((0, 6, 0)) and \
-            not Platform.is_win32()
-        # On Windows get_ext_memory_info returns different metrics
-        if extended_metrics_0_6_0:
+        if not Platform.is_win32():
             real = 0
-            voluntary_ctx_switches = 0
-            involuntary_ctx_switches = 0
+            if Platform.is_unix():
+                open_file_descriptors = 0
+            else:
+                open_file_descriptors = None
         else:
             real = None
-            voluntary_ctx_switches = None
-            involuntary_ctx_switches = None
-
-        # process metrics available for psutil versions 0.5.0 and later on UNIX
-        extended_metrics_0_5_0_unix = self.is_psutil_version_later_than((0, 5, 0)) and \
-                                Platform.is_unix()
-        if extended_metrics_0_5_0_unix:
-            open_file_descriptors = 0
-        else:
-            open_file_descriptors = None
 
         # process I/O counters (agent might not have permission to access)
         read_count = 0
@@ -113,11 +98,11 @@ class ProcessCheck(AgentCheck):
         for pid in set(pids):
             try:
                 p = psutil.Process(pid)
-                if extended_metrics_0_6_0:
+                if real is not None:
                     mem = p.get_ext_memory_info()
                     real += mem.rss - mem.shared
                     try:
-                        ctx_switches = p.get_num_ctx_switches()
+                        ctx_switches = p.num_ctx_switches()
                         voluntary_ctx_switches += ctx_switches.voluntary
                         involuntary_ctx_switches += ctx_switches.involuntary
                     except NotImplementedError:
@@ -127,7 +112,7 @@ class ProcessCheck(AgentCheck):
                 else:
                     mem = p.get_memory_info()
 
-                if extended_metrics_0_5_0_unix:
+                if open_file_descriptors is not None:
                     try:
                         open_file_descriptors += p.get_num_fds()
                     except psutil.AccessDenied:
@@ -160,7 +145,7 @@ class ProcessCheck(AgentCheck):
                 self.warning('Process %s disappeared while scanning' % pid)
                 pass
 
-        if got_denied:
+        if got_denied and not ignore_denied_access:
             self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
 
         #Memory values are in Byte
@@ -168,15 +153,16 @@ class ProcessCheck(AgentCheck):
             read_count, write_count, read_bytes, write_bytes, voluntary_ctx_switches, involuntary_ctx_switches)
 
     def check(self, instance):
-        try:
-            import psutil
-        except ImportError:
-            raise Exception('You need the "psutil" package to run this check')
-
         name = instance.get('name', None)
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string', None)
         cpu_check_interval = instance.get('cpu_check_interval', 0.1)
+
+        if not isinstance(search_string, list):
+            raise KeyError('"search_string" parameter should be a list')
+
+        if "All" in search_string:
+            self.warning('Having "All" in your search_string will highly reduce performances of the check.') 
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
@@ -188,7 +174,7 @@ class ProcessCheck(AgentCheck):
             self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
             cpu_check_interval = 0.1
 
-        pids = self.find_pids(search_string, psutil, exact_match=exact_match)
+        pids = self.find_pids(search_string, exact_match=exact_match)
         tags = ['process_name:%s' % name, name]
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
@@ -196,7 +182,7 @@ class ProcessCheck(AgentCheck):
         self.gauge('system.processes.number', len(pids), tags=tags)
 
         metrics = dict(zip(ProcessCheck.PROCESS_GAUGE, self.get_process_metrics(pids,
-            psutil, cpu_check_interval)))
+            cpu_check_interval, instance.get("ignore_denied_access", True))))
 
         for metric, value in metrics.iteritems():
             if value is not None:
