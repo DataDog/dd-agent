@@ -133,9 +133,9 @@ SELECT relname,
         metrics = self.instance_metrics.get(key)
         if metrics is None:
             if self._is_9_2_or_above(key, db):
-                self.instance_metrics[key] = self.COMMON_METRICS.items() + self.NEWER_92_METRICS.items()
+                self.instance_metrics[key] = dict(self.COMMON_METRICS.items() + self.NEWER_92_METRICS.items())
             else:
-                self.instance_metrics[key] = self.COMMON_METRICS.items()
+                self.instance_metrics[key] = dict(self.COMMON_METRICS.items())
             metrics = self.instance_metrics.get(key)
         return metrics
 
