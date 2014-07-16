@@ -106,8 +106,7 @@ elif [ $OS = "Debian"]; then
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     $sudo_cmd apt-get update
-    $sudo_cmd apt-get install -y --force-yes datadog-agent-base
-    fi
+    $sudo_cmd apt-get install -y --force-yes datadog-agent
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
 Please follow the instructions on the Agent setup page:
