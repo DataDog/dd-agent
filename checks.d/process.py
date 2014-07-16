@@ -1,6 +1,11 @@
+# stdlib
+import time
+
+# project
 from checks import AgentCheck
 from util import Platform
-import time
+
+# 3rd party
 import psutil
 
 class ProcessCheck(AgentCheck):

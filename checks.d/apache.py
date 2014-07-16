@@ -1,6 +1,8 @@
+# stdlib
 import urllib2
 import urlparse
 
+# project
 from util import headers
 from checks import AgentCheck
 from checks.utils import add_basic_auth

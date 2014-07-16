@@ -1,11 +1,11 @@
+# stdlib
 import urllib2
+import time
+from collections import defaultdict
 
+# project
 from checks import AgentCheck
 from util import headers
-
-import time
-
-from collections import defaultdict
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'

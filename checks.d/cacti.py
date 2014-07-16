@@ -1,11 +1,11 @@
-# project
-from checks import AgentCheck
-
 # stdlib
 from fnmatch import fnmatch
 import os
 import time
 from collections import namedtuple
+
+# project
+from checks import AgentCheck
 
 # 3rd party
 import rrdtool

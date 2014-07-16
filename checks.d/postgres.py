@@ -1,4 +1,9 @@
+# project
 from checks import AgentCheck, CheckException
+
+# 3rd party
+import pg8000 as pg
+from pg8000 import InterfaceError
 
 class ShouldRestartException(Exception): pass
 
@@ -121,7 +126,6 @@ SELECT relname,
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from pg8000 import InterfaceError
 
         # Extended 9.2+ metrics
         if self._is_9_2_or_above(key, db):
@@ -230,11 +234,6 @@ SELECT relname,
             return self.dbs[key]
 
         elif host != "" and user != "":
-            try:
-                import pg8000 as pg
-            except ImportError:
-                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
-
             try:
                 service_check_tags = [
                     "host:%s" % host,

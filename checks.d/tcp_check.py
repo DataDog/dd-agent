@@ -1,6 +1,9 @@
-from checks.services_checks import ServicesCheck, Status, EventType
+# stdlib
 import socket
 import time
+
+# project
+from checks.services_checks import ServicesCheck, Status, EventType
 
 class BadConfException(Exception): pass
 

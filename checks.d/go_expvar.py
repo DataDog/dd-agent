@@ -1,6 +1,11 @@
+# stdlib
 import urllib2
-import simplejson as json
+
+# project
 from checks import AgentCheck
+
+# 3rd party
+import simplejson as json
 
 class GoExpvar(AgentCheck):
 
