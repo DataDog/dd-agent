@@ -46,24 +46,25 @@ if [ ! $apikey ]; then
 fi
 
 # OS/Distro Detection
-if [ -f /etc/debian_version ]; then
-    OS=Debian
-elif [ -f /etc/redhat-release ]; then
-    # Just mark as RedHat and we'll use Python version detection
-    # to know what to install
-    OS=RedHat
-elif [ -f /etc/lsb-release ]; then
-    . /etc/lsb-release
-    OS=$DISTRIB_ID
-else
-    OS=$(uname -s)
-fi
+DISTRIBUTION=$(grep -Eo "(Debian|Ubuntu|RedHat|CentOS|openSUSE|Amazon)" /etc/issue 2>/dev/null || uname -s)
 
-if [ $OS = "Darwin" ]; then
+if [ $DISTRIBUTION = "Darwin" ]; then
     printf "\033[31mThis script does not support installing on the Mac.
 
 Please use the 1-step script available at https://app.datadoghq.com/account/settings#agent/mac.\033[0m\n"
     exit 1;
+
+elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" -o "$DISTRIBUTION" == "Ubuntu" ]; then
+    OS="Debian"
+elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "openSUSE" -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+fi
+
+# Root user detection
+if [ $(echo "$UID") = "0" ]; then
+    sudo_cmd=''
+else
+    sudo_cmd='sudo'
 fi
 
 DDBASE=false
@@ -74,13 +75,6 @@ if [ "$has_python" != "no" ]; then
     if [ $PY_VERSION = "2.4" -o $PY_VERSION = "2.5" ]; then
         DDBASE=true
     fi
-fi
-
-# Root user detection
-if [ $(echo "$UID") = "0" ]; then
-    sudo_cmd=''
-else
-    sudo_cmd='sudo'
 fi
 
 # Install the necessary package sources
@@ -105,17 +99,14 @@ if [ $OS = "RedHat" ]; then
         fi
     fi
     $sudo_cmd yum -y install datadog-agent
-elif [ $OS = "Debian" -o $OS = "Ubuntu" ]; then
+elif [ $OS = "Debian"]; then
     printf "\033[34m\n* Installing APT package sources for Datadog\n\033[0m\n"
     $sudo_cmd sh -c "echo 'deb http://apt.datadoghq.com/ stable main' > /etc/apt/sources.list.d/datadog.list"
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     $sudo_cmd apt-get update
-    if $DDBASE; then
-        $sudo_cmd apt-get install -y --force-yes datadog-agent-base
-    else
-        $sudo_cmd apt-get install -y --force-yes datadog-agent
+    $sudo_cmd apt-get install -y --force-yes datadog-agent-base
     fi
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
