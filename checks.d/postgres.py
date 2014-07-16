@@ -125,6 +125,10 @@ SELECT relname,
         return False
 
     def _get_instance_metrics(self, key, db):
+        """Use either COMMON_METRICS or COMMON_METRICS + NEWER_92_METRICS
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
         # Extended 9.2+ metrics if needed
         metrics = self.instance_metrics.get(key)
         if metrics is None:
