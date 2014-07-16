@@ -35,12 +35,12 @@ if sys.platform == 'win32':
         'simplejson==2.6.1',
         'mysql-python==1.2.3',
         'pymongo==2.3',
-        'psycopg2',
+        'pg8000',
         'python-memcached==1.48',
         'adodbapi'
         'elementtree',
         'pycurl',
-        'MySQLdb',
+        'PyMySQL',
         'psutil',
         'redis',
     ])
@@ -57,9 +57,9 @@ if sys.platform == 'win32':
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
-        'MySQLdb',
+        'PyMySQL',
         'psutil',
-        'psycopg2',
+        'pg8000',
         'redis',
 
         # agent
