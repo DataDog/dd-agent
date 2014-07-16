@@ -19,18 +19,7 @@ class PostgreSql(AgentCheck):
         'descriptors': [
             ('datname', 'db')
         ],
-        'metrics': {
-            'numbackends'       : ('postgresql.connections', GAUGE),
-            'xact_commit'       : ('postgresql.commits', RATE),
-            'xact_rollback'     : ('postgresql.rollbacks', RATE),
-            'blks_read'         : ('postgresql.disk_read', RATE),
-            'blks_hit'          : ('postgresql.buffer_hit', RATE),
-            'tup_returned'      : ('postgresql.rows_returned', RATE),
-            'tup_fetched'       : ('postgresql.rows_fetched', RATE),
-            'tup_inserted'      : ('postgresql.rows_inserted', RATE),
-            'tup_updated'       : ('postgresql.rows_updated', RATE),
-            'tup_deleted'       : ('postgresql.rows_deleted', RATE),
-        },
+        'metrics': {},
         'query': """
 SELECT datname,
        %s
@@ -39,6 +28,19 @@ SELECT datname,
    AND datname not ilike 'postgres'
 """,
         'relation': False,
+    }
+
+    COMMON_METRICS = {
+        'numbackends'       : ('postgresql.connections', GAUGE),
+        'xact_commit'       : ('postgresql.commits', RATE),
+        'xact_rollback'     : ('postgresql.rollbacks', RATE),
+        'blks_read'         : ('postgresql.disk_read', RATE),
+        'blks_hit'          : ('postgresql.buffer_hit', RATE),
+        'tup_returned'      : ('postgresql.rows_returned', RATE),
+        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
+        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
+        'tup_updated'       : ('postgresql.rows_updated', RATE),
+        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
     }
 
     NEWER_92_METRICS = {
@@ -128,14 +130,17 @@ SELECT relname,
         """
 
         # Extended 9.2+ metrics
+        db_metrics = self.DB_METRICS
         if self._is_9_2_or_above(key, db):
-            self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
+            db_metrics['metrics'] = self.COMMON_METRICS.items() + self.NEWER_92_METRICS.items()
+        else:
+            db_metrics['metrics'] = self.COMMON_METRICS.items()
 
         # Do we need relation-specific metrics?
         if not relations:
-            metric_scope = (self.DB_METRICS,)
+            metric_scope = (db_metrics,)
         else:
-            metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
+            metric_scope = (db_metrics, self.REL_METRICS, self.IDX_METRICS)
 
         try:
             cursor = db.cursor()
