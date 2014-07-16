@@ -8,7 +8,10 @@ from collections import namedtuple
 from checks import AgentCheck
 
 # 3rd party
-import rrdtool
+try:
+    import rrdtool
+except ImportError:
+    rrdtool = None
 import PyMySQL
 
 CFUNC_TO_AGGR = {
@@ -37,9 +40,13 @@ class Cacti(AgentCheck):
         self.last_ts = {}
 
     def get_library_versions(self):
-        return {"rrdtool": rrdtool.__version__} 
+        if rrdtool is not None:
+            return {"rrdtool": rrdtool.__version__} 
+        return {"rrdtool": "Not Found"}
 
     def check(self, instance):
+        if rrdtool is None:
+            raise Exception("Unable to import python rrdtool module")
         
         # Load the instance config
         config = self._get_config(instance)
