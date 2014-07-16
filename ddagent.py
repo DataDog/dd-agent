@@ -43,6 +43,9 @@ from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
 
+# 3rd party
+import pycurl
+
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
@@ -216,6 +219,10 @@ class MetricTransaction(Transaction):
                 tornado_client_params['proxy_port'] = proxy_settings['port']
                 tornado_client_params['proxy_username'] = proxy_settings['user']
                 tornado_client_params['proxy_password'] = proxy_settings['password']
+
+                # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
+                tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
+                
                 force_use_curl = True
 
             if not self._application.use_simple_http_client or force_use_curl:
