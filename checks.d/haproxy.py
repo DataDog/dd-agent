@@ -15,8 +15,14 @@ class Services(object):
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
     ALL_STATUSES = (
-            'up', 'open', 'no_check', 'down', 'maint', 'nolb'
+            'up', 'open', 'no check', 'down', 'maint', 'nolb'
         )
+    STATUSES_TO_SERVICE_CHECK = {
+            'UP'       : AgentCheck.OK,
+            'DOWN'     : AgentCheck.CRITICAL,
+            'no check' : AgentCheck.UNKNOWN,
+            'MAINT'    : AgentCheck.CRITICAL
+            }
 
 class HAProxy(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
@@ -129,6 +135,7 @@ class HAProxy(AgentCheck):
                 self._process_metrics(data_dict, url)
             if process_events:
                 self._process_event(data_dict, url)
+            self._process_service_check(data_dict, url)
 
         if collect_status_metrics:
             self._process_status_metric(self.hosts_statuses, collect_status_metrics_by_host)
@@ -193,7 +200,7 @@ class HAProxy(AgentCheck):
         for host_status, count in hosts_statuses.iteritems():
             try:
                 service, hostname, status = host_status
-            except:
+            except Exception:
                 service, status = host_status
             status = status.lower()
 
@@ -216,7 +223,7 @@ class HAProxy(AgentCheck):
         self.gauge(metric_name, count, tags + ['status:%s' % status])
         for state in Services.ALL_STATUSES:
             if state != status:
-                self.gauge(metric_name, 0, tags + ['status:%s' % state])
+                self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ","_")])
 
 
     def _process_metrics(self, data, url):
@@ -244,8 +251,11 @@ class HAProxy(AgentCheck):
                     self.gauge(name, value, tags=tags)
 
     def _process_event(self, data, url):
-        ''' Main event processing loop. An event will be created for a service
-        status change '''
+        '''
+        Main event processing loop. An event will be created for a service
+        status change.
+        Service checks on the server side can be used to provide the same functionality
+        '''
         hostname = data['svname']
         service_name = data['pxname']
         key = "%s:%s" % (hostname,service_name)
@@ -298,3 +308,20 @@ class HAProxy(AgentCheck):
              "tags": tags
         }
 
+    def _process_service_check(self, data, url):
+        '''
+        Report a service check, tagged by the service and the backend.
+        Report as OK if the status is UP
+                  CRITICAL            DOWN
+                  UNKNOWN             no check
+        '''
+        service_name = data['pxname']
+        status = data['status']
+        if data['status'] in ('UP', 'DOWN', 'no check', 'MAINT'):
+            service_check_tags = ["service:%s" % service_name]
+            if data['back_or_front'] == Services.BACKEND:
+                hostname = data['svname']
+                service_check_tags.append('backend:%s' % hostname)
+            self.service_check("haproxy.service_up",
+                               Services.STATUSES_TO_SERVICE_CHECK[status],
+                               tags = service_check_tags)
