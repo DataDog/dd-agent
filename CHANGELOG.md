@@ -40,6 +40,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [FEATURE] Add an SNMP Check. See [#299][]
 * [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
+* [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][] 
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
@@ -1116,6 +1117,7 @@ If you use ganglia, you want this version.
 [#984]: https://github.com/DataDog/dd-agent/issues/984
 [#996]: https://github.com/DataDog/dd-agent/issues/996
 [#1002]: https://github.com/DataDog/dd-agent/issues/1002
+[#1008]: https://github.com/DataDog/dd-agent/issues/1008
 [#1013]: https://github.com/DataDog/dd-agent/issues/1013
 [#1015]: https://github.com/DataDog/dd-agent/issues/1015
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
