@@ -14,12 +14,7 @@ KB2MB = B2KB = float(1024)
 
 def should_ignore_disk(name, blacklist_re):
     # blacklist_re is a compiled regex, compilation done at config loading time
-    if name =='_total':
-        return True
-    elif blacklist_re and blacklist_re.match(name):
-        return True
-    else:
-        return False
+    return name =='_total' or blacklist_re is not None and blacklist_re.match(name):
 
 class Processes(Check):
     def __init__(self, logger):
