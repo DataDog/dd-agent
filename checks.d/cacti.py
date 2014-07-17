@@ -12,7 +12,7 @@ try:
     import rrdtool
 except ImportError:
     rrdtool = None
-import PyMySQL
+import pymysql
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -51,7 +51,7 @@ class Cacti(AgentCheck):
         # Load the instance config
         config = self._get_config(instance)
 
-        connection = PyMySQL.connect(config.host, config.user, config.password, config.db)
+        connection = pymysql.connect(config.host, config.user, config.password, config.db)
 
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 

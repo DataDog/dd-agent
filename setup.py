@@ -40,7 +40,7 @@ if sys.platform == 'win32':
         'adodbapi'
         'elementtree',
         'pycurl',
-        'PyMySQL',
+        'pymysql',
         'psutil',
         'redis',
     ])
@@ -57,7 +57,7 @@ if sys.platform == 'win32':
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
-        'PyMySQL',
+        'pymysql',
         'psutil',
         'pg8000',
         'redis',

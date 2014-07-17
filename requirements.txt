@@ -11,7 +11,7 @@ pylint
 boto
 pysnmp
 pysnmp-mibs
-PyMySQL
+pymysql
 pg8000
 ntplib
 httplib2
