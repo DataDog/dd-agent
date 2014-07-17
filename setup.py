@@ -44,6 +44,7 @@ if sys.platform == 'win32':
         'psutil',
         'redis',
         'requests',
+        'httplib2==0.9',
     ])
 
     # Modules to force-include in the exe
@@ -66,7 +67,7 @@ if sys.platform == 'win32':
 
         # agent
         'checks.services_checks',
-        'checks.libs.httplib2',
+        'httplib2',
 
         # pup
         'pup',

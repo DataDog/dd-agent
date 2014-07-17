@@ -30,6 +30,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * Kafka
 * Kafka consumer
 * Redis
+* Postgres
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -45,7 +46,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
 * [BUGFIX] Fix kafka metrics by sending them as gauges instead of rate. See [#1029][]
 * [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
-
+* [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
 
 # 4.4.0 / 06-24-2014
 
@@ -1122,6 +1123,7 @@ If you use ganglia, you want this version.
 [#1024]: https://github.com/DataDog/dd-agent/issues/1024
 [#1028]: https://github.com/DataDog/dd-agent/issues/1028
 [#1029]: https://github.com/DataDog/dd-agent/issues/1029
+[#1035]: https://github.com/DataDog/dd-agent/issues/1035
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
