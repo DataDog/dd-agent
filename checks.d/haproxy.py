@@ -315,13 +315,17 @@ class HAProxy(AgentCheck):
                   CRITICAL            DOWN
                   UNKNOWN             no check
         '''
+        HAProxy_agent = self.hostname.decode('utf-8')
         service_name = data['pxname']
         status = data['status']
-        if data['status'] in ('UP', 'DOWN', 'no check', 'MAINT'):
+        if status in Services.STATUSES_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
             if data['back_or_front'] == Services.BACKEND:
                 hostname = data['svname']
                 service_check_tags.append('backend:%s' % hostname)
+
             self.service_check("haproxy.service_up",
                                Services.STATUSES_TO_SERVICE_CHECK[status],
-                               tags = service_check_tags)
+                               tags = service_check_tags,
+                               message="%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status)
+                            )
