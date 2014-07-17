@@ -43,6 +43,7 @@ if sys.platform == 'win32':
         'pymysql',
         'psutil',
         'redis',
+        'requests',
     ])
 
     # Modules to force-include in the exe
@@ -61,6 +62,7 @@ if sys.platform == 'win32':
         'psutil',
         'pg8000',
         'redis',
+        'requests',
 
         # agent
         'checks.services_checks',
