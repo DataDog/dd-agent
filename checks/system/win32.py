@@ -9,9 +9,12 @@ except Exception:
 # Device WMI drive types
 class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
-IGNORED = ('_total',)
 B2MB  = float(1048576)
 KB2MB = B2KB = float(1024)
+
+def should_ignore_disk(name, blacklist_re):
+    # blacklist_re is a compiled regex, compilation done at config loading time
+    return name =='_total' or blacklist_re is not None and blacklist_re.match(name):
 
 class Processes(Check):
     def __init__(self, logger):
@@ -176,9 +179,10 @@ class Disk(Check):
                              ' No disk metrics will be returned.')
             return
 
+        blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in disk:
             name = self.normalize_device_name(device.name)
-            if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or name in IGNORED:
+            if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or should_ignore_disk(name, blacklist_re):
                 continue
             if device.FreeSpace is not None and device.Size is not None:
                 free = float(device.FreeSpace) / B2KB
@@ -208,10 +212,10 @@ class IO(Check):
             self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.' \
                              ' No I/O metrics will be returned.')
             return
-
+        blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in disk:
             name = self.normalize_device_name(device.name)
-            if name in IGNORED:
+            if should_ignore_disk(name, blacklist_re):
                 continue
             if device.DiskWriteBytesPerSec is not None:
                 self.save_sample('system.io.wkb_s', int(device.DiskWriteBytesPerSec) / B2KB,
