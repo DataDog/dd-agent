@@ -136,8 +136,7 @@ class Docker(AgentCheck):
             elif os.path.exists(stat_file_path_coreos):
                 return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
 
-        raise Exception("Cannot find Docker cgroup directory. If you are using Docker 0.9 or 0.10,"
-            "it is a known bug in Docker fixed in Docker 0.11")
+        raise Exception("Cannot find Docker cgroup directory.")
 
     def check(self, instance):
         try:
@@ -304,6 +303,9 @@ class Docker(AgentCheck):
         finally:
             fp.close()
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
+        if len(cgroup_mounts) == 0:
+            raise Exception("Can't find mounted cgroups. If you run the Agent inside a container,"
+                " please refer to the documentation.")
         # Old cgroup style
         if len(cgroup_mounts) == 1:
             return os.path.join(docker_root, cgroup_mounts[0][1])

@@ -14,9 +14,6 @@ instances:
     #
     # tags: [extra_tag1, extra_tag2]
 
-    # It is possible to collect the number of Docker images with the collect_images option. Default: false.
-    # collect_images: true
-
     # To include or exclude containers based on their tags, use the include and
     # exclude keys in your instance.
     # The reasoning is: if a tag matches an exclude rule, it won't be included
