@@ -117,31 +117,43 @@ class Docker(AgentCheck):
         docker_root = init_config.get('docker_root', '/')
         for metric in CGROUP_METRICS:
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"], docker_root)
-        self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
         self._last_event_collection_ts = defaultdict(lambda: None)
         self.url_opener = urllib2.build_opener(UnixSocketHandler())
         self.should_get_size = True
+        self._cgroup_filename_pattern = None
 
     def _find_cgroup_filename_pattern(self):
         if self._mountpoints:
-            mountpoint = self._mountpoints.values()[0]
-            stat_file_path_lxc = os.path.join(mountpoint, "lxc")
-            stat_file_path_docker = os.path.join(mountpoint, "docker")
-            stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
+            # We try with different cgroups so that it works even if only one is properly working
+            for mountpoint in self._mountpoints.values():
+                stat_file_path_lxc = os.path.join(mountpoint, "lxc")
+                stat_file_path_docker = os.path.join(mountpoint, "docker")
+                stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
 
-            if os.path.exists(stat_file_path_lxc):
-                return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
-            elif os.path.exists(stat_file_path_docker):
-                return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
-            elif os.path.exists(stat_file_path_coreos):
-                return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
+                if os.path.exists(stat_file_path_lxc):
+                    return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
+                elif os.path.exists(stat_file_path_docker):
+                    return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
+                elif os.path.exists(stat_file_path_coreos):
+                    return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
 
-        raise Exception("Cannot find Docker cgroup directory.")
+        raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
+
+    def _get_cgroup_file(self, cgroup, container_id, filename):
+        # This can't be initialized at startup because cgroups may not be mounted
+        if not self._cgroup_filename_pattern:
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
+
+        return self._cgroup_filename_pattern % (dict(
+                    mountpoint=self._mountpoints[cgroup],
+                    id=container_id,
+                    file=filename,
+                ))
 
     def check(self, instance):
         try:
             self._process_events(self._get_events(instance))
-        except socket.timeout, urllib2.URLError:
+        except (socket.timeout, urllib2.URLError):
             self.warning('Timeout during socket connection. Events will be missing.')
 
         self._count_images(instance)
@@ -171,11 +183,7 @@ class Docker(AgentCheck):
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for cgroup in CGROUP_METRICS:
-                stat_file = self._cgroup_filename_pattern % (dict(
-                    mountpoint=self._mountpoints[cgroup["cgroup"]],
-                    id=container['Id'],
-                    file=cgroup['file'],
-                ))
+                stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_type) in cgroup['metrics'].items():
@@ -211,17 +219,15 @@ class Docker(AgentCheck):
 
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
-        if self.should_get_size:
-            try:
-                containers = self._get_containers(instance, with_size=True)
-            except socket.timeout, urllib.URLError:
-                # Probably because of: https://github.com/DataDog/dd-agent/issues/963
-                # Then we should stop trying to get size info
-                self.log.info("Cannot get container size because of API timeout. Stop asking for it.")
-                self.should_get_size = False
 
-        if not self.should_get_size:
-            containers = self._get_containers(instance, with_size=False)
+        try:
+            containers = self._get_containers(instance, with_size=self.should_get_size)
+        except (socket.timeout, urllib2.URLError):
+            # Probably because of: https://github.com/DataDog/dd-agent/issues/963
+            # Then we should stop trying to get size info
+            self.log.info("Cannot get container size because of API timeout. Stop collecting it.")
+            self.should_get_size = False
+            containers = self._get_containers(instance, with_size=self.should_get_size)
 
         if not containers:
             containers = []
@@ -318,12 +324,11 @@ class Docker(AgentCheck):
         fp = None
         self.log.debug("Opening file: %s" % stat_file)
         try:
-            try:
-                fp = open(stat_file)
-                return dict(map(lambda x: x.split(), fp.read().splitlines()))
-            except IOError:
-                # Can be because the container got stopped
-                self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
+            fp = open(stat_file)
+            return dict(map(lambda x: x.split(), fp.read().splitlines()))
+        except IOError:
+            # Can be because the container got stopped
+            self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
         finally:
             if fp is not None:
                 fp.close()
