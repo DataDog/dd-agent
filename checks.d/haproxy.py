@@ -21,7 +21,7 @@ class Services(object):
             'UP'       : AgentCheck.OK,
             'DOWN'     : AgentCheck.CRITICAL,
             'no check' : AgentCheck.UNKNOWN,
-            'MAINT'    : AgentCheck.CRITICAL
+            'MAINT'    : AgentCheck.OK,
             }
 
 class HAProxy(AgentCheck):
