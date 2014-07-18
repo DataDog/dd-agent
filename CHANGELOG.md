@@ -19,7 +19,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory. 
 
 
-### New and update integrations
+### New and updated integrations
 
 * NTP
 * Redis
