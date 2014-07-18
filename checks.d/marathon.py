@@ -48,10 +48,10 @@ class Marathon(AgentCheck):
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
 
         # Condition for request v1.x backward compatibility
-        if type(r.json) == dict:
-            return r.json
-        else:
+        if hasattr(r.json, '__call__'):
             return r.json()
+        else:
+            return r.json
 
     def get_v2_app_versions(self, url, app_id, timeout):
         # Use a hash of the URL as an aggregation key

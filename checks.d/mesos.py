@@ -85,10 +85,10 @@ class Mesos(AgentCheck):
             return None
 
         # Condition for request v1.x backward compatibility
-        if type(r.json) == dict:
-            return r.json
-        else:
+        if hasattr(r.json, '__call__'):
             return r.json()
+        else:
+            return r.json
 
 
     def timeout_event(self, url, timeout, aggregation_key):
