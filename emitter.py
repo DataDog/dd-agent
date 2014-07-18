@@ -1,12 +1,18 @@
 # stdlib
-import zlib
-import sys
 from hashlib import md5
+import logging
 import re
+import sys
+import zlib
 
 # 3rd party
-import simplejson as json
 import requests
+import simplejson as json
+
+# urllib3 logs a bunch of stuff at the info level
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.WARN)
+requests_log.propagate = True
 
 # From http://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
 control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
@@ -38,18 +44,18 @@ def http_emitter(message, log, agentConfig):
 
     url = "{0}/intake?api_key={1}".format(url, apiKey)
 
-    proxy = get_proxy_settings(log, agentConfig.get('proxy_settings'), 
+    proxy = get_proxy_settings(log, agentConfig.get('proxy_settings'),
         agentConfig['use_forwarder'])
 
     try:
         if proxy is None:
-            r = requests.post(url, data=zipped, timeout=10, 
+            r = requests.post(url, data=zipped, timeout=10,
                 headers=post_headers(agentConfig, zipped))
-        else: 
-            # This shouldn't happen. 
+        else:
+            # This shouldn't happen.
             # Starting from 5.0.0, the forwarder should be running on every platform
             # and so there shouldn't be any need for a proxy connection
-            r = requests.post(url, data=zipped, timeout=10, 
+            r = requests.post(url, data=zipped, timeout=10,
                 headers=post_headers(agentConfig, zipped), proxies=proxy)
 
         r.raise_for_status()
