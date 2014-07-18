@@ -1,6 +1,5 @@
 from checks import Check
 import psutil
-import time
 
 try:
     import wmi
@@ -91,7 +90,6 @@ class Cpu(Check):
         self.gauge('system.cpu.idle')
         self.gauge('system.cpu.interrupt')
         self.gauge('system.cpu.system')
-        self.psutil_initialized = False
 
     def check(self, agentConfig):
         try:
@@ -105,13 +103,7 @@ class Cpu(Check):
         if cpu_interrupt is not None:
             self.save_sample('system.cpu.interrupt', cpu_interrupt)
 
-        cpu_percent = psutil.cpu_times_percent()
-        if not self.psutil_initialized:
-            # The first call to psutil cpu_times_percent returns only 0s
-            time.sleep(1)
-            cpu_percent = psutil.cpu_times_percent()
-            self.psutil_initialized = True
-
+        cpu_percent = psutil.cpu_times_percent(interval=0.5)
 
         self.save_sample('system.cpu.user', cpu_percent.user)
         self.save_sample('system.cpu.idle', cpu_percent.idle)
