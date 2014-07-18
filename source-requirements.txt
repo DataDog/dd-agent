@@ -11,3 +11,4 @@ PyMySQL==0.6.1
 pg8000==1.9.6
 ntplib==0.3.2
 httplib2==0.9
+requests==2.3.0
