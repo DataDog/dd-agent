@@ -1,6 +1,6 @@
 import platform
 import sys
-from config import *
+from config import get_version
 from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
