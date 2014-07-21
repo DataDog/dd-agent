@@ -735,7 +735,8 @@ def load_check_directory(agentConfig):
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured
-            # in datadog.conf - Should be removed in ulterior major version
+            # in datadog.conf
+            # fixme: Should be removed in ulterior major version
             if check_name == 'nagios':
                 if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
                     log.warning("Configuring Nagios in datadog.conf is deprecated "
