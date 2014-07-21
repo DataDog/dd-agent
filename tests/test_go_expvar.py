@@ -73,5 +73,46 @@ class TestGoExpVar(unittest.TestCase):
             self.assertTrue("optionaltag1" in tags)
             self.assertTrue("optionaltag2" in tags)
 
+    def test_deepget(self):
+        # Wildcard for dictkeys
+        content = {
+                    'a' : {
+                        'one': 1,
+                        'two': 2
+                        },
+                    'b': {
+                        'three': 3,
+                        'four':  4
+                        }
+                    }
+        expected = [ (['a', 'one'], 1),
+                    (['a', 'two'], 2),
+                    (['b', 'three'], 3),
+                    (['b', 'four'], 4)]
+
+        results = self.check.deep_get(content,['*','*'], [])
+        self.assertEqual(sorted(results), sorted(expected))
+
+        expected = [(['a', 'one'], 1)]
+        results = self.check.deep_get(content, ['*','one'], [])
+        self.assertEqual(results, expected)
+
+        # Wildcard for list index
+        content = { 'list':
+                    [ {'timestamp': 10,
+                         'value':     5},
+                      {'timestamp': 10,
+                       'value':     10},
+                      {'timestamp': 10,
+                       'value':     20}
+                      ]
+                    }
+        expected = [ (['list','0','value'], 5),
+                     (['list','1','value'], 10),
+                     (['list','2','value'], 20)]
+
+        results = self.check.deep_get(content, ['list','*','value'], [])
+        self.assertEqual(sorted(results), sorted(expected))
+
 if __name__ == "__main__":
     unittest.main()

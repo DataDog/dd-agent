@@ -54,20 +54,20 @@ class GoExpvar(AgentCheck):
 
             path = metric.get("path")
             keys = path.split("/")
-            try:
-                value = self.deep_get(content, keys)
-            except (KeyError, IndexError, TypeError):
-                self.log.warning("Could not get value for path %s,"
-                                 " check the schema of your json" % path)
-                continue
+            values = self.deep_get(content, keys, [])
 
-            metric_name = metric.get("alias")
-            if metric_name is None:
-                metric_name = self.normalize(".".join(keys), "go_expvar", fix_case=True)
+            if len(values)==1:
+                # Defining an alias doesn't make sense if there is several metrics
+                metric_name = metric.get("alias")
+            for traversed_path, value in values:
+                metric_name = metric_name or self.normalize(".".join(traversed_path), "go_expvar", fix_case=True)
+                try:
+                    float(value)
+                except ValueError:
+                    self.log.warning("Unreportable value for path %s: %s" % (path,value))
+                self.func[metric_type](metric_name, value, tags)
 
-            self.func[metric_type](metric_name, value, tags)
-
-    def deep_get(self, content, keys):
+    def deep_get(self, content, keys, traversed_path):
         '''
         Allow to retrieve content nested inside a several layers deep dict/list
 
@@ -89,11 +89,33 @@ class GoExpvar(AgentCheck):
 
                   would return 72
         '''
-        key = int(keys[0]) if isinstance(content, list) else keys[0]
-        if len(keys) == 1:
-            return content[key]
-        else:
-            # Sadly no TRO in python but this recursion isn't deep
-            return self.deep_get(content[key],keys[1:])
+        if keys == []:
+            return [(traversed_path, content)]
 
+        key = keys[0]
+        if key == '*':
+            results = []
+            if isinstance(content, list):
+                for new_key, new_content in enumerate(content):
+                    results.extend(self.deep_get(new_content, keys[1:], traversed_path + [str(new_key)]))
+            elif isinstance(content, dict):
+                for new_key, new_content in content.items():
+                    results.extend(self.deep_get(new_content, keys[1:], traversed_path + [str(new_key)]))
+            else:
+                # not a traversable structure, it's a value
+                results = [(traversed_path, content)]
+
+            return results
+        else:
+            key = int(key) if isinstance(content, list) else key
+            path = traversed_path + [str(key)]
+            try:
+                if len(keys) == 1:
+                    return [(path, content[key])]
+                else:
+                    return self.deep_get(content[key],keys[1:], path)
+            except (KeyError, IndexError, TypeError):
+                self.log.warning("Could not get value for path %s,"
+                                 " check the schema of your json" % str(path+keys))
+                return []
 
