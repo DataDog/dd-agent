@@ -27,6 +27,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * Kafka
 * Kafka consumer
 * NTP
+* HDFS
 * Postgres
 * Process
 * Redis
@@ -43,6 +44,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][]
 * [FEATURE] Collect more Docker metrics. See [#1027][]
 * [FEATURE] Docker check: work inside a Docker container. CoreOS support. See [#1001][]
+* [FEATURE] HDFS: Add support for HA mode. See [#1018][]. Warning: It requires snakebite >= 2.2.0
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
@@ -1119,15 +1121,20 @@ If you use ganglia, you want this version.
 [#982]: https://github.com/DataDog/dd-agent/issues/982
 [#984]: https://github.com/DataDog/dd-agent/issues/984
 [#996]: https://github.com/DataDog/dd-agent/issues/996
+[#1001]: https://github.com/DataDog/dd-agent/issues/1001
 [#1002]: https://github.com/DataDog/dd-agent/issues/1002
 [#1008]: https://github.com/DataDog/dd-agent/issues/1008
 [#1013]: https://github.com/DataDog/dd-agent/issues/1013
 [#1015]: https://github.com/DataDog/dd-agent/issues/1015
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
+[#1017]: https://github.com/DataDog/dd-agent/issues/1017
+[#1018]: https://github.com/DataDog/dd-agent/issues/1018
 [#1023]: https://github.com/DataDog/dd-agent/issues/1023
 [#1024]: https://github.com/DataDog/dd-agent/issues/1024
+[#1027]: https://github.com/DataDog/dd-agent/issues/1027
 [#1028]: https://github.com/DataDog/dd-agent/issues/1028
 [#1029]: https://github.com/DataDog/dd-agent/issues/1029
+[#1031]: https://github.com/DataDog/dd-agent/issues/1031
 [#1035]: https://github.com/DataDog/dd-agent/issues/1035
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
