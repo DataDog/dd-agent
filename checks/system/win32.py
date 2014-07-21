@@ -89,10 +89,10 @@ class Cpu(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.logger = logger
-        self.gauge('system.cpu.user')
-        self.gauge('system.cpu.idle')
+        self.counter('system.cpu.user')
+        self.counter('system.cpu.idle')
         self.gauge('system.cpu.interrupt')
-        self.gauge('system.cpu.system')
+        self.counter('system.cpu.system')
 
     def check(self, agentConfig):
         try:
@@ -106,11 +106,11 @@ class Cpu(Check):
         if cpu_interrupt is not None:
             self.save_sample('system.cpu.interrupt', cpu_interrupt)
 
-        cpu_percent = psutil.cpu_times_percent(interval=0.5)
+        cpu_percent = psutil.cpu_times()
 
-        self.save_sample('system.cpu.user', cpu_percent.user)
-        self.save_sample('system.cpu.idle', cpu_percent.idle)
-        self.save_sample('system.cpu.system', cpu_percent.system)
+        self.save_sample('system.cpu.user', cpu_percent.user / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.idle', cpu_percent.idle / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.system', cpu_percent.system/ psutil.NUM_CPUS)
 
         return self.get_metrics()
 
