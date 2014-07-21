@@ -1,4 +1,7 @@
+# project
 from checks import Check
+
+# 3rd party
 import psutil
 
 try:
