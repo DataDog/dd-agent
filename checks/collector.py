@@ -349,6 +349,7 @@ class Collector(object):
                         )
                     )
             payload['agent_checks'] = agent_checks
+            payload['agent_checks_last_checked'] = time.time()
         collect_duration = timer.step()
 
         if self.os != 'windows':
