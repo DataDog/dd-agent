@@ -5,32 +5,32 @@ Changes
 ### Notes
 
 This is a major version of the Datadog-Agent.
-Packaging of the Agent has changed for RPM and DEB packages. 
-To BETA test this version of the agent (at your own risks), please read this guide: 
+Packaging of the Agent has changed for RPM and DEB packages.
+To BETA test this version of the agent (at your own risks), please read this guide:
 https://gist.github.com/remh/1426ccb24ec36162ba2b
 
 
 ### What will break ?
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
-     * 
-       ``` 
+     *
+       ```
            sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
-* Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory. 
+* Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
 
 
 ### New and updated integrations
 
-* NTP
-* Redis
+* Docker
 * ElasticSearch
 * Golang-expvar
-* Process
-* SNMP
 * Kafka
 * Kafka consumer
-* Redis
+* NTP
 * Postgres
+* Process
+* Redis
+* SNMP
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -40,7 +40,9 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [FEATURE] Add an SNMP Check. See [#299][]
 * [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
-* [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][] 
+* [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][]
+* [FEATURE] Collect more Docker metrics. See [#1027][]
+* [FEATURE] Docker check: work inside a Docker container. CoreOS support. See [#1001][]
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
@@ -48,6 +50,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [BUGFIX] Fix kafka metrics by sending them as gauges instead of rate. See [#1029][]
 * [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
 * [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
+* [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
 
 # 4.4.0 / 06-24-2014
 
