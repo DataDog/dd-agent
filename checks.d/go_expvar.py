@@ -71,7 +71,7 @@ class GoExpvar(AgentCheck):
         '''
         Allow to retrieve content nested inside a several layers deep dict/list
 
-        Example: -content: {
+        Examples: -content: {
                             "key1": {
                                 "key2" : [
                                             {
@@ -85,9 +85,9 @@ class GoExpvar(AgentCheck):
                                           ]
                             }
                         }
-                  -keys: ["key1", "key2", "1", "value"]
-
-                  would return 72
+                  -keys: ["key1", "key2", "1", "value"] would return [(["key1", "key2", "1", "value"], 72)]
+                  -keys: ["key1", "key2", "1", "*"] would return [(["key1", "key2", "1", "value"], 72), (["key1", "key2", "1", "name"], "object2")]
+                  -keys: ["key1", "key2", "*", "value"] would return [(["key1", "key2", "1", "value"], 72), (["key1", "key2", "0", "value"], 42)]
         '''
         if keys == []:
             return [(traversed_path, content)]
