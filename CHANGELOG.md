@@ -1126,6 +1126,7 @@ If you use ganglia, you want this version.
 [#1002]: https://github.com/DataDog/dd-agent/issues/1002
 [#1008]: https://github.com/DataDog/dd-agent/issues/1008
 [#1013]: https://github.com/DataDog/dd-agent/issues/1013
+[#1014]: https://github.com/DataDog/dd-agent/issues/1014
 [#1015]: https://github.com/DataDog/dd-agent/issues/1015
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
 [#1017]: https://github.com/DataDog/dd-agent/issues/1017
