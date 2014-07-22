@@ -5,10 +5,15 @@ Changes
 ### Notes
 
 This is a major version of the Datadog-Agent.
+
+* On Linux:
 Packaging of the Agent has changed for RPM and DEB packages.
 To BETA test this version of the agent (at your own risks), please read this guide:
 https://gist.github.com/remh/1426ccb24ec36162ba2b
 
+* On Windows:
+This release has multiple fixes, see the list below.
+Warning: The way CPU metrics are collected has changed and will be more accurate, you might see some changes in the graphs.
 
 ### What will break ?
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
@@ -46,6 +51,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Docker check: work inside a Docker container. CoreOS support. See [#1001][]
 * [FEATURE] HDFS: Add support for HA mode. See [#1018][]. Warning: It requires snakebite >= 2.2.0
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
+* [BUGFIX] Fix the collection of cpu metrics (>100%) on Windows. See [#653][]
 * [BUGFIX] Fix connection error on Windows 2008 SP2. See [#1014][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
@@ -1057,6 +1063,7 @@ If you use ganglia, you want this version.
 [#643]: https://github.com/DataDog/dd-agent/issues/643
 [#646]: https://github.com/DataDog/dd-agent/issues/646
 [#647]: https://github.com/DataDog/dd-agent/issues/647
+[#653]: https://github.com/DataDog/dd-agent/issues/653
 [#654]: https://github.com/DataDog/dd-agent/issues/654
 [#657]: https://github.com/DataDog/dd-agent/issues/657
 [#665]: https://github.com/DataDog/dd-agent/issues/665
