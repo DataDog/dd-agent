@@ -1,9 +1,15 @@
 '''
 Redis checks
 '''
+# stdlib
 import re
 import time
+
+# project
 from checks import AgentCheck
+
+# 3rd party
+import redis
 
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
@@ -73,15 +79,7 @@ class Redis(AgentCheck):
         self.connections = {}
 
     def get_library_versions(self):
-        try:
-            import redis
-            version = redis.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"redis": version}
+        return {"redis": redis.__version__}
 
     def _parse_dict_string(self, string, key, default):
         """Take from a more recent redis.py, parse_info"""
@@ -105,7 +103,6 @@ class Redis(AgentCheck):
             return (instance.get('host'), instance.get('port'), instance.get('db'))
 
     def _get_conn(self, instance):
-        import redis
         key = self._generate_instance_key(instance)
         if key not in self.connections:
             try:
@@ -150,17 +147,11 @@ class Redis(AgentCheck):
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
-            # This is likely a know issue with redis library 2.0.0
-            # See https://github.com/DataDog/dd-agent/issues/374 for details
-            import redis
-            raise Exception("""Unable to run the info command. This is probably an issue with your version of the python-redis library.
-                Minimum required version: 2.4.11
-                Your current version: %s
-                Please upgrade to a newer version by running sudo easy_install redis""" % redis.__version__)
+            raise
         except Exception, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
-            raise Exception(e)
+            raise
 
         latency_ms = round((time.time() - start) * 1000, 2)
         self.gauge('redis.info.latency_ms', latency_ms, tags=tags)
@@ -169,6 +160,15 @@ class Redis(AgentCheck):
         for key in info.keys():
             if self.db_key_pattern.match(key):
                 db_tags = list(tags) + ["redis_db:" + key]
+                # allows tracking percentage of expired keys as DD does not
+                # currently allow arithmetic on metric for monitoring
+                expires_keys = info[key]["expires"]
+                total_keys   = info[key]["keys"]
+                persist_keys = total_keys - expires_keys
+                self.gauge("redis.persist", persist_keys, tags=db_tags)
+                self.gauge("redis.persist.percent", 100.0 * persist_keys / total_keys, tags=db_tags)
+                self.gauge("redis.expires.percent", 100.0 * expires_keys / total_keys, tags=db_tags)
+
                 for subkey in self.subkeys:
                     # Old redis module on ubuntu 10.04 (python-redis 0.6.1) does not
                     # returns a dict for those key but a string: keys=3,expires=0
@@ -197,18 +197,25 @@ class Redis(AgentCheck):
             else:
                 l_tags = list(tags)
                 for key in key_list:
-                    if conn.exists(key):
-                        key_tags = l_tags + ["key:" + key]
-                        self.gauge("redis.key.length", conn.llen(key), tags=key_tags)
+                    key_type = conn.type(key)
+                    key_tags = l_tags + ['key:' + key]
+
+                    if key_type == 'list':
+                        self.gauge('redis.key.length', conn.llen(key), tags=key_tags)
+                    elif key_type == 'set':
+                        self.gauge('redis.key.length', conn.scard(key), tags=key_tags)
+                    elif key_type == 'zset':
+                        self.gauge('redis.key.length', conn.zcard(key), tags=key_tags)
+                    elif key_type == 'hash':
+                        self.gauge('redis.key.length', conn.hlen(key), tags=key_tags)
                     else:
-                        self.warning("{0} key not found in redis".format(key))
+                        # If the type is unknown, it might be because the key doesn't exist,
+                        # which can be because the list is empty. So always send 0 in that case.
+                        if instance.get("warn_on_missing_keys", True):
+                            self.warning("{0} key not found in redis".format(key))
+                        self.gauge('redis.key.length', 0, tags=key_tags)
 
     def check(self, instance):
-        try:
-            import redis
-        except ImportError:
-            raise Exception('Python Redis Module can not be imported. Please check the installation instruction on the Datadog Website')
-
         if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])

@@ -23,12 +23,14 @@ Node count: 487
 Tested with Zookeeper versions 3.0.0 to 3.4.5
 
 '''
-
-from checks import AgentCheck
+# stdlib
 import re
 import socket
 import struct
 from StringIO import StringIO
+
+# project
+from checks import AgentCheck
 
 class Zookeeper(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)

@@ -1,4 +1,4 @@
-# std
+# stdlib
 import time
 import re
 from collections import namedtuple

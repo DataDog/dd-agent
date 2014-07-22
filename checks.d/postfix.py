@@ -1,5 +1,7 @@
+# stdlib
 import os
 
+# project
 from checks import AgentCheck
 
 class PostfixCheck(AgentCheck):

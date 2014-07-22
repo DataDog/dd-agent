@@ -38,7 +38,7 @@ before_script:
   - psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE datadog_test to datadog"
   - psql -U datadog -c "CREATE TABLE Persons (PersonID int, LastName varchar(255), FirstName varchar(255), Address varchar(255), City varchar(255))" datadog_test
   - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl http://apache.mirrors.multidist.eu/cassandra/2.0.9/apache-cassandra-2.0.9-bin.tar.gz | tar -C /tmp -xzv
+  - curl http://apache.mesi.com.ar/cassandra/2.0.9/apache-cassandra-2.0.9-bin.tar.gz | tar -C /tmp -xzv
   - sudo /tmp/apache-cassandra-2.0.9/bin/cassandra
   - sudo service haproxy restart
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat_cfg.xml > /etc/tomcat6/server.xml"
@@ -54,7 +54,7 @@ before_script:
   - sudo install -d -o "$(id -u)" /var/log/datadog
   - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
   - sudo service snmpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf" # referring wrong branch during development
+  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf"
   - sudo service apache2 start
   - sudo service nginx start
   - sudo /etc/init.d/lighttpd start
