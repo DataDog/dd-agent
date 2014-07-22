@@ -182,17 +182,39 @@ class MongoDb(AgentCheck):
             self.log.info('No MongoDB database found in URI. Defaulting to admin.')
             db_name = 'admin'
 
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+
+        nodelist = parsed.get('nodelist')
+        if nodelist and len(nodelist) > 0:
+            host = parsed.get('nodelist')[0][0]
+            port = parsed.get('nodelist')[0][1]
+            service_check_tags = service_check_tags + [
+                "host:%s" % host,
+                "port:%s" % port
+            ]
+
         do_auth = True
         if username is None or password is None:
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
-            **ssl_params)
-        db = conn[db_name]
+        try:
+            conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
+                **ssl_params)
+            db = conn[db_name]
+            service_check_status = AgentCheck.OK
+        except:
+            self.service_check('mongodb.can_connect', AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
+
         if do_auth:
             if not db.authenticate(username, password):
                 self.log.error("Mongo: cannot connect with config %s" % server)
+                service_check_status = AgentCheck.CRITICAL
+
+        self.service_check('mongodb.can_connect', service_check_status, tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
         status['stats'] = db.command('dbstats')
