@@ -550,6 +550,15 @@ class CollectorStatus(AgentStatus):
         except config.PathNotFound:
             status_info['checksd_path'] = 'Not found'
 
+        # Clocks
+        try:
+            ntp_offset, ntp_style = get_ntp_info()
+        except Exception as e:
+            ntp_offset = "Unknown (%s)" % str(e)
+        status_info["ntp_warning"] = len(ntp_style) > 0
+        status_info["ntp_offset"] = ntp_offset
+        status_info["utc_time"] = datetime.datetime.utcnow().__str__()
+
         return status_info
 
 
