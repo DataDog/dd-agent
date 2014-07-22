@@ -69,12 +69,19 @@ class SQLServer(AgentCheck):
         tags = instance.get('tags', [])
         conn_key = self._conn_key(host, username, password, database)
 
+        service_check_tags = [
+            'host:%s' % host,
+            'db:%s' % database
+        ]
+
         if conn_key not in self.connections:
             try:
                 conn_str = self._conn_string(host, username, password, database)
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
-            except Exception, e:
+                self.service_check('sqlserver.can_connect', AgentCheck.OK, tags=service_check_tags)
+            except Exception:
+                self.service_check('sqlserver.can_connect', AgentCheck.CRITICAL, tags=service_check_tags)
                 cx = "%s - %s" % (host, database)
                 raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
                     % (cx, traceback.format_exc()))
