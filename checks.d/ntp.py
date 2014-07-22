@@ -37,6 +37,7 @@ class NtpCheck(AgentCheck):
             ntp_ts = None
         else:
             ntp_offset = ntp_stats.offset
+            self.gauge('ntp.offset', ntp_offset, timestamp=ntp_ts)
             # Use the ntp server's timestamp for the time of the result in
             # case the agent host's clock is messed up.
             ntp_ts = ntp_stats.recv_time
@@ -49,4 +50,3 @@ class NtpCheck(AgentCheck):
                 status = AgentCheck.OK
 
         self.service_check('ntp.in_sync', status, timestamp=ntp_ts, message=service_check_msg)
-        self.gauge('ntp.offset', ntp_offset, timestamp=ntp_ts)
