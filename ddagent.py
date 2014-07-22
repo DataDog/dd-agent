@@ -220,8 +220,9 @@ class MetricTransaction(Transaction):
                 tornado_client_params['proxy_username'] = proxy_settings['user']
                 tornado_client_params['proxy_password'] = proxy_settings['password']
 
-                # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
-                tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
+                if self._application._agentConfig.get('proxy_forbid_method_switch'):
+                    # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
+                    tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
                 
                 force_use_curl = True
 
