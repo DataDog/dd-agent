@@ -1,10 +1,15 @@
+# stdlib
 import re
 import urllib2
 import urlparse
 
-from util import headers, json
+# project
+from util import headers
 from checks import AgentCheck
 from checks.utils import add_basic_auth
+
+# 3rd party
+import simplejson as json
 
 class Nginx(AgentCheck):
     """Tracks basic nginx metrics via the status module

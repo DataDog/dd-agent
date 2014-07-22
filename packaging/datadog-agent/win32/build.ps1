@@ -3,6 +3,7 @@ $version = "$(python -c "from config import get_version; print get_version()").$
 
 # Remove old artifacts
 rm -r build/*
+rm -r dist/*
 
 # Build the agent.exe service
 python setup.py py2exe 

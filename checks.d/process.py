@@ -1,6 +1,11 @@
+# stdlib
+import time
+
+# project
 from checks import AgentCheck
 from util import Platform
-import time
+
+# 3rd party
 import psutil
 
 class ProcessCheck(AgentCheck):
@@ -94,7 +99,7 @@ class ProcessCheck(AgentCheck):
             try:
                 p = psutil.Process(pid)
                 if real is not None:
-                    mem = p.get_ext_memory_info()
+                    mem = p.memory_info_ex()
                     real += mem.rss - mem.shared
                     try:
                         ctx_switches = p.num_ctx_switches()
@@ -105,24 +110,24 @@ class ProcessCheck(AgentCheck):
                         voluntary_ctx_switches = None
                         involuntary_ctx_switches = None
                 else:
-                    mem = p.get_memory_info()
+                    mem = p.memory_info()
 
                 if open_file_descriptors is not None:
                     try:
-                        open_file_descriptors += p.get_num_fds()
+                        open_file_descriptors += p.num_fds()
                     except psutil.AccessDenied:
                         got_denied = True
 
                 rss += mem.rss
                 vms += mem.vms
-                thr += p.get_num_threads()
-                cpu += p.get_cpu_percent(cpu_check_interval)
-
-                # user agent might not have permission to call get_io_counters()
+                thr += p.num_threads()
+                cpu += p.cpu_percent(cpu_check_interval)
+                
+                # user agent might not have permission to call io_counters()
                 # user agent might have access to io counters for some processes and not others
                 if read_count is not None:
                     try:
-                        io_counters = p.get_io_counters()
+                        io_counters = p.io_counters()
                         read_count += io_counters.read_count
                         write_count += io_counters.write_count
                         read_bytes += io_counters.read_bytes

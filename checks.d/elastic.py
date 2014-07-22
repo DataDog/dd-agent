@@ -10,8 +10,10 @@ import time
 # project
 from checks import AgentCheck
 from checks.utils import add_basic_auth
-from util import json, headers
+from util import headers
 
+# 3rd party
+import simplejson as json
 
 class NodeNotFound(Exception): pass
 

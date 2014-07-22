@@ -1,7 +1,6 @@
 """
 Collects network metrics.
 """
-
 # stdlib
 import platform
 import subprocess
@@ -11,6 +10,7 @@ import re
 # project
 from checks import AgentCheck
 from util import Platform
+
 BSD_TCP_METRICS = [
         (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
         (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),

@@ -1,4 +1,4 @@
-# std
+# stdlib
 import time
 
 # project

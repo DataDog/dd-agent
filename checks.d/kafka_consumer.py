@@ -1,24 +1,15 @@
-import sys
-
-if sys.version_info < (2, 6):
-    # Normally we'd write our checks to be compatible with >= python 2.4 but
-    # the dependencies of this check are not compatible with 2.4 and would
-    # be too much work to rewrite, so raise an exception here.
-    raise Exception('kafka_consumer check requires at least Python 2.6')
-
+# stdlib
 from collections import defaultdict
-from checks import AgentCheck
-try:
-    from kafka.client import KafkaClient
-    from kafka.common import OffsetRequest
-except ImportError:
-    raise Exception('Missing python dependency: kafka (https://github.com/mumrah/kafka-python)')
-try:
-    from kazoo.client import KazooClient
-    from kazoo.exceptions import NoNodeError
-except ImportError:
-    raise Exception('Missing python dependency: kazoo (https://github.com/python-zk/kazoo)')
 import random
+
+# project
+from checks import AgentCheck
+
+# 3rd party
+from kafka.client import KafkaClient
+from kafka.common import OffsetRequest
+from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
 
 class KafkaCheck(AgentCheck):
 

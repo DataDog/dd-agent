@@ -1,12 +1,11 @@
 '''
 Check the performance counters from IIS
 '''
-try:
-    import wmi
-except Exception:
-    wmi = None
-
+# project
 from checks import AgentCheck
+
+# 3rd party
+import wmi
 
 class IIS(AgentCheck):
     METRICS = [
@@ -54,9 +53,6 @@ class IIS(AgentCheck):
         return self.wmi_conns[key]
 
     def check(self, instance):
-        if wmi is None:
-            raise Exception("Missing 'wmi' module")
-
         # Connect to the WMI provider
         host = instance.get('host', None)
         user = instance.get('username', None)
