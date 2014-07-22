@@ -42,6 +42,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
 * [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][] 
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
+* [BUGFIX] Fix the collection of cpu metrics (>100%) on Windows. See [#653]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
