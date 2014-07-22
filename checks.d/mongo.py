@@ -8,7 +8,7 @@ from util import get_hostname
 # When running with pymongo < 2.0
 # Not the full spec for mongo URIs -- just extract username and password
 # http://www.mongodb.org/display/DOCS/connections6
-mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@(?P<host>[^:@]+):(?P<port>[^:@]+)')
+mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
 
 DEFAULT_TIMEOUT = 10
 
@@ -190,8 +190,6 @@ class MongoDb(AgentCheck):
             from pymongo import uri_parser
             # Configuration a URL, mongodb://user:pass@server/db
             parsed = uri_parser.parse_uri(server)
-            host = parsed.get('nodelist')[0][0]
-            port = parsed.get('nodelist')[0][1]
         except ImportError:
             # uri_parser is pymongo 2.0+
             matches = mongo_uri_re.match(server)
@@ -199,9 +197,6 @@ class MongoDb(AgentCheck):
                 parsed = matches.groupdict()
             else:
                 parsed = {}
-            host = parsed.get('host')
-            port = parsed.get('port')
-
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
@@ -210,33 +205,17 @@ class MongoDb(AgentCheck):
             self.log.info('No MongoDB database found in URI. Defaulting to admin.')
             db_name = 'admin'
 
-        service_check_tags = [
-            "host:%s" % host,
-            "port:%s" % port,
-            "db_name:%s" % db_name
-        ]
-
         do_auth = True
         if username is None or password is None:
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        try:
-            conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
-                **ssl_params)
-            db = conn[db_name]
-            check_status = AgentCheck.OK
-
-        except Exception:
-            check_status = AgentCheck.CRITICAL
-            raise
-
+        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
+            **ssl_params)
+        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                check_status = AgentCheck.CRITICAL
                 self.log.error("Mongo: cannot connect with config %s" % server)
-
-        self.service_check('mongodb.can_connect', check_status, tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
         status['stats'] = db.command('dbstats')
