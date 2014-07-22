@@ -187,9 +187,9 @@ class MongoDb(AgentCheck):
         ]
 
         nodelist = parsed.get('nodelist')
-        if nodelist and len(nodelist) > 0:
-            host = parsed.get('nodelist')[0][0]
-            port = parsed.get('nodelist')[0][1]
+        if nodelist:
+            host = nodelist[0][0]
+            port = nodelist[0][1]
             service_check_tags = service_check_tags + [
                 "host:%s" % host,
                 "port:%s" % port
