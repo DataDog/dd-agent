@@ -93,22 +93,32 @@ class MySql(AgentCheck):
             raise Exception("Cannot import pymysql module. Check the instructions "
                 "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
 
-        if defaults_file != '':
-            db = pymysql.connect(read_default_file=defaults_file)
-        elif  mysql_sock != '':
-            db = pymysql.connect(unix_socket=mysql_sock,
-                                    user=user,
-                                    passwd=password)
-        elif port:
-            db = pymysql.connect(host=host,
-                                    port=port,
-                                    user=user,
-                                    passwd=password)
-        else:
-            db = pymysql.connect(host=host,
-                                    user=user,
-                                    passwd=password)
-        self.log.debug("Connected to MySQL")
+        service_check_tags = [
+            'host:%s' % host,
+            'port:%s' % port
+        ]
+
+        try:
+            if defaults_file != '':
+                db = pymysql.connect(read_default_file=defaults_file)
+            elif  mysql_sock != '':
+                db = pymysql.connect(unix_socket=mysql_sock,
+                                        user=user,
+                                        passwd=password)
+            elif port:
+                db = pymysql.connect(host=host,
+                                        port=port,
+                                        user=user,
+                                        passwd=password)
+            else:
+                db = pymysql.connect(host=host,
+                                        user=user,
+                                        passwd=password)
+            self.log.debug("Connected to MySQL")
+            self.service_check('mysql.can_connect', AgentCheck.OK, tags=service_check_tags)
+        except Exception:
+            self.service_check('mysql.can_connect', AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
 
         return db
 
