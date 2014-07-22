@@ -46,6 +46,7 @@ https://gist.github.com/remh/1426ccb24ec36162ba2b
 * [FEATURE] Docker check: work inside a Docker container. CoreOS support. See [#1001][]
 * [FEATURE] HDFS: Add support for HA mode. See [#1018][]. Warning: It requires snakebite >= 2.2.0
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
+* [BUGFIX] Fix connection error on Windows 2008 SP2. See [#1014][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
