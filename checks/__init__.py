@@ -284,7 +284,7 @@ class AgentCheck(object):
         from aggregator import MetricsAggregator
 
         self.name = name
-        self.init_config = init_config
+        self.init_config = init_config or {}
         self.agentConfig = agentConfig
         self.hostname = get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
