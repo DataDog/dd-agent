@@ -84,7 +84,11 @@ class Mesos(AgentCheck):
             self.warning("Got %s when hitting %s" % (r.status_code, url))
             return None
 
-        return r.json()
+        # Condition for request v1.x backward compatibility
+        if hasattr(r.json, '__call__'):
+            return r.json()
+        else:
+            return r.json
 
 
     def timeout_event(self, url, timeout, aggregation_key):
