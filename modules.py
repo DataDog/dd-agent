@@ -3,7 +3,10 @@
 
 import os
 import imp
+import re
 import sys
+
+WINDOWS_PATH = re.compile('[A-Z]:.*')
 
 def imp_type_for_filename(filename):
     """Given the name of a Python module, return a type description suitable to
@@ -41,7 +44,7 @@ def module_name_for_filename(filename):
     all_segments = filename.split(os.sep)
     path_elements = all_segments[:-1]
     module_elements = [all_segments[-1].rsplit('.', 1)[0]]
-    while os.path.exists('/'.join(path_elements + ['__init__.py'])):
+    while os.path.exists(os.path.join(*(path_elements +['__init__.py']))):
         module_elements.insert(0, path_elements.pop())
     modulename = '.'.join(module_elements)
     basename = '/'.join(path_elements)
@@ -52,7 +55,7 @@ def get_module(name):
     and return a Python module.
     
     If the module is already loaded, takes no action."""
-    if name.startswith('/'):
+    if name.startswith('/') or WINDOWS_PATH.match(name):
         basename, modulename = module_name_for_filename(name)
         path = [basename]
     else:
