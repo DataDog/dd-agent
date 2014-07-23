@@ -19,7 +19,7 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
      
        ```
-           sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
+sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
 * Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
 
