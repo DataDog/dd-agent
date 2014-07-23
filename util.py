@@ -18,6 +18,16 @@ from hashlib import md5
 # Tornado
 from tornado import ioloop
 
+# yaml
+import yaml
+try:
+    from yaml import CLoader as yLoader
+    from yaml import CDumper as yDumper
+except ImportError:
+    # On source install C Extensions might have not been built
+    from yaml import Loader as yLoader
+    from yaml import Dumper as yDumper
+
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
