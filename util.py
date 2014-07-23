@@ -22,6 +22,7 @@ from tornado import ioloop
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
+COLON_NON_WIN_PATH = re.compile(':(?!\\\\)')
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +72,16 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+def windows_friendly_colon_split(config_string):
+    '''
+    Perform a split by ':' on the config_string
+    without splitting on the start of windows path
+    '''
+    if Platform.is_win32():
+        # will split on path/to/module.py:blabla but not on C:\\path
+        return COLON_NON_WIN_PATH.split(config_string)
+    else:
+        return config_string.split(':')
 
 def getTopIndex():
     macV = None

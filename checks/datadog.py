@@ -11,7 +11,7 @@ from itertools import groupby # >= python 2.4
 import modules
 from checks import LaconicFilter
 from checks.utils import TailFile
-from util import Platform
+from util import windows_friendly_colon_split
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -49,7 +49,7 @@ class Dogstreams(object):
             for config_item in dogstreams_config.split(','):
                 try:
                     config_item = config_item.strip()
-                    parts = Dogstreams.split_config(config_item)
+                    parts = windows_friendly_colon_split(config_item)
                     if len(parts) == 1:
                         dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
                     elif len(parts) == 2:
@@ -91,18 +91,6 @@ class Dogstreams(object):
             except Exception:
                 self.logger.exception("Error in parsing %s" % (dogstream.log_path))
         return output
-
-    @classmethod
-    def split_config(cls, config_string):
-        '''
-        Perform a split by ':' on the config_string
-        without splitting on the start of windows file
-        '''
-        if Platform.is_win32():
-            # will split on path/to/module.py:blabla but not on C:\\path
-            return re.split(':(?!\\\\)', config_string)
-        else:
-            return config_string.split(':')
 
 class Dogstream(object):
 

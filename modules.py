@@ -7,6 +7,8 @@ import imp
 import re
 import sys
 
+# project
+from util import windows_friendly_colon_split
 WINDOWS_PATH = re.compile('[A-Z]:.*')
 
 def imp_type_for_filename(filename):
@@ -69,11 +71,12 @@ def get_module(name):
 def load(config_string, default_name=None):
     """Given a module name and an object expected to be contained within,
     return said object.
-    FIXME RUDY: On Windows, will fail if you try to load from a complete path
-    without specifying the function to use in the config string
     """
-    (module_name, object_name) = \
-            (config_string.rsplit(':', 1) + [default_name])[:2]
+    split = windows_friendly_colon_split(config_string)
+    if len(split)> 1:
+        module_name, object_name = ":".join(split[:-1]), split[-1]
+    else:
+        module_name, object_name = config_string, default_name
     module = get_module(module_name)
     if object_name:
         return getattr(module, object_name)
