@@ -13,6 +13,9 @@ import os.path
 import logging
 import string
 
+# project
+from util import yDumper
+
 # 3rd party
 import yaml
 
@@ -294,7 +297,7 @@ def _write_conf(check_name, config, confd_dir):
         raise NoConfigToMigrateException()
 
     try:
-        yaml_config = yaml.dump(config, Dumper=yaml.CDumper, default_flow_style=False)
+        yaml_config = yaml.dump(config, Dumper=yDumper, default_flow_style=False)
     except Exception, e:
         log.exception("Couldn't create yaml from config: %s" % config)
         return

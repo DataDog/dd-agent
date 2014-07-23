@@ -23,22 +23,28 @@ class EventType:
 
 class ServicesCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
+    SERVICE_CHECK_PREFIX = 'service_check'
+
+    STATUS_TO_SERVICE_CHECK = {
+            Status.UP  : AgentCheck.OK,
+            Status.DOWN : AgentCheck.CRITICAL
+        }
 
     """
     Services checks inherits from this class.
     This class should never be directly instanciated.
 
     Work flow:
-        The main agent loop will call the check function for each instance for 
+        The main agent loop will call the check function for each instance for
         each iteration of the loop.
-        The check method will make an asynchronous call to the _process method in 
+        The check method will make an asynchronous call to the _process method in
         one of the thread initiated in the thread pool created in this class constructor.
         The _process method will call the _check method of the inherited class
         which will perform the actual check.
 
         The _check method must return a tuple which first element is either
             Status.UP or Status.DOWN.
-            The second element is a short error message that will be displayed 
+            The second element is a short error message that will be displayed
             when the service turns down.
 
     """
@@ -85,7 +91,7 @@ class ServicesCheck(AgentCheck):
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
-        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1 
+        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
@@ -94,7 +100,7 @@ class ServicesCheck(AgentCheck):
             self.log.error('Each service check must have a name')
             return
 
-        if name not in self.jobs_status: 
+        if name not in self.jobs_status:
             # A given instance should be processed one at a time
             self.jobs_status[name] = time.time()
             self.pool.apply_async(self._process, args=(instance,))
@@ -131,39 +137,46 @@ class ServicesCheck(AgentCheck):
                     self.restart_pool()
                 continue
 
-            event = None
+            self.report_as_service_check(name, status, queue_instance, msg)
 
-            if not name in self.statuses:
-                self.statuses[name] = []
+            # Don't create any event to avoid duplicates with server side
+            # service_checks
+            skip_event = queue_instance.get('skip_event', False)
+            if not skip_event:
+                self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
+                event = None
 
-            self.statuses[name].append(status)
+                if not name in self.statuses:
+                    self.statuses[name] = []
 
-            window = int(queue_instance.get('window', 1))
+                self.statuses[name].append(status)
 
-            if window > 256:
-                self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
-                window = 256
+                window = int(queue_instance.get('window', 1))
+
+                if window > 256:
+                    self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
+                    window = 256
 
 
 
-            threshold = queue_instance.get('threshold', 1)
+                threshold = queue_instance.get('threshold', 1)
 
-            if len(self.statuses[name]) > window:
-                self.statuses[name].pop(0)
+                if len(self.statuses[name]) > window:
+                    self.statuses[name].pop(0)
 
-            nb_failures = self.statuses[name].count(Status.DOWN)
+                nb_failures = self.statuses[name].count(Status.DOWN)
 
-            if nb_failures >= threshold:
-                if self.notified.get(name, Status.UP) != Status.DOWN:
-                    event = self._create_status_event(status, msg, queue_instance)
-                    self.notified[name] = Status.DOWN
-            else:
-                if self.notified.get(name, Status.UP) != Status.UP:
-                    event = self._create_status_event(status, msg, queue_instance)
-                    self.notified[name] = Status.UP
+                if nb_failures >= threshold:
+                    if self.notified.get(name, Status.UP) != Status.DOWN:
+                        event = self._create_status_event(status, msg, queue_instance)
+                        self.notified[name] = Status.DOWN
+                else:
+                    if self.notified.get(name, Status.UP) != Status.UP:
+                        event = self._create_status_event(status, msg, queue_instance)
+                        self.notified[name] = Status.UP
 
-            if event is not None:
-                self.events.append(event)
+                if event is not None:
+                    self.events.append(event)
 
             # The job is finished here, this instance can be re processed
             del self.jobs_status[name]

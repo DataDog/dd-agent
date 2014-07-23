@@ -1,12 +1,16 @@
-from checks.services_checks import ServicesCheck, Status, EventType
+# stdlib
 import socket
 import time
+
+# project
+from checks.services_checks import ServicesCheck, Status, EventType
 
 class BadConfException(Exception): pass
 
 class TCPCheck(ServicesCheck):
 
     SOURCE_TYPE_NAME = 'system'
+    SERVICE_CHECK_PREFIX = 'tcp_check'
 
     def _load_conf(self, instance):
         # Fetches the conf
@@ -146,3 +150,18 @@ class TCPCheck(ServicesCheck):
              "source_type_name": source_type,
              "event_object": name,
         }
+
+    def report_as_service_check(self, name, status, instance, msg=None):
+        service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
+        host = instance.get('host', None)
+        port = instance.get('port', None)
+
+        if status == Status.UP:
+            msg=None
+
+        self.service_check(service_check_name,
+                           ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags= ['target_host:%s' % host,
+                                  'port:%s' % port],
+                           message=msg
+                           )

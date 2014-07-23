@@ -1,12 +1,11 @@
 '''
 Check the performance counters from IIS
 '''
-try:
-    import wmi
-except Exception:
-    wmi = None
-
+# project
 from checks import AgentCheck
+
+# 3rd party
+import wmi
 
 class IIS(AgentCheck):
     METRICS = [
@@ -54,9 +53,6 @@ class IIS(AgentCheck):
         return self.wmi_conns[key]
 
     def check(self, instance):
-        if wmi is None:
-            raise Exception("Missing 'wmi' module")
-
         # Connect to the WMI provider
         host = instance.get('host', None)
         user = instance.get('username', None)
@@ -87,9 +83,13 @@ class IIS(AgentCheck):
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
-                    self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
-                        % (metric, wmi_val))
-                    continue
+                    if wmi_val == 'TotalBytesTransferred' and hasattr(iis_site, 'TotalBytesTransfered'):
+                        # Windows 2008 sp2 reports it as TotalbytesTransfered instead of TotalBytesTransferred (single r)
+                        wmi_val = 'TotalBytesTransfered'
+                    else:
+                        self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                            % (metric, wmi_val))
+                        continue
 
                 # Submit the metric value with the correct type
                 value = float(getattr(iis_site, wmi_val))

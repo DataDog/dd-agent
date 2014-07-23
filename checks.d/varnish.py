@@ -1,7 +1,9 @@
+# stdlib
 import xml.parsers.expat # python 2.4 compatible
 import re
 import subprocess
 
+# project
 from checks import AgentCheck
 
 class Varnish(AgentCheck):

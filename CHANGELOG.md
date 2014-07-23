@@ -2,12 +2,65 @@ Changes
 =======
 # 5.0.0 / Unreleased
 
-### Integrations affected
+### Notes
 
+This is a major version of the Datadog-Agent.
+
+* On Linux:
+Packaging of the Agent has changed for RPM and DEB packages.
+To BETA test this version of the agent (at your own risks), please read this guide:
+https://gist.github.com/remh/1426ccb24ec36162ba2b
+
+* On Windows:
+This release has multiple fixes, see the list below.
+Warning: The way CPU metrics are collected has changed and will be more accurate, you might see some changes in the graphs.
+
+### What will break ?
+* If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
+     *
+       ```
+           sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
+       ```
+* Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
+
+
+### New and updated integrations
+
+* Docker
+* ElasticSearch
+* Golang-expvar
+* Kafka
+* Kafka consumer
 * NTP
+* HDFS
+* Postgres
+* Process
+* Redis
+* SNMP
 
 ### Changes
+* [FEATURE] Add support of Centos 7 and Fedora Core 19-20
 * [FEATURE] Add a NTP Service check. See [#971][]
+* [FEATURE] Add an option to instrument check runs time. See [#1013][]
+* [FEATURE] Add derived Redis metrics. See [#1015][]
+* [FEATURE] Add a Golang-expvars integration. See [#1016][]
+* [FEATURE] Add an SNMP Check. See [#299][]
+* [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
+* [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][]
+* [FEATURE] Collect more Docker metrics. See [#1027][]
+* [FEATURE] Docker check: work inside a Docker container. CoreOS support. See [#1001][]
+* [FEATURE] HDFS: Add support for HA mode. See [#1018][]. Warning: It requires snakebite >= 2.2.0
+* [BUGFIX] Support Windows EOL \r character. See [#1023][]
+* [BUGFIX] Fix the collection of cpu metrics (>100%) on Windows. See [#653][]
+* [BUGFIX] Fix connection error on Windows 2008 SP2. See [#1014][]
+* [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
+* [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
+* [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
+* [BUGFIX] Fix kafka metrics by sending them as gauges instead of rate. See [#1029][]
+* [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
+* [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
+* [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
+* [BUGFIX] Let's the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
 
 # 4.4.0 / 06-24-2014
 
@@ -925,6 +978,7 @@ If you use ganglia, you want this version.
 [#291]: https://github.com/DataDog/dd-agent/issues/291
 [#293]: https://github.com/DataDog/dd-agent/issues/293
 [#297]: https://github.com/DataDog/dd-agent/issues/297
+[#299]: https://github.com/DataDog/dd-agent/issues/299
 [#300]: https://github.com/DataDog/dd-agent/issues/300
 [#307]: https://github.com/DataDog/dd-agent/issues/307
 [#310]: https://github.com/DataDog/dd-agent/issues/310
@@ -1010,6 +1064,7 @@ If you use ganglia, you want this version.
 [#643]: https://github.com/DataDog/dd-agent/issues/643
 [#646]: https://github.com/DataDog/dd-agent/issues/646
 [#647]: https://github.com/DataDog/dd-agent/issues/647
+[#653]: https://github.com/DataDog/dd-agent/issues/653
 [#654]: https://github.com/DataDog/dd-agent/issues/654
 [#657]: https://github.com/DataDog/dd-agent/issues/657
 [#665]: https://github.com/DataDog/dd-agent/issues/665
@@ -1061,6 +1116,7 @@ If you use ganglia, you want this version.
 [#947]: https://github.com/DataDog/dd-agent/issues/947
 [#949]: https://github.com/DataDog/dd-agent/issues/949
 [#951]: https://github.com/DataDog/dd-agent/issues/951
+[#958]: https://github.com/DataDog/dd-agent/issues/958
 [#960]: https://github.com/DataDog/dd-agent/issues/960
 [#962]: https://github.com/DataDog/dd-agent/issues/962
 [#963]: https://github.com/DataDog/dd-agent/issues/963
@@ -1073,6 +1129,24 @@ If you use ganglia, you want this version.
 [#981]: https://github.com/DataDog/dd-agent/issues/981
 [#982]: https://github.com/DataDog/dd-agent/issues/982
 [#984]: https://github.com/DataDog/dd-agent/issues/984
+[#996]: https://github.com/DataDog/dd-agent/issues/996
+[#1001]: https://github.com/DataDog/dd-agent/issues/1001
+[#1002]: https://github.com/DataDog/dd-agent/issues/1002
+[#1008]: https://github.com/DataDog/dd-agent/issues/1008
+[#1013]: https://github.com/DataDog/dd-agent/issues/1013
+[#1014]: https://github.com/DataDog/dd-agent/issues/1014
+[#1015]: https://github.com/DataDog/dd-agent/issues/1015
+[#1016]: https://github.com/DataDog/dd-agent/issues/1016
+[#1017]: https://github.com/DataDog/dd-agent/issues/1017
+[#1018]: https://github.com/DataDog/dd-agent/issues/1018
+[#1023]: https://github.com/DataDog/dd-agent/issues/1023
+[#1024]: https://github.com/DataDog/dd-agent/issues/1024
+[#1027]: https://github.com/DataDog/dd-agent/issues/1027
+[#1028]: https://github.com/DataDog/dd-agent/issues/1028
+[#1029]: https://github.com/DataDog/dd-agent/issues/1029
+[#1031]: https://github.com/DataDog/dd-agent/issues/1031
+[#1035]: https://github.com/DataDog/dd-agent/issues/1035
+[#1036]: https://github.com/DataDog/dd-agent/issues/1036
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon

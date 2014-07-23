@@ -1,4 +1,9 @@
+# project
 from checks import AgentCheck, CheckException
+
+# 3rd party
+import pg8000 as pg
+from pg8000 import InterfaceError
 
 class ShouldRestartException(Exception): pass
 
@@ -14,18 +19,7 @@ class PostgreSql(AgentCheck):
         'descriptors': [
             ('datname', 'db')
         ],
-        'metrics': {
-            'numbackends'       : ('postgresql.connections', GAUGE),
-            'xact_commit'       : ('postgresql.commits', RATE),
-            'xact_rollback'     : ('postgresql.rollbacks', RATE),
-            'blks_read'         : ('postgresql.disk_read', RATE),
-            'blks_hit'          : ('postgresql.buffer_hit', RATE),
-            'tup_returned'      : ('postgresql.rows_returned', RATE),
-            'tup_fetched'       : ('postgresql.rows_fetched', RATE),
-            'tup_inserted'      : ('postgresql.rows_inserted', RATE),
-            'tup_updated'       : ('postgresql.rows_updated', RATE),
-            'tup_deleted'       : ('postgresql.rows_deleted', RATE),
-        },
+        'metrics': {},
         'query': """
 SELECT datname,
        %s
@@ -34,6 +28,19 @@ SELECT datname,
    AND datname not ilike 'postgres'
 """,
         'relation': False,
+    }
+
+    COMMON_METRICS = {
+        'numbackends'       : ('postgresql.connections', GAUGE),
+        'xact_commit'       : ('postgresql.commits', RATE),
+        'xact_rollback'     : ('postgresql.rollbacks', RATE),
+        'blks_read'         : ('postgresql.disk_read', RATE),
+        'blks_hit'          : ('postgresql.buffer_hit', RATE),
+        'tup_returned'      : ('postgresql.rows_returned', RATE),
+        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
+        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
+        'tup_updated'       : ('postgresql.rows_updated', RATE),
+        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
     }
 
     NEWER_92_METRICS = {
@@ -95,6 +102,7 @@ SELECT relname,
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.dbs = {}
         self.versions = {}
+        self.instance_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -116,16 +124,28 @@ SELECT relname,
 
         return False
 
+    def _get_instance_metrics(self, key, db):
+        """Use either COMMON_METRICS or COMMON_METRICS + NEWER_92_METRICS
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
+        # Extended 9.2+ metrics if needed
+        metrics = self.instance_metrics.get(key)
+        if metrics is None:
+            if self._is_9_2_or_above(key, db):
+                self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
+            else:
+                self.instance_metrics[key] = dict(self.COMMON_METRICS)
+            metrics = self.instance_metrics.get(key)
+        return metrics
+
     def _collect_stats(self, key, db, instance_tags, relations):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
         """
-        from pg8000 import InterfaceError
 
-        # Extended 9.2+ metrics
-        if self._is_9_2_or_above(key, db):
-            self.DB_METRICS['metrics'].update(self.NEWER_92_METRICS)
+        self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
 
         # Do we need relation-specific metrics?
         if not relations:
@@ -231,19 +251,31 @@ SELECT relname,
 
         elif host != "" and user != "":
             try:
-                import pg8000 as pg
-            except ImportError:
-                raise ImportError("pg8000 library cannot be imported. Please check the installation instruction on the Datadog Website.")
+                service_check_tags = [
+                    "host:%s" % host,
+                    "port:%s" % port
+                ]
+                if dbname:
+                    service_check_tags.append("db:%s" % dbname)
 
-            if host == 'localhost' and password == '':
-                # Use ident method
-                connection = pg.connect("user=%s dbname=%s" % (user, dbname))
-            elif port != '':
-                connection = pg.connect(host=host, port=port, user=user,
-                    password=password, database=dbname)
-            else:
-                connection = pg.connect(host=host, user=user, password=password,
-                    database=dbname)
+                if host == 'localhost' and password == '':
+                    # Use ident method
+                    connection = pg.connect("user=%s dbname=%s" % (user, dbname))
+                elif port != '':
+                    connection = pg.connect(host=host, port=port, user=user,
+                        password=password, database=dbname)
+                else:
+                    connection = pg.connect(host=host, user=user, password=password,
+                        database=dbname)
+                status = AgentCheck.OK
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+
+            except Exception, e:
+                status = AgentCheck.CRITICAL
+                self.service_check('postgres.can_connect', status, tags=service_check_tags)
+                self.log.info('pg status: %s' % status)
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a Postgres host to connect to.")
@@ -271,7 +303,7 @@ SELECT relname,
         if dbname is None:
             dbname = 'postgres'
 
-        key = '%s:%s:%s' % (host, port,dbname)
+        key = '%s:%s:%s' % (host, port, dbname)
         db = self.get_connection(key, host, port, user, password, dbname)
 
         # Clean up tags in case there was a None entry in the instance

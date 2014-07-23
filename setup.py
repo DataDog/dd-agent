@@ -1,6 +1,6 @@
 import platform
 import sys
-from config import *
+from config import get_version
 from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
@@ -35,14 +35,16 @@ if sys.platform == 'win32':
         'simplejson==2.6.1',
         'mysql-python==1.2.3',
         'pymongo==2.3',
-        'psycopg2',
+        'pg8000',
         'python-memcached==1.48',
         'adodbapi'
         'elementtree',
         'pycurl',
-        'MySQLdb',
+        'pymysql',
         'psutil',
         'redis',
+        'requests',
+        'httplib2==0.9',
     ])
 
     # Modules to force-include in the exe
@@ -57,14 +59,15 @@ if sys.platform == 'win32':
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
-        'MySQLdb',
+        'pymysql',
         'psutil',
-        'psycopg2',
+        'pg8000',
         'redis',
+        'requests',
 
         # agent
         'checks.services_checks',
-        'checks.libs.httplib2',
+        'httplib2',
 
         # pup
         'pup',
@@ -91,6 +94,7 @@ if sys.platform == 'win32':
                 'optimize': 0,
                 'compressed': True,
                 'bundle_files': 3,
+                'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
             },
         },
         'console': ['win32\shell.py'],
