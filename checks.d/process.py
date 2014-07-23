@@ -10,10 +10,10 @@ import psutil
 
 class Services(object):
     STATUSES_TO_SERVICE_CHECK = {
-        'UP'        : AgentCheck.OK,
-        'DOWN'      : AgenCheck.CRITICAL,
-        'no check'  : AgenCheck.UNKNOW,
-        'MAINT'     : AgenCheck.OK,
+        'OK'          : AgentCheck.OK,
+        'WARNING'     : AgentCheck.WARNING,
+        'CRITICAL'    : AgentCheck.CRITICAL,
+        'UNKNOWN'     : AgentCheck.UNKNOWN,
     }
 
 class ProcessCheck(AgentCheck):
@@ -196,7 +196,7 @@ class ProcessCheck(AgentCheck):
             if value is not None:
                 self.gauge(metric, value, tags=tags)
 
-        self._process_service_check(self, search_string)
+        self._process_service_check(name, search_string, instance.get('check_bounds', None))
 
     def _list_processes(self, search_string):
         """
@@ -204,48 +204,62 @@ class ProcessCheck(AgentCheck):
         Search for search_string
         """
 
-        process_list = {}
+        process_list = []
         count_error = 0
 
         for proc in psutil.process_iter():
             for string in search_string:
                 try:
-                    if proc.name() == string:
-                        process_list[proc.name()] = [proc.pid, 'OK']
+                    if string in " ".join(proc.cmdline()):
+                        process_list.append(proc.name())
+                        break
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
-                    count_error++
+                    count_error += 1
                     pass
                 except psutil.AccessDenied, e:
                     self.log.error('Access denied to %s process' % string)
                     self.log.error('Error: %s' % e)
                     raise
 
-                if string == 'All':
-                    fprocess_list[proc.name()] = proc.pid
-
         return process_list, count_error
 
-    def _process_service_check(self, name, search_string):
+    def _send_service_check(self, name, tag, status):
+      self.service_check(
+          name,
+          Services.STATUSES_TO_SERVICE_CHECK[status],
+          tags = tag,
+          message="Report %s: The number of processes is %s" % (name, status)
+      )
+
+    def _process_service_check(self, name, search_string, bounds):
         '''
         Repport a service check, for each processes in search_string.
         Repport as OK if the process is UP
                    CRITICAL             DOWN
                    UNKNOWN              no check
         '''
-
         service_tag = ["service:%s" % name]
+        status = 'OK'
+
+        if not bounds:
+            self._send_service_check(name, service_tag, 'UNKNOWN')
+            return
+
         processes, errors = self._list_processes(search_string)
 
-        if errors <= Services.MAX_ERROR:
-            self.service_check(name,
-                               Services.STATUSES_TO_SERVICE_CHECK['CRITICAL'],
-                               tags = service_check_tags,
-                               message="Report %sToo many processes are not responding" % (name)
-                            )
+        nb_procs = len(processes)
+        warning = bounds.get('warning', 0)
+        critical = bounds.get('critical', 0)
 
-        for process in processes:
-            self.service_check(
-                               Service.STATUSES_TO_SERVICE_CHECK[process[1]]
+        if errors > nb_procs:
+            self._send_service_check(name, service_tag, 'CRITICAL')
+            return
 
-            )
+        if nb_procs < warning[0] or nb_procs > warning[1]:
+            if nb_procs < critical[0] or nb_procs > critical[1]:
+                status = 'CRITICAL'
+            else:
+                status = 'WARNING'
+
+        self._send_service_check(name, service_tag, status)

@@ -15,6 +15,10 @@ instances:
 
  - name: ssh
    search_string: ['ssh', 'sshd']
+   check_bounds: {
+     critical: [2, 10],
+     warning: [2, 4]
+   }
 
  - name: postgres
    search_string: ['postgres']
@@ -30,4 +34,3 @@ instances:
 #     process: ['python']
 #  -  name: node
 #     process: ['node']
-
