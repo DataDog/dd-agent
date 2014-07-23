@@ -58,8 +58,6 @@ class Dogstreams(object):
                             parser_spec=':'.join(parts[1:3]),
                             parser_args=parts[3:],
                             config=config))
-                    elif len(parts) > 3:
-                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
                 except Exception:
                     logger.exception("Cannot build dogstream")
 
