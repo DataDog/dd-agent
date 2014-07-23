@@ -60,6 +60,7 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 * [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
 * [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
 * [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
+* [BUGFIX] Let's the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
 
 # 4.4.0 / 06-24-2014
 
@@ -1145,6 +1146,7 @@ If you use ganglia, you want this version.
 [#1029]: https://github.com/DataDog/dd-agent/issues/1029
 [#1031]: https://github.com/DataDog/dd-agent/issues/1031
 [#1035]: https://github.com/DataDog/dd-agent/issues/1035
+[#1036]: https://github.com/DataDog/dd-agent/issues/1036
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
