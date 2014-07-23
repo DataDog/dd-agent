@@ -124,7 +124,7 @@ class TestMongo(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "mongo.can_connect"]), 4, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "mongodb.can_connect"]), 4, service_checks)
         # Assert that all service checks have the proper tags: host and port
         self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT1 in sc['tags'] or "port:%s" % PORT2 in sc['tags']]), service_checks_count, service_checks)
