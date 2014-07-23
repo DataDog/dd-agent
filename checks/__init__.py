@@ -14,6 +14,7 @@ import sys
 import traceback
 import copy
 from pprint import pprint
+from collections import defaultdict
 
 from util import LaconicFilter, get_os, get_hostname, get_next_id
 from config import get_confd_path
@@ -269,6 +270,8 @@ class AgentCheck(object):
 
     SOURCE_TYPE_NAME = None
 
+    DEFAULT_MIN_COLLECTION_INTERVAL = 0
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
@@ -281,7 +284,7 @@ class AgentCheck(object):
         from aggregator import MetricsAggregator
 
         self.name = name
-        self.init_config = init_config
+        self.init_config = init_config or {}
         self.agentConfig = agentConfig
         self.hostname = get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
@@ -293,6 +296,7 @@ class AgentCheck(object):
         self.instances = instances or []
         self.warnings = []
         self.library_versions = None
+        self.last_collection_time = defaultdict(int)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -335,6 +339,34 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         """
         self.aggregator.decrement(metric, value, tags, hostname, device_name)
+
+    def count(self, metric, value=0, tags=None, hostname=None, device_name=None):
+        """
+        Submit a raw count with optional tags, hostname and device name
+
+        :param metric: The name of the metric
+        :param value: The value
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.submit_count(metric, value, tags, hostname, device_name)
+
+    def monotonic_count(self, metric, value=0, tags=None,
+                      hostname=None, device_name=None):
+        """
+        Submits a raw count with optional tags, hostname and device name
+        based on increasing counter values. E.g. 1, 3, 5, 7 will submit
+        6 on flush. Note that reset counters are skipped.
+
+        :param metric: The name of the metric
+        :param value: The value of the rate
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.count_from_counter(metric, value, tags,
+                                           hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -498,6 +530,14 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
+                min_collection_interval = instance.get('min_collection_interval', 
+                    self.init_config.get('min_collection_interval', self.DEFAULT_MIN_COLLECTION_INTERVAL))
+                now = time.time()
+                if now - self.last_collection_time[i] < min_collection_interval:
+                    self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
+                    continue
+
+                self.last_collection_time[i] = now
                 self.check(copy.deepcopy(instance))
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,

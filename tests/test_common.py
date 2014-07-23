@@ -170,6 +170,72 @@ class TestCore(unittest.TestCase):
             tag = "check:%s" % check.name
             assert tag in all_tags, all_tags
 
+    def test_min_collection_interval(self):
+
+        config = {'instances': [{'foo': 'bar'}], 'init_config': {}}
+
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        # default min collection interval for that check is 20sec
+        check = load_check('ntp', config, agentConfig)
+
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        
+        check.run()
+        metrics = check.get_metrics()
+        # No metrics should be collected as it's too early
+        self.assertEquals(len(metrics), 0, metrics)
+
+        time.sleep(20)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        time.sleep(3)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        check.DEFAULT_MIN_COLLECTION_INTERVAL = 0
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+        config = {'instances': [{'foo': 'bar', 'min_collection_interval':3}], 'init_config': {}}
+        check = load_check('ntp', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(4)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+        config = {'instances': [{'foo': 'bar', 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        check = load_check('ntp', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(4)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(8)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+
+
 
 class TestAggregator(unittest.TestCase):
     def setUp(self):

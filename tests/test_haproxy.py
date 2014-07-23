@@ -87,19 +87,35 @@ class HaproxyTestCase(unittest.TestCase):
         assert metrics
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
+        service_checks = self.check.get_service_checks()
+        assert service_checks
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(len(service_checks) > 0)
 
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
+        # check was run 2 times
+        #       - FRONTEND is reporting OPEN that we ignore
+        #       - only the BACKEND aggregate is reporting UP -> OK
+        #       - The 3 individual servers are returning no check -> UNKNOWN
+        self.assertEquals(len([t for t in service_checks
+            if t['status']== 0]), 2, service_checks)
+        self.assertEquals(len([t for t in service_checks
+            if t['status']== 3]), 6, service_checks)
 
         inst = config['instances'][0]
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
-        new_data = [l.replace("OPEN", "DOWN") for l in data]
+        new_data = [l.replace("no check", "UP") for l in data]
         self.check._process_data(new_data, False, True, inst['url']),
 
         assert self.check.has_events()
-        assert len(self.check.get_events()) == 1
+        assert len(self.check.get_events()) == 3 # The 3 individual backend servers were switched to UP
+        service_checks = self.check.get_service_checks()
+        # The 3 servers + the backend aggregate are reporting UP
+        self.assertEquals(len([t for t in service_checks
+            if t['status'] == 0]), 4, service_checks)
 
     def testCountPerStatuses(self):
         try:

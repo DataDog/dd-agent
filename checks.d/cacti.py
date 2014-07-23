@@ -8,8 +8,11 @@ from collections import namedtuple
 from checks import AgentCheck
 
 # 3rd party
-import rrdtool
-import PyMySQL
+try:
+    import rrdtool
+except ImportError:
+    rrdtool = None
+import pymysql
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -37,14 +40,18 @@ class Cacti(AgentCheck):
         self.last_ts = {}
 
     def get_library_versions(self):
-        return {"rrdtool": rrdtool.__version__} 
+        if rrdtool is not None:
+            return {"rrdtool": rrdtool.__version__} 
+        return {"rrdtool": "Not Found"}
 
     def check(self, instance):
+        if rrdtool is None:
+            raise Exception("Unable to import python rrdtool module")
         
         # Load the instance config
         config = self._get_config(instance)
 
-        connection = PyMySQL.connect(config.host, config.user, config.password, config.db)
+        connection = pymysql.connect(config.host, config.user, config.password, config.db)
 
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 
