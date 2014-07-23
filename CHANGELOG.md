@@ -17,7 +17,7 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 
 ### What will break ?
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
-     *
+     
        ```
            sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
