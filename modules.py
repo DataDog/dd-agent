@@ -9,6 +9,7 @@ import sys
 
 # project
 from util import windows_friendly_colon_split
+
 WINDOWS_PATH = re.compile('[A-Z]:.*')
 
 def imp_type_for_filename(filename):
@@ -47,8 +48,16 @@ def module_name_for_filename(filename):
     all_segments = filename.split(os.sep)
     path_elements = all_segments[:-1]
     module_elements = [all_segments[-1].rsplit('.', 1)[0]]
-    while os.path.exists(os.path.join(*(path_elements +['__init__.py']))):
-        module_elements.insert(0, path_elements.pop())
+    while True:
+        init_path = os.path.join(*(path_elements +['__init__.py']))
+        if path_elements[0] is "":
+            # os.path.join will not put the leading '/'
+            # it will return a/b/c for os.path.join("","a","b","c")
+            init_path = '/' + init_path
+        if os.path.exists(init_path):
+            module_elements.insert(0, path_elements.pop())
+        else:
+            break
     modulename = '.'.join(module_elements)
     basename = '/'.join(path_elements)
     return (basename, modulename)
