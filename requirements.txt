@@ -9,6 +9,7 @@ psutil
 gearman
 pylint
 boto
+pycurl
 pysnmp
 pysnmp-mibs
 pymysql
