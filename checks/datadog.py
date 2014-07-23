@@ -1,5 +1,4 @@
-from checks.utils import TailFile
-import modules
+# stdlib
 import os
 import sys
 import traceback
@@ -7,9 +6,12 @@ import re
 import time
 from datetime import datetime
 from itertools import groupby # >= python 2.4
-from util import Platform
 
+# project
+import modules
 from checks import LaconicFilter
+from checks.utils import TailFile
+from util import Platform
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
