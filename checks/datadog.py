@@ -99,7 +99,7 @@ class Dogstream(object):
 
         if parser_spec:
             try:
-                parse_func = modules.load(parser_spec, 'parser')
+                parse_func = modules.load(parser_spec)
                 if isinstance(parse_func, type):
                     logger.info('Instantiating class-based dogstream')
                     parse_func = parse_func(

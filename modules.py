@@ -67,7 +67,10 @@ def get_module(name):
 
 def load(config_string, default_name=None):
     """Given a module name and an object expected to be contained within,
-    return said object"""
+    return said object.
+    FIXME RUDY: On Windows, will fail if you try to load from a complete path
+    without specifying the function to use in the config string
+    """
     (module_name, object_name) = \
             (config_string.rsplit(':', 1) + [default_name])[:2]
     module = get_module(module_name)
