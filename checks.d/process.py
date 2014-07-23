@@ -8,6 +8,14 @@ from util import Platform
 # 3rd party
 import psutil
 
+class Services(object):
+    STATUSES_TO_SERVICE_CHECK = {
+        'UP'        : AgentCheck.OK,
+        'DOWN'      : AgenCheck.CRITICAL,
+        'no check'  : AgenCheck.UNKNOW,
+        'MAINT'     : AgenCheck.OK,
+    }
+
 class ProcessCheck(AgentCheck):
 
     SOURCE_TYPE_NAME = 'system'
@@ -76,7 +84,7 @@ class ProcessCheck(AgentCheck):
         thr = 0
         voluntary_ctx_switches = 0
         involuntary_ctx_switches = 0
-            
+
         # process metrics available for psutil versions 0.6.0 and later
         if not Platform.is_win32():
             real = 0
@@ -122,7 +130,7 @@ class ProcessCheck(AgentCheck):
                 vms += mem.vms
                 thr += p.num_threads()
                 cpu += p.cpu_percent(cpu_check_interval)
-                
+
                 # user agent might not have permission to call io_counters()
                 # user agent might have access to io counters for some processes and not others
                 if read_count is not None:
@@ -162,7 +170,7 @@ class ProcessCheck(AgentCheck):
             raise KeyError('"search_string" parameter should be a list')
 
         if "All" in search_string:
-            self.warning('Having "All" in your search_string will highly reduce performances of the check.') 
+            self.warning('Having "All" in your search_string will highly reduce performances of the check.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
@@ -187,3 +195,57 @@ class ProcessCheck(AgentCheck):
         for metric, value in metrics.iteritems():
             if value is not None:
                 self.gauge(metric, value, tags=tags)
+
+        self._process_service_check(self, search_string)
+
+    def _list_processes(self, search_string):
+        """
+        Establish a list of processes
+        Search for search_string
+        """
+
+        process_list = {}
+        count_error = 0
+
+        for proc in psutil.process_iter():
+            for string in search_string:
+                try:
+                    if proc.name() == string:
+                        process_list[proc.name()] = [proc.pid, 'OK']
+                except psutil.NoSuchProcess:
+                    self.log.warning('Process disappeared while scanning')
+                    count_error++
+                    pass
+                except psutil.AccessDenied, e:
+                    self.log.error('Access denied to %s process' % string)
+                    self.log.error('Error: %s' % e)
+                    raise
+
+                if string == 'All':
+                    fprocess_list[proc.name()] = proc.pid
+
+        return process_list, count_error
+
+    def _process_service_check(self, name, search_string):
+        '''
+        Repport a service check, for each processes in search_string.
+        Repport as OK if the process is UP
+                   CRITICAL             DOWN
+                   UNKNOWN              no check
+        '''
+
+        service_tag = ["service:%s" % name]
+        processes, errors = self._list_processes(search_string)
+
+        if errors <= Services.MAX_ERROR:
+            self.service_check(name,
+                               Services.STATUSES_TO_SERVICE_CHECK['CRITICAL'],
+                               tags = service_check_tags,
+                               message="Report %sToo many processes are not responding" % (name)
+                            )
+
+        for process in processes:
+            self.service_check(
+                               Service.STATUSES_TO_SERVICE_CHECK[process[1]]
+
+            )
