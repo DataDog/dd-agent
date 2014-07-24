@@ -1,9 +1,16 @@
 """ Tools for loading Python modules from arbitrary locations.
 """
 
+# stdlib
 import os
 import imp
+import re
 import sys
+
+# project
+from util import windows_friendly_colon_split
+
+WINDOWS_PATH = re.compile('[A-Z]:.*')
 
 def imp_type_for_filename(filename):
     """Given the name of a Python module, return a type description suitable to
@@ -41,8 +48,16 @@ def module_name_for_filename(filename):
     all_segments = filename.split(os.sep)
     path_elements = all_segments[:-1]
     module_elements = [all_segments[-1].rsplit('.', 1)[0]]
-    while os.path.exists('/'.join(path_elements + ['__init__.py'])):
-        module_elements.insert(0, path_elements.pop())
+    while True:
+        init_path = os.path.join(*(path_elements +['__init__.py']))
+        if path_elements[0] is "":
+            # os.path.join will not put the leading '/'
+            # it will return a/b/c for os.path.join("","a","b","c")
+            init_path = '/' + init_path
+        if os.path.exists(init_path):
+            module_elements.insert(0, path_elements.pop())
+        else:
+            break
     modulename = '.'.join(module_elements)
     basename = '/'.join(path_elements)
     return (basename, modulename)
@@ -52,7 +67,7 @@ def get_module(name):
     and return a Python module.
     
     If the module is already loaded, takes no action."""
-    if name.startswith('/'):
+    if name.startswith('/') or WINDOWS_PATH.match(name):
         basename, modulename = module_name_for_filename(name)
         path = [basename]
     else:
@@ -64,9 +79,13 @@ def get_module(name):
 
 def load(config_string, default_name=None):
     """Given a module name and an object expected to be contained within,
-    return said object"""
-    (module_name, object_name) = \
-            (config_string.rsplit(':', 1) + [default_name])[:2]
+    return said object.
+    """
+    split = windows_friendly_colon_split(config_string)
+    if len(split)> 1:
+        module_name, object_name = ":".join(split[:-1]), split[-1]
+    else:
+        module_name, object_name = config_string, default_name
     module = get_module(module_name)
     if object_name:
         return getattr(module, object_name)

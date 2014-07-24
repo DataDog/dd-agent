@@ -5,7 +5,7 @@ import tempfile
 
 from config import get_config
 
-from util import PidFile, is_valid_hostname
+from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
 class TestConfig(unittest.TestCase):
     def testWhiteSpaceConfig(self):
@@ -76,6 +76,23 @@ class TestConfig(unittest.TestCase):
 
         for hostname in not_valid_hostnames:
             self.assertFalse(is_valid_hostname(hostname), hostname)
+
+    def testWindowsSplit(self):
+        # Make the function run as if it was on windows
+        func = Platform.is_win32
+        try:
+            Platform.is_win32 = staticmethod(lambda : True)
+
+            test_cases = [
+                ("C:\\Documents\\Users\\script.py:C:\\Documents\\otherscript.py", ["C:\\Documents\\Users\\script.py","C:\\Documents\\otherscript.py"]),
+                ("C:\\Documents\\Users\\script.py:parser.py", ["C:\\Documents\\Users\\script.py","parser.py"])
+                ]
+
+            for test_case, expected_result in test_cases:
+                self.assertEqual(windows_friendly_colon_split(test_case), expected_result)
+        finally:
+            # cleanup
+            Platform.is_win32 = staticmethod(func)
 
 if __name__ == '__main__':
     unittest.main()
