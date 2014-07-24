@@ -67,7 +67,8 @@ if sys.platform == 'win32':
         'redis',
         'requests',
         'pysnmp',
-        'pysnmp-mibs',
+        'pysnmp.smi.mibs.*',
+        'pysnmp.smi.mibs.instances.*',
 
         # agent
         'checks.services_checks',
