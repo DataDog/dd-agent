@@ -410,7 +410,6 @@ class ElasticSearch(AgentCheck):
 
         msg = "ElasticSearch: %s just reported as %s" % (hostname, status)
 
-
         return { 'timestamp': int(time.time()),
                  'event_type': 'elasticsearch',
                  'host': hostname,
