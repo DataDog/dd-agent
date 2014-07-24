@@ -17,7 +17,7 @@ instances:
    search_string: ['ssh', 'sshd']
    thresholds: {
      critical: [2, 10],
-     warning: [2, 4]
+     warning: [3, 5]
    }
 
  - name: postgres

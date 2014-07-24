@@ -202,12 +202,6 @@ class ProcessCheck(AgentCheck):
         status = AgentCheck.OK
         status_str = ['ok', 'warning', 'critical']
 
-        print "DEBUG"
-        print "PROCS", nb_procs
-        print "BOUNDS", bounds
-        print "END DEBUG"
-
-
         if not bounds:
             if nb_procs < 1:
                 status = AgentCheck.CRITICAL
@@ -223,11 +217,10 @@ class ProcessCheck(AgentCheck):
         warning = bounds.get('warning', [1, 1000])
         critical = bounds.get('critical', [1, 1000])
 
-        if nb_procs < warning[0] or nb_procs > warning[1]:
-            if nb_procs < critical[0] or nb_procs > critical[1]:
-                status = AgentCheck.CRITICAL
-            else:
-                status = AgentCheck.WARNING
+        if warning[1] < nb_procs or nb_procs < warning[0]:
+            status = AgentCheck.WARNING
+        if critical[1] < nb_procs or nb_procs < critical[0]:
+            status = AgentCheck.CRITICAL
 
         self.service_check(
             name,
