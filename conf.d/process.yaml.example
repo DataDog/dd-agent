@@ -15,7 +15,7 @@ instances:
 
  - name: ssh
    search_string: ['ssh', 'sshd']
-   check_bounds: {
+   thresholds: {
      critical: [2, 10],
      warning: [2, 4]
    }
