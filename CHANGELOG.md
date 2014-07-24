@@ -43,7 +43,6 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 * [FEATURE] Add a NTP Service check. See [#971][]
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
-* [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [FEATURE] Add an SNMP Check. See [#299][]
 * [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
 * [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][]
