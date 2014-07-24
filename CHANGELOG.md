@@ -53,6 +53,7 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] Fix the collection of cpu metrics (>100%) on Windows. See [#653][]
 * [BUGFIX] Fix connection error on Windows 2008 SP2. See [#1014][]
+* [BUGFIX] Dogstreams on windows: Allow to specify custom parser. See [#887][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
