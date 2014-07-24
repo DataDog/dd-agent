@@ -8,14 +8,6 @@ from util import Platform
 # 3rd party
 import psutil
 
-class Services(object):
-    STATUSES_TO_SERVICE_CHECK = {
-        'OK'          : AgentCheck.OK,
-        'WARNING'     : AgentCheck.WARNING,
-        'CRITICAL'    : AgentCheck.CRITICAL,
-        'UNKNOWN'     : AgentCheck.UNKNOWN,
-    }
-
 class ProcessCheck(AgentCheck):
 
     SOURCE_TYPE_NAME = 'system'
@@ -170,7 +162,7 @@ class ProcessCheck(AgentCheck):
             raise KeyError('"search_string" parameter should be a list')
 
         if "All" in search_string:
-            self.warning('Having "All" in your search_string will highly reduce performances of the check.')
+            self.warning('Having "All" in your search_string will greatly reduce the performance of the check.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
@@ -196,70 +188,50 @@ class ProcessCheck(AgentCheck):
             if value is not None:
                 self.gauge(metric, value, tags=tags)
 
-        self._process_service_check(name, search_string, instance.get('check_bounds', None))
+        self._process_service_check(name, len(pids), instance.get('thresholds', None))
 
-    def _list_processes(self, search_string):
-        """
-        Establish a list of processes
-        Search for search_string
-        """
 
-        process_list = []
-        count_error = 0
-
-        for proc in psutil.process_iter():
-            for string in search_string:
-                try:
-                    if string in " ".join(proc.cmdline()):
-                        process_list.append(proc.name())
-                        break
-                except psutil.NoSuchProcess:
-                    self.log.warning('Process disappeared while scanning')
-                    count_error += 1
-                    pass
-                except psutil.AccessDenied, e:
-                    self.log.error('Access denied to %s process' % string)
-                    self.log.error('Error: %s' % e)
-                    raise
-
-        return process_list, count_error
-
-    def _send_service_check(self, name, tag, status):
-      self.service_check(
-          name,
-          Services.STATUSES_TO_SERVICE_CHECK[status],
-          tags = tag,
-          message="Report %s: The number of processes is %s" % (name, status)
-      )
-
-    def _process_service_check(self, name, search_string, bounds):
+    def _process_service_check(self, name, nb_procs, bounds):
         '''
         Repport a service check, for each processes in search_string.
-        Repport as OK if the process is UP
-                   CRITICAL             DOWN
-                   UNKNOWN              no check
+        Repport as OK if the process is in the warning thresolds
+                   CRITICAL             out of the critical thresolds
+                   WARNING              out of the warning thresolds
         '''
-        service_tag = ["service:%s" % name]
-        status = 'OK'
+        tag = ["service:%s" % name]
+        status = AgentCheck.OK
+        status_str = ['ok', 'warning', 'critical']
+
+        print "DEBUG"
+        print "PROCS", nb_procs
+        print "BOUNDS", bounds
+        print "END DEBUG"
+
 
         if not bounds:
-            self._send_service_check(name, service_tag, 'UNKNOWN')
+            if nb_procs < 1:
+                status = AgentCheck.CRITICAL
+
+            self.service_check(
+                name,
+                status,
+                tags = tag,
+                message="Report %s: The report status is %s" % (name, status_str[status])
+            )
             return
 
-        processes, errors = self._list_processes(search_string)
-
-        nb_procs = len(processes)
-        warning = bounds.get('warning', 0)
-        critical = bounds.get('critical', 0)
-
-        if errors > nb_procs:
-            self._send_service_check(name, service_tag, 'CRITICAL')
-            return
+        warning = bounds.get('warning', [1, 1000])
+        critical = bounds.get('critical', [1, 1000])
 
         if nb_procs < warning[0] or nb_procs > warning[1]:
             if nb_procs < critical[0] or nb_procs > critical[1]:
-                status = 'CRITICAL'
+                status = AgentCheck.CRITICAL
             else:
-                status = 'WARNING'
+                status = AgentCheck.WARNING
 
-        self._send_service_check(name, service_tag, status)
+        self.service_check(
+            name,
+            status,
+            tags = tag,
+            message="Report %s: The report status is %s" % (name, status_str[status])
+        )
