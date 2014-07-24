@@ -45,6 +45,8 @@ if sys.platform == 'win32':
         'redis',
         'requests',
         'httplib2==0.9',
+        'pysnmp==4.2.5',
+        'pysnmp-mibs==0.1.4'
     ])
 
     # Modules to force-include in the exe
@@ -64,6 +66,8 @@ if sys.platform == 'win32':
         'pg8000',
         'redis',
         'requests',
+        'pysnmp',
+        'pysnmp-mibs',
 
         # agent
         'checks.services_checks',
