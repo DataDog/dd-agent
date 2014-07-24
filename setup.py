@@ -38,13 +38,13 @@ if sys.platform == 'win32':
         'pymongo==2.3',
         'pg8000',
         'python-memcached==1.48',
-        'adodbapi'
-        'elementtree',
+        'adodbapi==2.4.2.2'
+        'elementtree==1.2.7',
         'pycurl',
-        'pymysql',
-        'psutil',
-        'redis',
-        'requests',
+        'pymysql==0.6.1',
+        'psutil==2.1.1',
+        'redis==2.10.1',
+        'requests==2.3.0',
         'httplib2==0.9',
         'pysnmp==4.2.5',
         'pysnmp-mibs==0.1.4'
