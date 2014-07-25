@@ -17,7 +17,7 @@ from collections import defaultdict
 
 # project
 import config
-from util import get_os
+from util import get_os, plural
 
 # 3rd party
 import ntplib
@@ -449,7 +449,10 @@ class CollectorStatus(AgentStatus):
                                            s.traceback.split('\n'))
 
                     check_lines += [
-                        "    - Collected %s metrics, %s events & %s service checks" % (cs.metric_count, cs.event_count, cs.service_check_count),
+                        "    - Collected %s metric%s, %s event%s & %s service check%s" % (
+                            cs.metric_count, plural(cs.metric_count), 
+                            cs.event_count, plural(cs.event_count),
+                            cs.service_check_count, plural(cs.service_check_count)),
                     ]
 
                     if cs.library_versions is not None:

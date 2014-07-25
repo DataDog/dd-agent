@@ -20,7 +20,7 @@ from cStringIO import StringIO
 
 # project
 
-from util import get_os, Platform
+from util import get_os, Platform, yLoader
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
@@ -434,6 +434,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option("Main", "collect_instance_metadata"):
             agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
 
+        agentConfig["proxy_forbid_method_switch"] = False
+        if config.has_option("Main", "proxy_forbid_method_switch"):
+            agentConfig["proxy_forbid_method_switch"] = _is_affirmative(config.get("Main", "proxy_forbid_method_switch"))
+
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
@@ -652,7 +656,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
+        check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 
