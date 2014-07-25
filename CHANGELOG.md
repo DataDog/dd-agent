@@ -40,7 +40,7 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
-* [FEATURE] Add a NTP Service check. See [#971][]
+* [FEATURE] Add a NTP check. See [#971][]
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
 * [FEATURE] Add an SNMP Check. See [#299][]
