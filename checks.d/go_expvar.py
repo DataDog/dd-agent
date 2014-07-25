@@ -1,5 +1,6 @@
 # stdlib
 import urllib2
+import re
 
 # project
 from checks import AgentCheck
@@ -56,9 +57,12 @@ class GoExpvar(AgentCheck):
             keys = path.split("/")
             values = self.deep_get(content, keys, [])
 
-            if len(values)==1:
+            if len(values)==0:
+                self.log.warning("No results matching path %s" % path)
+            elif len(values)==1:
                 # Defining an alias doesn't make sense if there is several metrics
                 metric_name = metric.get("alias")
+
             for traversed_path, value in values:
                 metric_name = metric_name or self.normalize(".".join(traversed_path), "go_expvar", fix_case=True)
                 try:
@@ -93,29 +97,20 @@ class GoExpvar(AgentCheck):
             return [(traversed_path, content)]
 
         key = keys[0]
-        if key == '*':
-            results = []
-            if isinstance(content, list):
-                for new_key, new_content in enumerate(content):
-                    results.extend(self.deep_get(new_content, keys[1:], traversed_path + [str(new_key)]))
-            elif isinstance(content, dict):
-                for new_key, new_content in content.items():
-                    results.extend(self.deep_get(new_content, keys[1:], traversed_path + [str(new_key)]))
-            else:
-                # not a traversable structure, it's a value
-                results = [(traversed_path, content)]
+        key_rex = re.compile("".join(["^",key,"$"]))
+        results = []
+        for new_key, new_content in self.items(content):
+            if key_rex.match(new_key):
+                results.extend(self.deep_get(new_content, keys[1:], traversed_path + [str(new_key)]))
+        return results
 
-            return results
+    def items(self, object):
+        if isinstance(object, list):
+            for new_key, new_content in enumerate(object):
+                yield str(new_key), new_content
+        elif isinstance(object, dict):
+            for new_key, new_content in object.items():
+                yield str(new_key), new_content
         else:
-            key = int(key) if isinstance(content, list) else key
-            path = traversed_path + [str(key)]
-            try:
-                if len(keys) == 1:
-                    return [(path, content[key])]
-                else:
-                    return self.deep_get(content[key],keys[1:], path)
-            except (KeyError, IndexError, TypeError):
-                self.log.warning("Could not get value for path %s,"
-                                 " check the schema of your json" % str(path+keys))
-                return []
-
+            self.warning("Could not parse this object, check the json served"
+                         "by the expvar")

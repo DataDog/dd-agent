@@ -85,16 +85,15 @@ class TestGoExpVar(unittest.TestCase):
                         'four':  4
                         }
                     }
-        expected = [ (['a', 'one'], 1),
-                    (['a', 'two'], 2),
-                    (['b', 'three'], 3),
-                    (['b', 'four'], 4)]
-
-        results = self.check.deep_get(content,['*','*'], [])
+        expected = [
+                         (['a', 'two'], 2),
+                         (['b', 'three'], 3),
+                    ]
+        results = self.check.deep_get(content,['.','t.*'], [])
         self.assertEqual(sorted(results), sorted(expected))
 
         expected = [(['a', 'one'], 1)]
-        results = self.check.deep_get(content, ['*','one'], [])
+        results = self.check.deep_get(content, ['.','one'], [])
         self.assertEqual(results, expected)
 
         # Wildcard for list index
@@ -111,7 +110,7 @@ class TestGoExpVar(unittest.TestCase):
                      (['list','1','value'], 10),
                      (['list','2','value'], 20)]
 
-        results = self.check.deep_get(content, ['list','*','value'], [])
+        results = self.check.deep_get(content, ['list','.*','value'], [])
         self.assertEqual(sorted(results), sorted(expected))
 
 if __name__ == "__main__":

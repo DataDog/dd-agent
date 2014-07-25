@@ -22,4 +22,4 @@
 #        - path: myvariable
 #          alias: go_expvar.my_custom_name
 #          type: gauge
-#        - path: hits/*/count              # You can use a wildcard when you want to report for all elements of a list or a dict
+#        - path: routes/get_.*/count       # You can use a regex when you want to report for all elements matching a certain pattern
