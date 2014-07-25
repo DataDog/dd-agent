@@ -200,7 +200,12 @@ class ProcessCheck(AgentCheck):
         '''
         tag = ["service:%s" % name]
         status = AgentCheck.OK
-        status_str = ['ok', 'warning', 'critical']
+        message_str = "PROCS %s: %s processes found for %s"
+        status_str = {
+            AgentCheck.OK: "OK",
+            AgentCheck.WARNING: "WARNING",
+            AgentCheck.CRITICAL: "CRITICAL"
+        }
 
         if not bounds:
             if nb_procs < 1:
@@ -209,13 +214,13 @@ class ProcessCheck(AgentCheck):
             self.service_check(
                 name,
                 status,
-                tags = tag,
-                message="Report %s: The report status is %s" % (name, status_str[status])
+                tags=tag,
+                message=message_str % (status_str[status], nb_procs, name)
             )
             return
 
-        warning = bounds.get('warning', [1, 1000])
-        critical = bounds.get('critical', [1, 1000])
+        warning = bounds.get('warning', [1, float('inf')])
+        critical = bounds.get('critical', [1, float('inf')])
 
         if warning[1] < nb_procs or nb_procs < warning[0]:
             status = AgentCheck.WARNING
@@ -225,6 +230,6 @@ class ProcessCheck(AgentCheck):
         self.service_check(
             name,
             status,
-            tags = tag,
-            message="Report %s: The report status is %s" % (name, status_str[status])
+            tags=tag,
+            message=message_str % (status_str[status], nb_procs, name)
         )
