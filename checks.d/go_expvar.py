@@ -8,6 +8,8 @@ from checks import AgentCheck
 # 3rd party
 import simplejson as json
 
+DEFAULT_MAX_METRICS = 200
+
 class GoExpvar(AgentCheck):
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -44,6 +46,7 @@ class GoExpvar(AgentCheck):
         continue processing metrics but log the information to the info page
         '''
         tags = instance.get("tags", [])
+        count = 0
         for metric in instance.get("metrics", []):
             if "path" not in metric:
                 self.warning("Metric %s has no path" % metric)
@@ -69,7 +72,12 @@ class GoExpvar(AgentCheck):
                     float(value)
                 except ValueError:
                     self.log.warning("Unreportable value for path %s: %s" % (path,value))
+                    continue
+                if count >= instance.get("max_returned_metrics", DEFAULT_MAX_METRICS):
+                    self.warning("Reporting more metrics than the allowed maximum")
+                    return
                 self.func[metric_type](metric_name, value, tags)
+                count += 1
 
     def deep_get(self, content, keys, traversed_path):
         '''
@@ -112,5 +120,5 @@ class GoExpvar(AgentCheck):
             for new_key, new_content in object.items():
                 yield str(new_key), new_content
         else:
-            self.warning("Could not parse this object, check the json served"
-                         "by the expvar")
+            self.log.warning("Could not parse this object, check the json"
+                             "served by the expvar")

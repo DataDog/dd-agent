@@ -23,3 +23,6 @@
 #          alias: go_expvar.my_custom_name
 #          type: gauge
 #        - path: routes/get_.*/count       # You can use a regex when you want to report for all elements matching a certain pattern
+#      # (optional) Maximum number of metrics returned by this check
+#      # Modify it if you plan to return more
+#      max_returned_metrics: 200

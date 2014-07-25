@@ -20,12 +20,12 @@ class TestGoExpVar(unittest.TestCase):
                     "tags": ["optionaltag1", "optionaltag2"],
                     "metrics": [
                         {
+                            "path":"memstats/BySize/1/Mallocs", # Contains list traversal and default values
+                        },
+                        {
                             "path":"memstats/PauseTotalNs",
                             "alias":"go_expvar.gc.pause",
                             "type":"rate"
-                        },
-                        {
-                            "path":"memstats/BySize/1/Mallocs", # Contains list traversal and default values
                         },
                         {
                             "path":"random_walk",
@@ -72,6 +72,12 @@ class TestGoExpVar(unittest.TestCase):
             self.assertEqual(len(tags), 2)
             self.assertTrue("optionaltag1" in tags)
             self.assertTrue("optionaltag2" in tags)
+
+        # Verify that the max number of metrics is respected
+        self.config['instances'][0]['max_returned_metrics'] = 1
+        self.check.check(self.config['instances'][0])
+        metrics = self.check.get_metrics()
+        self.assertEqual(len(metrics), 1)
 
     def test_deepget(self):
         # Wildcard for dictkeys
