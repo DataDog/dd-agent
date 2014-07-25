@@ -1,11 +1,13 @@
-from checks import AgentCheck
+# stdlib
 import time
 from Queue import Queue, Empty
-from checks.libs.thread_pool import Pool
 import threading
 
+# project
+from checks import AgentCheck
 
-
+# 3rd party
+from checks.libs.thread_pool import Pool
 
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
