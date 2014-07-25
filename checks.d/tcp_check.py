@@ -3,11 +3,11 @@ import socket
 import time
 
 # project
-from checks.services_checks import ServicesCheck, Status, EventType
+from checks.network_checks import NetworkCheck, Status, EventType
 
 class BadConfException(Exception): pass
 
-class TCPCheck(ServicesCheck):
+class TCPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'tcp_check'

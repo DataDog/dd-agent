@@ -21,9 +21,9 @@ class EventType:
     UP = "servicecheck.state_change.up"
 
 
-class ServicesCheck(AgentCheck):
+class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
-    SERVICE_CHECK_PREFIX = 'service_check'
+    SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
             Status.UP  : AgentCheck.OK,
