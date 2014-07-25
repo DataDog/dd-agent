@@ -3,13 +3,13 @@ import socket
 import time
 
 # project
-from checks.services_checks import ServicesCheck, Status, EventType
+from checks.network_checks import NetworkCheck, Status, EventType
 from util import headers
 
 # 3rd party
 from httplib2 import Http, HttpLib2Error
 
-class HTTPCheck(ServicesCheck):
+class HTTPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'http_check'
