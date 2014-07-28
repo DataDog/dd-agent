@@ -74,7 +74,7 @@ if sys.platform == 'win32':
         'pysnmp.entity.rfc3413.oneliner.*',
 
         # agent
-        'checks.services_checks',
+        'checks.network_checks',
         'httplib2',
 
         # pup
