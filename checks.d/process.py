@@ -204,25 +204,16 @@ class ProcessCheck(AgentCheck):
             AgentCheck.CRITICAL: "CRITICAL"
         }
 
-        if not bounds:
-            if nb_procs < 1:
-                status = AgentCheck.CRITICAL
-
-            self.service_check(
-                name,
-                status,
-                tags=tag,
-                message=message_str % (status_str[status], nb_procs, name)
-            )
-            return
-
-        warning = bounds.get('warning', [1, float('inf')])
-        critical = bounds.get('critical', [1, float('inf')])
-
-        if warning[1] < nb_procs or nb_procs < warning[0]:
-            status = AgentCheck.WARNING
-        if critical[1] < nb_procs or nb_procs < critical[0]:
+        if not bounds and nb_procs < 1:
             status = AgentCheck.CRITICAL
+        else:
+            warning = bounds.get('warning', [1, float('inf')])
+            critical = bounds.get('critical', [1, float('inf')])
+
+            if warning[1] < nb_procs or nb_procs < warning[0]:
+                status = AgentCheck.WARNING
+            if critical[1] < nb_procs or nb_procs < critical[0]:
+                status = AgentCheck.CRITICAL
 
         self.service_check(
             name,
