@@ -36,8 +36,9 @@ import yaml
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'docker', 'gearmand',
-    'hdfs', 'kafka_consumer', 'mcache', 'network',
-    'postfix', 'process', 'gunicorn', 'zk',
+    'hdfs', 'kafka_consumer', 'marathon', 'mcache',
+    'mesos', 'network', 'postfix', 'process',
+    'gunicorn', 'zk',
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
