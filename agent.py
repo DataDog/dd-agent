@@ -318,7 +318,7 @@ def main():
             print "See http://docs.datadoghq.com/integrations/java/ for more information"
             print "#" * 80
             print "\n"
-            print "You have to specify one of the following command:"
+            print "You have to specify one of the following commands:"
             for command, desc in JMX_LIST_COMMANDS.iteritems():
                 print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
             print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"

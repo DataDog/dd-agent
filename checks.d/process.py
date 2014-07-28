@@ -42,7 +42,6 @@ class ProcessCheck(AgentCheck):
                             found = True
                     except psutil.NoSuchProcess:
                         self.log.warning('Process disappeared while scanning')
-                        pass
                     except psutil.AccessDenied, e:
                         self.log.error('Access denied to %s process' % string)
                         self.log.error('Error: %s' % e)
@@ -55,7 +54,6 @@ class ProcessCheck(AgentCheck):
                                 found = True
                         except psutil.NoSuchProcess:
                             self.warning('Process disappeared while scanning')
-                            pass
                         except psutil.AccessDenied, e:
                             self.log.error('Access denied to %s process' % string)
                             self.log.error('Error: %s' % e)
@@ -143,7 +141,6 @@ class ProcessCheck(AgentCheck):
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % pid)
-                pass
 
         if got_denied and not ignore_denied_access:
             self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
