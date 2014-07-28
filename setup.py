@@ -102,6 +102,7 @@ if sys.platform == 'win32':
                 'optimize': 0,
                 'compressed': True,
                 'bundle_files': 3,
+                'excludes': ['numpy'],
                 'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
                 'ascii':False,
             },
