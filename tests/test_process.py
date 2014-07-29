@@ -1,6 +1,5 @@
 import unittest
 import logging
-import time
 
 from util import get_hostname
 from tests.common import load_check
@@ -76,7 +75,6 @@ class ProcessTestCase(unittest.TestCase):
         for i in self.nb_procs:
             for j in range(len(config['instances'])):
                 self.check.check(config['instances'][j])
-                time.sleep(1)
 
             self.offset += 1
 
