@@ -96,30 +96,32 @@ class ProcessCheck(AgentCheck):
         for pid in set(pids):
             try:
                 p = psutil.Process(pid)
-                if real is not None:
-                    mem = p.memory_info_ex()
-                    real += mem.rss - mem.shared
-                    try:
+                try:
+                    if real is not None:
+                        mem = p.memory_info_ex()
+                        real += mem.rss - mem.shared
                         ctx_switches = p.num_ctx_switches()
                         voluntary_ctx_switches += ctx_switches.voluntary
                         involuntary_ctx_switches += ctx_switches.involuntary
-                    except NotImplementedError:
-                        # Handle old Kernels which don't provide this info.
-                        voluntary_ctx_switches = None
-                        involuntary_ctx_switches = None
-                else:
-                    mem = p.memory_info()
+                    else:
+                        mem = p.memory_info()
 
-                if open_file_descriptors is not None:
-                    try:
+                    rss += mem.rss
+                    vms += mem.vms
+                    thr += p.num_threads()
+                    cpu += p.cpu_percent(cpu_check_interval)
+
+                    if open_file_descriptors is not None:
                         open_file_descriptors += p.num_fds()
-                    except psutil.AccessDenied:
-                        got_denied = True
 
-                rss += mem.rss
-                vms += mem.vms
-                thr += p.num_threads()
-                cpu += p.cpu_percent(cpu_check_interval)
+                except NotImplementedError:
+                    # Handle old Kernels which don't provide this info.
+                    voluntary_ctx_switches = None
+                    involuntary_ctx_switches = None
+                except AttributeError:
+                        self.log.debug("process attribute not supported on this platform")
+                except psutil.AccessDenied:
+                    got_denied = True
 
                 # user agent might not have permission to call io_counters()
                 # user agent might have access to io counters for some processes and not others
@@ -130,8 +132,10 @@ class ProcessCheck(AgentCheck):
                         write_count += io_counters.write_count
                         read_bytes += io_counters.read_bytes
                         write_bytes += io_counters.write_bytes
+                    except AttributeError:
+                        self.log.debug("process attribute not supported on this platform")
                     except psutil.AccessDenied:
-                        self.log.info('DD user agent does not have access \
+                        self.log.info('dd-agent user does not have access \
                             to I/O counters for process %d: %s' % (pid, p.name()))
                         read_count = None
                         write_count = None
