@@ -221,7 +221,7 @@ class Docker(AgentCheck):
         tags = instance.get("tags", [])
 
         try:
-            containers = self._get_containers(instance, with_size=self.should_get_size)            
+            containers = self._get_containers(instance, with_size=self.should_get_size)
         except (socket.timeout, urllib2.URLError):
             # Probably because of: https://github.com/DataDog/dd-agent/issues/963
             # Then we should stop trying to get size info
