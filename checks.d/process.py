@@ -206,7 +206,7 @@ class ProcessCheck(AgentCheck):
 
         if not bounds and nb_procs < 1:
             status = AgentCheck.CRITICAL
-        else:
+        elif bounds:
             warning = bounds.get('warning', [1, float('inf')])
             critical = bounds.get('critical', [1, float('inf')])
 
