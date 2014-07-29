@@ -25,6 +25,11 @@ from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
+# small hack to avoid having to patch the spyderlib library
+# Needed because of py2exe bundling not being able to access
+# the spyderlib image sources
+import spyderlib.baseconfig
+spyderlib.baseconfig.IMG_PATH = [""]
 
 # Datadog
 from util import get_os
