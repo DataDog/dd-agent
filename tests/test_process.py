@@ -1,15 +1,16 @@
 import unittest
-import logging
 
+from checks import AgentCheck
 from util import get_hostname
 from tests.common import load_check
 from nose.plugins.attrib import attr
-logging.basicConfig()
 
 @attr('process')
 class ProcessTestCase(unittest.TestCase):
+
     offset = 0
     nb_procs = [0, 1, 3, 5, 6]
+
     def build_config(self, config):
         # 6 possible configurations:
         # C--W--W--C
@@ -57,7 +58,7 @@ class ProcessTestCase(unittest.TestCase):
             ret.append(0)
         return ret
 
-    def testCheck(self):
+    def test_check(self):
         config = {
             'init_config': {},
             'instances': []
@@ -90,6 +91,33 @@ class ProcessTestCase(unittest.TestCase):
             if t['status']== 1]), 6, service_checks)
         self.assertEquals(len([t for t in service_checks
             if t['status']== 2]), 22, service_checks)
+
+    def test_check_real_process(self):
+        "Check that we detect python running (at least this process)"
+        config = {
+            'instances': [{"name": "py",
+                           "search_string": ["python"],
+                           "ignored_denied_access": True,
+                           "thresholds": {"warning": [1, 10], "critical": [1, 100]},
+                       }]
+        }
+        
+        self.agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        self.check = load_check('process', config, self.agentConfig)
+        self.check.check(config['instances'][0])
+        python_metrics = self.check.get_metrics()
+        service_checks = self.check.get_service_checks()
+        assert service_checks
+        self.assertTrue(len(python_metrics) > 0)
+        # system.process.number >= 1
+        self.assertTrue([m[2] for m in python_metrics if m[0] == "system.process.number"] >= 1)
+        self.assertTrue(len([t for t in service_checks if t['status']== AgentCheck.OK]) > 0)
+        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.WARNING]),  0)
+        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.CRITICAL]), 0)
 
 if __name__ == "__main__":
     unittest.main()
