@@ -221,7 +221,7 @@ class Docker(AgentCheck):
         tags = instance.get("tags", [])
 
         try:
-            containers = self._get_containers(instance, with_size=self.should_get_size)
+            containers = self._get_containers(instance, with_size=self.should_get_size)            
         except (socket.timeout, urllib2.URLError):
             # Probably because of: https://github.com/DataDog/dd-agent/issues/963
             # Then we should stop trying to get size info
@@ -285,12 +285,20 @@ class Docker(AgentCheck):
             uri = "%s?%s" % (uri, urllib.urlencode(params))
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
+
+        service_check_name = 'docker.can_connect'        
+        service_check_tags = ['host:%s' % self.hostname]
+
         try:
             request = self.url_opener.open(req)
-        except urllib2.URLError, e:
+        except urllib2.URLError, e:            
+            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=service_check_tags, hostname=self.hostname)
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
             raise
+
+        self.service_check(service_check_name, AgentCheck.OK, tags=service_check_tags, hostname=self.hostname)
+
         response = request.read()
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))
