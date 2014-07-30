@@ -6,7 +6,6 @@ import tempfile
 import shutil
 import logging
 
-from nose.tools import raises
 from tests.common import get_check
 
 logger = logging.getLogger(__file__)
@@ -114,10 +113,6 @@ class TestJenkins(unittest.TestCase):
         assert 'jenkins.job.duration' in metrics
         assert len(metrics) == 2
 
-    # This failure is expected due to a bug in the current code.
-    # TODO: fix the logic in jenkins.py and update this testcase with
-    # correct expectations.
-    @raises(KeyError)
     def testCheckWithRunningBuild(self):
         """
         Test under the conditions of a jenkins build still running.
@@ -131,6 +126,9 @@ class TestJenkins(unittest.TestCase):
 
         self.check.check(self.instance)
 
+        # The check method does not return anything, so this testcase passes
+        # if the high_watermark was NOT updated and no exceptions were raised.
+        assert self.check.high_watermarks[self.instance['name']]['foo'] == 0
 
 if __name__ == '__main__':
     unittest.main()

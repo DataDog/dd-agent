@@ -96,6 +96,12 @@ class Jenkins(AgentCheck):
                         except Exception:
                             continue
 
+                        # If the metadata does not include the results, then
+                        # the build is still running so do not process it yet.
+                        build_result = build_metadata.get('result', None)
+                        if build_result is None:
+                            break
+
                         output = {
                             'job_name':     job_name,
                             'timestamp':    timestamp,
