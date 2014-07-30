@@ -5,6 +5,7 @@ import datetime
 import tempfile
 import shutil
 import logging
+import xml.etree.ElementTree as ET
 
 from tests.common import get_check
 
@@ -13,19 +14,9 @@ logger = logging.getLogger(__file__)
 DATETIME_FORMAT = '%Y-%m-%d_%H-%M-%S'
 LOG_DATA = 'Finished: SUCCESS'
 
-BUILD_METADATA = """
-    <build>
-      <number>20783</number>
-      <result>SUCCESS</result>
-      <duration>487</duration>
-    </build>
-"""
-NO_RESULT_YET_METADATA = """
-    <build>
-      <number>20783</number>
-      <duration>487</duration>
-    </build>
-"""
+SUCCESSFUL_BUILD = {'number': '99', 'result': 'SUCCESS', 'duration': '60'}
+NO_RESULTS_YET = {'number': '99', 'duration': '60'}
+UNSUCCESSFUL_BUILD = {'number': '99', 'result': 'ABORTED', 'duration': '60'}
 
 CONFIG = """
 init_config:
@@ -35,57 +26,66 @@ instances:
         jenkins_home: <JENKINS_HOME>
 """
 
+def dict_to_xml(metadata_dict):
+    """ Convert a dict to xml for use in a build.xml file """
+    build = ET.Element('build')
+    for k, v in metadata_dict.iteritems():
+        node = ET.SubElement(build, k)
+        node.text = v
+
+    return ET.tostring(build)
+
+def write_file(file_name, log_data):
+    with open(file_name, 'w') as log_file:
+        log_file.write(log_data)
+
 class TestJenkins(unittest.TestCase):
 
     def setUp(self):
         self.tmp_dir = tempfile.mkdtemp()
         self.config_yaml = CONFIG.replace('<JENKINS_HOME>', self.tmp_dir)
+        self._create_old_build()
 
     def tearDown(self):
         # Clean up the temp directory
         shutil.rmtree(self.tmp_dir)
 
-    def _create_builds(self, metadata):
+    def _create_old_build(self):
         # As coded, the jenkins dd agent needs more than one result
         # in order to get the last valid build.
-        today = datetime.date.today()
-        yesterday = today - datetime.timedelta(days=1)
-
-        old_date = yesterday.strftime(DATETIME_FORMAT)
-        todays_date = today.strftime(DATETIME_FORMAT)
-
-        self._create_build(old_date, metadata)
-        self._create_build(todays_date, metadata)
+        # Create one for yesterday.
+        metadata = dict_to_xml(SUCCESSFUL_BUILD)
+        yesterday = datetime.date.today() - datetime.timedelta(days=1)
+        self._populate_build_dir(metadata, yesterday)
 
     def _create_check(self):
         # Create the jenkins check
         self.check, instances = get_check('jenkins', self.config_yaml)
         self.instance = instances[0]
 
-    def _create_build(self, datestring, metadata):
+    def _populate_build_dir(self, metadata, time=None):
         # The jenkins dd agent requires the build metadata file and a log file of results
+        time = time or datetime.datetime.now()
+        datestring = time.strftime(DATETIME_FORMAT)
         build_dir = os.path.join(self.tmp_dir, 'jobs', 'foo', 'builds', datestring)
         os.makedirs(build_dir)
 
-        metadata_file = open(os.path.join(build_dir, 'build.xml'), 'w+b')
-        log_file = open(os.path.join(build_dir, 'log'), 'w+b')
-
+        log_file = os.path.join(build_dir, 'log')
         log_data = LOG_DATA
-        self._write_file(log_file, log_data)
+        write_file(log_file, log_data)
 
+        metadata_file = os.path.join(build_dir, 'build.xml')
         build_metadata = metadata
-        self._write_file(metadata_file, build_metadata)
-
-    def _write_file(self, log_file, log_data):
-        log_file.write(log_data)
-        log_file.flush()
+        write_file(metadata_file, build_metadata)
 
     def testParseBuildLog(self):
         """
         Test doing a jenkins check. This will parse the logs but since there was no
         previous high watermark no event will be created.
         """
-        self._create_builds(BUILD_METADATA)
+        metadata = dict_to_xml(SUCCESSFUL_BUILD)
+
+        self._populate_build_dir(metadata)
         self._create_check()
         self.check.check(self.instance)
 
@@ -93,32 +93,56 @@ class TestJenkins(unittest.TestCase):
         #  if the high_watermark was set and no exceptions were raised.
         self.assertTrue(self.check.high_watermarks[self.instance['name']]['foo'] > 0)
 
-    def testCheckCreatesEvents(self):
+    def testCheckSuccessfulEvent(self):
         """
-        Test that a successful build will create metrics to report in.
+        Test that a successful build will create the correct metrics.
         """
-        self._create_builds(BUILD_METADATA)
+        metadata = dict_to_xml(SUCCESSFUL_BUILD)
+
+        self._populate_build_dir(metadata)
         self._create_check()
 
         # Set the high_water mark so that the next check will create events
         self.check.high_watermarks['default'] = defaultdict(lambda: 0)
 
-        # Do a check
         self.check.check(self.instance)
 
         results = self.check.get_metrics()
         metrics = [r[0] for r in results]
 
+        assert len(metrics) == 2
         assert 'jenkins.job.success' in metrics
         assert 'jenkins.job.duration' in metrics
+
+    def testCheckUnsuccessfulEvent(self):
+        """
+        Test that an unsuccessful build will create the correct metrics.
+        """
+        metadata = dict_to_xml(UNSUCCESSFUL_BUILD)
+
+        self._populate_build_dir(metadata)
+        self._create_check()
+
+        # Set the high_water mark so that the next check will create events
+        self.check.high_watermarks['default'] = defaultdict(lambda: 0)
+
+        self.check.check(self.instance)
+
+        results = self.check.get_metrics()
+        metrics = [r[0] for r in results]
+
         assert len(metrics) == 2
+        assert 'jenkins.job.failure' in metrics
+        assert 'jenkins.job.duration' in metrics
 
     def testCheckWithRunningBuild(self):
         """
         Test under the conditions of a jenkins build still running.
         The build.xml file will exist but it will not yet have a result.
         """
-        self._create_builds(NO_RESULT_YET_METADATA)
+        metadata = dict_to_xml(NO_RESULTS_YET)
+
+        self._populate_build_dir(metadata)
         self._create_check()
 
         # Set the high_water mark so that the next check will create events
