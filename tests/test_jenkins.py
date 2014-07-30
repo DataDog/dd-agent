@@ -107,12 +107,18 @@ class TestJenkins(unittest.TestCase):
 
         self.check.check(self.instance)
 
-        results = self.check.get_metrics()
-        metrics = [r[0] for r in results]
+        metrics = self.check.get_metrics()
 
-        assert len(metrics) == 2
-        assert 'jenkins.job.success' in metrics
-        assert 'jenkins.job.duration' in metrics
+        metrics_names = [m[0] for m in metrics]
+        assert len(metrics_names) == 2
+        assert 'jenkins.job.success' in metrics_names
+        assert 'jenkins.job.duration' in metrics_names
+
+        metrics_tags = [m[3] for m in metrics]
+        for tag in metrics_tags:
+            assert 'job_name:foo' in tag.get('tags')
+            assert 'result:SUCCESS' in tag.get('tags')
+
 
     def testCheckUnsuccessfulEvent(self):
         """
@@ -128,12 +134,18 @@ class TestJenkins(unittest.TestCase):
 
         self.check.check(self.instance)
 
-        results = self.check.get_metrics()
-        metrics = [r[0] for r in results]
+        metrics = self.check.get_metrics()
 
-        assert len(metrics) == 2
-        assert 'jenkins.job.failure' in metrics
-        assert 'jenkins.job.duration' in metrics
+        metrics_names = [m[0] for m in metrics]
+        assert len(metrics_names) == 2
+        assert 'jenkins.job.failure' in metrics_names
+        assert 'jenkins.job.duration' in metrics_names
+
+        metrics_tags = [m[3] for m in metrics]
+        for tag in metrics_tags:
+            assert 'job_name:foo' in tag.get('tags')
+            assert 'result:ABORTED' in tag.get('tags')
+
 
     def testCheckWithRunningBuild(self):
         """

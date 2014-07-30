@@ -107,9 +107,13 @@ class Jenkins(AgentCheck):
                             'timestamp':    timestamp,
                             'event_type':   'build result'
                         }
+
                         output.update(build_metadata)
                         self.high_watermarks[instance_key][job_name] = timestamp
+                        self.log.debug("Processing %s results '%s'" % (job_name, output))
+
                         yield output
+
                     # If it not a new build, stop here
                     else:
                         break
@@ -146,7 +150,11 @@ class Jenkins(AgentCheck):
                     self.log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)
 
-                    tags = ['job_name:%s' % output['job_name']]
+                    tags = [
+                        'job_name:%s' % output['job_name'],
+                        'result:%s' % output['result']
+                    ]
+
                     if 'branch' in output:
                         tags.append('branch:%s' % output['branch'])
                     self.gauge("jenkins.job.duration", float(output['duration'])/1000.0, tags=tags)
