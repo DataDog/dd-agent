@@ -117,34 +117,10 @@ fi
 
 printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
 
-if $DDBASE; then
-    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example | sed 's/# dogstatsd_target :.*/dogstatsd_target: https:\/\/app.datadoghq.com/' > /etc/dd-agent/datadog.conf"
-else
-    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
-fi
+$sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
 $sudo_cmd /etc/init.d/datadog-agent restart
-
-# Datadog "base" installs don't have a forwarder, so we can't use the same
-# check for the initial payload being sent.
-if $DDBASE; then
-printf "\033[32m
-Your Agent has started up for the first time and is submitting metrics to
-Datadog. You should see your Agent show up in Datadog shortly at:
-
-    https://app.datadoghq.com/infrastructure\033[0m
-
-If you ever want to stop the Agent, run:
-
-    sudo /etc/init.d/datadog-agent stop
-
-And to run it again run:
-
-    sudo /etc/init.d/datadog-agent start
-"
-exit;
-fi
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
