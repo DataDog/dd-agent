@@ -1,4 +1,8 @@
+# project
 from checks import Check
+
+# 3rd party
+import psutil
 
 try:
     import wmi
@@ -85,10 +89,10 @@ class Cpu(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.logger = logger
-        self.gauge('system.cpu.user')
-        self.gauge('system.cpu.idle')
+        self.counter('system.cpu.user')
+        self.counter('system.cpu.idle')
         self.gauge('system.cpu.interrupt')
-        self.gauge('system.cpu.system')
+        self.counter('system.cpu.system')
 
     def check(self, agentConfig):
         try:
@@ -98,21 +102,15 @@ class Cpu(Check):
                              ' No CPU metrics will be returned.')
             return
 
-        cpu_user = self._average_metric(cpu, 'PercentUserTime')
-        if cpu_user:
-            self.save_sample('system.cpu.user', cpu_user)
-
-        cpu_idle = self._average_metric(cpu, 'PercentIdleTime')
-        if cpu_idle:
-            self.save_sample('system.cpu.idle', cpu_idle)
-
         cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
         if cpu_interrupt is not None:
             self.save_sample('system.cpu.interrupt', cpu_interrupt)
 
-        cpu_privileged = self._average_metric(cpu, 'PercentPrivilegedTime')
-        if cpu_privileged is not None:
-            self.save_sample('system.cpu.system', cpu_privileged)
+        cpu_percent = psutil.cpu_times()
+
+        self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.system', 100 * cpu_percent.system/ psutil.NUM_CPUS)
 
         return self.get_metrics()
 
