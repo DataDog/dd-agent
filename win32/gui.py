@@ -32,7 +32,7 @@ import spyderlib.baseconfig
 spyderlib.baseconfig.IMG_PATH = [""]
 
 # Datadog
-from util import get_os
+from util import get_os, yLoader
 from config import (get_confd_path, get_config_path, get_config, 
     _windows_commondata_path)
 
@@ -441,7 +441,7 @@ def save_file(properties):
     
 def check_yaml_syntax(content):
     try:
-        yaml.load(content, Loader=yaml.CLoader)
+        yaml.load(content, Loader=yLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
