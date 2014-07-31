@@ -13,6 +13,7 @@ pycurl
 pysnmp
 pysnmp-mibs
 pymysql
+pyvmomi==5.5.0
 pg8000
 ntplib
 httplib2
