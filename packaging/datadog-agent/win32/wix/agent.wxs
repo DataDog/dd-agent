@@ -54,10 +54,15 @@
             Return="check"
             Impersonate="no" />
 
+        <CustomAction
+            Id="LaunchApp"
+            Directory="FILESDIR"
+            ExeCommand="[SystemFolder]cmd.exe /C start agent-manager.exe" />
+
         <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
             <Directory Id="INSTALLDIR" Name="Datadog Agent">
-                <Component Id="license.txt" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
-                    <File Id="license.txt" Source="$(var.InstallFiles)\license.txt" KeyPath="yes"></File>
+                <Component Id="license.rtf" Guid="4B59F7AE-01AC-11E2-9AF6-28EC6088709B">
+                    <File Id="license.rtf" Source="$(var.InstallFiles)\license.rtf" KeyPath="yes"></File>
                 </Component>
                 <Component Id="datadogagentstatus.url" Guid="B8F673AA-F5F7-4273-947A-21391678D6BD">
                     <File Id="datadogagentstatus.url" Source="$(var.InstallFiles)\datadog-agent-status.url" KeyPath="yes"></File>
@@ -80,8 +85,6 @@
                         <File Id="msvcr90.dll" Source="$(var.InstallFiles)\Microsoft.VC90.CRT\msvcr90.dll" KeyPath="yes"></File>
                     </Component>
                 </Directory>
-
-
             </Directory>
 
         </DirectoryRef>
@@ -111,12 +114,10 @@
                     </Directory>
         </DirectoryRef>
 
-
-
         <Feature Id="MainApplication" Title="Main Application" Level="1">
             <ComponentRef Id="cacertificates.crt" />
             <ComponentRef Id="datadogcert.pem" />
-            <ComponentRef Id="license.txt" />
+            <ComponentRef Id="license.rtf" />
             <ComponentRef Id="datadogagentstatus.url" />
             <ComponentRef Id="Microsoft.VC90.CRT.manifest" />
             <ComponentRef Id="msvcp90.dll" />
@@ -129,15 +130,27 @@
             <ComponentRef Id="logs" />
         </Feature>
 
+        <UI>
+            <UIRef Id="WixUI_Minimal" />
+            <Publish Dialog="ExitDialog" 
+                Control="Finish" 
+                Event="DoAction" 
+                Value="LaunchApplication">
+                WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed
+            </Publish>
+        </UI>
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+                  Value="Launch Datadog Agent Manager" />
 
         <InstallExecuteSequence>
             <RemoveExistingProducts Before="InstallInitialize" />
             <Custom Action="ReplaceAPIKey" Before="StartServices" />
             <Custom Action="ReplaceTags" Before="StartServices" />
             <Custom Action="ReplaceHostname" Before="StartServices" />
-           <Custom Action='LaunchApp' After='InstallFinalize'>NOT Installed</Custom>
         </InstallExecuteSequence>
 
-<CustomAction Id="LaunchApp" Directory="FILESDIR" ExeCommand="[SystemFolder]cmd.exe /C start agent-manager.exe" />
+        <CustomAction Id="LaunchApplication"
+            Directory="FILESDIR"
+            ExeCommand="[SystemFolder]cmd.exe /C start agent-manager.exe" />
     </Product>
 </Wix>
