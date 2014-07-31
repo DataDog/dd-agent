@@ -103,4 +103,4 @@ class IIS(AgentCheck):
                 metric_func(metric, value, tags=tags)
 
         for remaining_site in expected_sites:
-            self.service_check("iis.site_up", AgentCheck.UNKNOWN, tags =['site:%remaining_site'])
+            self.service_check("iis.site_up", AgentCheck.CRITICAL, tags =['site:%remaining_site'])
