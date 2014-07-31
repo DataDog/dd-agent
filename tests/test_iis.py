@@ -1,10 +1,14 @@
 import unittest
 import logging
+import time
 from nose.plugins.attrib import attr
 
 from tests.common import get_check
 
 logging.basicConfig()
+
+# Run this test on a windows machine with IIS running, with the Default Web Site
+# of IIS turned on
 
 CONFIG = """
 init_config:
@@ -14,6 +18,8 @@ instances:
         tags:
             - mytag1
             - mytag2
+        sites:
+            - Default Web Site
 """
 
 class IISTestCase(unittest.TestCase):
@@ -23,6 +29,7 @@ class IISTestCase(unittest.TestCase):
         check.check(instances[0])
         metrics = check.get_metrics()
         service_checks = check.get_service_checks()
+        time.sleep(1)
 
         # Second run to get the rates
         check.check(instances[0])
@@ -39,7 +46,7 @@ class IISTestCase(unittest.TestCase):
 
         # Make sure everything is tagged correctly
         for tags in ret_tags:
-            self.assertEquals(assert tags == ['mytag1', 'mytag2'], tags)
+            self.assertEquals(['mytag1', 'mytag2', 'site:Default Web Site'], tags)
 
         # Make sure that we get a service check
         self.assertEquals(len(service_checks),1)
