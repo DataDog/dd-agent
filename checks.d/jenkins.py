@@ -152,7 +152,8 @@ class Jenkins(AgentCheck):
 
                     tags = [
                         'job_name:%s' % output['job_name'],
-                        'result:%s' % output['result']
+                        'result:%s' % output['result'],
+                        'build_number:%s' % output['number']
                     ]
 
                     if 'branch' in output:

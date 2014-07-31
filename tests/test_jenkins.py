@@ -118,6 +118,7 @@ class TestJenkins(unittest.TestCase):
         for tag in metrics_tags:
             assert 'job_name:foo' in tag.get('tags')
             assert 'result:SUCCESS' in tag.get('tags')
+            assert 'build_number:99' in tag.get('tags')
 
 
     def testCheckUnsuccessfulEvent(self):
@@ -145,6 +146,7 @@ class TestJenkins(unittest.TestCase):
         for tag in metrics_tags:
             assert 'job_name:foo' in tag.get('tags')
             assert 'result:ABORTED' in tag.get('tags')
+            assert 'build_number:99' in tag.get('tags')
 
 
     def testCheckWithRunningBuild(self):
