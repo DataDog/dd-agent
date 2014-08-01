@@ -172,7 +172,7 @@ class TestCore(unittest.TestCase):
 
     def test_min_collection_interval(self):
 
-        config = {'instances': [{'foo': 'bar'}], 'init_config': {}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2}], 'init_config': {}}
 
         agentConfig = {
             'version': '0.1',
@@ -204,7 +204,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'min_collection_interval':3}], 'init_config': {}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval':3}], 'init_config': {}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
@@ -217,7 +217,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
