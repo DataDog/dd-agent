@@ -36,28 +36,22 @@ class ProcessCheck(AgentCheck):
         for proc in psutil.process_iter():
             found = False
             for string in search_string:
-                if exact_match:
-                    try:
-                        if proc.name() == string:
-                            found = True
-                    except psutil.NoSuchProcess:
-                        self.log.warning('Process disappeared while scanning')
-                    except psutil.AccessDenied, e:
+                try:
+                    if exact_match:
+                        found = (proc.name() == string)
+                    elif not found:
+                        found = (string in ' '.join(cmdline))
+                except psutil.NoSuchProcess:
+                    self.log.warning('Process disappeared while scanning')
+                except psutil.AccessDenied, e:
+                    if Platform.is_win32():
+                        # Windows can prevent access for some but not all processes.
+                        self.log.debug('Access denied to %s process' % string)
+                        continue
+                    else:
                         self.log.error('Access denied to %s process' % string)
                         self.log.error('Error: %s' % e)
                         raise
-                else:
-                    if not found:
-                        try:
-                            cmdline = proc.cmdline()
-                            if string in ' '.join(cmdline):
-                                found = True
-                        except psutil.NoSuchProcess:
-                            self.warning('Process disappeared while scanning')
-                        except psutil.AccessDenied, e:
-                            self.log.error('Access denied to %s process' % string)
-                            self.log.error('Error: %s' % e)
-                            raise
 
                 if found or string == 'All':
                     found_process_list.append(proc.pid)
@@ -84,6 +78,7 @@ class ProcessCheck(AgentCheck):
                 open_file_descriptors = None
         else:
             real = None
+            open_file_descriptors = None
 
         # process I/O counters (agent might not have permission to access)
         read_count = 0

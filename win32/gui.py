@@ -42,7 +42,7 @@ import yaml
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'docker', 'gearmand',
     'hdfs', 'kafka_consumer', 'marathon', 'mcache',
-    'mesos', 'network', 'postfix', 'process',
+    'mesos', 'network', 'postfix',
     'gunicorn', 'zk',
     ]
 
