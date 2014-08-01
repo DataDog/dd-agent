@@ -83,9 +83,13 @@ class IIS(AgentCheck):
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
-                    self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
-                        % (metric, wmi_val))
-                    continue
+                    if wmi_val == 'TotalBytesTransferred' and hasattr(iis_site, 'TotalBytesTransfered'):
+                        # Windows 2008 sp2 reports it as TotalbytesTransfered instead of TotalBytesTransferred (single r)
+                        wmi_val = 'TotalBytesTransfered'
+                    else:
+                        self.warning('Unable to fetch metric %s. Missing %s in Win32_PerfFormattedData_W3SVC_WebService' \
+                            % (metric, wmi_val))
+                        continue
 
                 # Submit the metric value with the correct type
                 value = float(getattr(iis_site, wmi_val))

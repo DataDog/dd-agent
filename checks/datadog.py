@@ -1,5 +1,4 @@
-from checks.utils import TailFile
-import modules
+# stdlib
 import os
 import sys
 import traceback
@@ -8,7 +7,11 @@ import time
 from datetime import datetime
 from itertools import groupby # >= python 2.4
 
+# project
+import modules
 from checks import LaconicFilter
+from checks.utils import TailFile
+from util import windows_friendly_colon_split
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -46,7 +49,7 @@ class Dogstreams(object):
             for config_item in dogstreams_config.split(','):
                 try:
                     config_item = config_item.strip()
-                    parts = config_item.split(':')
+                    parts = windows_friendly_colon_split(config_item)
                     if len(parts) == 1:
                         dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
                     elif len(parts) == 2:
@@ -58,8 +61,6 @@ class Dogstreams(object):
                             parser_spec=':'.join(parts[1:3]),
                             parser_args=parts[3:],
                             config=config))
-                    elif len(parts) > 3:
-                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
                 except Exception:
                     logger.exception("Cannot build dogstream")
 
@@ -101,7 +102,7 @@ class Dogstream(object):
 
         if parser_spec:
             try:
-                parse_func = modules.load(parser_spec, 'parser')
+                parse_func = modules.load(parser_spec)
                 if isinstance(parse_func, type):
                     logger.info('Instantiating class-based dogstream')
                     parse_func = parse_func(
