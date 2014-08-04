@@ -674,7 +674,7 @@ def check_yaml(conf_path):
     finally:
         f.close()
 
-def load_check_directory(agentConfig):
+def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
@@ -683,6 +683,7 @@ def load_check_directory(agentConfig):
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
+    agentConfig['checksd_hostname'] = hostname
 
     deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:

@@ -1,6 +1,6 @@
 from checks import AgentCheck
 from config import get_checksd_path, get_confd_path
-from util import get_os
+from util import get_os, get_hostname
 import sys
 import inspect
 import os
@@ -28,6 +28,7 @@ def load_check(name, config, agentConfig):
 
     init_config = config.get('init_config', None)
     instances = config.get('instances')
+    agentConfig['checksd_hostname'] = get_hostname(agentConfig)
 
     # init the check class
     try:
