@@ -39,39 +39,47 @@ class SQLServer(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances = None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
-        # metrics_to_collect contains the metric to collect in the following
-        # format:
-        # (name in datadog, name in sql server, collector function to use for reporting,
-        #  type of sql metric, instance_name, tag_by )
-        self.metrics_to_collect = []
-        for metric in METRICS:
-            name, counter_name = metric
-            sql_type = get_sql_type(sql_name)
-            self.metrics_to_collect.append((name, counter_name,
-                                            None, sql_type,
-                                            None, None))
-
-
-        # Load any custom metrics from conf.d/sqlserver.yaml
-        for row in init_config.get('custom_metrics', []):
-            type = row.get('type')
-            if type is not None and type not in VALID_METRIC_TYPES:
-                self.log.error('%s has an invalid metric type: %s' \
-                                % (row['name'], type))
-            sql_type = None
-            if type is None:
-                sql_type = get_sql_type(row['counter_name'])
-
-            self.metrics_to_collect.append((row['name'], row['counter_name'],
-                                            type, sql_tpye,
-                                            row.get('instance_name', ''), row.get('tag_by', None)))
-
         # Cache connections
         self.connections = {}
 
-    def _conn_key(self, host, username, password, database):
+        self.instances_dict = {}
+        for instance in instances:
+
+            # metrics_to_collect contains the metric to collect in the following
+            # format:
+            # (name in datadog, name in sql server, collector function to use for reporting,
+            #  type of sql metric, instance_name, tag_by )
+            metrics_to_collect = []
+            for metric in METRICS:
+                name, counter_name = metric
+                sql_type = self.get_sql_type(instance, sql_name)
+                metrics_to_collect.append((name, counter_name,
+                                                None, sql_type,
+                                                None, None))
+
+
+            # Load any custom metrics from conf.d/sqlserver.yaml
+            for row in init_config.get('custom_metrics', []):
+                type = row.get('type')
+                if type is not None and type not in VALID_METRIC_TYPES:
+                    self.log.error('%s has an invalid metric type: %s' \
+                                    % (row['name'], type))
+                sql_type = None
+                if type is None:
+                    sql_type = self.get_sql_type(instance, row['counter_name'])
+
+                self.metrics_to_collect.append((row['name'], row['counter_name'],
+                                                type, sql_tpye,
+                                                row.get('instance_name', ''), row.get('tag_by', None)))
+
+
+    def _conn_key(self, instance):
         ''' Return a key to use for the connection cache
         '''
+        host = instance.get('host', '127.0.0.1;1433')
+        username = instance.get('username')
+        password = instance.get('password')
+        database = instance.get('database', 'master')
         return '%s:%s:%s:%s' % (host, username, password, database)
 
     def _conn_string(self, host, username, password, database):
@@ -87,13 +95,8 @@ class SQLServer(AgentCheck):
             conn_str += 'Integrated Security=SSPI;'
         return conn_str
 
-    def check(self, instance):
-        host = instance.get('host', '127.0.0.1;1433')
-        username = instance.get('username')
-        password = instance.get('password')
-        database = instance.get('database', 'master')
-        tags = instance.get('tags', [])
-        conn_key = self._conn_key(host, username, password, database)
+    def get_cursor(self, instance):
+        conn_key = self._conn_key(instance)
 
         if conn_key not in self.connections:
             try:
@@ -107,7 +110,14 @@ class SQLServer(AgentCheck):
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
+
+    def check(self, instance):
+        tags = instance.get('tags', [])
+        cursor = self.get_cursor(instance)
         self._fetch_metrics(cursor, tags)
+
+    def get_sql_type():
+        pass
 
     def _fetch_metrics(self, cursor, custom_tags):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
