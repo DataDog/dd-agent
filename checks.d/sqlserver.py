@@ -36,8 +36,8 @@ class SQLServer(AgentCheck):
         ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec') #BULK_COUNT
     ]
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances = None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # metrics_to_collect contains the metric to collect in the following
         # format:
