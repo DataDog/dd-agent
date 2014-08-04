@@ -286,7 +286,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.hostname = agentConfig['checksd_hostname']
+        self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
         self.aggregator = MetricsAggregator(self.hostname, 
