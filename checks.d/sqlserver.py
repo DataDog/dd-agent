@@ -13,33 +13,58 @@ import adodbapi
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
+PERF_LARGE_RAW_BASE = 1073939712
+PERF_RAW_LARGE_FRACTION = 537003264
+PERF_AVERAGE_BULK = 1073874176
+PERF_COUNTER_BULK_COUNT = 272696576
+PERF_COUNTER_LARGE_RAWCOUNT = 65792
+
 class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
 
     METRICS = [
-        ('sqlserver.buffer.cache_hit_ratio', 'gauge', 'Buffer cache hit ratio'),
-        ('sqlserver.buffer.page_life_expectancy', 'gauge', 'Page life expectancy'),
-        ('sqlserver.stats.batch_requests', 'gauge', 'Batch Requests/sec'),
-        ('sqlserver.stats.sql_compilations', 'gauge', 'SQL Compilations/sec'),
-        ('sqlserver.stats.sql_recompilations', 'gauge', 'SQL Re-Compilations/sec'),
-        ('sqlserver.stats.connections', 'gauge', 'User connections'),
-        ('sqlserver.stats.lock_waits', 'gauge', 'Lock Waits/sec', '_Total'),
-        ('sqlserver.access.page_splits', 'gauge', 'Page Splits/sec'),
-        ('sqlserver.stats.procs_blocked', 'gauge', 'Processes Blocked'),
-        ('sqlserver.buffer.checkpoint_pages', 'gauge', 'Checkpoint pages/sec')
+        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio'), # RAW_LARGE_FRACTION
+        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy'), # LARGE_RAWCOUNT
+        ('sqlserver.stats.batch_requests', 'Batch Requests/sec'), # BULK_COUNT
+        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec'), # BULK_COUNT
+        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec'), # BULK_COUNT
+        ('sqlserver.stats.connections', 'User connections'), # LARGE_RAWCOUNT
+        ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
+        ('sqlserver.access.page_splits', 'Page Splits/sec'), # BULK_COUNT
+        ('sqlserver.stats.procs_blocked', 'Processes Blocked'), # LARGE_RAWCOUNT
+        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec') #BULK_COUNT
     ]
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
+        # metrics_to_collect contains the metric to collect in the following
+        # format:
+        # (name in datadog, name in sql server, collector function to use for reporting,
+        #  type of sql metric, instance_name, tag_by )
+        self.metrics_to_collect = []
+        for metric in METRICS:
+            name, counter_name = metric
+            sql_type = get_sql_type(sql_name)
+            self.metrics_to_collect.append((name, counter_name,
+                                            None, sql_type,
+                                            None, None))
+
+
         # Load any custom metrics from conf.d/sqlserver.yaml
         for row in init_config.get('custom_metrics', []):
-            if row['type'] not in VALID_METRIC_TYPES:
+            type = row.get('type')
+            if type is not None and type not in VALID_METRIC_TYPES:
                 self.log.error('%s has an invalid metric type: %s' \
-                    % (row['name'], row['type']))
-            self.METRICS.append( (row['name'], row['type'], row['counter_name'],
-                row.get('instance_name', ''), row.get('tag_by', None)) )
+                                % (row['name'], type))
+            sql_type = None
+            if type is None:
+                sql_type = get_sql_type(row['counter_name'])
+
+            self.metrics_to_collect.append((row['name'], row['counter_name'],
+                                            type, sql_tpye,
+                                            row.get('instance_name', ''), row.get('tag_by', None)))
 
         # Cache connections
         self.connections = {}
