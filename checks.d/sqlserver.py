@@ -24,16 +24,16 @@ class SQLServer(AgentCheck):
     SOURCE_TYPE_NAME = 'sql server'
 
     METRICS = [
-        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio'), # RAW_LARGE_FRACTION
-        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy'), # LARGE_RAWCOUNT
-        ('sqlserver.stats.batch_requests', 'Batch Requests/sec'), # BULK_COUNT
-        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec'), # BULK_COUNT
-        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec'), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User connections'), # LARGE_RAWCOUNT
+        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', None), # RAW_LARGE_FRACTION
+        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', None), # LARGE_RAWCOUNT
+        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', None), # BULK_COUNT
+        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', None), # BULK_COUNT
+        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', None), # BULK_COUNT
+        ('sqlserver.stats.connections', 'User connections', None), # LARGE_RAWCOUNT
         ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
-        ('sqlserver.access.page_splits', 'Page Splits/sec'), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes Blocked'), # LARGE_RAWCOUNT
-        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec') #BULK_COUNT
+        ('sqlserver.access.page_splits', 'Page Splits/sec', None), # BULK_COUNT
+        ('sqlserver.stats.procs_blocked', 'Processes Blocked', None), # LARGE_RAWCOUNT
+        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', None) #BULK_COUNT
     ]
 
     def __init__(self, name, init_config, agentConfig, instances = None):
@@ -51,12 +51,12 @@ class SQLServer(AgentCheck):
             #  type of sql metric, instance_name, tag_by )
             metrics_to_collect = []
             for metric in METRICS:
-                name, counter_name = metric
+                name, counter_name, instance_name = metric
                 try:
                     sql_type = self.get_sql_type(instance, sql_name)
                     metrics_to_collect.append((name, counter_name,
                                                None, sql_type,
-                                               None, None))
+                                               instance_name, None))
                 except Exception:
                     self.log.warning("Can't load the metric %s, ignoring", name)
                     continue
