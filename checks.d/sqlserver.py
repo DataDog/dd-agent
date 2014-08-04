@@ -42,7 +42,7 @@ class SQLServer(AgentCheck):
         # Cache connections
         self.connections = {}
 
-        self.instances_dict = {}
+        self.instances_metrics = {}
         for instance in instances:
 
             # metrics_to_collect contains the metric to collect in the following
@@ -52,11 +52,14 @@ class SQLServer(AgentCheck):
             metrics_to_collect = []
             for metric in METRICS:
                 name, counter_name = metric
-                sql_type = self.get_sql_type(instance, sql_name)
-                metrics_to_collect.append((name, counter_name,
-                                                None, sql_type,
-                                                None, None))
-
+                try:
+                    sql_type = self.get_sql_type(instance, sql_name)
+                    metrics_to_collect.append((name, counter_name,
+                                               None, sql_type,
+                                               None, None))
+                except Exception:
+                    self.log.warning("Can't load the metric %s, ignoring", name)
+                    continue
 
             # Load any custom metrics from conf.d/sqlserver.yaml
             for row in init_config.get('custom_metrics', []):
@@ -65,12 +68,20 @@ class SQLServer(AgentCheck):
                     self.log.error('%s has an invalid metric type: %s' \
                                     % (row['name'], type))
                 sql_type = None
-                if type is None:
-                    sql_type = self.get_sql_type(instance, row['counter_name'])
+                try:
+                    if type is None:
+                        sql_type = self.get_sql_type(instance, row['counter_name'])
+                except Exception:
+                    self.log.warning("Can't load the metric %s, ignoring", name)
+                    continue
 
-                self.metrics_to_collect.append((row['name'], row['counter_name'],
-                                                type, sql_tpye,
-                                                row.get('instance_name', ''), row.get('tag_by', None)))
+
+                metrics_to_collect.append((row['name'], row['counter_name'],
+                                           type, sql_tpye,
+                                           row.get('instance_name', ''), row.get('tag_by', None)))
+
+            instance_key = self._conn_key(instance)
+            self.instances_metrics[instance_key] = metrics_to_collect
 
 
     def _conn_key(self, instance):
@@ -114,14 +125,22 @@ class SQLServer(AgentCheck):
     def check(self, instance):
         tags = instance.get('tags', [])
         cursor = self.get_cursor(instance)
-        self._fetch_metrics(cursor, tags)
+        self._fetch_metrics(cursor, instance)
 
-    def get_sql_type():
-        pass
+    def get_sql_type(self, instance, counter_name):
+        cursor = self.get_cursor(instance)
+        cursor.execute("""
+            select cntr_type
+            from sys.dm_os_performance_counters
+            where counter_name = ?
+            """, (counter_name))
 
-    def _fetch_metrics(self, cursor, custom_tags):
+        return cursor.fetchone()
+
+    def _fetch_metrics(self, cursor, instance):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
         '''
+        custom_tags = instance.get('tags', [])
         for metric in self.METRICS:
             # Normalize all rows to the same size for easy of use
             if len(metric) == 3:
