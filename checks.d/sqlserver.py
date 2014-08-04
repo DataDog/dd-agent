@@ -128,14 +128,20 @@ class SQLServer(AgentCheck):
         self._fetch_metrics(cursor, instance)
 
     def get_sql_type(self, instance, counter_name):
+        '''
+        Return the type of the performance counter so that we can report it to
+        Datadog correctly
+        '''
         cursor = self.get_cursor(instance)
         cursor.execute("""
             select cntr_type
             from sys.dm_os_performance_counters
             where counter_name = ?
             """, (counter_name))
-
-        return cursor.fetchone()
+        (value,) = cursor.fetchone()
+        if value == PERF_RAW_LARGE_BASE:
+            self.log.warning("Metric %s is of type Base and shouldn't be reported this way")
+        return value
 
     def _fetch_metrics(self, cursor, instance):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
