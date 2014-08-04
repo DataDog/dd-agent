@@ -24,16 +24,16 @@ class SQLServer(AgentCheck):
     SOURCE_TYPE_NAME = 'sql server'
 
     METRICS = [
-        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', None), # RAW_LARGE_FRACTION
-        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', None), # LARGE_RAWCOUNT
-        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', None), # BULK_COUNT
-        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', None), # BULK_COUNT
-        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', None), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User connections', None), # LARGE_RAWCOUNT
+        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''), # RAW_LARGE_FRACTION
+        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', ''), # LARGE_RAWCOUNT
+        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''), # BULK_COUNT
+        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''), # BULK_COUNT
+        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''), # BULK_COUNT
+        ('sqlserver.stats.connections', 'User connections', ''), # LARGE_RAWCOUNT
         ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
-        ('sqlserver.access.page_splits', 'Page Splits/sec', None), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes Blocked', None), # LARGE_RAWCOUNT
-        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', None) #BULK_COUNT
+        ('sqlserver.access.page_splits', 'Page Splits/sec', ''), # BULK_COUNT
+        ('sqlserver.stats.procs_blocked', 'Processes Blocked', ''), # LARGE_RAWCOUNT
+        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '') #BULK_COUNT
     ]
 
     def __init__(self, name, init_config, agentConfig, instances = None):
@@ -45,18 +45,17 @@ class SQLServer(AgentCheck):
         self.instances_metrics = {}
         for instance in instances:
 
-            # metrics_to_collect contains the metric to collect in the following
-            # format:
-            # (name in datadog, name in sql server, collector function to use for reporting,
-            #  type of sql metric, instance_name, tag_by )
             metrics_to_collect = []
             for metric in METRICS:
                 name, counter_name, instance_name = metric
                 try:
                     sql_type = self.get_sql_type(instance, sql_name)
-                    metrics_to_collect.append((name, counter_name,
-                                               None, sql_type,
-                                               instance_name, None))
+                    metrics_to_collect.append(self.typed_metric(name,
+                                                                counter_name,
+                                                                None,
+                                                                sql_type,
+                                                                instance_name,
+                                                                None))
                 except Exception:
                     self.log.warning("Can't load the metric %s, ignoring", name)
                     continue
@@ -76,12 +75,23 @@ class SQLServer(AgentCheck):
                     continue
 
 
-                metrics_to_collect.append((row['name'], row['counter_name'],
-                                           type, sql_tpye,
-                                           row.get('instance_name', ''), row.get('tag_by', None)))
+               metrics_to_collect.append(self.typed_metric(row['name'],
+                                                           row['counter_name'],
+                                                           type,
+                                                           sql_tpye,
+                                                           row.get('instance_name', ''),
+                                                           row.get('tag_by', None)))
+
 
             instance_key = self._conn_key(instance)
             self.instances_metrics[instance_key] = metrics_to_collect
+    def typed_metrics(self, dd_name, sql_name, type, sql_type, instance_name, tag_by):
+        if type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
+                                            PERF_COUNTER_LARGE_RAWCOUNT]:
+            if type is None:
+                type = "gauge" if sql_type==PERF_COUNTER_BULK_COUNT else "rate"
+            func = getattr(self, type)
+            return SqlSimpleMetric(dd_name, sql_name, func, instance_name, tag_by)
 
 
     def _conn_key(self, instance):
@@ -123,7 +133,6 @@ class SQLServer(AgentCheck):
         cursor = conn.cursor()
 
     def check(self, instance):
-        tags = instance.get('tags', [])
         cursor = self.get_cursor(instance)
         self._fetch_metrics(cursor, instance)
 
@@ -147,54 +156,45 @@ class SQLServer(AgentCheck):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
         '''
         custom_tags = instance.get('tags', [])
-        for metric in self.METRICS:
-            # Normalize all rows to the same size for easy of use
-            if len(metric) == 3:
-                metric = metric + ('', None)
-            elif len(metric) == 4:
-                metric = metric + (None,)
+        instance_key = self._conn_key(instance)
+        metrics_to_collect = self.instances_metrics[instance_key]
+        cursor = self.get_cursor(instance)
+        for metric in metrics_to_collect:
+            metric.fetch_metrics(cursor, tags)
 
-            mname, mtype, counter, instance_n, tag_by = metric
+class SqlServerMetric(Object):
+ 
+    def __init__(self, datadog_name, sql_name, report_function,
+                 instance, tag_by):
+        self.datadog_name = datadog_name
+        self.sql_name = sql_name
+        self.report_function = report_function
+        self.instance = instance
+        self.tag_by = tag_by
 
-            # For "ALL" instances, we run a separate method because we have
-            # to loop over multiple results and tag the metrics
-            if instance_n == ALL_INSTANCES:
-                try:
-                    self._fetch_all_instances(metric, cursor, custom_tags)
-                except Exception, e:
-                    self.log.exception('Unable to fetch metric: %s' % mname)
-                    self.warning('Unable to fetch metric: %s' % mname)
-            else:
-                try:
-                    cursor.execute("""
-                        select cntr_value
-                        from sys.dm_os_performance_counters
-                        where counter_name = ?
-                        and instance_name = ?
-                    """, (counter, instance_n))
-                    (value,) = cursor.fetchone()
-                except Exception, e:
-                    self.log.exception('Unable to fetch metric: %s' % mname)
-                    self.warning('Unable to fetch metric: %s' % mname)
-                    continue
+    def fetch_metric(self, cursor, tags):
+        raise NotImplementedError
 
-                # Save the metric
-                metric_func = getattr(self, mtype)
-                metric_func(mname, value, tags=custom_tags)
+class SqlSimpleMetric(Object):
 
-    def _fetch_all_instances(self, metric, cursor, custom_tags):
-        mname, mtype, counter, instance_n, tag_by = metric
-        cursor.execute("""
-            select instance_name, cntr_value
-            from sys.dm_os_performance_counters
-            where counter_name = ?
-            and instance_name != '_Total'
-        """, (counter,))
+    def fetch_metric(self, cursor, tags):
+        query_base = '''
+                    select instance_name, cntr_value
+                    from sys.dm_os_performance_counters
+                    where counter_name = ?
+                    '''
+        if self.instance == ALL_INSTANCES:
+            query = query_base + "and instance_name!= '_Total'"
+            query_content = (self.sql_name,)
+        else:
+            query = query_base + "and instance_name=?"
+            query_content = (self.sql_name,self.instance)
+
+        cursor.execute(query,data)
         rows = cursor.fetchall()
-
         for instance_name, cntr_value in rows:
-            value = cntr_value
-            tags = ['%s:%s' % (tag_by, instance_name.strip())] + custom_tags
-            metric_func = getattr(self, mtype)
-            metric_func(mname, value, tags=tags)
-
+            metric_tags = tags
+            if self.instance_= ALL_INSTANCES:
+                metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
+            self.report_function(self.datadog_name, cntr_value,
+                                 tags=metric_tags)
