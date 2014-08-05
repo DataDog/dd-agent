@@ -87,13 +87,25 @@ class SQLServer(AgentCheck):
 
             instance_key = self._conn_key(instance)
             self.instances_metrics[instance_key] = metrics_to_collect
-    def typed_metrics(self, dd_name, sql_name, type, sql_type, instance_name, tag_by):
+
+    def typed_metric(self, dd_name, sql_name, base_name, type, sql_type, instance_name, tag_by):
         if type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
-                                            PERF_COUNTER_LARGE_RAWCOUNT]:
+                                            PERF_COUNTER_LARGE_RAWCOUNT,
+                                            PERF_LARGE_RAW_BASE]:
             if type is None:
-                type = "gauge" if sql_type==PERF_COUNTER_BULK_COUNT else "rate"
+                type = "rate" if sql_type==PERF_COUNTER_LARGE_RAWCOUNT else "gauge"
             func = getattr(self, type)
-            return SqlSimpleMetric(dd_name, sql_name, func, instance_name, tag_by)
+            return SqlSimpleMetric(dd_name, sql_name, base_name,
+                                   func, instance_name, tag_by)
+        elif sql_type == PERF_RAW_LARGE_FRACTION:
+            return SqlFractionMetric(dd_name, sql_name, base_name,
+                                     getattr(self, "gauge"), instance_name, tag_by)
+        elif sql_type == PERF_AVERAGE_BULK:
+            return SqlIncrFractionMetric(dd_name, sql_name, base_name,
+                                         getattr(self, "gauge"), instance_name, tag_by)
+        else:
+            #This should not happen unless there is a sql_counter type that is not documented
+            self.lof.warning("Unsupported metric type: %s" % sql_type)
 
 
     def _conn_key(self, instance):
@@ -150,7 +162,7 @@ class SQLServer(AgentCheck):
             where counter_name = ?
             """, (counter_name))
         (sql_type,) = cursor.fetchone()
-        if sql_type == PERF_RAW_LARGE_BASE:
+        if sql_type == PERF_LARGE_RAW_BASE:
             self.log.warning("Metric %s is of type Base and shouldn't be reported this way")
         base_name = None
         if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FUNCTION]:
