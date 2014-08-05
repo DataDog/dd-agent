@@ -49,9 +49,10 @@ class SQLServer(AgentCheck):
             for metric in METRICS:
                 name, counter_name, instance_name = metric
                 try:
-                    sql_type = self.get_sql_type(instance, sql_name)
+                    sql_type, base_name = self.get_sql_type(instance, sql_name)
                     metrics_to_collect.append(self.typed_metric(name,
                                                                 counter_name,
+                                                                base_name,
                                                                 None,
                                                                 sql_type,
                                                                 instance_name,
@@ -69,7 +70,7 @@ class SQLServer(AgentCheck):
                 sql_type = None
                 try:
                     if type is None:
-                        sql_type = self.get_sql_type(instance, row['counter_name'])
+                        sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
                 except Exception:
                     self.log.warning("Can't load the metric %s, ignoring", name)
                     continue
@@ -77,6 +78,7 @@ class SQLServer(AgentCheck):
 
                metrics_to_collect.append(self.typed_metric(row['name'],
                                                            row['counter_name'],
+                                                           base_name,
                                                            type,
                                                            sql_tpye,
                                                            row.get('instance_name', ''),
@@ -143,14 +145,35 @@ class SQLServer(AgentCheck):
         '''
         cursor = self.get_cursor(instance)
         cursor.execute("""
-            select cntr_type
+            select distinct cntr_type
             from sys.dm_os_performance_counters
             where counter_name = ?
             """, (counter_name))
-        (value,) = cursor.fetchone()
-        if value == PERF_RAW_LARGE_BASE:
+        (sql_type,) = cursor.fetchone()
+        if sql_type == PERF_RAW_LARGE_BASE:
             self.log.warning("Metric %s is of type Base and shouldn't be reported this way")
-        return value
+        base_name = None
+        if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FUNCTION]:
+            # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
+            # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
+            # a base metrics to get the ratio. There is no unique schema so we generate
+            # the possible candidates and we look at which ones exist in the db.
+            candidates = ( sql_name + " Base",
+                           sql_name.replace("(ms)", "Base")
+                           sql_name.replace("Avg ", "") + " Base"
+                           )
+            try:
+                cursor.execute('''
+                    select distinct counter_name
+                    from sys.dm_os_performance_counters
+                    where counter_name=? or counter_name=?
+                    or counter_name=? and cntr_type=1073939712
+                    ''', candidates)
+                base_name = cursor.fetchone()
+            except Exception, e:
+                log.warning("Could not get counter_name of base for metric")
+
+        return sql_type, base_name
 
     def _fetch_metrics(self, cursor, instance):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
@@ -164,10 +187,11 @@ class SQLServer(AgentCheck):
 
 class SqlServerMetric(Object):
  
-    def __init__(self, datadog_name, sql_name, report_function,
-                 instance, tag_by):
+    def __init__(self, datadog_name, sql_name, base_name,
+                       report_function, instance, tag_by):
         self.datadog_name = datadog_name
         self.sql_name = sql_name
+        self.base_name = base_name
         self.report_function = report_function
         self.instance = instance
         self.tag_by = tag_by
