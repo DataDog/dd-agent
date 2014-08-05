@@ -76,13 +76,13 @@ class SQLServer(AgentCheck):
                     continue
 
 
-               metrics_to_collect.append(self.typed_metric(row['name'],
-                                                           row['counter_name'],
-                                                           base_name,
-                                                           type,
-                                                           sql_tpye,
-                                                           row.get('instance_name', ''),
-                                                           row.get('tag_by', None)))
+                metrics_to_collect.append(self.typed_metric(row['name'],
+                                                            row['counter_name'],
+                                                            base_name,
+                                                            type,
+                                                            sql_tpye,
+                                                            row.get('instance_name', ''),
+                                                            row.get('tag_by', None)))
 
 
             instance_key = self._conn_key(instance)
@@ -171,7 +171,7 @@ class SQLServer(AgentCheck):
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
             candidates = ( sql_name + " Base",
-                           sql_name.replace("(ms)", "Base")
+                           sql_name.replace("(ms)", "Base"),
                            sql_name.replace("Avg ", "") + " Base"
                            )
             try:
@@ -223,7 +223,7 @@ class SqlServerMetric(Object):
                 from sys.dm_os_performance_counters
                 where counter_name=?
                 ''', (self.sql_name))
-             self.instances = cursor.fetchall()
+            self.instances = cursor.fetchall()
         else:
             self.instances = [self.instance]
 
@@ -268,7 +268,7 @@ class SqlFractionMetric(SqlServerMetric):
             value = rows[0]
             base = rows[1]
             metric_tags = tags
-            if self.instance = ALL_INSTANCES:
+            if self.instance == ALL_INSTANCES:
                 metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
             self.report_fraction(value, base, metric_tags)
 
