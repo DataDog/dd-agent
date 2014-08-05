@@ -49,7 +49,7 @@ class SQLServer(AgentCheck):
             for metric in self.METRICS:
                 name, counter_name, instance_name = metric
                 try:
-                    sql_type, base_name = self.get_sql_type(instance, sql_name)
+                    sql_type, base_name = self.get_sql_type(instance, counter_name)
                     metrics_to_collect.append(self.typed_metric(name,
                                                                 counter_name,
                                                                 base_name,
@@ -58,7 +58,7 @@ class SQLServer(AgentCheck):
                                                                 instance_name,
                                                                 None))
                 except Exception:
-                    self.log.warning("Can't load the metric %s, ignoring", name)
+                    self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
                     continue
 
             # Load any custom metrics from conf.d/sqlserver.yaml
@@ -72,7 +72,7 @@ class SQLServer(AgentCheck):
                     if type is None:
                         sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
                 except Exception:
-                    self.log.warning("Can't load the metric %s, ignoring", name)
+                    self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
                     continue
 
 
@@ -93,19 +93,22 @@ class SQLServer(AgentCheck):
                                             PERF_COUNTER_LARGE_RAWCOUNT,
                                             PERF_LARGE_RAW_BASE]:
             if type is None:
-                type = "rate" if sql_type==PERF_COUNTER_LARGE_RAWCOUNT else "gauge"
+                type = "rate" if sql_type==PERF_COUNTER_BULK_COUNT else "gauge"
             func = getattr(self, type)
             return SqlSimpleMetric(dd_name, sql_name, base_name,
-                                   func, instance_name, tag_by)
+                                   func, instance_name, tag_by,
+                                   self.log)
         elif sql_type == PERF_RAW_LARGE_FRACTION:
             return SqlFractionMetric(dd_name, sql_name, base_name,
-                                     getattr(self, "gauge"), instance_name, tag_by)
+                                     getattr(self, "gauge"), instance_name, tag_by,
+                                     self.log)
         elif sql_type == PERF_AVERAGE_BULK:
             return SqlIncrFractionMetric(dd_name, sql_name, base_name,
-                                         getattr(self, "gauge"), instance_name, tag_by)
+                                         getattr(self, "gauge"), instance_name, tag_by,
+                                         self.log)
         else:
             #This should not happen unless there is a sql_counter type that is not documented
-            self.lof.warning("Unsupported metric type: %s" % sql_type)
+            self.log.warning("Unsupported metric type: %s" % sql_type)
 
     def _get_access_info(self, instance):
         host = instance.get('host', '127.0.0.1;1433')
@@ -117,13 +120,13 @@ class SQLServer(AgentCheck):
     def _conn_key(self, instance):
         ''' Return a key to use for the connection cache
         '''
-        host, username, password, database = self._get_access_info()
+        host, username, password, database = self._get_access_info(instance)
         return '%s:%s:%s:%s' % (host, username, password, database)
 
     def _conn_string(self, instance):
         ''' Return a connection string to use with adodbapi
         '''
-        host, username, password, database = self._get_access_info()
+        host, username, password, database = self._get_access_info(instance)
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
                         % (host, database)
         if username:
@@ -143,16 +146,13 @@ class SQLServer(AgentCheck):
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
             except Exception, e:
-                cx = "%s - %s" % (host, database)
+                cx = "%s - %s" % (instance.get('host'), instance.get('database'))
                 raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
                     % (cx, traceback.format_exc()))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
-
-    def check(self, instance):
-        cursor = self.get_cursor(instance)
-        self._fetch_metrics(cursor, instance)
+        return cursor
 
     def get_sql_type(self, instance, counter_name):
         '''
@@ -164,50 +164,53 @@ class SQLServer(AgentCheck):
             select distinct cntr_type
             from sys.dm_os_performance_counters
             where counter_name = ?
-            """, (counter_name))
+            """, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
             self.log.warning("Metric %s is of type Base and shouldn't be reported this way")
         base_name = None
-        if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FUNCTION]:
+        if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
             # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
             # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
-            candidates = ( sql_name + " Base",
-                           sql_name.replace("(ms)", "Base"),
-                           sql_name.replace("Avg ", "") + " Base"
+            candidates = ( counter_name + " Base",
+                           counter_name.replace("(ms)", "Base"),
+                           counter_name.replace("Avg ", "") + " Base"
                            )
             try:
                 cursor.execute('''
                     select distinct counter_name
                     from sys.dm_os_performance_counters
-                    where counter_name=? or counter_name=?
-                    or counter_name=? and cntr_type=1073939712
-                    ''', candidates)
-                base_name = cursor.fetchone()
+                    where (counter_name=? or counter_name=?
+                    or counter_name=?) and cntr_type=%s;
+                    ''' % PERF_LARGE_RAW_BASE, candidates)
+                base_name = cursor.fetchone().counter_name.strip()
+                self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
             except Exception, e:
-                log.warning("Could not get counter_name of base for metric")
+                self.log.warning("Could not get counter_name of base for metric: %s",e)
 
         return sql_type, base_name
 
-    def _fetch_metrics(self, cursor, instance):
+    def check(self, instance):
         ''' Fetch the metrics from the sys.dm_os_performance_counters table
         '''
+        cursor = self.get_cursor(instance)
         custom_tags = instance.get('tags', [])
         instance_key = self._conn_key(instance)
         metrics_to_collect = self.instances_metrics[instance_key]
         cursor = self.get_cursor(instance)
         for metric in metrics_to_collect:
             try:
-                metric.fetch_metrics(cursor, tags)
+                metric.fetch_metric(cursor, custom_tags)
             except Exception, e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
 class SqlServerMetric(object):
  
     def __init__(self, datadog_name, sql_name, base_name,
-                       report_function, instance, tag_by):
+                       report_function, instance, tag_by,
+                       logger):
         self.datadog_name = datadog_name
         self.sql_name = sql_name
         self.base_name = base_name
@@ -216,8 +219,9 @@ class SqlServerMetric(object):
         self.tag_by = tag_by
         self.instances = None
         self.past_values = {}
+        self.log = logger
 
-    def fetch_metric(self, cursor, tags):
+    def fetch_metrics(self, cursor, tags):
         raise NotImplementedError
 
     def set_instances(self, cursor):
@@ -225,9 +229,8 @@ class SqlServerMetric(object):
             cursor.execute('''
                 select instance_name
                 from sys.dm_os_performance_counters
-                where counter_name=?
-                ''', (self.sql_name))
-            self.instances = cursor.fetchall()
+                where counter_name=?;''', (self.sql_name,))
+            self.instances = [row.instance_name for row in cursor.fetchall()]
         else:
             self.instances = [self.instance]
 
@@ -246,12 +249,12 @@ class SqlSimpleMetric(SqlServerMetric):
             query = query_base + "and instance_name=?"
             query_content = (self.sql_name,self.instance)
 
-        cursor.execute(query,data)
+        cursor.execute(query, query_content)
         rows = cursor.fetchall()
         for instance_name, cntr_value in rows:
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
-                metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
+                metric_tags = metric_tags + ['%s:%s' % (tag_by, instance_name.strip())]
             self.report_function(self.datadog_name, cntr_value,
                                  tags=metric_tags)
 
@@ -267,13 +270,15 @@ class SqlFractionMetric(SqlServerMetric):
             where (counter_name=? or counter_name=?)
             and instance_name=?
             order by cntr_type
-            ''')
+            ''', (self.sql_name, self.base_name, instance))
             rows = cursor.fetchall()
-            value = rows[0]
-            base = rows[1]
+            if len(rows)!=2:
+                self.log.warning("Missing counter to compute fraction for %s, skipping", self.sql_name)
+            value = rows[0, "cntr_value"]
+            base = rows[1, "cntr_value"]
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
-                metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
+                metric_tags = metric_tags + ['%s:%s' % (tag_by, instance_name.strip())]
             self.report_fraction(value, base, metric_tags)
 
     def report_fraction(self, value, base, metric_tags):
@@ -281,7 +286,7 @@ class SqlFractionMetric(SqlServerMetric):
             result = value/base
             self.report_function(self.datadog_name, result, tags=metric_tags)
         except ZeroDivisionError:
-            pass
+            self.log.info("Base value is 0, won't report this metric")
 
 class SqlIncrFractionMetric(SqlFractionMetric):
 
@@ -295,4 +300,4 @@ class SqlIncrFractionMetric(SqlFractionMetric):
                 result = diff_value/diff_base
                 self.report_function(self.datadog_name, result, tags=metric_tags)
             except ZeroDivisionError:
-                pass
+                self.log.info("Base value is 0, won't report this metric")
