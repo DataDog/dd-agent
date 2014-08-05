@@ -13,9 +13,9 @@ import adodbapi
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
-PERF_LARGE_RAW_BASE = 1073939712
+PERF_LARGE_RAW_BASE =    1073939712
 PERF_RAW_LARGE_FRACTION = 537003264
-PERF_AVERAGE_BULK = 1073874176
+PERF_AVERAGE_BULK =      1073874176
 PERF_COUNTER_BULK_COUNT = 272696576
 PERF_COUNTER_LARGE_RAWCOUNT = 65792
 
@@ -183,7 +183,10 @@ class SQLServer(AgentCheck):
         metrics_to_collect = self.instances_metrics[instance_key]
         cursor = self.get_cursor(instance)
         for metric in metrics_to_collect:
-            metric.fetch_metrics(cursor, tags)
+            try:
+                metric.fetch_metrics(cursor, tags)
+            except Exception, e:
+                self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
 class SqlServerMetric(Object):
  
@@ -195,11 +198,24 @@ class SqlServerMetric(Object):
         self.report_function = report_function
         self.instance = instance
         self.tag_by = tag_by
+        self.instances = None
+        self.past_values = {}
 
     def fetch_metric(self, cursor, tags):
         raise NotImplementedError
 
-class SqlSimpleMetric(Object):
+    def set_instances(self, cursor):
+        if self.instance == ALL_INSTANCES:
+            cursor.execute('''
+                select instance_name
+                from sys.dm_os_performance_counters
+                where counter_name=?
+                ''', (self.sql_name))
+             self.instances = cursor.fetchall()
+        else:
+            self.instances = [self.instance]
+
+class SqlSimpleMetric(SqlServerMetric):
 
     def fetch_metric(self, cursor, tags):
         query_base = '''
@@ -218,7 +234,49 @@ class SqlSimpleMetric(Object):
         rows = cursor.fetchall()
         for instance_name, cntr_value in rows:
             metric_tags = tags
-            if self.instance_= ALL_INSTANCES:
+            if self.instance == ALL_INSTANCES:
                 metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
             self.report_function(self.datadog_name, cntr_value,
                                  tags=metric_tags)
+
+class SqlFractionMetric(SqlServerMetric):
+
+    def fetch_metric(self, cursor, tags):
+        if self.instances is None:
+            self.set_instances(cursor)
+        for instance in self.instances:
+            cursor.execute('''
+            select cntr_value
+            from sys.dm_os_performance_counters
+            where (counter_name=? or counter_name=?)
+            and instance_name=?
+            order by cntr_type
+            ''')
+            rows = cursor.fetchall()
+            value = rows[0]
+            base = rows[1]
+            metric_tags = tags
+            if self.instance = ALL_INSTANCES:
+                metric_tags = tags + ['%s:%s' % (tag_by, instance_name.strip())]
+            self.report_fraction(value, base, metric_tags)
+
+    def report_fraction(self, value, base, metric_tags):
+        try:
+            result = value/base
+            self.report_function(self.datadog_name, result, tags=metric_tags)
+        except ZeroDivisionError:
+            pass
+
+class SqlIncrFractionMetric(SqlFractionMetric):
+
+    def report_fraction(self, value, base, metric_tags):
+        key = "key:" + "".join(metric_tags)
+        if key in self.past_values:
+            old_value, old_base = self.past_values[key]
+            diff_value = value - old_value
+            diff_base = base - old_base
+            try:
+                result = diff_value/diff_base
+                self.report_function(self.datadog_name, result, tags=metric_tags)
+            except ZeroDivisionError:
+                pass
