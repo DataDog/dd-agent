@@ -1,5 +1,8 @@
 '''
 Check the performance counters from SQL Server
+
+See http://blogs.msdn.com/b/psssql/archive/2013/09/23/interpreting-the-counter-values-from-sys-dm-os-performance-counters.aspx
+for information on how to report the metrics available in the sys.dm_os_performance_counters table
 '''
 # stdlib
 import traceback
@@ -13,6 +16,7 @@ import adodbapi
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
+# Constant for SQLServer cntr_type
 PERF_LARGE_RAW_BASE =    1073939712
 PERF_RAW_LARGE_FRACTION = 537003264
 PERF_AVERAGE_BULK =      1073874176
@@ -89,6 +93,13 @@ class SQLServer(AgentCheck):
             self.instances_metrics[instance_key] = metrics_to_collect
 
     def typed_metric(self, dd_name, sql_name, base_name, type, sql_type, instance_name, tag_by):
+        '''
+        Create the appropriate SqlServerMetric object, each implementing its method to
+        fetch the metrics properly.
+        If a `type` was specified in the config, it is used to report the value
+        directly fetched from SQLServer. Otherwise, it is decided based on the
+        sql_type, according to microsoft's documentation.
+        '''
         if type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
                                             PERF_COUNTER_LARGE_RAWCOUNT,
                                             PERF_LARGE_RAW_BASE]:
@@ -107,10 +118,12 @@ class SQLServer(AgentCheck):
                                          getattr(self, "gauge"), instance_name, tag_by,
                                          self.log)
         else:
-            #This should not happen unless there is a sql_counter type that is not documented
+            # This should not happen unless there is a sql_counter type that is not documented
             self.log.warning("Unsupported metric type: %s" % sql_type)
 
     def _get_access_info(self, instance):
+        ''' Convenience method to extract info from instance
+        '''
         host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
         password = instance.get('password')
@@ -138,6 +151,10 @@ class SQLServer(AgentCheck):
         return conn_str
 
     def get_cursor(self, instance):
+        '''
+        Return a cursor to execute query against the db
+        Cursor are cached in the self.connections dict
+        '''
         conn_key = self._conn_key(instance)
 
         if conn_key not in self.connections:
@@ -158,6 +175,8 @@ class SQLServer(AgentCheck):
         '''
         Return the type of the performance counter so that we can report it to
         Datadog correctly
+        If the sql_type is one that needs a base (PERF_RAW_LARGE_FRACTION and
+        PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
         cursor = self.get_cursor(instance)
         cursor.execute("""
@@ -207,7 +226,9 @@ class SQLServer(AgentCheck):
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
 class SqlServerMetric(object):
- 
+    '''General class for common methods, should never be instantiated directly
+    '''
+
     def __init__(self, datadog_name, sql_name, base_name,
                        report_function, instance, tag_by,
                        logger):
@@ -223,16 +244,6 @@ class SqlServerMetric(object):
 
     def fetch_metrics(self, cursor, tags):
         raise NotImplementedError
-
-    def set_instances(self, cursor):
-        if self.instance == ALL_INSTANCES:
-            cursor.execute('''
-                select instance_name
-                from sys.dm_os_performance_counters
-                where counter_name=?;''', (self.sql_name,))
-            self.instances = [row.instance_name for row in cursor.fetchall()]
-        else:
-            self.instances = [self.instance]
 
 class SqlSimpleMetric(SqlServerMetric):
 
@@ -260,7 +271,23 @@ class SqlSimpleMetric(SqlServerMetric):
 
 class SqlFractionMetric(SqlServerMetric):
 
+    def set_instances(self, cursor):
+        if self.instance == ALL_INSTANCES:
+            cursor.execute('''
+                select instance_name
+                from sys.dm_os_performance_counters
+                where counter_name=?;''', (self.sql_name,))
+            self.instances = [row.instance_name for row in cursor.fetchall()]
+        else:
+            self.instances = [self.instance]
+
     def fetch_metric(self, cursor, tags):
+        '''
+        Because we need to query the metrics by matching pairs, we can't query
+        all of them together without having to perform some matching based on
+        the name afterwards so instead we query instance by instance.
+        We cache the list of instance so that we don't have to look it up every time
+        '''
         if self.instances is None:
             self.set_instances(cursor)
         for instance in self.instances:
@@ -274,6 +301,7 @@ class SqlFractionMetric(SqlServerMetric):
             rows = cursor.fetchall()
             if len(rows)!=2:
                 self.log.warning("Missing counter to compute fraction for %s, skipping", self.sql_name)
+                return
             value = rows[0, "cntr_value"]
             base = rows[1, "cntr_value"]
             metric_tags = tags
