@@ -46,7 +46,7 @@ class SQLServer(AgentCheck):
         for instance in instances:
 
             metrics_to_collect = []
-            for metric in METRICS:
+            for metric in self.METRICS:
                 name, counter_name, instance_name = metric
                 try:
                     sql_type, base_name = self.get_sql_type(instance, sql_name)
@@ -107,19 +107,23 @@ class SQLServer(AgentCheck):
             #This should not happen unless there is a sql_counter type that is not documented
             self.lof.warning("Unsupported metric type: %s" % sql_type)
 
-
-    def _conn_key(self, instance):
-        ''' Return a key to use for the connection cache
-        '''
+    def _get_access_info(self, instance):
         host = instance.get('host', '127.0.0.1;1433')
         username = instance.get('username')
         password = instance.get('password')
         database = instance.get('database', 'master')
+        return host, username, password, database
+
+    def _conn_key(self, instance):
+        ''' Return a key to use for the connection cache
+        '''
+        host, username, password, database = self._get_access_info()
         return '%s:%s:%s:%s' % (host, username, password, database)
 
-    def _conn_string(self, host, username, password, database):
+    def _conn_string(self, instance):
         ''' Return a connection string to use with adodbapi
         '''
+        host, username, password, database = self._get_access_info()
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
                         % (host, database)
         if username:
@@ -135,7 +139,7 @@ class SQLServer(AgentCheck):
 
         if conn_key not in self.connections:
             try:
-                conn_str = self._conn_string(host, username, password, database)
+                conn_str = self._conn_string(instance)
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
             except Exception, e:
@@ -200,7 +204,7 @@ class SQLServer(AgentCheck):
             except Exception, e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
-class SqlServerMetric(Object):
+class SqlServerMetric(object):
  
     def __init__(self, datadog_name, sql_name, base_name,
                        report_function, instance, tag_by):
