@@ -80,7 +80,7 @@ class SQLServer(AgentCheck):
                                                             row['counter_name'],
                                                             base_name,
                                                             type,
-                                                            sql_tpye,
+                                                            sql_type,
                                                             row.get('instance_name', ''),
                                                             row.get('tag_by', None)))
 
@@ -301,3 +301,4 @@ class SqlIncrFractionMetric(SqlFractionMetric):
                 self.report_function(self.datadog_name, result, tags=metric_tags)
             except ZeroDivisionError:
                 self.log.info("Base value is 0, won't report this metric")
+        self.past_values[key] = (value, base)
