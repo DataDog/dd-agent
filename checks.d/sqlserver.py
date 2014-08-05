@@ -254,7 +254,7 @@ class SqlSimpleMetric(SqlServerMetric):
         for instance_name, cntr_value in rows:
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
-                metric_tags = metric_tags + ['%s:%s' % (tag_by, instance_name.strip())]
+                metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance_name.strip())]
             self.report_function(self.datadog_name, cntr_value,
                                  tags=metric_tags)
 
@@ -278,7 +278,7 @@ class SqlFractionMetric(SqlServerMetric):
             base = rows[1, "cntr_value"]
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
-                metric_tags = metric_tags + ['%s:%s' % (tag_by, instance_name.strip())]
+                metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance.strip())]
             self.report_fraction(value, base, metric_tags)
 
     def report_fraction(self, value, base, metric_tags):
