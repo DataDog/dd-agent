@@ -23,6 +23,26 @@ PERF_AVERAGE_BULK =      1073874176
 PERF_COUNTER_BULK_COUNT = 272696576
 PERF_COUNTER_LARGE_RAWCOUNT = 65792
 
+# Queries
+COUNTER_TYPE_QUERY = '''select distinct cntr_type
+                        from sys.dm_os_performance_counters
+                        where counter_name = ?;'''
+
+BASE_NAME_QUERY = '''select distinct counter_name
+                     from sys.dm_os_performance_counters
+                     where (counter_name=? or counter_name=?
+                     or counter_name=?) and cntr_type=%s;''' % PERF_LARGE_RAW_BASE
+
+INSTANCES_QUERY = '''select instance_name
+                     from sys.dm_os_performance_counters
+                     where counter_name=?;'''
+
+VALUE_AND_BASE_QUERY = '''select cntr_value
+                          from sys.dm_os_performance_counters
+                          where (counter_name=? or counter_name=?)
+                          and instance_name=?
+                          order by cntr_type;'''
+
 class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
@@ -67,13 +87,13 @@ class SQLServer(AgentCheck):
 
             # Load any custom metrics from conf.d/sqlserver.yaml
             for row in init_config.get('custom_metrics', []):
-                type = row.get('type')
-                if type is not None and type not in VALID_METRIC_TYPES:
+                user_type = row.get('type')
+                if user_type is not None and user_type not in VALID_METRIC_TYPES:
                     self.log.error('%s has an invalid metric type: %s' \
-                                    % (row['name'], type))
+                                    % (row['name'], user_type))
                 sql_type = None
                 try:
-                    if type is None:
+                    if user_type is None:
                         sql_type, base_name = self.get_sql_type(instance, row['counter_name'])
                 except Exception:
                     self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
@@ -83,7 +103,7 @@ class SQLServer(AgentCheck):
                 metrics_to_collect.append(self.typed_metric(row['name'],
                                                             row['counter_name'],
                                                             base_name,
-                                                            type,
+                                                            user_type,
                                                             sql_type,
                                                             row.get('instance_name', ''),
                                                             row.get('tag_by', None)))
@@ -92,7 +112,7 @@ class SQLServer(AgentCheck):
             instance_key = self._conn_key(instance)
             self.instances_metrics[instance_key] = metrics_to_collect
 
-    def typed_metric(self, dd_name, sql_name, base_name, type, sql_type, instance_name, tag_by):
+    def typed_metric(self, dd_name, sql_name, base_name, user_type, sql_type, instance_name, tag_by):
         '''
         Create the appropriate SqlServerMetric object, each implementing its method to
         fetch the metrics properly.
@@ -100,12 +120,15 @@ class SQLServer(AgentCheck):
         directly fetched from SQLServer. Otherwise, it is decided based on the
         sql_type, according to microsoft's documentation.
         '''
-        if type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
+        if user_type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
                                             PERF_COUNTER_LARGE_RAWCOUNT,
                                             PERF_LARGE_RAW_BASE]:
-            if type is None:
-                type = "rate" if sql_type==PERF_COUNTER_BULK_COUNT else "gauge"
-            func = getattr(self, type)
+            if user_type is None:
+                metric_type = "rate" if sql_type == PERF_COUNTER_BULK_COUNT else "gauge"
+                func = getattr(self, metric_type)
+            else:
+                func = getattr(self, user_type)
+
             return SqlSimpleMetric(dd_name, sql_name, base_name,
                                    func, instance_name, tag_by,
                                    self.log)
@@ -179,14 +202,10 @@ class SQLServer(AgentCheck):
         PERF_AVERAGE_BULK), the name of the base counter will also be returned
         '''
         cursor = self.get_cursor(instance)
-        cursor.execute("""
-            select distinct cntr_type
-            from sys.dm_os_performance_counters
-            where counter_name = ?
-            """, (counter_name,))
+        cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
-            self.log.warning("Metric %s is of type Base and shouldn't be reported this way")
+            self.log.warning("Metric %s is of type Base and shouldn't be reported this way", counter_name)
         base_name = None
         if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
             # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
@@ -198,12 +217,7 @@ class SQLServer(AgentCheck):
                            counter_name.replace("Avg ", "") + " Base"
                            )
             try:
-                cursor.execute('''
-                    select distinct counter_name
-                    from sys.dm_os_performance_counters
-                    where (counter_name=? or counter_name=?
-                    or counter_name=?) and cntr_type=%s;
-                    ''' % PERF_LARGE_RAW_BASE, candidates)
+                cursor.execute(BASE_NAME_QUERY, candidates)
                 base_name = cursor.fetchone().counter_name.strip()
                 self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
             except Exception, e:
@@ -258,7 +272,7 @@ class SqlSimpleMetric(SqlServerMetric):
             query_content = (self.sql_name,)
         else:
             query = query_base + "and instance_name=?"
-            query_content = (self.sql_name,self.instance)
+            query_content = (self.sql_name, self.instance)
 
         cursor.execute(query, query_content)
         rows = cursor.fetchall()
@@ -273,10 +287,7 @@ class SqlFractionMetric(SqlServerMetric):
 
     def set_instances(self, cursor):
         if self.instance == ALL_INSTANCES:
-            cursor.execute('''
-                select instance_name
-                from sys.dm_os_performance_counters
-                where counter_name=?;''', (self.sql_name,))
+            cursor.execute(INSTANCES_QUERY, (self.sql_name,))
             self.instances = [row.instance_name for row in cursor.fetchall()]
         else:
             self.instances = [self.instance]
@@ -291,15 +302,9 @@ class SqlFractionMetric(SqlServerMetric):
         if self.instances is None:
             self.set_instances(cursor)
         for instance in self.instances:
-            cursor.execute('''
-            select cntr_value
-            from sys.dm_os_performance_counters
-            where (counter_name=? or counter_name=?)
-            and instance_name=?
-            order by cntr_type
-            ''', (self.sql_name, self.base_name, instance))
+            cursor.execute(VALUE_AND_BASE_QUERY, (self.sql_name, self.base_name, instance))
             rows = cursor.fetchall()
-            if len(rows)!=2:
+            if len(rows) != 2:
                 self.log.warning("Missing counter to compute fraction for %s, skipping", self.sql_name)
                 return
             value = rows[0, "cntr_value"]
