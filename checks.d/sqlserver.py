@@ -147,7 +147,7 @@ class SQLServer(AgentCheck):
     def _get_access_info(self, instance):
         ''' Convenience method to extract info from instance
         '''
-        host = instance.get('host', '127.0.0.1;1433')
+        host = instance.get('host', '127.0.0.1,1433')
         username = instance.get('username')
         password = instance.get('password')
         database = instance.get('database', 'master')
