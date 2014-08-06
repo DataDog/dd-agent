@@ -44,19 +44,9 @@ def http_emitter(message, log, agentConfig):
 
     url = "{0}/intake?api_key={1}".format(url, apiKey)
 
-    proxy = get_proxy_settings(log, agentConfig.get('proxy_settings'),
-        agentConfig['use_forwarder'])
-
     try:
-        if proxy is None:
-            r = requests.post(url, data=zipped, timeout=10,
-                headers=post_headers(agentConfig, zipped))
-        else:
-            # This shouldn't happen.
-            # Starting from 5.0.0, the forwarder should be running on every platform
-            # and so there shouldn't be any need for a proxy connection
-            r = requests.post(url, data=zipped, timeout=10,
-                headers=post_headers(agentConfig, zipped), proxies=proxy)
+        r = requests.post(url, data=zipped, timeout=10,
+            headers=post_headers(agentConfig, zipped))
 
         r.raise_for_status()
 
@@ -79,21 +69,4 @@ def post_headers(agentConfig, payload):
         'Accept': 'text/html, */*',
         'Content-MD5': md5(payload).hexdigest()
     }
-
-def get_proxy_settings(log, proxy_settings, use_forwarder):
-    if use_forwarder or proxy_settings is None:
-        # We are using the forwarder, so it's local trafic. We don't use the proxy
-        log.debug("Not using proxy settings")
-        return None
-
-    proxy_url = '%s:%s' % (proxy_settings['host'], proxy_settings['port'])
-
-    if proxy_settings.get('user') is not None:
-        proxy_auth = proxy_settings['user']
-        if proxy_settings.get('password') is not None:
-            proxy_auth = '%s:%s' % (proxy_auth, proxy_settings['password'])
-        proxy_url = '%s@%s' % (proxy_auth, proxy_url)
-
-    proxy_url = "http://{0}".format(proxy_url)
-    log.debug("Using proxy settings %s" % proxy_url.replace(proxy_settings['password'], "*" * 6))
-    return {'https': proxy_url}
+    

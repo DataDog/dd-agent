@@ -59,7 +59,6 @@ before_script:
   - sudo service nginx start
   - sudo /etc/init.d/lighttpd start
   - sudo service tomcat6 restart
-  - sudo service couchdb start
   - sudo service snmpd start
 env:
   - DB=redis
