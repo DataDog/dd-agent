@@ -28,7 +28,6 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 
 * Docker
 * ElasticSearch
-* Golang-expvar
 * Kafka
 * Kafka consumer
 * NTP
