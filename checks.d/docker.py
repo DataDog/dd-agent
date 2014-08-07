@@ -232,7 +232,6 @@ class Docker(AgentCheck):
         if not containers:
             containers = []
             self.warning("No containers are running.")
-            return
 
         stopped_containers_count = len(self._get_containers(instance, get_all=True)) - len(containers)
         self.gauge("docker.containers.running", len(containers), tags=tags)
