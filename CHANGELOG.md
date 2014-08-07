@@ -37,6 +37,7 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 * Process
 * Redis
 * SNMP
+* SQL Server
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
@@ -60,7 +61,8 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 * [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
 * [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
 * [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
-* [BUGFIX] Let's the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
+* [BUGFIX] Lets the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
+* [BUGFIX] SQL Server: Detect automatically counter types to report them correctly. See [#1069][]
 
 # 4.4.0 / 06-24-2014
 
