@@ -313,7 +313,8 @@ class SqlFractionMetric(SqlServerMetric):
             result = value/base
             self.report_function(self.datadog_name, result, tags=metric_tags)
         except ZeroDivisionError:
-            self.log.info("Base value is 0, won't report this metric")
+            self.log.debug("Base value is 0, won't report metric %s for tags %s",
+                                                  self.datadog_name, metric_tags)
 
 class SqlIncrFractionMetric(SqlFractionMetric):
 
@@ -327,5 +328,6 @@ class SqlIncrFractionMetric(SqlFractionMetric):
                 result = diff_value/diff_base
                 self.report_function(self.datadog_name, result, tags=metric_tags)
             except ZeroDivisionError:
-                self.log.info("Base value is 0, won't report this metric")
+                self.log.debug("Base value is 0, won't report metric %s for tags %s",
+                                                      self.datadog_name, metric_tags)
         self.past_values[key] = (value, base)
