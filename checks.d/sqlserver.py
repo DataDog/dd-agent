@@ -133,7 +133,7 @@ class SQLServer(AgentCheck):
             cls = SqlSimpleMetric
 
         else:
-            metric_type, cls = METRIC_TYPE_MAPPING[sql_type]
+            metric_type, cls = metric_type_mapping[sql_type]
 
         return cls(dd_name, sql_name, base_name,
                    metric_type, instance_name, tag_by, self.log)
