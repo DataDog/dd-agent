@@ -16,7 +16,7 @@ init_config:
     #    -   name: sqlserver.clr.execution
     #        counter_name: CLR Execution
     #
-    #    This counter has multiple instances assocaited with it and we're
+    #    This counter has multiple instances associated with it and we're
     #    choosing to only fetch the 'Cumulative execution time (ms) per second' instance.
     #
     #    -   name: sqlserver.exec.in_progress

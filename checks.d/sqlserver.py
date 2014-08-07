@@ -70,8 +70,7 @@ class SQLServer(AgentCheck):
         for instance in instances:
 
             metrics_to_collect = []
-            for metric in self.METRICS:
-                name, counter_name, instance_name = metric
+            for name, counter_name, instance_name  in self.METRICS:
                 try:
                     sql_type, base_name = self.get_sql_type(instance, counter_name)
                     metrics_to_collect.append(self.typed_metric(name,
@@ -120,29 +119,24 @@ class SQLServer(AgentCheck):
         directly fetched from SQLServer. Otherwise, it is decided based on the
         sql_type, according to microsoft's documentation.
         '''
-        if user_type is not None or sql_type in [PERF_COUNTER_BULK_COUNT,
-                                            PERF_COUNTER_LARGE_RAWCOUNT,
-                                            PERF_LARGE_RAW_BASE]:
-            if user_type is None:
-                metric_type = "rate" if sql_type == PERF_COUNTER_BULK_COUNT else "gauge"
-                func = getattr(self, metric_type)
-            else:
-                func = getattr(self, user_type)
 
-            return SqlSimpleMetric(dd_name, sql_name, base_name,
-                                   func, instance_name, tag_by,
-                                   self.log)
-        elif sql_type == PERF_RAW_LARGE_FRACTION:
-            return SqlFractionMetric(dd_name, sql_name, base_name,
-                                     getattr(self, "gauge"), instance_name, tag_by,
-                                     self.log)
-        elif sql_type == PERF_AVERAGE_BULK:
-            return SqlIncrFractionMetric(dd_name, sql_name, base_name,
-                                         getattr(self, "gauge"), instance_name, tag_by,
-                                         self.log)
+        metric_type_mapping = {
+                PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
+                PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
+                PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
+                PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
+                PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
+            }
+        if user_type is not None:
+            # user type overrides any other value
+            metric_type = getattr(self, user_type)
+            cls = SqlSimpleMetric
+
         else:
-            # This should not happen unless there is a sql_counter type that is not documented
-            self.log.warning("Unsupported metric type: %s" % sql_type)
+            metric_type, cls = METRIC_TYPE_MAPPING[sql_type]
+
+        return cls(dd_name, sql_name, base_name,
+                   metric_type, instance_name, tag_by, self.log)
 
     def _get_access_info(self, instance):
         ''' Convenience method to extract info from instance
