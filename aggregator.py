@@ -567,6 +567,9 @@ class MetricsBucketAggregator(Aggregator):
         # Avoid calling extra functions to dedupe tags if there are none
         # Note: if you change the way that context is created, please also change create_empty_metrics,
         #  which counts on this order
+
+        hostname = hostname or self.hostname
+
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
@@ -594,7 +597,7 @@ class MetricsBucketAggregator(Aggregator):
             if context not in metric_by_context:
                 metric_class = self.metric_type_to_class[mtype]
                 metric_by_context[context] = metric_class(self.formatter, name, tags,
-                    hostname or self.hostname, device_name)
+                    hostname, device_name)
 
             metric_by_context[context].sample(value, sample_rate, timestamp)
 
@@ -685,6 +688,9 @@ class MetricsAggregator(Aggregator):
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
+
+        hostname = hostname or self.hostname
+        
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
@@ -692,7 +698,7 @@ class MetricsAggregator(Aggregator):
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
-                hostname or self.hostname, device_name)
+                hostname, device_name)
         cur_time = time()
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
             log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))

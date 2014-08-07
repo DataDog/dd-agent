@@ -1,6 +1,6 @@
 nose==1.3.0
 pymongo
-tornado
+tornado==3.2.2
 redis
 python-memcached
 pyyaml

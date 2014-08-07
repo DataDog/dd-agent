@@ -7,7 +7,7 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2013 all rights reserved
+    (C) Datadog, Inc. 2010-2014 all rights reserved
 '''
 
 # set up logging before importing any other components
@@ -23,19 +23,13 @@ import sys
 import time
 import glob
 
-# Check we're not using an old version of Python. We need 2.4 above because some modules (like subprocess)
-# were only introduced in 2.4.
-if int(sys.version_info[1]) <= 3:
-    sys.stderr.write("Datadog Agent requires python 2.4 or later.\n")
-    sys.exit(2)
-
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2, get_os
+from util import Watchdog, PidFile, EC2, get_os, get_hostname
 from jmxfetch import JMXFetch
 
 
@@ -98,12 +92,13 @@ class Agent(Daemon):
             config = get_config(parse_args=True)
 
         agentConfig = self._set_agent_config_hostname(config)
+        hostname = get_hostname(agentConfig)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
         # Load the checks.d checks
-        checksd = load_check_directory(agentConfig)
+        checksd = load_check_directory(agentConfig, hostname)
 
-        self.collector = Collector(agentConfig, emitters, systemStats)
+        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
@@ -205,6 +200,7 @@ def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
+    hostname = get_hostname(agentConfig)
 
     COMMANDS = [
         'start',
@@ -275,7 +271,7 @@ def main():
             print getattr(checks.collector, check_name)(log).check(agentConfig)
         except Exception:
             # If not an old-style check, try checks.d
-            checks = load_check_directory(agentConfig)
+            checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
