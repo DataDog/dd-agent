@@ -35,7 +35,7 @@ BASE_NAME_QUERY = '''select distinct counter_name
 
 INSTANCES_QUERY = '''select instance_name
                      from sys.dm_os_performance_counters
-                     where counter_name=?;'''
+                     where counter_name=? and instance_name!='_Total';'''
 
 VALUE_AND_BASE_QUERY = '''select cntr_value
                           from sys.dm_os_performance_counters
@@ -299,8 +299,9 @@ class SqlFractionMetric(SqlServerMetric):
             cursor.execute(VALUE_AND_BASE_QUERY, (self.sql_name, self.base_name, instance))
             rows = cursor.fetchall()
             if len(rows) != 2:
-                self.log.warning("Missing counter to compute fraction for %s, skipping", self.sql_name)
-                return
+                self.log.warning("Missing counter to compute fraction for "
+                                 "metric %s instance %s, skipping", self.sql_name, instance)
+                continue
             value = rows[0, "cntr_value"]
             base = rows[1, "cntr_value"]
             metric_tags = tags
