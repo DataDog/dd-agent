@@ -1,6 +1,8 @@
 # stdlib
+from datetime import datetime, timedelta
 import time
 import traceback
+from Queue import Queue, Empty
 
 # project
 from checks import AgentCheck
@@ -22,7 +24,21 @@ REFRESH_MORLIST_INTERVAL = 3 * 60
 REFRESH_METRICS_METADATA_INTERVAL = 10 * 60
 
 # Time after which we reap the jobs that clog the queue
+# TODO: use it
 JOB_TIMEOUT = 10
+
+
+def atomic_method(method):
+    """ Decorator to catch the exceptions that happen in detached thread atomic tasks
+    and display them in the logs.
+    FIXME: get a traceback instead of a __repr__
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            method(*args, **kwargs)
+        except Exception as e:
+            args[0].exceptionq.put(e)
+    return wrapper
 
 
 class VSphereCheck(AgentCheck):
@@ -34,10 +50,12 @@ class VSphereCheck(AgentCheck):
     don't know exactly when they will finish, but we reap them if they're stuck.
     The other calls are performed synchronously.
     """
+
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.time_started = time.time()
         self.pool_started = False
+        self.exceptionq = Queue()
 
         # Connections open to vCenter instances
         self.server_instances = {}
@@ -64,6 +82,8 @@ class VSphereCheck(AgentCheck):
         self.morlist = {}
         # Metrics metadata, basically perfCounterId -> {name, group, description}
         self.metrics_metadata = {}
+
+        self.latest_event_query = {}
 
     def stop(self):
         self.stop_pool()
@@ -100,6 +120,35 @@ class VSphereCheck(AgentCheck):
                 self.log.critical("Restarting Pool. One check is stuck.")
                 self.restart_pool()
                 break
+
+    def _query_event(self, instance):
+        i_key = self._instance_key(instance)
+        last_time = self.latest_event_query.get(i_key, None)
+
+        server_instance = self._get_server_instance(instance)
+        event_manager = server_instance.content.eventManager
+
+        # Be sure we don't duplicate any event, never query the "past"
+        if not last_time:
+            last_time = self.latest_event_query[i_key] = \
+                event_manager.latestEvent.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+
+        query_filter = vim.event.EventFilterSpec()
+        time_filter = vim.event.EventFilterSpec.ByTime(beginTime=self.latest_event_query[i_key])
+        query_filter.time = time_filter
+
+        new_events = event_manager.QueryEvents(query_filter)
+        self.log.info("Got {0} events".format(len(new_events)))
+        for event in new_events:
+            self.event({
+                "timestamp": int((event.createdTime.replace(tzinfo=None) - datetime(1970, 1, 1)).total_seconds()),
+                "event_type": SOURCE_TYPE,
+                "msg_title": u"vCenter event: {0}".format(event.__class__.__name__[10:]), # trim vim.event
+                "msg_text": u"@@@\n{0}\n@@@".format(event.fullFormattedMessage)
+            })
+            last_time = event.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+
+        self.latest_event_query[i_key] = last_time
 
     def _instance_key(self, instance):
         i_key = instance.get('name')
@@ -144,6 +193,7 @@ class VSphereCheck(AgentCheck):
 
         return SOURCE_TYPE, extra_host_tags
 
+    @atomic_method
     def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
@@ -242,43 +292,7 @@ class VSphereCheck(AgentCheck):
         )
         self.cache_times[i_key]['morlist']['last'] = time.time()
 
-    def _new_mor_event(self, instance, mor):
-        if mor['mor_type'] == 'vm':
-            pretty_type = 'virtual machine'
-        elif mor['mor_type'] == 'host':
-            pretty_type = 'host'
-        else:
-            pretty_type = 'UnknownType'
-
-        msg_title = 'vCenter %s %s has just started' % (mor['hostname'], pretty_type)
-        msg_text = """ vCenter instance {0} has just detected a new Datadog host of type ({1}).
-Check out its [dashboard](/dash/host_name/{2})
-        """.format(self._instance_key(instance), pretty_type, mor['hostname'])
-        self.event({
-            'timestamp': time.time(),
-            'event_type': 'vsphere',
-            'msg_title': msg_title,
-            'msg_text': msg_text
-        })
-
-    def _deleted_mor_event(self, instance, mor):
-        if mor['mor_type'] == 'vm':
-            pretty_type = 'virtual machine'
-        elif mor['mor_type'] == 'host':
-            pretty_type = 'host'
-        else:
-            pretty_type = 'UnknownType'
-
-        msg_title = 'vCenter %s %s has just been powered off' % (mor['hostname'], pretty_type)
-        msg_text = """ vCenter instance {0} has just detected that this host will not report metrics anymore.
-        """.format(self._instance_key(instance))
-        self.event({
-            'timestamp': time.time(),
-            'event_type': 'vsphere',
-            'msg_title': msg_title,
-            'msg_text': msg_text
-        })
-
+    @atomic_method
     def _cache_morlist_process_atomic(self, instance, mor):
         """ Process one item of the self.morlist_raw list by querying the available
         metrics for this MOR and then putting it in self.morlist
@@ -302,9 +316,6 @@ Check out its [dashboard](/dash/host_name/{2})
             self.morlist[i_key][mor_name]['metrics']
         else:
             self.morlist[i_key][mor_name] = mor
-            # Is new here! ignore the first false positives, bootTime is not reliable
-            if (time.time() - self.time_started) > 2 * REFRESH_MORLIST_INTERVAL:
-                self._new_mor_event(instance, mor)
 
         self.morlist[i_key][mor_name]['last_seen'] = time.time()
 
@@ -340,7 +351,6 @@ Check out its [dashboard](/dash/host_name/{2})
         for mor_name in morlist:
             last_seen = self.morlist[i_key][mor_name]['last_seen']
             if (time.time() - last_seen) > 2 * REFRESH_MORLIST_INTERVAL:
-                self._deleted_mor_event(instance, self.morlist[i_key][mor_name])
                 del self.morlist[i_key][mor_name]
 
     def _cache_metrics_metadata(self, instance):
@@ -371,6 +381,7 @@ Check out its [dashboard](/dash/host_name/{2})
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
         ### </TEST-INSTRUMENTATION>
 
+    @atomic_method
     def _collect_metrics_atomic(self, instance, mor):
         """ Task that collects the metrics listed in the morlist for one MOR
         """
@@ -426,8 +437,6 @@ Check out its [dashboard](/dash/host_name/{2})
 
         self.gauge('vsphere.vm.count', vm_count, tags=["vcenter_server:%s" % instance.get('name')])
 
-
-
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
@@ -446,8 +455,17 @@ Check out its [dashboard](/dash/host_name/{2})
 
         # Second part: do the job
         self.collect_metrics(instance)
+        self._query_event(instance)
+
         # For our own sanity
         self._clean()
+        # TODO: raise if the exceptionq is too high
+        try:
+            while True:
+                self.log.critical(self.exceptionq.get_nowait())
+        except Empty:
+            pass
+            
         ### <TEST-INSTRUMENTATION>
         self.gauge('datadog.agent.vsphere.queue_size', self.pool._workq.qsize(), tags=['instant:final'])
         ### </TEST-INSTRUMENTATION>
