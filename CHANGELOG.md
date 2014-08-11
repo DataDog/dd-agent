@@ -62,6 +62,7 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
 * [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
 * [BUGFIX] Lets the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
 * [BUGFIX] SQL Server: Detect automatically counter types to report them correctly. See [#1069][]
+* [BUGFIX] Report Docker memory page metrics as rates.
 
 # 4.4.0 / 06-24-2014
 
