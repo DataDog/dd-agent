@@ -115,9 +115,9 @@ class ProcessTestCase(unittest.TestCase):
         self.assertTrue(len(python_metrics) > 0)
         # system.process.number >= 1
         self.assertTrue([m[2] for m in python_metrics if m[0] == "system.process.number"] >= 1)
-        self.assertTrue(len([t for t in service_checks if t['status']== AgentCheck.OK]) > 0)
-        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.WARNING]),  0)
-        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.CRITICAL]), 0)
+        self.assertTrue(len([t for t in service_checks if t['status']== AgentCheck.OK]) > 0, service_checks)
+        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.WARNING]),  0, service_checks)
+        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.CRITICAL]), 0, service_checks)
 
 if __name__ == "__main__":
     unittest.main()
