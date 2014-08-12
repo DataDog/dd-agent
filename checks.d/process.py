@@ -78,14 +78,15 @@ class ProcessCheck(AgentCheck):
         involuntary_ctx_switches = 0
             
         # process metrics available for psutil versions 0.6.0 and later
-        if not Platform.is_win32():
-            real = 0
-            if Platform.is_unix():
-                open_file_descriptors = 0
-            else:
-                open_file_descriptors = None
-        else:
+        if Platform.is_win32() or Platform.is_solaris():
             real = None
+        else:
+            real = 0
+
+        if Platform.is_unix():
+            open_file_descriptors = 0
+        else:
+            open_file_descriptors = None
 
         # process I/O counters (agent might not have permission to access)
         read_count = 0
@@ -101,6 +102,10 @@ class ProcessCheck(AgentCheck):
                 if real is not None:
                     mem = p.memory_info_ex()
                     real += mem.rss - mem.shared
+                else:
+                    mem = p.memory_info()
+
+                if Platform.is_unix():
                     try:
                         ctx_switches = p.num_ctx_switches()
                         voluntary_ctx_switches += ctx_switches.voluntary
@@ -109,8 +114,6 @@ class ProcessCheck(AgentCheck):
                         # Handle old Kernels which don't provide this info.
                         voluntary_ctx_switches = None
                         involuntary_ctx_switches = None
-                else:
-                    mem = p.memory_info()
 
                 if open_file_descriptors is not None:
                     try:
