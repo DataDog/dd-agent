@@ -199,7 +199,7 @@ class ProcessCheck(AgentCheck):
                    CRITICAL             out of the critical thresolds
                    WARNING              out of the warning thresolds
         '''
-        tag = ["service:%s" % name]
+        tag = ["process:%s" % name]
         status = AgentCheck.OK
         message_str = "PROCS %s: %s processes found for %s"
         status_str = {
@@ -220,7 +220,7 @@ class ProcessCheck(AgentCheck):
                 status = AgentCheck.CRITICAL
 
         self.service_check(
-            name,
+            "process.up",
             status,
             tags=tag,
             message=message_str % (status_str[status], nb_procs, name)
