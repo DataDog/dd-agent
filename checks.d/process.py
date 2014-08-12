@@ -27,7 +27,7 @@ class ProcessCheck(AgentCheck):
         'system.processes.involuntary_ctx_switches',
         )
 
-    def find_pids(self, search_string, exact_match=True):
+    def find_pids(self, search_string, exact_match, ignore_denied_access):
         """
         Create a set of pids of selected processes.
         Search for search_string
@@ -45,7 +45,7 @@ class ProcessCheck(AgentCheck):
                     except psutil.AccessDenied, e:
                         self.log.error('Access denied to %s process' % string)
                         self.log.error('Error: %s' % e)
-                        raise
+                        if not ignore_denied_access: raise
                 else:
                     if not found:
                         try:
@@ -57,7 +57,7 @@ class ProcessCheck(AgentCheck):
                         except psutil.AccessDenied, e:
                             self.log.error('Access denied to %s process' % string)
                             self.log.error('Error: %s' % e)
-                            raise
+                            if not ignore_denied_access: raise
 
                 if found or string == 'All':
                     found_process_list.append(proc.pid)
@@ -157,6 +157,7 @@ class ProcessCheck(AgentCheck):
         name = instance.get('name', None)
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string', None)
+        ignore_denied_access = instance.get('ignore_denied_access', True)
         cpu_check_interval = instance.get('cpu_check_interval', 0.1)
 
         if not isinstance(search_string, list):
@@ -175,7 +176,9 @@ class ProcessCheck(AgentCheck):
             self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
             cpu_check_interval = 0.1
 
-        pids = self.find_pids(search_string, exact_match=exact_match)
+        pids = self.find_pids(search_string,
+                              exact_match,
+                              ignore_denied_access)
         tags = ['process_name:%s' % name, name]
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
@@ -183,7 +186,7 @@ class ProcessCheck(AgentCheck):
         self.gauge('system.processes.number', len(pids), tags=tags)
 
         metrics = dict(zip(ProcessCheck.PROCESS_GAUGE, self.get_process_metrics(pids,
-            cpu_check_interval, instance.get("ignore_denied_access", True))))
+            cpu_check_interval, ignore_denied_access)))
 
         for metric, value in metrics.iteritems():
             if value is not None:

@@ -51,7 +51,7 @@ class ProcessTestCase(unittest.TestCase):
         })
         return config
 
-    def find_pids(self, search_string, exact_match=True):
+    def find_pids(self, search_string, exact_match=True, ignore_denied_access=True):
         x = self.nb_procs[self.offset]
         ret = []
         for i in range(x):
@@ -97,6 +97,7 @@ class ProcessTestCase(unittest.TestCase):
         config = {
             'instances': [{"name": "py",
                            "search_string": ["python"],
+                           "exact_match": False,
                            "ignored_denied_access": True,
                            "thresholds": {"warning": [1, 10], "critical": [1, 100]},
                        }]
