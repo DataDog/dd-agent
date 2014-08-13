@@ -249,7 +249,10 @@ print_done
 
 printf "Trying to install optional dependencies using pip....." | tee -a $logfile
 $dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-optional-requirements.txt  >> $logfile 2>&1
-($dd_base/venv/bin/pip install -r $dd_base/requirements.txt || printf "Cannot install optional dependencies. There is probably no Compiler on the system.") >> $logfile 2>&1
+while read DEPENDENCY
+do
+    ($dd_base/venv/bin/pip install $DEPENDENCY || printf "Cannot install $DEPENDENCY. There is probably no Compiler on the system.") >> $logfile 2>&1
+done < $dd_base/requirements.txt
 rm $dd_base/requirements.txt
 print_done
 
