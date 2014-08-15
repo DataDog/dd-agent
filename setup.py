@@ -74,7 +74,7 @@ if sys.platform == 'win32':
         'pysnmp.entity.rfc3413.oneliner.*',
 
         # agent
-        'checks.services_checks',
+        'checks.network_checks',
         'httplib2',
 
         # pup
@@ -102,6 +102,7 @@ if sys.platform == 'win32':
                 'optimize': 0,
                 'compressed': True,
                 'bundle_files': 3,
+                'excludes': ['numpy'],
                 'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
                 'ascii':False,
             },
@@ -115,10 +116,10 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', glob('pup/pup.html')),
-            ('pup', glob('pup/status.html')),
+            ('pup', [r'pup\pup.html', r'pup\status.html']),
             ('pup/static', glob('pup/static/*.*')),
-            ('jmxfetch', glob('checks/libs/%s' % JMX_FETCH_JAR_NAME)),
+            ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
+            ('gohai', [r'gohai\gohai.exe'])
         ],
     }
 
