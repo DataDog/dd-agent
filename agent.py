@@ -29,7 +29,7 @@ from checks.check_status import CollectorStatus
 from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2, get_os
+from util import Watchdog, PidFile, EC2, get_os, get_hostname
 from jmxfetch import JMXFetch
 
 
@@ -92,12 +92,13 @@ class Agent(Daemon):
             config = get_config(parse_args=True)
 
         agentConfig = self._set_agent_config_hostname(config)
+        hostname = get_hostname(agentConfig)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
         # Load the checks.d checks
-        checksd = load_check_directory(agentConfig)
+        checksd = load_check_directory(agentConfig, hostname)
 
-        self.collector = Collector(agentConfig, emitters, systemStats)
+        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
@@ -109,7 +110,7 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
-            
+
             # enable profiler if needed
             profiled = False
             if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
@@ -121,7 +122,7 @@ class Agent(Daemon):
                     log.debug("Agent profiling is enabled")
                 except Exception:
                     log.warn("Cannot enable profiler")
-                    
+
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
 
@@ -199,6 +200,7 @@ def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
+    hostname = get_hostname(agentConfig)
 
     COMMANDS = [
         'start',
@@ -269,7 +271,7 @@ def main():
             print getattr(checks.collector, check_name)(log).check(agentConfig)
         except Exception:
             # If not an old-style check, try checks.d
-            checks = load_check_directory(agentConfig)
+            checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
@@ -305,14 +307,14 @@ def main():
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
-       
+
         if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
             print "#" * 80
             print "JMX tool to be used to help configuring your JMX checks."
             print "See http://docs.datadoghq.com/integrations/java/ for more information"
             print "#" * 80
             print "\n"
-            print "You have to specify one of the following command:" 
+            print "You have to specify one of the following commands:"
             for command, desc in JMX_LIST_COMMANDS.iteritems():
                 print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
             print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"

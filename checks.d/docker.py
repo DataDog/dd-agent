@@ -29,10 +29,10 @@ CGROUP_METRICS = [
             "inactive_anon": ("docker.mem.inactive_anon", "gauge"),
             "inactive_file": ("docker.mem.inactive_file", "gauge"),
             "mapped_file": ("docker.mem.mapped_file", "gauge"),
-            "pgfault": ("docker.mem.pgfault", "gauge"),
-            "pgmajfault": ("docker.mem.pgmajfault", "gauge"),
-            "pgpgin": ("docker.mem.pgpgin", "gauge"),
-            "pgpgout": ("docker.mem.pgpgout", "gauge"),
+            "pgfault": ("docker.mem.pgfault", "rate"),
+            "pgmajfault": ("docker.mem.pgmajfault", "rate"),
+            "pgpgin": ("docker.mem.pgpgin", "rate"),
+            "pgpgout": ("docker.mem.pgpgout", "rate"),
             "rss": ("docker.mem.rss", "gauge"),
             "swap": ("docker.mem.swap", "gauge"),
             "unevictable": ("docker.mem.unevictable", "gauge"),
@@ -42,10 +42,10 @@ CGROUP_METRICS = [
             "total_inactive_anon": ("docker.mem.total_inactive_anon", "gauge"),
             "total_inactive_file": ("docker.mem.total_inactive_file", "gauge"),
             "total_mapped_file": ("docker.mem.total_mapped_file", "gauge"),
-            "total_pgfault": ("docker.mem.total_pgfault", "gauge"),
-            "total_pgmajfault": ("docker.mem.total_pgmajfault", "gauge"),
-            "total_pgpgin": ("docker.mem.total_pgpgin", "gauge"),
-            "total_pgpgout": ("docker.mem.total_pgpgout", "gauge"),
+            "total_pgfault": ("docker.mem.total_pgfault", "rate"),
+            "total_pgmajfault": ("docker.mem.total_pgmajfault", "rate"),
+            "total_pgpgin": ("docker.mem.total_pgpgin", "rate"),
+            "total_pgpgout": ("docker.mem.total_pgpgout", "rate"),
             "total_rss": ("docker.mem.total_rss", "gauge"),
             "total_swap": ("docker.mem.total_swap", "gauge"),
             "total_unevictable": ("docker.mem.total_unevictable", "gauge"),
@@ -232,7 +232,6 @@ class Docker(AgentCheck):
         if not containers:
             containers = []
             self.warning("No containers are running.")
-            return
 
         stopped_containers_count = len(self._get_containers(instance, get_all=True)) - len(containers)
         self.gauge("docker.containers.running", len(containers), tags=tags)

@@ -64,7 +64,7 @@ env:
   - DB=redis
 script:
    - pylint --rcfile=./.pylintrc *.py */*.py */*/*.py 
-   - nosetests -A 'not windows' tests
+   - nosetests -v -A 'not windows' tests
 notifications:
   webhooks:
     - https://www.buildheroes.com/api/projects/1fa0bf90eb6f781bf067c82439775fd9d896c0ae/builds
