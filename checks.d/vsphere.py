@@ -8,6 +8,8 @@ from Queue import Queue, Empty
 from checks import AgentCheck
 from util import Timer
 from checks.libs.thread_pool import Pool
+from checks.libs.vmware.basic_metrics import BASIC_METRICS
+from checks.libs.vmware.all_metrics import ALL_METRICS
 
 # 3rd party
 from pyVim import connect
@@ -37,7 +39,7 @@ def atomic_method(method):
         try:
             method(*args, **kwargs)
         except Exception as e:
-            args[0].exceptionq.put(e)
+            args[0].exceptionq.put("A worker thread crashed:\n" + traceback.format_exc())
     return wrapper
 
 
@@ -67,12 +69,12 @@ class VSphereCheck(AgentCheck):
             self.cache_times[i_key] = {
                 'morlist': {
                     'last': 0,
-                    'interval': init_config.get('refresh_morlist_interval', 
+                    'interval': init_config.get('refresh_morlist_interval',
                                     REFRESH_MORLIST_INTERVAL)
                 },
                 'metrics_metadata': {
                     'last': 0,
-                    'interval': init_config.get('refresh_metrics_metadata_interval', 
+                    'interval': init_config.get('refresh_metrics_metadata_interval',
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
@@ -178,6 +180,27 @@ class VSphereCheck(AgentCheck):
 
         return self.server_instances[i_key]
 
+    def _compute_needed_metrics(self, instance, available_metrics):
+        """ Compare the available metrics for one MOR we have computed and intersect them
+        with the set of metrics we want to report
+        """
+        if instance.get('all_metrics', False):
+            return available_metrics
+
+        i_key = self._instance_key(instance)
+        wanted_metrics = []
+        # Get only the basic metrics
+        for metric in available_metrics:
+            # No cache yet, skip it for now
+            if i_key not in self.metrics_metadata\
+                or metric.counterId not in self.metrics_metadata[i_key]:
+                continue
+            if self.metrics_metadata[i_key][metric.counterId]['name'] in BASIC_METRICS:
+                wanted_metrics.append(metric)
+
+        return wanted_metrics
+
+
     def get_extra_host_tags(self):
         """ Returns a list of tags for every host that is detected by the vSphere
         integration.
@@ -189,9 +212,9 @@ class VSphereCheck(AgentCheck):
             mor_list = self.morlist[i_key].keys()
             for mor_name in mor_list:
                 mor = self.morlist[i_key][mor_name]
-                extra_host_tags.append((mor['hostname'], mor['tags']))
+                extra_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
 
-        return SOURCE_TYPE, extra_host_tags
+        return extra_host_tags
 
     @atomic_method
     def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
@@ -237,7 +260,7 @@ class VSphereCheck(AgentCheck):
                     self._cache_morlist_raw_atomic,
                     args=(i_key, 'compute_resource', compute_resource, tags)
                 )
-                
+
         elif obj_type == 'compute_resource':
             if obj.__class__ == vim.ClusterComputeResource:
                 cluster_tag = "vsphere_cluster:%s" % obj.name
@@ -252,7 +275,7 @@ class VSphereCheck(AgentCheck):
                 )
 
         elif obj_type == 'host':
-            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags)
+            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
             host_tag = "vsphere_host:%s" % obj.name
@@ -266,7 +289,7 @@ class VSphereCheck(AgentCheck):
                 )
 
         elif obj_type == 'vm':
-            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags)
+            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
         ### <TEST-INSTRUMENTATION>
@@ -307,13 +330,15 @@ class VSphereCheck(AgentCheck):
         self.log.debug("job_atomic: Querying available metrics for MOR {0} (type={1})"\
             .format(mor['mor'], mor['mor_type']))
 
-        mor['metrics'] = perfManager.QueryAvailablePerfMetric(
+        available_metrics = perfManager.QueryAvailablePerfMetric(
             mor['mor'], intervalId=REAL_TIME_INTERVAL)
+
+        mor['metrics'] = self._compute_needed_metrics(instance, available_metrics)
         mor_name = str(mor['mor'])
 
         if mor_name in self.morlist[i_key]:
             # Was already here last iteration
-            self.morlist[i_key][mor_name]['metrics']
+            self.morlist[i_key][mor_name]['metrics'] = mor['metrics']
         else:
             self.morlist[i_key][mor_name] = mor
 
@@ -322,7 +347,7 @@ class VSphereCheck(AgentCheck):
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.morlist_process_atomic.time', t.total())
         ### </TEST-INSTRUMENTATION>
-                            
+
     def _cache_morlist_process(self, instance):
         """ Empties the self.morlist_raw by popping items and running asynchronously
         the _cache_morlist_process_atomic operation that will get the available
@@ -465,7 +490,7 @@ class VSphereCheck(AgentCheck):
                 self.log.critical(self.exceptionq.get_nowait())
         except Empty:
             pass
-            
+
         ### <TEST-INSTRUMENTATION>
         self.gauge('datadog.agent.vsphere.queue_size', self.pool._workq.qsize(), tags=['instant:final'])
         ### </TEST-INSTRUMENTATION>
