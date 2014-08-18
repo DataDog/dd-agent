@@ -52,6 +52,11 @@ EXCLUDE_FILTERS = {
     'VmSuspendedEvent': [],
 }
 
+MORLIST = 'morlist'
+METRICS_METADATA = 'metrics_metadata'
+LAST = 'last'
+INTERVAL = 'interval'
+
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
 
@@ -237,14 +242,14 @@ class VSphereCheck(AgentCheck):
         for instance in self.instances:
             i_key = self._instance_key(instance)
             self.cache_times[i_key] = {
-                'morlist': {
-                    'last': 0,
-                    'interval': init_config.get('refresh_morlist_interval',
+                MORLIST: {
+                    LAST: 0,
+                    INTERVAL: init_config.get('refresh_morlist_interval',
                                     REFRESH_MORLIST_INTERVAL)
                 },
-                'metrics_metadata': {
-                    'last': 0,
-                    'interval': init_config.get('refresh_metrics_metadata_interval',
+                METRICS_METADATA: {
+                    LAST: 0,
+                    INTERVAL: init_config.get('refresh_metrics_metadata_interval',
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
@@ -252,8 +257,8 @@ class VSphereCheck(AgentCheck):
                 username = instance.get('username').split('@')[0]
                 EXCLUDE_FILTERS['UserLoginSessionEvent'].append(r'.*\\{0}@.*'.format(username))
                 EXCLUDE_FILTERS['UserLogoutSessionEvent'].append(r'.*\\{0}@.*'.format(username))
-            except:
-                self.log.debug("Cannot ignore the datadog login/logout events")
+            except AttributeError:
+                self.log.warning("Cannot ignore the datadog login/logout events, username is probably misconfigured")
 
         # First layer of cache (get entities from the tree)
         self.morlist_raw = {}
@@ -269,9 +274,6 @@ class VSphereCheck(AgentCheck):
         self.pool_started = False
 
     def start_pool(self):
-        # The pool size should be the minimum between the number of instances
-        # and the DEFAULT_SIZE_POOL. It can also be overridden by the 'threads_count'
-        # parameter in the init_config of the check
         self.log.info("Starting Thread Pool")
         self.pool_size = int(self.init_config.get('threads_count', DEFAULT_SIZE_POOL))
 
@@ -293,6 +295,7 @@ class VSphereCheck(AgentCheck):
 
     def _clean(self):
         now = time.time()
+        # TODO: use that
         for name in self.jobs_status.keys():
             start_time = self.jobs_status[name]
             if now - start_time > JOB_TIMEOUT:
@@ -302,7 +305,7 @@ class VSphereCheck(AgentCheck):
 
     def _query_event(self, instance):
         i_key = self._instance_key(instance)
-        last_time = self.latest_event_query.get(i_key, None)
+        last_time = self.latest_event_query.get(i_key)
 
         server_instance = self._get_server_instance(instance)
         event_manager = server_instance.content.eventManager
@@ -317,12 +320,12 @@ class VSphereCheck(AgentCheck):
         query_filter.time = time_filter
 
         new_events = event_manager.QueryEvents(query_filter)
-        self.log.info("Got {0} events".format(len(new_events)))
+        self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
         for event in new_events:
             normalized_event = VSphereEvent(event)
             # Can return None if the event if filtered out
             event_payload = normalized_event.get_datadog_payload()
-            if event_payload:
+            if event_payload is not None:
                 self.event(event_payload)
             else:
                 self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
@@ -339,7 +342,7 @@ class VSphereCheck(AgentCheck):
     def _should_cache(self, instance, entity):
         i_key = self._instance_key(instance)
         now = time.time()
-        return now - self.cache_times[i_key][entity]['last'] > self.cache_times[i_key][entity]['interval']
+        return now - self.cache_times[i_key][entity][LAST] > self.cache_times[i_key][entity][INTERVAL]
 
     def _get_server_instance(self, instance):
         i_key = self._instance_key(instance)
@@ -387,9 +390,8 @@ class VSphereCheck(AgentCheck):
         extra_host_tags = []
         for instance in self.instances:
             i_key = self._instance_key(instance)
-            mor_list = self.morlist[i_key].keys()
-            for mor_name in mor_list:
-                mor = self.morlist[i_key][mor_name]
+            mor_list = self.morlist[i_key].items()
+            for mor_name, mor in mor_list:
                 extra_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
 
         return extra_host_tags
@@ -491,7 +493,7 @@ class VSphereCheck(AgentCheck):
             self._cache_morlist_raw_atomic,
             args=(i_key, 'rootFolder', root_folder, [instance_tag])
         )
-        self.cache_times[i_key]['morlist']['last'] = time.time()
+        self.cache_times[i_key][MORLIST][LAST] = time.time()
 
     @atomic_method
     def _cache_morlist_process_atomic(self, instance, mor):
@@ -549,10 +551,10 @@ class VSphereCheck(AgentCheck):
         we cannot get any metrics from them anyway (or =0)
         """
         i_key = self._instance_key(instance)
-        morlist = self.morlist[i_key].keys()
+        morlist = self.morlist[i_key].items()
 
-        for mor_name in morlist:
-            last_seen = self.morlist[i_key][mor_name]['last_seen']
+        for mor_name, mor in morlist:
+            last_seen = mor['last_seen']
             if (time.time() - last_seen) > 2 * REFRESH_MORLIST_INTERVAL:
                 del self.morlist[i_key][mor_name]
 
@@ -578,7 +580,7 @@ class VSphereCheck(AgentCheck):
                 instance_tag = 'instance' #FIXME: replace by what we want to tag!
             )
             self.metrics_metadata[i_key][counter.key] = d
-        self.cache_times[i_key]['metrics_metadata']['last'] = time.time()
+        self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
@@ -637,13 +639,12 @@ class VSphereCheck(AgentCheck):
             self.log.debug("Not collecting metrics for this instance, nothing to do yet: {0}".format(i_key))
             return
 
-        mors = self.morlist[i_key].keys()
+        mors = self.morlist[i_key].items()
         self.log.debug("Collecting metrics of %d mors" % len(mors))
 
         vm_count = 0
 
-        for mor_name in mors:
-            mor = self.morlist[i_key][mor_name]
+        for mor_name, mor in mors:
             if mor['mor_type'] == 'vm':
                 vm_count += 1
             if 'metrics' not in mor:
@@ -662,10 +663,10 @@ class VSphereCheck(AgentCheck):
         ### </TEST-INSTRUMENTATION>
 
         # First part: make sure our object repository is neat & clean
-        if self._should_cache(instance, 'metrics_metadata'):
+        if self._should_cache(instance, METRICS_METADATA):
             self._cache_metrics_metadata(instance)
 
-        if self._should_cache(instance, 'morlist'):
+        if self._should_cache(instance, MORLIST):
             self._cache_morlist_raw(instance)
         self._cache_morlist_process(instance)
         self._vacuum_morlist(instance)
