@@ -382,19 +382,19 @@ class VSphereCheck(AgentCheck):
         return wanted_metrics
 
 
-    def get_extra_host_tags(self):
+    def get_external_host_tags(self):
         """ Returns a list of tags for every host that is detected by the vSphere
         integration.
         List of pairs (hostname, list_of_tags)
         """
-        extra_host_tags = []
+        external_host_tags = []
         for instance in self.instances:
             i_key = self._instance_key(instance)
             mor_list = self.morlist[i_key].items()
             for mor_name, mor in mor_list:
-                extra_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
+                external_host_tags.append((mor['hostname'], {SOURCE_TYPE: mor['tags']}))
 
-        return extra_host_tags
+        return external_host_tags
 
     @atomic_method
     def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
