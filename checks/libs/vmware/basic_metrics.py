@@ -89,4 +89,4 @@ BASIC_METRICS = {
         'rollup'       : 'average',
         'entity'       : ['VirtualMachine', 'HostSystem', 'ResourcePool']
     },
-]
+}

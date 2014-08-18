@@ -1,4 +1,4 @@
-CPU_METRICS = [
+CPU_METRICS = {
     # CPU Capacity Contention
     # Compatibility: 3.5.0 / 4.0.0 / 4.1.0 / 5.0.0
     'cpu.capacity.contention': {
@@ -247,10 +247,10 @@ CPU_METRICS = [
         'rollup'       : 'summation',
         'entity'       : ['VirtualMachine', 'HostSystem']
     },
-]
+}
 
 
-DATASTORE_METRICS = [
+DATASTORE_METRICS = {
     # Bus resets
     # Compatibility: UNKNOWN
     'datastore.busResets': {
@@ -443,10 +443,10 @@ DATASTORE_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['VirtualMachine', 'HostSystem', 'Datastore']
     },
-]
+}
 
 
-DISK_METRICS = [
+DISK_METRICS = {
     # Bus resets
     # Compatibility: 3.5.0 / 4.0.0 / 4.1.0 / 5.0.0
     'disk.busResets': {
@@ -711,10 +711,10 @@ DISK_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['VirtualMachine', 'HostSystem', 'Datastore']
     },
-]
+}
 
 
-HBR_METRICS = [
+HBR_METRICS = {
     # 
     # Compatibility: 5.0.0
     'hbr.hbrNetRx': {
@@ -739,10 +739,10 @@ HBR_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['HostSystem']
     },
-]
+}
 
 
-MANAGEMENTAGENT_METRICS = [
+MANAGEMENTAGENT_METRICS = {
     # CPU usage
     # Compatibility: UNKNOWN
     'managementAgent.cpuUsage': {
@@ -783,10 +783,10 @@ MANAGEMENTAGENT_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['HostSystem']
     },
-]
+}
 
 
-MEM_METRICS = [
+MEM_METRICS = {
     # Active
     # Compatibility: UNKNOWN
     'mem.active': {
@@ -1259,10 +1259,10 @@ MEM_METRICS = [
         'rollup'       : 'latest',
         'entity'       : ['VirtualMachine']
     },
-]
+}
 
 
-NETWORK_METRICS = [
+NETWORK_METRICS = {
     # Broadcast receives
     # Compatibility: 5.0.0
     'network.broadcastRx': {
@@ -1479,10 +1479,10 @@ NETWORK_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['VirtualMachine', 'HostSystem']
     },
-]
+}
 
 
-POWER_METRICS = [
+POWER_METRICS = {
     # Host Power Capacity Usable
     # Compatibility: UNKNOWN
     'power.capacity.usable': {
@@ -1531,10 +1531,10 @@ POWER_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['HostSystem']
     },
-]
+}
 
 
-RESCPU_METRICS = [
+RESCPU_METRICS = {
     # Active (1 min. average)
     # Compatibility: 3.5.0 / 4.0.0 / 4.1.0 / 5.0.0
     'rescpu.actav1': {
@@ -1671,10 +1671,10 @@ RESCPU_METRICS = [
         'rollup'       : 'latest',
         'entity'       : ['VirtualMachine', 'HostSystem']
     },
-]
+}
 
 
-STORAGEADAPTER_METRICS = [
+STORAGEADAPTER_METRICS = {
     # Storage Adapter Outstanding I/Os
     # Compatibility: UNKNOWN
     'storageAdapter.OIOsPct': {
@@ -1795,10 +1795,10 @@ STORAGEADAPTER_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['HostSystem']
     },
-]
+}
 
 
-STORAGEPATH_METRICS = [
+STORAGEPATH_METRICS = {
     # Storage Path Bus Resets
     # Compatibility: UNKNOWN
     'storagePath.busResets': {
@@ -1895,10 +1895,10 @@ STORAGEPATH_METRICS = [
         'rollup'       : 'average',
         'entity'       : ['HostSystem']
     },
-]
+}
 
 
-SYSTEM_METRICS = [
+SYSTEM_METRICS = {
     # Disk space usage
     # Compatibility: 4.0.0
     'system.cosDiskUsage': {
@@ -2099,10 +2099,10 @@ SYSTEM_METRICS = [
         'rollup'       : 'latest',
         'entity'       : ['VirtualMachine', 'HostSystem']
     },
-]
+}
 
 
-VIRTUALDISK_METRICS = [
+VIRTUALDISK_METRICS = {
     # Virtual Disk Bus Resets
     # Compatibility: UNKNOWN
     'virtualDisk.busResets': {
@@ -2215,10 +2215,20 @@ VIRTUALDISK_METRICS = [
         'rollup'       : 'latest',
         'entity'       : ['VirtualMachine']
     },
-]
+}
 
 
-ALL_METRICS = CPU_METRICS + DATASTORE_METRICS + DISK_METRICS + \
-    HBR_METRICS + MANAGEMENTAGENT_METRICS + MEM_METRICS + NETWORK_METRICS + \
-    POWER_METRICS + RESCPU_METRICS + STORAGEADAPTER_METRICS + \
-    STORAGEPATH_METRICS + VIRTUALDISK_METRICS
+ALL_METRICS = {}
+ALL_METRICS.update(CPU_METRICS)
+ALL_METRICS.update(DATASTORE_METRICS)
+ALL_METRICS.update(DISK_METRICS)
+ALL_METRICS.update(HBR_METRICS)
+ALL_METRICS.update(MANAGEMENTAGENT_METRICS)
+ALL_METRICS.update(MEM_METRICS)
+ALL_METRICS.update(NETWORK_METRICS)
+ALL_METRICS.update(POWER_METRICS)
+ALL_METRICS.update(RESCPU_METRICS)
+ALL_METRICS.update(STORAGEADAPTER_METRICS)
+ALL_METRICS.update(STORAGEPATH_METRICS)
+ALL_METRICS.update(VIRTUALDISK_METRICS)
+
