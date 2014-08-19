@@ -73,6 +73,8 @@ if sys.platform == 'win32':
         'pysnmp.smi.mibs.instances.*',
         'pysnmp_mibs.*',
         'pysnmp.entity.rfc3413.oneliner.*',
+        'pyVim',
+        'pyVmomi',
 
         # agent
         'checks.network_checks',
