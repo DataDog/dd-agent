@@ -12,6 +12,7 @@ env:
     - TRAVIS_FLAVOR=cassandra,tomcat,jmx # JMX testing machine / need the other ones before
     - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
     - TRAVIS_FLAVOR=mongo
+    - TRAVIS_FLAVOR=fluentd
 
 matrix:
   allow_failures:
