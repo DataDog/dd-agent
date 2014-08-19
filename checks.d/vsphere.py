@@ -677,12 +677,17 @@ class VSphereCheck(AgentCheck):
 
         # For our own sanity
         self._clean()
-        # TODO: raise if the exceptionq is too high
+
+        thread_crashed = False
         try:
             while True:
                 self.log.critical(self.exceptionq.get_nowait())
+                thread_crashed = True
         except Empty:
             pass
+        if thread_crashed:
+            self.stop_pool()
+            raise Exception("One thread in the pool crashed, check the logs")
 
         ### <TEST-INSTRUMENTATION>
         self.gauge('datadog.agent.vsphere.queue_size', self.pool._workq.qsize(), tags=['instant:final'])
