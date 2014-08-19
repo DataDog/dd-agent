@@ -47,7 +47,8 @@ if sys.platform == 'win32':
         'requests==2.3.0',
         'httplib2==0.9',
         'pysnmp==4.2.5',
-        'pysnmp-mibs==0.1.4'
+        'pysnmp-mibs==0.1.4',
+        'pyvmomi==5.5.0'
     ])
 
     # Modules to force-include in the exe
@@ -75,6 +76,7 @@ if sys.platform == 'win32':
 
         # agent
         'checks.network_checks',
+        'checks.libs.vmware.*',
         'httplib2',
 
         # pup
