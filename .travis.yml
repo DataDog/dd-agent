@@ -62,6 +62,7 @@ env:
     - TRAVIS_FLAVOR=lighttpd
     - TRAVIS_FLAVOR=haproxy
     - TRAVIS_FLAVOR=ssh
+    - TRAVIS_FLAVOR=fluentd
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
