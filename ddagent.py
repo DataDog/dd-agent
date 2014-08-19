@@ -218,6 +218,10 @@ class MetricTransaction(Transaction):
                         del tornado_client_params['headers']['Content-Length']
                         log.debug("Removing Content-Length header.")
 
+                    if 'Host' in tornado_client_params['headers']:
+                        del tornado_client_params['headers']['Host']
+                        log.debug("Removing Host header.")
+
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                         proxy_settings['host'], proxy_settings['port']))
                     tornado_client_params['proxy_host'] = proxy_settings['host']
