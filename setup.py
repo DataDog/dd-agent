@@ -29,6 +29,8 @@ if sys.platform == 'win32':
     from glob import glob
     import py2exe
     import pysnmp_mibs
+    import pyVim
+    import pyVmomi
     install_requires.extend([
         'tornado==3.0.1',
         'pywin32==217',
@@ -73,8 +75,8 @@ if sys.platform == 'win32':
         'pysnmp.smi.mibs.instances.*',
         'pysnmp_mibs.*',
         'pysnmp.entity.rfc3413.oneliner.*',
-        'pyVim',
-        'pyVmomi',
+        'pyVim.*',
+        'pyVmomi.*',
 
         # agent
         'checks.network_checks',
