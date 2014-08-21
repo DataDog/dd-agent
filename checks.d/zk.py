@@ -32,6 +32,11 @@ from StringIO import StringIO
 # project
 from checks import AgentCheck
 
+class ZKConnectionFailure(Exception):
+    """ Raised when we are unable to connect or get the output of a command. """
+    pass
+
+
 class Zookeeper(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
@@ -41,8 +46,51 @@ class Zookeeper(AgentCheck):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
         timeout = float(instance.get('timeout', 3.0))
+        expected_mode = (instance.get('expected_mode') or '').strip()
         tags = instance.get('tags', [])
+        cx_args = (host, port, timeout)
 
+        # Send a service check based on the `ruok` response.
+        try:
+            ruok_out = self._send_command('ruok', *cx_args)
+        except ZKConnectionFailure:
+            # The server should not respond at all if it's not OK.
+            status = AgentCheck.CRITICAL
+            message = 'No response from `ruok` command'
+            self.increment('zookeeper.timeouts')
+        else:
+            ruok_out.seek(0)
+            ruok = ruok_out.readline()
+            if ruok == 'imok':
+                status = AgentCheck.OK
+            else:
+                status = AgentCheck.WARNING
+            message = u'Response from the server: %s' % ruok
+        self.service_check('zookeeper.ruok', status, message=message)
+
+        # Read metrics from the `stat` output.
+        try:
+            stat_out = self._send_command('stat', *cx_args)
+        except ZKConnectionFailure:
+            self.increment('zookeeper.timeouts')
+        else:
+            # Parse the response
+            metrics, new_tags, mode = self.parse_stat(stat_out)
+
+            # Write the data
+            for metric, value in metrics:
+                self.gauge(metric, value, tags=tags + new_tags)
+
+            if expected_mode:
+                if mode == expected_mode:
+                    status = AgentCheck.OK
+                    message = u"Server is in %s mode" % mode
+                else:
+                    status = AgentCheck.CRITICAL
+                    message = u"Server is in %s mode but check expects %s mode" % (expected_mode, mode)
+                self.service_check('zookeeper.mode', status, message=message)
+
+    def _send_command(self, command, host, port, timeout):
         sock = socket.socket()
         sock.settimeout(timeout)
         buf = StringIO()
@@ -66,24 +114,13 @@ class Zookeeper(AgentCheck):
                     chunk = sock.recv(chunk_size)
                     buf.write(chunk)
                     num_reads += 1
-            except socket.timeout:
-                buf = None
+            except (socket.timeout, socket.error):
+                raise ZKConnectionFailure()
         finally:
             sock.close()
+        return buf
 
-        if buf is not None:
-            # Parse the response
-            metrics, new_tags = self.parse_stat(buf)
-
-            # Write the data
-            for metric, value in metrics:
-                self.gauge(metric, value, tags=tags + new_tags)
-        else:
-            # Reading from the client port timed out, track it as a metric
-            self.increment('zookeeper.timeouts', tags=tags)
-
-    @classmethod
-    def parse_stat(cls, buf):
+    def parse_stat(self, buf):
         ''' `buf` is a readable file-like object
             returns a tuple: ([(metric_name, value)], tags)
         '''
@@ -94,7 +131,7 @@ class Zookeeper(AgentCheck):
         # body correctly. Particularly, the Connections val was added in
         # >= 3.4.4.
         start_line = buf.readline()
-        match = cls.version_pattern.match(start_line)
+        match = self.version_pattern.match(start_line)
         if match is None:
             raise Exception("Could not parse version from stat command output: %s" % start_line)
         else:
@@ -156,10 +193,11 @@ class Zookeeper(AgentCheck):
 
         # Mode: leader
         _, value = buf.readline().split(':')
-        tags = [u'mode:' + value.strip().lower()]
+        mode = value.strip().lower()
+        tags = [u'mode:' + mode]
 
         # Node count: 487
         _, value = buf.readline().split(':')
         metrics.append(('zookeeper.nodes', long(value.strip())))
 
-        return metrics, tags
+        return metrics, tags, mode
