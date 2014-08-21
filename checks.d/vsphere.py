@@ -322,16 +322,21 @@ class VSphereCheck(AgentCheck):
         new_events = event_manager.QueryEvents(query_filter)
         self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
         for event in new_events:
-            normalized_event = VSphereEvent(event)
-            # Can return None if the event if filtered out
-            event_payload = normalized_event.get_datadog_payload()
-            if event_payload is not None:
-                self.event(event_payload)
-            else:
-                self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
-            last_time = event.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+            event_time = event.createdTime.replace(tzinfo=None)
+            if event_time >= last_time:
+                last_time = event_time
 
-        self.latest_event_query[i_key] = last_time
+                normalized_event = VSphereEvent(event)
+                # Can return None if the event if filtered out
+                event_payload = normalized_event.get_datadog_payload()
+
+                if event_payload is not None:
+                    self.event(event_payload)
+                else:
+                    self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
+
+        # Bump to avoid allowing same event from one run to another
+        self.latest_event_query[i_key] = last_time + timedelta(microseconds=1)
 
     def _instance_key(self, instance):
         i_key = instance.get('name')
