@@ -313,7 +313,7 @@ class VSphereCheck(AgentCheck):
         # Be sure we don't duplicate any event, never query the "past"
         if not last_time:
             last_time = self.latest_event_query[i_key] = \
-                event_manager.latestEvent.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+                event_manager.latestEvent.createdTime + timedelta(seconds=1)
 
         query_filter = vim.event.EventFilterSpec()
         time_filter = vim.event.EventFilterSpec.ByTime(beginTime=self.latest_event_query[i_key])
@@ -329,7 +329,7 @@ class VSphereCheck(AgentCheck):
                 self.event(event_payload)
             else:
                 self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
-            last_time = event.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+            last_time = event.createdTime + timedelta(seconds=1)
 
         self.latest_event_query[i_key] = last_time
 
