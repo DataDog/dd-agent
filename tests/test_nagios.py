@@ -72,10 +72,6 @@ class TestNagios(unittest.TestCase):
                 elif t == "HOST DOWNTIME ALERT":
                     assert event["host"] is not None
                     assert event["downtime_start_stop"] in ("STARTED", "STOPPED")
-                elif t == "PROCESS_SERVICE_CHECK_RESULT":
-                    assert event["host"] is not None
-                    assert event["check_name"] is not None
-                    assert event["return_code"] is not None
 
         self.assertEquals(counters["SERVICE ALERT"], 301)
         self.assertEquals(counters["SERVICE NOTIFICATION"], 120)
@@ -86,7 +82,6 @@ class TestNagios(unittest.TestCase):
         self.assertEquals(counters["SERVICE DOWNTIME ALERT"], 3)
         self.assertEquals(counters["HOST DOWNTIME ALERT"], 5)
         self.assertEquals(counters["ACKNOWLEDGE_SVC_PROBLEM"], 4)
-        self.assertEquals(counters["PROCESS_SERVICE_CHECK_RESULT"], 1)
         assert "ACKNOWLEDGE_HOST_PROBLEM" not in counters
 
     def testContinuousBulkParsing(self):
