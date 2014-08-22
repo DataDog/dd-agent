@@ -21,6 +21,9 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
 * Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
 
+### How to Update ?
+
+See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 
 ### New and updated integrations
 
