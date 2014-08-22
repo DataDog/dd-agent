@@ -8,8 +8,6 @@ This is a major version of the Datadog-Agent.
 
 * On Linux:
 Packaging of the Agent has changed for RPM and DEB packages.
-To BETA test this version of the agent (at your own risks), please read this guide:
-https://gist.github.com/remh/1426ccb24ec36162ba2b
 
 * On Windows:
 This release has multiple fixes, see the list below.
