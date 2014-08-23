@@ -41,7 +41,6 @@ EXCLUDE_FILTERS = {
         r'Suspend virtual machine',
     ],
     'UserLoginSessionEvent': [],
-    'UserLogoutSessionEvent': [],
     'VmBeingHotMigratedEvent': [],
     'VmMessageEvent': [],
     'VmMigratedEvent': [],
@@ -205,6 +204,11 @@ class VSphereEvent(object):
         self.payload["msg_text"] += u"\n".join(config_change_lines)
         self.payload["msg_text"] += u"\n@@@"
         self.payload['host'] = self.raw_event.vm.name
+        return self.payload
+
+    def transform_userloginsessionevent(self):
+        self.payload["msg_title"] = "vCenter login session"
+        self.payload["msg_text"] = u"@@@\n{0}\n@@@".format(self.raw_event.fullFormattedMessage)
         return self.payload
 
 def atomic_method(method):
