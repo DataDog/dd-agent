@@ -323,17 +323,23 @@ class VSphereCheck(AgentCheck):
         time_filter = vim.event.EventFilterSpec.ByTime(beginTime=self.latest_event_query[i_key])
         query_filter.time = time_filter
 
-        new_events = event_manager.QueryEvents(query_filter)
-        self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
-        for event in new_events:
-            normalized_event = VSphereEvent(event)
-            # Can return None if the event if filtered out
-            event_payload = normalized_event.get_datadog_payload()
-            if event_payload is not None:
-                self.event(event_payload)
-            else:
-                self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
-            last_time = event.createdTime + timedelta(seconds=1)
+        try:
+            new_events = event_manager.QueryEvents(query_filter)
+            self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
+            for event in new_events:
+                normalized_event = VSphereEvent(event)
+                # Can return None if the event if filtered out
+                event_payload = normalized_event.get_datadog_payload()
+                if event_payload is not None:
+                    self.event(event_payload)
+                else:
+                    self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
+                last_time = event.createdTime + timedelta(seconds=1)
+        except Exception as e:
+            # Don't get stuck on a failure to fetch an event
+            # Ignore them for next pass
+            self.log.warning("Unable to fetch Events %s", e)
+            last_time = event_manager.latestEvent.createdTime + timedelta(seconds=1)
 
         self.latest_event_query[i_key] = last_time
 
