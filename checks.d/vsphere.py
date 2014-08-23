@@ -260,7 +260,6 @@ class VSphereCheck(AgentCheck):
             try:
                 username = instance.get('username').split('@')[0]
                 EXCLUDE_FILTERS['UserLoginSessionEvent'].append(r'.*\\{0}@.*'.format(username))
-                EXCLUDE_FILTERS['UserLogoutSessionEvent'].append(r'.*\\{0}@.*'.format(username))
             except AttributeError:
                 self.log.warning("Cannot ignore the datadog login/logout events, username is probably misconfigured")
 
