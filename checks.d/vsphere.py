@@ -1,5 +1,6 @@
 # stdlib
 from datetime import datetime, timedelta
+from hashlib import md5
 import re
 import time
 import traceback
@@ -134,6 +135,69 @@ class VSphereEvent(object):
             'vsphere_datacenter:%s' % pre_dc,
             'vsphere_datacenter:%s' % new_dc,
         ]
+        return self.payload
+
+    def transform_alarmstatuschangedevent(self):
+        def get_transition(before, after):
+            vals = {
+                'gray': -1,
+                'green': 0,
+                'yellow': 1,
+                'red': 2
+            }
+            before = before.lower()
+            after = after.lower()
+            if before not in vals or after not in vals:
+                return None
+            if vals[before] < vals[after]:
+                return 'Triggered'
+            else:
+                return 'Recovered'
+
+        TO_ALERT_TYPE = {
+            'green': 'success',
+            'yellow': 'warning',
+            'red': 'error'
+        }
+
+        def get_agg_key(alarm_event):
+            return 'h:{0}|dc:{1}|a:{2}'.format(
+                md5(alarm_event.entity.name).hexdigest()[:10],
+                md5(alarm_event.datacenter.name).hexdigest()[:10],
+                md5(alarm_event.alarm.name).hexdigest()[:10]
+            )
+
+        # Get the entity type/name
+        if self.raw_event.entity.entity.__class__ == vim.VirtualMachine:
+            host_type = 'VM'
+        elif self.raw_event.entity.entity.__class__ == vim.HostSystem:
+            host_type = 'host'
+        else:
+            return None
+        host_name = self.raw_event.entity.name
+
+        # Need a getattr because from is a reserved keyword...
+        trans_before = getattr(self.raw_event, 'from')
+        trans_after = self.raw_event.to
+        transition = get_transition(trans_before, trans_after)
+        # Bad transition, we shouldn't have got this transition
+        if transition is None:
+            return None
+
+        self.payload['msg_title'] = u"[{transition}] {monitor} on {host_type} {host_name} is now {status}".format(
+            transition=transition,
+            monitor=self.raw_event.alarm.name,
+            host_type=host_type,
+            host_name=host_name,
+            status=trans_after
+        )
+        self.payload['alert_type'] = TO_ALERT_TYPE[trans_after]
+        self.payload['event_object'] = get_agg_key(self.raw_event)
+        self.payload['msg_text'] = u"""vCenter monitor status changed on this alarm, it was {before} and it's now {after}.""".format(
+            before=trans_before,
+            after=trans_after
+        )
+        self.payload['host'] = host_name
         return self.payload
 
     def transform_vmmessageevent(self):
@@ -331,8 +395,6 @@ class VSphereCheck(AgentCheck):
                 event_payload = normalized_event.get_datadog_payload()
                 if event_payload is not None:
                     self.event(event_payload)
-                else:
-                    self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
                 last_time = event.createdTime + timedelta(seconds=1)
         except Exception as e:
             # Don't get stuck on a failure to fetch an event
