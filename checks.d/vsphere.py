@@ -694,7 +694,7 @@ class VSphereCheck(AgentCheck):
         ### </TEST-INSTRUMENTATION>
 
 if __name__ == '__main__':
-    check = VSphereCheck.from_yaml('conf.d/vsphere.yaml')
+    check, _instances = VSphereCheck.from_yaml('conf.d/vsphere.yaml')
     try:
         for i in xrange(200):
             print "Loop %d" % i

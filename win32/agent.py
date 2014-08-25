@@ -93,7 +93,10 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
-                        new_proc = proc.__class__(proc.config)
+                        if name != "pup":
+                            new_proc = proc.__class__(proc.config, self.hostname)
+                        else:
+                            new_proc = proc.__class__(proc.config)
                         new_proc.start()
                         self.procs[name] = new_proc
                 # Auto-restart the collector if we've been running for a while.
