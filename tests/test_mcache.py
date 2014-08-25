@@ -7,6 +7,9 @@ from tests.common import load_check
 
 
 class TestMemCache(unittest.TestCase):
+    def is_travis(self):
+        return 'TRAVIS' in os.environ
+
     def setUp(self):
         self.agent_config = {
             "memcache_server": "localhost",
@@ -102,7 +105,8 @@ class TestMemCache(unittest.TestCase):
         self.c.get_metrics()
 
         import gc
-        gc.set_debug(gc.DEBUG_LEAK)
+        if not self.is_travis():
+            gc.set_debug(gc.DEBUG_LEAK)
         gc.collect()
         try:
             start = len(gc.garbage)
