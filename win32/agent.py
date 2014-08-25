@@ -93,7 +93,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
-                        if name!="pup":
+                        if name != "pup":
                             new_proc = proc.__class__(proc.config, self.hostname)
                         else:
                             new_proc = proc.__class__(proc.config)
