@@ -29,6 +29,8 @@ if sys.platform == 'win32':
     from glob import glob
     import py2exe
     import pysnmp_mibs
+    import pyVim
+    import pyVmomi
     install_requires.extend([
         'tornado==3.0.1',
         'pywin32==217',
@@ -47,7 +49,8 @@ if sys.platform == 'win32':
         'requests==2.3.0',
         'httplib2==0.9',
         'pysnmp==4.2.5',
-        'pysnmp-mibs==0.1.4'
+        'pysnmp-mibs==0.1.4',
+        'pyvmomi==5.5.0'
     ])
 
     # Modules to force-include in the exe
@@ -72,9 +75,12 @@ if sys.platform == 'win32':
         'pysnmp.smi.mibs.instances.*',
         'pysnmp_mibs.*',
         'pysnmp.entity.rfc3413.oneliner.*',
+        'pyVim.*',
+        'pyVmomi.*',
 
         # agent
         'checks.network_checks',
+        'checks.libs.vmware.*',
         'httplib2',
 
         # pup

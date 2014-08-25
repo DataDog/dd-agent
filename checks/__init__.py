@@ -588,9 +588,9 @@ class AgentCheck(object):
             f.close()
 
         config = yaml.load(yaml_text, Loader=yLoader)
-        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
-
-        return check, config.get('instances', [])
+        check = cls(check_name, config.get('init_config') or {}, agentConfig or {},
+                    config.get('instances'))
+        return check
 
     def normalize(self, metric, prefix=None, fix_case = False):
         """

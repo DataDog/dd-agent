@@ -110,7 +110,7 @@ class Agent(Daemon):
 
         # Run the main loop.
         while self.run_forever:
-            
+
             # enable profiler if needed
             profiled = False
             if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
@@ -122,7 +122,7 @@ class Agent(Daemon):
                     log.debug("Agent profiling is enabled")
                 except Exception:
                     log.warn("Cannot enable profiler")
-                    
+
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
 
@@ -307,14 +307,14 @@ def main():
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
-       
+
         if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
             print "#" * 80
             print "JMX tool to be used to help configuring your JMX checks."
             print "See http://docs.datadoghq.com/integrations/java/ for more information"
             print "#" * 80
             print "\n"
-            print "You have to specify one of the following command:" 
+            print "You have to specify one of the following commands:"
             for command, desc in JMX_LIST_COMMANDS.iteritems():
                 print "      - %s [OPTIONAL: LIST OF CHECKS]: %s" % (command, desc)
             print "Example: sudo /etc/init.d/datadog-agent jmx list_matching_attributes tomcat jmx solr"
