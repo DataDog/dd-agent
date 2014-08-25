@@ -1,5 +1,6 @@
 # stdlib
 from datetime import datetime, timedelta
+from hashlib import md5
 import re
 import time
 import traceback
@@ -41,7 +42,6 @@ EXCLUDE_FILTERS = {
         r'Suspend virtual machine',
     ],
     'UserLoginSessionEvent': [],
-    'UserLogoutSessionEvent': [],
     'VmBeingHotMigratedEvent': [],
     'VmMessageEvent': [],
     'VmMigratedEvent': [],
@@ -137,6 +137,69 @@ class VSphereEvent(object):
         ]
         return self.payload
 
+    def transform_alarmstatuschangedevent(self):
+        def get_transition(before, after):
+            vals = {
+                'gray': -1,
+                'green': 0,
+                'yellow': 1,
+                'red': 2
+            }
+            before = before.lower()
+            after = after.lower()
+            if before not in vals or after not in vals:
+                return None
+            if vals[before] < vals[after]:
+                return 'Triggered'
+            else:
+                return 'Recovered'
+
+        TO_ALERT_TYPE = {
+            'green': 'success',
+            'yellow': 'warning',
+            'red': 'error'
+        }
+
+        def get_agg_key(alarm_event):
+            return 'h:{0}|dc:{1}|a:{2}'.format(
+                md5(alarm_event.entity.name).hexdigest()[:10],
+                md5(alarm_event.datacenter.name).hexdigest()[:10],
+                md5(alarm_event.alarm.name).hexdigest()[:10]
+            )
+
+        # Get the entity type/name
+        if self.raw_event.entity.entity.__class__ == vim.VirtualMachine:
+            host_type = 'VM'
+        elif self.raw_event.entity.entity.__class__ == vim.HostSystem:
+            host_type = 'host'
+        else:
+            return None
+        host_name = self.raw_event.entity.name
+
+        # Need a getattr because from is a reserved keyword...
+        trans_before = getattr(self.raw_event, 'from')
+        trans_after = self.raw_event.to
+        transition = get_transition(trans_before, trans_after)
+        # Bad transition, we shouldn't have got this transition
+        if transition is None:
+            return None
+
+        self.payload['msg_title'] = u"[{transition}] {monitor} on {host_type} {host_name} is now {status}".format(
+            transition=transition,
+            monitor=self.raw_event.alarm.name,
+            host_type=host_type,
+            host_name=host_name,
+            status=trans_after
+        )
+        self.payload['alert_type'] = TO_ALERT_TYPE[trans_after]
+        self.payload['event_object'] = get_agg_key(self.raw_event)
+        self.payload['msg_text'] = u"""vCenter monitor status changed on this alarm, it was {before} and it's now {after}.""".format(
+            before=trans_before,
+            after=trans_after
+        )
+        self.payload['host'] = host_name
+        return self.payload
+
     def transform_vmmessageevent(self):
         self.payload["msg_title"] = u"VM {0} is reporting".format(self.raw_event.vm.name)
         self.payload["msg_text"] = u"@@@\n{0}\n@@@".format(self.raw_event.fullFormattedMessage)
@@ -207,6 +270,11 @@ class VSphereEvent(object):
         self.payload['host'] = self.raw_event.vm.name
         return self.payload
 
+    def transform_userloginsessionevent(self):
+        self.payload["msg_title"] = "vCenter login session"
+        self.payload["msg_text"] = u"@@@\n{0}\n@@@".format(self.raw_event.fullFormattedMessage)
+        return self.payload
+
 def atomic_method(method):
     """ Decorator to catch the exceptions that happen in detached thread atomic tasks
     and display them in the logs.
@@ -256,7 +324,6 @@ class VSphereCheck(AgentCheck):
             try:
                 username = instance.get('username').split('@')[0]
                 EXCLUDE_FILTERS['UserLoginSessionEvent'].append(r'.*\\{0}@.*'.format(username))
-                EXCLUDE_FILTERS['UserLogoutSessionEvent'].append(r'.*\\{0}@.*'.format(username))
             except AttributeError:
                 self.log.warning("Cannot ignore the datadog login/logout events, username is probably misconfigured")
 
@@ -313,23 +380,27 @@ class VSphereCheck(AgentCheck):
         # Be sure we don't duplicate any event, never query the "past"
         if not last_time:
             last_time = self.latest_event_query[i_key] = \
-                event_manager.latestEvent.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+                event_manager.latestEvent.createdTime + timedelta(seconds=1)
 
         query_filter = vim.event.EventFilterSpec()
         time_filter = vim.event.EventFilterSpec.ByTime(beginTime=self.latest_event_query[i_key])
         query_filter.time = time_filter
 
-        new_events = event_manager.QueryEvents(query_filter)
-        self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
-        for event in new_events:
-            normalized_event = VSphereEvent(event)
-            # Can return None if the event if filtered out
-            event_payload = normalized_event.get_datadog_payload()
-            if event_payload is not None:
-                self.event(event_payload)
-            else:
-                self.log.debug("Filtered event {0} {1}".format(normalized_event.event_type, event))
-            last_time = event.createdTime.replace(tzinfo=None) + timedelta(seconds=1)
+        try:
+            new_events = event_manager.QueryEvents(query_filter)
+            self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
+            for event in new_events:
+                normalized_event = VSphereEvent(event)
+                # Can return None if the event if filtered out
+                event_payload = normalized_event.get_datadog_payload()
+                if event_payload is not None:
+                    self.event(event_payload)
+                last_time = event.createdTime + timedelta(seconds=1)
+        except Exception as e:
+            # Don't get stuck on a failure to fetch an event
+            # Ignore them for next pass
+            self.log.warning("Unable to fetch Events %s", e)
+            last_time = event_manager.latestEvent.createdTime + timedelta(seconds=1)
 
         self.latest_event_query[i_key] = last_time
 
