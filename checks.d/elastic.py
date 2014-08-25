@@ -371,11 +371,23 @@ class ElasticSearch(AgentCheck):
         cluster_status = data['status']
         if cluster_status == 'green':
             status = AgentCheck.OK
+            tag = "OK"
         elif cluster_status == 'yellow':
             status = AgentCheck.WARNING
+            tag = "WARN"
         else:
             status = AgentCheck.CRITICAL
-        self.service_check('elasticsearch.cluster_health', status, tags=service_check_tags)
+            tag = "ALERT"
+        
+        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={5}" \
+                    .format(tag, data["cluster_name"],
+                                 data["active_shards"],
+                                 data["initializing_shards"],
+                                 data["relocating_shards"],
+                                 data["unassigned_shards"],
+                                 data["timed_out"])
+
+        self.service_check('elasticsearch.cluster_health', status, message=msg, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):
