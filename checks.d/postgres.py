@@ -36,6 +36,24 @@ SELECT datname,
         'relation': False,
     }
 
+    BGW_METRICS = {
+        'descriptors': [],
+        'metrics': {
+            'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', RATE),
+            'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', RATE),
+            'checkpoint_write_time': ('postgresql.bgwriter.write_time', RATE),
+            'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', RATE),
+            'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', RATE),
+            'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', RATE),
+            'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', RATE),
+            'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', RATE),
+            'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', RATE),
+            'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', RATE),
+        },
+        'query': "select %s FROM pg_stat_bgwriter",
+        'relation': False,
+    }
+
     LOCK_METRICS = {
         'descriptors': [
             ('mode', 'lock_mode'),
@@ -149,9 +167,9 @@ SELECT relname,
 
         # Do we need relation-specific metrics?
         if not relations:
-            metric_scope = (self.DB_METRICS, self.LOCK_METRICS)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS)
 
         try:
             cursor = db.cursor()
