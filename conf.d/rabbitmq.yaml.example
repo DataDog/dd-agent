@@ -5,6 +5,8 @@ instances:
     # url of the RabbitMQ Managment Plugin (http://www.rabbitmq.com/management.html)
     # optional: 'rabbitmq_user' (default: guest) and 'rabbitmq_pass' (default: guest)
     #
+    # Metrics:
+    #
     # If you have less than 5 queues, you don't have to set the queues parameters
     # All queues metrics will be collected
     # If you have more than 5 queues: you can set 5 queue names. Metrics will be collected
@@ -16,6 +18,13 @@ instances:
     # for these nodes. For the other nodes, aggregate will be calculated.
     #
     # Warning: aggregate are calculated on the 100 first queues/nodes.
+    #
+    # Service checks:
+    #
+    # By default a list of all vhosts is fetched and each one will be checked
+    # using the aliveness API. If you prefer only certain vhosts to be monitored
+    # then you can list the vhosts you care about.
+    #
 
 
     -  rabbitmq_api_url: http://localhost:15672/api/
@@ -27,3 +36,6 @@ instances:
        queues:
         - queue1
         - queue2
+       #vhosts:
+       # - vhost1
+       # - vhost2

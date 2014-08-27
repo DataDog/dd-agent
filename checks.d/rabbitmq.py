@@ -1,4 +1,5 @@
 # stdlib
+import urllib
 import urllib2
 import urlparse
 import time
@@ -103,8 +104,14 @@ class RabbitMQ(AgentCheck):
 
     def check(self, instance):
         base_url, max_detailed, specified = self._get_config(instance)
+
+        # Generate metrics from the status API.
         self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE])
         self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE])
+
+        # Generate a service check from the aliveness API.
+        vhosts = instance.get('vhosts')
+        self._check_aliveness(base_url, vhosts)
 
     def _get_data(self, url):
         try:
@@ -213,3 +220,35 @@ class RabbitMQ(AgentCheck):
             }
 
         self.event(event)
+
+    def _check_aliveness(self, base_url, vhosts=None):
+        """ Check the aliveness API against all or a subset of vhosts. The API
+            will return {"status": "ok"} and a 200 response code in the case
+            that the check passes.
+            In the case of an invalid response code or unparseable JSON the
+            service check will be CRITICAL.
+        """
+        if not vhosts:
+            # Fetch a list of _all_ vhosts from the API.
+            vhosts_url = urlparse.urljoin(base_url, 'vhosts')
+            vhosts_response = self._get_data(vhosts_url)
+            vhosts = [v['name'] for v in vhosts_response]
+
+        for vhost in vhosts:
+            tags = {'vhost:%s' % vhost}
+            # We need to urlencode the vhost because it can be '/'.
+            path = u'aliveness-test/%s' % (urllib.quote_plus(vhost))
+            aliveness_url = urlparse.urljoin(base_url, path)
+            message = None
+            try:
+                aliveness_response = self._get_data(aliveness_url)
+                message = u"Response from aliveness API: %s" % aliveness_response
+                if aliveness_response.get('status') == 'ok':
+                    status = AgentCheck.OK
+                else:
+                    status = AgentCheck.CRITICAL
+            except Exception:
+                # Either we got a bad status code or unparseable JSON.
+                status = AgentCheck.CRITICAL
+
+            self.service_check('rabbitmq.aliveness', status, tags, message=message)
