@@ -123,6 +123,13 @@ SELECT relname,
             return version >= [9, 2, 0]
 
         return False
+		
+    def _is_9_0_or_above(self, key, db):
+        version = self._get_version(key, db)
+        if type(version) == list:
+            return version >= [9, 0, 0]
+
+        return False
 
     def _get_instance_metrics(self, key, db):
         """Use either COMMON_METRICS or COMMON_METRICS + NEWER_92_METRICS
@@ -229,8 +236,12 @@ SELECT relname,
         self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
 
         # check if hot_standby is on before running hot standby metrics (replication delay)
-        cursor.execute('show hot_standby;')
-        is_standby = cursor.fetchone()[0]=='on'
+        if self._is_9_0_or_above(key, db):
+                cursor.execute('show hot_standby;')
+                is_standby = cursor.fetchone()[0]=='on'
+        else:
+                is_standby =  False
+				
         if is_standby:
             query = self.HOT_STANDBY_METRIC[0]
             cursor.execute(query)
