@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+  - access_id: admin-key
+    access_secret: admin-secret
+    proxy_host: localhost
+    proxy_port: 8080
+    is_secure: False
+#    s3_host: s3.amazonaws.com
+#    s3_port: 443
