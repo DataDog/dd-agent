@@ -44,7 +44,7 @@ QUEUE_ATTRIBUTES = [
     ('message_stats/publish_details/rate', 'messages.publish.rate'),
 
     ('message_stats/redeliver', 'messages.redeliver.count'),
-    ('message_stats/redeliver/rate', 'messages.redeliver.rate'),
+    ('message_stats/redeliver_details/rate', 'messages.redeliver.rate'),
 ]
 
 NODE_ATTRIBUTES = [
