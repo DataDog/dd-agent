@@ -1,5 +1,8 @@
+# stdlib
 import urllib2
+import urlparse
 
+# project
 from util import headers
 from checks import AgentCheck
 from checks.utils import add_basic_auth
@@ -71,7 +74,23 @@ class Lighttpd(AgentCheck):
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'user' in instance and 'password' in instance:
             add_basic_auth(req, instance['user'], instance['password'])
-        request = urllib2.urlopen(req)
+
+        # Submit a service check for status page availability.
+        parsed_url = urlparse.urlparse(url)
+        lighttpd_url = parsed_url.hostname
+        lighttpd_port = parsed_url.port or 80
+        service_check_name = 'lighthttpd.can_connect'
+        service_check_tags = ['host:%s' % lighttpd_url, 'port:%s' % lighttpd_port]
+        try:
+            request = urllib2.urlopen(req)
+        except Exception:
+            self.service_check(service_check_name, AgentCheck.CRITICAL,
+                               tags=service_check_tags)
+            raise
+        else:
+            self.service_check(service_check_name, AgentCheck.OK,
+                               tags=service_check_tags)
+
         headers_resp = request.info().headers
         server_version = self._get_server_version(headers_resp)
         response = request.read()

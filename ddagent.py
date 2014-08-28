@@ -43,6 +43,13 @@ from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
 
+# 3rd party
+try:
+    import pycurl
+except ImportError:
+    # For the source install, pycurl might not be installed
+    pycurl = None
+
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
@@ -203,30 +210,38 @@ class MetricTransaction(Transaction):
             force_use_curl = False
 
             if proxy_settings is not None and endpoint != PUP_ENDPOINT:
-
-                # When using a proxy we do a CONNECT request why shouldn't include Content-Length
-                # This is pretty hacky though as it should be done in pycurl or curl or tornado
-                if 'Content-Length' in tornado_client_params['headers']:
-                    del tornado_client_params['headers']['Content-Length']
-                    log.debug("Removing Content-Length header.")
-
-                log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
-                    proxy_settings['host'], proxy_settings['port']))
-                tornado_client_params['proxy_host'] = proxy_settings['host']
-                tornado_client_params['proxy_port'] = proxy_settings['port']
-                tornado_client_params['proxy_username'] = proxy_settings['user']
-                tornado_client_params['proxy_password'] = proxy_settings['password']
                 force_use_curl = True
+                if pycurl is not None:
+                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
+                    # This is pretty hacky though as it should be done in pycurl or curl or tornado
+                    if 'Content-Length' in tornado_client_params['headers']:
+                        del tornado_client_params['headers']['Content-Length']
+                        log.debug("Removing Content-Length header.")
 
-            if not self._application.use_simple_http_client or force_use_curl:
+                    log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                        proxy_settings['host'], proxy_settings['port']))
+                    tornado_client_params['proxy_host'] = proxy_settings['host']
+                    tornado_client_params['proxy_port'] = proxy_settings['port']
+                    tornado_client_params['proxy_username'] = proxy_settings['user']
+                    tornado_client_params['proxy_password'] = proxy_settings['password']
+
+                    if self._application._agentConfig.get('proxy_forbid_method_switch'):
+                        # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
+                        tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
+                
+            if (not self._application.use_simple_http_client or force_use_curl) and pycurl is not None:
                 ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
             req = tornado.httpclient.HTTPRequest(**tornado_client_params)
             use_curl = force_use_curl or self._application._agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
+            
             if use_curl:
-                log.debug("Using CurlAsyncHTTPClient")
-                tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+                if pycurl is None:
+                    log.error("dd-agent is configured to use the Curl HTTP Client, but pycurl is not available on this system.")
+                else:
+                    log.debug("Using CurlAsyncHTTPClient")
+                    tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
             else:
                 log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()

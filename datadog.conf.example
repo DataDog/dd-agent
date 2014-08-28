@@ -8,6 +8,9 @@ dd_url: https://app.datadoghq.com
 # proxy_port: 3128
 # proxy_user: user
 # proxy_password: password
+# To be used with some proxys that return a 302 which make curl switch from POST to GET
+# See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
+# proxy_forbid_method_switch: no 
 
 # If you run the agent behind haproxy, you might want to set this to yes
 # skip_ssl_validation: no
@@ -27,7 +30,7 @@ api_key:
 # collect_ec2_tags: no
 
 # Collect instance metadata
-# The Agent will try to collect instance metadata for EC2 and GCE instances by 
+# The Agent will try to collect instance metadata for EC2 and GCE instances by
 # trying to connect to the local endpoint: http://169.254.169.254
 # See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AESDG-chapter-instancedata.html
 # and https://developers.google.com/compute/docs/metadata
@@ -65,6 +68,9 @@ use_mount: no
 # The loopback address the Forwarder and Dogstatsd will bind.
 # Optional, it is mainly used when running the agent on Openshift
 # bind_host: localhost
+
+# If enabled the collector will capture a metric for check run times.
+# check_timings: no
 
 # ========================================================================== #
 # Pup configuration

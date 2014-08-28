@@ -17,7 +17,7 @@ from collections import defaultdict
 
 # project
 import config
-from util import get_os
+from util import get_os, plural
 
 # 3rd party
 import ntplib
@@ -449,7 +449,10 @@ class CollectorStatus(AgentStatus):
                                            s.traceback.split('\n'))
 
                     check_lines += [
-                        "    - Collected %s metrics, %s events & %s service checks" % (cs.metric_count, cs.event_count, cs.service_check_count),
+                        "    - Collected %s metric%s, %s event%s & %s service check%s" % (
+                            cs.metric_count, plural(cs.metric_count), 
+                            cs.event_count, plural(cs.event_count),
+                            cs.service_check_count, plural(cs.service_check_count)),
                     ]
 
                     if cs.library_versions is not None:
@@ -549,6 +552,17 @@ class CollectorStatus(AgentStatus):
             status_info['checksd_path'] = config.get_checksd_path(osname)
         except config.PathNotFound:
             status_info['checksd_path'] = 'Not found'
+
+        # Clocks
+        try:
+            ntp_offset, ntp_style = get_ntp_info()
+            warn_ntp = len(ntp_style) > 0
+        except Exception as e:
+            ntp_offset = "Unknown (%s)" % str(e)
+            warn_ntp = True
+        status_info["ntp_warning"] = warn_ntp
+        status_info["ntp_offset"] = round(ntp_offset, 4)
+        status_info["utc_time"] = datetime.datetime.utcnow().__str__()
 
         return status_info
 

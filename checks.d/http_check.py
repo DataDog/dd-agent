@@ -1,10 +1,15 @@
-from checks.services_checks import ServicesCheck, Status, EventType
-from util import headers
+# stdlib
 import socket
 import time
+
+# project
+from checks.network_checks import NetworkCheck, Status, EventType
+from util import headers
+
+# 3rd party
 from httplib2 import Http, HttpLib2Error
 
-class HTTPCheck(ServicesCheck):
+class HTTPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'http_check'
@@ -94,9 +99,9 @@ class HTTPCheck(ServicesCheck):
         # Let the possibility to override the source type name
         instance_source_type_name = instance.get('source_type', None)
         if instance_source_type_name is None:
-            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, name)
+            source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, name)
         else:
-            source_type = "%s.%s" % (ServicesCheck.SOURCE_TYPE_NAME, instance_source_type_name)
+            source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, instance_source_type_name)
 
 
         # Get the handles you want to notify
@@ -145,11 +150,27 @@ class HTTPCheck(ServicesCheck):
              "tags": tags_list
         }
 
-    def report_as_service_check(self, name, status, instance):
+    def report_as_service_check(self, name, status, instance, msg=None):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         url = instance.get('url', None)
+
+        if status == Status.DOWN:
+            # format the HTTP response body into the event
+            if isinstance(msg, tuple):
+                code, reason, content = msg
+
+                # truncate and html-escape content
+                if len(content) > 200:
+                    content = content[:197] + '...'
+
+                msg = "%d %s\n\n%s" % (code, reason, content)
+                msg = msg.rstrip()
+        else:
+            msg=None
+
         self.service_check(service_check_name,
-                           ServicesCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags= ['url:%s' % url]
+                           NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
+                           tags= ['url:%s' % url],
+                           message=msg
                            )
 

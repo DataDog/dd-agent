@@ -1,4 +1,4 @@
-# std
+# stdlib
 import time
 import re
 from collections import namedtuple
@@ -78,7 +78,8 @@ class Nagios(AgentCheck):
                     instance_key = conf_path
                 if 'nagios_log' in instance:
                     nagios_conf["log_file"] = instance['nagios_log']
-                    instance_key = conf_path or instance['nagios_log']
+                    if instance_key is None:
+                        instance_key = instance['nagios_log']
                 # End of retrocompatibility code
                 if not nagios_conf:
                     self.log.warning("Missing path to nagios_conf")

@@ -20,7 +20,7 @@ from cStringIO import StringIO
 
 # project
 
-from util import get_os, Platform
+from util import get_os, Platform, yLoader
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
@@ -371,8 +371,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
-            if use_ddurl:
+            if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
                 agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
@@ -382,6 +381,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option('Main', 'autorestart'):
             agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
+
+        if config.has_option('Main', 'check_timings'):
+            agentConfig['check_timings'] = _is_affirmative(config.get('Main', 'check_timings'))
 
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
@@ -430,6 +432,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["collect_instance_metadata"] = True
         if config.has_option("Main", "collect_instance_metadata"):
             agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
+
+        agentConfig["proxy_forbid_method_switch"] = False
+        if config.has_option("Main", "proxy_forbid_method_switch"):
+            agentConfig["proxy_forbid_method_switch"] = _is_affirmative(config.get("Main", "proxy_forbid_method_switch"))
 
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
@@ -649,7 +655,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
+        check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 
@@ -668,7 +674,7 @@ def check_yaml(conf_path):
     finally:
         f.close()
 
-def load_check_directory(agentConfig):
+def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
@@ -677,13 +683,14 @@ def load_check_directory(agentConfig):
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
+    agentConfig['checksd_hostname'] = hostname
 
     deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:
         msg = "Configuring %s in datadog.conf is not supported anymore. Please use conf.d" % deprecated_config
         deprecated_checks[deprecated_config] = {'error': msg, 'traceback': None}
         log.error(msg)
-    
+
     osname = get_os()
     checks_paths = [glob.glob(os.path.join(agentConfig['additional_checksd'], '*.py'))]
 
@@ -710,7 +717,7 @@ def load_check_directory(agentConfig):
 
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
-    # If there is a matching configuration file in the conf.d directory 
+    # If there is a matching configuration file in the conf.d directory
     # then we import the check
     for check in itertools.chain(*checks_paths):
         check_name = os.path.basename(check).split('.')[0]
@@ -732,7 +739,8 @@ def load_check_directory(agentConfig):
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured
-            # in datadog.conf - Should be removed in ulterior major version
+            # in datadog.conf
+            # fixme: Should be removed in ulterior major version
             if check_name == 'nagios':
                 if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
                     log.warning("Configuring Nagios in datadog.conf is deprecated "
@@ -745,7 +753,7 @@ def load_check_directory(agentConfig):
                 log.debug("No configuration file for %s" % check_name)
                 continue
 
-        # If we are here, there is a valid matching configuration file. 
+        # If we are here, there is a valid matching configuration file.
         # Let's try to import the check
         try:
             check_module = imp.load_source('checksd_%s' % check_name, check)

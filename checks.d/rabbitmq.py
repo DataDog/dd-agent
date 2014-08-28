@@ -1,9 +1,13 @@
+# stdlib
 import urllib2
 import urlparse
 import time
 
+# proiect
 from checks import AgentCheck
-from util import json
+
+# 3rd party
+import simplejson as json
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'

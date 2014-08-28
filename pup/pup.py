@@ -302,7 +302,8 @@ def main():
     is_enabled = c['use_pup']
 
     if is_enabled:
-        log.info("Starting pup")
+        log.info("Starting pup.")
+        log.warning("Pup is now deprecated and will be removed in a future release of the Datadog Agent")
         run_pup(c)
     else:
         log.info("Pup is disabled. Exiting")

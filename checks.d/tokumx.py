@@ -1,7 +1,9 @@
+# stdlib
 import re
 import types
 import time
 
+# project
 from checks import AgentCheck
 from util import get_hostname
 

@@ -1,6 +1,6 @@
 import platform
 import sys
-from config import *
+from config import get_version
 from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
@@ -28,21 +28,26 @@ install_requires=[
 if sys.platform == 'win32':
     from glob import glob
     import py2exe
+    import pysnmp_mibs
     install_requires.extend([
         'tornado==3.0.1',
         'pywin32==217',
         'wmi==1.4.9',
-        'simplejson==2.6.1',
+        'simplejson==3.3.3',
         'mysql-python==1.2.3',
         'pymongo==2.3',
-        'psycopg2',
+        'pg8000==1.9.6',
         'python-memcached==1.48',
-        'adodbapi'
-        'elementtree',
-        'pycurl',
-        'MySQLdb',
-        'psutil',
-        'redis',
+        'adodbapi==2.4.2.2',
+        'elementtree==1.2.7.20070827-preview',
+        'pycurl==7.19.0',
+        'pymysql==0.6.1',
+        'psutil==2.1.1',
+        'redis==2.10.1',
+        'requests==2.3.0',
+        'httplib2==0.9',
+        'pysnmp==4.2.5',
+        'pysnmp-mibs==0.1.4'
     ])
 
     # Modules to force-include in the exe
@@ -57,14 +62,20 @@ if sys.platform == 'win32':
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
-        'MySQLdb',
+        'pymysql',
         'psutil',
-        'psycopg2',
+        'pg8000',
         'redis',
+        'requests',
+        'pysnmp',
+        'pysnmp.smi.mibs.*',
+        'pysnmp.smi.mibs.instances.*',
+        'pysnmp_mibs.*',
+        'pysnmp.entity.rfc3413.oneliner.*',
 
         # agent
-        'checks.services_checks',
-        'checks.libs.httplib2',
+        'checks.network_checks',
+        'httplib2',
 
         # pup
         'pup',
@@ -91,6 +102,9 @@ if sys.platform == 'win32':
                 'optimize': 0,
                 'compressed': True,
                 'bundle_files': 3,
+                'excludes': ['numpy'],
+                'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
+                'ascii':False,
             },
         },
         'console': ['win32\shell.py'],
@@ -102,10 +116,10 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', glob('pup/pup.html')),
-            ('pup', glob('pup/status.html')),
+            ('pup', [r'pup\pup.html', r'pup\status.html']),
             ('pup/static', glob('pup/static/*.*')),
-            ('jmxfetch', glob('checks/libs/%s' % JMX_FETCH_JAR_NAME)),
+            ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
+            ('gohai', [r'gohai\gohai.exe'])
         ],
     }
 

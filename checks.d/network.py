@@ -1,7 +1,6 @@
 """
 Collects network metrics.
 """
-
 # stdlib
 import platform
 import subprocess
@@ -11,6 +10,7 @@ import re
 # project
 from checks import AgentCheck
 from util import Platform
+
 BSD_TCP_METRICS = [
         (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
         (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
@@ -198,42 +198,46 @@ class Network(AgentCheck):
                 }
                 self._submit_devicemetrics(iface, metrics)
 
-
-        proc = open('/proc/net/snmp', 'r')
-        # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
-        # IP:      2            64         377145470      0            ...
-        # Icmp:    InMsgs       InErrors   InDestUnreachs InTimeExcds  ...
-        # Icmp:    1644495      1238       1643257        0            ...
-        # IcmpMsg: InType3      OutType3
-        # IcmpMsg: 1643257      1643257
-        # Tcp:     RtoAlgorithm RtoMin     RtoMax         MaxConn      ...
-        # Tcp:     1            200        120000         -1           ...
-        # Udp:     InDatagrams  NoPorts    InErrors       OutDatagrams ...
-        # Udp:     24249494     1643257    0              25892947     ...
-        # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
-        # UdpLite: 0            0          0              0            ...
         try:
-            lines = proc.readlines()
-        finally:
-            proc.close()
+            proc = open('/proc/net/snmp', 'r')
 
-        tcp_lines = [line for line in lines if line.startswith('Tcp:')]
-        column_names = tcp_lines[0].strip().split()
-        values = tcp_lines[1].strip().split()
+            # IP:      Forwarding   DefaultTTL InReceives     InHdrErrors  ...
+            # IP:      2            64         377145470      0            ...
+            # Icmp:    InMsgs       InErrors   InDestUnreachs InTimeExcds  ...
+            # Icmp:    1644495      1238       1643257        0            ...
+            # IcmpMsg: InType3      OutType3
+            # IcmpMsg: 1643257      1643257
+            # Tcp:     RtoAlgorithm RtoMin     RtoMax         MaxConn      ...
+            # Tcp:     1            200        120000         -1           ...
+            # Udp:     InDatagrams  NoPorts    InErrors       OutDatagrams ...
+            # Udp:     24249494     1643257    0              25892947     ...
+            # UdpLite: InDatagrams  Noports    InErrors       OutDatagrams ...
+            # UdpLite: 0            0          0              0            ...
+            try:
+                lines = proc.readlines()
+            finally:
+                proc.close()
 
-        tcp_metrics = dict(zip(column_names,values))
+            tcp_lines = [line for line in lines if line.startswith('Tcp:')]
+            column_names = tcp_lines[0].strip().split()
+            values = tcp_lines[1].strip().split()
 
-        # line start indicating what kind of metrics we're looking at
-        assert(tcp_metrics['Tcp:']=='Tcp:')
+            tcp_metrics = dict(zip(column_names,values))
 
-        tcp_metrics_name = {
-            'RetransSegs': 'system.net.tcp.retrans_segs',
-            'InSegs'     : 'system.net.tcp.in_segs',
-            'OutSegs'    : 'system.net.tcp.out_segs'
-            }
+            # line start indicating what kind of metrics we're looking at
+            assert(tcp_metrics['Tcp:']=='Tcp:')
 
-        for key, metric in tcp_metrics_name.iteritems():
-            self.rate(metric, self._parse_value(tcp_metrics[key]))
+            tcp_metrics_name = {
+                'RetransSegs': 'system.net.tcp.retrans_segs',
+                'InSegs'     : 'system.net.tcp.in_segs',
+                'OutSegs'    : 'system.net.tcp.out_segs'
+                }
+
+            for key, metric in tcp_metrics_name.iteritems():
+                self.rate(metric, self._parse_value(tcp_metrics[key]))
+        except IOError:
+            # On Openshift, /proc/net/snmp is only readable by root
+            self.log.debug("Unable to read /proc/net/snmp.")
 
     def _check_bsd(self, instance):
         netstat = subprocess.Popen(["netstat", "-i", "-b"],

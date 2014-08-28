@@ -96,6 +96,87 @@ class BucketGauge(Gauge):
 
         return []
 
+
+class Count(Metric):
+    """ A metric that tracks a count. """
+
+    def __init__(self, formatter, name, tags, hostname, device_name):
+        self.formatter = formatter
+        self.name = name
+        self.value = None
+        self.tags = tags
+        self.hostname = hostname
+        self.device_name = device_name
+        self.last_sample_time = None
+
+    def sample(self, value, sample_rate, timestamp=None):
+        self.value = (self.value or 0) + value
+        self.last_sample_time = time()
+
+    def flush(self, timestamp, interval):
+        if self.value is None:
+            return []
+        try:
+            return [self.formatter(
+                metric=self.name,
+                value=self.value,
+                timestamp=timestamp,
+                tags=self.tags,
+                hostname=self.hostname,
+                device_name=self.device_name,
+                metric_type=MetricTypes.COUNT,
+                interval=interval,
+            )]
+        finally:
+            self.value = None
+
+class MonotonicCount(Metric):
+
+    def __init__(self, formatter, name, tags, hostname, device_name):
+        self.formatter = formatter
+        self.name = name
+        self.tags = tags
+        self.hostname = hostname
+        self.device_name = device_name
+        self.prev_counter = None
+        self.curr_counter = None
+        self.count = None
+        self.last_sample_time = None
+
+    def sample(self, value, sample_rate, timestamp=None):
+        if self.curr_counter is None:
+            self.curr_counter = value
+        else:
+            self.prev_counter = self.curr_counter
+            self.curr_counter = value
+
+        prev = self.prev_counter
+        curr = self.curr_counter
+        if prev is not None and curr is not None:
+            self.count = (self.count or 0) + max(0, curr - prev)
+
+        self.last_sample_time = time()
+
+    def flush(self, timestamp, interval):
+        if self.count is None:
+            return []
+        try:
+            return [self.formatter(
+                hostname=self.hostname,
+                device_name=self.device_name,
+                tags=self.tags,
+                metric=self.name,
+                value=self.count,
+                timestamp=timestamp,
+                metric_type=MetricTypes.COUNT,
+                interval=interval
+            )]
+        finally:
+            self.prev_counter = self.curr_counter
+            self.curr_counter = None
+            self.count = None
+
+
 class Counter(Metric):
     """ A metric that tracks a counter value. """
 
@@ -395,7 +476,7 @@ class Aggregator(object):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
-        for packet in packets.split("\n"):
+        for packet in packets.splitlines():
 
             if not packet.strip():
                 continue
@@ -486,6 +567,9 @@ class MetricsBucketAggregator(Aggregator):
         # Avoid calling extra functions to dedupe tags if there are none
         # Note: if you change the way that context is created, please also change create_empty_metrics,
         #  which counts on this order
+
+        hostname = hostname or self.hostname
+
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
@@ -513,7 +597,7 @@ class MetricsBucketAggregator(Aggregator):
             if context not in metric_by_context:
                 metric_class = self.metric_type_to_class[mtype]
                 metric_by_context[context] = metric_class(self.formatter, name, tags,
-                    hostname or self.hostname, device_name)
+                    hostname, device_name)
 
             metric_by_context[context].sample(value, sample_rate, timestamp)
 
@@ -592,6 +676,8 @@ class MetricsAggregator(Aggregator):
         self.metrics = {}
         self.metric_type_to_class = {
             'g': Gauge,
+            'ct': Count,
+            'ct-c': MonotonicCount,
             'c': Counter,
             'h': Histogram,
             'ms': Histogram,
@@ -602,6 +688,9 @@ class MetricsAggregator(Aggregator):
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
+
+        hostname = hostname or self.hostname
+        
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
@@ -609,7 +698,7 @@ class MetricsAggregator(Aggregator):
         if context not in self.metrics:
             metric_class = self.metric_type_to_class[mtype]
             self.metrics[context] = metric_class(self.formatter, name, tags,
-                hostname or self.hostname, device_name)
+                hostname, device_name)
         cur_time = time()
         if timestamp is not None and cur_time - int(timestamp) > self.recent_point_threshold:
             log.debug("Discarding %s - ts = %s , current ts = %s " % (name, timestamp, cur_time))
@@ -628,6 +717,14 @@ class MetricsAggregator(Aggregator):
 
     def rate(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, '_dd-r', tags, hostname, device_name)
+
+    def submit_count(self, name, value, tags=None, hostname=None, device_name=None):
+        self.submit_metric(name, value, 'ct', tags, hostname, device_name)
+
+    def count_from_counter(self, name, value, tags=None,
+                           hostname=None, device_name=None):
+        self.submit_metric(name, value, 'ct-c', tags,
+                           hostname, device_name)
 
     def histogram(self, name, value, tags=None, hostname=None, device_name=None):
         self.submit_metric(name, value, 'h', tags, hostname, device_name)

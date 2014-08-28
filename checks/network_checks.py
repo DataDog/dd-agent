@@ -1,11 +1,13 @@
-from checks import AgentCheck
+# stdlib
 import time
 from Queue import Queue, Empty
-from checks.libs.thread_pool import Pool
 import threading
 
+# project
+from checks import AgentCheck
 
-
+# 3rd party
+from checks.libs.thread_pool import Pool
 
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
@@ -21,9 +23,9 @@ class EventType:
     UP = "servicecheck.state_change.up"
 
 
-class ServicesCheck(AgentCheck):
+class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
-    SERVICE_CHECK_PREFIX = 'service_check'
+    SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
             Status.UP  : AgentCheck.OK,
@@ -35,16 +37,16 @@ class ServicesCheck(AgentCheck):
     This class should never be directly instanciated.
 
     Work flow:
-        The main agent loop will call the check function for each instance for 
+        The main agent loop will call the check function for each instance for
         each iteration of the loop.
-        The check method will make an asynchronous call to the _process method in 
+        The check method will make an asynchronous call to the _process method in
         one of the thread initiated in the thread pool created in this class constructor.
         The _process method will call the _check method of the inherited class
         which will perform the actual check.
 
         The _check method must return a tuple which first element is either
             Status.UP or Status.DOWN.
-            The second element is a short error message that will be displayed 
+            The second element is a short error message that will be displayed
             when the service turns down.
 
     """
@@ -91,7 +93,7 @@ class ServicesCheck(AgentCheck):
     def check(self, instance):
         if not self.pool_started:
             self.start_pool()
-        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1 
+        if threading.activeCount() > 5 * self.pool_size + 5: # On Windows the agent runs on multiple threads so we need to have an offset of 5 in case the pool_size is 1
             raise Exception("Thread number (%s) is exploding. Skipping this check" % threading.activeCount())
         self._process_results()
         self._clean()
@@ -100,7 +102,7 @@ class ServicesCheck(AgentCheck):
             self.log.error('Each service check must have a name')
             return
 
-        if name not in self.jobs_status: 
+        if name not in self.jobs_status:
             # A given instance should be processed one at a time
             self.jobs_status[name] = time.time()
             self.pool.apply_async(self._process, args=(instance,))
@@ -137,12 +139,13 @@ class ServicesCheck(AgentCheck):
                     self.restart_pool()
                 continue
 
-            self.report_as_service_check(name, status, queue_instance)
+            self.report_as_service_check(name, status, queue_instance, msg)
 
             # Don't create any event to avoid duplicates with server side
             # service_checks
             skip_event = queue_instance.get('skip_event', False)
             if not skip_event:
+                self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
                 event = None
 
                 if not name in self.statuses:
@@ -187,10 +190,9 @@ class ServicesCheck(AgentCheck):
 
     def _clean(self):
         now = time.time()
-        stuck_process = None
-        stuck_time = time.time()
         for name in self.jobs_status.keys():
             start_time = self.jobs_status[name]
             if now - start_time > TIMEOUT:
-                self.log.critical("Restarting Pool. One check is stuck.")
+                self.log.critical("Restarting Pool. One check is stuck: %s" % name)
                 self.restart_pool()
+                break

@@ -1,7 +1,9 @@
+# stdlib
 import urllib2
+
+# project
 from util import headers
 from checks.utils import add_basic_auth
-
 from checks import AgentCheck
 
 # 3rd party

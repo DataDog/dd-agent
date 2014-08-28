@@ -1,14 +1,15 @@
 '''
 Monitor the Windows Event Log
 '''
+# stdlib
 from datetime import datetime, timedelta
 import calendar
-try:
-    import wmi
-except Exception:
-    wmi = None
 
+# project
 from checks import AgentCheck
+
+# 3rd party
+import wmi
 
 SOURCE_TYPE_NAME = 'event viewer'
 EVENT_TYPE = 'win32_log_event'
@@ -26,9 +27,6 @@ class Win32EventLog(AgentCheck):
         return self.wmi_conns[key]
 
     def check(self, instance):
-        if wmi is None:
-            raise Exception("Missing 'wmi' module")
-
         host = instance.get('host')
         user = instance.get('username')
         password = instance.get('password')

@@ -7,3 +7,8 @@ instances:
 #       tags:
 #            - optional_tag1
 #            - optional_tag2
+#
+#       # If `expected_mode` is defined we'll send a service check where the
+#       # status is determined by whether the current mode matches the expected.
+#       # Options: leader, follower, standalone
+#       expected_mode: leader

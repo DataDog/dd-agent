@@ -1,8 +1,15 @@
 # Variables
-$version = "$(python -c "from config import get_version; print get_version()").$env:BUILD_NUMBER"
+if (Test-Path variable:global:$env:BUILD_NUMBER) {
+	$build_num = $env:BUILD_NUMBER
+} else {
+	$build_num = '0'
+}
+
+$version = "$(python -c "from config import get_version; print get_version()").$build_num"
 
 # Remove old artifacts
 rm -r build/*
+rm -r dist/*
 
 # Build the agent.exe service
 python setup.py py2exe 
@@ -28,9 +35,14 @@ cp -R ..\..\..\dist\pup install_files\files\pup
 # Copy JMX Fetch into the install_files
 cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
 
+# Copy JMX Fetch into the install_files
+cp -R ..\..\..\dist\gohai install_files\files\gohai
+
 # Move the images needed for the gui
 cp -R install_files\guidata install_files\files
 
+# Copy the license file
+cp ..\..\..\LICENSE install_files\license.rtf
 
 ## Generate the CLI installer with WiX
 
@@ -51,6 +63,7 @@ rm *wixobj*
 rm -r install_files\files\pup
 rm -r install_files\files\guidata
 rm -r install_files\files\jmxfetch
+rm -r install_files\files\gohai
 rm install_files\files\*.*
 rm -r install_files\conf.d
 rm -r install_files\checks.d

@@ -6,6 +6,8 @@ from checks import (Check, AgentCheck,
     CheckException, UnknownValue, CheckException, Infinity)
 from checks.collector import Collector
 from aggregator import MetricsAggregator
+from common import load_check
+from util import get_hostname
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -14,6 +16,9 @@ class TestCore(unittest.TestCase):
         self.c = Check(logger)
         self.c.gauge("test-metric")
         self.c.counter("test-counter")
+
+    def setUpAgentCheck(self):
+        self.ac = AgentCheck('test', {}, {'checksd_hostname': "foo"})
 
     def test_gauge(self):
         self.assertEquals(self.c.is_gauge("test-metric"), True)
@@ -90,8 +95,19 @@ class TestCore(unittest.TestCase):
         self.assertEquals(self.c.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
         self.assertEquals(self.c.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
 
+        # Same tests for the AgentCheck
+        self.setUpAgentCheck()
+        self.assertEquals(self.ac.normalize("metric"), "metric")
+        self.assertEquals(self.ac.normalize("metric", "prefix"), "prefix.metric")
+        self.assertEquals(self.ac.normalize("__metric__", "prefix"), "prefix.metric")
+        self.assertEquals(self.ac.normalize("abc.metric(a+b+c{}/5)", "prefix"), "prefix.abc.metric_a_b_c_5")
+        self.assertEquals(self.ac.normalize("VBE.default(127.0.0.1,,8080).happy", "varnish"), "varnish.VBE.default_127.0.0.1_8080.happy")
+
+        self.assertEqual(self.ac.normalize("PauseTotalNs", "prefix", fix_case = True), "prefix.pause_total_ns")
+        self.assertEqual(self.ac.normalize("Metric.wordThatShouldBeSeparated", "prefix", fix_case = True), "prefix.metric.word_that_should_be_separated")
+
     def test_metadata(self):
-        c = Collector({"collect_instance_metadata": True}, None, {})
+        c = Collector({"collect_instance_metadata": True}, None, {}, "foo")
         assert "hostname" in c._get_metadata()
         assert "socket-fqdn" in c._get_metadata()
         assert "socket-hostname" in c._get_metadata()
@@ -103,7 +119,7 @@ class TestCore(unittest.TestCase):
         host_name = 'foohost'
         timestamp = time.time()
 
-        check = AgentCheck('test', {}, {})
+        check = AgentCheck('test', {}, {'checksd_hostname':'foo'})
         check.service_check(check_name, status, tags, timestamp, host_name)
         self.assertEquals(len(check.service_checks), 1, check.service_checks)
         val = check.get_service_checks()
@@ -120,6 +136,107 @@ class TestCore(unittest.TestCase):
                     'message': None,
                 }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
+
+    def test_collector(self):
+        agentConfig = {
+            'api_key': 'test_apikey',
+            'check_timings': True,
+            'collect_ec2_tags': True,
+            'collect_instance_metadata': False,
+            'version': 'test',
+            'tags': '',
+        }
+
+        # Run a single checks.d check as part of the collector.
+        redis_config = {
+            "init_config": {},
+            "instances": [{"host": "localhost", "port": 6379}]
+        }
+        checks = [load_check('redisdb', redis_config, agentConfig)]
+
+        c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
+        payload = c.run({
+            'initialized_checks': checks,
+            'init_failed_checks': {}
+        })
+        metrics = payload['metrics']
+
+        # Check that we got a timing metric for all checks.
+        timing_metrics = [m for m in metrics
+            if m[0] == 'datadog.agent.check_run_time']
+        all_tags = []
+        for metric in timing_metrics:
+            all_tags.extend(metric[3]['tags'])
+        for check in checks:
+            tag = "check:%s" % check.name
+            assert tag in all_tags, all_tags
+
+    def test_min_collection_interval(self):
+
+        config = {'instances': [{'foo': 'bar', 'timeout': 2}], 'init_config': {}}
+
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        # default min collection interval for that check is 20sec
+        check = load_check('ntp', config, agentConfig)
+
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        
+        check.run()
+        metrics = check.get_metrics()
+        # No metrics should be collected as it's too early
+        self.assertEquals(len(metrics), 0, metrics)
+
+        time.sleep(20)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        time.sleep(3)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        check.DEFAULT_MIN_COLLECTION_INTERVAL = 0
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval':3}], 'init_config': {}}
+        check = load_check('ntp', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(4)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        check = load_check('ntp', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(4)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertEquals(len(metrics), 0, metrics)
+        time.sleep(8)
+        check.run()
+        metrics = check.get_metrics()
+        self.assertTrue(len(metrics) > 0, metrics)
+
+
+
 
 class TestAggregator(unittest.TestCase):
     def setUp(self):

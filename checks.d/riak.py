@@ -1,11 +1,14 @@
+# stdlib
 import time
-
-from checks import AgentCheck
-from util import md5
-from util import json
-
-from httplib2 import Http, HttpLib2Error
+from hashlib import md5
 import socket
+
+# project
+from checks import AgentCheck
+
+# 3rd party
+import simplejson as json
+from httplib2 import Http, HttpLib2Error
 
 class Riak(AgentCheck):
 

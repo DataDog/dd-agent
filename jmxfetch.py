@@ -8,7 +8,7 @@ import tempfile
 import time
 
 # datadog
-from util import PidFile, get_os
+from util import PidFile, get_os, yLoader, yDumper
 
 # 3rd party
 import yaml
@@ -86,7 +86,7 @@ class JMXFetch(object):
             'invalid_checks': invalid_checks
         }
         stream = file(os.path.join(tempfile.gettempdir(), PYTHON_JMX_STATUS_FILE), 'w')
-        yaml.dump(data, stream)
+        yaml.dump(data, stream, Dumper=yDumper)
         stream.close()
 
     @classmethod
@@ -125,7 +125,7 @@ class JMXFetch(object):
             if os.path.exists(conf):
                 f = open(conf)
                 try:
-                    check_config = yaml.load(f.read(), Loader=yaml.CLoader)
+                    check_config = yaml.load(f.read(), Loader=yLoader)
                     assert check_config is not None
                     f.close()
                 except Exception:

@@ -1,4 +1,8 @@
-from checks import *
+# project
+from checks import AgentCheck
+
+# 3rd party
+import memcache
 
 # Reference: http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
 # Name              Type     Meaning
@@ -95,17 +99,9 @@ class Memcache(AgentCheck):
     ]
 
     def get_library_versions(self):
-        try:
-            import memcache
-            version = memcache.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
+        return {"memcache": memcache.__version__}
 
-        return {"memcache": version}
-
-    def _get_metrics(self, server, port, tags, memcache):
+    def _get_metrics(self, server, port, tags):
         mc = None  # client
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
@@ -170,11 +166,6 @@ class Memcache(AgentCheck):
         if not server and not socket:
             raise Exception("Missing or null 'url' and 'socket' in mcache config")
 
-        try:
-            import memcache
-        except ImportError:
-            raise Exception("Cannot import memcache module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/mcache")
-
         # Hacky monkeypatch to fix a memory leak in the memcache library.
         # See https://github.com/DataDog/dd-agent/issues/278 for details.
         try:
@@ -189,4 +180,4 @@ class Memcache(AgentCheck):
             port = int(instance.get('port', self.DEFAULT_PORT))
         tags = instance.get('tags', None)
 
-        self._get_metrics(server, port, tags, memcache)
+        self._get_metrics(server, port, tags)

@@ -1,10 +1,11 @@
+# stdlib
 from fnmatch import fnmatch
 from os import stat, walk
 from os.path import abspath, exists, join
 import time
 
+# project
 from checks import AgentCheck
-
 
 class DirectoryCheck(AgentCheck):
     """This check is for monitoring and reporting metrics on the files for a provided directory

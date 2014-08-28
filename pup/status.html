@@ -38,6 +38,13 @@
           <dt>Path to checks.d</dt>    <dd>{{ collector['checksd_path'] }}</dd>
         </dl>
 
+        <h3>Clocks</h3>
+
+        <dl>
+            <dt>NTP offset:</dt>          <dd><span class="{{ ['status-ok','status-error'][collector['ntp_warning']] }}">{{ collector['ntp_offset'] }}</span></dd>
+          <dt>System UTC time:</dt>     <dd>{{ collector['utc_time'] }}</dd>
+        </dl>
+
         <h3>Hostnames</h3>
 
         {% if collector['hostnames'] %}

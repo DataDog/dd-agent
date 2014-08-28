@@ -14,8 +14,9 @@ import sys
 import traceback
 import copy
 from pprint import pprint
+from collections import defaultdict
 
-from util import LaconicFilter, get_os, get_hostname, get_next_id
+from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
 from config import get_confd_path
 from checks import check_status
 
@@ -269,6 +270,8 @@ class AgentCheck(object):
 
     SOURCE_TYPE_NAME = None
 
+    DEFAULT_MIN_COLLECTION_INTERVAL = 0
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
         Initialize a new check.
@@ -281,18 +284,21 @@ class AgentCheck(object):
         from aggregator import MetricsAggregator
 
         self.name = name
-        self.init_config = init_config
+        self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.hostname = get_hostname(agentConfig)
+        self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter, recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+        self.aggregator = MetricsAggregator(self.hostname, 
+            formatter=agent_formatter, 
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
 
         self.events = []
         self.service_checks = []
         self.instances = instances or []
         self.warnings = []
         self.library_versions = None
+        self.last_collection_time = defaultdict(int)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -335,6 +341,34 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         """
         self.aggregator.decrement(metric, value, tags, hostname, device_name)
+
+    def count(self, metric, value=0, tags=None, hostname=None, device_name=None):
+        """
+        Submit a raw count with optional tags, hostname and device name
+
+        :param metric: The name of the metric
+        :param value: The value
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.submit_count(metric, value, tags, hostname, device_name)
+
+    def monotonic_count(self, metric, value=0, tags=None,
+                      hostname=None, device_name=None):
+        """
+        Submits a raw count with optional tags, hostname and device name
+        based on increasing counter values. E.g. 1, 3, 5, 7 will submit
+        6 on flush. Note that reset counters are skipped.
+
+        :param metric: The name of the metric
+        :param value: The value of the rate
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.count_from_counter(metric, value, tags,
+                                           hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -498,6 +532,14 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
+                min_collection_interval = instance.get('min_collection_interval', 
+                    self.init_config.get('min_collection_interval', self.DEFAULT_MIN_COLLECTION_INTERVAL))
+                now = time.time()
+                if now - self.last_collection_time[i] < min_collection_interval:
+                    self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
+                    continue
+
+                self.last_collection_time[i] = now
                 self.check(copy.deepcopy(instance))
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
@@ -545,20 +587,27 @@ class AgentCheck(object):
             yaml_text = f.read()
             f.close()
 
-        config = yaml.load(yaml_text, Loader=yaml.CLoader)
+        config = yaml.load(yaml_text, Loader=yLoader)
         check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
 
         return check, config.get('instances', [])
 
-    def normalize(self, metric, prefix=None):
+    def normalize(self, metric, prefix=None, fix_case = False):
         """
         Turn a metric into a well-formed metric name
         prefix.b.c
 
         :param metric The metric name to normalize
         :param prefix A prefix to to add to the normalized name, default None
+        :param fix_case A boolean, indicating whether to make sure that
+                        the metric name returned is in underscore_case
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        if fix_case:
+            name = self.convert_to_underscore_separated(metric)
+            if prefix is not None:
+                prefix = self.convert_to_underscore_separated(prefix)
+        else:
+            name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -572,6 +621,22 @@ class AgentCheck(object):
             return prefix + "." + name
         else:
             return name
+
+    FIRST_CAP_RE = re.compile('(.)([A-Z][a-z]+)')
+    ALL_CAP_RE = re.compile('([a-z0-9])([A-Z])')
+    METRIC_REPLACEMENT = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
+    DOT_UNDERSCORE_CLEANUP = re.compile(r'_*\._*')
+
+
+    def convert_to_underscore_separated(self, name):
+        """
+        Convert from CamelCase to camel_case
+        And substitute illegal metric characters
+        """
+        metric_name = self.FIRST_CAP_RE.sub(r'\1_\2', name)
+        metric_name = self.ALL_CAP_RE.sub(r'\1_\2', metric_name).lower()
+        metric_name = self.METRIC_REPLACEMENT.sub('_', metric_name)
+        return self.DOT_UNDERSCORE_CLEANUP.sub('.', metric_name).strip('_')
 
     @staticmethod
     def read_config(instance, key, message=None, cast=None):

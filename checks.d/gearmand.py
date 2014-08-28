@@ -1,24 +1,15 @@
+# project
 from checks import AgentCheck
+
+# 3rd party
+import gearman
 
 class Gearman(AgentCheck):
 
     def get_library_versions(self):
-        try:
-            import gearman
-            version = gearman.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"gearman": version}
+        return {"gearman": gearman.__version__}
 
     def _get_client(self,host,port):
-        try:
-            import gearman
-        except ImportError:
-            raise Exception("Cannot import Gearman module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/gearman")
-
         self.log.debug("Connecting to gearman at address %s:%s" % (host, port))
         return gearman.GearmanAdminClient(["%s:%s" %
             (host, port)])

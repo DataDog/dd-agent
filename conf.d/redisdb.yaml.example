@@ -8,6 +8,8 @@ instances:
 #       tags:
 #            - optional_tag1
 #            - optional_tag2
+#
+#       warn_on_missing_keys: True # Display a warning in the info page if the keys we're tracking are missing
 #       keys: # check the length of these keys
 #            - key1
 #            - key2

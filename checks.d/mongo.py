@@ -1,14 +1,14 @@
+# stdlib
 import re
 import types
 import time
 
+# project
 from checks import AgentCheck
 from util import get_hostname
 
-# When running with pymongo < 2.0
-# Not the full spec for mongo URIs -- just extract username and password
-# http://www.mongodb.org/display/DOCS/connections6
-mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
+# 3rd party
+import pymongo
 
 DEFAULT_TIMEOUT = 10
 
@@ -108,15 +108,7 @@ class MongoDb(AgentCheck):
         self._last_state_by_server = {}
 
     def get_library_versions(self):
-        try:
-            import pymongo
-            version = pymongo.version
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"pymongo": version}
+        return {"pymongo": pymongo.version}
 
     def check_last_state(self, state, server, agentConfig):
         if self._last_state_by_server.get(server, -1) != state:
@@ -180,23 +172,8 @@ class MongoDb(AgentCheck):
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 
-        try:
-            from pymongo import Connection
-        except ImportError:
-            self.log.error('mongo.yaml exists but pymongo module can not be imported. Skipping check.')
-            raise Exception('Python PyMongo Module can not be imported. Please check the installation instruction on the Datadog Website')
-
-        try:
-            from pymongo import uri_parser
-            # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(server)
-        except ImportError:
-            # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(server)
-            if matches:
-                parsed = matches.groupdict()
-            else:
-                parsed = {}
+        # Configuration a URL, mongodb://user:pass@server/db
+        parsed = pymongo.uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
@@ -210,7 +187,7 @@ class MongoDb(AgentCheck):
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = Connection(server, network_timeout=DEFAULT_TIMEOUT,
+        conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
             **ssl_params)
         db = conn[db_name]
         if do_auth:

@@ -27,14 +27,14 @@ init_config:
             bean: '"kafka.server":type="BrokerTopicMetrics",name="AllTopicsBytesOutPerSec"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.net.bytes_out
         - include:
             domain: '"kafka.server"'
             bean: '"kafka.server":type="BrokerTopicMetrics",name="AllTopicsBytesInPerSec"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.net.bytes_in
         - include:
             domain: '"kafka.server"'
@@ -66,50 +66,50 @@ init_config:
             bean: '"kafka.network":type="RequestMetrics",name="Produce-TotalTimeMs"'
             attribute:
                 Mean:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.produce.time.avg
                 99thPercentile:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.produce.time.99percentile
         - include:
             domain: '"kafka.network"'
             bean: '"kafka.network":type="RequestMetrics",name="Fetch-TotalTimeMs"'
             attribute:
                 Mean:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.fetch.time.avg
                 99thPercentile:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.fetch.time.99percentile
         - include:
             domain: '"kafka.network"'
             bean: '"kafka.network":type="RequestMetrics",name="UpdateMetadata-TotalTimeMs"'
             attribute:
                 Mean:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.update_metadata.time.avg
                 99thPercentile:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.update_metadata.time.99percentile
         - include:
             domain: '"kafka.network"'
             bean: '"kafka.network":type="RequestMetrics",name="Metadata-TotalTimeMs"'
             attribute:
                 Mean:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.metadata.time.avg
                 99thPercentile:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.metadata.time.99percentile
         - include:
             domain: '"kafka.network"'
             bean: '"kafka.network":type="RequestMetrics",name="Offsets-TotalTimeMs"'
             attribute:
                 Mean:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.offsets.time.avg
                 99thPercentile:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.request.offsets.time.99percentile
 
         #
@@ -120,28 +120,28 @@ init_config:
             bean: '"kafka.server":type="ReplicaManager",name="ISRShrinksPerSec"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.replication.isr_shrinks
         - include:
             domain: '"kafka.server"'
             bean: '"kafka.server":type="ReplicaManager",name="ISRExpandsPerSec"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.replication.isr_expands
         - include:
             domain: '"kafka.server"'
             bean: '"kafka.server":type="ControllerStats",name="LeaderElectionRateAndTimeMs"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.replication.leader_elections
         - include:
             domain: '"kafka.server"'
             bean: '"kafka.server":type="ControllerStats",name="UncleanLeaderElectionsPerSec"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.replication.unclean_leader_elections
 
         #
@@ -152,5 +152,5 @@ init_config:
             bean: '"kafka.log":type="LogFlushStats",name="LogFlushRateAndTimeMs"'
             attribute:
                 MeanRate:
-                    metric_type: counter
+                    metric_type: gauge
                     alias: kafka.log.flush_rate

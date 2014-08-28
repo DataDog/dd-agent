@@ -13,14 +13,26 @@ import tempfile
 import re
 import simplejson as json
 import logging
+from hashlib import md5
 
 # Tornado
 from tornado import ioloop
-from hashlib import md5
+
+# yaml
+import yaml
+try:
+    from yaml import CLoader as yLoader
+    from yaml import CDumper as yDumper
+except ImportError:
+    # On source install C Extensions might have not been built
+    from yaml import Loader as yLoader
+    from yaml import Dumper as yDumper
+
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
 MAX_HOSTNAME_LEN = 255
+COLON_NON_WIN_PATH = re.compile(':(?!\\\\)')
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +82,16 @@ def headers(agentConfig):
         'Accept': 'text/html, */*',
     }
 
+def windows_friendly_colon_split(config_string):
+    '''
+    Perform a split by ':' on the config_string
+    without splitting on the start of windows path
+    '''
+    if Platform.is_win32():
+        # will split on path/to/module.py:blabla but not on C:\\path
+        return COLON_NON_WIN_PATH.split(config_string)
+    else:
+        return config_string.split(':')
 
 def getTopIndex():
     macV = None
@@ -407,9 +429,10 @@ class Watchdog(object):
 
     def reset(self):
         # self destruct if using too much memory, as tornado will swallow MemoryErrors
-        mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
-        if self.memory_limit_enabled and mem_usage_kb > (0.95 * self._max_mem_kb):
-            Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+        if self.memory_limit_enabled:
+            mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
+            if mem_usage_kb > (0.95 * self._max_mem_kb):
+                Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)

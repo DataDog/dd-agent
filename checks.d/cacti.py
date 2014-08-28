@@ -1,9 +1,18 @@
-from checks import AgentCheck
-
+# stdlib
 from fnmatch import fnmatch
 import os
 import time
 from collections import namedtuple
+
+# project
+from checks import AgentCheck
+
+# 3rd party
+try:
+    import rrdtool
+except ImportError:
+    rrdtool = None
+import pymysql
 
 CFUNC_TO_AGGR = {
     'AVERAGE': 'avg',
@@ -31,34 +40,18 @@ class Cacti(AgentCheck):
         self.last_ts = {}
 
     def get_library_versions(self):
-        try:
-            import rrdtool
-            version = rrdtool.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"rrdtool": version} 
+        if rrdtool is not None:
+            return {"rrdtool": rrdtool.__version__} 
+        return {"rrdtool": "Not Found"}
 
     def check(self, instance):
+        if rrdtool is None:
+            raise Exception("Unable to import python rrdtool module")
         
         # Load the instance config
         config = self._get_config(instance)
 
-        # The rrdtool module is required for the check to work
-        try:
-            import rrdtool
-        except ImportError, e:
-            raise Exception("Cannot import rrdtool module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/cacti")
-
-        # Try importing MySQL
-        try:
-            import MySQLdb
-        except ImportError, e:
-            raise Exception("Cannot import MySQLdb module. Check the instructions to install this module at https://app.datadoghq.com/account/settings#integrations/cacti")
-
-        connection = MySQLdb.connect(config.host, config.user, config.password, config.db)
+        connection = pymysql.connect(config.host, config.user, config.password, config.db)
 
         self.log.debug("Connected to MySQL to fetch Cacti metadata")
 
@@ -120,7 +113,6 @@ class Cacti(AgentCheck):
 
     def _read_rrd(self, rrd_path, hostname, device_name):
         ''' Main metric fetching method '''
-        import rrdtool
         metric_count = 0
 
         try:

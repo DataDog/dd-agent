@@ -49,7 +49,7 @@ class TestMongo(unittest.TestCase):
             self.wait4mongo(self.p1, PORT1)
             if self.p1:
                 # Set up replication
-                c1 = pymongo.Connection('localhost:%s' % PORT1, slave_okay=True)
+                c1 = pymongo.Connection('localhost:%s' % PORT1, read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED)
                 self.p2 = subprocess.Popen(["mongod", "--dbpath", dir2, "--port", str(PORT2), "--replSet", "testset/%s:%d" % (socket.gethostname(), PORT1), "--rest"],
                                            executable="mongod",
                                            stdout=subprocess.PIPE,

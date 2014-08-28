@@ -1,11 +1,16 @@
+# stdlib
 import subprocess
 import os
 import sys
 import re
 import traceback
 
+# project
 from checks import AgentCheck
 from util import Platform
+
+# 3rd party
+import pymysql
 
 GAUGE = "gauge"
 RATE = "rate"
@@ -51,15 +56,7 @@ class MySql(AgentCheck):
         self.greater_502 = {}
 
     def get_library_versions(self):
-        try:
-            import pymysql
-            version = pymysql.__version__
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"pymysql": version}
+        return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
         host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
@@ -87,12 +84,6 @@ class MySql(AgentCheck):
         return host, port, user, password, mysql_sock, defaults_file, tags, options
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
-        try:
-            import pymysql
-        except ImportError:
-            raise Exception("Cannot import pymysql module. Check the instructions "
-                "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
-
         if defaults_file != '':
             db = pymysql.connect(read_default_file=defaults_file)
         elif  mysql_sock != '':

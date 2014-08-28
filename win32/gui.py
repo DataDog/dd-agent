@@ -25,9 +25,14 @@ from guidata.configtools import get_icon, get_family, MONOSPACE
 from guidata.qthelpers import get_std_icon
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
+# small hack to avoid having to patch the spyderlib library
+# Needed because of py2exe bundling not being able to access
+# the spyderlib image sources
+import spyderlib.baseconfig
+spyderlib.baseconfig.IMG_PATH = [""]
 
 # Datadog
-from util import get_os
+from util import get_os, yLoader
 from config import (get_confd_path, get_config_path, get_config, 
     _windows_commondata_path)
 
@@ -36,8 +41,9 @@ import yaml
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'docker', 'gearmand',
-    'hdfs', 'kafka_consumer', 'mcache', 'network',
-    'postfix', 'process', 'gunicorn', 'zk',
+    'hdfs', 'kafka_consumer', 'marathon', 'mcache',
+    'mesos', 'network', 'postfix', 'process',
+    'gunicorn', 'zk',
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
@@ -435,7 +441,7 @@ def save_file(properties):
     
 def check_yaml_syntax(content):
     try:
-        yaml.load(content, Loader=yaml.CLoader)
+        yaml.load(content, Loader=yLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise

@@ -569,5 +569,26 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(h1['points'][0][0], h4['points'][0][0])
         nt.assert_equal(h1['points'][0][0], h5['points'][0][0])
 
+    def test_packet_string_endings(self):
+        stats = MetricsAggregator('myhost')
+
+        stats.submit_packets('line_ending.generic:500|c')
+        stats.submit_packets('line_ending.unix:400|c\n')
+        stats.submit_packets('line_ending.windows:300|c\r\n')
+
+        metrics = self.sort_metrics(stats.flush())
+
+        assert len(metrics) == 3
+
+        first, second, third = metrics
+        nt.assert_equals(first['metric'], 'line_ending.generic')
+        nt.assert_equals(first['points'][0][1], 500)
+
+        nt.assert_equals(second['metric'], 'line_ending.unix')
+        nt.assert_equals(second['points'][0][1], 400)
+
+        nt.assert_equals(third['metric'], 'line_ending.windows')
+        nt.assert_equals(third['points'][0][1], 300)
+
 if __name__ == "__main__":
     unittest.main()
