@@ -127,18 +127,21 @@ class DDAgent(multiprocessing.Process):
         self.is_enabled = True
 
     def run(self):
-        log.debug("Windows Service - Starting collector")
-        emitters = self.get_emitters()
-        systemStats = get_system_stats()
-        self.collector = Collector(self.config, emitters, systemStats, self.hostname)
+        try:
+            log.debug("Windows Service - Starting collector")
+            emitters = self.get_emitters()
+            systemStats = get_system_stats()
+            self.collector = Collector(self.config, emitters, systemStats, self.hostname)
 
-        # Load the checks.d checks
-        checksd = load_check_directory(self.config, self.hostname)
+            # Load the checks.d checks
+            checksd = load_check_directory(self.config, self.hostname)
 
-        # Main agent loop will run until interrupted
-        while self.running:
-            self.collector.run(checksd=checksd, start_event=self.start_event)
-            time.sleep(self.config['check_freq'])
+            # Main agent loop will run until interrupted
+            while self.running:
+                self.collector.run(checksd=checksd, start_event=self.start_event)
+                time.sleep(self.config['check_freq'])
+        except Exception:
+            log.exception("The collector died")
 
     def stop(self):
         log.debug("Windows Service - Stopping collector")
@@ -166,16 +169,19 @@ class DDForwarder(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
-        log.debug("Windows Service - Starting forwarder")
-        set_win32_cert_path()
-        port = self.config.get('listen_port', 17123)
-        if port is None:
-            port = 17123
-        else:
-            port = int(port)
-        app_config = get_config(parse_args = False)
-        self.forwarder = Application(port, app_config, watchdog=False)
-        self.forwarder.run()
+        try:
+            log.debug("Windows Service - Starting forwarder")
+            set_win32_cert_path()
+            port = self.config.get('listen_port', 17123)
+            if port is None:
+                port = 17123
+            else:
+                port = int(port)
+            app_config = get_config(parse_args = False)
+            self.forwarder = Application(port, app_config, watchdog=False)
+            self.forwarder.run()
+        except Exception:
+            log.exception("The forwarder died")
 
     def stop(self):
         log.debug("Windows Service - Stopping forwarder")
@@ -189,13 +195,16 @@ class DogstatsdProcess(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
-        if self.is_enabled:
-            log.debug("Windows Service - Starting Dogstatsd server")
-            self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
-            self.reporter.start()
-            self.server.start()
-        else:
-            log.info("Dogstatsd is not enabled, not starting it.")
+        try:
+            if self.is_enabled:
+                log.debug("Windows Service - Starting Dogstatsd server")
+                self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
+                self.reporter.start()
+                self.server.start()
+            else:
+                log.info("Dogstatsd is not enabled, not starting it.")
+        except Exception:
+            log.exception("Dogstatsd died")
 
     def stop(self):
         if self.is_enabled:
