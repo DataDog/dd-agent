@@ -1,6 +1,7 @@
 import unittest
 from tests.common import load_check
 import time
+from pprint import pprint
 
 class TestPostgres(unittest.TestCase):
 
@@ -27,14 +28,20 @@ class TestPostgres(unittest.TestCase):
 
         self.check.run()
         metrics = self.check.get_metrics()
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.connections']) == 1, metrics)
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.dead_rows']) == 1, metrics)
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.live_rows']) == 1, metrics)
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.bgwriter.sync_time']) == 1, metrics)
-        self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.locks']) == 1, metrics)
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.connections'])        >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.dead_rows'])          >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.live_rows'])          >= 1, pprint(metrics))
+        # Don't test for locks
+        # self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.locks'])              >= 1, pprint(metrics))
+        # Brittle tests
         self.assertTrue(4 <= len(metrics) <= 6, metrics)
-        self.assertTrue(4 <= len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) <= 5, metrics)
-        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3]['tags'])]) == 2, metrics)
+        self.assertTrue(4 <= len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) <= 5, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3]['tags'])]) == 2, pprint(metrics))
+
+        # Rate metrics, need 2 collection rounds
+        time.sleep(1)
+        metrics = self.check.get_metrics()
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.sync_time']) >= 1, pprint(metrics))
 
         # Service checks
         service_checks = self.check.get_service_checks()

@@ -66,8 +66,8 @@ SELECT mode,
    AND pc.relname NOT LIKE 'pg_%%'
  GROUP BY pc.relname, mode""",
         'relation': False,
-
     }
+
     COMMON_METRICS = {
         'numbackends'       : ('postgresql.connections', GAUGE),
         'xact_commit'       : ('postgresql.commits', RATE),
@@ -258,15 +258,15 @@ SELECT relname,
         self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
 
         # Query for percent usage of max_connections
-        cursor.execute('show max_connections;')
+        cursor.execute('show max_connections')
         max_conn = cursor.fetchone()[0]
-        cursor.execute('SELECT sum(numbackends ) FROM pg_stat_database;')
+        cursor.execute('SELECT sum(numbackends) FROM pg_stat_database')
         current_conn = cursor.fetchone()[0]
         percent_usage = float(current_conn) / float(max_conn)
         self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
 
         # check if hot_standby is on before running hot standby metrics (replication delay)
-        cursor.execute('show hot_standby;')
+        cursor.execute('show hot_standby')
         is_standby = cursor.fetchone()[0]=='on'
         if is_standby:
             query = self.HOT_STANDBY_METRIC[0]
