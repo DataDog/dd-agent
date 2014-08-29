@@ -30,6 +30,44 @@ SELECT datname,
         'relation': False,
     }
 
+    BGW_METRICS = {
+        'descriptors': [],
+        'metrics': {
+            'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', RATE),
+            'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', RATE),
+            'checkpoint_write_time': ('postgresql.bgwriter.write_time', RATE),
+            'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', RATE),
+            'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', RATE),
+            'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', RATE),
+            'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', RATE),
+            'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', RATE),
+            'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', RATE),
+            'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', RATE),
+        },
+        'query': "select %s FROM pg_stat_bgwriter",
+        'relation': False,
+    }
+
+    LOCK_METRICS = {
+        'descriptors': [
+            ('mode', 'lock_mode'),
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'lock_count'       : ('postgresql.locks', GAUGE),
+        },
+        'query': """
+SELECT mode,
+       pc.relname,
+       count(*) AS %s
+  FROM pg_locks l
+  JOIN pg_class pc ON (l.relation = pc.oid)
+ WHERE l.mode IS NOT NULL
+   AND pc.relname NOT LIKE 'pg_%%'
+ GROUP BY pc.relname, mode""",
+        'relation': False,
+    }
+
     COMMON_METRICS = {
         'numbackends'       : ('postgresql.connections', GAUGE),
         'xact_commit'       : ('postgresql.commits', RATE),
@@ -149,9 +187,9 @@ SELECT relname,
 
         # Do we need relation-specific metrics?
         if not relations:
-            metric_scope = (self.DB_METRICS,)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.REL_METRICS, self.IDX_METRICS)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS)
 
         try:
             cursor = db.cursor()
@@ -163,7 +201,6 @@ SELECT relname,
             # build query
             cols = scope['metrics'].keys()  # list of metrics to query, in some order
             # we must remember that order to parse results
-
 
             # if this is a relation-specific query, we need to list all relations last
             if scope['relation'] and len(relations) > 0:
@@ -221,15 +258,15 @@ SELECT relname,
         self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
 
         # Query for percent usage of max_connections
-        cursor.execute('show max_connections;')
+        cursor.execute('show max_connections')
         max_conn = cursor.fetchone()[0]
-        cursor.execute('SELECT sum(numbackends ) FROM pg_stat_database;')
+        cursor.execute('SELECT sum(numbackends) FROM pg_stat_database')
         current_conn = cursor.fetchone()[0]
         percent_usage = float(current_conn) / float(max_conn)
         self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
 
         # check if hot_standby is on before running hot standby metrics (replication delay)
-        cursor.execute('show hot_standby;')
+        cursor.execute('show hot_standby')
         is_standby = cursor.fetchone()[0]=='on'
         if is_standby:
             query = self.HOT_STANDBY_METRIC[0]
