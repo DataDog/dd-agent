@@ -196,7 +196,7 @@ class MongoDb(AgentCheck):
 
         status = db["$cmd"].find_one({"serverStatus": 1})
         if status['ok'] == 0:
-            self.log.warn(status['errmsg'].__str__())
+            raise Exception(status['errmsg'].__str__())
 
         status['stats'] = db.command('dbstats')
 
