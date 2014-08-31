@@ -41,7 +41,6 @@ EXCLUDE_FILTERS = {
         r'Relocate virtual machine',
         r'Suspend virtual machine',
     ],
-    'UserLoginSessionEvent': [],
     'VmBeingHotMigratedEvent': [],
     'VmMessageEvent': [],
     'VmMigratedEvent': [],
@@ -270,11 +269,6 @@ class VSphereEvent(object):
         self.payload['host'] = self.raw_event.vm.name
         return self.payload
 
-    def transform_userloginsessionevent(self):
-        self.payload["msg_title"] = "vCenter login session"
-        self.payload["msg_text"] = u"@@@\n{0}\n@@@".format(self.raw_event.fullFormattedMessage)
-        return self.payload
-
 def atomic_method(method):
     """ Decorator to catch the exceptions that happen in detached thread atomic tasks
     and display them in the logs.
@@ -321,11 +315,6 @@ class VSphereCheck(AgentCheck):
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
-            try:
-                username = instance.get('username').split('@')[0]
-                EXCLUDE_FILTERS['UserLoginSessionEvent'].append(r'.*\\{0}@.*'.format(username))
-            except AttributeError:
-                self.log.warning("Cannot ignore the datadog login/logout events, username is probably misconfigured")
 
         # First layer of cache (get entities from the tree)
         self.morlist_raw = {}
