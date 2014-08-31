@@ -130,6 +130,28 @@ SELECT relname,
         'relation': True,
     }
 
+    SIZE_METRICS = {
+        'descriptors': [
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'pg_table_size(C.oid)'  : ('postgresql.table_size', GAUGE),
+            'pg_indexes_size(C.oid)'  : ('postgresql.index_size', GAUGE),
+            'pg_total_relation_size(C.oid)': ('postgresql.total_size', GAUGE),
+        },
+        'relation': True,
+        'query': """
+SELECT
+  relname,
+  %s
+FROM pg_class C
+LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
+  nspname !~ '^pg_toast' AND
+  relkind IN ('r') AND
+  relname = ANY(%s)"""
+    }
+
     # Individual metrics with tuple of (query, metric_name, metric_type)
     MAX_CONNECTIONS_METRIC = ('SHOW max_connections;','postgresql.max_connections', GAUGE)
 
@@ -189,7 +211,7 @@ SELECT relname,
         if not relations:
             metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
 
         try:
             cursor = db.cursor()
