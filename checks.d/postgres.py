@@ -1,3 +1,7 @@
+"""PostgreSQL check
+
+Collects database-wide metrics and optionally per-relation metrics.
+"""
 # project
 from checks import AgentCheck, CheckException
 
@@ -153,7 +157,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
     }
 
     # Individual metrics with tuple of (query, metric_name, metric_type)
-    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;','postgresql.max_connections', GAUGE)
+    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;', 'postgresql.max_connections', GAUGE)
 
     HOT_STANDBY_METRIC = ('select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE)
 
@@ -211,7 +215,8 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
         if not relations:
             metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS, self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
+            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS,
+                            self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
 
         try:
             cursor = db.cursor()
@@ -220,7 +225,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
                 # we must remember that order to parse results
-  
+
                 # if this is a relation-specific query, we need to list all relations last
                 if scope['relation'] and len(relations) > 0:
                     query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
@@ -230,9 +235,9 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                     query = scope['query'] % (", ".join(cols))
                     self.log.debug("Running query: %s" % query)
                     cursor.execute(query.replace(r'%', r'%%'))
-   
+
                 results = cursor.fetchall()
-   
+
                 # parse & submit results
                 # A row should look like this
                 # (descriptor, descriptor, ..., value, value, value, value, ...)
@@ -242,7 +247,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                     desc = scope['descriptors']
                     # Check that all columns will be processed
                     assert len(row) == len(cols) + len(desc)
-   
+
                     # Build tags
                     # descriptors are: (pg_name, dd_tag_name): value
                     # Special-case the "db" tag, which overrides the one that is passed as instance_tag
@@ -252,29 +257,29 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                         tags = [t for t in instance_tags if not t.startswith("db:")]
                     else:
                         tags = [t for t in instance_tags]
-   
+
                     tags += ["%s:%s" % (d[0][1], d[1]) for d in zip(desc, row[:len(desc)])]
-   
+
                     # [(metric-map, value), (metric-map, value), ...]
                     # metric-map is: (dd_name, "rate"|"gauge")
                     # shift the results since the first columns will be the "descriptors"
                     values = zip([scope['metrics'][c] for c in cols], row[len(desc):])
-   
+
                     # To submit simply call the function for each value v
                     # v[0] == (metric_name, submit_function)
                     # v[1] == the actual value
                     # tags are
                     [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
-   
+
             if not results:
                 self.warning('No results were found for query: "%s"' % query)
-   
+
             # Query for miscellaneous metrics
             query = self.MAX_CONNECTIONS_METRIC[0]
             cursor.execute(query)
             result = cursor.fetchone()
             self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
-   
+
             # Query for percent usage of max_connections
             cursor.execute('show max_connections')
             max_conn = cursor.fetchone()[0]
@@ -282,11 +287,10 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
             current_conn = cursor.fetchone()[0]
             percent_usage = float(current_conn) / float(max_conn)
             self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
-   
+
             # check if hot_standby is on before running hot standby metrics (replication delay)
             cursor.execute('show hot_standby')
-            is_standby = cursor.fetchone()[0]=='on'
-            if is_standby:
+            if cursor.fetchone()[0] == 'on':
                 query = self.HOT_STANDBY_METRIC[0]
                 cursor.execute(query)
                 # Python interprets the return value of the replication delay output from postgres as a timedelta
@@ -299,7 +303,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                         self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
             cursor.close()
         except InterfaceError, e:
-            self.log.error("Connection seems broken: %s" % str(e))
+            self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
@@ -329,7 +333,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                 self.service_check('postgres.can_connect', status, tags=service_check_tags)
                 self.log.info('pg status: %s' % status)
 
-            except Exception, e:
+            except Exception:
                 status = AgentCheck.CRITICAL
                 self.service_check('postgres.can_connect', status, tags=service_check_tags)
                 self.log.info('pg status: %s' % status)
