@@ -681,6 +681,9 @@ class VSphereCheck(AgentCheck):
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
             for result in results[0].value:
+                if result.id.counterId not in self.metrics_metadata[i_key]:
+                    self.log.debug("Skipping this metric value, because there is no metadata about it")
+                    continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
                 self.gauge("vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
