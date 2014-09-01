@@ -1,4 +1,5 @@
 # stdlib
+from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
 import re
@@ -40,6 +41,7 @@ EXCLUDE_FILTERS = {
         r'Reconfigure virtual machine',
         r'Relocate virtual machine',
         r'Suspend virtual machine',
+        r'Migrate virtual machine',
     ],
     'VmBeingHotMigratedEvent': [],
     'VmMessageEvent': [],
@@ -478,6 +480,7 @@ class VSphereCheck(AgentCheck):
         t = Timer()
         self.log.debug("job_atomic: Exploring MOR {0} (type={1})".format(obj, obj_type))
         ### </TEST-INSTRUMENTATION>
+        tags_copy = deepcopy(tags)
 
         if obj_type == 'rootFolder':
             for datacenter in obj.childEntity:
@@ -486,50 +489,50 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags)
+                    args=(i_key, 'datacenter', datacenter, tags_copy)
                 )
 
         elif obj_type == 'datacenter':
             dc_tag = "vsphere_datacenter:%s" % obj.name
-            tags.append(dc_tag)
+            tags_copy.append(dc_tag)
             for compute_resource in obj.hostFolder.childEntity:
                 # Skip non-compute resource
                 if not hasattr(compute_resource, 'host'):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy)
                 )
 
         elif obj_type == 'compute_resource':
             if obj.__class__ == vim.ClusterComputeResource:
                 cluster_tag = "vsphere_cluster:%s" % obj.name
-                tags.append(cluster_tag)
+                tags_copy.append(cluster_tag)
             for host in obj.host:
                 # Skip non-host
                 if not hasattr(host, 'vm'):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags)
+                    args=(i_key, 'host', host, tags_copy)
                 )
 
         elif obj_type == 'host':
-            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:host'])
+            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
             host_tag = "vsphere_host:%s" % obj.name
-            tags.append(host_tag)
+            tags_copy.append(host_tag)
             for vm in obj.vm:
                 if vm.runtime.powerState != 'poweredOn':
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags)
+                    args=(i_key, 'vm', vm, tags_copy)
                 )
 
         elif obj_type == 'vm':
-            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:vm'])
+            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
         ### <TEST-INSTRUMENTATION>
