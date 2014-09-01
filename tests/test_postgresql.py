@@ -28,12 +28,14 @@ class TestPostgres(unittest.TestCase):
 
         self.check.run()
         metrics = self.check.get_metrics()
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.connections'])        >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.dead_rows'])          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.live_rows'])          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.table_size'])          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.index_size'])          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.total_size'])          >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.connections'])               >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.dead_rows'])                 >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.live_rows'])                 >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.table_size'])                >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.index_size'])                >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.total_size'])                >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.max_connections'])           >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.percent_usage_connections']) >= 1, pprint(metrics))
         # Don't test for locks
         # self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.locks'])              >= 1, pprint(metrics))
         # Brittle tests

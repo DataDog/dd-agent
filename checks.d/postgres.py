@@ -7,7 +7,7 @@ from checks import AgentCheck, CheckException
 
 # 3rd party
 import pg8000 as pg
-from pg8000 import InterfaceError
+from pg8000 import InterfaceError, ProgrammingError
 import socket
 
 class ShouldRestartException(Exception): pass
@@ -158,11 +158,32 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
   relname = ANY(%s)"""
     }
 
-    # Individual metrics with tuple of (query, metric_name, metric_type)
-    MAX_CONNECTIONS_METRIC = ('SHOW max_connections;', 'postgresql.max_connections', GAUGE)
+    REPLICATION_METRICS = {
+        'descriptors': [],
+        'metrics': {
+            'GREATEST(0, EXTRACT(EPOCH FROM now() - pg_last_xact_replay_timestamp())) AS replication_delay': ('postgresql.replication_delay', GAUGE),
+        },
+        'relation': False,
+        'query': """
+SELECT %s
+  FROM pg_settings
+ WHERE name = 'hot_standby'
+   AND setting = 'on'"""
+    }
 
-    HOT_STANDBY_METRIC = ('select now() - pg_last_xact_replay_timestamp() AS replication_delay;', 'postgresql.replication_delay', GAUGE)
-
+    CONNECTION_METRICS = {
+        'descriptors': [],
+        'metrics': {
+            'MAX(setting) AS max_connections': ('postgresql.max_connections', GAUGE),
+            'SUM(numbackends)/MAX(setting) AS pct_connections': ('postgresql.percent_usage_connections', GAUGE),
+        },
+        'relation': False,
+        'query': """
+WITH max_con AS (SELECT setting::float FROM pg_settings WHERE name = 'max_connections')
+SELECT %s
+  FROM pg_stat_database, max_con
+"""
+    }        
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -215,9 +236,11 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
 
         # Do we need relation-specific metrics?
         if not relations:
-            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS)
+            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
+                            self.LOCK_METRICS, self.REPLICATION_METRICS)
         else:
-            metric_scope = (self.DB_METRICS, self.BGW_METRICS, self.LOCK_METRICS,
+            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
+                            self.LOCK_METRICS, self.REPLICATION_METRICS,
                             self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
 
         try:
@@ -228,17 +251,23 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
                 # we must remember that order to parse results
 
-                # if this is a relation-specific query, we need to list all relations last
-                if scope['relation'] and len(relations) > 0:
-                    query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
-                    self.log.debug("Running query: %s with relations: %s" % (query, relations))
-                    cursor.execute(query, (relations, ))
-                else:
-                    query = scope['query'] % (", ".join(cols))
-                    self.log.debug("Running query: %s" % query)
-                    cursor.execute(query.replace(r'%', r'%%'))
+                try:
+                    # if this is a relation-specific query, we need to list all relations last
+                    if scope['relation'] and len(relations) > 0:
+                        query = scope['query'] % (", ".join(cols), "%s")  # Keep the last %s intact
+                        self.log.debug("Running query: %s with relations: %s" % (query, relations))
+                        cursor.execute(query, (relations, ))
+                    else:
+                        query = scope['query'] % (", ".join(cols))
+                        self.log.debug("Running query: %s" % query)
+                        cursor.execute(query.replace(r'%', r'%%'))
 
-                results = cursor.fetchall()
+                    results = cursor.fetchall()
+                except ProgrammingError, e:
+                    self.log.warning("Not all metrics may be available: %s" % str(e))
+                    continue
+                except Exception:
+                    import pdb; pdb.set_trace()
 
                 # parse & submit results
                 # A row should look like this
@@ -276,33 +305,6 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
             if not results:
                 self.warning('No results were found for query: "%s"' % query)
 
-            # Query for miscellaneous metrics
-            query = self.MAX_CONNECTIONS_METRIC[0]
-            cursor.execute(query)
-            result = cursor.fetchone()
-            self.MAX_CONNECTIONS_METRIC[2](self, self.MAX_CONNECTIONS_METRIC[1], result[0], tags=instance_tags)
-
-            # Query for percent usage of max_connections
-            cursor.execute('show max_connections')
-            max_conn = cursor.fetchone()[0]
-            cursor.execute('SELECT sum(numbackends) FROM pg_stat_database')
-            current_conn = cursor.fetchone()[0]
-            percent_usage = float(current_conn) / float(max_conn)
-            self.gauge('postgresql.percent_usage_connections', percent_usage, tags=instance_tags)
-
-            # check if hot_standby is on before running hot standby metrics (replication delay)
-            cursor.execute('show hot_standby')
-            if cursor.fetchone()[0] == 'on':
-                query = self.HOT_STANDBY_METRIC[0]
-                cursor.execute(query)
-                # Python interprets the return value of the replication delay output from postgres as a timedelta
-                # Therefore, you must use the seconds attribute on the timedelta object in order to get the correct metric value.
-                result = cursor.fetchone()[0]
-                if result is not None:
-                    if result.days < 0:
-                        self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], 0, tags=instance_tags)
-                    else:
-                        self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
             cursor.close()
         except InterfaceError, e:
             self.log.error("Connection error: %s" % str(e))
