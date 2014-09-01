@@ -8,6 +8,7 @@ from checks import AgentCheck, CheckException
 # 3rd party
 import pg8000 as pg
 from pg8000 import InterfaceError
+import socket
 
 class ShouldRestartException(Exception): pass
 
@@ -304,6 +305,9 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
                         self.HOT_STANDBY_METRIC[2](self, self.HOT_STANDBY_METRIC[1], result.microseconds / 1000000.0, tags=instance_tags)
             cursor.close()
         except InterfaceError, e:
+            self.log.error("Connection error: %s" % str(e))
+            raise ShouldRestartException
+        except socket.error, e:
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
