@@ -266,8 +266,6 @@ SELECT %s
                 except ProgrammingError, e:
                     self.log.warning("Not all metrics may be available: %s" % str(e))
                     continue
-                except Exception:
-                    import pdb; pdb.set_trace()
 
                 # parse & submit results
                 # A row should look like this
