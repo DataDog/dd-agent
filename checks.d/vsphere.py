@@ -449,6 +449,7 @@ class VSphereCheck(AgentCheck):
         integration.
         List of pairs (hostname, list_of_tags)
         """
+        self.log.info("Sending external_host_tags now")
         external_host_tags = []
         for instance in self.instances:
             i_key = self._instance_key(instance)
@@ -629,8 +630,8 @@ class VSphereCheck(AgentCheck):
         t = Timer()
         ### </TEST-INSTRUMENTATION>
 
-        self.log.info("Warming metrics metadata cache")
         i_key = self._instance_key(instance)
+        self.log.info("Warming metrics metadata cache for instance {0}".format(i_key))
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
@@ -644,6 +645,7 @@ class VSphereCheck(AgentCheck):
             )
             self.metrics_metadata[i_key][counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
+        self.log.info("Finished metadata collection for instance {0}".format(i_key))
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
