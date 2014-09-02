@@ -1,4 +1,5 @@
 # stdlib
+from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import md5
 import re
@@ -40,8 +41,8 @@ EXCLUDE_FILTERS = {
         r'Reconfigure virtual machine',
         r'Relocate virtual machine',
         r'Suspend virtual machine',
+        r'Migrate virtual machine',
     ],
-    'UserLoginSessionEvent': [],
     'VmBeingHotMigratedEvent': [],
     'VmMessageEvent': [],
     'VmMigratedEvent': [],
@@ -270,11 +271,6 @@ class VSphereEvent(object):
         self.payload['host'] = self.raw_event.vm.name
         return self.payload
 
-    def transform_userloginsessionevent(self):
-        self.payload["msg_title"] = "vCenter login session"
-        self.payload["msg_text"] = u"@@@\n{0}\n@@@".format(self.raw_event.fullFormattedMessage)
-        return self.payload
-
 def atomic_method(method):
     """ Decorator to catch the exceptions that happen in detached thread atomic tasks
     and display them in the logs.
@@ -321,11 +317,6 @@ class VSphereCheck(AgentCheck):
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
-            try:
-                username = instance.get('username').split('@')[0]
-                EXCLUDE_FILTERS['UserLoginSessionEvent'].append(r'.*\\{0}@.*'.format(username))
-            except AttributeError:
-                self.log.warning("Cannot ignore the datadog login/logout events, username is probably misconfigured")
 
         # First layer of cache (get entities from the tree)
         self.morlist_raw = {}
@@ -458,6 +449,7 @@ class VSphereCheck(AgentCheck):
         integration.
         List of pairs (hostname, list_of_tags)
         """
+        self.log.info("Sending external_host_tags now")
         external_host_tags = []
         for instance in self.instances:
             i_key = self._instance_key(instance)
@@ -489,6 +481,7 @@ class VSphereCheck(AgentCheck):
         t = Timer()
         self.log.debug("job_atomic: Exploring MOR {0} (type={1})".format(obj, obj_type))
         ### </TEST-INSTRUMENTATION>
+        tags_copy = deepcopy(tags)
 
         if obj_type == 'rootFolder':
             for datacenter in obj.childEntity:
@@ -497,50 +490,50 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags)
+                    args=(i_key, 'datacenter', datacenter, tags_copy)
                 )
 
         elif obj_type == 'datacenter':
             dc_tag = "vsphere_datacenter:%s" % obj.name
-            tags.append(dc_tag)
+            tags_copy.append(dc_tag)
             for compute_resource in obj.hostFolder.childEntity:
                 # Skip non-compute resource
                 if not hasattr(compute_resource, 'host'):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy)
                 )
 
         elif obj_type == 'compute_resource':
             if obj.__class__ == vim.ClusterComputeResource:
                 cluster_tag = "vsphere_cluster:%s" % obj.name
-                tags.append(cluster_tag)
+                tags_copy.append(cluster_tag)
             for host in obj.host:
                 # Skip non-host
                 if not hasattr(host, 'vm'):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags)
+                    args=(i_key, 'host', host, tags_copy)
                 )
 
         elif obj_type == 'host':
-            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:host'])
+            watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
             host_tag = "vsphere_host:%s" % obj.name
-            tags.append(host_tag)
+            tags_copy.append(host_tag)
             for vm in obj.vm:
                 if vm.runtime.powerState != 'poweredOn':
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags)
+                    args=(i_key, 'vm', vm, tags_copy)
                 )
 
         elif obj_type == 'vm':
-            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags+['vsphere_type:vm'])
+            watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
         ### <TEST-INSTRUMENTATION>
@@ -637,8 +630,8 @@ class VSphereCheck(AgentCheck):
         t = Timer()
         ### </TEST-INSTRUMENTATION>
 
-        self.log.info("Warming metrics metadata cache")
         i_key = self._instance_key(instance)
+        self.log.info("Warming metrics metadata cache for instance {0}".format(i_key))
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
@@ -652,6 +645,7 @@ class VSphereCheck(AgentCheck):
             )
             self.metrics_metadata[i_key][counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
+        self.log.info("Finished metadata collection for instance {0}".format(i_key))
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
@@ -689,6 +683,9 @@ class VSphereCheck(AgentCheck):
         results = perfManager.QueryPerf(querySpec=[query])
         if results:
             for result in results[0].value:
+                if result.id.counterId not in self.metrics_metadata[i_key]:
+                    self.log.debug("Skipping this metric value, because there is no metadata about it")
+                    continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
                 self.gauge("vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
