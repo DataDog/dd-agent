@@ -547,6 +547,10 @@ class VSphereCheck(AgentCheck):
 
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
+        if i_key in self.morlist_raw and len(self.morlist_raw[i_key]) > 0:
+            self.log.debug("Skipping morlist collection now, RAW results processing not over (latest refresh was {0}s ago)"\
+                .format(time.time() - self.cache_times[i_key][MORLIST][LAST]))
+            return
         self.morlist_raw[i_key] = []
 
         server_instance = self._get_server_instance(instance)
