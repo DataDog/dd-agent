@@ -639,17 +639,19 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        # Reset metadata
-        self.metrics_metadata[i_key] = {}
+        new_metadata = {}
         for counter in perfManager.perfCounter:
             d = dict(
                 name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
                 unit = counter.unitInfo.key,
                 instance_tag = 'instance' #FIXME: replace by what we want to tag!
             )
-            self.metrics_metadata[i_key][counter.key] = d
+            new_metadata[counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
+
         self.log.info("Finished metadata collection for instance {0}".format(i_key))
+        # Reset metadata
+        self.metrics_metadata[i_key] = new_metadata
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
