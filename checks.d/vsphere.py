@@ -27,6 +27,8 @@ DEFAULT_SIZE_POOL = 4
 REFRESH_MORLIST_INTERVAL = 3 * 60
 # The interval in seconds between two refresh of metrics metadata (id<->name)
 REFRESH_METRICS_METADATA_INTERVAL = 10 * 60
+# The amount of jobs batched at the same time in the queue to query available metrics
+BATCH_MORLIST_SIZE = 50
 
 # Time after which we reap the jobs that clog the queue
 # TODO: use it
@@ -605,8 +607,9 @@ class VSphereCheck(AgentCheck):
         if i_key not in self.morlist:
             self.morlist[i_key] = {}
 
-        # Batch per 50 request
-        for i in xrange(50):
+        batch_size = self.init_config.get('batch_morlist_size', BATCH_MORLIST_SIZE)
+
+        for i in xrange(batch_size):
             try:
                 mor = self.morlist_raw[i_key].pop()
                 self.pool.apply_async(self._cache_morlist_process_atomic, args=(instance, mor))
