@@ -331,7 +331,6 @@ class VSphereCheck(AgentCheck):
 
     def stop(self):
         self.stop_pool()
-        self.pool_started = False
 
     def start_pool(self):
         self.log.info("Starting Thread Pool")
@@ -348,6 +347,7 @@ class VSphereCheck(AgentCheck):
             self.pool.join()
             self.jobs_status.clear()
             assert self.pool.get_nworkers() == 0
+            self.pool_started = False
 
     def restart_pool(self):
         self.stop_pool()
