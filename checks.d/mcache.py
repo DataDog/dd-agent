@@ -103,6 +103,8 @@ class Memcache(AgentCheck):
 
     def _get_metrics(self, server, port, tags):
         mc = None  # client
+        service_check_name = 'memcache.is_connectable'
+        service_check_tags = ["host:%s" % server, "port:%s" % port]
         try:
             self.log.debug("Connecting to %s:%s tags:%s", server, port, tags)
             mc = memcache.Client(["%s:%s" % (server, port)])
@@ -152,7 +154,15 @@ class Memcache(AgentCheck):
                 )
             except ZeroDivisionError:
                 pass
+
+            uptime = stats.get("uptime", 0)
+            self.service_check(service_check_name, AgentCheck.OK,
+                tags=service_check_tags,
+                message="Server has been up for %s seconds" % uptime)
         except AssertionError:
+            self.service_check(service_check_name, AgentCheck.CRITICAL,
+                tags=service_check_tags,
+                message="Unable to fetch stats from server")
             raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + str(port) + ". Please check your configuration")
 
         if mc is not None:
