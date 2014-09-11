@@ -27,6 +27,8 @@ DEFAULT_SIZE_POOL = 4
 REFRESH_MORLIST_INTERVAL = 3 * 60
 # The interval in seconds between two refresh of metrics metadata (id<->name)
 REFRESH_METRICS_METADATA_INTERVAL = 10 * 60
+# The amount of jobs batched at the same time in the queue to query available metrics
+BATCH_MORLIST_SIZE = 50
 
 # Time after which we reap the jobs that clog the queue
 # TODO: use it
@@ -329,7 +331,6 @@ class VSphereCheck(AgentCheck):
 
     def stop(self):
         self.stop_pool()
-        self.pool_started = False
 
     def start_pool(self):
         self.log.info("Starting Thread Pool")
@@ -346,6 +347,7 @@ class VSphereCheck(AgentCheck):
             self.pool.join()
             self.jobs_status.clear()
             assert self.pool.get_nworkers() == 0
+            self.pool_started = False
 
     def restart_pool(self):
         self.stop_pool()
@@ -547,6 +549,10 @@ class VSphereCheck(AgentCheck):
 
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
+        if i_key in self.morlist_raw and len(self.morlist_raw[i_key]) > 0:
+            self.log.debug("Skipping morlist collection now, RAW results processing not over (latest refresh was {0}s ago)"\
+                .format(time.time() - self.cache_times[i_key][MORLIST][LAST]))
+            return
         self.morlist_raw[i_key] = []
 
         server_instance = self._get_server_instance(instance)
@@ -601,8 +607,9 @@ class VSphereCheck(AgentCheck):
         if i_key not in self.morlist:
             self.morlist[i_key] = {}
 
-        # Batch per 50 request
-        for i in xrange(50):
+        batch_size = self.init_config.get('batch_morlist_size', BATCH_MORLIST_SIZE)
+
+        for i in xrange(batch_size):
             try:
                 mor = self.morlist_raw[i_key].pop()
                 self.pool.apply_async(self._cache_morlist_process_atomic, args=(instance, mor))
@@ -635,17 +642,19 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        # Reset metadata
-        self.metrics_metadata[i_key] = {}
+        new_metadata = {}
         for counter in perfManager.perfCounter:
             d = dict(
                 name = "%s.%s" % (counter.groupInfo.key, counter.nameInfo.key),
                 unit = counter.unitInfo.key,
                 instance_tag = 'instance' #FIXME: replace by what we want to tag!
             )
-            self.metrics_metadata[i_key][counter.key] = d
+            new_metadata[counter.key] = d
         self.cache_times[i_key][METRICS_METADATA][LAST] = time.time()
+
         self.log.info("Finished metadata collection for instance {0}".format(i_key))
+        # Reset metadata
+        self.metrics_metadata[i_key] = new_metadata
 
         ### <TEST-INSTRUMENTATION>
         self.histogram('datadog.agent.vsphere.metric_metadata_collection.time', t.total())
