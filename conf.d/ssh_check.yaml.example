@@ -1,0 +1,12 @@
+init_config:
+
+instances:
+    - host: localhost
+      port: 22
+      username: test
+      password: abcd
+
+
+
+
+
