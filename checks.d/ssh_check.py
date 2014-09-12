@@ -56,14 +56,13 @@ class CheckSSH (AgentCheck):
 
             start_time = time.time()
             try:
-              result = sftp.listdir('.')  #this check may not be enough to determine if it actually works
-              end_time = time.time()
+              result = sftp.listdir('.')
 
             except Exception as e:
               exception_message = e
               status = AgentCheck.CRITICAL
 
-            if result is not None:  #what if the folder is actually empty
+            if result is not None:
                 status = AgentCheck.OK
             else:
                 status = AgentCheck.CRITICAL
@@ -75,6 +74,7 @@ class CheckSSH (AgentCheck):
             status = AgentCheck.CRITICAL
 
         self.service_check('ssh_check', status, message=exception_message)
+
 
 
 
