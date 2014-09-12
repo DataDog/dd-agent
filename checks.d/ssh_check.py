@@ -57,9 +57,10 @@ class CheckSSH (AgentCheck):
             start_time = time.time()
             try:
               result = sftp.listdir('.')
+              end_time = time.time()
 
             except Exception as e:
-              exception_message = e
+              exception_message = "{0}".format(e)
               status = AgentCheck.CRITICAL
 
             if result is not None:
@@ -74,6 +75,7 @@ class CheckSSH (AgentCheck):
             status = AgentCheck.CRITICAL
 
         self.service_check('ssh_check', status, message=exception_message)
+
 
 
 
