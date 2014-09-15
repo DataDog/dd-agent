@@ -6,4 +6,5 @@ instances:
       port: 22
       username: test
       password: abcd
+      sftp_check: True
       private_key:
