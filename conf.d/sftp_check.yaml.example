@@ -1,0 +1,9 @@
+init_config:
+
+instances:
+    - host: localhost
+#port defaults to 22 if not specified
+      port: 22
+      username: test
+      password: abcd
+      private_key:
