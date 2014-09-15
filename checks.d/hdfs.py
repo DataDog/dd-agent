@@ -36,7 +36,7 @@ class HDFSCheck(AgentCheck):
             if "url" not in namenode:
                 raise ValueError('Each namenode should specify a "url" parameter.')
 
-        if len(instance['namenodes'] == 1):
+        if len(instance['namenodes']) == 1:
             host, port = instance['namenodes'][0]['url'], instance['namenodes'][0].get('port', DEFAULT_PORT)
             return snakebite.client.Client(host, port)
 
