@@ -1,3 +1,8 @@
+#####
+# This is adapted from btrfs-gui: http://carfax.org.uk/btrfs-gui (License included)
+# It mimics the behavior of the btrfs fi df command
+#
+
 # stdlib
 import os
 import struct
@@ -72,7 +77,7 @@ class Filesystem(object):
 
 def df(mountpoint):
     """Collect information on the usage of the filesystem. Replicate
-    the operation of btrfs fi df to start with.
+    the operation of btrfs fi df.
     """
 
     with Filesystem(mountpoint) as fd:
@@ -111,7 +116,8 @@ class BTRFS(AgentCheck):
         btrfs_devices = {}
         excluded_devices = instance.get('excluded_devices', [])
         for p in psutil.disk_partitions():
-            if p.fstype == 'btrfs' and p.device not in btrfs_devices and p.device not in excluded_devices:
+            if p.fstype == 'btrfs' and p.device not in btrfs_devices\
+             and p.device not in excluded_devices:
                 btrfs_devices[p.device] = p.mountpoint
 
         if len(btrfs_devices) == 0:
