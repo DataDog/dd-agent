@@ -3,56 +3,58 @@ import time
 import socket
 # 3p
 import paramiko
+from collections import namedtuple
 # project
 from checks import AgentCheck
 
 class CheckSSH(AgentCheck):
 
+    OPTIONS = [
+        ('host', True, None, str),
+        ('port', False, 22, int),
+        ('username', True, None, str),
+        ('password', False, None, str),
+        ('private_key_file', False, None, str),
+        ('sftp_check', False, True, bool),
+        ('add_missing_keys', False, False, bool),
+    ]
+
+    Config = namedtuple('Config', [
+                'host',
+                'port',
+                'username',
+                'password',
+                'private_key_file',
+                'sftp_check',
+                'add_missing_keys',
+            ]
+            )
     def _load_conf(self, instance):
-        if 'host' not in instance or not instance['host']:
-            raise Exception ("No host has been specified")
-        else:
-            host = instance['host']
+        params = []
+        for option, required, default, expected_type in self.OPTIONS:
+            value = instance.get(option)
+            if required and (not value or type(value)) != expected_type :
+                raise Exception("Please specify a valid {0}".format(option))
 
-        if 'port' not in instance:
-            self.log.info("No port specified, defaulted to 22")
-            port = 22
-        else:
-            port = int(instance['port'])
+            if value is None or type(value) != expected_type:
+                self.log.debug("Bad or missing value for {0} parameter. Using default".format(option))
+                value = default
 
-        if 'username' not in instance or not instance['username']:
-            raise Exception ("No username has been specified")
-        else:
-            username = instance['username']
-
-        if 'password' not in instance or not instance['password']:
-            self.log.info("No password specified")
-            password = None
-        else:
-            password = instance['password']
-
-        if 'private_key' not in instance or not instance['private_key']:
-            self.log.info("No private_key specified")
-            private_key = None
-        else:
-            private_key = instance['private_key']
-
-        if 'sftp_check' not in instance or instance['sftp_check'] == None:
-            self.log.info("Default: sftp check true")
-            sftp_check = True
-        elif type(instance['sftp_check']) == str:
-            self.log.info("Default: sftp check true")
-            sftp_check = True
-        else:
-            sftp_check = instance['sftp_check']
-
-        return host, port, username, password, private_key, sftp_check
+            params.append(value)
+        return self.Config._make(params)
 
     def check(self, instance):
-        host, port, username, password, private_key, sftp_check = self._load_conf(instance)
+        host, port, username, password, private_key_file, sftp_check, add_missing_keys = self._load_conf(instance)
+
+        try:
+            private_key = paramiko.RSAKey.from_private_key_file (private_key_file)
+        except Exception:
+            self.log.debug("Private Key not found")
+            private_key = None
 
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if add_missing_keys:
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.load_system_host_keys()
 
         exception_message = None
@@ -62,7 +64,7 @@ class CheckSSH(AgentCheck):
             self.service_check('ssh.can_connect', AgentCheck.OK, message=exception_message)
 
         except Exception as e:
-            exception_message = "{0}".format(e)
+            exception_message = str(e)
             self.service_check('ssh.can_connect', AgentCheck.CRITICAL, message=exception_message)
 
         #Service Availability to check status of SFTP
@@ -80,7 +82,7 @@ class CheckSSH(AgentCheck):
                     self.gauge('sftp.response_time', time_taken)
 
                 except Exception as e:
-                    exception_message = "{0}".format(e)
+                    exception_message = str(e)
                     status = AgentCheck.CRITICAL
 
             else:
@@ -91,3 +93,16 @@ class CheckSSH(AgentCheck):
                 exception_message = "No errors occured"
 
             self.service_check('sftp.can_connect', status, message=exception_message)
+
+if __name__ == '__main__':
+    paramiko.common.logging.basicConfig(level=paramiko.common.DEBUG)
+    check, instances = CheckSSH.from_yaml('conf.d/ssh_check.yaml.example')
+    print instances
+    print check
+    for instance in instances:
+        check.check(instance)
+        if check.has_events():
+            print 'Events: %s' % (check.get_events())
+        print 'Metrics: %s' % (check.get_metrics())
+        print 'Metrics: %s' % (check.get_service_checks())
+
