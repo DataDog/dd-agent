@@ -44,50 +44,48 @@ class CheckSSH(AgentCheck):
         return self.Config._make(params)
 
     def check(self, instance):
-        host, port, username, password, private_key_file, sftp_check, add_missing_keys = self._load_conf(instance)
+        conf = self._load_conf(instance)
 
         try:
-            private_key = paramiko.RSAKey.from_private_key_file (private_key_file)
+            private_key = paramiko.RSAKey.from_private_key_file (conf.private_key_file)
         except Exception:
-            self.log.debug("Private Key not found")
+            self.warning("Private key could not be found")
             private_key = None
 
         client = paramiko.SSHClient()
-        if add_missing_keys:
+        if conf.add_missing_keys:
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.load_system_host_keys()
 
         exception_message = None
         #Service Availability to check status of SSH
         try:
-            client.connect(host, port=port, username=username, password=password, pkey=private_key)
+            client.connect(conf.host, port=conf.port, username=conf.username, password=conf.password, pkey=private_key)
             self.service_check('ssh.can_connect', AgentCheck.OK, message=exception_message)
 
         except Exception as e:
             exception_message = str(e)
-            self.service_check('ssh.can_connect', AgentCheck.CRITICAL, message=exception_message)
+            status = AgentCheck.CRITICAL
+            self.service_check('ssh.can_connect', status, message=exception_message)
+            if conf.sftp_check:
+                self.service_check('sftp.can_connect', status, message=exception_message)
+            raise Exception (e)
 
         #Service Availability to check status of SFTP
-        if sftp_check:
-            if exception_message is None:
-                try:
-                    sftp = client.open_sftp()
-                    #Check response time of SFTP
-                    start_time = time.time()
+        if conf.sftp_check:
+            try:
+                sftp = client.open_sftp()
+                #Check response time of SFTP
+                start_time = time.time()
+                result = sftp.listdir('.')
+                status = AgentCheck.OK
+                end_time = time.time()
+                time_taken = end_time - start_time
+                self.gauge('sftp.response_time', time_taken)
 
-                    result = sftp.listdir('.')
-                    status = AgentCheck.OK
-                    end_time = time.time()
-                    time_taken = end_time - start_time
-                    self.gauge('sftp.response_time', time_taken)
-
-                except Exception as e:
-                    exception_message = str(e)
-                    status = AgentCheck.CRITICAL
-
-            else:
+            except Exception as e:
+                exception_message = str(e)
                 status = AgentCheck.CRITICAL
-                exception_message = "Failed because of SSH: " + exception_message
 
             if exception_message is None:
                 exception_message = "No errors occured"
