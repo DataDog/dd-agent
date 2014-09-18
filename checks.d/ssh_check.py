@@ -93,16 +93,3 @@ class CheckSSH(AgentCheck):
                 exception_message = "No errors occured"
 
             self.service_check('sftp.can_connect', status, message=exception_message)
-
-if __name__ == '__main__':
-    paramiko.common.logging.basicConfig(level=paramiko.common.DEBUG)
-    check, instances = CheckSSH.from_yaml('conf.d/ssh_check.yaml.example')
-    print instances
-    print check
-    for instance in instances:
-        check.check(instance)
-        if check.has_events():
-            print 'Events: %s' % (check.get_events())
-        print 'Metrics: %s' % (check.get_metrics())
-        print 'Metrics: %s' % (check.get_service_checks())
-
