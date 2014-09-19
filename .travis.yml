@@ -7,7 +7,7 @@ services:
   - elasticsearch
   - memcache
   - redis-server
-  - postgresql
+  - postgresql: "9.3"
 
 language: python
 python:
