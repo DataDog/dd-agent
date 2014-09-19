@@ -2,8 +2,6 @@ import unittest
 from tests.common import load_check
 from checks import AgentCheck
 
-
-
 class SshTestCase(unittest.TestCase):
 
 	def test_ssh(self):
@@ -49,6 +47,3 @@ class SshTestCase(unittest.TestCase):
 		self.assertRaises(Exception, self.check.check, config['instances'][1])
 		#Testing that bad hostname will raise exception
 		self.assertRaises(Exception, self.check.check, config['instances'][2])
-
-
-
