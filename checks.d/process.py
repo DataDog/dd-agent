@@ -127,7 +127,10 @@ class ProcessCheck(AgentCheck):
                 # user agent might have access to io counters for some processes and not others
                 if read_count is not None:
                     try:
-                        io_counters = p.io_counters()
+                        try:
+                            io_counters = p.io_counters()
+                        except AttributeError:
+                            io_counters = p.get_io_counters()
                         read_count += io_counters.read_count
                         write_count += io_counters.write_count
                         read_bytes += io_counters.read_bytes
