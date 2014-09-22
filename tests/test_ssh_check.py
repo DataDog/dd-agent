@@ -52,4 +52,5 @@ class SshTestCase(unittest.TestCase):
         #Testing that bad hostname will raise exception
         self.assertRaises(Exception, self.check.check, config['instances'][2])
         service_fail = self.check.get_service_checks()
+        #Check failure status
         self.assertEqual(service_fail[0].get('status'), AgentCheck.CRITICAL)
