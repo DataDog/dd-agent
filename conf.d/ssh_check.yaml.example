@@ -1,0 +1,11 @@
+init_config:
+
+instances:
+
+    - host: localhost             #required, must be filled
+      port: 22                    #optional, leaving blank defaults to port 22
+      username: test              #required, must be filled
+      password: abcd              #optional
+      sftp_check: True            #optional, leaving blank defaults to True
+      private_key_file:           #optional, file path to private key
+      add_missing_keys: True      #optional, leaving blank defaults to False
