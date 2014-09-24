@@ -1,3 +1,32 @@
+"""
+Dogstream parser for mysql slow query log
+
+This Dogstream requires slow query log to be enabled
+in mysql server my.cnf
+```
+# /etc/mysql/my.cnf
+log_slow_queries        = /var/log/mysql/mysql-slow.log
+long_query_time         = 2
+```
+
+Must also enable this customer log parser in datadog.conf
+
+```
+# /etc/dd-agent/datadog.conf
+dogstreams: /var/log/mysql/mysql-slow.log:/opt/datadog-agent/agent/dogstream/mysql_slow_query.py:parse_slow_query
+```
+
+The outputted events will look like:
+
+title:
+  Slow query from root[root]@localhost
+text:
+  # Time: 140923 22:26:00
+  # User@Host: root[root] @ localhost []
+  # Query_time: 4.000194 Lock_time: 0.000000 Rows_sent: 1 Rows_examined: 0
+  SET timestamp=1411525560;
+  select sleep(4);
+"""
 import json
 import re
 import time
