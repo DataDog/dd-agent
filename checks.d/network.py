@@ -240,9 +240,17 @@ class Network(AgentCheck):
             self.log.debug("Unable to read /proc/net/snmp.")
 
     def _check_bsd(self, instance):
-        netstat = subprocess.Popen(["netstat", "-i", "-b"],
-                                   stdout=subprocess.PIPE,
-                                   close_fds=True).communicate()[0]
+        platf = sys.platform
+
+        # FreeBSD's netstat truncates device names unless you pass '-W'
+        if Platform.is_freebsd(platf):
+            netstat = subprocess.Popen(["netstat", "-i", "-b", "-W"],
+                                       stdout=subprocess.PIPE,
+                                       close_fds=True).communicate()[0]
+        else:
+            netstat = subprocess.Popen(["netstat", "-i", "-b"],
+                                       stdout=subprocess.PIPE,
+                                       close_fds=True).communicate()[0]
         # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll
         # lo0   16384 <Link#1>                        318258     0  428252203   318258     0  428252203     0
         # lo0   16384 localhost   fe80:1::1           318258     -  428252203   318258     -  428252203     -
