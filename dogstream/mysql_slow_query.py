@@ -78,7 +78,7 @@ def parse_event(query):
             timestamp = int(time.mktime(time.strptime(timestamp, "%y%m%d %H:%M:%S")))
 
     return {
-        "msg_title": "Slow query from %s %s@%s" % (schema_name, user, host),
+        "msg_title": "Slow query from %s@%s" % (user, host),
         "timestamp": timestamp,
         "msg_text": query,
         "alert_type": "warning",
