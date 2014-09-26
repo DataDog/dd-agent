@@ -221,7 +221,7 @@ printf "Operating System: $unamestr\n" >> $logfile
 
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
-$dl_cmd $dd_base/virtualenv.py https://raw.githubusercontent.com/pypa/virtualenv/1.11.X/virtualenv.py >> $logfile 2>&1
+$dl_cmd $dd_base/virtualenv.py https://raw.githubusercontent.com/pypa/virtualenv/1.11.6/virtualenv.py >> $logfile 2>&1
 
 if [ "$is_openshift" = "1" ]; then
     python $dd_base/virtualenv.py --no-pip --no-setuptools --system-site-packages $dd_base/venv >> $logfile 2>&1
