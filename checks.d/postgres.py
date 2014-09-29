@@ -204,12 +204,15 @@ SELECT %s
 
         return self.versions[key]
 
-    def _is_9_2_or_above(self, key, db):
+    def _is_above(self, key, db, version_to_compare):
         version = self._get_version(key, db)
         if type(version) == list:
-            return version >= [9, 2, 0]
+            return version >= version_to_compare
 
         return False
+
+    def _is_9_2_or_above(self, key, db):
+        return self._is_above(key, db, [9,2,0])
 
     def _get_instance_metrics(self, key, db):
         """Use either COMMON_METRICS or COMMON_METRICS + NEWER_92_METRICS
@@ -247,6 +250,13 @@ SELECT %s
             cursor = db.cursor()
 
             for scope in metric_scope:
+                if scope == self.REPLICATION_METRICS or not self._is_above(key, db, [9,0,0]):
+                    log_func = self.log.debug
+                    warning_func = self.log.debug
+                else:
+                    log_func = self.log.warning
+                    warning_func = self.warning
+
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
                 # we must remember that order to parse results
@@ -264,7 +274,11 @@ SELECT %s
 
                     results = cursor.fetchall()
                 except ProgrammingError, e:
-                    self.log.warning("Not all metrics may be available: %s" % str(e))
+                    log_func("Not all metrics may be available: %s" % str(e))
+                    continue
+
+                if not results:
+                    warning_func('No results were found for query: "%s"' % query)
                     continue
 
                 # parse & submit results
@@ -299,9 +313,6 @@ SELECT %s
                     # v[1] == the actual value
                     # tags are
                     [v[0][1](self, v[0][0], v[1], tags=tags) for v in values]
-
-            if not results:
-                self.warning('No results were found for query: "%s"' % query)
 
             cursor.close()
         except InterfaceError, e:
