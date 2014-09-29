@@ -150,8 +150,7 @@ class MongoDb(AgentCheck):
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
         """
         if 'server' not in instance:
-            self.log.warn("Missing 'server' in mongo config")
-            return
+            raise Exception("Missing 'server' in mongo config")
 
         server = instance['server']
 
@@ -204,17 +203,17 @@ class MongoDb(AgentCheck):
             conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
                 **ssl_params)
             db = conn[db_name]
-            service_check_status = AgentCheck.OK
         except Exception:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
             raise
 
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % server)
-                service_check_status = AgentCheck.CRITICAL
+                message = "Mongo: cannot connect with config %s" % server
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=message)
+                raise Exception(message)
 
-        self.service_check(self.SERVICE_CHECK_NAME, service_check_status, tags=service_check_tags)
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
         if status['ok'] == 0:
