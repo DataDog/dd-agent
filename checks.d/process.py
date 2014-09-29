@@ -164,7 +164,8 @@ class ProcessCheck(AgentCheck):
             raise KeyError('"search_string" parameter should be a list')
 
         if "All" in search_string:
-            self.warning('Having "All" in your search_string will greatly reduce the performance of the check.')
+            self.warning('Deprecated: Having "All" in your search_string will\
+             greatly reduce the performance of the check and will be removed in a future version of the agent. ')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
