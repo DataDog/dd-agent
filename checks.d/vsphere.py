@@ -63,7 +63,7 @@ INTERVAL = 'interval'
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
 
-    def __init__(self, raw_event):
+    def __init__(self, raw_event, event_config={}):
         self.raw_event = raw_event
         if self.raw_event and self.raw_event.__class__.__name__.startswith('vim.event'):
             self.event_type = self.raw_event.__class__.__name__[10:]
@@ -76,6 +76,7 @@ class VSphereEvent(object):
             "event_type": SOURCE_TYPE,
             "source_type_name": SOURCE_TYPE,
         }
+        self.event_config = event_config
 
     def _is_filtered(self):
         # Filter the unwanted types
@@ -141,6 +142,9 @@ class VSphereEvent(object):
         return self.payload
 
     def transform_alarmstatuschangedevent(self):
+        if self.event_config.get('vcenter_alarms') is None:
+            return None
+
         def get_transition(before, after):
             vals = {
                 'gray': -1,
@@ -303,6 +307,8 @@ class VSphereCheck(AgentCheck):
         # Connections open to vCenter instances
         self.server_instances = {}
 
+        # Event configuration
+        self.event_config = {}
         # Caching resources, timeouts
         self.cache_times = {}
         for instance in self.instances:
@@ -319,6 +325,8 @@ class VSphereCheck(AgentCheck):
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
+
+            self.event_config[i_key] = instance.get('event_config')
 
         # First layer of cache (get entities from the tree)
         self.morlist_raw = {}
@@ -383,7 +391,7 @@ class VSphereCheck(AgentCheck):
             new_events = event_manager.QueryEvents(query_filter)
             self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
             for event in new_events:
-                normalized_event = VSphereEvent(event)
+                normalized_event = VSphereEvent(event, self.event_config[i_key])
                 # Can return None if the event if filtered out
                 event_payload = normalized_event.get_datadog_payload()
                 if event_payload is not None:
