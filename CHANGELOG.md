@@ -1,6 +1,28 @@
 Changes
 =======
-# 5.0.0 / Unreleased
+
+# 5.0.3 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Batching jobs to cache the infrastructure of vCenter when autodiscovering Hosts/VMs is configurable
+* [BUGFIX] Fix ESXi host tags not being correctly set
+* [BUGFIX] Fix metadata reset so that metrics processing is not stopped when refreshing metadata
+* [BUGFIX] Fix thread pool crash when one thread would not terminate gracefully
+
+# 5.0.2 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Changed the event filter to remove login events by default
+* [BUGFIX] Duplicate tags on VMs and host
+* [BUGFIX] Ignore duplicate events about VM migrations
+
+# 5.0.1 (Windows only)
+
+[FEATURE] Releasing the vSphere check. This is a new integration able to fetch metrics and events from vCenter.
+
+# 5.0.0 / 08-22-2014
 
 ### Notes
 
@@ -8,8 +30,6 @@ This is a major version of the Datadog-Agent.
 
 * On Linux:
 Packaging of the Agent has changed for RPM and DEB packages.
-To BETA test this version of the agent (at your own risks), please read this guide:
-https://gist.github.com/remh/1426ccb24ec36162ba2b
 
 * On Windows:
 This release has multiple fixes, see the list below.
@@ -17,18 +37,20 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 
 ### What will break ?
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
-     *
+     
        ```
-           sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
+sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
 * Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
 
+### How to upgrade?
+
+See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 
 ### New and updated integrations
 
 * Docker
 * ElasticSearch
-* Golang-expvar
 * Kafka
 * Kafka consumer
 * NTP
@@ -37,13 +59,13 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 * Process
 * Redis
 * SNMP
+* SQL Server
 
 ### Changes
 * [FEATURE] Add support of Centos 7 and Fedora Core 19-20
-* [FEATURE] Add a NTP Service check. See [#971][]
+* [FEATURE] Add a NTP check. See [#971][]
 * [FEATURE] Add an option to instrument check runs time. See [#1013][]
 * [FEATURE] Add derived Redis metrics. See [#1015][]
-* [FEATURE] Add a Golang-expvars integration. See [#1016][]
 * [FEATURE] Add an SNMP Check. See [#299][]
 * [FEATURE] Redis: Adds support for checking length of more types. See [#996][]
 * [FEATURE] Let the possibility to exclude some disks for Windows disks check. See [#1008][]
@@ -53,6 +75,7 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 * [BUGFIX] Support Windows EOL \r character. See [#1023][]
 * [BUGFIX] Fix the collection of cpu metrics (>100%) on Windows. See [#653][]
 * [BUGFIX] Fix connection error on Windows 2008 SP2. See [#1014][]
+* [BUGFIX] Dogstreams on windows: Allow to specify custom parser. See [#887][]
 * [BUGFIX] ElasticSearch: Fix elasticsearch metrics according to different ES versions: See [#1024][]
 * [BUGFIX] Process check: Fix check on some version of psutil. See [#958][]
 * [BUGFIX] Fix init script on Centos/RHEL when dogstatsd is disabled. See [#1002][]
@@ -60,6 +83,9 @@ Warning: The way CPU metrics are collected has changed and will be more accurate
 * [BUGFIX] Kafka consumer: Support version 0.9 of python-kafka. See [#1028][]
 * [BUGFIX] Postgres: fix columns to retrieve when two different postgres version on the same host. See [#1035][]
 * [BUGFIX] Fix multiple Docker check bugs. See [#1017][] [#1031][]
+* [BUGFIX] Lets the possibility to override curl behavior when using a proxy that returns a 302. See [#1036][]
+* [BUGFIX] SQL Server: Detect automatically counter types to report them correctly. See [#1069][]
+* [BUGFIX] Report Docker memory page metrics as rates.
 
 # 4.4.0 / 06-24-2014
 
@@ -1145,6 +1171,7 @@ If you use ganglia, you want this version.
 [#1029]: https://github.com/DataDog/dd-agent/issues/1029
 [#1031]: https://github.com/DataDog/dd-agent/issues/1031
 [#1035]: https://github.com/DataDog/dd-agent/issues/1035
+[#1036]: https://github.com/DataDog/dd-agent/issues/1036
 [@CaptTofu]: https://github.com/CaptTofu
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon

@@ -2,7 +2,10 @@
 from checks import Check
 
 # 3rd party
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 try:
     import wmi

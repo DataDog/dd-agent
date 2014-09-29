@@ -18,6 +18,7 @@ class NtpCheck(AgentCheck):
     DEFAULT_MIN_COLLECTION_INTERVAL = 20 # in seconds
 
     def check(self, instance):
+        service_check_msg = None
         offset_threshold = instance.get('offset_threshold', DEFAULT_OFFSET_THRESHOLD)
         try:
             offset_threshold = int(offset_threshold)
@@ -43,7 +44,6 @@ class NtpCheck(AgentCheck):
             ntp_ts = ntp_stats.recv_time
             self.gauge('ntp.offset', ntp_offset, timestamp=ntp_ts)
 
-            service_check_msg = None
             if abs(ntp_offset) > offset_threshold:
                 status = AgentCheck.CRITICAL
                 service_check_msg = "Offset {0} secs higher than offset threshold ({1} secs)".format(ntp_offset, offset_threshold)

@@ -20,7 +20,7 @@ from cStringIO import StringIO
 
 # project
 
-from util import get_os, Platform
+from util import get_os, Platform, yLoader
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.0.0"
+AGENT_VERSION = "5.0.3"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -371,8 +371,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
-            if use_ddurl:
+            if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
                 agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
@@ -433,6 +432,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["collect_instance_metadata"] = True
         if config.has_option("Main", "collect_instance_metadata"):
             agentConfig["collect_instance_metadata"] = _is_affirmative(config.get("Main", "collect_instance_metadata"))
+
+        agentConfig["proxy_forbid_method_switch"] = False
+        if config.has_option("Main", "proxy_forbid_method_switch"):
+            agentConfig["proxy_forbid_method_switch"] = _is_affirmative(config.get("Main", "proxy_forbid_method_switch"))
 
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
@@ -652,7 +655,7 @@ def check_yaml(conf_path):
     f = open(conf_path)
     check_name = os.path.basename(conf_path).split('.')[0]
     try:
-        check_config = yaml.load(f.read(), Loader=yaml.CLoader)
+        check_config = yaml.load(f.read(), Loader=yLoader)
         assert 'init_config' in check_config, "No 'init_config' section found"
         assert 'instances' in check_config, "No 'instances' section found"
 
@@ -671,7 +674,7 @@ def check_yaml(conf_path):
     finally:
         f.close()
 
-def load_check_directory(agentConfig):
+def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
@@ -680,6 +683,7 @@ def load_check_directory(agentConfig):
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
+    agentConfig['checksd_hostname'] = hostname
 
     deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:

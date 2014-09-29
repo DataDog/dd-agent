@@ -13,7 +13,7 @@ import pymongo
 DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
-
+    SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
 
     GAUGES = [
@@ -205,8 +205,8 @@ class MongoDb(AgentCheck):
                 **ssl_params)
             db = conn[db_name]
             service_check_status = AgentCheck.OK
-        except:
-            self.service_check('mongodb.can_connect', AgentCheck.CRITICAL, tags=service_check_tags)
+        except Exception:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
             raise
 
         if do_auth:
@@ -214,9 +214,12 @@ class MongoDb(AgentCheck):
                 self.log.error("Mongo: cannot connect with config %s" % server)
                 service_check_status = AgentCheck.CRITICAL
 
-        self.service_check('mongodb.can_connect', service_check_status, tags=service_check_tags)
+        self.service_check(self.SERVICE_CHECK_NAME, service_check_status, tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
+        if status['ok'] == 0:
+            raise Exception(status['errmsg'].__str__())
+
         status['stats'] = db.command('dbstats')
 
         # Handle replica data, if any

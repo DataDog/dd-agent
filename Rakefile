@@ -12,6 +12,19 @@ task :test, [:attrs] do |t, args|
   sh cmd
 end
 
+desc 'Setup a development environment for the Agent'
+task "setup_env" do
+   `mkdir -p venv`
+   `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.X/virtualenv.py`
+   `python venv/virtualenv.py  --no-pip --no-setuptools venv/`
+   `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
+   `venv/bin/python venv/ez_setup.py`
+   `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
+   `venv/bin/python venv/get-pip.py`
+   `venv/bin/pip install -r source-requirements.txt`
+   `venv/bin/pip install -r optional-requirements.txt`
+end
+
 namespace :test do
   desc 'Run dogstatsd tests'
   task 'dogstatsd' do

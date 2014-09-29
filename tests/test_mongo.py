@@ -49,7 +49,7 @@ class TestMongo(unittest.TestCase):
             self.wait4mongo(self.p1, PORT1)
             if self.p1:
                 # Set up replication
-                c1 = pymongo.Connection('localhost:%s' % PORT1, slave_okay=True)
+                c1 = pymongo.Connection('localhost:%s' % PORT1, read_preference=pymongo.ReadPreference.PRIMARY_PREFERRED)
                 self.p2 = subprocess.Popen(["mongod", "--dbpath", dir2, "--port", str(PORT2), "--replSet", "testset/%s:%d" % (socket.gethostname(), PORT1), "--rest"],
                                            executable="mongod",
                                            stdout=subprocess.PIPE,
@@ -124,7 +124,7 @@ class TestMongo(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "mongodb.can_connect"]), 4, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_NAME]), 4, service_checks)
         # Assert that all service checks have the proper tags: host and port
         self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT1 in sc['tags'] or "port:%s" % PORT2 in sc['tags']]), service_checks_count, service_checks)

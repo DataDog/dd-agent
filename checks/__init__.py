@@ -16,7 +16,7 @@ import copy
 from pprint import pprint
 from collections import defaultdict
 
-from util import LaconicFilter, get_os, get_hostname, get_next_id
+from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
 from config import get_confd_path
 from checks import check_status
 
@@ -286,10 +286,12 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.hostname = get_hostname(agentConfig)
+        self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter, recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+        self.aggregator = MetricsAggregator(self.hostname, 
+            formatter=agent_formatter, 
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
 
         self.events = []
         self.service_checks = []
@@ -585,9 +587,13 @@ class AgentCheck(object):
             yaml_text = f.read()
             f.close()
 
-        config = yaml.load(yaml_text, Loader=yaml.CLoader)
-        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
-
+        config = yaml.load(yaml_text, Loader=yLoader)
+        try:
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {},
+                        config.get('instances'))
+        except TypeError:
+            # Compatibility for the check not supporting instances
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
     def normalize(self, metric, prefix=None, fix_case = False):

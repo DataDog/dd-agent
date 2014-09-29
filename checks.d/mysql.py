@@ -50,6 +50,7 @@ STATUS_VARS = {
 }
 
 class MySql(AgentCheck):
+    SERVICE_CHECK_NAME = 'mysql.can_connect'
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.mysql_version = {}
@@ -84,12 +85,6 @@ class MySql(AgentCheck):
         return host, port, user, password, mysql_sock, defaults_file, tags, options
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
-        try:
-            import pymysql
-        except ImportError:
-            raise Exception("Cannot import pymysql module. Check the instructions "
-                "to install this module at https://app.datadoghq.com/account/settings#integrations/mysql")
-
         service_check_tags = [
             'host:%s' % host,
             'port:%s' % port
@@ -112,9 +107,9 @@ class MySql(AgentCheck):
                                         user=user,
                                         passwd=password)
             self.log.debug("Connected to MySQL")
-            self.service_check('mysql.can_connect', AgentCheck.OK, tags=service_check_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
         except Exception:
-            self.service_check('mysql.can_connect', AgentCheck.CRITICAL, tags=service_check_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
             raise
 
         return db

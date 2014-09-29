@@ -1,11 +1,13 @@
-from checks import AgentCheck
+# stdlib
 import time
 from Queue import Queue, Empty
-from checks.libs.thread_pool import Pool
 import threading
 
+# project
+from checks import AgentCheck
 
-
+# 3rd party
+from checks.libs.thread_pool import Pool
 
 TIMEOUT = 180
 DEFAULT_SIZE_POOL = 6
@@ -21,9 +23,9 @@ class EventType:
     UP = "servicecheck.state_change.up"
 
 
-class ServicesCheck(AgentCheck):
+class NetworkCheck(AgentCheck):
     SOURCE_TYPE_NAME = 'servicecheck'
-    SERVICE_CHECK_PREFIX = 'service_check'
+    SERVICE_CHECK_PREFIX = 'network_check'
 
     STATUS_TO_SERVICE_CHECK = {
             Status.UP  : AgentCheck.OK,
@@ -188,10 +190,9 @@ class ServicesCheck(AgentCheck):
 
     def _clean(self):
         now = time.time()
-        stuck_process = None
-        stuck_time = time.time()
         for name in self.jobs_status.keys():
             start_time = self.jobs_status[name]
             if now - start_time > TIMEOUT:
-                self.log.critical("Restarting Pool. One check is stuck.")
+                self.log.critical("Restarting Pool. One check is stuck: %s" % name)
                 self.restart_pool()
+                break

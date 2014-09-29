@@ -7,7 +7,7 @@ services:
   - elasticsearch
   - memcache
   - redis-server
-  - postgresql
+  - postgresql: "9.3"
 
 language: python
 python:
@@ -59,13 +59,12 @@ before_script:
   - sudo service nginx start
   - sudo /etc/init.d/lighttpd start
   - sudo service tomcat6 restart
-  - sudo service couchdb start
   - sudo service snmpd start
 env:
   - DB=redis
 script:
    - pylint --rcfile=./.pylintrc *.py */*.py */*/*.py 
-   - nosetests -A 'not windows' tests
+   - nosetests -v -A 'not windows' tests
 notifications:
   webhooks:
     - https://www.buildheroes.com/api/projects/1fa0bf90eb6f781bf067c82439775fd9d896c0ae/builds
