@@ -128,7 +128,7 @@ class TestMemCache(unittest.TestCase):
         svc_checks = self.c.get_service_checks()
         self.assertEquals(len(svc_checks), len(self.conf['instances']))
 
-        self.assertEquals(svc_checks[0]['check'], 'memcache.is_connectable')
+        self.assertEquals(svc_checks[0]['check'], self.c.SERVICE_CHECK)
         self.assertEquals(svc_checks[0]['status'], AgentCheck.OK)
         assert 'up for' in svc_checks[0]['message']
 
@@ -143,7 +143,7 @@ class TestMemCache(unittest.TestCase):
             pass
         svc_checks = self.c.get_service_checks()
         self.assertEquals(len(svc_checks), 1)
-        self.assertEquals(svc_checks[0]['check'], 'memcache.is_connectable')
+        self.assertEquals(svc_checks[0]['check'], self.c.SERVICE_CHECK)
         self.assertEquals(svc_checks[0]['status'], AgentCheck.CRITICAL)
 
 if __name__ == '__main__':
