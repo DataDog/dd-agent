@@ -3,6 +3,10 @@ Changes
 
 # 5.1.0 / Unreleased
 
+### Notes
+* Pup is now removed from the Datadog Agent
+* The "ALL" parameter in the process check is deprecated and will be removed in a future version of the agent.
+
 ### New and updated integrations
 * PostgreSQL
 * Directory
