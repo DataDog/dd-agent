@@ -1,6 +1,55 @@
 Changes
 =======
 
+# 5.1.0 / Unreleased
+
+### New and updated integrations
+* PostgreSQL
+* Directory
+* Jenkins
+* MongoDB
+* Process
+* ElasticSearch
+* IIS
+* ZooKeeper
+* Memcached
+* SSH
+* CPU Core
+* BTRFS
+
+### Changes
+
+* [FEATURE] Add Service Checks for the following integration:
+    - Apache
+    - HAProxy
+    - Lighttpd
+    - NginX
+    - NTP
+    - HTTP
+    - TCP
+    - Process
+    - ElasticSearch
+    - IIS
+    - ZooKeeper
+    - Memcached
+    - MongoDB
+    - SQL Server
+    - MySQL
+    - PostgeSQL
+
+
+* [FEATURE] PostgreSQL: Pick up per-table size stats. See #1105
+* [FEATURE] PostgreSQL: Collect locks per mode and bgwriter metrics. See #1019
+* [FEATURE] Directory Check: Let the possibilty to tag metrics at the file level. See #1041 (Thanks @Osterjour)
+* [FEATURE] Jenkins: Add result and build number to events tags. See #1068 (Thanks @jzoldak)
+* [FEATURE] Add a SSH Check. See #1117
+* [FEATURE] Add a check to collect metrics at the core level.
+* [FEATURE] Add a check to collect metrics from BTRFS. See #1123
+* [BUGGIX] Jenkins: Fix when build does not yet have results. See #1060 (Thanks @jzoldak)
+* [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See #1105
+* [BUGFIX] MongoDB: Add logging of serverStatus errors. See #1065 (Thanks @igroenewold)
+
+
 # 5.0.3 (Windows only)
 
 vSphere check:
