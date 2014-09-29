@@ -297,12 +297,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_web_info_page'] = True
 
-        if agentConfig['use_web_info_page']:
-            agentConfig['pup_url'] = 'http://localhost:17125'
-
-            if config.has_option('Main', 'pup_port'):
-                agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
-
         if not agentConfig['use_dd']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
             exit(2)
