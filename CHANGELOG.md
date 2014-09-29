@@ -1,5 +1,27 @@
 Changes
 =======
+
+# 5.0.3 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Batching jobs to cache the infrastructure of vCenter when autodiscovering Hosts/VMs is configurable
+* [BUGFIX] Fix ESXi host tags not being correctly set
+* [BUGFIX] Fix metadata reset so that metrics processing is not stopped when refreshing metadata
+* [BUGFIX] Fix thread pool crash when one thread would not terminate gracefully
+
+# 5.0.2 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Changed the event filter to remove login events by default
+* [BUGFIX] Duplicate tags on VMs and host
+* [BUGFIX] Ignore duplicate events about VM migrations
+
+# 5.0.1 (Windows only)
+
+[FEATURE] Releasing the vSphere check. This is a new integration able to fetch metrics and events from vCenter.
+
 # 5.0.0 / 08-22-2014
 
 ### Notes

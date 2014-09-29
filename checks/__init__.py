@@ -588,8 +588,12 @@ class AgentCheck(object):
             f.close()
 
         config = yaml.load(yaml_text, Loader=yLoader)
-        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
-
+        try:
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {},
+                        config.get('instances'))
+        except TypeError:
+            # Compatibility for the check not supporting instances
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
     def normalize(self, metric, prefix=None, fix_case = False):
