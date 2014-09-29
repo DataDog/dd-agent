@@ -45,6 +45,7 @@ class TestPostgres(unittest.TestCase):
 
         # Rate metrics, need 2 collection rounds
         time.sleep(1)
+        self.check.run()
         metrics = self.check.get_metrics()
         self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.sync_time']) >= 1, pprint(metrics))
 
@@ -63,9 +64,9 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
         metrics = self.check.get_metrics()
 
-        self.assertTrue(len(metrics) == 20, metrics)
-        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) == 20, metrics)
-        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3]['tags']) ]) == 8, metrics)
+        self.assertTrue(len(metrics) == 50, metrics)
+        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]) == 38, metrics)
+        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]) == 25, metrics)
 
 if __name__ == '__main__':
     unittest.main()
