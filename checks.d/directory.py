@@ -15,6 +15,9 @@ class DirectoryCheck(AgentCheck):
     Config options:
         "directory" - string, the directory to gather stats for. required
         "name" - string, the name to use when tagging the metrics. defaults to the "directory"
+        "dirtagname" - string, the name of the tag used for the directory. defaults to "name"
+        "filetagname" - string, the name of the tag used for each file. defaults to "filename"
+        "filegauges" - boolean, when true stats will be an individual gauge per file (max. 20 files!) and not a histogram of the whole directory. default False
         "pattern" - string, the `fnmatch` pattern to use when reading the "directory"'s files. default "*"
         "recursive" - boolean, when true the stats will recurse into directories. default False
     """
@@ -30,14 +33,17 @@ class DirectoryCheck(AgentCheck):
         name = instance.get("name") or directory
         pattern = instance.get("pattern") or "*"
         recursive = instance.get("recursive") or False
+        dirtagname = instance.get("dirtagname") or "name"
+        filetagname = instance.get("filetagname") or "filename"
+        filegauges = instance.get("filegauges") or False
 
         if not exists(abs_directory):
             raise Exception("DirectoryCheck: the directory (%s) does not exist" % abs_directory)
 
-        self._get_stats(abs_directory, name, pattern, recursive)
+        self._get_stats(abs_directory, name, dirtagname, filetagname, filegauges, pattern, recursive)
 
-    def _get_stats(self, directory, name, pattern, recursive):
-        tags = ["name:%s" % name]
+    def _get_stats(self, directory, name, dirtagname, filetagname, filegauges, pattern, recursive):
+        dirtags = [dirtagname+":%s" % name]
         directory_bytes = 0
         directory_files = 0
         for root, dirs, files in walk(directory):
@@ -52,12 +58,19 @@ class DirectoryCheck(AgentCheck):
                 except OSError, ose:
                     self.warning("DirectoryCheck: could not stat file %s - %s" % (filename, ose))
                 else:
+                    # file specific metrics
                     directory_files += 1
                     directory_bytes += file_stat.st_size
-                    # file specific metrics
-                    self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=tags)
-                    self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=tags)
-                    self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=tags)
+                    if filegauges and directory_files <= 20:
+                        filetags = list(dirtags)
+                        filetags.append(filetagname+":%s" % filename)
+                        self.gauge("system.disk.directory.file.bytes", file_stat.st_size, tags=filetags)
+                        self.gauge("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=filetags)
+                        self.gauge("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=filetags)
+                    elif not filegauges:
+                        self.histogram("system.disk.directory.file.bytes", file_stat.st_size, tags=dirtags)
+                        self.histogram("system.disk.directory.file.modified_sec_ago", time.time() - file_stat.st_mtime, tags=dirtags)
+                        self.histogram("system.disk.directory.file.created_sec_ago", time.time() - file_stat.st_ctime, tags=dirtags)
 
             # os.walk gives us all sub-directories and their files
             # if we do not want to do this recursively and just want
@@ -66,6 +79,6 @@ class DirectoryCheck(AgentCheck):
                 break
 
         # number of files
-        self.gauge("system.disk.directory.files", directory_files, tags=tags)
+        self.gauge("system.disk.directory.files", directory_files, tags=dirtags)
         # total file size
-        self.gauge("system.disk.directory.bytes", directory_bytes, tags=tags)
+        self.gauge("system.disk.directory.bytes", directory_bytes, tags=dirtags)
