@@ -36,7 +36,7 @@ instances:
          # check to create a metric 'network.http.response_time', tagged with
          # the url, reporting the response time in seconds.
 
-#        collect_response_time: false
+#        collect_response_time: true
 
          # The (optional) disable_ssl_validation will instruct the check
          # to skip the validation of the SSL certificate of the URL being tested.
