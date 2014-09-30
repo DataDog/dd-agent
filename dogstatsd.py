@@ -157,7 +157,10 @@ class Reporter(threading.Thread):
             ).persist()
 
         except Exception:
-            log.exception("Error flushing metrics")
+            if self.finished.isSet():
+                log.debug("Couldn't flush metrics, but that's expected as we're stopping")
+            else:
+                log.exception("Error flushing metrics")
 
     def submit(self, metrics):
         # Copy and pasted from dogapi, because it's a bit of a pain to distribute python
