@@ -158,7 +158,7 @@ class Reporter(threading.Thread):
 
         except Exception:
             if self.finished.isSet():
-                log.info("Couldn't flush metrics, but that's expected as we're stopping")
+                log.debug("Couldn't flush metrics, but that's expected as we're stopping")
             else:
                 log.exception("Error flushing metrics")
 
