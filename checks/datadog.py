@@ -195,7 +195,7 @@ class Dogstream(object):
                 self._line_count += 1
 
                 if parsed is None:
-                    return
+                    continue
 
                 if isinstance(parsed, (tuple, dict)):
                     parsed = [parsed]
