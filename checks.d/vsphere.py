@@ -142,7 +142,7 @@ class VSphereEvent(object):
         return self.payload
 
     def transform_alarmstatuschangedevent(self):
-        if self.event_config.get('vcenter_alarms') is None:
+        if self.event_config.get('collect_vcenter_alarms') is None:
             return None
 
         def get_transition(before, after):
