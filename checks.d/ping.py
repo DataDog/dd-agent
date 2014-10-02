@@ -1,49 +1,54 @@
-#!/usr/bin/python
-
 from checks import AgentCheck
+
 import subprocess
 import time
 
 class PingCheck(AgentCheck):
-  def __init__(self, name, init_config, agentConfig):
-    AgentCheck.__init__(self, name, init_config, agentConfig)
+    def check(self, instance):
+        if 'name' not in instance:
+            raise Exception('Skipping instance, name not defined.')
 
-  def check(self, instance):
-    ip = instance['ip']
-    name = instance['name']
+        if 'ip' not in instance:
+            raise Exception('Skipping instance, ip not defined.')
 
-    try:
-      var = subprocess.check_output('ping -q -c 3 -t 20 ' + ip, shell=True).splitlines(True)
+        name = instance['name']
+        ip = instance['ip']
 
-      for line in var:
-        if "round-trip" in line or "rtt" in line:
-          split = line.replace('/',' ').split()
-          (min, avg, max, jitter) = (split[6], split[7], split[8], split[9])
+        tags = instance.get('tags', [])
+        tags = tags + ['destination:' + name, 'ip:' + ip]
 
-        elif " packets received, " in line:
-          split = line.replace('%','').split()
-          loss = split[6]
+        try:
+            var = subprocess.check_output('ping -q -c 5 -t 20 ' + ip, shell=True).splitlines(True)
 
-        elif " received, " in line:
-          split = line.replace('%','').split()
-          loss = split[5]
+            for line in var:
+                if "round-trip" in line or "rtt" in line:
+                    split = line.replace('/',' ').split()
+                    (min, avg, max, jitter) = (split[6], split[7], split[8], split[9])
 
-    except:
-      (min, avg, max, jitter,loss) = ('0', '0', '0', '0', '100')
+                elif " packets received, " in line:
+                    split = line.replace('%','').split()
+                    loss = split[6]
 
-    self.gauge('ping.min', min, ["destination:" + name])
-    self.gauge('ping.avg', avg, ["destination:" + name])
-    self.gauge('ping.max', max, ["destination:" + name])
-    self.gauge('ping.jitter', jitter, ["destination:" + name])
-    self.gauge('ping.loss', loss, ["destination:" + name])
+                elif " received, " in line:
+                    split = line.replace('%','').split()
+                    loss = split[5]
 
-    if float(loss) > 0:
-      self.event({
-        'timestamp': int(time.time()),
-        'event_type': 'ping_check',
-        'api_key': self.agentConfig.get('api_key', ''),
-        'msg_title': loss + '% packet loss on ' + name,
-        'msg_text': loss + '% packet loss on ' + name,
-        'aggregation_key': ip + name + loss,
-        'alert_type': 'warning'
-      })
+        except:
+            (min, avg, max, jitter,loss) = ('0', '0', '0', '0', '100')
+
+        self.gauge('ping.min', min, tags)
+        self.gauge('ping.avg', avg, tags)
+        self.gauge('ping.max', max, tags)
+        self.gauge('ping.jitter', jitter, tags)
+        self.gauge('ping.loss', loss, tags)
+
+        if float(loss) > 0:
+            self.event({
+                'timestamp': int(time.time()),
+                'event_type': 'ping_check',
+                'api_key': self.agentConfig.get('api_key', ''),
+                'msg_title': loss + '% packet loss on ' + name,
+                'msg_text': loss + '% packet loss on ' + name,
+                'aggregation_key': ip + name + loss,
+                'alert_type': 'warning'
+            })
