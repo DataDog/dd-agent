@@ -422,10 +422,6 @@ class TokuMX(AgentCheck):
 
 
     def check(self, instance):
-        """
-        Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
-        """
-
         server, conn, db, tags = self._get_connection(instance)
 
         if conn.is_mongos:
