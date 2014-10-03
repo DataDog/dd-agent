@@ -1,8 +1,12 @@
 import unittest
 from tests.common import load_check
+
+from nose.plugins.attrib import attr
+
 import time
 from pprint import pprint
 
+@attr(requires='postgres')
 class TestPostgres(unittest.TestCase):
 
     def testChecks(self):
@@ -64,9 +68,9 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
         metrics = self.check.get_metrics()
 
-        self.assertTrue(len(metrics) == 50, metrics)
-        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]) == 38, metrics)
-        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]) == 25, metrics)
+        self.assertTrue(len(metrics) == 36, metrics)
+        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]) == 24, metrics)
+        self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]) == 11, metrics)
 
 if __name__ == '__main__':
     unittest.main()

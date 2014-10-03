@@ -4,6 +4,7 @@ Redis check tests.
 import logging
 import os
 import unittest
+from nose.plugins.attrib import attr
 import subprocess
 import time
 import pprint
@@ -18,6 +19,7 @@ AUTH_PORT = 26379
 DEFAULT_PORT = 6379
 MISSING_KEY_TOLERANCE= 0.5
 
+@attr(requires='redis')
 class TestRedis(unittest.TestCase):
 
     def is_travis(self):

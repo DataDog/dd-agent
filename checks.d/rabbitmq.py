@@ -235,7 +235,7 @@ class RabbitMQ(AgentCheck):
             vhosts = [v['name'] for v in vhosts_response]
 
         for vhost in vhosts:
-            tags = {'vhost:%s' % vhost}
+            tags = ['vhost:%s' % vhost]
             # We need to urlencode the vhost because it can be '/'.
             path = u'aliveness-test/%s' % (urllib.quote_plus(vhost))
             aliveness_url = urlparse.urljoin(base_url, path)

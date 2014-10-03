@@ -1,5 +1,6 @@
 import time
 import unittest
+from nose.plugins.attrib import attr
 import logging
 logger = logging.getLogger()
 from checks import (Check, AgentCheck,
@@ -137,6 +138,7 @@ class TestCore(unittest.TestCase):
                 }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
 
+    @attr(requires='sysstat')
     def test_collector(self):
         agentConfig = {
             'api_key': 'test_apikey',
@@ -171,9 +173,10 @@ class TestCore(unittest.TestCase):
             tag = "check:%s" % check.name
             assert tag in all_tags, all_tags
 
+    @attr(requires='ntpd')
     def test_min_collection_interval(self):
 
-        config = {'instances': [{'foo': 'bar', 'timeout': 2}], 'init_config': {}}
+        config = {'instances': [{'host': 'localhost', 'timeout': 1}], 'init_config': {}}
 
         agentConfig = {
             'version': '0.1',
@@ -186,7 +189,7 @@ class TestCore(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
-        
+
         check.run()
         metrics = check.get_metrics()
         # No metrics should be collected as it's too early
@@ -205,7 +208,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval':3}], 'init_config': {}}
+        config = {'instances': [{'host': 'localhost', 'timeout': 1, 'min_collection_interval':3}], 'init_config': {}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
@@ -218,7 +221,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        config = {'instances': [{'host': 'localhost', 'timeout': 1, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()

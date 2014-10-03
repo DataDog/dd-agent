@@ -238,7 +238,7 @@ class NagiosEventLogTailer(NagiosTailer):
         :param passive_checks: bool, enable or not passive checks events
         '''
         self.passive_checks = passive_checks
-        super(NagiosEventLogTailer).__init__(self, log_path, file_template,
+        super(NagiosEventLogTailer, self).__init__(log_path, file_template,
             logger, hostname, event_func, gauge_func, freq)
 
     def _parse_line(self, line):

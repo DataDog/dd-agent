@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import time
 import threading
 from aggregator import MetricsAggregator
@@ -30,13 +31,14 @@ class DummyReporter(threading.Thread):
         if metrics:
             self.metrics = metrics
 
+@attr(requires='jmx')
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
         pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
-        
+
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
@@ -66,7 +68,6 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(len([t for t in metrics if 'type:ThreadPool' in t['tags'] and "instance:jmx_instance1" in t['tags'] and "jmx.catalina" in t['metric']]) > 8, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and "instance:jmx_instance1" in t['tags']]) == 7, metrics)
 
-        
 
 if __name__ == "__main__":
     unittest.main()

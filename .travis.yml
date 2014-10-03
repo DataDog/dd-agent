@@ -1,70 +1,38 @@
-# blacklist
-branches:
-  except:
-    - check-haproxy
-services:
-  - mysql
-  - elasticsearch
-  - memcache
-  - redis-server
-  - postgresql: "9.3"
-
 language: python
 python:
   - "2.6"
   - "2.7"
-before_install:
-  - sudo apt-get update
-  - sudo apt-get install openjdk-6-jre-headless
-  - sudo apt-get install sysstat
-  - sudo apt-get install haproxy
-  - sudo apt-get install python-mysqldb
-  - sudo apt-get install tomcat6
-  - sudo apt-get install solr-tomcat
-  - sudo apt-get install nginx
-  - sudo apt-get install apache2
-  - sudo apt-get install couchdb
-  - sudo apt-get install lighttpd
-  - sudo apt-get install gearman
-  - sudo apt-get install snmpd
-install:
-  - pip install -r requirements.txt --use-mirrors
-  - pip install . --use-mirrors
-before_script:
-  - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
-  - psql -U postgres -c "create user datadog with password 'datadog'"
-  - psql -U postgres -c "grant SELECT ON pg_stat_database to datadog"
-  - psql -U postgres -c "CREATE DATABASE datadog_test" postgres
-  - psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE datadog_test to datadog"
-  - psql -U datadog -c "CREATE TABLE Persons (PersonID int, LastName varchar(255), FirstName varchar(255), Address varchar(255), City varchar(255))" datadog_test
-  - curl -L https://raw.github.com/DataDog/dd-agent/master/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl http://apache.mesi.com.ar/cassandra/2.0.9/apache-cassandra-2.0.9-bin.tar.gz | tar -C /tmp -xzv
-  - sudo /tmp/apache-cassandra-2.0.9/bin/cassandra
-  - sudo service haproxy restart
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat_cfg.xml > /etc/tomcat6/server.xml"
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/tomcat6 >> /etc/default/tomcat6"
-  - sudo service nginx stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/nginx.conf > /etc/nginx/conf.d/default.conf"
-  - sudo service apache2 stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/ports.conf > /etc/apache2/ports.conf"
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/apache/apache.conf > /etc/apache2/apache.conf"
-  - sudo /etc/init.d/lighttpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/lighttpd/lighttpd.conf > /etc/lighttpd/lighttpd.conf"
-  - sudo mkdir -p /etc/dd-agent/
-  - sudo install -d -o "$(id -u)" /var/log/datadog
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/datadog.conf.example > /etc/dd-agent/datadog.conf"
-  - sudo service snmpd stop
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/master/tests/snmp/snmpd.conf > /etc/snmp/snmpd.conf"
-  - sudo service apache2 start
-  - sudo service nginx start
-  - sudo /etc/init.d/lighttpd start
-  - sudo service tomcat6 restart
-  - sudo service snmpd start
+
 env:
-  - DB=redis
+  global:
+    - NOSE_FILTER="not windows"
+  matrix:
+    - TRAVIS_FLAVOR=default
+    - TRAVIS_FLAVOR=cache,gearman,database
+    - TRAVIS_FLAVOR=cassandra,tomcat,jmx # JMX testing machine / need the other ones before
+    - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
+    - TRAVIS_FLAVOR=mongo
+
+matrix:
+  allow_failures:
+    - env: TRAVIS_FLAVOR=mongo
+
+# Override travis defaults with empty jobs
+before_install: echo "OVERRIDING TRAVIS STEPS"
+install: echo "OVERRIDING TRAVIS STEPS"
+before_script: echo "OVERRIDING TRAVIS STEPS"
+
 script:
-   - pylint --rcfile=./.pylintrc *.py */*.py */*/*.py 
-   - nosetests -v -A 'not windows' tests
+  - bundle install
+  - 'rake ci:run'
+
+after_failure:
+  - echo "Logs from installation process come here / DEBUG LOGS"
+  - cat /tmp/ci.log
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /tmp/mongo.log; fi"
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod1/mongo.log; fi"
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod2/mongo.log; fi"
+
 notifications:
-  webhooks:
-    - https://www.buildheroes.com/api/projects/1fa0bf90eb6f781bf067c82439775fd9d896c0ae/builds
+  - hipchat:
+     - secure: "SYTDsiV28Tv9bGMdtTu/MfMcpCpnKowDUJtxzK8dhOOliEKGa4F8JJT38QS5mlMhzi5TTyjs8UpXWyrAz133OOGuyt0hHEJYtm7wckNlErOwJA+A8JWRDCmOduDRn7W/A7ufx7yN3QGBtB2SS5pW3A9abi8y6mBDPUf/JCS6/aQ="

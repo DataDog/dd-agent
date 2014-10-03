@@ -1,6 +1,8 @@
 import unittest
 from tests.common import load_check
+from nose.plugins.attrib import attr
 
+@attr(requires='couchdb')
 class CouchDBTestCase(unittest.TestCase):
 
     def testMetrics(self):

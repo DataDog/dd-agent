@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import logging
 import sys
 
@@ -11,6 +12,7 @@ from common import get_check
 from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
+    @attr(requires='sysstat')
     def testCPU(self):
         global logger
         cpu = Cpu(logger)

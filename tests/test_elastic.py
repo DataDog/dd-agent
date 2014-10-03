@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import logging
 logging.basicConfig()
 import subprocess
@@ -10,6 +11,7 @@ from tests.common import load_check
 PORT = 9200
 MAX_WAIT = 150
 
+@attr(requires='elasticsearch')
 class TestElastic(unittest.TestCase):
 
     def _wait(self, url):

@@ -54,14 +54,14 @@ class CouchbaseTestCase(unittest.TestCase):
 
         found_metrics = [k[0] for k in metrics if k[0] in camel_cased_metrics]
         self.assertEqual(found_metrics.sort(), camel_cased_metrics.sort())
-        
+
     @attr('couchbase')
     def test_metrics(self):
         raise SkipTest("Skipped for now as it's hard to configure couchbase on travis")
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
-        
+
         self.assertTrue(type(metrics) == type([]), metrics)
         self.assertTrue(len(metrics) > 3)
         self.assertTrue(len([k for k in metrics if "instance:http://localhost:8091" in k[3]['tags']]) > 3)

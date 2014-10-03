@@ -1,7 +1,9 @@
 import unittest
 from tests.common import load_check
+from nose.plugins.attrib import attr
 import time
 
+@attr(requires='mysql')
 class TestMySql(unittest.TestCase):
     def setUp(self):
         # This should run on pre-2.7 python so no skiptest

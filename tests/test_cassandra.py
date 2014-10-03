@@ -11,6 +11,7 @@ from dogstream.cassandra import parse_cassandra
 
 logger = logging.getLogger(__name__)
 
+@attr(requires='cassandra')
 class TestCassandraDogstream(unittest.TestCase):
     @attr('cassandra')
     def testStart(self):
