@@ -429,7 +429,7 @@ class TokuMX(AgentCheck):
         server, conn, db, tags = self._get_connection(instance)
 
         if conn.is_mongos:
-            self.collect_mongs(server, conn, db, tags)
+            self.collect_mongos(server, conn, db, tags)
             
         else:
             self.collect_metrics(server, conn, db, tags)
