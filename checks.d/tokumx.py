@@ -8,8 +8,7 @@ from checks import AgentCheck
 from util import get_hostname
 
 # 3rd party
-from pymongo import uri_parser
-from pymongo import MongoClient, ReadPreference
+from pymongo import uri_parser, MongoClient, ReadPreference, version as py_version
 
 DEFAULT_TIMEOUT = 10
 
@@ -196,6 +195,9 @@ class TokuMX(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self._last_state_by_server = {}
         self.idx_rates = {}
+
+    def get_library_versions(self):
+        return {"pymongo": py_version}
 
     def check_last_state(self, state, server, agentConfig):
         if self._last_state_by_server.get(server, -1) != state:
