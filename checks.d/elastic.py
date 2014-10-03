@@ -379,7 +379,7 @@ class ElasticSearch(AgentCheck):
             status = AgentCheck.CRITICAL
             tag = "ALERT"
         
-        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={5}" \
+        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={6}" \
                     .format(tag, data["cluster_name"],
                                  data["active_shards"],
                                  data["initializing_shards"],
