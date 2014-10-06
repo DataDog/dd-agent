@@ -6,8 +6,6 @@ from checks import AgentCheck, CheckException
 from collections import OrderedDict
 
 import psycopg2 as pg
-import socket
-
 class ShouldRestartException(Exception): pass
 
 class PgBouncer(AgentCheck):
@@ -16,7 +14,6 @@ class PgBouncer(AgentCheck):
     SOURCE_TYPE_NAME = 'pgbouncer'
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
-    MONOTONIC = AgentCheck.monotonic_count
 
     STATS_METRICS = {
         'descriptors': [
@@ -32,9 +29,7 @@ class PgBouncer(AgentCheck):
             ('avg_sent', ('pgbouncer.stats.avg_sent', RATE)),
             ('avg_query', ('pgbouncer.stats.avg_query', RATE)),
         ]),
-        'query': """
-SHOW STATS
-""",
+        'query': """SHOW STATS""",
     }
 
     POOLS_METRICS = {
@@ -52,9 +47,7 @@ SHOW STATS
             ('sv_login', ('pgbouncer.pools.sv_login', GAUGE)),
             ('maxwait', ('pgbouncer.pools.maxwait', GAUGE)),
         ]),
-        'query': """
-SHOW POOLS
-""",
+        'query': """SHOW POOLS""",
     }
 
     def __init__(self, name, init_config, agentConfig):
