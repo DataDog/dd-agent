@@ -181,8 +181,13 @@ class SQLServer(AgentCheck):
                 self.connections[conn_key] = conn
             except Exception, e:
                 cx = "%s - %s" % (instance.get('host'), instance.get('database'))
+                password = instance.get('password')
+                tracebk = traceback.format_exc()
+                if password is not None:
+                    tracebk = tracebk.replace(password, "*" * 6)
+                    
                 raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
-                    % (cx, traceback.format_exc()))
+                    % (cx, tracebk))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
