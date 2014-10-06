@@ -1,0 +1,31 @@
+init_config:
+
+instances:
+  # Each instance should define at least an 'app' tag and probably a
+  # corresponding working directory
+  #
+  # app should match `pgrep -fa '^sidekiq' | cut -d' ' -f 4`;
+  #
+  # The working directory can be ommitted if you expect (the equivalent of)
+  #   `sudo -u dd-agent bash -c "pgrep -f'^sidekiq' | xargs pwdx"`
+  # to not have permission errors (e.g. if dd-agent is running as same user
+  # running sidekiq workers; or your kernel is less tight-lipped than mine)
+  #
+  # If there is only one instance, you may omit app and it will be infered
+  # from process name.
+  - app: myapp
+    wd: /srv/myapp/current #if ommitted, attempts to infer; but permissions
+    #
+    # Optinal, to change behavior:
+    #sudo: false # sudo to a different user to run check
+    #sudo_user:  # what user to sudo to if above is true, if user omitted
+    #            # uses that running sidekiq worker
+    #
+    #rails_env: production #(default as shown)
+    #runner: ./bin/rails runner #absolute or relative to wd (default as shown)
+    #
+    #script: ./script/mysidekiqstats.rb # there is one built into the check
+    # script should return json like: { "for_datadog": { "stat": 1234 } }
+    #
+    #runner_args: # list of args to place between runner and script on cmdline
+    #script_args: # list of args to place after script on cmdline
