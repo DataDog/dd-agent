@@ -179,6 +179,8 @@ class HAProxy(AgentCheck):
                     return
                 key = (data_dict['pxname'], data_dict['svname'], data_dict['status'])
             else:
+                if data_dict['svname'] == Services.BACKEND:
+                    return
                 key = (data_dict['pxname'], data_dict['status'])
             hosts_statuses[key] += 1
 
