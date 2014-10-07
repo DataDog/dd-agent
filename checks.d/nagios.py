@@ -100,7 +100,8 @@ class Nagios(AgentCheck):
                                                         hostname=self.hostname,
                                                         event_func=self.event,
                                                         gauge_func=self.gauge,
-                                                        freq=check_freq))
+                                                        freq=check_freq,
+                                                        passive_checks=instance.get('passive_checks_events', False)))
                 if 'host_perfdata_file' in nagios_conf and \
                    'host_perfdata_file_template' in nagios_conf and \
                    instance.get('collect_host_performance_data', False):
@@ -224,6 +225,22 @@ class NagiosTailer(object):
 
 class NagiosEventLogTailer(NagiosTailer):
 
+    def __init__(self, log_path, file_template, logger, hostname, event_func,
+        gauge_func, freq, passive_checks=False):
+        '''
+        :param log_path: string, path to the file to parse
+        :param file_template: string, format of the perfdata file
+        :param logger: Logger object
+        :param hostname: string, name of the host this agent is running on
+        :param event_func: function to create event, should accept dict
+        :param gauge_func: function to report a gauge
+        :param freq: int, size of bucket to aggregate perfdata metrics
+        :param passive_checks: bool, enable or not passive checks events
+        '''
+        self.passive_checks = passive_checks
+        super(NagiosEventLogTailer).__init__(self, log_path, file_template,
+            logger, hostname, event_func, gauge_func, freq)
+
     def _parse_line(self, line):
         """Actual nagios parsing
         Return True if we found an event, False otherwise
@@ -241,6 +258,9 @@ class NagiosEventLogTailer(NagiosTailer):
             (tstamp, event_type, remainder) = m.groups()
             tstamp = int(tstamp)
 
+            # skip passive checks reports by default for spamminess
+            if event_type == 'PASSIVE SERVICE CHECK' and not self.passive_checks:
+                return False
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
