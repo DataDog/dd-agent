@@ -32,6 +32,12 @@ EVENT_FIELDS = {
     # ACKNOWLEDGE_HOST_PROBLEM;<host_name>;<sticky>;<notify>;<persistent>;<author>;<comment>
     'ACKNOWLEDGE_HOST_PROBLEM': namedtuple('E_HostAck', 'host, sticky_ack, notify_ack, persistent_ack, ack_author, payload'),
 
+    # Comment Format:
+    # PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<result_code>;<comment>
+    # We ignore it because Nagios will log a "PASSIVE SERVICE CHECK" after
+    # receiving this, and we don't want duplicate events to be counted.
+    'PROCESS_SERVICE_CHECK_RESULT': False,
+
     # Host Downtime
     # [1297894825] HOST DOWNTIME ALERT: ip-10-114-89-59;STARTED; Host has entered a period of scheduled downtime
     # [1297894825] SERVICE DOWNTIME ALERT: ip-10-114-237-165;intake;STARTED; Service has entered a period of scheduled downtime
@@ -239,6 +245,10 @@ class NagiosEventLogTailer(NagiosTailer):
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
                 self.log.warning("Ignoring unknown nagios event for line: %s" % (line[:-1]))
+                return False
+            elif fields is False:
+                # Ignore and skip
+                self.log.debug("Ignoring Nagios event for line: %s" % (line[:-1]))
                 return False
 
             # and parse the rest of the line

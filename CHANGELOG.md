@@ -1,6 +1,60 @@
 Changes
 =======
 
+# 5.1.0 / Unreleased
+
+### Notes
+* Pup is now removed from the Datadog Agent
+* The "ALL" parameter in the process check is deprecated and will be removed in a future version of the agent.
+
+### New and updated integrations
+* PostgreSQL
+* Directory
+* Jenkins
+* MongoDB
+* Process
+* ElasticSearch
+* IIS
+* ZooKeeper
+* Memcached
+* SSH
+* System Core
+* BTRFS
+
+### Changes
+
+* [FEATURE] Add Service Checks for the following integration:
+    - Apache
+    - HAProxy
+    - Lighttpd
+    - NginX
+    - NTP
+    - HTTP
+    - TCP
+    - Process
+    - ElasticSearch
+    - IIS
+    - ZooKeeper
+    - Memcached
+    - MongoDB
+    - SQL Server
+    - MySQL
+    - PostgeSQL
+
+
+* [FEATURE] PostgreSQL: Pick up per-table size stats. See [#1105][]
+* [FEATURE] PostgreSQL: Collect locks per mode and bgwriter metrics. See [#1019][]
+* [FEATURE] Directory Check: Let the possibilty to tag metrics at the file level. See [#1041][] (Thanks [@Osterjour][])
+* [FEATURE] Jenkins: Add result and build number to events tags. See [#1068][] (Thanks [@jzoldak][])
+* [FEATURE] Add a SSH Check. See [#1117][]
+* [FEATURE] Add a check to collect metrics at the core level.
+* [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
+* [FEATURE] Add a check to collect system core metrics. See [#1124][]
+* [BUGGIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
+* [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
+* [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
+
+
 # 5.0.3 (Windows only)
 
 vSphere check:
@@ -1122,6 +1176,7 @@ If you use ganglia, you want this version.
 [#875]: https://github.com/DataDog/dd-agent/issues/875
 [#876]: https://github.com/DataDog/dd-agent/issues/876
 [#883]: https://github.com/DataDog/dd-agent/issues/883
+[#887]: https://github.com/DataDog/dd-agent/issues/887
 [#891]: https://github.com/DataDog/dd-agent/issues/891
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
@@ -1164,6 +1219,7 @@ If you use ganglia, you want this version.
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
 [#1017]: https://github.com/DataDog/dd-agent/issues/1017
 [#1018]: https://github.com/DataDog/dd-agent/issues/1018
+[#1019]: https://github.com/DataDog/dd-agent/issues/1019
 [#1023]: https://github.com/DataDog/dd-agent/issues/1023
 [#1024]: https://github.com/DataDog/dd-agent/issues/1024
 [#1027]: https://github.com/DataDog/dd-agent/issues/1027
@@ -1172,7 +1228,17 @@ If you use ganglia, you want this version.
 [#1031]: https://github.com/DataDog/dd-agent/issues/1031
 [#1035]: https://github.com/DataDog/dd-agent/issues/1035
 [#1036]: https://github.com/DataDog/dd-agent/issues/1036
+[#1041]: https://github.com/DataDog/dd-agent/issues/1041
+[#1060]: https://github.com/DataDog/dd-agent/issues/1060
+[#1065]: https://github.com/DataDog/dd-agent/issues/1065
+[#1068]: https://github.com/DataDog/dd-agent/issues/1068
+[#1069]: https://github.com/DataDog/dd-agent/issues/1069
+[#1105]: https://github.com/DataDog/dd-agent/issues/1105
+[#1117]: https://github.com/DataDog/dd-agent/issues/1117
+[#1123]: https://github.com/DataDog/dd-agent/issues/1123
+[#1124]: https://github.com/DataDog/dd-agent/issues/1124
 [@CaptTofu]: https://github.com/CaptTofu
+[@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
@@ -1183,11 +1249,13 @@ If you use ganglia, you want this version.
 [@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
+[@igroenewold]: https://github.com/igroenewold
 [@imlucas]: https://github.com/imlucas
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
 [@joningle]: https://github.com/joningle
+[@jzoldak]: https://github.com/jzoldak
 [@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux

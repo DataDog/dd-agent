@@ -22,7 +22,7 @@ class HTTPCheck(NetworkCheck):
         timeout = int(instance.get('timeout', 10))
         headers = instance.get('headers',{})
         url = instance.get('url', None)
-        response_time = instance.get('collect_response_time', False)
+        response_time = instance.get('collect_response_time', True)
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)

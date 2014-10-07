@@ -1,15 +1,16 @@
 import psutil
 from checks import AgentCheck
 
-class CPUTimes(AgentCheck):
+class SystemCore(AgentCheck):
 
     def check(self, instance):
         cpu_times = psutil.cpu_times(percpu=True)
+        self.gauge("system.core.count", len(cpu_times))
 
         for i, cpu in enumerate(cpu_times):
             for key, value in cpu._asdict().iteritems():
                 self.rate(
-                    "system.per_cpu.{0}".format(key), 
+                    "system.core.{0}".format(key), 
                     100.0 * value, 
-                    tags=["cpu:{0}".format(i)]
+                    tags=["core:{0}".format(i)]
                     )

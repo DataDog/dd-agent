@@ -34,9 +34,6 @@ instances:
    search_string: ['postgres']
    ignore_denied_access: True
 
- - name: All
-   search_string: ['All']
-
  - name: nodeserver
    search_string: ['node server.js']
 

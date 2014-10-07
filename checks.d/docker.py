@@ -284,12 +284,20 @@ class Docker(AgentCheck):
             uri = "%s?%s" % (uri, urllib.urlencode(params))
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
+
+        service_check_name = 'docker.service_up'        
+        service_check_tags = ['host:%s' % self.hostname]
+
         try:
             request = self.url_opener.open(req)
-        except urllib2.URLError, e:
+        except urllib2.URLError, e:            
+            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=service_check_tags)
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
             raise
+
+        self.service_check(service_check_name, AgentCheck.OK, tags=service_check_tags)
+
         response = request.read()
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
             response = "[{0}]".format(response.replace("}{", "},{"))

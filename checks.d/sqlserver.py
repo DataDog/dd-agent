@@ -188,10 +188,18 @@ class SQLServer(AgentCheck):
                 self.connections[conn_key] = conn
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
             except Exception:
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
                 cx = "%s - %s" % (host, database)
-                raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
-                    % (cx, traceback.format_exc()))
+                message = "Unable to connect to SQL Server for instance %s." % cx
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, 
+                    tags=service_check_tags, message=message)
+                
+                password = instance.get('password')
+                tracebk = traceback.format_exc()
+                if password is not None:
+                    tracebk = tracebk.replace(password, "*" * 6)
+                    
+                raise Exception("%s \n %s" \
+                    % (message, tracebk))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
