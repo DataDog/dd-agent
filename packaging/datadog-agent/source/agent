@@ -56,10 +56,9 @@ check_agent_status() {
         # supervisor config file:
         status_output=$(supervisorctl -c $SUPERVISOR_CONF_FILE status)
         datadog_supervisor_processes=$(echo "$status_output" |
-                                       grep -v pup |
                                        grep 'datadog-agent' |
                                        grep -c RUNNING)
-        supervisor_config_programs=$(grep -v pup $SUPERVISOR_CONF_FILE |
+        supervisor_config_programs=$(cat $SUPERVISOR_CONF_FILE |
                                      grep -c '\[program:')
 
         echo "$status_output"

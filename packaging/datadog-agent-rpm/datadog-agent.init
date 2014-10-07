@@ -50,10 +50,10 @@ check_status() {
         s=`$SUPERVISORCTL_PATH -c $SUPERVISOR_CONF status`
 
         # number of RUNNING supervisord programs (ignoring pup and dogstatsd)
-	p=`echo "$s" | egrep -v '(pup|dogstatsd)' | grep -c RUNNING`
+	p=`echo "$s" | grep -v dogstatsd | grep -c RUNNING`
 
         # number of expected running supervisord programs (ignoring pup and dogstatsd)
-	c=`egrep -v '(pup|dogstatsd)' $SUPERVISOR_CONF | grep -c '\[program:'`
+	c=`grep -v dogstatsd $SUPERVISOR_CONF | grep -c '\[program:'`
         if [ "$p" -ne "$c" ]; then
             echo "$s"
             echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
