@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.0.0"
+AGENT_VERSION = "5.0.3"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -371,8 +371,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            use_ddurl = _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl'))
-            if use_ddurl:
+            if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
                 agentConfig['dogstatsd_target'] = agentConfig['dd_url']
 
         # Optional config
@@ -675,7 +674,7 @@ def check_yaml(conf_path):
     finally:
         f.close()
 
-def load_check_directory(agentConfig):
+def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
@@ -684,6 +683,7 @@ def load_check_directory(agentConfig):
     initialized_checks = {}
     init_failed_checks = {}
     deprecated_checks = {}
+    agentConfig['checksd_hostname'] = hostname
 
     deprecated_configs_enabled = [v for k,v in OLD_STYLE_PARAMETERS if len([l for l in agentConfig if l.startswith(k)]) > 0]
     for deprecated_config in deprecated_configs_enabled:

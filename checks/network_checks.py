@@ -190,10 +190,9 @@ class NetworkCheck(AgentCheck):
 
     def _clean(self):
         now = time.time()
-        stuck_process = None
-        stuck_time = time.time()
         for name in self.jobs_status.keys():
             start_time = self.jobs_status[name]
             if now - start_time > TIMEOUT:
-                self.log.critical("Restarting Pool. One check is stuck.")
+                self.log.critical("Restarting Pool. One check is stuck: %s" % name)
                 self.restart_pool()
+                break

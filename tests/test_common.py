@@ -7,6 +7,7 @@ from checks import (Check, AgentCheck,
 from checks.collector import Collector
 from aggregator import MetricsAggregator
 from common import load_check
+from util import get_hostname
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -17,7 +18,7 @@ class TestCore(unittest.TestCase):
         self.c.counter("test-counter")
 
     def setUpAgentCheck(self):
-        self.ac = AgentCheck('test', {}, {})
+        self.ac = AgentCheck('test', {}, {'checksd_hostname': "foo"})
 
     def test_gauge(self):
         self.assertEquals(self.c.is_gauge("test-metric"), True)
@@ -106,7 +107,7 @@ class TestCore(unittest.TestCase):
         self.assertEqual(self.ac.normalize("Metric.wordThatShouldBeSeparated", "prefix", fix_case = True), "prefix.metric.word_that_should_be_separated")
 
     def test_metadata(self):
-        c = Collector({"collect_instance_metadata": True}, None, {})
+        c = Collector({"collect_instance_metadata": True}, None, {}, "foo")
         assert "hostname" in c._get_metadata()
         assert "socket-fqdn" in c._get_metadata()
         assert "socket-hostname" in c._get_metadata()
@@ -118,7 +119,7 @@ class TestCore(unittest.TestCase):
         host_name = 'foohost'
         timestamp = time.time()
 
-        check = AgentCheck('test', {}, {})
+        check = AgentCheck('test', {}, {'checksd_hostname':'foo'})
         check.service_check(check_name, status, tags, timestamp, host_name)
         self.assertEquals(len(check.service_checks), 1, check.service_checks)
         val = check.get_service_checks()
@@ -153,7 +154,7 @@ class TestCore(unittest.TestCase):
         }
         checks = [load_check('redisdb', redis_config, agentConfig)]
 
-        c = Collector(agentConfig, [], {})
+        c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
         payload = c.run({
             'initialized_checks': checks,
             'init_failed_checks': {}
@@ -172,7 +173,7 @@ class TestCore(unittest.TestCase):
 
     def test_min_collection_interval(self):
 
-        config = {'instances': [{'foo': 'bar'}], 'init_config': {}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2}], 'init_config': {}}
 
         agentConfig = {
             'version': '0.1',
@@ -204,7 +205,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'min_collection_interval':3}], 'init_config': {}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval':3}], 'init_config': {}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()
@@ -217,7 +218,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'foo': 'bar', 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        config = {'instances': [{'foo': 'bar', 'timeout': 2, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()

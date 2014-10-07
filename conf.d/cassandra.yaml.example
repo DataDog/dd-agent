@@ -47,15 +47,6 @@ init_config:
             - PendingTasks
         exclude:
           keyspace: system
-          attribute: 
-            - MinimumCompactionThreshold
-            - MaximumCompactionThreshold
-            - RowCacheKeysToSave
-            - KeyCacheSavePeriodInSeconds
-            - RowCacheSavePeriodInSeconds
-            - PendingTasks
-            - Scores
-            - RpcTimeout
       - include:
           domain: org.apache.cassandra.internal
           attribute:

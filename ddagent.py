@@ -212,11 +212,15 @@ class MetricTransaction(Transaction):
             if proxy_settings is not None and endpoint != PUP_ENDPOINT:
                 force_use_curl = True
                 if pycurl is not None:
-                    # When using a proxy we do a CONNECT request why shouldn't include Content-Length
+                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
                     # This is pretty hacky though as it should be done in pycurl or curl or tornado
                     if 'Content-Length' in tornado_client_params['headers']:
                         del tornado_client_params['headers']['Content-Length']
                         log.debug("Removing Content-Length header.")
+
+                    if 'Host' in tornado_client_params['headers']:
+                        del tornado_client_params['headers']['Host']
+                        log.debug("Removing Host header.")
 
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                         proxy_settings['host'], proxy_settings['port']))

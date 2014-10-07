@@ -22,6 +22,28 @@ If you do **not** agree with the licensing terms and wish to contribute code non
 please email us at <info@datadoghq.com> before submitting your
 pull request.
 
+## Setup your environment
+
+Required:
+- python 2.6 or 2.7
+- Rake
+
+Clone the repository
+```
+git clone git@github.com:DataDog/dd-agent.git
+```
+
+Crete a virtual environment and install the dependencies:
+```
+cd dd-agent
+rake setup_env
+````
+
+Activate the virtual environment:
+```
+source venv/bin/activate
+```
+
 # How to configure the Agent
 
 If you are using packages on linux, the main configuration file lives 

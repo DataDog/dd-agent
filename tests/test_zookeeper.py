@@ -1,6 +1,8 @@
+import os
 import unittest
 from StringIO import StringIO
 from tests.common import get_check
+from checks import AgentCheck
 
 CONFIG = """
 init_config:
@@ -8,12 +10,25 @@ init_config:
 instances:
     - host: 127.0.0.1
       port: 2181
+      expected_mode: follower
+      tags: []
+"""
+
+CONFIG2 = """
+init_config:
+
+instances:
+    - host: 127.0.0.1
+      port: 2182
       tags: []
 """
 
 class TestZookeeper(unittest.TestCase):
+    def is_travis(self):
+        return "TRAVIS" in os.environ
+
     def test_zk_stat_parsing_lt_v344(self):
-        Zookeeper, instances = get_check('zk', CONFIG)
+        zk, instances = get_check('zk', CONFIG)
         stat_response = """Zookeeper version: 3.2.2--1, built on 03/16/2010 07:31 GMT
 Clients:
  /10.42.114.160:32634[1](queued=0,recved=12,sent=0)
@@ -45,13 +60,24 @@ Node count: 487
         ]
 
         buf = StringIO(stat_response)
-        metrics, tags = Zookeeper.parse_stat(buf)
+        metrics, tags, mode = zk.parse_stat(buf)
 
         self.assertEquals(tags, ['mode:leader'])
         self.assertEquals(metrics, expected)
 
+        zk.check(instances[0])
+        service_checks = zk.get_service_checks()
+        expected = 1 if self.is_travis() else 2
+        self.assertEquals(len(service_checks), expected)
+        self.assertEquals(service_checks[0]['check'], 'zookeeper.ruok')
+        # Don't check status of ruok because it can vary if ZK is running.
+
+        if not self.is_travis():
+            self.assertEquals(service_checks[1]['check'], 'zookeeper.mode')
+            self.assertEquals(service_checks[1]['status'], AgentCheck.CRITICAL)
+
     def test_zk_stat_parsing_gte_v344(self):
-        Zookeeper, instances = get_check('zk', CONFIG)
+        zk, instances = get_check('zk', CONFIG2)
         stat_response = """Zookeeper version: 3.4.5--1, built on 03/16/2010 07:31 GMT
 Clients:
  /10.42.114.160:32634[1](queued=0,recved=12,sent=0)
@@ -84,8 +110,13 @@ Node count: 487
         ]
 
         buf = StringIO(stat_response)
-        metrics, tags = Zookeeper.parse_stat(buf)
+        metrics, tags, mode = zk.parse_stat(buf)
 
         self.assertEquals(tags, ['mode:leader'])
         self.assertEquals(metrics, expected)
 
+        zk.check(instances[0])
+        service_checks = zk.get_service_checks()
+        self.assertEquals(len(service_checks), 1)
+        self.assertEquals(service_checks[0]['check'], 'zookeeper.ruok')
+        self.assertEquals(service_checks[0]['status'], AgentCheck.CRITICAL)

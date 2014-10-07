@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="4.4.0"
+tag="5.0.0"
 
 #######################
 # Define some helpers #
@@ -221,7 +221,7 @@ printf "Operating System: $unamestr\n" >> $logfile
 
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
-$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.X/virtualenv.py >> $logfile 2>&1
+$dl_cmd $dd_base/virtualenv.py https://raw.githubusercontent.com/pypa/virtualenv/1.11.6/virtualenv.py >> $logfile 2>&1
 
 if [ "$is_openshift" = "1" ]; then
     python $dd_base/virtualenv.py --no-pip --no-setuptools --system-site-packages $dd_base/venv >> $logfile 2>&1
@@ -241,8 +241,19 @@ $dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
 print_done
 
 # install dependencies
-printf "Installing tornado 2.4.1 using pip....." | tee -a $logfile
-$dd_base/venv/bin/pip install tornado==2.4.1 >> $logfile 2>&1
+printf "Installing requirements using pip....." | tee -a $logfile
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-requirements.txt  >> $logfile 2>&1
+$dd_base/venv/bin/pip install -r $dd_base/requirements.txt >> $logfile 2>&1
+rm $dd_base/requirements.txt
+print_done
+
+printf "Trying to install optional dependencies using pip....." | tee -a $logfile
+$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/source-optional-requirements.txt  >> $logfile 2>&1
+while read DEPENDENCY
+do
+    ($dd_base/venv/bin/pip install $DEPENDENCY || printf "Cannot install $DEPENDENCY. There is probably no Compiler on the system.") >> $logfile 2>&1
+done < $dd_base/requirements.txt
+rm $dd_base/requirements.txt
 print_done
 
 # set up the Agent

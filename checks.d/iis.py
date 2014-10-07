@@ -41,6 +41,7 @@ class IIS(AgentCheck):
         ('iis.requests.cgi', 'rate', 'TotalCGIRequests'),
         ('iis.requests.isapi', 'rate', 'TotalISAPIExtensionRequests'),
     ]
+    SERVICE_CHECK = "iis.site_up"
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -69,6 +70,7 @@ class IIS(AgentCheck):
             self.log.exception('Unable to fetch Win32_PerfFormattedData_W3SVC_WebService class')
             return
 
+        expected_sites = set(sites)
         # Iterate over every IIS site
         for iis_site in wmi_cls:
             # Skip any sites we don't specifically want.
@@ -80,6 +82,10 @@ class IIS(AgentCheck):
                 tags = instance_tags + ['site:%s' % iis_site.Name]
             else:
                 tags = instance_tags
+
+            status = AgentCheck.CRITICAL if iis_site.ServiceUptime == 0 else AgentCheck.OK
+            self.service_check("iis.site_up", status, tags = ['site:%s' % iis_site.Name])
+            expected_sites.remove(iis_site.Name)
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
@@ -95,3 +101,6 @@ class IIS(AgentCheck):
                 value = float(getattr(iis_site, wmi_val))
                 metric_func = getattr(self, mtype)
                 metric_func(metric, value, tags=tags)
+
+        for remaining_site in expected_sites:
+            self.service_check("iis.site_up", AgentCheck.CRITICAL, tags =['site:%s' % remaining_site])

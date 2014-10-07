@@ -429,9 +429,10 @@ class Watchdog(object):
 
     def reset(self):
         # self destruct if using too much memory, as tornado will swallow MemoryErrors
-        mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
-        if self.memory_limit_enabled and mem_usage_kb > (0.95 * self._max_mem_kb):
-            Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+        if self.memory_limit_enabled:
+            mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
+            if mem_usage_kb > (0.95 * self._max_mem_kb):
+                Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
 
         log.debug("Resetting watchdog for %d" % self._duration)
         signal.alarm(self._duration)

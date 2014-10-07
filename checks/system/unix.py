@@ -31,7 +31,7 @@ class Disk(Check):
         platform_name = sys.platform
 
         try:
-            dfk_out = _get_subprocess_output(['df', '-k'])
+            dfk_out = _get_subprocess_output(['df', '-k'], self.logger)
             disks = self.parse_df_output(
                 dfk_out,
                 platform_name,
@@ -40,7 +40,7 @@ class Disk(Check):
             )
 
             # Collect inode metrics.
-            dfi_out = _get_subprocess_output(['df', '-i'])
+            dfi_out = _get_subprocess_output(['df', '-i'], self.logger)
             inodes = self.parse_df_output(
                 dfi_out,
                 platform_name,
@@ -896,12 +896,16 @@ class Cpu(Check):
             return False
 
 
-def _get_subprocess_output(command):
+def _get_subprocess_output(command, log):
     """
     Run the given subprocess command and return it's output. Raise an Exception
     if an error occurs.
     """
-    proc = sp.Popen(command, stdout=sp.PIPE, close_fds=True)
+    proc = sp.Popen(command, stdout=sp.PIPE, close_fds=True, stderr=sp.PIPE)
+    err = proc.stderr.read()
+    if err:
+        log.debug("Error while running %s : %s" %(" ".join(command), err))
+
     return proc.stdout.read()
 
 
