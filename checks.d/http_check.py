@@ -1,16 +1,19 @@
 # stdlib
 import socket
 import time
+import ssl
+from datetime import datetime
+
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
+from checks import AgentCheck
 from util import headers
 
 # 3rd party
 from httplib2 import Http, HttpLib2Error
 
 class HTTPCheck(NetworkCheck):
-
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'http_check'
 
@@ -27,12 +30,16 @@ class HTTPCheck(NetworkCheck):
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
         ssl = instance.get('disable_ssl_validation', True)
-        return url, username, password, timeout, include_content, headers, response_time, tags, ssl
+        ssl_expire = instance.get('ssl_check', True)
+
+        return url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expire
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation = self._load_conf(instance)
+
+        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
         content = ''
         start = time.time()
+
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation:
@@ -174,3 +181,38 @@ class HTTPCheck(NetworkCheck):
                            message=msg
                            )
 
+    def report_ssl(self, host, warning_days):
+        if host.startswith('https://'):
+            url = host[8:]
+        elif host.startswith('http://'):
+            url = host[7:]
+        try:
+            CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((url, 443))
+            ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
+                                           ca_certs=CA_CERTS,
+                                           ciphers=("HIGH:-aNULL:-eNULL:"
+                                                    "-PSK:RC4-SHA:RC4-MD5"))
+            cert = ssl_sock.getpeercert()
+
+        except Exception as e:
+            status = AgentCheck.WARNING
+            self.service_check('http.ssl_certificate_expiration', status, message=e)
+            cert = False
+
+        if cert:
+            exp_date = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
+            days_left = exp_date - datetime.now()
+
+            if days_left.days < 0:
+                status = AgentCheck.CRITICAL
+
+            elif days_left.days < warning_days:
+                status = AgentCheck.WARNING
+
+            else:
+                status = AgentCheck.OK
+
+            self.service_check('http.ssl_certificate_expiration', status, tags= ['url:%s' % host], message="Days left: {0}".format(days_left.days))
+        sock.close()

@@ -141,6 +141,11 @@ class NetworkCheck(AgentCheck):
 
             self.report_as_service_check(name, status, queue_instance, msg)
 
+            cert_expire = queue_instance.get('check_certificate_expiration', True)
+            if cert_expire:
+                warning_days = queue_instance.get('days_warning', 14)
+                self.report_ssl(queue_instance.get('url'), warning_days)
+
             # Don't create any event to avoid duplicates with server side
             # service_checks
             skip_event = queue_instance.get('skip_event', False)
