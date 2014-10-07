@@ -26,7 +26,7 @@ def load_check(name, config, agentConfig):
     if check_class is None:
         raise Exception("Unable to import check %s. Missing a class that inherits AgentCheck" % name)
 
-    init_config = config.get('init_config', None)
+    init_config = config.get('init_config', {})
     instances = config.get('instances')
     agentConfig['checksd_hostname'] = get_hostname(agentConfig)
 
