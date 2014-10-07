@@ -12,6 +12,7 @@ from checks import AgentCheck
 
 # 3rd party
 import adodbapi
+import adodbapi.remote as adodbapi_db
 
 ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
@@ -177,7 +178,7 @@ class SQLServer(AgentCheck):
         if conn_key not in self.connections:
             try:
                 conn_str = self._conn_string(instance)
-                conn = adodbapi.remote.connect(conn_str)
+                conn = adodbapi_db.connect(conn_str)
                 self.connections[conn_key] = conn
             except Exception, e:
                 cx = "%s - %s" % (instance.get('host'), instance.get('database'))
