@@ -334,10 +334,10 @@ class TestUnitDogStatsd(unittest.TestCase):
         assert gauge['points'][0][1] == 1
 
     def test_monokey_batching_notags(self):
-        stats = MetricsAggregator('myhost')
+        stats = MetricsAggregator('host')
         stats.submit_packets('test_hist:0.3|ms:2.5|ms|@0.5:3|ms')
 
-        stats_ref = MetricsAggregator('refhost')
+        stats_ref = MetricsAggregator('host')
         packets = [
                 'test_hist:0.3|ms',
                 'test_hist:2.5|ms|@0.5',
@@ -348,14 +348,16 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = stats.flush()
         metrics_ref = stats_ref.flush()
 
-        for i in range(0,5):
+        self.assertTrue(len(metrics) == len(metrics_ref) == 5, (metrics, metrics_ref))
+
+        for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
 
     def test_monokey_batching_withtags(self):
-        stats = MetricsAggregator('myhost')
+        stats = MetricsAggregator('host')
         stats.submit_packets('test_gauge:1.5|g|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g')
 
-        stats_ref = MetricsAggregator('refhost')
+        stats_ref = MetricsAggregator('host')
         packets = [
                 'test_gauge:1.5|g|#tag1:one,tag2:two',
                 'test_gauge:2.3|g|#tag3:three',
@@ -366,7 +368,32 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = self.sort_metrics(stats.flush())
         metrics_ref = self.sort_metrics(stats_ref.flush())
 
-        for i in range(0,3):
+        self.assertTrue(len(metrics) == len(metrics_ref) == 3, (metrics, metrics_ref))
+
+        for i in range(len(metrics)):
+            nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
+            nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
+
+
+    def test_monokey_batching_withtags_with_sampling(self):
+        stats = MetricsAggregator('host')
+        stats.submit_packets('test_metric:1.5|c|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g:42|h|#tag1:12,tag42:42|@0.22')
+
+        stats_ref = MetricsAggregator('host')
+        packets = [
+                'test_metric:1.5|c|#tag1:one,tag2:two',
+                'test_metric:2.3|g|#tag3:three',
+                'test_metric:3|g',
+                'test_metric:42|h|#tag1:12,tag42:42|@0.22'
+
+        ]
+        stats_ref.submit_packets("\n".join(packets))
+
+        metrics = self.sort_metrics(stats.flush())
+        metrics_ref = self.sort_metrics(stats_ref.flush())
+
+        self.assertTrue(len(metrics) == len(metrics_ref) == 8, (metrics, metrics_ref))
+        for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
             nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
 
