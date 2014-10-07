@@ -177,7 +177,7 @@ class SQLServer(AgentCheck):
         if conn_key not in self.connections:
             try:
                 conn_str = self._conn_string(instance)
-                conn = adodbapi.connect(conn_str)
+                conn = adodbapi.remote.connect(conn_str)
                 self.connections[conn_key] = conn
             except Exception, e:
                 cx = "%s - %s" % (instance.get('host'), instance.get('database'))
