@@ -105,8 +105,6 @@ class GoExpvar(AgentCheck):
             metric_tags = list(metric.get(TAGS, []))
             metric_tags += tags
             alias = metric.get(ALIAS)
-            metric_name = None
-            tag_by_path = False
 
             if not path:
                 self.warning("Metric %s has no path" % metric)
@@ -123,16 +121,14 @@ class GoExpvar(AgentCheck):
                 self.warning("No results matching path %s" % path)
                 continue
 
-            if alias is not None:
-                metric_name = alias
-                tag_by_path = True
+            tag_by_path = alias is not None
 
             for traversed_path, value in values:
                 actual_path = ".".join(traversed_path)
                 if tag_by_path:
                     metric_tags.append("path:%s" % actual_path)
 
-                metric_name = metric_name or self.normalize(actual_path, METRIC_NAMESPACE, fix_case=True)
+                metric_name = alias or self.normalize(actual_path, METRIC_NAMESPACE, fix_case=True)
 
                 try:
                     float(value)
