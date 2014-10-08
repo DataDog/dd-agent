@@ -14,9 +14,10 @@ ALIAS = "alias"
 TYPE = "type"
 TAGS = "tags"
 
-DEFAULT_TYPE = 'gauge'
 GAUGE = "gauge"
 RATE = "rate"
+DEFAULT_TYPE = GAUGE
+
 
 SUPPORTED_TYPES = {
     GAUGE: AgentCheck.gauge,
@@ -180,7 +181,13 @@ class GoExpvar(AgentCheck):
             return [(traversed_path, content)]
 
         key = keys[0]
-        key_rex = re.compile("".join(["^",key,"$"]))
+        regex = "".join(["^",key,"$"])
+        try:
+            key_rex = re.compile(regex)
+        except Exception:
+            self.warning("Cannot compile regex: %s" % regex)
+            return []
+            
         results = []
         for new_key, new_content in self.items(content):
             if key_rex.match(new_key):
