@@ -76,7 +76,10 @@ class VSphereEvent(object):
             "event_type": SOURCE_TYPE,
             "source_type_name": SOURCE_TYPE,
         }
-        self.event_config = event_config
+        if event_config is None:
+            self.event_config = {}
+        else:
+            self.event_config = event_config
 
     def _is_filtered(self):
         # Filter the unwanted types
@@ -142,7 +145,7 @@ class VSphereEvent(object):
         return self.payload
 
     def transform_alarmstatuschangedevent(self):
-        if self.event_config is None or self.event_config.get('collect_vcenter_alarms') is None:
+        if self.event_config.get('collect_vcenter_alarms') is None:
             return None
 
         def get_transition(before, after):
