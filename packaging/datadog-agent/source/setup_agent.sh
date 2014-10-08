@@ -201,6 +201,8 @@ else
     else
   if [ "$unamestr" = "SunOS" ]; then
       dd_base="/opt/local/datadog"
+  else
+      dd_base=$HOME/.pup
   fi
     fi
 fi
@@ -267,6 +269,10 @@ print_done
 printf "Configuring datadog.conf file......" | tee -a $logfile
 if [ $apikey ]; then
     sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
+    sed "s/# use_pup:.*/use_pup: no/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
+else
+    sed "s/api_key:.*/api_key: pup/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
+    sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
 fi
 if [ "$unamestr" = "SunOS" ]; then
     # disable syslog by default on SunOS as it causes errors
@@ -467,6 +473,33 @@ if [ "$start_agent" = "1" ]; then
         fi
 
         printf "$DEFAULT"
+
+    # pup install
+    else
+
+        # print instructions
+        printf "$GREEN
+
+    Success! Pup is installed and functioning properly, and will continue to
+    run in the foreground. To stop it, simply press CTRL-C. To start it back
+    up again in the foreground, run:
+
+        cd $dd_base
+        sh bin/agent
+    " | tee -a $logfile
+
+        if [ "$unamestr" = "Darwin" ]; then
+        echo "To set it up as a daemon that always runs in the background
+    while you're logged in, run:
+
+        mkdir -p ~/Library/LaunchAgents
+        cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
+        launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+    " | tee -a $logfile
+        fi
+
+        printf "$DEFAULT"
+    fi
 
     wait $agent_pid
 fi; fi
