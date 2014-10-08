@@ -62,6 +62,8 @@ class Sidekiq(AgentCheck):
         Reports stats as defined in Sidekiq::Stats (in http://git.io/e-QGLw ) as
         well as busy (as returned by sidekiq_web /dashboard/stats endpoint)
         """
+        procs_by_tag = self._procs_by_tag()
+
         tag = instance.get('tag')
         if tag == None and len(procs_by_tag.keys()) == 1:
             tag = procs_by_tag.keys()[0]
@@ -70,9 +72,7 @@ class Sidekiq(AgentCheck):
         if  tag != '__none__':
             app_tags.append('sidekiq_app:%s' % tag)
 
-        procs_by_tag = self._procs_by_tag()
         worker_procs = procs_by_tag.get(tag, [])
-
         running_proc = next((p for p in worker_procs if p.is_running()), None)
         if tag and not running_proc:
             self.warning("No running sidekiq workers matching tag '%s'" % tag)
