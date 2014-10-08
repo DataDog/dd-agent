@@ -1,4 +1,5 @@
 # stdlib
+import urllib
 import urllib2
 import urlparse
 import time
@@ -15,7 +16,7 @@ NODE_TYPE = 'nodes'
 MAX_DETAILED_QUEUES = 200
 MAX_DETAILED_NODES = 100
 ALERT_THRESHOLD = 0.9 # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit
-QUEUE_ATTRIBUTES = [ 
+QUEUE_ATTRIBUTES = [
         'active_consumers',
         'consumers',
         'memory',
@@ -83,7 +84,7 @@ class RabbitMQ(AgentCheck):
         }
 
         # List of queues/nodes to collect metrics from
-        specified = { 
+        specified = {
             QUEUE_TYPE: instance.get('queues', []),
             NODE_TYPE: instance.get('nodes', []),
         }
@@ -103,8 +104,14 @@ class RabbitMQ(AgentCheck):
 
     def check(self, instance):
         base_url, max_detailed, specified = self._get_config(instance)
+
+        # Generate metrics from the status API.
         self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE])
         self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE])
+
+        # Generate a service check from the aliveness API.
+        vhosts = instance.get('vhosts')
+        self._check_aliveness(base_url, vhosts)
 
     def _get_data(self, url):
         try:
@@ -130,9 +137,9 @@ class RabbitMQ(AgentCheck):
 
         """ data is a list of nodes or queues:
         data = [
-            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue1', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
-            {'status': 'running', 'node': 'rabbit@host, 'name': 'queue10', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
-            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue11', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue1', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
+            {'status': 'running', 'node': 'rabbit@host, 'name': 'queue10', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue11', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
             ...
         ]
         """
@@ -197,11 +204,11 @@ class RabbitMQ(AgentCheck):
         self.already_alerted.append(key)
 
         title = "RabbitMQ integration is approaching the limit on the number of %s that can be collected from on %s" % (object_type, self.hostname)
-        msg = """%s %s are present. The limit is %s. 
+        msg = """%s %s are present. The limit is %s.
         Please get in touch with Datadog support to increase the limit.""" % (size, object_type, max_detailed)
 
         event = {
-                "timestamp": int(time.time()), 
+                "timestamp": int(time.time()),
                 "event_type": EVENT_TYPE,
                 "msg_title": title,
                 "msg_text": msg,
@@ -213,3 +220,37 @@ class RabbitMQ(AgentCheck):
             }
 
         self.event(event)
+
+    def _check_aliveness(self, base_url, vhosts=None):
+        """ Check the aliveness API against all or a subset of vhosts. The API
+            will return {"status": "ok"} and a 200 response code in the case
+            that the check passes.
+            In the case of an invalid response code or unparseable JSON the
+            service check will be CRITICAL.
+        """
+        if not vhosts:
+            # Fetch a list of _all_ vhosts from the API.
+            vhosts_url = urlparse.urljoin(base_url, 'vhosts')
+            vhosts_response = self._get_data(vhosts_url)
+            vhosts = [v['name'] for v in vhosts_response]
+
+        for vhost in vhosts:
+            tags = {'vhost:%s' % vhost}
+            # We need to urlencode the vhost because it can be '/'.
+            path = u'aliveness-test/%s' % (urllib.quote_plus(vhost))
+            aliveness_url = urlparse.urljoin(base_url, path)
+            message = None
+            try:
+                aliveness_response = self._get_data(aliveness_url)
+                message = u"Response from aliveness API: %s" % aliveness_response
+                if aliveness_response.get('status') == 'ok':
+                    status = AgentCheck.OK
+                else:
+                    status = AgentCheck.CRITICAL
+            except Exception as e:
+                # Either we got a bad status code or unparseable JSON.
+                status = AgentCheck.CRITICAL
+                self.warning('Error when checking aliveness for vhost %s: %s'\
+                    % (vhost, str(e)))
+
+            self.service_check('rabbitmq.aliveness', status, tags, message=message)

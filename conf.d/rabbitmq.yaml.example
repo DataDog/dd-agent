@@ -16,6 +16,13 @@ instances:
     # for these nodes. For the other nodes, aggregate will be calculated.
     #
     # Warning: aggregate are calculated on the 100 first queues/nodes.
+    #
+    # Service checks:
+    #
+    # By default a list of all vhosts is fetched and each one will be checked
+    # using the aliveness API. If you prefer only certain vhosts to be monitored
+    # then you can list the vhosts you care about.
+    #
 
 
     -  rabbitmq_api_url: http://localhost:15672/api/
@@ -27,3 +34,6 @@ instances:
        queues:
         - queue1
         - queue2
+       #vhosts:
+       # - vhost1
+       # - vhost2
