@@ -5,8 +5,6 @@ instances:
     # url of the RabbitMQ Managment Plugin (http://www.rabbitmq.com/management.html)
     # optional: 'rabbitmq_user' (default: guest) and 'rabbitmq_pass' (default: guest)
     #
-    # Metrics:
-    #
     # If you have less than 5 queues, you don't have to set the queues parameters
     # All queues metrics will be collected
     # If you have more than 5 queues: you can set 5 queue names. Metrics will be collected

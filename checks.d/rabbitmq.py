@@ -247,8 +247,10 @@ class RabbitMQ(AgentCheck):
                     status = AgentCheck.OK
                 else:
                     status = AgentCheck.CRITICAL
-            except Exception:
+            except Exception as e:
                 # Either we got a bad status code or unparseable JSON.
                 status = AgentCheck.CRITICAL
+                self.warning('Error when checking aliveness for vhost %s: %s'\
+                    % (vhost, str(e)))
 
             self.service_check('rabbitmq.aliveness', status, tags, message=message)
