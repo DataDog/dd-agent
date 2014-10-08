@@ -63,7 +63,7 @@ INTERVAL = 'interval'
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
 
-    def __init__(self, raw_event, event_config={}):
+    def __init__(self, raw_event, event_config=None):
         self.raw_event = raw_event
         if self.raw_event and self.raw_event.__class__.__name__.startswith('vim.event'):
             self.event_type = self.raw_event.__class__.__name__[10:]
@@ -142,7 +142,7 @@ class VSphereEvent(object):
         return self.payload
 
     def transform_alarmstatuschangedevent(self):
-        if self.event_config.get('collect_vcenter_alarms') is None:
+        if self.event_config is None or self.event_config.get('collect_vcenter_alarms') is None:
             return None
 
         def get_transition(before, after):
