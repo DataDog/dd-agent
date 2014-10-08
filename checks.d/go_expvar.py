@@ -76,12 +76,19 @@ class GoExpvar(AgentCheck):
         num_gc = data.get("memstats", {}).get("NumGC")
         pause_hist = data.get("memstats", {}).get("PauseNs")
         last_gc_count = self._last_gc_count[url]
-        start = (last_gc_count + 256) % 255 -1
-        end = (num_gc + 255) % 255
+        if last_gc_count == num_gc:
+            # No GC has run. Do nothing
+            return
+        start = last_gc_count % 256
+        end = (num_gc + 255) % 256 + 1
+        if start < end:
+            values = pause_hist[start:end]
+        else:
+            values = pause_hist[start:] + pause_hist[:end]
 
         self._last_gc_count[url] = num_gc
 
-        for value in pause_hist[start:end]:
+        for value in values:
             self.histogram(
                 self.normalize("memstats.PauseNs", METRIC_NAMESPACE, fix_case=True),
                 value, tags=tags)
