@@ -118,6 +118,18 @@ class TestMongo(unittest.TestCase):
         # Run the check again so we get the rates
         self.check.check(self.config['instances'][1])
 
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        print service_checks
+        service_checks_count = len(service_checks)
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(service_checks_count > 0)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_NAME]), 4, service_checks)
+        # Assert that all service checks have the proper tags: host and port
+        self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT1 in sc['tags'] or "port:%s" % PORT2 in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "db:test" in sc['tags']]), service_checks_count, service_checks)
+
         # Metric assertions
         metrics = self.check.get_metrics()
         assert metrics
