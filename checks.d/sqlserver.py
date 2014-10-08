@@ -177,8 +177,20 @@ class SQLServer(AgentCheck):
 
         if conn_key not in self.connections:
             try:
-                conn_str = self._conn_string(instance)
-                conn = adodbapi_db.connect(conn_str)
+                host, username, password, database = self._get_access_info(instance)
+                conn_args = {
+                    'host' : host,
+                    'database' : database,
+                    'user' : username,
+                    'password' : password
+                }
+                conn_args['connection_string'] = """Provider=SQLOLEDB;
+                User ID=%(user)s; Password=%(password)s;
+                Initial Catalog=%(database)s; Data Source= %(host)s"""
+                conn_args['proxy_host'] = host.split(',')[0]
+                conn_args['proxy_port'] = host.split(',')[1]
+
+                conn = adodbapi_db.connect(conn_args)
                 self.connections[conn_key] = conn
             except Exception, e:
                 cx = "%s - %s" % (instance.get('host'), instance.get('database'))
