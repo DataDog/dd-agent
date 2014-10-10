@@ -16,7 +16,8 @@ from checks.libs.vmware.all_metrics import ALL_METRICS
 
 # 3rd party
 from pyVim import connect
-from pyVmomi import vim
+# This drives travis-ci pylint crazy!
+from pyVmomi import vim # pylint: disable=E0611
 
 SOURCE_TYPE = 'vsphere'
 REAL_TIME_INTERVAL = 20 # Default vCenter sampling interval

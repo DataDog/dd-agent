@@ -40,7 +40,7 @@ load-plugins=
 # --disable=W"
 #disable=
 #
-disable=W,C,R,maybe-no-member,no-member
+disable=W,C,R,maybe-no-member,no-member,I0011
 # FIXME matt: pylint has a bug that will not let you gradually enable
 # rules in the rcfile, so this is done in our rakefile.
 # http://www.logilab.org/ticket/36584

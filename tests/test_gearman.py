@@ -1,6 +1,8 @@
 import unittest
+from nose.plugins.attrib import attr
 from tests.common import load_check
 
+@attr(requires='gearman')
 class GearmanTestCase(unittest.TestCase):
 
     def testMetrics(self):

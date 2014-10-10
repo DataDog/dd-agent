@@ -49,6 +49,7 @@ instances:
             - instance:second
 """
 
+    @attr(requires='apache')
     def testApache(self):
         a, instances = get_check('apache', self.apache_config)
 
@@ -66,6 +67,7 @@ instances:
             self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:9444']), service_checks)
 
 
+    @attr(requires='nginx')
     def testNginx(self):
         nginx, instances = get_check('nginx', self.nginx_config)
         nginx.check(instances[0])
@@ -80,6 +82,7 @@ instances:
         for i in range(len(can_connect)):
             self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:44441']), service_checks)
 
+    @attr(requires='nginx')
     def testNginxPlus(self):
         test_data = read_data_from_file('nginx_plus_in.json')
         expected = eval(read_data_from_file('nginx_plus_out.python'))
@@ -88,6 +91,7 @@ instances:
         parsed.sort()
         self.assertEquals(parsed, expected)
 
+    @attr(requires='lighttpd')
     def testLighttpd(self):
         l, instances = get_check('lighttpd', self.lighttpd_config)
 
