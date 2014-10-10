@@ -57,8 +57,8 @@ class JMXTestCase(unittest.TestCase):
         while self.reporter.metrics is None:
             time.sleep(1)
             count += 1
-            if count > 20:
-                raise Exception("No metrics were received in 20 seconds")
+            if count > 25:
+                raise Exception("No metrics were received in 25 seconds")
 
         metrics = self.reporter.metrics
 
