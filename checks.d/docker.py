@@ -215,10 +215,6 @@ class Docker(AgentCheck):
         except (socket.timeout, urllib2.URLError), e:
             raise Exception("Container collection timed out. Exception: {0}".format(e))
 
-        if not containers:
-            containers = []
-            self.warning("No containers are running.")
-
         stopped_containers_count = len(self._get_containers(instance, get_all=True)) - len(containers)
         self.gauge("docker.containers.running", len(containers), tags=tags)
         self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
