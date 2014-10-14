@@ -9,6 +9,10 @@ init_config:
     #
     # docker_root: /
 
+    # Timeout on Docker socket connection. You may have to increase it if you have many containers.
+    #
+    # socket_timeout: 5
+
 instances:
     # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
     #

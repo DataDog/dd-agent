@@ -69,19 +69,22 @@ DOCKER_TAGS = [
     "Image",
 ]
 
-SOCKET_TIMEOUT = 5
+DEFAULT_SOCKET_TIMEOUT = 5
 
 
 class UnixHTTPConnection(httplib.HTTPConnection, object):
     """Class used in conjuction with UnixSocketHandler to make urllib2
     compatible with Unix sockets."""
+
+    socket_timeout = DEFAULT_SOCKET_TIMEOUT
+
     def __init__(self, unix_socket):
         self._unix_socket = unix_socket
 
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self._unix_socket)
-        sock.settimeout(SOCKET_TIMEOUT)
+        sock.settimeout(self.socket_timeout)
         self.sock = sock
 
     def __call__(self, *args, **kwargs):
@@ -114,6 +117,8 @@ class Docker(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self._mountpoints = {}
         docker_root = init_config.get('docker_root', '/')
+        socket_timeout = int(init_config.get('socket_timeout', 0)) or DEFAULT_SOCKET_TIMEOUT
+        UnixHTTPConnection.socket_timeout = socket_timeout
         for metric in CGROUP_METRICS:
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"], docker_root)
         self._last_event_collection_ts = defaultdict(lambda: None)
