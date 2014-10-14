@@ -13,7 +13,6 @@ from collections import defaultdict
 # project
 from checks import AgentCheck
 
-DEFAULT_MAX_CONTAINERS = 20
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
 CGROUP_METRICS = [
@@ -159,15 +158,6 @@ class Docker(AgentCheck):
         self._count_images(instance)
         containers = self._get_and_count_containers(instance)
 
-        max_containers = instance.get('max_containers', DEFAULT_MAX_CONTAINERS)
-
-        if not instance.get("exclude") or not instance.get("include"):
-            if len(containers) > max_containers:
-                self.warning("Too many containers to collect. Please refine the containers to collect"
-                    "by editing the configuration file. Truncating to %s containers" % max_containers)
-                containers = containers[:max_containers]
-
-        collected_containers = 0
         for container in containers:
             container_tags = instance.get("tags", [])
             for name in container["Names"]:
@@ -191,11 +181,6 @@ class Docker(AgentCheck):
                             continue
                         if key in stats:
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
-
-            collected_containers += 1
-            if collected_containers >= max_containers:
-                self.warning("Too many containers are matching the current configuration. Some containers will not be collected. Please refine your configuration")
-                break
 
     def _process_events(self, events):
         for ev in events:
@@ -285,12 +270,12 @@ class Docker(AgentCheck):
         self.log.debug("Connecting to: %s" % uri)
         req = urllib2.Request(uri, None)
 
-        service_check_name = 'docker.service_up'        
+        service_check_name = 'docker.service_up'
         service_check_tags = ['host:%s' % self.hostname]
 
         try:
             request = self.url_opener.open(req)
-        except urllib2.URLError, e:            
+        except urllib2.URLError, e:
             self.service_check(service_check_name, AgentCheck.CRITICAL, tags=service_check_tags)
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
