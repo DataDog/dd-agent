@@ -72,7 +72,7 @@ DOCKER_TAGS = [
 DEFAULT_SOCKET_TIMEOUT = 5
 
 
-class UnixHTTPConnection(httplib.HTTPConnection, object):
+class UnixHTTPConnection(httplib.HTTPConnection):
     """Class used in conjuction with UnixSocketHandler to make urllib2
     compatible with Unix sockets."""
 
@@ -154,14 +154,8 @@ class Docker(AgentCheck):
                 ))
 
     def check(self, instance):
-        if instance.get('collect_events', True):
-            try:
-                self._process_events(self._get_events(instance))
-            except (socket.timeout, urllib2.URLError):
-                self.warning('Timeout during socket connection. Events will be missing.')
-
         self._count_images(instance)
-        containers = self._get_and_count_containers(instance)
+        containers, ids_to_names = self._get_and_count_containers(instance)
 
         for container in containers:
             container_tags = instance.get("tags", [])
@@ -187,25 +181,65 @@ class Docker(AgentCheck):
                         if key in stats:
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
+        if instance.get('collect_events', True):
+            try:
+                api_events = self._get_events(instance)
+                aggregated_events = self._pre_aggregate_events(api_events)
+                events = self._format_events(aggregated_events, ids_to_names)
+                self._process_events(events)
+            except (socket.timeout, urllib2.URLError):
+                self.warning('Timeout during socket connection. Events will be missing.')
+
+    def _pre_aggregate_events(self, api_events):
+        # Aggregate events, one per image. Put newer events first.
+        events = defaultdict(list)
+        for event in api_events:
+            events[event['from']].insert(0, event)
+
+        return events
+
+    def _format_events(self, aggregated_events, ids_to_names):
+        events = []
+        for image_name, event_group in aggregated_events.iteritems():
+            max_timestamp = 0
+            status = defaultdict(int)
+            status_change = []
+            for event in event_group:
+                max_timestamp = max(max_timestamp, int(event['time']))
+                status[event['status']] += 1
+                container_name = event['id'][:12]
+                if event['id'] in ids_to_names:
+                    container_name = "%s %s" % (container_name, ids_to_names[event['id']])
+                status_change.append([container_name, event['status']])
+
+            status_text = ", ".join(["%d %s" % (count, st) for st, count in status.iteritems()])
+            msg_title = "%s %s on %s" % (image_name, status_text, self.hostname)
+            msg_body = ("%%%\n"
+                "{image_name} {status} on {hostname}\n"
+                "```\n{status_changes}\n```\n"
+                "%%%").format(
+                    image_name=image_name,
+                    status=status_text,
+                    hostname=self.hostname,
+                    status_changes="\n".join(
+                        ["%s \t%s" % (change[1].upper(), change[0]) for change in status_change])
+            )
+            events.append({
+                'timestamp': max_timestamp,
+                'host': self.hostname,
+                'event_type': EVENT_TYPE,
+                'msg_title': msg_title,
+                'msg_text': msg_body,
+                'source_type_name': EVENT_TYPE,
+                'event_object': 'docker:%s' % event_group,
+            })
+
+        return events
+
     def _process_events(self, events):
         for ev in events:
             self.log.debug("Creating event for %s" % ev)
-            self.event({
-                'timestamp': ev['time'],
-                'host': self.hostname,
-                'event_type': EVENT_TYPE,
-                'msg_title': "%s %s on %s" % (ev['from'], ev['status'], self.hostname),
-                'source_type_name': EVENT_TYPE,
-                'event_object': ev['from'],
-            })
-
-    def _count_images(self, instance):
-        tags = instance.get("tags", [])
-        active_images = len(self._get_images(instance, get_all=False))
-        all_images = len(self._get_images(instance, get_all=True))
-
-        self.gauge("docker.images.available", active_images, tags=tags)
-        self.gauge("docker.images.intermediate", (all_images - active_images), tags=tags)
+            self.event(ev)
 
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
@@ -216,11 +250,25 @@ class Docker(AgentCheck):
         except (socket.timeout, urllib2.URLError), e:
             raise Exception("Container collection timed out. Exception: {0}".format(e))
 
-        stopped_containers_count = len(self._get_containers(instance, get_all=True)) - len(containers)
+        all_containers = self._get_containers(instance, get_all=True)
+
+        ids_to_names = {}
+        for container in all_containers:
+            ids_to_names[container['Id']] = container['Names'][0][1:]
+
+        stopped_containers_count = len(all_containers) - len(containers)
         self.gauge("docker.containers.running", len(containers), tags=tags)
         self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
 
-        return containers
+        return containers, ids_to_names
+
+    def _count_images(self, instance):
+        tags = instance.get("tags", [])
+        active_images = len(self._get_images(instance, get_all=False))
+        all_images = len(self._get_images(instance, get_all=True))
+
+        self.gauge("docker.images.available", active_images, tags=tags)
+        self.gauge("docker.images.intermediate", (all_images - active_images), tags=tags)
 
 
     def _make_tag(self, key, value):
