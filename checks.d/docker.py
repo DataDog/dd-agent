@@ -123,7 +123,6 @@ class Docker(AgentCheck):
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"], docker_root)
         self._last_event_collection_ts = defaultdict(lambda: None)
         self.url_opener = urllib2.build_opener(UnixSocketHandler())
-        self.should_get_size = True
         self._cgroup_filename_pattern = None
 
     def _find_cgroup_filename_pattern(self):
@@ -210,14 +209,11 @@ class Docker(AgentCheck):
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
 
+        with_size = instance.get('collect_container_size', False)
         try:
-            containers = self._get_containers(instance, with_size=self.should_get_size)
-        except (socket.timeout, urllib2.URLError):
-            # Probably because of: https://github.com/DataDog/dd-agent/issues/963
-            # Then we should stop trying to get size info
-            self.log.info("Cannot get container size because of API timeout. Stop collecting it.")
-            self.should_get_size = False
-            containers = self._get_containers(instance, with_size=self.should_get_size)
+            containers = self._get_containers(instance, with_size=with_size)
+        except (socket.timeout, urllib2.URLError), e:
+            raise Exception("Container collection timed out. Exception: {0}".format(e))
 
         if not containers:
             containers = []

@@ -47,6 +47,11 @@ instances:
     # include: []
     # exclude: []
 
+    # Collect disk usage per container with docker.disk.size metric.
+    # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
+    #
+    # collect_container_size: false
+
     # If you want to include sub-cgroups metrics, turn the collect_total option on.
     # It is useless for a normal usage, as total_ metrics will be the same as normal ones.
     #
