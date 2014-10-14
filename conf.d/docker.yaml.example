@@ -47,6 +47,10 @@ instances:
     # include: []
     # exclude: []
 
+    # Create events whenever a container status change.
+    #
+    # collect_events: true
+
     # Collect disk usage per container with docker.disk.size metric.
     # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
     #

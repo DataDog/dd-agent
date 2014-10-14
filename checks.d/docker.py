@@ -154,10 +154,11 @@ class Docker(AgentCheck):
                 ))
 
     def check(self, instance):
-        try:
-            self._process_events(self._get_events(instance))
-        except (socket.timeout, urllib2.URLError):
-            self.warning('Timeout during socket connection. Events will be missing.')
+        if instance.get('collect_events', True):
+            try:
+                self._process_events(self._get_events(instance))
+            except (socket.timeout, urllib2.URLError):
+                self.warning('Timeout during socket connection. Events will be missing.')
 
         self._count_images(instance)
         containers = self._get_and_count_containers(instance)
