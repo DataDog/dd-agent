@@ -21,6 +21,8 @@ SNMP_COUNTERS = [snmp_type.Counter32.__name__,
                  ZeroBasedCounter64.__name__]
 SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
 
+OID_BATCH_SIZE = 10
+
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
            noSuchObject.isSameTypeWith(oid)
@@ -116,34 +118,40 @@ class SnmpCheck(AgentCheck):
         auth_data = self.get_auth_data(instance)
 
         snmp_command = self.cmd_generator.nextCmd
-        error_indication, error_status, error_index, var_binds = snmp_command(
-            auth_data,
-            transport_target,
-            *oids,
-            lookupValues = lookup_names,
-            lookupNames = lookup_names
-            )
 
+	first_oid=0
+	all_binds=[]
         results = defaultdict(dict)
-        if error_indication:
-            raise Exception("{0} for instance {1}".format(error_indication,
+	while first_oid < len(oids):
+	        error_indication, error_status, error_index, var_binds = snmp_command(
+	            auth_data,
+	            transport_target,
+	            *(oids[first_oid:first_oid+OID_BATCH_SIZE]),
+	            lookupValues = lookup_names,
+	            lookupNames = lookup_names
+	            )
+                if error_indication:
+                    raise Exception("{0} for instance {1}".format(error_indication,
                                                           instance["ip_address"]))
-        else:
-            if error_status:
-                self.log.warning("{0} for instance {1}".format(error_status.prettyPrint(),
-                                                              instance["ip_address"]))
-            else:
-                for table_row in var_binds:
-                    for result_oid, value in table_row:
-                        if lookup_names:
-                            object = result_oid.getMibSymbol()
-                            metric =  object[1]
-                            indexes = object[2]
-                            results[metric][indexes] = value
-                        else:
-                            oid = result_oid.asTuple()
-                            matching = ".".join([str(i) for i in oid])
-                            results[matching] = value
+                else:
+                    if error_status:
+                        self.log.warning("{0} for instance {1}".format(error_status.prettyPrint(),
+                                                                       instance["ip_address"]))
+                    else:
+                        all_binds.extend(var_binds)
+		first_oid = first_oid + OID_BATCH_SIZE
+
+        for table_row in all_binds:
+            for result_oid, value in table_row:
+                if lookup_names:
+                    object = result_oid.getMibSymbol()
+                    metric =  object[1]
+                    indexes = object[2]
+                    results[metric][indexes] = value
+                else:
+                    oid = result_oid.asTuple()
+                    matching = ".".join([str(i) for i in oid])
+                    results[matching] = value
 
         return results
 
