@@ -122,7 +122,7 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', [r'pup\pup.html', r'pup\status.html']),
+            ('pup', [r'pup\status.html']),
             ('pup/static', glob('pup/static/*.*')),
             ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
             ('gohai', [r'gohai\gohai.exe'])
