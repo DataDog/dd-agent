@@ -195,11 +195,12 @@ class TestCore(unittest.TestCase):
         # No metrics should be collected as it's too early
         self.assertEquals(len(metrics), 0, metrics)
 
-        time.sleep(20)
+        # equivalent to time.sleep(20)
+        check.last_collection_time[0] -= 20
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
-        time.sleep(3)
+        check.last_collection_time[0] -= 3
         check.run()
         metrics = check.get_metrics()
         self.assertEquals(len(metrics), 0, metrics)
@@ -216,7 +217,7 @@ class TestCore(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         self.assertEquals(len(metrics), 0, metrics)
-        time.sleep(4)
+        check.last_collection_time[0] -= 4
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
@@ -229,11 +230,11 @@ class TestCore(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         self.assertEquals(len(metrics), 0, metrics)
-        time.sleep(4)
+        check.last_collection_time[0] -= 4
         check.run()
         metrics = check.get_metrics()
         self.assertEquals(len(metrics), 0, metrics)
-        time.sleep(8)
+        check.last_collection_time[0] -= 8
         check.run()
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
