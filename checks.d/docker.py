@@ -35,19 +35,6 @@ CGROUP_METRICS = [
             "rss": ("docker.mem.rss", "gauge"),
             "swap": ("docker.mem.swap", "gauge"),
             "unevictable": ("docker.mem.unevictable", "gauge"),
-            "total_active_anon": ("docker.mem.total_active_anon", "gauge"),
-            "total_active_file": ("docker.mem.total_active_file", "gauge"),
-            "total_cache": ("docker.mem.total_cache", "gauge"),
-            "total_inactive_anon": ("docker.mem.total_inactive_anon", "gauge"),
-            "total_inactive_file": ("docker.mem.total_inactive_file", "gauge"),
-            "total_mapped_file": ("docker.mem.total_mapped_file", "gauge"),
-            "total_pgfault": ("docker.mem.total_pgfault", "rate"),
-            "total_pgmajfault": ("docker.mem.total_pgmajfault", "rate"),
-            "total_pgpgin": ("docker.mem.total_pgpgin", "rate"),
-            "total_pgpgout": ("docker.mem.total_pgpgout", "rate"),
-            "total_rss": ("docker.mem.total_rss", "gauge"),
-            "total_swap": ("docker.mem.total_swap", "gauge"),
-            "total_unevictable": ("docker.mem.total_unevictable", "gauge"),
         }
     },
     {
@@ -176,8 +163,6 @@ class Docker(AgentCheck):
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
                     for key, (dd_key, metric_type) in cgroup['metrics'].items():
-                        if key.startswith('total_') and not instance.get('collect_total'):
-                            continue
                         if key in stats:
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
