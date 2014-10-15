@@ -250,15 +250,20 @@ class Docker(AgentCheck):
         except (socket.timeout, urllib2.URLError), e:
             raise Exception("Container collection timed out. Exception: {0}".format(e))
 
+        container_count_by_image = defaultdict(int)
+        for container in containers:
+            container_count_by_image[container['Image']] += 1
+
+        for image, count in container_count_by_image.iteritems():
+            self.gauge("docker.containers.running", count, tags=(tags + ['image:%s' % image]))
+
         all_containers = self._get_containers(instance, get_all=True)
+        stopped_containers_count = len(all_containers) - len(containers)
+        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
 
         ids_to_names = {}
         for container in all_containers:
             ids_to_names[container['Id']] = container['Names'][0][1:]
-
-        stopped_containers_count = len(all_containers) - len(containers)
-        self.gauge("docker.containers.running", len(containers), tags=tags)
-        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
 
         return containers, ids_to_names
 
