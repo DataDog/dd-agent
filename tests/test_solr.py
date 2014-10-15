@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import time
 import threading
 from aggregator import MetricsAggregator
@@ -30,14 +31,14 @@ class DummyReporter(threading.Thread):
         if metrics:
             self.metrics = metrics
 
-
+@attr(requires='solr')
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
         pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
-        
+
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
@@ -60,7 +61,7 @@ class JMXTestCase(unittest.TestCase):
                 raise Exception("No metrics were received in 20 seconds")
 
         metrics = self.reporter.metrics
-        
+
 
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 8, metrics)
