@@ -51,8 +51,8 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
         metrics = self.check.get_metrics()
 
-        self.assertTrue(len(metrics) == 20, metrics)
-        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) == 20, metrics)
+        self.assertTrue(len(metrics) == 23, metrics)
+        self.assertTrue(len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) == 23, metrics)
         self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3]['tags']) ]) == 8, metrics)
 
 if __name__ == '__main__':
