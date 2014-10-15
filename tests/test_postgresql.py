@@ -33,7 +33,7 @@ class TestPostgres(unittest.TestCase):
         self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.dead_rows']) == 1, metrics)
         self.assertTrue(len([m for m in metrics if m[0] == 'postgresql.live_rows']) == 1, metrics)
         self.assertTrue(4 <= len(metrics) <= 6, metrics)
-        self.assertTrue(4 <= len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) <= 5, metrics)
+        self.assertTrue(4 <= len([m for m in metrics if 'db:datadog_test' in str(m[3]['tags']) ]) <= 6, metrics)
         self.assertTrue(len([m for m in metrics if 'table:persons' in str(m[3]['tags'])]) == 2, metrics)
 
         # Service checks
