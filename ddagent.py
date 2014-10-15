@@ -9,7 +9,6 @@
     (C) Boxed Ice 2010 all rights reserved
     (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
-
 # set up logging before importing any other components
 from config import initialize_logging; initialize_logging('forwarder')
 from config import get_logging_config
@@ -52,6 +51,19 @@ except ImportError:
 
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
+
+SSL3_FORCED = False
+SSL3_MESSAGE = """You are using an old version (%s) of the Tornado library that will force using unsafe SSLv3 connections.
+        SSLv3 support will be removed in our backends soon. Please upgrade to Tornado 3.2.2.""" % tornado.version
+
+if tornado.version_info < (3, 2) and sys.version_info < (2, 7):
+    # Tornado will force using SSLv3 which is unsafe and will be disabled in our backend soon
+    # See https://github.com/tornadoweb/tornado/blob/branch3.1/tornado/simple_httpclient.py#L213
+    # and http://googleonlinesecurity.blogspot.com/2014/10/this-poodle-bites-exploiting-ssl-30.html
+    # This should actually only happens on the source install where for some reason tornado < 3.2 got installed
+    SSL3_FORCED = True
+    log.warning(SSL3_MESSAGE)
+
 
 PUP_ENDPOINT = "pup_url"
 DD_ENDPOINT  = "dd_url"

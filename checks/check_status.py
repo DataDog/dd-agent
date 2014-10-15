@@ -619,6 +619,7 @@ class ForwarderStatus(AgentStatus):
         self.transactions_flushed = transactions_flushed
 
     def body_lines(self):
+        from ddagent import SSL3_FORCED, SSL3_MESSAGE
         lines = [
             "Queue Size: %s bytes" % self.queue_size,
             "Queue Length: %s" % self.queue_length,
@@ -626,6 +627,8 @@ class ForwarderStatus(AgentStatus):
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed
         ]
+        if SSL3_FORCED:
+            lines.insert(0, style("Warning: %s" % SSL3_MESSAGE, "red", "bold"))
         return lines
 
     def has_error(self):
