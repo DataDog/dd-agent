@@ -22,7 +22,7 @@ class TailFile(object):
 
     CRC_SIZE = 16
 
-    def __init__(self,logger,path,callback):
+    def __init__(self,logger,path,callback,multi=False):
         self._path = path
         self._f = None
         self._inode = None
@@ -30,6 +30,7 @@ class TailFile(object):
         self._crc = None
         self._log = logger
         self._callback = callback
+        self._multi = multi
    
     def _open_file(self, move_end=False, pos=False):
 
@@ -94,22 +95,38 @@ class TailFile(object):
 
             while True:
                 pos = self._f.tell()
-                line = self._f.readline()
-                if line:
-                    line = line.strip(chr(0)) # a truncate may have create holes in the file
-                    if self._callback(line.rstrip("\n")):
-                        if line_by_line:
-                            yield True
-                            pos = self._f.tell()
-                            self._open_file(move_end=False,pos=pos)
-                        else:
-                            continue
-                    else:
-                        continue
+                if self._multi:
+                  lines = []
+                  while True:
+                      line = self._f.readline()
+                      if line:
+                          line = line.strip(chr(0)) # a truncate may have create holes in the file
+                          line = line.rstrip("\n")
+                          lines.append(line)
+                      else:
+                          break
+                  pos = self._f.tell()
+                  self._open_file(move_end=False,pos=pos)
+                  self._callback(lines)
+                  yield True
+
                 else:
-                    yield True
-                    assert pos == self._f.tell()
-                    self._open_file(move_end=False, pos=pos)
+                  line = self._f.readline()
+                  if line:
+                      line = line.strip(chr(0)) # a truncate may have create holes in the file
+                      if self._callback(line.rstrip("\n")):
+                          if line_by_line:
+                              yield True
+                              pos = self._f.tell()
+                              self._open_file(move_end=False,pos=pos)
+                          else:
+                              continue
+                      else:
+                          continue
+                  else:
+                      yield True
+                      assert pos == self._f.tell()
+                      self._open_file(move_end=False, pos=pos)
 
         except Exception, e:
             # log but survive

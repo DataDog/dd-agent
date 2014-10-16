@@ -18,6 +18,7 @@ class TestTail(unittest.TestCase):
         self.logrotate_config.flush()
         self.logrotate_state_file = tempfile.NamedTemporaryFile()
         self.last_line = None
+        self.last_lines = None
 
     def _trigger_logrotate(self):
         subprocess.check_call([
@@ -64,7 +65,29 @@ class TestTail(unittest.TestCase):
             self.assertEquals(self.last_line, new_string[:-1], self.last_line)
         except OSError:
             "logrotate is not present"
-        
+
+
+    def test_next_mutil(self):
+        from checks.utils import TailFile
+
+        def line_parser(lines):
+            self.last_lines = lines
+
+        self.log_file = tempfile.NamedTemporaryFile()
+
+        tail = TailFile(logging.getLogger(), self.log_file.name, line_parser, multi=True)
+        gen = tail.tail(line_by_line=False, move_end=True)
+        gen.next()
+
+        for line in ["line%d\n" % i for i in range(10)]:
+          self.log_file.write(line)
+        self.log_file.flush()
+        gen.next()
+        # newlines are stripped before calling the callback
+        expected_lines = ["line%d" % i for i in range(10)]
+        self.assertEquals(expected_lines, self.last_lines)
+
+
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
