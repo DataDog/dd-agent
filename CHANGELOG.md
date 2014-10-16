@@ -57,7 +57,7 @@ Changes
 # 5.0.4 (deb package, rpm package) / Unreleased
 
 This is a security update regarding POODLE (CVE-2014-3566).
-The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3.
+The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-ssl3 flag) and Python 2.7.8 with a patch that disables SSLv3 unless explicity asked http://bugs.python.org/issue22638.
 
 # 5.0.3 (Windows only)
 
