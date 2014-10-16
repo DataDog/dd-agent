@@ -54,6 +54,10 @@ Changes
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 
+# 5.0.4 (deb package, rpm package) / Unreleased
+
+This is a security update regarding POODLE (CVE-2014-3566).
+The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3.
 
 # 5.0.3 (Windows only)
 
