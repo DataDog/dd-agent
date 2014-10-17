@@ -60,6 +60,8 @@ This is a security update regarding POODLE (CVE-2014-3566).
 
 The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-ssl3 flag) and Python 2.7.8 with a patch that disables SSLv3 unless explicity asked http://bugs.python.org/issue22638.
 
+This Omnibus package also adds support of the sqlite3 library for Python. 
+
 # 5.0.3 (Windows only)
 
 vSphere check:
