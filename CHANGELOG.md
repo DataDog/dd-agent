@@ -54,7 +54,7 @@ Changes
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 
-# 5.0.4 (deb package, rpm package) / Unreleased
+# 5.0.4 (deb package, rpm package) / 10-17-2014
 
 This is a security update regarding POODLE (CVE-2014-3566).
 
