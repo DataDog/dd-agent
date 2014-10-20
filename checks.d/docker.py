@@ -100,50 +100,95 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 
 
 class Docker(AgentCheck):
+    """Collect metrics and events from Docker API and cgroups"""
+
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
-        self._mountpoints = {}
-        docker_root = init_config.get('docker_root', '/')
+
+        # Initialize a HTTP opener with Unix socket support
         socket_timeout = int(init_config.get('socket_timeout', 0)) or DEFAULT_SOCKET_TIMEOUT
         UnixHTTPConnection.socket_timeout = socket_timeout
+        self.url_opener = urllib2.build_opener(UnixSocketHandler())
+
+        # Locate cgroups directories
+        self._mountpoints = {}
+        self._cgroup_filename_pattern = None
+        docker_root = init_config.get('docker_root', '/')
         for metric in CGROUP_METRICS:
             self._mountpoints[metric["cgroup"]] = self._find_cgroup(metric["cgroup"], docker_root)
+
         self._last_event_collection_ts = defaultdict(lambda: None)
-        self.url_opener = urllib2.build_opener(UnixSocketHandler())
-        self._cgroup_filename_pattern = None
-
-    def _find_cgroup_filename_pattern(self):
-        if self._mountpoints:
-            # We try with different cgroups so that it works even if only one is properly working
-            for mountpoint in self._mountpoints.values():
-                stat_file_path_lxc = os.path.join(mountpoint, "lxc")
-                stat_file_path_docker = os.path.join(mountpoint, "docker")
-                stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
-
-                if os.path.exists(stat_file_path_lxc):
-                    return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
-                elif os.path.exists(stat_file_path_docker):
-                    return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
-                elif os.path.exists(stat_file_path_coreos):
-                    return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
-
-        raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
-
-    def _get_cgroup_file(self, cgroup, container_id, filename):
-        # This can't be initialized at startup because cgroups may not be mounted
-        if not self._cgroup_filename_pattern:
-            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
-
-        return self._cgroup_filename_pattern % (dict(
-                    mountpoint=self._mountpoints[cgroup],
-                    id=container_id,
-                    file=filename,
-                ))
 
     def check(self, instance):
+        # Report image metrics
         self._count_images(instance)
+
+        # Get the list of containers and the index of their names
         containers, ids_to_names = self._get_and_count_containers(instance)
 
+        # Report container metrics from cgroups
+        self._report_containers_metrics(containers, instance)
+
+        # Send events from Docker API
+        if instance.get('collect_events', True):
+            self._process_events(instance, ids_to_names)
+
+
+    # Containers
+
+    def _count_images(self, instance):
+        # It's not an important metric, keep going if it fails
+        try:
+            tags = instance.get("tags", [])
+            active_images = len(self._get_images(instance, get_all=False))
+            all_images = len(self._get_images(instance, get_all=True))
+
+            self.gauge("docker.images.available", active_images, tags=tags)
+            self.gauge("docker.images.intermediate", (all_images - active_images), tags=tags)
+        except Exception, e:
+            self.warning("Failed to count Docker images. Exception: {0}".format(e))
+
+    def _get_and_count_containers(self, instance):
+        tags = instance.get("tags", [])
+
+        with_size = instance.get('collect_container_size', False)
+        try:
+            containers = self._get_containers(instance, with_size=with_size)
+        except (socket.timeout, urllib2.URLError), e:
+            raise Exception("Container collection timed out. Exception: {0}".format(e))
+
+        container_count_by_image = defaultdict(int)
+        for container in containers:
+            container_count_by_image[container['Image']] += 1
+
+        for image, count in container_count_by_image.iteritems():
+            self.gauge("docker.containers.running", count, tags=(tags + ['image:%s' % image]))
+
+        all_containers = self._get_containers(instance, get_all=True)
+        stopped_containers_count = len(all_containers) - len(containers)
+        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
+
+        ids_to_names = {}
+        for container in all_containers:
+            ids_to_names[container['Id']] = container['Names'][0].lstrip("/")
+
+        return containers, ids_to_names
+
+    def _is_container_included(self, instance, tags):
+        def _is_tag_included(tag):
+            for exclude_rule in instance.get("exclude") or []:
+                if re.match(exclude_rule, tag):
+                    for include_rule in instance.get("include") or []:
+                        if re.match(include_rule, tag):
+                            return True
+                    return False
+            return True
+        for tag in tags:
+            if _is_tag_included(tag):
+                return True
+        return False
+
+    def _report_containers_metrics(self, containers, instance):
         for container in containers:
             container_tags = instance.get("tags", [])
             for name in container["Names"]:
@@ -166,20 +211,28 @@ class Docker(AgentCheck):
                         if key in stats:
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
-        if instance.get('collect_events', True):
-            try:
-                api_events = self._get_events(instance)
-                aggregated_events = self._pre_aggregate_events(api_events)
-                events = self._format_events(aggregated_events, ids_to_names)
-                self._process_events(events)
-            except (socket.timeout, urllib2.URLError):
-                self.warning('Timeout during socket connection. Events will be missing.')
+    def _make_tag(self, key, value):
+        return "%s:%s" % (key.lower(), value.strip())
+
+
+    # Events
+
+    def _process_events(self, instance, ids_to_names):
+        try:
+            api_events = self._get_events(instance)
+            aggregated_events = self._pre_aggregate_events(api_events)
+            events = self._format_events(aggregated_events, ids_to_names)
+            self._report_events(events)
+        except (socket.timeout, urllib2.URLError):
+            self.warning('Timeout during socket connection. Events will be missing.')
 
     def _pre_aggregate_events(self, api_events):
         # Aggregate events, one per image. Put newer events first.
         events = defaultdict(list)
         for event in api_events:
-            events[event['from']].insert(0, event)
+            # Known bug: from may be missing
+            if 'from' in event:
+                events[event['from']].insert(0, event)
 
         return events
 
@@ -216,68 +269,18 @@ class Docker(AgentCheck):
                 'msg_title': msg_title,
                 'msg_text': msg_body,
                 'source_type_name': EVENT_TYPE,
-                'event_object': 'docker:%s' % event_group,
+                'event_object': 'docker:%s' % image_name,
             })
 
         return events
 
-    def _process_events(self, events):
+    def _report_events(self, events):
         for ev in events:
-            self.log.debug("Creating event for %s" % ev)
+            self.log.debug("Creating event: %s" % ev)
             self.event(ev)
 
-    def _get_and_count_containers(self, instance):
-        tags = instance.get("tags", [])
 
-        with_size = instance.get('collect_container_size', False)
-        try:
-            containers = self._get_containers(instance, with_size=with_size)
-        except (socket.timeout, urllib2.URLError), e:
-            raise Exception("Container collection timed out. Exception: {0}".format(e))
-
-        container_count_by_image = defaultdict(int)
-        for container in containers:
-            container_count_by_image[container['Image']] += 1
-
-        for image, count in container_count_by_image.iteritems():
-            self.gauge("docker.containers.running", count, tags=(tags + ['image:%s' % image]))
-
-        all_containers = self._get_containers(instance, get_all=True)
-        stopped_containers_count = len(all_containers) - len(containers)
-        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
-
-        ids_to_names = {}
-        for container in all_containers:
-            ids_to_names[container['Id']] = container['Names'][0][1:]
-
-        return containers, ids_to_names
-
-    def _count_images(self, instance):
-        tags = instance.get("tags", [])
-        active_images = len(self._get_images(instance, get_all=False))
-        all_images = len(self._get_images(instance, get_all=True))
-
-        self.gauge("docker.images.available", active_images, tags=tags)
-        self.gauge("docker.images.intermediate", (all_images - active_images), tags=tags)
-
-
-    def _make_tag(self, key, value):
-        return "%s:%s" % (key.lower(), value.strip())
-
-    def _is_container_included(self, instance, tags):
-        def _is_tag_included(tag):
-            for exclude_rule in instance.get("exclude") or []:
-                if re.match(exclude_rule, tag):
-                    for include_rule in instance.get("include") or []:
-                        if re.match(include_rule, tag):
-                            return True
-                    return False
-            return True
-        for tag in tags:
-            if _is_tag_included(tag):
-                return True
-        return False
-
+    # Docker API
 
     def _get_containers(self, instance, with_size=False, get_all=False):
         """Gets the list of running/all containers in Docker."""
@@ -303,9 +306,10 @@ class Docker(AgentCheck):
         """Utility method to get and parse JSON streams."""
         if params:
             uri = "%s?%s" % (uri, urllib.urlencode(params))
-        self.log.debug("Connecting to: %s" % uri)
+        self.log.debug("Connecting to Docker API at: %s" % uri)
         req = urllib2.Request(uri, None)
 
+        # TODO: Move it outside of _get_json otherwise we report it multiple times
         service_check_name = 'docker.service_up'
         service_check_tags = ['host:%s' % self.hostname]
 
@@ -327,6 +331,37 @@ class Docker(AgentCheck):
             return []
 
         return json.loads(response)
+
+
+    # Cgroups
+
+    def _find_cgroup_filename_pattern(self):
+        if self._mountpoints:
+            # We try with different cgroups so that it works even if only one is properly working
+            for mountpoint in self._mountpoints.values():
+                stat_file_path_lxc = os.path.join(mountpoint, "lxc")
+                stat_file_path_docker = os.path.join(mountpoint, "docker")
+                stat_file_path_coreos = os.path.join(mountpoint, "system.slice")
+
+                if os.path.exists(stat_file_path_lxc):
+                    return os.path.join('%(mountpoint)s/lxc/%(id)s/%(file)s')
+                elif os.path.exists(stat_file_path_docker):
+                    return os.path.join('%(mountpoint)s/docker/%(id)s/%(file)s')
+                elif os.path.exists(stat_file_path_coreos):
+                    return os.path.join('%(mountpoint)s/system.slice/docker-%(id)s.scope/%(file)s')
+
+        raise Exception("Cannot find Docker cgroup directory. Be sure your system is supported.")
+
+    def _get_cgroup_file(self, cgroup, container_id, filename):
+        # This can't be initialized at startup because cgroups may not be mounted yet
+        if not self._cgroup_filename_pattern:
+            self._cgroup_filename_pattern = self._find_cgroup_filename_pattern()
+
+        return self._cgroup_filename_pattern % (dict(
+                    mountpoint=self._mountpoints[cgroup],
+                    id=container_id,
+                    file=filename,
+                ))
 
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with
@@ -350,12 +385,12 @@ class Docker(AgentCheck):
     def _parse_cgroup_file(self, stat_file):
         """Parses a cgroup pseudo file for key/values."""
         fp = None
-        self.log.debug("Opening file: %s" % stat_file)
+        self.log.debug("Opening cgroup file: %s" % stat_file)
         try:
             fp = open(stat_file)
             return dict(map(lambda x: x.split(), fp.read().splitlines()))
         except IOError:
-            # Can be because the container got stopped
+            # It is possible that the container got stopped between the API call and now
             self.log.info("Can't open %s. Metrics for this container are skipped." % stat_file)
         finally:
             if fp is not None:
