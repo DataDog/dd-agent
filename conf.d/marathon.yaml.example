@@ -1,0 +1,7 @@
+init_config:
+# time to wait on a Marathon API request
+#    default_timeout: 5
+
+instances:
+# url: the API endpoint of your Marathon master
+#    - url: "https://server:port"

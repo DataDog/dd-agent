@@ -2,7 +2,6 @@ import unittest
 import logging
 from nose.plugins.attrib import attr
 
-from checks import gethostname
 from tests.common import get_check
 
 logging.basicConfig()
@@ -64,6 +63,17 @@ class SQLServerTestCase(unittest.TestCase):
         for metric in tagged_metrics:
             for tag in metric[3]['tags']:
                 assert tag.startswith('db')
+
+        # Service checks
+        service_checks = check.get_service_checks()
+        service_checks_count = len(service_checks)
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(service_checks_count > 0)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == check.SERVICE_CHECK_NAME]), 1, service_checks)
+        # Assert that all service checks have the proper tags: host and port
+        self.assertEquals(len([sc for sc in service_checks if "host:127.0.0.1,1433" in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "db:master" in sc['tags']]), service_checks_count, service_checks)
+
 
 if __name__ == "__main__":
     unittest.main()

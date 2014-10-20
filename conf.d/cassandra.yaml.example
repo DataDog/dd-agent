@@ -1,39 +1,60 @@
 instances:
-#   -   host: localhost
-#       port: 7199
-#       user: username
-#       password: password
-#       name: cassandra_instance
+#   -    host: localhost
+#        port: 7199
+#        user: username
+#        password: password
+#        name: cassandra_instance
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
 
 
 init_config:
+    # List of metrics to be collected by the integration
+    # Read http://docs.datadoghq.com/integrations/java/ to learn how to customize it
     conf:
       - include:
           domain: org.apache.cassandra.db
+          attribute:
+            - BloomFilterDiskSpaceUsed
+            - BloomFilterFalsePositives
+            - BloomFilterFalseRatio
+            - Capacity
+            - CompressionRatio
+            - CompletedTasks
+            - ExceptionCount
+            - Hits
+            - RecentHitRate
+            - RowCacheRecentHitRate
+            - KeyCacheRecentHitRate
+            - LiveDiskSpaceUsed
+            - LiveSSTableCount
+            - Load
+            - MaxRowSize
+            - MeanRowSize
+            - MemtableColumnsCount
+            - MemtableDataSize
+            - MemtableSwitchCount
+            - MinRowSize
+            - ReadCount
+            - Requests
+            - Size
+            - TotalDiskSpaceUsed
+            - TotalReadLatencyMicros
+            - TotalWriteLatencyMicros
+            - UpdateInterval
+            - WriteCount
+            - PendingTasks
         exclude:
           keyspace: system
-          attribute: 
-            - MinimumCompactionThreshold
-            - MaximumCompactionThreshold
-            - RowCacheKeysToSave
-            - KeyCacheSavePeriodInSeconds
-            - RowCacheSavePeriodInSeconds
-            - PendingTasks
       - include:
           domain: org.apache.cassandra.internal
-        exclude:
           attribute:
-           - PendingTasks
-           - Token
+            - ActiveCount
+            - CompletedTasks
+            - CurrentlyBlockedTasks
+            - TotalBlockedTasks
       - include:
           domain: org.apache.cassandra.net
-      - include:
-          domain: org.apache.cassandra.request
           attribute:
-            HeapMemoryUsage.used:
-              alias: cassandra.heap_used
-              metric_type: gauge
-            HeapMemoryUsage.max:
-              alias: cassandra.heap_total
-              metric_type: gauge
-
+            - TotalTimeouts

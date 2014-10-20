@@ -9,6 +9,8 @@ import pstats
 import tempfile
 from util import json, md5
 import time
+import xml.etree.ElementTree as tree
+from cStringIO import StringIO
 
 from checks.ganglia import Ganglia
 
@@ -27,7 +29,13 @@ class TestGanglia(unittest.TestCase):
         # profile.runctx("g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651})", {}, {"g": g}, pfile.name)
         # p = pstats.Stats(pfile.name)
         # p.sort_stats('time').print_stats()
-        self.assertEquals(md5(g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651})).hexdigest(), md5(open(TEST_FN).read()).hexdigest())
+        parsed = StringIO(g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651}))
+        original = open(TEST_FN)
+        x1 = tree.parse(parsed)
+        x2 = tree.parse(original)
+        # Cursory test
+        self.assertEquals([c.tag for c in x1.getroot()], [c.tag for c in x2.getroot()])
+
 
 if __name__ == '__main__':
     unittest.main()

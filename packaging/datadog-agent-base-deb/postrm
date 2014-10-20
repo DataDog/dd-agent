@@ -1,8 +1,0 @@
-#!/bin/sh
-# postinst script for datadog-agent
-
-set -e
-
-if [ "$1" = purge ]; then
-    update-rc.d datadog-agent remove
-fi

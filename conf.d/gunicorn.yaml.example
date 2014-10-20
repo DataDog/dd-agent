@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+    # The name of the gunicorn process. For the following gunicorn server ...
+    #
+    #    gunicorn --name my_web_app my_web_app_config.ini
+    #
+    #  ... we'd use the name `my_web_app`.
+    #
+    # - proc_name: my_web_app

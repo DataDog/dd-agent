@@ -5,7 +5,7 @@ import sys
 import traceback
 
 from resources import ResourcePlugin, SnapshotDescriptor, SnapshotField, agg
-from util import namedtuple
+from collections import namedtuple
 
 class Processes(ResourcePlugin):
 
@@ -24,20 +24,12 @@ class Processes(ResourcePlugin):
                 SnapshotField("ps_count",'int'))
 
     def _get_proc_list(self):
-        self.log.debug('getProcesses: start')
-        
         # Get output from ps
         try:
-            self.log.debug('getProcesses: attempting Popen')
-            
             ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
-            
         except Exception, e:
-            import traceback
-            self.log.error('getProcesses: exception = ' + traceback.format_exc())
+            self.log.exception('Cannot get process list')
             return False
-        
-        self.log.debug('getProcesses: Popen success, parsing')
         
         # Split out each process
         processLines = ps.split('\n')
@@ -47,13 +39,9 @@ class Processes(ResourcePlugin):
         
         processes = []
         
-        self.log.debug('getProcesses: Popen success, parsing, looping')
-        
         for line in processLines:
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
-        
-        self.log.debug('getProcesses: completed, returning')
         
         return processes 
 
@@ -78,9 +66,17 @@ class Processes(ResourcePlugin):
 
         self.start_snapshot()
         for line in processes:
-            psl = PSLine(*line)
-            self.add_to_snapshot([psl.user,float(psl.pct_cpu),float(psl.pct_mem),int(psl.vsz),
-                                int(psl.rss),_compute_family(psl.command),1])
+            try:
+                psl = PSLine(*line)
+                self.add_to_snapshot([psl.user,
+                                      float(psl.pct_cpu),
+                                      float(psl.pct_mem),
+                                      int(psl.vsz),
+                                      int(psl.rss),
+                                      _compute_family(psl.command),
+                                      1])
+            except Exception:
+                pass
         self.end_snapshot(group_by= self.group_by_family)
 
     def flush_snapshots(self,snapshot_group):

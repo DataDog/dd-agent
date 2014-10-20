@@ -1,11 +1,27 @@
+# project
 from checks import Check
+
+# 3rd party
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+try:
+    import wmi
+    w = wmi.WMI()
+except Exception:
+    wmi, w = None, None
 
 # Device WMI drive types
 class DriveType(object):
     UNKNOWN, NOROOT, REMOVEABLE, LOCAL, NETWORK, CD, RAM = (0, 1, 2, 3, 4, 5, 6)
-IGNORED = ('_total',)
 B2MB  = float(1048576)
 KB2MB = B2KB = float(1024)
+
+def should_ignore_disk(name, blacklist_re):
+    # blacklist_re is a compiled regex, compilation done at config loading time
+    return name =='_total' or blacklist_re is not None and blacklist_re.match(name)
 
 class Processes(Check):
     def __init__(self, logger):
@@ -14,9 +30,19 @@ class Processes(Check):
         self.gauge('system.proc.count')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        try:
+            os = w.Win32_PerfFormattedData_PerfOS_System()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.' \
+                             ' No process metrics will be returned.')
+            return
+
+        try:
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+                             ' No process metrics will be returned.')
+            return
         if os.ProcessorQueueLength is not None:
             self.save_sample('system.proc.queue_length', os.ProcessorQueueLength)
         if os.Processes is not None:
@@ -37,10 +63,12 @@ class Memory(Check):
         self.gauge('system.mem.nonpaged')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        os = w.Win32_OperatingSystem()[0]
-        mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
+        try:
+            os = w.Win32_OperatingSystem()[0]
+        except AttributeError:
+            self.logger.info('Missing Win32_OperatingSystem. No memory metrics will be returned.')
+            return
+
         if os.TotalVisibleMemorySize is not None and os.FreePhysicalMemory is not None:
             total = int(os.TotalVisibleMemorySize) / KB2MB
             free = int(os.FreePhysicalMemory) / KB2MB
@@ -48,6 +76,7 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
+        mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
         if mem.CacheBytes is not None:
             self.save_sample('system.mem.cached', int(mem.CacheBytes) / B2MB)
         if mem.CommittedBytes is not None:
@@ -63,26 +92,51 @@ class Cpu(Check):
     def __init__(self, logger):
         Check.__init__(self, logger)
         self.logger = logger
-        self.gauge('system.cpu.user')
-        self.gauge('system.cpu.idle')
+        self.counter('system.cpu.user')
+        self.counter('system.cpu.idle')
         self.gauge('system.cpu.interrupt')
-        self.gauge('system.cpu.system')
+        self.counter('system.cpu.system')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
+        try:
+            cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+                             ' No CPU metrics will be returned.')
+            return
 
-        if cpu.PercentUserTime is not None:
-            self.save_sample('system.cpu.user', cpu.PercentUserTime)
-        if cpu.PercentIdleTime is not None:
-            self.save_sample('system.cpu.idle', cpu.PercentIdleTime)
-        if cpu.PercentInterruptTime is not None:
-            self.save_sample('system.cpu.interrupt', cpu.PercentInterruptTime)
-        if cpu.PercentPrivilegedTime is not None:
-            self.save_sample('system.cpu.system', cpu.PercentPrivilegedTime)
+        cpu_interrupt = self._average_metric(cpu, 'PercentInterruptTime')
+        if cpu_interrupt is not None:
+            self.save_sample('system.cpu.interrupt', cpu_interrupt)
+
+        cpu_percent = psutil.cpu_times()
+
+        self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.NUM_CPUS)
+        self.save_sample('system.cpu.system', 100 * cpu_percent.system/ psutil.NUM_CPUS)
 
         return self.get_metrics()
+
+    def _average_metric(self, wmi_class, wmi_prop):
+        ''' Sum all of the values of a metric from a WMI class object, excluding
+            the value for "_Total"
+        '''
+        val = 0
+        counter = 0
+        for wmi_object in wmi_class:
+            if wmi_object.Name == '_Total':
+                # Skip the _Total value
+                continue
+
+            if getattr(wmi_object, wmi_prop) is not None:
+                counter += 1
+                val += float(getattr(wmi_object, wmi_prop))
+
+        if counter > 0:
+            return val / counter
+
+        return val
+
 
 class Network(Check):
     def __init__(self, logger):
@@ -92,9 +146,12 @@ class Network(Check):
         self.gauge('system.net.bytes_sent')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
+        try:
+            net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class.' \
+                             ' No network metrics will be returned')
+            return
 
         for iface in net:
             name = self.normalize_device_name(iface.name)
@@ -116,22 +173,26 @@ class Disk(Check):
         self.gauge('system.disk.used')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        disk = w.Win32_LogicalDisk()
+        try:
+            disk = w.Win32_LogicalDisk()
+        except AttributeError:
+            self.logger.info('Missing Win32_LogicalDisk WMI class.'  \
+                             ' No disk metrics will be returned.')
+            return
 
+        blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in disk:
             name = self.normalize_device_name(device.name)
-            if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or name in IGNORED:
+            if device.DriveType in (DriveType.CD, DriveType.UNKNOWN) or should_ignore_disk(name, blacklist_re):
                 continue
             if device.FreeSpace is not None and device.Size is not None:
                 free = float(device.FreeSpace) / B2KB
                 total = float(device.Size) / B2KB
+                used = total - free
                 self.save_sample('system.disk.free', free, device_name=name)
                 self.save_sample('system.disk.total', total, device_name=name)
-                self.save_sample('system.disk.used', total - free,
-                    device_name=name)
-                self.save_sample('system.disk.in_use', (free / total),
+                self.save_sample('system.disk.used', used, device_name=name)
+                self.save_sample('system.disk.in_use', (used / total),
                     device_name=name)
         return self.get_metrics()
 
@@ -146,13 +207,16 @@ class IO(Check):
         self.gauge('system.io.avg_q_sz')
 
     def check(self, agentConfig):
-        import wmi
-        w = wmi.WMI()
-        disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
-
+        try:
+            disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
+        except AttributeError:
+            self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.' \
+                             ' No I/O metrics will be returned.')
+            return
+        blacklist_re = agentConfig.get('device_blacklist_re', None)
         for device in disk:
             name = self.normalize_device_name(device.name)
-            if name in IGNORED:
+            if should_ignore_disk(name, blacklist_re):
                 continue
             if device.DiskWriteBytesPerSec is not None:
                 self.save_sample('system.io.wkb_s', int(device.DiskWriteBytesPerSec) / B2KB,

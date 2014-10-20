@@ -23,54 +23,104 @@ Node count: 487
 Tested with Zookeeper versions 3.0.0 to 3.4.5
 
 '''
-
-from checks import AgentCheck
+# stdlib
 import re
 import socket
 import struct
 from StringIO import StringIO
 
+# project
+from checks import AgentCheck
+
+class ZKConnectionFailure(Exception):
+    """ Raised when we are unable to connect or get the output of a command. """
+    pass
+
+
 class Zookeeper(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
+
+    SOURCE_TYPE_NAME = 'zookeeper'
 
     def check(self, instance):
         host = instance.get('host', 'localhost')
         port = int(instance.get('port', 2181))
+        timeout = float(instance.get('timeout', 3.0))
+        expected_mode = (instance.get('expected_mode') or '').strip()
         tags = instance.get('tags', [])
+        cx_args = (host, port, timeout)
 
+        # Send a service check based on the `ruok` response.
+        try:
+            ruok_out = self._send_command('ruok', *cx_args)
+        except ZKConnectionFailure:
+            # The server should not respond at all if it's not OK.
+            status = AgentCheck.CRITICAL
+            message = 'No response from `ruok` command'
+            self.increment('zookeeper.timeouts')
+        else:
+            ruok_out.seek(0)
+            ruok = ruok_out.readline()
+            if ruok == 'imok':
+                status = AgentCheck.OK
+            else:
+                status = AgentCheck.WARNING
+            message = u'Response from the server: %s' % ruok
+        self.service_check('zookeeper.ruok', status, message=message)
+
+        # Read metrics from the `stat` output.
+        try:
+            stat_out = self._send_command('stat', *cx_args)
+        except ZKConnectionFailure:
+            self.increment('zookeeper.timeouts')
+        else:
+            # Parse the response
+            metrics, new_tags, mode = self.parse_stat(stat_out)
+
+            # Write the data
+            for metric, value in metrics:
+                self.gauge(metric, value, tags=tags + new_tags)
+
+            if expected_mode:
+                if mode == expected_mode:
+                    status = AgentCheck.OK
+                    message = u"Server is in %s mode" % mode
+                else:
+                    status = AgentCheck.CRITICAL
+                    message = u"Server is in %s mode but check expects %s mode" % (expected_mode, mode)
+                self.service_check('zookeeper.mode', status, message=message)
+
+    def _send_command(self, command, host, port, timeout):
         sock = socket.socket()
+        sock.settimeout(timeout)
         buf = StringIO()
         chunk_size = 1024
+        # try-finally and try-except to stay compatible with python 2.4
         try:
-            # Connect to the zk client port and send the stat command
-            sock.connect((host, port))
-            sock.sendall('stat')
+            try:
+                # Connect to the zk client port and send the stat command
+                sock.connect((host, port))
+                sock.sendall('stat')
 
-            # Read the response into a StringIO buffer
-            chunk = sock.recv(chunk_size)
-            buf.write(chunk)
-            num_reads = 1
-            max_reads = 10000
-            while chunk:
-                if num_reads > max_reads:
-                    # Safeguard against an infinite loop
-                    raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                # Read the response into a StringIO buffer
                 chunk = sock.recv(chunk_size)
                 buf.write(chunk)
-                num_reads += 1
+                num_reads = 1
+                max_reads = 10000
+                while chunk:
+                    if num_reads > max_reads:
+                        # Safeguard against an infinite loop
+                        raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                    chunk = sock.recv(chunk_size)
+                    buf.write(chunk)
+                    num_reads += 1
+            except (socket.timeout, socket.error):
+                raise ZKConnectionFailure()
         finally:
             sock.close()
+        return buf
 
-        # Parse the response
-        metrics, new_tags = self.parse_stat(buf)
-
-        # Write the data
-        tags.extend(new_tags)
-        for metric, value in metrics:
-            self.gauge(metric, value, tags=tags)
-
-    @classmethod
-    def parse_stat(cls, buf):
+    def parse_stat(self, buf):
         ''' `buf` is a readable file-like object
             returns a tuple: ([(metric_name, value)], tags)
         '''
@@ -81,7 +131,7 @@ class Zookeeper(AgentCheck):
         # body correctly. Particularly, the Connections val was added in
         # >= 3.4.4.
         start_line = buf.readline()
-        match = cls.version_pattern.match(start_line)
+        match = self.version_pattern.match(start_line)
         if match is None:
             raise Exception("Could not parse version from stat command output: %s" % start_line)
         else:
@@ -143,16 +193,11 @@ class Zookeeper(AgentCheck):
 
         # Mode: leader
         _, value = buf.readline().split(':')
-        tags = [u'mode:' + value.strip().lower()]
+        mode = value.strip().lower()
+        tags = [u'mode:' + mode]
 
         # Node count: 487
         _, value = buf.readline().split(':')
         metrics.append(('zookeeper.nodes', long(value.strip())))
 
-        return metrics, tags
-
-if __name__ == "__main__":
-    import logging, pprint
-    zk = Zookeeper('zk', {}, {})
-    zk.check({'host': 'localhost', 'port': 2181, 'tags': ['thing']})
-    pprint.pprint(zk.get_metrics())
+        return metrics, tags, mode

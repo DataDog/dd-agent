@@ -1,39 +1,38 @@
-# blacklist
-branches:
-  except:
-    - check-haproxy
-services:
-  - mysql
-  - elasticsearch
-before_script:
-  - mysql -e "create user 'dog'@'localhost' identified by 'dog'"
 language: python
 python:
-  - "2.5"
   - "2.6"
   - "2.7"
-install:
-  - pip install -r requirements.txt --use-mirrors
-  - pip install . --use-mirrors
-script: nosetests -A 'not windows' tests
-before_script:
-  - sudo apt-get install sysstat
-  - sudo apt-get install haproxy
-  - sudo apt-get install python-mysqldb
-  - curl -L https://raw.github.com/DataDog/dd-agent/check-haproxy/tests/haproxy.cfg > /tmp/haproxy.cfg
-  - curl -L http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.35/bin/apache-tomcat-6.0.35.tar.gz > /tmp/tomcat6.tar.gz && tar -C /tmp -xzf /tmp/tomcat6.tar.gz && mv /tmp/apache-tomcat-6.0.35 /tmp/apache-tomcat-6 && echo 'export CATALINA_OPTS="-Dcom.sun.management.jmxremote.port=8090 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false" export CATALINA_OUT="/tmp/apache-tomcat-6/catalina.out"' > /tmp/apache-tomcat-6/bin/setenv.sh
-  - curl -L http://www.reverse.net/pub/apache/tomcat/tomcat-7/v7.0.32/bin/apache-tomcat-7.0.32.tar.gz > /tmp/tomcat7.tar.gz && tar -C /tmp -xzf /tmp/tomcat7.tar.gz && mv /tmp/apache-tomcat-7.0.32/ /tmp/apache-tomcat-7 && echo 'export CATALINA_OPTS="-Dcom.sun.management.jmxremote.port=8091 -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/tmp/apache-tomcat-7/conf/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/tmp/apache-tomcat-7/conf/jmxremote.access -Dcom.sun.management.jmxremote.ssl=false" export CATALINA_OUT="/tmp/apache-tomcat-7/catalina.out"' > /tmp/apache-tomcat-7/bin/setenv.sh && echo 'monitorRole readonly' > /tmp/apache-tomcat-7/conf/jmxremote.access && echo 'monitorRole tomcat' > /tmp/apache-tomcat-7/conf/jmxremote.password && chmod 400 /tmp/apache-tomcat-7/conf/jmxremote.password
-  - curl -L https://raw.github.com/DataDog/dd-agent/jmx_multiple_checks/tests/tomcat_cfg.xml > /tmp/apache-tomcat-6/conf/server.xml
-  - curl -L http://mirror.cc.columbia.edu/pub/software/apache/lucene/solr/3.6.1/apache-solr-3.6.1.tgz > /tmp/solr.tgz && tar -C /tmp -xzf /tmp/solr.tgz && mv /tmp/apache-solr-3.6.1 /tmp/apache-solr-3 && echo 'monitorRole readonly' > /tmp/apache-solr-3/example/jmxremote.access && echo 'monitorRole solr' > /tmp/apache-solr-3/example/jmxremote.password && chmod 400 /tmp/apache-solr-3/example/jmxremote.password
-  - sudo apt-get install nginx
-  - curl -L https://raw.github.com/DataDog/dd-agent/multiple_instances/tests/nginx.conf > /tmp/default.conf
-  - sudo cp /tmp/default.conf /etc/nginx/conf.d/default.conf
-  - sudo /etc/init.d/nginx restart
-  - sudo apt-get install apache2
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/checks_to_checksd/tests/apache/ports.conf > /etc/apache2/ports.conf"
-  - sudo bash -c "curl -L https://raw.github.com/DataDog/dd-agent/checks_to_checksd/tests/apache/apache.conf > /etc/apache2/apache.conf"
-  - sudo /etc/init.d/apache2 restart
-  - sudo apt-get remove memcached
-  - sudo apt-get install memcached
+
 env:
-  - DB=redis
+  global:
+    - NOSE_FILTER="not windows"
+  matrix:
+    - TRAVIS_FLAVOR=default
+    - TRAVIS_FLAVOR=cache,gearman,database
+    - TRAVIS_FLAVOR=cassandra,tomcat,jmx # JMX testing machine / need the other ones before
+    - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
+    - TRAVIS_FLAVOR=mongo
+
+matrix:
+  allow_failures:
+    - env: TRAVIS_FLAVOR=mongo
+
+# Override travis defaults with empty jobs
+before_install: echo "OVERRIDING TRAVIS STEPS"
+install: echo "OVERRIDING TRAVIS STEPS"
+before_script: echo "OVERRIDING TRAVIS STEPS"
+
+script:
+  - bundle install
+  - 'rake ci:run'
+
+after_failure:
+  - echo "Logs from installation process come here / DEBUG LOGS"
+  - cat /tmp/ci.log
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /tmp/mongo.log; fi"
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod1/mongo.log; fi"
+  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod2/mongo.log; fi"
+
+notifications:
+  hipchat:
+    - secure: "DilCAl72f0WU54QIeHzwEfGn2at5+WzEfd3+sFARFyHNje4YLkELnF3iUw5aolaroNUc4Kr0NEYKmpsVQ9EWtKR2DosF2CdMNVv79hntYPyWwU+rfZTRI6NJlnTr1BMUEi7nMraVFDGbpYkXm/qqBPFKp8/cBOHbfNn9m+0dffg="

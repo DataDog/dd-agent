@@ -1,0 +1,11 @@
+init_config:
+
+instances:
+# name is a unique key representing your vCenter instance
+#    -   name: main-vcenter
+#        host: vcenter.domain.com
+#        username: datadog-readonly@vsphere.local
+#        password: mypassword
+#        all_metrics: false # will generate a lot of metrics
+#        event_config:
+#           collect_vcenter_alarms: false # defaults to false

@@ -3,7 +3,7 @@ Performance tests for the agent/dogstatsd metrics aggregator.
 """
 
 
-from aggregator import MetricsAggregator
+from aggregator import MetricsAggregator, MetricsBucketAggregator
 
 
 
@@ -15,7 +15,7 @@ class TestAggregatorPerf(object):
     METRIC_COUNT = 5
 
     def test_dogstatsd_aggregation_perf(self):
-        ma = MetricsAggregator('my.host')
+        ma = MetricsBucketAggregator('my.host')
 
         for _ in xrange(self.FLUSH_COUNT):
             for i in xrange(self.LOOPS_PER_FLUSH):

@@ -42,10 +42,12 @@ class PoolWorker(threading.Thread):
         """\param workq: Queue object to consume the work units from"""
         threading.Thread.__init__(self, *args, **kwds)
         self._workq = workq
+        self.running = False
 
     def run(self):
         """Process the work unit, or wait for sentinel to exit"""
         while 1:
+            self.running = True
             workunit = self._workq.get()
             if is_sentinel(workunit):
                 # Got sentinel
@@ -53,6 +55,9 @@ class PoolWorker(threading.Thread):
 
             # Run the job / sequence
             workunit.process()
+        self.running = False
+
+
 
 
 class Pool(object):
@@ -82,7 +87,7 @@ class Pool(object):
                 self._workers.append(thr)
 
     def get_nworkers(self):
-        return len(self._workers)
+        return len([w for w in self._workers if w.running])
 
     def apply(self, func, args=(), kwds=dict()):
         """Equivalent of the apply() builtin function. It blocks till

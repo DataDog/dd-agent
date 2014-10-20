@@ -1,0 +1,71 @@
+instances:
+#    -   host: localhost
+#        port: 7199
+#        user: username
+#        password: password
+#        name: activemq_instance
+#        #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
+#        #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#        #trust_store_password: password
+#        tags:
+#             env: stage
+#             newTag: test
+
+
+
+# List of metrics to be collected by the integration
+# Read http://docs.datadoghq.com/integrations/java/ to learn how to customize it
+init_config:
+    conf:
+      - include:
+          destinationType: Queue
+          attribute:
+            AverageEnqueueTime:
+              alias: activemq.queue.avg_enqueue_time
+              metric_type: gauge
+            ConsumerCount:
+              alias: activemq.queue.consumer_count
+              metric_type: gauge
+            ProducerCount:
+              alias: activemq.queue.producer_count
+              metric_type: gauge
+            MaxEnqueueTime:
+              alias: activemq.queue.max_enqueue_time
+              metric_type: gauge
+            MinEnqueueTime:
+              alias: activemq.queue.min_enqueue_time
+              metric_type: gauge
+            MemoryPercentUsage:
+              alias: activemq.queue.memory_pct
+              metric_type: gauge
+            QueueSize:
+              alias: activemq.queue.size
+              metric_type: gauge
+            DequeueCount:
+              alias: activemq.queue.dequeue_count
+              metric_type: counter
+            DispatchCount:
+              alias: activemq.queue.dispatch_count
+              metric_type: counter
+            EnqueueCount:
+              alias: activemq.queue.enqueue_count
+              metric_type: counter
+            ExpiredCount:
+              alias: activemq.queue.expired_count
+              metric_type: counter
+            InFlightCount:
+              alias: activemq.queue.in_flight_count
+              metric_type: counter
+
+      - include:
+          type: Broker
+          attribute:
+            StorePercentUsage:
+              alias: activemq.broker.store_pct
+              metric_type: gauge
+            TempPercentUsage:
+              alias: activemq.broker.temp_pct
+              metric_type: gauge
+            MemoryPercentUsage:
+              alias: activemq.broker.memory_pct
+              metric_type: gauge

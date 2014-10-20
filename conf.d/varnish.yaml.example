@@ -1,6 +1,13 @@
 init_config:
 
 instances:
-    -   varnishstat: /usr/bin/varnishstat
-#        tags:
-#            -   instance:production
+# - varnishstat: (required) String path to varnishstat binary
+#   name: (optional) String name of varnish instance. Passed to the -n parameter of varnishstat. Will also tag each metric with this name.
+#   tags: (optional) Additional tags to tag each metric with
+#
+# Example:
+#
+    - varnishstat: /usr/bin/varnishstat
+      name: myvarnishinstance
+      tags:
+        -   instance:production

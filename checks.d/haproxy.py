@@ -1,31 +1,41 @@
-import urlparse
+# stdlib
 import urllib2
-import socket
-
-from checks import AgentCheck, gethostname
-from util import json, headers
-
 import time
+from collections import defaultdict
 
-STATS_URL = ";csv;norefresh"
+# project
+from checks import AgentCheck
+from util import headers
+
+STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
 class Services(object):
     BACKEND = 'BACKEND'
     FRONTEND = 'FRONTEND'
     ALL = (BACKEND, FRONTEND)
+    ALL_STATUSES = (
+            'up', 'open', 'no check', 'down', 'maint', 'nolb'
+        )
+    STATUSES_TO_SERVICE_CHECK = {
+            'UP'       : AgentCheck.OK,
+            'DOWN'     : AgentCheck.CRITICAL,
+            'no check' : AgentCheck.UNKNOWN,
+            'MAINT'    : AgentCheck.OK,
+            }
 
 class HAProxy(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
 
         # Host status needs to persist across all checks
-        self.host_status = {}
+        self.host_status = defaultdict(lambda: defaultdict(lambda: None))
 
     METRICS = {
         "qcur": ("gauge", "queue.current"),
         "scur": ("gauge", "session.current"),
         "slim": ("gauge", "session.limit"),
+        "spct": ("gauge", "session.pct"),    # Calculated as: (scur/slim)*100
         "stot": ("rate", "session.rate"),
         "bin": ("rate", "bytes.in_rate"),
         "bout": ("rate", "bytes.out_rate"),
@@ -37,19 +47,33 @@ class HAProxy(AgentCheck):
         "wretr": ("rate", "warnings.retr_rate"),
         "wredis": ("rate", "warnings.redis_rate"),
         "req_rate": ("gauge", "requests.rate"),
+        "hrsp_1xx": ("rate", "response.1xx"),
+        "hrsp_2xx": ("rate", "response.2xx"),
+        "hrsp_3xx": ("rate", "response.3xx"),
+        "hrsp_4xx": ("rate", "response.4xx"),
+        "hrsp_5xx": ("rate", "response.5xx"),
+        "hrsp_other": ("rate", "response.other"),
     }
 
     def check(self, instance):
         url = instance.get('url')
         username = instance.get('username')
         password = instance.get('password')
+        collect_aggregates_only = instance.get('collect_aggregates_only', True)
+        collect_status_metrics = instance.get('collect_status_metrics', False)
+        collect_status_metrics_by_host = instance.get('collect_status_metrics_by_host', False)
 
         self.log.debug('Processing HAProxy data for %s' % url)
-       
+
         data = self._fetch_data(url, username, password)
 
-        self._process_data(data, self.hostname, self._process_metrics,
-            self._process_events)
+        process_events = instance.get('status_check', self.init_config.get('status_check', False))
+
+        self._process_data(
+            data, collect_aggregates_only, process_events,
+            url=url, collect_status_metrics=collect_status_metrics,
+            collect_status_metrics_by_host=collect_status_metrics_by_host
+        )
 
     def _fetch_data(self, url, username, password):
         ''' Hit a given URL and return the parsed json '''
@@ -70,7 +94,10 @@ class HAProxy(AgentCheck):
         # Split the data by line
         return response.split('\n')
 
-    def _process_data(self, data, my_hostname, metric_cb=None, event_cb=None):
+    def _process_data(
+            self, data, collect_aggregates_only, process_events, url=None,
+            collect_status_metrics=False, collect_status_metrics_by_host=False
+        ):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -79,188 +106,226 @@ class HAProxy(AgentCheck):
         # "# pxname,svname,qcur,qmax,scur,smax,slim,stot,bin,bout,dreq,dresp,ereq,econ,eresp,wretr,wredis,status,weight,act,bck,chkfail,chkdown,lastchg,downtime,qlimit,pid,iid,sid,throttle,lbtot,tracked,type,rate,rate_lim,rate_max,"
         fields = [f.strip() for f in data[0][2:].split(',') if f]
 
-        # Holds a list of dictionaries describing each system
-        data_list = []
+        self.hosts_statuses = defaultdict(int)
 
-        for line in data[1:]: # Skip the first line
+        back_or_front = None
+
+        # Skip the first line, go backwards to set back_or_front
+        for line in data[:0:-1]:
             if not line.strip():
                 continue
-            data_dict = {}
-            values = line.split(',')
 
             # Store each line's values in a dictionary
-            for i, val in enumerate(values):
-                if val:
-                    try:
-                        # Try converting to a long, if failure, just leave it
-                        val = long(val)
-                    except:
-                        pass
-                    data_dict[fields[i]] = val
+            data_dict = self._line_to_dict(fields, line)
 
-            # Don't create metrics for aggregates
-            service = data_dict['svname']
-            if data_dict['svname'] in Services.ALL:
-                if not data_list and service == Services.FRONTEND:
-                    data_list.append(data_dict)
+            if self._is_aggregate(data_dict):
+                back_or_front = data_dict['svname']
 
+            self._update_data_dict(data_dict, back_or_front)
+
+
+            self._update_hosts_statuses_if_needed(
+                collect_status_metrics, collect_status_metrics_by_host,
+                data_dict, self.hosts_statuses
+            )
+
+            if self._should_process(data_dict, collect_aggregates_only):
+                # update status
                 # Send the list of data to the metric and event callbacks
-                if metric_cb:
-                    metric_cb(data_list, service, my_hostname)
-                if event_cb:
-                    event_cb(data_list)
+                self._process_metrics(data_dict, url)
+            if process_events:
+                self._process_event(data_dict, url)
+            self._process_service_check(data_dict, url)
 
-                # Clear out the event list for the next service
-                data_list = []
-            else:
-                data_list.append(data_dict)
+        if collect_status_metrics:
+            self._process_status_metric(self.hosts_statuses, collect_status_metrics_by_host)
 
         return data
 
-    def _process_metrics(self, data_list, service, my_hostname):
-        hosts_to_aggregate = {}
-        for data in data_list:
-            """
-            Each element of data_list is a dictionary related to one host
-            (one line) extracted from the csv. All of these elements should
-            have the same value for 'pxname' key
-            It should look like:
-            data_list = [
-                {'svname':'i-4562165', 'pxname':'dogweb', 'scur':'42', ...},
-                {'svname':'i-2854985', 'pxname':'dogweb', 'scur':'1337', ...},
-                ...
-            ]
-            """
-            tags = ["type:%s" % service]
-            hostname = data['svname']
-            service_name = data['pxname']
-
-            if hostname == Services.FRONTEND:
-                hostname = my_hostname
-
-            if service == Services.BACKEND:
-                tags.append('frontend:%s' % my_hostname)
-            tags.append('host:%s' % hostname)
-            tags.append("service:%s" % service_name)
-
-            hp = hostname.split(':')
-            # If there are multiple instances running on different ports, we
-            # want all of the data across the entire host to be aggregated
-            if len(hp) > 1:
-                data_to_aggregate = hosts_to_aggregate.get(hp[0], [])
-                data_to_aggregate.append(data)
-                hosts_to_aggregate[hp[0]] = data_to_aggregate
-                continue
-
-            for key, value in data.items():
-                if HAProxy.METRICS.get(key):
-                    suffix = HAProxy.METRICS[key][1]
-                    name = "haproxy.%s.%s" % (service.lower(), suffix)
-                    if HAProxy.METRICS[key][0] == 'rate':
-                        self.rate(name, value, tags=tags, hostname=hostname)
-                    else:
-                        self.gauge(name, value, tags=tags, hostname=hostname)
-
-        if hosts_to_aggregate:
-            self._aggregate_hosts(hosts_to_aggregate, service, my_hostname)
-
-
-    def _aggregate_hosts(self, hosts_to_aggregate, service, my_hostname):
-        ''' If there are many instances of a service running on different ports
-        of a same host, we don't want to create as many metrics as the number of
-        instances So we aggregate these metrics into one host
-
-        hosts_to_aggregate = [
-            'i-4562165': [
-                {'svname':'i-4562165:9001', 'pxname':'dogweb', 'scur':'42', ...},
-                {'svname':'i-4562165:9002', 'pxname':'dogweb', 'scur':'1337', ...},
-                ...
-            ],
-            'i-3920324': [
-                {'svname':'i-3920324:5001', 'pxname':'dogweb', 'scur':'42', ...},
-                {'svname':'i-3920324:5002', 'pxname':'dogweb', 'scur':'1337', ...},
-                ...
-            ],
-            ...
-        ]
-        '''
-        aggr_list = []
-        for hostname, data_list in hosts_to_aggregate.items():
-            aggr_data = {}
-            if len(data_list) == 1:
-                aggr_data = data_list[0]
-            else:
-                # Aggregate each key across all of the service instances
-                for key in data_list[0]:
-                    if HAProxy.METRICS.get(key):
-                        aggr_data[key] = sum([inst.get(key, 0) for inst in data_list])
-
-            aggr_data['svname'] = hostname
-            aggr_data['pxname'] = data_list[0]['pxname']
-
-            aggr_list.append(aggr_data)
-
-        self._process_metrics(aggr_list, service, my_hostname)
-
-    def _process_events(self, data_list):
-        ''' Main event processing loop. Events will be created for a service
-        status change '''
-        for data in data_list:
-            hostname = data['svname']
-            service_name = data['pxname']
-            status = self.host_status.get("%s:%s" % (hostname,service_name), None)
-
-            if status is None:
-                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
-                continue
-
-            if status != data['status'] and data['status'] in ('UP', 'DOWN'):
-                # If the status of a host has changed, we trigger an event
+    def _line_to_dict(self, fields, line):
+        data_dict = {}
+        for i, val in enumerate(line.split(',')[:]):
+            if val:
                 try:
-                    lastchg = int(data['lastchg'])
-                except:
-                    lastchg = 0
+                    # Try converting to a long, if failure, just leave it
+                    val = float(val)
+                except Exception:
+                    pass
+                data_dict[fields[i]] = val
+        return data_dict
 
-                # Create the event object
-                ev = self._create_event(self.agentConfig['api_key'],
-                    data['status'], hostname, lastchg, service_name)
-                self.event(ev)
+    def _update_data_dict(self, data_dict, back_or_front):
+        """
+        Adds spct if relevant, adds service
+        """
+        data_dict['back_or_front'] = back_or_front
+        # The percentage of used sessions based on 'scur' and 'slim'
+        if 'slim' in data_dict and 'scur' in data_dict:
+            try:
+                data_dict['spct'] = (data_dict['scur'] / data_dict['slim']) * 100
+            except (TypeError, ZeroDivisionError):
+                pass
 
-                # Store this host status so we can check against it later
-                self.host_status["%s:%s" % (hostname, service_name)] = data['status']
+    def _is_aggregate(self, data_dict):
+        return data_dict['svname'] in Services.ALL
 
-    def _create_event(self, api_key, status, hostname, lastchg, service_name):
+    def _update_hosts_statuses_if_needed(self,
+        collect_status_metrics, collect_status_metrics_by_host,
+        data_dict, hosts_statuses
+    ):
+        if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
+            if collect_status_metrics_by_host and 'svname' in data_dict:
+                if data_dict['svname'] == Services.BACKEND:
+                    return
+                key = (data_dict['pxname'], data_dict['svname'], data_dict['status'])
+            else:
+                key = (data_dict['pxname'], data_dict['status'])
+            hosts_statuses[key] += 1
+
+    def _should_process(self, data_dict, collect_aggregates_only):
+        """
+            if collect_aggregates_only, we process only the aggregates
+            else we process all except Services.BACKEND
+        """
+        if collect_aggregates_only:
+            if self._is_aggregate(data_dict):
+                return True
+            return False
+        elif data_dict['svname'] == Services.BACKEND:
+            return False
+        return True
+
+    def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host):
+        agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
+        for host_status, count in hosts_statuses.iteritems():
+            try:
+                service, hostname, status = host_status
+            except Exception:
+                service, status = host_status
+            status = status.lower()
+
+            tags = ['service:%s' % service]
+            if collect_status_metrics_by_host:
+                tags.append('backend:%s' % hostname)
+            self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
+
+            if 'up' in status or 'open' in status:
+                agg_statuses[service]['available'] += count
+            if 'down' in status or 'maint' in status or 'nolb' in status:
+                agg_statuses[service]['unavailable'] += count
+
+        for service in agg_statuses:
+            for status, count in agg_statuses[service].iteritems():
+                tags = ['status:%s' % status, 'service:%s' % service]
+                self.gauge("haproxy.count_per_status", count, tags=tags)
+
+    def _gauge_all_statuses(self, metric_name, count, status, tags):
+        self.gauge(metric_name, count, tags + ['status:%s' % status])
+        for state in Services.ALL_STATUSES:
+            if state != status:
+                self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ","_")])
+
+
+    def _process_metrics(self, data, url):
+        """
+        Data is a dictionary related to one host
+        (one line) extracted from the csv.
+        It should look like:
+        {'pxname':'dogweb', 'svname':'i-4562165', 'scur':'42', ...}
+        """
+        hostname = data['svname']
+        service_name = data['pxname']
+        back_or_front = data['back_or_front']
+        tags = ["type:%s" % back_or_front, "instance_url:%s" % url]
+        tags.append("service:%s" % service_name)
+        if back_or_front == Services.BACKEND:
+            tags.append('backend:%s' % hostname)
+
+        for key, value in data.items():
+            if HAProxy.METRICS.get(key):
+                suffix = HAProxy.METRICS[key][1]
+                name = "haproxy.%s.%s" % (back_or_front.lower(), suffix)
+                if HAProxy.METRICS[key][0] == 'rate':
+                    self.rate(name, value, tags=tags)
+                else:
+                    self.gauge(name, value, tags=tags)
+
+    def _process_event(self, data, url):
+        '''
+        Main event processing loop. An event will be created for a service
+        status change.
+        Service checks on the server side can be used to provide the same functionality
+        '''
+        hostname = data['svname']
+        service_name = data['pxname']
+        key = "%s:%s" % (hostname,service_name)
+        status = self.host_status[url][key]
+
+        if status is None:
+            self.host_status[url][key] = data['status']
+            return
+
+        if status != data['status'] and data['status'] in ('UP', 'DOWN'):
+            # If the status of a host has changed, we trigger an event
+            try:
+                lastchg = int(data['lastchg'])
+            except Exception:
+                lastchg = 0
+
+            # Create the event object
+            ev = self._create_event(
+                data['status'], hostname, lastchg, service_name,
+                data['back_or_front']
+            )
+            self.event(ev)
+
+            # Store this host status so we can check against it later
+            self.host_status[url][key] = data['status']
+
+    def _create_event(self, status, hostname, lastchg, service_name, back_or_front):
+        HAProxy_agent = self.hostname.decode('utf-8')
         if status == "DOWN":
             alert_type = "error"
-            title = "HAProxy %s front-end reported %s %s" % (service_name, hostname, status)
+            title = "%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status)
         else:
             if status == "UP":
                 alert_type = "success"
             else:
                 alert_type = "info"
-            title = "HAProxy %s front-end reported %s back and %s" % (service_name, hostname, status)
+            title = "%s reported %s:%s back and %s" % (HAProxy_agent, service_name, hostname, status)
 
+        tags = ["service:%s" % service_name]
+        if back_or_front == Services.BACKEND:
+            tags.append('backend:%s' % hostname)
         return {
              'timestamp': int(time.time() - lastchg),
              'event_type': EVENT_TYPE,
-             'host': hostname,
-             'api_key': api_key,
+             'host': HAProxy_agent,
              'msg_title': title,
              'alert_type': alert_type,
              "source_type_name": SOURCE_TYPE_NAME,
              "event_object": hostname,
-             "tags": ["frontend:%s" % service_name, "host:%s" % hostname]
+             "tags": tags
         }
 
-    @staticmethod
-    def parse_agent_config(agentConfig):
-        if not agentConfig.get('haproxy_url'):
-            return False
+    def _process_service_check(self, data, url):
+        '''
+        Report a service check, tagged by the service and the backend.
+        Report as OK if the status is UP
+                  CRITICAL            DOWN
+                  UNKNOWN             no check
+        '''
+        HAProxy_agent = self.hostname.decode('utf-8')
+        service_name = data['pxname']
+        status = data['status']
+        if status in Services.STATUSES_TO_SERVICE_CHECK:
+            service_check_tags = ["service:%s" % service_name]
+            if data['back_or_front'] == Services.BACKEND:
+                hostname = data['svname']
+                service_check_tags.append('backend:%s' % hostname)
 
-        return {
-            'instances': [{
-                'url': agentConfig.get('haproxy_url'),
-                'username': agentConfig.get('haproxy_user'),
-                'password': agentConfig.get('haproxy_password')
-            }]
-        }
+            self.service_check("haproxy.service_up",
+                               Services.STATUSES_TO_SERVICE_CHECK[status],
+                               tags = service_check_tags,
+                               message="%s reported %s:%s %s" % (HAProxy_agent, service_name, hostname, status)
+                            )

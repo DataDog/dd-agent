@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+#    - url: localhost  # url used to connect to the memcached instance
+#      port: 11211 # If this line is not present, port will default to 11211
+#      tags:
+#        - optional_tag

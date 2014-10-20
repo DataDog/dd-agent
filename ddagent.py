@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/datadog-agent/embedded/bin/python
 '''
     Datadog
     www.datadoghq.com
@@ -7,8 +7,14 @@
 
     Licensed under Simplified BSD License (see LICENSE)
     (C) Boxed Ice 2010 all rights reserved
-    (C) Datadog, Inc. 2010-2012 all rights reserved
+    (C) Datadog, Inc. 2010-2013 all rights reserved
 '''
+
+# set up logging before importing any other components
+from config import initialize_logging; initialize_logging('forwarder')
+from config import get_logging_config
+
+import os; os.umask(022)
 
 # Standard imports
 import logging
@@ -20,6 +26,7 @@ from Queue import Queue, Full
 from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
+from socket import gaierror, error as socket_error
 
 # Tornado
 import tornado.httpserver
@@ -29,13 +36,24 @@ from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
 
 # agent import
-from util import Watchdog, getOS, get_uuid
-from emitter import http_emitter, format_body
+from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
+from emitter import http_emitter
 from config import get_config
-from checks import gethostname
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
+
+# 3rd party
+try:
+    import pycurl
+except ImportError:
+    # For the source install, pycurl might not be installed
+    pycurl = None
+
+log = logging.getLogger('forwarder')
+log.setLevel(get_logging_config()['log_level'] or logging.INFO)
+
+DD_ENDPOINT  = "dd_url"
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
@@ -52,7 +70,7 @@ class EmitterThread(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         self.__name = kwargs['name']
-        self.__emitter = kwargs.pop('emitter')
+        self.__emitter = kwargs.pop('emitter')()
         self.__logger = kwargs.pop('logger')
         self.__config = kwargs.pop('config')
         self.__max_queue_size = kwargs.pop('max_queue_size', 100)
@@ -129,22 +147,19 @@ class MetricTransaction(Transaction):
 
     @classmethod
     def set_endpoints(cls):
-        if 'use_pup' in cls._application._agentConfig:
-            if cls._application._agentConfig['use_pup']:
-                cls._endpoints.append('pup_url')
+
         # Only send data to Datadog if an API KEY exists
         # i.e. user is also Datadog user
         try:
             is_dd_user = 'api_key' in cls._application._agentConfig\
                 and 'use_dd' in cls._application._agentConfig\
                 and cls._application._agentConfig['use_dd']\
-                and cls._application._agentConfig.get('api_key') is not None\
-                and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
+                and cls._application._agentConfig.get('api_key')
             if is_dd_user:
-                logging.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
-                cls._endpoints.append('dd_url')
-        except:
-            logging.info("Not a Datadog user")
+                log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
+                cls._endpoints.append(DD_ENDPOINT)
+        except Exception:
+            log.info("Not a Datadog user")
 
     def __init__(self, data, headers):
         self._data = data
@@ -159,7 +174,7 @@ class MetricTransaction(Transaction):
 
         # Insert the transaction in the Manager
         self._trManager.append(self)
-        logging.debug("Created transaction %d" % self.get_id())
+        log.debug("Created transaction %d" % self.get_id())
         self._trManager.flush()
 
     def __sizeof__(self):
@@ -174,25 +189,66 @@ class MetricTransaction(Transaction):
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            logging.info("Sending metrics to endpoint %s at %s" % (endpoint, url))
-            req = tornado.httpclient.HTTPRequest(url, method="POST",
-                body=self._data, headers=self._headers)
+            log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
 
-            # Send Transaction to the endpoint
+            # Getting proxy settings
+            proxy_settings = self._application._agentConfig.get('proxy_settings', None)
+
+            tornado_client_params = {
+                'url': url,
+                'method': 'POST',
+                'body': self._data,
+                'headers': self._headers,
+                'validate_cert': not self._application.skip_ssl_validation,
+            }
+
+            force_use_curl = False
+
+            if proxy_settings is not None:
+                force_use_curl = True
+                if pycurl is not None:
+                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
+                    # This is pretty hacky though as it should be done in pycurl or curl or tornado
+                    if 'Content-Length' in tornado_client_params['headers']:
+                        del tornado_client_params['headers']['Content-Length']
+                        log.debug("Removing Content-Length header.")
+
+                    if 'Host' in tornado_client_params['headers']:
+                        del tornado_client_params['headers']['Host']
+                        log.debug("Removing Host header.")
+
+                    log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
+                        proxy_settings['host'], proxy_settings['port']))
+                    tornado_client_params['proxy_host'] = proxy_settings['host']
+                    tornado_client_params['proxy_port'] = proxy_settings['port']
+                    tornado_client_params['proxy_username'] = proxy_settings['user']
+                    tornado_client_params['proxy_password'] = proxy_settings['password']
+
+                    if self._application._agentConfig.get('proxy_forbid_method_switch'):
+                        # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
+                        tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
+                
+            if (not self._application.use_simple_http_client or force_use_curl) and pycurl is not None:
+                ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
+                tornado_client_params['ca_certs'] = ssl_certificate
+
+            req = tornado.httpclient.HTTPRequest(**tornado_client_params)
+            use_curl = force_use_curl or self._application._agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
+            
+            if use_curl:
+                if pycurl is None:
+                    log.error("dd-agent is configured to use the Curl HTTP Client, but pycurl is not available on this system.")
+                else:
+                    log.debug("Using CurlAsyncHTTPClient")
+                    tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+            else:
+                log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
-
-            # The success of this metric transaction should only depend on
-            # whether or not it's successfully sent to datadoghq. If it fails
-            # getting sent to pup, it's not a big deal.
-            callback = lambda(x): None
-            if len(self._endpoints) <= 1 or endpoint == 'dd_url':
-                callback = self.on_response
-
-            http.fetch(req, callback=callback)
+            http.fetch(req, callback=self.on_response)
 
     def on_response(self, response):
         if response.error:
-            logging.error("Response: %s" % response.error)
+            log.error("Response: %s" % response)
             self._trManager.tr_error(self)
         else:
             self._trManager.tr_success(self)
@@ -206,8 +262,6 @@ class APIMetricTransaction(MetricTransaction):
         config = self._application._agentConfig
         api_key = config['api_key']
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
-        if endpoint == 'pup_url':
-            url = config[endpoint] + '/api/v1/series'
         return url
 
     def get_data(self):
@@ -267,7 +321,7 @@ class ApiInputHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig, watchdog=True):
+    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False, use_simple_http_client=False):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
@@ -278,9 +332,29 @@ class Application(tornado.web.Application):
         MetricTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
+        self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
+        self.use_simple_http_client = use_simple_http_client
+        if self.skip_ssl_validation:
+            log.info("Skipping SSL hostname validation, useful when using a transparent proxy")
+
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
-            self._watchdog = Watchdog(watchdog_timeout)
+            self._watchdog = Watchdog(watchdog_timeout,
+                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+
+    def log_request(self, handler):
+        """ Override the tornado logging method.
+        If everything goes well, log level is DEBUG.
+        Otherwise it's WARNING or ERROR depending on the response code. """
+        if handler.get_status() < 400:
+            log_method = log.debug
+        elif handler.get_status() < 500:
+            log_method = log.warning
+        else:
+            log_method = log.error
+        request_time = 1000.0 * handler.request.request_time()
+        log_method("%d %s %.2fms", handler.get_status(),
+                   handler._request_summary(), request_time)
 
     def appendMetric(self, prefix, name, host, device, ts, value):
 
@@ -299,13 +373,13 @@ class Application(tornado.web.Application):
 
         if len(self._metrics) > 0:
             self._metrics['uuid'] = get_uuid()
-            self._metrics['internalHostname'] = gethostname(self._agentConfig)
+            self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
-            MetricTransaction(self._metrics, {})
+            MetricTransaction(json.dumps(self._metrics),
+                headers={'Content-Type': 'application/json'})
             self._metrics = {}
 
     def run(self):
-
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
@@ -316,22 +390,44 @@ class Application(tornado.web.Application):
             cookie_secret="12oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             xsrf_cookies=False,
             debug=False,
+            log_function=self.log_request
         )
 
         non_local_traffic = self._agentConfig.get("non_local_traffic", False)
 
         tornado.web.Application.__init__(self, handlers, **settings)
         http_server = tornado.httpserver.HTTPServer(self)
-        # non_local_traffic must be == True to match, not just some non-false value
-        if non_local_traffic is True:
-            http_server.listen(self._port)
-        else:
-            # localhost in lieu of 127.0.0.1 to support IPv6
-            http_server.listen(self._port, address = "localhost")
-        logging.info("Listening on port %d" % self._port)
+
+        try:
+            # non_local_traffic must be == True to match, not just some non-false value
+            if non_local_traffic is True:
+                http_server.listen(self._port)
+            else:
+                # localhost in lieu of 127.0.0.1 to support IPv6
+                try:
+                    http_server.listen(self._port, address = self._agentConfig['bind_host'])
+                except gaierror:
+                    log.warning("localhost seems undefined in your host file, using 127.0.0.1 instead")
+                    http_server.listen(self._port, address = "127.0.0.1")
+                except socket_error, e:
+                    if "Errno 99" in str(e):
+                        log.warning("IPv6 doesn't seem to be fully supported. Falling back to IPv4")
+                        http_server.listen(self._port, address = "127.0.0.1")
+                    else:
+                        raise
+        except socket_error, e:
+            log.exception("Socket error %s. Is another application listening on the same port ? Exiting", e)
+            sys.exit(1)
+        except Exception, e:
+            log.exception("Uncaught exception. Forwarder is exiting.")
+            sys.exit(1)
+
+        log.info("Listening on port %d" % self._port)
 
         # Register callbacks
-        self.mloop = tornado.ioloop.IOLoop.instance()
+        self.mloop = get_tornado_ioloop()
+
+        logging.getLogger().setLevel(get_logging_config()['log_level'] or logging.INFO)
 
         def flush_trs():
             if self._watchdog:
@@ -345,13 +441,13 @@ class Application(tornado.web.Application):
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
         if gport is not None:
-            logging.info("Starting graphite listener on port %s" % gport)
+            log.info("Starting graphite listener on port %s" % gport)
             from graphite import GraphiteServer
-            gs = GraphiteServer(self, gethostname(self._agentConfig), io_loop=self.mloop)
+            gs = GraphiteServer(self, get_hostname(self._agentConfig), io_loop=self.mloop)
             if non_local_traffic is True:
                 gs.listen(gport)
             else:
-                gs.listen(port, address = "localhost")
+                gs.listen(gport, address = "localhost")
 
         # Start everything
         if self._watchdog:
@@ -359,12 +455,12 @@ class Application(tornado.web.Application):
         tr_sched.start()
 
         self.mloop.start()
-        logging.info("Stopped")
+        log.info("Stopped")
 
     def stop(self):
         self.mloop.stop()
 
-def init():
+def init(skip_ssl_validation=False, use_simple_http_client=False):
     agentConfig = get_config(parse_args = False)
 
     port = agentConfig.get('listen_port', 17123)
@@ -373,38 +469,46 @@ def init():
     else:
         port = int(port)
 
-    app = Application(port, agentConfig)
+    app = Application(port, agentConfig, skip_ssl_validation=skip_ssl_validation, use_simple_http_client=use_simple_http_client)
 
     def sigterm_handler(signum, frame):
-        logging.info("caught sigterm. stopping")
+        log.info("caught sigterm. stopping")
         app.stop()
 
     import signal
     signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
 
     return app
 
 def main():
-    define("pycurl", default=1, help="Use pycurl")
+    define("sslcheck", default=1, help="Verify SSL hostname, on by default")
+    define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()
+    skip_ssl_validation = False
+    use_simple_http_client = False
 
-    if options.pycurl == 0 or options.pycurl == "0":
-        os.environ['USE_SIMPLE_HTTPCLIENT'] = '1'
+    if unicode(options.sslcheck) == u"0":
+        skip_ssl_validation = True
+
+    if unicode(options.use_simple_http_client) == u"1":
+        use_simple_http_client = True
 
     # If we don't have any arguments, run the server.
     if not args:
         import tornado.httpclient
-        app = init()
+        app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
         finally:
             ForwarderStatus.remove_latest_status()
-            
+
     else:
         usage = "%s [help|info]. Run with no commands to start the server" % (
                                         sys.argv[0])
         command = args[0]
         if command == 'info':
+            logging.getLogger().setLevel(logging.ERROR)
             return ForwarderStatus.print_latest_status()
         elif command == 'help':
             print usage

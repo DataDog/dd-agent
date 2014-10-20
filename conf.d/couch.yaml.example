@@ -1,0 +1,6 @@
+init_config:
+
+#instances:
+#    - server: http://localhost:5984
+#      user: username         # optional
+#      password: password     # optional

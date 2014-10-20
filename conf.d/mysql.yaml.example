@@ -1,0 +1,15 @@
+init_config:
+
+instances:
+#  - server: localhost
+#    user: my_username
+#    pass: my_password
+#    port: 3306             # Optional
+#    sock: /path/to/sock    # Connect via Unix Socket
+#    defaults_file: my.cnf  # Alternate configuration mechanism
+#    tags:                  # Optional
+#        - optional_tag1
+#        - optional_tag2
+#    options:               # Optional
+#        replication: 0
+#        galera_cluster: 1

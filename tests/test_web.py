@@ -1,8 +1,10 @@
 import unittest
 import logging
+import os
+from nose.plugins.attrib import attr
 logger = logging.getLogger(__file__)
 
-from tests.common import get_check
+from tests.common import get_check, read_data_from_file
 
 class TestWeb(unittest.TestCase):
 
@@ -11,7 +13,7 @@ class TestWeb(unittest.TestCase):
 init_config:
 
 instances:
-    -   apache_status_url: http://localhost:9444/server-status?auto
+    -   apache_status_url: http://localhost:9444/server-status
         tags:
             - instance:first
     -   apache_status_url: http://localhost:9444/server-status?auto
@@ -35,6 +37,19 @@ instances:
             - second
 """
 
+        self.lighttpd_config = """
+init_config:
+
+instances:
+    -   lighttpd_status_url: http://localhost:9449/server-status
+        tags:
+            - instance:first
+    -   lighttpd_status_url: http://localhost:9449/server-status?auto
+        tags:
+            - instance:second
+"""
+
+    @attr(requires='apache')
     def testApache(self):
         a, instances = get_check('apache', self.apache_config)
 
@@ -46,15 +61,13 @@ instances:
         metrics = a.get_metrics()
         self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
 
+        service_checks = a.get_service_checks()
+        can_connect = [sc for sc in service_checks if sc['check'] == 'apache.can_connect']
+        for i in range(len(can_connect)):
+            self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:9444']), service_checks)
 
-    def testApacheOldConfig(self):
-        a, _ = get_check('apache', self.apache_config)
-        config = {
-            'apache_status_url': 'http://example.com/server-status?auto'
-        }
-        instances = a.parse_agent_config(config)['instances']
-        assert instances[0]['apache_status_url'] == config['apache_status_url']
 
+    @attr(requires='nginx')
     def testNginx(self):
         nginx, instances = get_check('nginx', self.nginx_config)
         nginx.check(instances[0])
@@ -64,18 +77,37 @@ instances:
         nginx.check(instances[1])
         r = nginx.get_metrics()
         self.assertEquals(r[0][3].get('tags'), ['first_one'])
+        service_checks = nginx.get_service_checks()
+        can_connect = [sc for sc in service_checks if sc['check'] == 'nginx.can_connect']
+        for i in range(len(can_connect)):
+            self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:44441']), service_checks)
 
-    def testNginxOldConfig(self):
-        nginx, _ = get_check('nginx', self.nginx_config)
-        config = {
-            'nginx_status_url_1': 'http://www.example.com/nginx_status:first_tag',
-            'nginx_status_url_2': 'http://www.example2.com/nginx_status:8080:second_tag',
-            'nginx_status_url_3': 'http://www.example3.com/nginx_status:third_tag'
-        }
-        instances = nginx.parse_agent_config(config)['instances']
-        self.assertEquals(len(instances), 3)
-        for i, instance in enumerate(instances):
-            assert ':'.join(config.values()[i].split(':')[:-1]) == instance['nginx_status_url']
+    @attr(requires='nginx')
+    def testNginxPlus(self):
+        test_data = read_data_from_file('nginx_plus_in.json')
+        expected = eval(read_data_from_file('nginx_plus_out.python'))
+        nginx, instances = get_check('nginx', self.nginx_config)
+        parsed = nginx.parse_json(test_data)
+        parsed.sort()
+        self.assertEquals(parsed, expected)
+
+    @attr(requires='lighttpd')
+    def testLighttpd(self):
+        l, instances = get_check('lighttpd', self.lighttpd_config)
+
+        l.check(instances[0])
+        metrics = l.get_metrics()
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:first'])
+
+        l.check(instances[1])
+        metrics = l.get_metrics()
+        self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
+        service_checks = l.get_service_checks()
+        service_checks = l.get_service_checks()
+        can_connect = [sc for sc in service_checks if sc['check'] == 'lighttpd.can_connect']
+        for i in range(len(can_connect)):
+            self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:9449']), service_checks)
+
 
 if __name__ == '__main__':
     unittest.main()

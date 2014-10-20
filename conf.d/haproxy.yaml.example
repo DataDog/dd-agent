@@ -4,3 +4,7 @@ instances:
 #    -   username: username
 #        password: password
 #        url: https://path/to/haproxy
+#        status_check: False
+#        collect_aggregates_only: True
+#        collect_status_metrics: False # set to True to collect status metrics (haproxy.count_per_status)
+#        collect_status_metrics_by_host: False # aggregate status metrics per host instead of per service (if collect_status_metrics is true)

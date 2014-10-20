@@ -1,17 +1,7 @@
 # Building for Windows
 
-*Run in the root `dd-agent` directory*
+In `cmd.exe` or Powershell, from the dd-agent repo's root run:
 
-1. Build the executables for Windows. In the root agent directory run:
-```python
-python setup.py py2exe
-```
+`powershell -File .\packaging\datadog-agent\win32\build.ps1`
 
-2. Copy the files to the right place.
-```bash
-mv dist/*.exe packaging/datadog-agent/win32/install_files
-```
-
-3. Build the UI installer in the `nsis` folder. (See `nsis/README.md`)
-
-4. Build the CLI installer in the `wix` folder. (See `wix/README.md`)
+This will generate a `.msi` file in the `build/` folder.

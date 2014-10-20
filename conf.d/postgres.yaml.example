@@ -5,6 +5,18 @@ instances:
 #       port: 5432
 #       username: my_username
 #       password: my_password
+#       dbname: db_name
 #       tags:
 #            - optional_tag1
 #            - optional_tag2
+
+#  Custom-metrics section
+
+#  You can now track per-relation (table) metrics
+#  You need to specify the list. Each relation
+#  generates a lot of metrics (10 + 10 per index)
+#  so you want to only use the ones you really care about
+
+#       relations:
+#            - my_table
+#            - my_other_table

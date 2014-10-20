@@ -80,6 +80,13 @@ ul {
     font-style: normal;
 }
 
+@font-face {
+	font-family: 'Open Sans';
+	src: local("Open Sans"), url("./OpenSans-Bold-webfont.ttf") format("truetype");;
+	font-weight: bold;
+    font-style: normal;
+}
+
 /* layout */
 html {
 	height: 100%;
@@ -115,9 +122,8 @@ html {
 
 #content {
 	height: 100%;
-	padding: 0 0 0 190px;	
+	padding: 0 0 0 190px;
 }
-
 
 /* content area */
 #waiting {
@@ -322,6 +328,10 @@ pre {
 	margin-top: 20px;
 	text-align: center;
 	color: #aaa;
+}
+
+#agent-status {
+	text-align: center;
 }
 
 #port {
@@ -583,4 +593,64 @@ pre {
 .progress {
 	fill: #6f56a2;
 	z-index: -1;
+}
+
+/* Status page */
+
+#status {
+	width: 600px;
+	margin: 50px auto 0 auto;
+}
+
+#status h1, #status h2, #status h3 {
+	color: #6f56a2;
+}
+
+#status h4 {
+	font-weight: bold;
+}
+
+#status ul {
+	margin-bottom: 10px;
+}
+
+#status ul ul {
+	margin-left: 30px;
+}
+#status ul ul li {
+	list-style-type: square;
+}
+
+#status dt::after {
+	content: ':';
+}
+
+#status dt {
+	float: left;
+	width: 180px;
+	font-weight: bold;
+}
+
+#status ul dl {
+	margin: 0px;
+}
+
+#status ul dt {
+	width: 145px;
+	font-weight: normal;
+}
+
+#status .status-ok {
+	color: green;
+	font-weight: bold;
+}
+
+#status .status-warning {
+	color: orange;
+	font-weight: bold;
+}
+
+#status .status-error {
+	color: red;
+	font-weight: bold;
 }

@@ -1,14 +1,65 @@
-import urllib, urllib2
-import httplib
+# stdlib
+from hashlib import md5
+import logging
+import re
+import sys
 import zlib
 
-from pprint import pformat as pp
-from util import json, md5
+# 3rd party
+import requests
+import simplejson as json
 
+# urllib3 logs a bunch of stuff at the info level
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.WARN)
+requests_log.propagate = True
 
-def format_body(message):
-    payload = json.dumps(message)
-    return zlib.compress(payload)
+# From http://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
+control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
+control_char_re = re.compile('[%s]' % re.escape(control_chars))
+
+def remove_control_chars(s):
+    return control_char_re.sub('', s)
+
+def http_emitter(message, log, agentConfig):
+    "Send payload"
+    url = agentConfig['dd_url']
+
+    log.debug('http_emitter: attempting postback to ' + url)
+
+    # Post back the data
+    try:
+        payload = json.dumps(message)
+    except UnicodeDecodeError:
+        message = remove_control_chars(message)
+        payload = json.dumps(message)
+
+    zipped = zlib.compress(payload)
+
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f" % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
+
+    apiKey = message.get('apiKey', None)
+    if not apiKey:
+        raise Exception("The http emitter requires an api key")
+
+    url = "{0}/intake?api_key={1}".format(url, apiKey)
+
+    try:
+        r = requests.post(url, data=zipped, timeout=10,
+            headers=post_headers(agentConfig, zipped))
+
+        r.raise_for_status()
+
+        if r.status_code >= 200 and r.status_code < 205:
+            log.debug("Payload accepted")
+
+    except Exception:
+        log.exception("Unable to post payload.")
+        try:
+            log.error("Received status code: {0}".format(r.status_code))
+        except Exception:
+            pass
+
 
 def post_headers(agentConfig, payload):
     return {
@@ -18,33 +69,4 @@ def post_headers(agentConfig, payload):
         'Accept': 'text/html, */*',
         'Content-MD5': md5(payload).hexdigest()
     }
-
-def http_emitter(message, logger, agentConfig):
-    logger.debug('http_emitter: start')
-
-    # Post back the data
-    postBackData = format_body(message)
-
-    logger.debug('http_emitter: attempting postback to ' + agentConfig['dd_url'])
-
-    # Build the request handler
-    apiKey = message.get('apiKey', None)
-    if not apiKey:
-        raise Exception("The http emitter requires an api key")
-
-    url = "%s/intake?api_key=%s" % (agentConfig['dd_url'], apiKey)
-    headers = post_headers(agentConfig, postBackData)
-
-    try:
-        request = urllib2.Request(url, postBackData, headers)
-        # Do the request, log any errors
-        response = urllib2.urlopen(request)
-        try:
-            logger.debug('http_emitter: postback response: ' + str(response.read()))
-        finally:
-            response.close()
-    except urllib2.HTTPError, e:
-        if e.code == 202:
-            logger.debug("http payload accepted")
-        else:
-            raise
+    

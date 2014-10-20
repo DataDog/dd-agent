@@ -1,5 +1,4 @@
-from checks.utils import TailFile
-import modules
+# stdlib
 import os
 import sys
 import traceback
@@ -8,7 +7,11 @@ import time
 from datetime import datetime
 from itertools import groupby # >= python 2.4
 
+# project
+import modules
 from checks import LaconicFilter
+from checks.utils import TailFile
+from util import windows_friendly_colon_split
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -46,7 +49,7 @@ class Dogstreams(object):
             for config_item in dogstreams_config.split(','):
                 try:
                     config_item = config_item.strip()
-                    parts = config_item.split(':')
+                    parts = windows_friendly_colon_split(config_item)
                     if len(parts) == 1:
                         dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
                     elif len(parts) == 2:
@@ -58,14 +61,8 @@ class Dogstreams(object):
                             parser_spec=':'.join(parts[1:3]),
                             parser_args=parts[3:],
                             config=config))
-                    elif len(parts) > 3:
-                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                except:
+                except Exception:
                     logger.exception("Cannot build dogstream")
-
-        perfdata_parsers = NagiosPerfData.init(logger, config)
-        if perfdata_parsers:
-            dogstreams.extend(perfdata_parsers)
 
         logger.info("Dogstream parsers: %s" % repr(dogstreams))
 
@@ -91,7 +88,7 @@ class Dogstreams(object):
                         output[k].extend(result[k])
                     else:
                         output[k] = result[k]
-            except:
+            except Exception:
                 self.logger.exception("Error in parsing %s" % (dogstream.log_path))
         return output
 
@@ -105,7 +102,7 @@ class Dogstream(object):
 
         if parser_spec:
             try:
-                parse_func = modules.load(parser_spec, 'parser')
+                parse_func = modules.load(parser_spec)
                 if isinstance(parse_func, type):
                     logger.info('Instantiating class-based dogstream')
                     parse_func = parse_func(
@@ -118,7 +115,7 @@ class Dogstream(object):
                     class_based = True
                 else:
                     logger.info('Instantiating function-based dogstream')
-            except:
+            except Exception:
                 logger.exception(traceback.format_exc())
                 logger.error('Could not load Dogstream line parser "%s" PYTHONPATH=%s' % (
                     parser_spec,
@@ -227,7 +224,7 @@ class Dogstream(object):
                     # Otherwise, assume it's a metric
                     try:
                         metric, ts, value, attrs = datum
-                    except:
+                    except Exception:
                         continue
 
                     # Validation
@@ -292,7 +289,7 @@ class Dogstream(object):
                     v = float(v)
                     vals.append(v)
                     attributes.update(a)
-                except:
+                except Exception:
                     self.logger.debug("Could not convert %s into a float", v)
 
             if len(vals) == 1:
@@ -314,195 +311,6 @@ class Dogstream(object):
             return {"dogstream": output}
         else:
             return {}
-
-class InvalidDataTemplate(Exception): pass
-
-class NagiosPerfData(object):
-    perfdata_field = '' # Should be overriden by subclasses
-    metric_prefix = 'nagios'
-    pair_pattern = re.compile(r"".join([
-            r"'?(?P<label>[^=']+)'?=",
-            r"(?P<value>[-0-9.]+)",
-            r"(?P<unit>s|us|ms|%|B|KB|MB|GB|TB|c)?",
-            r"(;(?P<warn>@?[-0-9.~]*:?[-0-9.~]*))?",
-            r"(;(?P<crit>@?[-0-9.~]*:?[-0-9.~]*))?",
-            r"(;(?P<min>[-0-9.]*))?",
-            r"(;(?P<max>[-0-9.]*))?",
-        ]))
-
-    @classmethod
-    def init(cls, logger, config):
-        nagios_perf_config = config.get('nagios_perf_cfg', None)
-        parsers = []
-        if nagios_perf_config:
-            nagios_config = cls.parse_nagios_config(nagios_perf_config)
-
-            host_parser = NagiosHostPerfData.init(logger, nagios_config)
-            if host_parser:
-                parsers.append(host_parser)
-
-            service_parser = NagiosServicePerfData.init(logger, nagios_config)
-            if service_parser:
-                parsers.append(service_parser)
-
-        return parsers
-
-    @staticmethod
-    def template_regex(file_template):
-        try:
-            # Escape characters that will be interpreted as regex bits
-            # e.g. [ and ] in "[SERVICEPERFDATA]"
-            regex = re.sub(r'[[\]*]', r'.', file_template)
-            regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
-            return re.compile(regex)
-        except Exception, e:
-            raise InvalidDataTemplate("%s (%s)"% (file_template, e))
-
-
-    @staticmethod
-    def underscorize(s):
-        return s.replace(' ', '_').lower()
-
-    @classmethod
-    def parse_nagios_config(cls, filename):
-        output = {}
-        keys = [
-            'host_perfdata_file_template',
-            'service_perfdata_file_template',
-            'host_perfdata_file',
-            'service_perfdata_file',
-        ]
-
-        f = None
-        try:
-            try:
-                f = open(filename)
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    for key in keys:
-                        if line.startswith(key + '='):
-                            eq_pos = line.find('=')
-                            if eq_pos:
-                                output[key] = line[eq_pos + 1:]
-                                break
-                return output
-            except:
-                # Can't parse, assume it's just not working
-                # Don't return an incomplete config
-                return {}
-        finally:
-            if f is not None:
-                f.close()
-
-    def __init__(self, logger, line_pattern, datafile):
-        if isinstance(line_pattern, (str, unicode)):
-            self.line_pattern = re.compile(line_pattern)
-        else:
-            self.line_pattern = line_pattern
-
-        self._dogstream = Dogstream(logger, datafile, self._parse_line)
-
-    def _get_metric_prefix(self, data):
-        # Should be overridded by subclasses
-        return [self.metric_prefix]
-
-    def _parse_line(self, logger, line):
-        matched = self.line_pattern.match(line)
-        output = []
-        if matched:
-            data = matched.groupdict()
-            metric_prefix = self._get_metric_prefix(data)
-
-            # Parse the prefdata values, which are a space-delimited list of:
-            #   'label'=value[UOM];[warn];[crit];[min];[max]
-            perf_data = data.get(self.perfdata_field, '').split(' ')
-            for pair in perf_data:
-                pair_match = self.pair_pattern.match(pair)
-                if not pair_match:
-                    continue
-                else:
-                    pair_data = pair_match.groupdict()
-
-                label = pair_data['label']
-                timestamp = data.get('TIMET', '')
-                value = pair_data['value']
-                attributes = {'metric_type': 'gauge'}
-
-                if '/' in label:
-                    # Special case: if the label begins
-                    # with a /, treat the label as the device
-                    # and use the metric prefix as the metric name
-                    metric = '.'.join(metric_prefix)
-                    attributes['device_name'] = label
-
-                else:
-                    # Otherwise, append the label to the metric prefix
-                    # and use that as the metric name
-                    metric = '.'.join(metric_prefix + [label])
-
-                host_name = data.get('HOSTNAME', None)
-                if host_name:
-                    attributes['host_name'] = host_name
-
-                optional_keys = ['unit', 'warn', 'crit', 'min', 'max']
-                for key in optional_keys:
-                    attr_val = pair_data.get(key, None)
-                    if attr_val is not None and attr_val != '':
-                        attributes[key] = attr_val
-
-                output.append((
-                    metric,
-                    timestamp,
-                    value,
-                    attributes
-                ))
-        return output
-
-    def check(self, agentConfig, move_end=True):
-        return self._dogstream.check(agentConfig, move_end)
-
-
-class NagiosHostPerfData(NagiosPerfData):
-    perfdata_field = 'HOSTPERFDATA'
-
-    @classmethod
-    def init(cls, logger, nagios_config):
-        host_perfdata_file_template = nagios_config.get('host_perfdata_file_template', None)
-        host_perfdata_file = nagios_config.get('host_perfdata_file', None)
-
-        if host_perfdata_file_template and host_perfdata_file:
-            host_pattern = cls.template_regex(host_perfdata_file_template)
-            return cls(logger, host_pattern, host_perfdata_file)
-        else:
-            return None
-
-    def _get_metric_prefix(self, line_data):
-        return [self.metric_prefix, 'host']
-
-
-class NagiosServicePerfData(NagiosPerfData):
-    perfdata_field = 'SERVICEPERFDATA'
-
-    @classmethod
-    def init(cls, logger, nagios_config):
-        service_perfdata_file_template = nagios_config.get('service_perfdata_file_template', None)
-        service_perfdata_file = nagios_config.get('service_perfdata_file', None)
-
-        if service_perfdata_file_template and service_perfdata_file:
-            service_pattern = cls.template_regex(service_perfdata_file_template)
-            return cls(logger, service_pattern, service_perfdata_file)
-        else:
-            return None
-
-    def _get_metric_prefix(self, line_data):
-        metric = [self.metric_prefix]
-        middle_name = line_data.get('SERVICEDESC', None)
-        if middle_name:
-            metric.append(middle_name.replace(' ', '_').lower())
-        return metric
-
 
 # Allow a smooth uninstall of previous version
 class RollupLP: pass
@@ -567,24 +375,10 @@ class DdForwarder(object):
             return {}
 
 
-def testDogStream():
-    import logging
-
-    logger = logging.getLogger("datadog")
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler())
-    dogstream = Dogstream(logger)
-
-    while True:
-        events = dogstream.check({'api_key':'my_apikey', 'dogstream_log': sys.argv[1]}, move_end=True)
-        for e in events:
-            print "Event:", e
-        time.sleep(5)
-
 def testddForwarder():
     import logging
 
-    logger = logging.getLogger("datadog")
+    logger = logging.getLogger("ddagent.checks.datadog")
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 

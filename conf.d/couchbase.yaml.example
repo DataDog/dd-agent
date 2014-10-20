@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+#     - server: http://localhost:8091
+#       user: Administrator
+#       password: password
+#       timeout: 10 # Optional timeout to http connections to the API (Only supported on python2.6 and above)
+#       tags:
+#            - optional_tag1
+#            - optional_tag2

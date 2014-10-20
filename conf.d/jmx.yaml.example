@@ -1,23 +1,33 @@
 init_config:
 
 instances:
-#    -   host: localhost
-#        port: 7199
-#        name: jmx_instance
-#        user: username
-#        password: password
-#        conf:
-#            - white: 
-#                domain: my_domain
+#    - host: localhost
+#      port: 7199
+#      name: jmx_instance
+#      user: username
+#      password: password
+#      #java_bin_path: /path/to/java #Optional, should be set if the agent cannot find your java executable
+#      #trust_store_path: /path/to/trustStore.jks # Optional, should be set if ssl is enabled
+#      #trust_store_password: password
+#      tags:
+#             env: stage
+#             newTag: test
+
+#
+#        # List of metrics to be collected by the integration
+#        # Read http://docs.datadoghq.com/integrations/java/ to learn how to customize it
+#      conf:
+#            - include: 
+#               domain: my_domain
 #               bean: my_bean
-#                attribute:
+#               attribute:
 #                    attribute1:
 #                        metric_type: counter
 #                        alias: jmx.my_metric_name
 #                    attribute2:
 #                        metric_type: gauge
 #                        alias: jmx.my2ndattribute
-#            - white:
+#            - include:
 #                domain: 2nd_domain
-#              black:
-#                bean: black_listed_bean
+#            - exclude:
+#                bean: excluded_bean

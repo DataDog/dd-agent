@@ -42,7 +42,7 @@ class TestLaconic(unittest.TestCase):
         for i in range(10):
             try:
                 raise Exception("Ka-boom")
-            except:
+            except Exception:
                 self.l.exception("Caught!")
 
         self.assertEquals(self.sio.getvalue().count("Ka-boom"), 2) # once for the traceback, once for the message

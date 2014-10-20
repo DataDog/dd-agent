@@ -1,0 +1,41 @@
+# Warning
+# The user running the Datadog Agent (usually "dd-agent") must be part of the "docker" group
+
+init_config:
+    # Change the root directory to look at to get cgroup statistics. Useful when running inside a
+    # container with host directories mounted on a different folder. Default: /.
+    #
+    # docker_root: /host
+
+instances:
+    - url: "unix://var/run/docker.sock"
+
+    # You can add extra tags to your Docker metrics with the tags list option. Default: [].
+    #
+    # tags: [extra_tag1, extra_tag2]
+
+    # To include or exclude containers based on their tags, use the include and
+    # exclude keys in your instance.
+    # The reasoning is: if a tag matches an exclude rule, it won't be included
+    # unless it also matches an include rule.
+    #
+    # Examples:
+    # exclude all, except ubuntu and debian.
+    #
+    # include:
+    #   - "image:ubuntu"
+    #   - "image:debian"
+    # exclude:
+    #   - ".*"
+    #
+    # include all, except ubuntu and debian.
+    #
+    # include: []
+    # exclude:
+    #   - "image:ubuntu"
+    #   - "image:debian"
+
+    # If you want to include sub-cgroups metrics, turn the collect_total option on.
+    # It is useless for a normal usage, as total_ metrics will be the same as normal ones. Default: false.
+    #
+    # collect_total: true

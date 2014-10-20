@@ -1,6 +1,0 @@
-# start
-chown -R dd-agent /etc/dd-agent/
-chkconfig --add datadog-agent
-
-/etc/init.d/datadog-agent restart
-exit 0

@@ -1,5 +1,3 @@
-
-
 # stdlib
 import sys
 import time
@@ -7,18 +5,14 @@ from datetime import datetime, timedelta
 import logging
 from operator import attrgetter
 
-# vendor
-import tornado.ioloop
-
 # project
 from checks.check_status import ForwarderStatus
+from util import get_tornado_ioloop, plural
 
-def plural(count):
-    if count > 1:
-        return "s"
-    return ""
+log = logging.getLogger(__name__)
 
-class ImplementationError(Exception): pass
+FLUSH_LOGGING_PERIOD = 20
+FLUSH_LOGGING_INITIAL = 5
 
 class Transaction(object):
 
@@ -65,14 +59,13 @@ class Transaction(object):
         return self._next_flush < now
 
     def flush(self):
-        raise ImplementationError("To be implemented in a subclass")
+        raise NotImplementedError("To be implemented in a subclass")
 
 class TransactionManager(object):
     """Holds any transaction derived object list and make sure they
        are all commited, without exceeding parameters (throttling, memory consumption) """
 
     def __init__(self, max_wait_for_replay, max_queue_size, throttling_delay):
-
         self._MAX_WAIT_FOR_REPLAY = max_wait_for_replay
         self._MAX_QUEUE_SIZE = max_queue_size
         self._THROTTLING_DELAY = throttling_delay
@@ -83,6 +76,8 @@ class TransactionManager(object):
         self._total_count = 0 # Maintain size/count not to recompute it everytime
         self._total_size = 0 
         self._flush_count = 0
+        self._transactions_received = 0
+        self._transactions_flushed = 0
 
         # Global counter to assign a number to each transaction: we may have an issue
         #  if this overlaps
@@ -98,7 +93,7 @@ class TransactionManager(object):
         return self._transactions
 
     def print_queue_stats(self):
-        logging.info("Queue size: at %s, %s transaction(s), %s KB" % 
+        log.debug("Queue size: at %s, %s transaction(s), %s KB" % 
             (time.time(), self._total_count, (self._total_size/1024)))
 
     def get_tr_id(self):
@@ -113,31 +108,32 @@ class TransactionManager(object):
         # Check the size
         tr_size = tr.get_size()
 
-        logging.info("New transaction to add, total size of queue would be: %s KB" % 
+        log.debug("New transaction to add, total size of queue would be: %s KB" % 
             ((self._total_size + tr_size)/ 1024))
 
         if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
-            logging.warn("Queue is too big, removing old messages...")
+            log.warn("Queue is too big, removing old transactions...")
             new_trs = sorted(self._transactions,key=attrgetter('_next_flush'), reverse = True)
             for tr2 in new_trs:
                 if (self._total_size + tr_size) > self._MAX_QUEUE_SIZE:
-                    logging.warn("Removing transaction %s from queue" % tr2.get_id())
                     self._transactions.remove(tr2)
                     self._total_count = self._total_count - 1
                     self._total_size = self._total_size - tr2.get_size()
+                    log.warn("Removed transaction %s from queue" % tr2.get_id())
 
         # Done
         self._transactions.append(tr)
-        self._total_count = self._total_count + 1
+        self._total_count +=  1
+        self._transactions_received += 1
         self._total_size = self._total_size + tr_size
 
-        logging.info("Transaction %s added" % (tr.get_id()))
+        log.debug("Transaction %s added" % (tr.get_id()))
         self.print_queue_stats()
 
     def flush(self):
 
         if self._trs_to_flush is not None:
-            logging.info("A flush is already in progress, not doing anything")
+            log.debug("A flush is already in progress, not doing anything")
             return
 
         to_flush = []
@@ -148,16 +144,32 @@ class TransactionManager(object):
                 to_flush.append(tr)
 
         count = len(to_flush)
+        should_log = self._flush_count +1 <= FLUSH_LOGGING_INITIAL or (self._flush_count + 1) % FLUSH_LOGGING_PERIOD == 0
         if count > 0:
-            logging.info("Flushing %s transaction%s" % (count,plural(count)))
+            if should_log:
+                log.info("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count + 1)))
+            else:
+                log.debug("Flushing %s transaction%s during flush #%s" % (count,plural(count), str(self._flush_count +1)))
+
             self._trs_to_flush = to_flush
             self.flush_next()
+        else:
+            if should_log:
+                log.info("No transaction to flush during flush #%s" % str(self._flush_count +1))
+            else:
+                log.debug("No transaction to flush during flush #%s" % str(self._flush_count +1))
+
+        if self._flush_count +1 == FLUSH_LOGGING_INITIAL:
+            log.info("First flushes done, next flushes will be logged every %s flushes." % FLUSH_LOGGING_PERIOD)
+
         self._flush_count += 1
 
         ForwarderStatus(
             queue_length=self._total_count,
             queue_size=self._total_size,
-            flush_count=self._flush_count).persist()
+            flush_count=self._flush_count,
+            transactions_received=self._transactions_received,
+            transactions_flushed=self._transactions_flushed).persist()
 
     def flush_next(self):
 
@@ -173,17 +185,18 @@ class TransactionManager(object):
             if delay <= 0:
                 tr = self._trs_to_flush.pop()
                 self._last_flush = datetime.now()
-                logging.debug("Flushing transaction %d" % tr.get_id())
+                log.debug("Flushing transaction %d" % tr.get_id())
                 try:
                     tr.flush()
                 except Exception,e :
-                    logging.exception(e)
+                    log.exception(e)
                     self.tr_error(tr)
                     self.flush_next()
             else:
                 # Wait a little bit more
-                if  tornado.ioloop.IOLoop.instance().running():
-                    tornado.ioloop.IOLoop.instance().add_timeout(time.time() + delay,
+                tornado_ioloop = get_tornado_ioloop()
+                if  tornado_ioloop._running:
+                    tornado_ioloop.add_timeout(time.time() + delay,
                         lambda: self.flush_next())
                 elif self._flush_without_ioloop:
                     # Tornado is no started (ie, unittests), do it manually: BLOCKING                    
@@ -195,15 +208,16 @@ class TransactionManager(object):
     def tr_error(self,tr):
         tr.inc_error_count()
         tr.compute_next_flush(self._MAX_WAIT_FOR_REPLAY)
-        logging.info("Transaction %d in error (%s error%s), it will be replayed after %s" %
+        log.warn("Transaction %d in error (%s error%s), it will be replayed after %s" %
           (tr.get_id(), tr.get_error_count(), plural(tr.get_error_count()), 
            tr.get_next_flush()))
 
     def tr_success(self,tr):
-        logging.info("Transaction %d completed" % tr.get_id())
+        log.debug("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
-        self._total_count = self._total_count - 1
-        self._total_size = self._total_size - tr.get_size()
+        self._total_count +=  -1
+        self._total_size += - tr.get_size()
+        self._transactions_flushed += 1
         self.print_queue_stats()
 
 

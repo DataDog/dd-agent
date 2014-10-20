@@ -1,0 +1,64 @@
+init_config:
+#    #You can specify an additional folder for your custom mib files (python format)
+#    mibs_folder: /path/to/your/mibs/folder
+
+instances:
+
+     # SNMP v1-v2 configuration
+
+#    -   ip_address: localhost
+#        port: 161
+#        community_string: public
+#        tags:
+#            - optional_tag_1
+#            - optional_tag_2
+#
+#        # Specify metrics you want to monitor
+#        metrics:
+#            # You can specify metrics using MIBS (Counter and Gauge)
+#            - MIB: UDP-MIB
+#              symbol: udpInDatagrams
+#            - MIB: TCP-MIB
+#              symbol: tcpActiveOpens
+#            # If it's just a scalar, you can specify by OID and name it
+#            - OID: 1.3.6.1.2.1.6.5
+#              name: tcpPassiveOpens
+#
+#            # You can also query a table and specify
+#            #   - which columns to report as value (symbols)
+#            #   - which columns / indexes to use as tags (metric_tags)
+#            - MIB: IF-MIB
+#              table: ifTable
+#              symbols:
+#                - ifInOctets
+#                - ifOutOctets
+#              metric_tags:
+#                - tag: interface
+#                  column: ifDescr  # specify which column to read the tag value from
+#            - MIB: IP-MIB
+#              table: ipSystemStatsTable
+#              symbols:
+#                 - ipSystemStatsInReceives
+#              metric_tags:
+#                 - tag: ipversion
+#                   index: 1        # specify which index you want to read the tag value from
+
+
+     # SNMP v3 configuration
+     # check http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+
+#    -   ip_address: 192.168.34.10
+#        port: 161 # default value
+#        user: user
+#        authKey: password
+#        privKey: private_key
+#        authProtocol: authProtocol
+#        privProtocol: privProtocol
+#        tags:
+#           - optional_tag_1
+#           - optional_tag_2
+#        metrics:
+#            - MIB: UDP-MIB
+#              symbol: udpInDatagrams
+#            - MIB: TCP-MIB
+#              symbol: tcpActiveOpens

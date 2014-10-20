@@ -136,7 +136,7 @@ def download_setuptools(
     src = dst = None
     if not os.path.exists(saveto):  # Avoid repeated downloads
         try:
-            from distutils import log
+            from distutils import log #pylint: disable=no-name-in-module
             if delay:
                 log.warn("""
 ---------------------------------------------------------------------------

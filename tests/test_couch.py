@@ -1,6 +1,27 @@
-stats = """
-{"httpd_status_codes":{"200":{"current":587221,"count":2957774,"mean":0.1985347764906905,"min":0,"max":107,"stddev":2.105283357647084,"description":"number of HTTP 200 OK responses"},"201":{"current":24557,"count":2957740,"mean":0.008302622948602238,"min":0,"max":13,"stddev":0.19809719882416502,"description":"number of HTTP 201 Created responses"},"202":{"current":1,"count":1082401,"mean":9.238720215521002e-7,"min":0,"max":1,"stddev":0.0009611821721258759,"description":"number of HTTP 202 Accepted responses"},"405":{"current":1,"count":1082413,"mean":9.238617791915053e-7,"min":0,"max":1,"stddev":0.0009611768441192013,"description":"number of HTTP 405 Method Not Allowed responses"}},"httpd_request_methods":{"DELETE":{"current":9,"count":1509747,"mean":0.000005961263708422488,"min":0,"max":3,"stddev":0.0031520475848839245,"description":"number of HTTP DELETE requests"},"GET":{"current":568860,"count":2957775,"mean":0.19232700256104207,"min":0,"max":107,"stddev":2.021857292244482,"description":"number of HTTP GET requests"},"POST":{"current":18354,"count":2957736,"mean":0.006205421984923646,"min":0,"max":11,"stddev":0.16370992702725218,"description":"number of HTTP POST requests"},"PUT":{"current":24557,"count":2957740,"mean":0.008302622948602253,"min":0,"max":13,"stddev":0.19798623109891136,"description":"number of HTTP PUT requests"}},"httpd":{"requests":{"current":611780,"count":2957774,"mean":0.20683798018375646,"min":0,"max":113,"stddev":2.214182010854238,"description":"number of HTTP requests"},"view_reads":{"current":447432,"count":2957773,"mean":0.15127327215442407,"min":0,"max":106,"stddev":1.9910172989772434,"description":"number of view reads"}},"couchdb":{"database_reads":{"current":868650,"count":2957774,"mean":0.29368369591457316,"min":0,"max":206,"stddev":3.8689287129415284,"description":"number of times a document was read from a database"},"database_writes":{"current":24566,"count":2957740,"mean":0.008305665812410323,"min":0,"max":13,"stddev":0.19800574076399718,"description":"number of times a database was changed"},"open_databases":{"current":1,"count":2957774,"mean":3.3809209222881197e-7,"min":0,"max":1,"stddev":0.000581456772187386,"description":"number of open databases"},"open_os_files":{"current":9,"count":2957774,"mean":0.0000030428288300591975,"min":-1,"max":2,"stddev":0.002096470352799536,"description":"number of file descriptors CouchDB has open"},"request_time":{"current":1,"count":611664,"mean":5.9299190405190805,"min":0,"max":13190,"stddev":27.56707568335666,"description":"length of a request inside CouchDB without MochiWeb"}}}
-"""
-dbstats = """
-{"db_name":"chef","doc_count":19627,"doc_del_count":22,"update_seq":92568,"purge_seq":0,"compact_running":false,"disk_size":350232678,"instance_start_time":"1297267462687142","disk_format_version":4}
-"""
+import unittest
+from tests.common import load_check
+from nose.plugins.attrib import attr
+
+@attr(requires='couchdb')
+class CouchDBTestCase(unittest.TestCase):
+
+    def testMetrics(self):
+
+        config = {
+            'instances': [{
+                'server': 'http://localhost:5984',
+            }]
+        }
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        self.check = load_check('couch', config, agentConfig)
+
+        self.check.check(config['instances'][0])
+
+        metrics = self.check.get_metrics()
+        self.assertTrue(type(metrics) == type([]), metrics)
+        self.assertTrue(len(metrics) > 3)
+        self.assertTrue(len([k for k in metrics if "instance:http://localhost:5984" in k[3]['tags']]) > 3)

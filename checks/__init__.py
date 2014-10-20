@@ -1,14 +1,7 @@
 """Base class for Checks.
 
-If you are writing your own checks you should subclass the Check class.
-
-The typicall workflow works like this:
-1. Create your Check class
-2. Declare your metrics as gauges or counters
-3. Call save_sample for each metric
-4. Call get_metrics() to get results
-5. Plug the results into checks/common.py
-
+If you are writing your own checks you should subclass the AgentCheck class.
+The Check class is being deprecated so don't write new checks with it.
 """
 
 import logging
@@ -17,9 +10,20 @@ import socket
 import time
 import types
 import os
+import sys
+import traceback
+import copy
+from pprint import pprint
+from collections import defaultdict
 
-from util import LaconicFilter
+from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
+from config import get_confd_path
 from checks import check_status
+
+# 3rd party
+import yaml
+
+log = logging.getLogger(__name__)
 
 # Konstants
 class CheckException(Exception): pass
@@ -33,7 +37,7 @@ class UnknownValue(CheckException): pass
 # DEPRECATED
 # ------------------------------
 # If you are writing your own check, you should inherit from AgentCheck
-# and not this class. This class will be removed in a future version 
+# and not this class. This class will be removed in a future version
 # of the agent.
 #==============================================================================
 class Check(object):
@@ -57,7 +61,7 @@ class Check(object):
         self.logger = logger
         try:
             self.logger.addFilter(LaconicFilter())
-        except:
+        except Exception:
             self.logger.exception("Trying to install laconic log filter and failed")
 
     def normalize(self, metric, prefix=None):
@@ -171,9 +175,9 @@ class Check(object):
 
             return (sample2[0], delta / interval, sample2[2], sample2[3])
         except Infinity:
-            raise 
+            raise
         except UnknownValue:
-            raise 
+            raise
         except Exception, e:
             raise NaN(e)
 
@@ -192,7 +196,7 @@ class Check(object):
 
         # Not enough value to compute rate
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) < 2:
-           raise UnknownValue()
+            raise UnknownValue()
 
         elif self.is_counter(metric) and len(self._sample_store[metric][key]) >= 2:
             res = self._rate(self._sample_store[metric][key][-2], self._sample_store[metric][key][-1])
@@ -218,7 +222,7 @@ class Check(object):
         for m in self._sample_store:
             try:
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)
-            except:
+            except Exception:
                 pass
         return values
 
@@ -229,7 +233,7 @@ class Check(object):
             try:
                 # Discard the timestamp
                 values[m] = self.get_sample_with_timestamp(m, expire=expire)[1]
-            except:
+            except Exception:
                 pass
         return values
 
@@ -257,11 +261,16 @@ class Check(object):
                     if device_name:
                         attributes['device_name'] = device_name
                     metrics.append((m, int(ts), val, attributes))
-            except:
+            except Exception:
                 pass
         return metrics
 
 class AgentCheck(object):
+    OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
+
+    SOURCE_TYPE_NAME = None
+
+    DEFAULT_MIN_COLLECTION_INTERVAL = 0
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         """
@@ -274,15 +283,22 @@ class AgentCheck(object):
         """
         from aggregator import MetricsAggregator
 
-
         self.name = name
-        self.init_config = init_config
+        self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.hostname = gethostname(agentConfig)
-        self.log = logging.getLogger('checks.%s' % name)
-        self.aggregator = MetricsAggregator(self.hostname, formatter=agent_formatter)
+        self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
+        self.log = logging.getLogger('%s.%s' % (__name__, name))
+
+        self.aggregator = MetricsAggregator(self.hostname, 
+            formatter=agent_formatter, 
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+
         self.events = []
+        self.service_checks = []
         self.instances = instances or []
+        self.warnings = []
+        self.library_versions = None
+        self.last_collection_time = defaultdict(int)
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -325,6 +341,34 @@ class AgentCheck(object):
         :param device_name: (optional) The device name for this metric
         """
         self.aggregator.decrement(metric, value, tags, hostname, device_name)
+
+    def count(self, metric, value=0, tags=None, hostname=None, device_name=None):
+        """
+        Submit a raw count with optional tags, hostname and device name
+
+        :param metric: The name of the metric
+        :param value: The value
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.submit_count(metric, value, tags, hostname, device_name)
+
+    def monotonic_count(self, metric, value=0, tags=None,
+                      hostname=None, device_name=None):
+        """
+        Submits a raw count with optional tags, hostname and device name
+        based on increasing counter values. E.g. 1, 3, 5, 7 will submit
+        6 on flush. Note that reset counters are skipped.
+
+        :param metric: The name of the metric
+        :param value: The value of the rate
+        :param tags: (optional) A list of tags for this metric
+        :param hostname: (optional) A hostname for this metric. Defaults to the current hostname.
+        :param device_name: (optional) The device name for this metric
+        """
+        self.aggregator.count_from_counter(metric, value, tags,
+                                           hostname, device_name)
 
     def rate(self, metric, value, tags=None, hostname=None, device_name=None):
         """
@@ -384,7 +428,30 @@ class AgentCheck(object):
                 "tags": (optional) list, a list of tags to associate with this event
             }
         """
+        if event.get('api_key') is None:
+            event['api_key'] = self.agentConfig['api_key']
         self.events.append(event)
+
+    def service_check(self, check_name, status, tags=None, timestamp=None,
+                      hostname=None, check_run_id=None, message=None):
+        """
+        Save a service check.
+
+        :param check_name: string, name of the service check
+        :param status: int, describing the status.
+                       0 for success, 1 for warning, 2 for failure
+        :param tags: (optional) list of strings, a list of tags for this run
+        :param timestamp: (optional) float, unix timestamp for when the run occurred
+        :param hostname: (optional) str, host that generated the service
+                          check. Defaults to the host_name of the agent
+        :param check_run_id: (optional) int, id used for logging and tracing
+                             purposes. Don't need to be unique. If not
+                             specified, one will be generated.
+        """
+        if hostname is None:
+            hostname = self.hostname
+        self.service_checks.append(create_service_check(check_name, status,
+            tags, timestamp, hostname, check_run_id, message))
 
     def has_events(self):
         """
@@ -415,16 +482,79 @@ class AgentCheck(object):
         self.events = []
         return events
 
+    def get_service_checks(self):
+        """
+        Return a list of the service checks saved by the check, if any
+        and clears them out of the instance's service_checks list
+
+        @return the list of service checks saved by this check
+        @rtype list of service check dicts
+        """
+        service_checks = self.service_checks
+        self.service_checks = []
+        return service_checks
+
+    def has_warnings(self):
+        """
+        Check whether the instance run created any warnings
+        """
+        return len(self.warnings) > 0
+
+    def warning(self, warning_message):
+        """ Add a warning message that will be printed in the info page
+        :param warning_message: String. Warning message to be displayed
+        """
+        self.warnings.append(warning_message)
+
+    def get_library_info(self):
+        if self.library_versions is not None:
+            return self.library_versions
+        try:
+            self.library_versions = self.get_library_versions()
+        except NotImplementedError:
+            pass
+
+    def get_library_versions(self):
+        """ Should return a string that shows which version
+        of the needed libraries are used """
+        raise NotImplementedError
+
+    def get_warnings(self):
+        """
+        Return the list of warnings messages to be displayed in the info page
+        """
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
+
     def run(self):
         """ Run all instances. """
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                self.check(instance)
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+                min_collection_interval = instance.get('min_collection_interval', 
+                    self.init_config.get('min_collection_interval', self.DEFAULT_MIN_COLLECTION_INTERVAL))
+                now = time.time()
+                if now - self.last_collection_time[i] < min_collection_interval:
+                    self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
+                    continue
+
+                self.last_collection_time[i] = now
+                self.check(copy.deepcopy(instance))
+                if self.has_warnings():
+                    instance_status = check_status.InstanceStatus(i,
+                        check_status.STATUS_WARNING,
+                        warnings=self.get_warnings()
+                    )
+                else:
+                    instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i, check_status.STATUS_ERROR, e)
+                instance_status = check_status.InstanceStatus(i,
+                    check_status.STATUS_ERROR,
+                    error=e,
+                    tb=traceback.format_exc()
+                )
             instance_statuses.append(instance_status)
         return instance_statuses
 
@@ -437,12 +567,17 @@ class AgentCheck(object):
         """
         raise NotImplementedError()
 
+    def stop(self):
+        """
+        To be executed when the agent is being stopped to clean ressources
+        """
+        pass
+
     @classmethod
     def from_yaml(cls, path_to_yaml=None, agentConfig=None, yaml_text=None, check_name=None):
         """
         A method used for testing your check without running the agent.
         """
-        from util import yaml, yLoader
         if path_to_yaml:
             check_name = os.path.basename(path_to_yaml).split('.')[0]
             try:
@@ -453,19 +588,30 @@ class AgentCheck(object):
             f.close()
 
         config = yaml.load(yaml_text, Loader=yLoader)
-        check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
-
+        try:
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {},
+                        config.get('instances'))
+        except TypeError:
+            # Compatibility for the check not supporting instances
+            check = cls(check_name, config.get('init_config') or {}, agentConfig or {})
         return check, config.get('instances', [])
 
-    def normalize(self, metric, prefix=None):
+    def normalize(self, metric, prefix=None, fix_case = False):
         """
         Turn a metric into a well-formed metric name
         prefix.b.c
 
         :param metric The metric name to normalize
         :param prefix A prefix to to add to the normalized name, default None
+        :param fix_case A boolean, indicating whether to make sure that
+                        the metric name returned is in underscore_case
         """
-        name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
+        if fix_case:
+            name = self.convert_to_underscore_separated(metric)
+            if prefix is not None:
+                prefix = self.convert_to_underscore_separated(prefix)
+        else:
+            name = re.sub(r"[,\+\*\-/()\[\]{}]", "_", metric)
         # Eliminate multiple _
         name = re.sub(r"__+", "_", name)
         # Don't start/end with _
@@ -480,16 +626,36 @@ class AgentCheck(object):
         else:
             return name
 
-def gethostname(agentConfig):
-    if agentConfig.get("hostname") is not None:
-        return agentConfig["hostname"]
-    else:
-        try:
-            return socket.getfqdn()
-        except socket.error, e:
-            logging.debug("processes: unable to get hostname: " + str(e))
+    FIRST_CAP_RE = re.compile('(.)([A-Z][a-z]+)')
+    ALL_CAP_RE = re.compile('([a-z0-9])([A-Z])')
+    METRIC_REPLACEMENT = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
+    DOT_UNDERSCORE_CLEANUP = re.compile(r'_*\._*')
 
-def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
+
+    def convert_to_underscore_separated(self, name):
+        """
+        Convert from CamelCase to camel_case
+        And substitute illegal metric characters
+        """
+        metric_name = self.FIRST_CAP_RE.sub(r'\1_\2', name)
+        metric_name = self.ALL_CAP_RE.sub(r'\1_\2', metric_name).lower()
+        metric_name = self.METRIC_REPLACEMENT.sub('_', metric_name)
+        return self.DOT_UNDERSCORE_CLEANUP.sub('.', metric_name).strip('_')
+
+    @staticmethod
+    def read_config(instance, key, message=None, cast=None):
+        val = instance.get(key)
+        if val is None:
+            message = message or 'Must provide `%s` value in instance config' % key
+            raise Exception(message)
+
+        if cast is None:
+            return val
+        else:
+            return cast(val)
+
+def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+                                                metric_type=None, interval=None):
     """ Formats metrics coming from the MetricsAggregator. Will look like:
      (metric, timestamp, value, {"tags": ["tag1", "tag2"], ...})
     """
@@ -500,6 +666,57 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None):
         attributes['hostname'] = hostname
     if device_name:
         attributes['device_name'] = device_name
+    if metric_type:
+        attributes['type'] = metric_type
+    if interval:
+        # For now, don't send the interval for agent metrics, since they don't
+        # come at very predictable intervals.
+        # attributes['interval'] = None
+        pass
     if attributes:
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)
+
+
+def run_check(name, path=None):
+    from tests.common import get_check
+
+    # Read the config file
+    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
+
+    try:
+        f = open(confd_path)
+    except IOError:
+        raise Exception('Unable to open configuration at %s' % confd_path)
+
+    config_str = f.read()
+    f.close()
+
+    # Run the check
+    check, instances = get_check(name, config_str)
+    if not instances:
+        raise Exception('YAML configuration returned no instances.')
+    for instance in instances:
+        check.check(instance)
+        if check.has_events():
+            print "Events:\n"
+            pprint(check.get_events(), indent=4)
+        print "Metrics:\n"
+        pprint(check.get_metrics(), indent=4)
+
+def create_service_check(check_name, status, tags=None, timestamp=None,
+                  hostname=None, check_run_id=None, message=None):
+    """ Create a service_check dict. See AgentCheck.service_check() for
+        docs on the parameters.
+    """
+    if check_run_id is None:
+        check_run_id = get_next_id('service_check')
+    return {
+        'id': check_run_id,
+        'check': check_name,
+        'status': status,
+        'host_name': hostname,
+        'tags': tags,
+        'timestamp': float(timestamp or time.time()),
+        'message': message
+    }

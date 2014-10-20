@@ -1,10 +1,11 @@
+## -*- coding: latin-1 -*-
 import unittest
 import os.path
 import tempfile
 
 from config import get_config
 
-from util import PidFile
+from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
 class TestConfig(unittest.TestCase):
     def testWhiteSpaceConfig(self):
@@ -50,6 +51,48 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(p.get_pid(), 666)
         self.assertEquals(p.clean(), True)
         self.assertEquals(os.path.exists(path), False)
+
+    def testHostname(self):
+        valid_hostnames = [
+            u'i-123445',
+            u'5dfsdfsdrrfsv',
+            u'432498234234A'
+            u'234234235235235235', # Couldn't find anything in the RFC saying it's not valid
+            u'A45fsdff045-dsflk4dfsdc.ret43tjssfd',
+            u'4354sfsdkfj4TEfdlv56gdgdfRET.dsf-dg',
+            u'r'*255,
+        ]
+
+        not_valid_hostnames = [
+            u'abc' * 150,
+            u'sdf4..sfsd',
+            u'$42sdf',
+            u'.sfdsfds'
+            u's™£™£¢ª•ªdfésdfs'
+        ]
+
+        for hostname in valid_hostnames:
+            self.assertTrue(is_valid_hostname(hostname), hostname)
+
+        for hostname in not_valid_hostnames:
+            self.assertFalse(is_valid_hostname(hostname), hostname)
+
+    def testWindowsSplit(self):
+        # Make the function run as if it was on windows
+        func = Platform.is_win32
+        try:
+            Platform.is_win32 = staticmethod(lambda : True)
+
+            test_cases = [
+                ("C:\\Documents\\Users\\script.py:C:\\Documents\\otherscript.py", ["C:\\Documents\\Users\\script.py","C:\\Documents\\otherscript.py"]),
+                ("C:\\Documents\\Users\\script.py:parser.py", ["C:\\Documents\\Users\\script.py","parser.py"])
+                ]
+
+            for test_case, expected_result in test_cases:
+                self.assertEqual(windows_friendly_colon_split(test_case), expected_result)
+        finally:
+            # cleanup
+            Platform.is_win32 = staticmethod(func)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,12 +1,13 @@
 import platform
 import sys
-from config import *
+from config import get_version
+from jmxfetch import JMX_FETCH_JAR_NAME
 
 try:
     from setuptools import setup, find_packages
 
     # required to build the cython extensions
-    from distutils.extension import Extension
+    from distutils.extension import Extension #pylint: disable=no-name-in-module
 
 except ImportError:
     from ez_setup import use_setuptools
@@ -27,18 +28,29 @@ install_requires=[
 if sys.platform == 'win32':
     from glob import glob
     import py2exe
+    import pysnmp_mibs
+    import pyVim
+    import pyVmomi
     install_requires.extend([
-        'tornado==2.1',
+        'tornado==3.0.1',
         'pywin32==217',
         'wmi==1.4.9',
-        'simplejson==2.6.1',
+        'simplejson==3.3.3',
         'mysql-python==1.2.3',
         'pymongo==2.3',
-        'psycopg2==2.4.5',
+        'pg8000==1.9.6',
         'python-memcached==1.48',
-        'redis==2.6.2',
-        'adodbapi'
-        'elementtree'
+        'adodbapi==2.4.2.2',
+        'elementtree==1.2.7.20070827-preview',
+        'pycurl==7.19.0',
+        'pymysql==0.6.1',
+        'psutil==2.1.1',
+        'redis==2.10.1',
+        'requests==2.3.0',
+        'httplib2==0.9',
+        'pysnmp==4.2.5',
+        'pysnmp-mibs==0.1.4',
+        'pyvmomi==5.5.0'
     ])
 
     # Modules to force-include in the exe
@@ -49,11 +61,34 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree',
+        'elementtree.ElementTree',
+        'pycurl',
+        'tornado.curl_httpclient',
+        'pymongo',
+        'pymysql',
+        'psutil',
+        'pg8000',
+        'redis',
+        'requests',
+        'pysnmp',
+        'pysnmp.smi.mibs.*',
+        'pysnmp.smi.mibs.instances.*',
+        'pysnmp_mibs.*',
+        'pysnmp.entity.rfc3413.oneliner.*',
+        'pyVim.*',
+        'pyVmomi.*',
 
         # agent
-        'checks.services_checks',
-        'checks.libs.httplib2',
+        'checks.network_checks',
+        'checks.libs.vmware.*',
+        'httplib2',
+
+        # pup
+        'pup',
+        'pup.pup',
+        'tornado.websocket',
+        'tornado.web',
+        'tornado.ioloop',
     ]
 
     class Target(object):
@@ -61,24 +96,37 @@ if sys.platform == 'win32':
             self.__dict__.update(kw) 
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
-            self.copyright = 'Copyright 2012 Datadog, Inc.'
+            self.copyright = 'Copyright 2013 Datadog, Inc.'
             self.cmdline_style = 'pywin32'
 
-    agent_svc = Target(name='Datadog Agent', modules='win32.agent')
+    agent_svc = Target(name='Datadog Agent', modules='win32.agent', dest_base='ddagent')
 
     extra_args = {
         'options': {
             'py2exe': {
                 'includes': ','.join(include_modules),
-                'optimize': 2,
-                'compressed': 1,
-                'bundle_files': 1,
+                'optimize': 0,
+                'compressed': True,
+                'bundle_files': 3,
+                'excludes': ['numpy'],
+                'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
+                'ascii':False,
             },
         },
         'console': ['win32\shell.py'],
         'service': [agent_svc],
-        'zipfile': None,
-        'data_files': [("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*'))],
+        'windows': [{'script': 'win32\gui.py',
+                     'dest_base': "agent-manager",
+                     'uac_info': "requireAdministrator", # The manager needs to be administrator to stop/start the service
+                     'icon_resources': [(1, r"packaging\datadog-agent\win32\install_files\dd_agent_win_256.ico")],
+                     }],
+        'data_files': [
+            ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
+            ('pup', [r'pup\status.html']),
+            ('pup/static', glob('pup/static/*.*')),
+            ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
+            ('gohai', [r'gohai\gohai.exe'])
+        ],
     }
 
 setup(
