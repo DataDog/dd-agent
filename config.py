@@ -370,6 +370,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'check_timings'):
             agentConfig['check_timings'] = _is_affirmative(config.get('Main', 'check_timings'))
 
+        if config.has_option('Main', 'exclude_process_args'):
+            agentConfig['exclude_process_args'] = _is_affirmative(config.get('Main', 'exclude_process_args'))
+
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
             agentConfig['device_blacklist_re'] = re.compile(filter_device_re)
