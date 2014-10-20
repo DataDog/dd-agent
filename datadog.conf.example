@@ -72,6 +72,10 @@ use_mount: no
 # If enabled the collector will capture a metric for check run times.
 # check_timings: no
 
+# If you want to remove the 'ww' flag from ps catching the arguments of processes
+# for instance for security reasons
+# exclude_process_args: no
+
 # ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #
