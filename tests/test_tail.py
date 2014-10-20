@@ -67,7 +67,7 @@ class TestTail(unittest.TestCase):
             "logrotate is not present"
 
 
-    def test_next_mutil(self):
+    def test_next_multi(self):
         from checks.utils import TailFile
 
         def line_parser(lines):
