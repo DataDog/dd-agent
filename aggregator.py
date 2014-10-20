@@ -511,7 +511,31 @@ class Aggregator(object):
                 self.count += 1
                 parsed_packets = self.parse_metric_packet(packet)
                 for name, value, mtype, tags, sample_rate in parsed_packets:
-                    self.submit_metric(name, value, mtype, tags=tags, sample_rate=sample_rate)
+                    hostname, device_name, tags = self._extract_magic_tags(tags)
+                    self.submit_metric(name, value, mtype, tags=tags, hostname=hostname,
+                        device_name=device_name, sample_rate=sample_rate)
+
+    def _extract_magic_tags(self, tags):
+        """Magic tags (host, device) override metric hostname and device_name attributes"""
+        hostname = None
+        device_name = None
+        # This implementation avoid list operations for the common case
+        if tags:
+            tags_to_remove = []
+            for tag in tags:
+                if tag.startswith('host:'):
+                    hostname = tag[5:]
+                    tags_to_remove.append(tag)
+                elif tag.startswith('device:'):
+                    device_name = tag[7:]
+                    tags_to_remove.append(tag)
+            if tags_to_remove:
+                # tags is a tuple already sorted, we convert it into a list to pop elements
+                tags = list(tags)
+                for tag in tags_to_remove:
+                    tags.remove(tag)
+                tags = tuple(tags) or None
+        return hostname, device_name, tags
 
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
                                 device_name=None, timestamp=None, sample_rate=1):
