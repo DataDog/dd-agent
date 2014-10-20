@@ -615,7 +615,8 @@ class MetricsBucketAggregator(Aggregator):
         # Note: if you change the way that context is created, please also change create_empty_metrics,
         #  which counts on this order
 
-        hostname = hostname or self.hostname
+        # Keep hostname with empty string to unset it
+        hostname = hostname if hostname is not None else self.hostname
 
         if tags is None:
             context = (name, tuple(), hostname, device_name)
@@ -736,8 +737,9 @@ class MetricsAggregator(Aggregator):
                                 device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
 
-        hostname = hostname or self.hostname
-        
+        # Keep hostname with empty string to unset it
+        hostname = hostname if hostname is not None else self.hostname
+
         if tags is None:
             context = (name, tuple(), hostname, device_name)
         else:
@@ -805,7 +807,7 @@ class MetricsAggregator(Aggregator):
         return metrics
 
 
-def api_formatter(metric, value, timestamp, tags, hostname, device_name=None,
+def api_formatter(metric, value, timestamp, tags, hostname=None, device_name=None,
         metric_type=None, interval=None):
     return {
         'metric': metric,
