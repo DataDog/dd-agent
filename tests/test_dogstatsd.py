@@ -95,7 +95,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(third['host'], 'myhost')
 
     def test_tags_gh442(self):
-        import util
         import dogstatsd
         from aggregator import api_formatter
 

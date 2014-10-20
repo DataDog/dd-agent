@@ -494,7 +494,7 @@ class Aggregator(object):
                 elif m[0] == u'#':
                     event['tags'] = sorted(m[1:].split(u','))
             return event
-        except IndexError, ValueError:
+        except (IndexError, ValueError):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
