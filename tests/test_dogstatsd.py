@@ -13,7 +13,7 @@ class TestUnitDogStatsd(unittest.TestCase):
     @staticmethod
     def sort_metrics(metrics):
         def sort_by(m):
-            return (m['metric'], ','.join(m['tags'] or []))
+            return (m['metric'], m['host'], m['device_name'], ','.join(m['tags'] or []))
         return sorted(metrics, key=sort_by)
 
     @staticmethod
@@ -101,7 +101,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         stats.submit_packets('my.gauge.b:8|c|#host:test-b,tag2,tag1')
         stats.submit_packets('my.gauge.c:10|c|#tag3')
         stats.submit_packets('my.gauge.c:16|c|#device:floppy,tag3')
-
 
         metrics = self.sort_metrics(stats.flush())
 
