@@ -150,12 +150,15 @@ class Docker(AgentCheck):
 
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
-
         with_size = instance.get('collect_container_size', False)
+
+        service_check_name = 'docker.service_up'
         try:
             containers = self._get_containers(instance, with_size=with_size)
         except (socket.timeout, urllib2.URLError), e:
-            raise Exception("Container collection timed out. Exception: {0}".format(e))
+            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags)
+            raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
+        self.service_check(service_check_name, AgentCheck.OK, tags=tags)
 
         container_count_by_image = defaultdict(int)
         for container in containers:
@@ -276,7 +279,7 @@ class Docker(AgentCheck):
 
     def _report_events(self, events):
         for ev in events:
-            self.log.debug("Creating event: %s" % ev)
+            self.log.debug("Creating event: %s" % ev['msg_title'])
             self.event(ev)
 
 
@@ -309,19 +312,12 @@ class Docker(AgentCheck):
         self.log.debug("Connecting to Docker API at: %s" % uri)
         req = urllib2.Request(uri, None)
 
-        # TODO: Move it outside of _get_json otherwise we report it multiple times
-        service_check_name = 'docker.service_up'
-        service_check_tags = ['host:%s' % self.hostname]
-
         try:
             request = self.url_opener.open(req)
         except urllib2.URLError, e:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=service_check_tags)
             if "Errno 13" in str(e):
                 raise Exception("Unable to connect to socket. dd-agent user must be part of the 'docker' group")
             raise
-
-        self.service_check(service_check_name, AgentCheck.OK, tags=service_check_tags)
 
         response = request.read()
         if multi and "}{" in response: # docker api sometimes returns juxtaposed json dictionaries
