@@ -1,10 +1,26 @@
+#
+# DataDog plugin-check, publishes RabbitMQ stats to datadog via the agent
+#
+# You can inspect the status of a running agent (which will report if this
+# plugin as been correctly detected & is submitting data) like this:
+#
+#   /etc/init.d/datadog-agent info
+# or
+#   service datadog-agent info
+#
+# You can run the check from outside the agent like this:
+#
+#   (PYTHONPATH=/usr/share/datadog/agent python checks.d/rabbitmq.py)
+#
 # stdlib
 import urllib
 import urllib2
 import urlparse
 import time
+import re
+import pprint
 
-# proiect
+# project
 from checks import AgentCheck
 
 # 3rd party
@@ -15,7 +31,7 @@ QUEUE_TYPE = 'queues'
 NODE_TYPE = 'nodes'
 MAX_DETAILED_QUEUES = 200
 MAX_DETAILED_NODES = 100
-ALERT_THRESHOLD = 0.9 # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit
+ALERT_THRESHOLD = 0.9  # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit
 QUEUE_ATTRIBUTES = [
         'active_consumers',
         'consumers',
@@ -37,8 +53,6 @@ ATTRIBUTES = {
     NODE_TYPE: NODE_ATTRIBUTES,
 }
 
-
-
 TAGS_MAP = {
     QUEUE_TYPE: {
                 'node':'node',
@@ -55,6 +69,7 @@ METRIC_SUFFIX = {
     QUEUE_TYPE: "queue",
     NODE_TYPE: "node",
 }
+
 
 class RabbitMQ(AgentCheck):
     """This check is for gathering statistics from the RabbitMQ
@@ -164,6 +179,10 @@ class RabbitMQ(AgentCheck):
                     elif absolute_name in specified_items:
                         self._get_metrics(data_line, object_type)
                         specified_items.remove(absolute_name)
+                    # also treat each specified_items as a possible regex
+                    for p in specified_items:
+                        if re.search(p, name) or re.search(p, absolute_name):
+                            self._get_metrics(data_line, object_type)
 
         else: # No queues/node are specified. We will process every queue/node if it's under the limit
             if len(data) > ALERT_THRESHOLD * max_detailed:
@@ -254,3 +273,17 @@ class RabbitMQ(AgentCheck):
                     % (vhost, str(e)))
 
             self.service_check('rabbitmq.aliveness', status, tags, message=message)
+
+# make troubleshooting & development easier, by making it possible to run the check
+# from the command line
+if __name__ == '__main__':
+    check, instances = RabbitMQ.from_yaml('/etc/dd-agent/conf.d/rabbitmq.yaml')
+    for instance in instances:
+        print "\nRunning the check against url: %s" % (instance['rabbitmq_api_url'])
+        check.check(instance)
+        if check.has_events():
+            print 'Events: %s' % (check.get_events())
+        pp = pprint.PrettyPrinter(indent=4)
+        metrics = check.get_metrics()
+        print 'Metrics: '
+        pp.pprint(metrics)
