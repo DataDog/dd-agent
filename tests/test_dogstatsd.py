@@ -22,6 +22,12 @@ class TestUnitDogStatsd(unittest.TestCase):
         return sorted(metrics, key=sort_by)
 
     @staticmethod
+    def sort_service_checks(service_checks):
+        def sort_by(m):
+            return (m['check'], m['status'], m.get('message', None), ','.join(m.get('tags', None) or []))
+        return sorted(service_checks, key=sort_by)
+
+    @staticmethod
     def assert_almost_equal(i, j, e=1):
         # Floating point math?
         assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
@@ -670,6 +676,72 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         nt.assert_equal(events[0]['msg_text'], 'First line\nSecond line')
         nt.assert_equal(events[1]['msg_text'], u'♬ †øU †øU ¥ºu T0µ ♪')
+
+    def test_service_check_basic(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('_sc|check.1|0')
+        stats.submit_packets('_sc|check.2|1')
+        stats.submit_packets('_sc|check.3|2')
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        assert len(service_checks) == 3
+        first, second, third = service_checks
+
+        nt.assert_equal(first['check'], 'check.1')
+        nt.assert_equal(first['status'], 0)
+        nt.assert_equal(second['check'], 'check.2')
+        nt.assert_equal(second['status'], 1)
+        nt.assert_equal(third['check'], 'check.3')
+        nt.assert_equal(third['status'], 2)
+
+    def test_service_check_message(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('_sc|check.1|0|m:testing')
+        stats.submit_packets('_sc|check.2|0|m:First line\\nSecond line')
+        stats.submit_packets(u'_sc|check.3|0|m:♬ †øU †øU ¥ºu T0µ ♪')
+        stats.submit_packets('_sc|check.4|0|m:|t:|m\:|d:')
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        assert len(service_checks) == 4
+        first, second, third, fourth = service_checks
+
+        nt.assert_equal(first['check'], 'check.1')
+        nt.assert_equal(first['message'], 'testing')
+        nt.assert_equal(second['check'], 'check.2')
+        nt.assert_equal(second['message'], 'First line\nSecond line')
+        nt.assert_equal(third['check'], 'check.3')
+        nt.assert_equal(third['message'], u'♬ †øU †øU ¥ºu T0µ ♪')
+        nt.assert_equal(fourth['check'], 'check.4')
+        nt.assert_equal(fourth['message'], '|t:|m:|d:')
+
+    def test_service_check_tags(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('_sc|check.1|0')
+        stats.submit_packets('_sc|check.2|0|#t1')
+        stats.submit_packets('_sc|check.3|0|h:i-abcd1234|#t1,t2|m:fakeout#t5')
+        stats.submit_packets('_sc|check.4|0|#t1,t2:v2,t3,t4')
+
+        service_checks = self.sort_service_checks(stats.flush_service_checks())
+
+        assert len(service_checks) == 4
+        first, second, third, fourth = service_checks
+
+        nt.assert_equal(first['check'], 'check.1')
+        assert first.get('tags') is None, "service_check['tags'] shouldn't be" + \
+                                        "defined when no tags aren't explicited in the packet"
+
+        nt.assert_equal(second['check'], 'check.2')
+        nt.assert_equal(second['tags'], sorted(['t1']))
+
+        nt.assert_equal(third['check'], 'check.3')
+        nt.assert_equal(third['host_name'], 'i-abcd1234')
+        nt.assert_equal(third['message'], 'fakeout#t5')
+        nt.assert_equal(third['tags'], sorted(['t1', 't2']))
+
+        nt.assert_equal(fourth['check'], 'check.4')
+        nt.assert_equal(fourth['tags'], sorted(['t1', 't2:v2', 't3', 't4']))
 
     def test_recent_point_threshold(self):
         threshold = 100

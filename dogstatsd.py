@@ -134,11 +134,16 @@ class Reporter(threading.Thread):
             if event_count:
                 self.submit_events(events)
 
+            service_checks = self.metrics_aggregator.flush_service_checks()
+            check_count = len(service_checks)
+            if check_count:
+                self.submit_service_checks(service_checks)
+
             should_log = self.flush_count <= FLUSH_LOGGING_INITIAL or self.log_count <= FLUSH_LOGGING_COUNT
             log_func = log.info
             if not should_log:
                 log_func = log.debug
-            log_func("Flush #%s: flushed %s metric%s and %s event%s" % (self.flush_count, count, plural(count), event_count, plural(event_count)))
+            log_func("Flush #%s: flushed %s metric%s, %s event%s, and %s service check run%s" % (self.flush_count, count, plural(count), event_count, plural(event_count), check_count, plural(check_count)))
             if self.flush_count == FLUSH_LOGGING_INITIAL:
                 log.info("First flushes done, %s flushes will be logged every %s flushes." % (FLUSH_LOGGING_COUNT, FLUSH_LOGGING_PERIOD))
 
@@ -185,7 +190,7 @@ class Reporter(threading.Thread):
                 params['api_key'] = self.api_key
             url = '%s/intake?%s' % (self.api_host, urlencode(params))
 
-            self.submit_http(url, payload, headers)            
+            self.submit_http(url, payload, headers)
 
     def submit_http(self, url, data, headers):
         no_proxy = {
@@ -215,6 +220,16 @@ class Reporter(threading.Thread):
             except Exception:
                 pass
 
+
+    def submit_service_checks(self, service_checks):
+        headers = {'Content-Type':'application/json'}
+
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
+
+        url = '{0}/api/v1/check_run?{1}'.format(self.api_host, urlencode(params))
+        self.submit_http(url, json.dumps(service_checks), headers)
 
 class Server(object):
     """
