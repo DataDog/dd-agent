@@ -14,6 +14,7 @@ require './ci/jmx'
 require './ci/mongo'
 require './ci/network'
 require './ci/sysstat'
+require './ci/ssh'
 require './ci/tomcat'
 require './ci/webserver'
 
