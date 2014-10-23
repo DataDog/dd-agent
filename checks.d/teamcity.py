@@ -1,6 +1,7 @@
 # stdlib
 import requests
 import time
+import distutils
 
 # project
 from checks import AgentCheck
@@ -13,17 +14,20 @@ class TeamCity(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.last_build_ids = {}
-        if self.init_config.get("server", None) is None:
+        if self.init_config.get("server") is None:
             raise Exception("You must specify a server in teamcity.yaml")
         self.server = self.init_config["server"]
 
     def _initialize_if_required(self, instance_name, build_configuration):
         if self.last_build_ids.get(instance_name, None) is None:
             self.log.info("Initializing {}".format(instance_name))
-            last_build_id = requests.get(
+            request = requests.get(
                 "http://{}/guestAuth/app/rest/builds/?locator=buildType:{},count:1".format(self.server,
                                                                                            build_configuration),
-                timeout=3000, headers=self.headers).json()["build"][0]["id"]
+                timeout=30, headers=self.headers)
+            if request.status_code != requests.codes.ok:
+                raise Exception("TeamCity reported error on initialization. Status code: {}".format(request.status_code))
+            last_build_id = request.json()["build"][0]["id"]
             self.log.info("Last build id for {} is {}.".format(instance_name, last_build_id))
             self.last_build_ids[instance_name] = last_build_id
 
@@ -33,7 +37,6 @@ class TeamCity(AgentCheck):
 
         output = {
             "timestamp": int(time.time()),
-            "tags": ["teamcity"],
             "alert_type": "info"
         }
         if is_deployment:
@@ -59,19 +62,26 @@ class TeamCity(AgentCheck):
         instance_name = instance.get("name")
         if instance_name is None:
             raise Exception("Each instance must have a name")
-        build_configuration = instance.get("buildConfiguration")
+        build_configuration = instance.get("build_configuration")
         if build_configuration is None:
             raise Exception("Each instance must have a build configuration")
-        host = instance.get("hostAffected")
+        host = instance.get("host_affected")
         tags = instance.get("tags")
-        is_deployment = instance.get("isDeployment")
+        is_deployment = instance.get("is_deployment")
+        if type(is_deployment) is not bool:
+            is_deployment = distutils.util.strtobool(instance.get("is_deployment"))
 
         self._initialize_if_required(instance_name, build_configuration)
 
-        new_builds = requests.get(
+        request = requests.get(
             "http://{}/guestAuth/app/rest/builds/?locator=buildType:{},sinceBuild:id:{},status:SUCCESS".format(
-                self.server, build_configuration, self.last_build_ids[instance_name]), timeout=3000,
-            headers=self.headers).json()
+                self.server, build_configuration, self.last_build_ids[instance_name]), timeout=30,
+            headers=self.headers)
+
+        if request.status_code != requests.codes.ok:
+            raise Exception("TeamCity reported error on check. Status code: {}".format(request.status_code))
+
+        new_builds = request.json()
 
         if new_builds["count"] == 0:
             self.log.info("No new builds found.")
