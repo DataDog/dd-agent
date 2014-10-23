@@ -98,7 +98,7 @@ class Memcache(AgentCheck):
         "total_connections"
     ]
 
-    SERVICE_CHECK = 'memcache.is_connectable'
+    SERVICE_CHECK = 'memcache.can_connect'
 
     def get_library_versions(self):
         return {"memcache": memcache.__version__}
