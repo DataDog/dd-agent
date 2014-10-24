@@ -44,7 +44,7 @@ class LocalRate:
             self.submit_histogram()
 
 class TokuMX(AgentCheck):
-    SERVICE_CHECK_NAME = 'mongodb.can_connect'
+    SERVICE_CHECK_NAME = 'tokumx.can_connect'
 
     GAUGES = [
         "indexCounters.btree.missRatio",
