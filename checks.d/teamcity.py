@@ -1,7 +1,6 @@
 # stdlib
 import requests
 import time
-import distutils
 
 # project
 from checks import AgentCheck
@@ -69,7 +68,7 @@ class TeamCity(AgentCheck):
         tags = instance.get("tags")
         is_deployment = instance.get("is_deployment")
         if type(is_deployment) is not bool:
-            is_deployment = distutils.util.strtobool(instance.get("is_deployment"))
+            is_deployment = instance.get("is_deployment").lower() == "true"
 
         self._initialize_if_required(instance_name, build_configuration)
 
