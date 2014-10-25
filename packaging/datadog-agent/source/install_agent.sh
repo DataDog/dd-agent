@@ -115,9 +115,13 @@ Please follow the instructions on the Agent setup page:
     exit;
 fi
 
-printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
-
-$sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+# Set the configuration
+if [ -e /etc/dd-agent/datadog.conf ]; then
+    printf "\033[34m\n* Keeping old datadog.conf configuration file\n\033[0m\n"
+else
+    printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
+    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
 $sudo_cmd /etc/init.d/datadog-agent restart
