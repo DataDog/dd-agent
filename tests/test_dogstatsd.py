@@ -13,7 +13,7 @@ class TestUnitDogStatsd(unittest.TestCase):
     @staticmethod
     def sort_metrics(metrics):
         def sort_by(m):
-            return (m['metric'], ','.join(m['tags'] or []))
+            return (m['metric'], m['host'], m['device_name'], ','.join(m['tags'] or []))
         return sorted(metrics, key=sort_by)
 
     @staticmethod
@@ -94,8 +94,40 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(third['points'][0][1], 16)
         nt.assert_equal(third['host'], 'myhost')
 
+    def test_magic_tags(self):
+        stats = MetricsAggregator('myhost')
+        stats.submit_packets('my.gauge.a:1|c|#host:test-a')
+        stats.submit_packets('my.gauge.b:4|c|#tag1,tag2,host:test-b')
+        stats.submit_packets('my.gauge.b:8|c|#host:test-b,tag2,tag1')
+        stats.submit_packets('my.gauge.c:10|c|#tag3')
+        stats.submit_packets('my.gauge.c:16|c|#device:floppy,tag3')
+
+        metrics = self.sort_metrics(stats.flush())
+
+        nt.assert_equal(len(metrics), 4)
+        first, second, third, fourth = metrics
+
+        nt.assert_equal(first['metric'], 'my.gauge.a')
+        nt.assert_equal(first['tags'], None)
+        nt.assert_equal(first['points'][0][1], 1)
+        nt.assert_equal(first['host'], 'test-a')
+
+        nt.assert_equal(second['metric'], 'my.gauge.b')
+        nt.assert_equal(second['tags'], ('tag1', 'tag2'))
+        nt.assert_equal(second['points'][0][1], 12)
+        nt.assert_equal(second['host'], 'test-b')
+
+        nt.assert_equal(third['metric'], 'my.gauge.c')
+        nt.assert_equal(third['tags'], ('tag3', ))
+        nt.assert_equal(third['points'][0][1], 10)
+        nt.assert_equal(third['device_name'], None)
+
+        nt.assert_equal(fourth['metric'], 'my.gauge.c')
+        nt.assert_equal(fourth['tags'], ('tag3', ))
+        nt.assert_equal(fourth['points'][0][1], 16)
+        nt.assert_equal(fourth['device_name'], 'floppy')
+
     def test_tags_gh442(self):
-        import util
         import dogstatsd
         from aggregator import api_formatter
 
