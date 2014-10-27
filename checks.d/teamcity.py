@@ -36,7 +36,8 @@ class TeamCity(AgentCheck):
 
         output = {
             "timestamp": int(time.time()),
-            "alert_type": "info"
+            "alert_type": "info",
+            "tags": []
         }
         if is_deployment:
             output["event_type"] = "deployment"
