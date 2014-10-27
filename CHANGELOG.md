@@ -50,6 +50,7 @@ Changes
 * [FEATURE] Add a check to collect metrics at the core level.
 * [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
 * [FEATURE] Add a check to collect system core metrics. See [#1124][]
+* [FEATURE] DogStatsD recognizes and uses `host` and `device` tags as metric attributes. See [#1164][].
 * [BUGGIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
