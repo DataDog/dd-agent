@@ -184,7 +184,7 @@ class ElasticSearch(AgentCheck):
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             self.HEALTH_URL = "/_cluster/health?pretty=true"
-            self.STATS_URL = "/_nodes/stats?all=true"
+            self.STATS_URL = "/_nodes/_local/stats?all=true"
             self.NODES_URL = "/_nodes?network=true"
 
             additional_metrics = {
