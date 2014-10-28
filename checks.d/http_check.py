@@ -160,19 +160,18 @@ class HTTPCheck(NetworkCheck):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         url = instance.get('url', None)
 
-        if status == Status.DOWN:
-            # format the HTTP response body into the event
-            if isinstance(msg, tuple):
-                code, reason, content = msg
 
-                # truncate and html-escape content
-                if len(content) > 200:
-                    content = content[:197] + '...'
+        # format the HTTP response body into the event
+        if isinstance(msg, tuple):
+            code, reason, content = msg
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
-                msg = msg.rstrip()
-        else:
-            msg=None
+            # truncate and html-escape content
+            if len(content) > 200:
+                content = content[:197] + '...'
+
+            msg = "%d %s\n\n%s" % (code, reason, content)
+            msg = msg.rstrip()
+
 
         self.service_check(service_check_name,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
@@ -210,7 +209,7 @@ class HTTPCheck(NetworkCheck):
             return Status.DOWN, "Expired by {0} days".format(days_left.days)
 
         elif days_left.days < warning_days:
-            return Status.WARNING, "Something has occured"
+            return Status.WARNING, "This cert is almost expired, only {0} days left".format(days_left.days)
 
         else:
             return Status.UP, "Days left: {0}".format(days_left.days)

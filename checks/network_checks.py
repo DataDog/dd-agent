@@ -129,7 +129,7 @@ class NetworkCheck(AgentCheck):
         if ssl_expire:
             try:
                 thestatus, message = self.report_ssl(instance)
-                ssl_name = 'http.ssl_certificate_expirationyupp'
+                ssl_name = 'http.ssl_certificate_expiration'
                 result = (thestatus, message, ssl_name, instance)
                 self.resultsq.put(result)
 
