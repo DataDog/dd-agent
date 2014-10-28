@@ -51,8 +51,8 @@ instances:
          # ssl certificate. Allow for a warning to occur when x days are
          # left in the certificate.
 
-        check_certificate_expiration: true
-        days_warning: 14
+#        check_certificate_expiration: false
+#        days_warning: 14
 
          # The (optional) headers parameter allows you to send extra headers
          # with the request. This is useful for explicitly specifying the host

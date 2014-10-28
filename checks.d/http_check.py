@@ -1,13 +1,12 @@
 # stdlib
-import socket
-import time
-import ssl
 from datetime import datetime
-
+import socket
+import ssl
+import time
+from urlparse import urlparse
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
-from checks import AgentCheck
 from util import headers
 
 # 3rd party
@@ -30,7 +29,7 @@ class HTTPCheck(NetworkCheck):
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
         ssl = instance.get('disable_ssl_validation', True)
-        ssl_expire = instance.get('ssl_check', True)
+        ssl_expire = instance.get('check_certificate_expiration', False)
 
         return url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expire
 
@@ -181,38 +180,37 @@ class HTTPCheck(NetworkCheck):
                            message=msg
                            )
 
-    def report_ssl(self, host, warning_days):
-        if host.startswith('https://'):
-            url = host[8:]
-        elif host.startswith('http://'):
-            url = host[7:]
+    def report_ssl(self, instance):
+        warning_days = instance.get('days_warning', 14)
+        host = instance.get('url', None)
+
+        o = urlparse(host)
+        url = o.netloc
+
+        if o.port:
+            port = o.port
+        else:
+            port = 443
+
         try:
             CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((url, 443))
+            sock.connect((url, port))
             ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
-                                           ca_certs=CA_CERTS,
-                                           ciphers=("HIGH:-aNULL:-eNULL:"
-                                                    "-PSK:RC4-SHA:RC4-MD5"))
+                                           ca_certs=CA_CERTS)
             cert = ssl_sock.getpeercert()
 
         except Exception as e:
-            status = AgentCheck.WARNING
-            self.service_check('http.ssl_certificate_expiration', status, message=e)
-            cert = False
+            return Status.WARNING, "%s" % (str(e))
 
-        if cert:
-            exp_date = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
-            days_left = exp_date - datetime.now()
+        exp_date = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
+        days_left = exp_date - datetime.now()
 
-            if days_left.days < 0:
-                status = AgentCheck.CRITICAL
+        if days_left.days < 0:
+            return Status.DOWN, "Expired by {0} days".format(days_left.days)
 
-            elif days_left.days < warning_days:
-                status = AgentCheck.WARNING
+        elif days_left.days < warning_days:
+            return Status.WARNING, "Something has occured"
 
-            else:
-                status = AgentCheck.OK
-
-            self.service_check('http.ssl_certificate_expiration', status, tags= ['url:%s' % host], message="Days left: {0}".format(days_left.days))
-        sock.close()
+        else:
+            return Status.UP, "Days left: {0}".format(days_left.days)

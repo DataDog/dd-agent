@@ -16,6 +16,7 @@ FAILURE = "FAILURE"
 
 class Status:
     DOWN = "DOWN"
+    WARNING = "WARNING"
     UP = "UP"
 
 class EventType:
@@ -29,6 +30,7 @@ class NetworkCheck(AgentCheck):
 
     STATUS_TO_SERVICE_CHECK = {
             Status.UP  : AgentCheck.OK,
+            Status.WARNING : AgentCheck.WARNING,
             Status.DOWN : AgentCheck.CRITICAL
         }
 
@@ -112,7 +114,6 @@ class NetworkCheck(AgentCheck):
 
     def _process(self, instance):
         name = instance.get('name', None)
-
         try:
             status, msg = self._check(instance)
 
@@ -123,6 +124,19 @@ class NetworkCheck(AgentCheck):
         except Exception, e:
             result = (FAILURE, FAILURE, FAILURE, FAILURE)
             self.resultsq.put(result)
+
+        ssl_expire = instance.get('check_certificate_expiration', False)
+        if ssl_expire:
+            try:
+                thestatus, message = self.report_ssl(instance)
+                ssl_name = 'http.ssl_certificate_expirationyupp'
+                result = (thestatus, message, ssl_name, instance)
+                self.resultsq.put(result)
+
+            except Exception:
+                result = (FAILURE, FAILURE, FAILURE, FAILURE)
+                self.resultsq.put(result)
+
 
     def _process_results(self):
         for i in range(MAX_LOOP_ITERATIONS):
@@ -141,11 +155,6 @@ class NetworkCheck(AgentCheck):
 
             self.report_as_service_check(name, status, queue_instance, msg)
 
-            cert_expire = queue_instance.get('check_certificate_expiration', True)
-            if cert_expire:
-                warning_days = queue_instance.get('days_warning', 14)
-                self.report_ssl(queue_instance.get('url'), warning_days)
-
             # Don't create any event to avoid duplicates with server side
             # service_checks
             skip_event = queue_instance.get('skip_event', False)
@@ -163,8 +172,6 @@ class NetworkCheck(AgentCheck):
                 if window > 256:
                     self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
                     window = 256
-
-
 
                 threshold = queue_instance.get('threshold', 1)
 
@@ -186,7 +193,8 @@ class NetworkCheck(AgentCheck):
                     self.events.append(event)
 
             # The job is finished here, this instance can be re processed
-            del self.jobs_status[name]
+            if name in self.jobs_status.keys():
+                del self.jobs_status[name]
 
     def _check(self, instance):
         """This function should be implemented by inherited classes"""
