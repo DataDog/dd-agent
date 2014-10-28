@@ -17,20 +17,42 @@ MAX_DETAILED_QUEUES = 200
 MAX_DETAILED_NODES = 100
 ALERT_THRESHOLD = 0.9 # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit
 QUEUE_ATTRIBUTES = [
-        'active_consumers',
-        'consumers',
-        'memory',
-        'messages',
-        'messages_ready',
-        'messages_unacknowledged'
-    ]
+    # Path, Name
+    ('active_consumers', 'active_consumers'),
+    ('consumers', 'consumers'),
+    ('memory', 'memory'),
+
+    ('messages', 'messages'),
+    ('messages_details/rate', 'messages.rate'),
+
+    ('messages_ready', 'messages_ready'),
+    ('messages_ready_details/rate', 'messages_ready.rate'),
+
+    ('messages_unacknowledged', 'messages_unacknowledged'),
+    ('messages_unacknowledged_details/rate', 'messages_unacknowledged.rate'),
+
+    ('message_stats/ack', 'messages.ack.count'),
+    ('message_stats/ack_details/rate', 'messages.ack.rate'),
+
+    ('message_stats/deliver', 'messages.deliver.count'),
+    ('message_stats/deliver_details/rate', 'messages.deliver.rate'),
+
+    ('message_stats/deliver_get', 'messages.deliver_get.count'),
+    ('message_stats/deliver_get_details/rate', 'messages.deliver_get.rate'),
+
+    ('message_stats/publish', 'messages.publish.count'),
+    ('message_stats/publish_details/rate', 'messages.publish.rate'),
+
+    ('message_stats/redeliver', 'messages.redeliver.count'),
+    ('message_stats/redeliver_details/rate', 'messages.redeliver.rate'),
+]
 
 NODE_ATTRIBUTES = [
-                'fd_used',
-                'mem_used',
-                'run_queue',
-                'sockets_used',
-    ]
+    ('fd_used', 'fd_used'),
+    ('mem_used', 'mem_used'),
+    ('run_queue', 'run_queue'),
+    ('sockets_used', 'sockets_used'),
+]
 
 ATTRIBUTES = {
     QUEUE_TYPE: QUEUE_ATTRIBUTES,
@@ -187,11 +209,17 @@ class RabbitMQ(AgentCheck):
             if tag is not None:
                 tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
-        for attribute in ATTRIBUTES[object_type]:
-            value = data.get(attribute, None)
+        for attribute, metric_name in ATTRIBUTES[object_type]:
+            # Walk down through the data path, e.g. foo/bar => d['foo']['bar']
+            root = data
+            keys = attribute.split('/')
+            for path in keys[:-1]:
+                root = root.get(path, {})
+
+            value = root.get(keys[-1], None)
             if value is not None:
                 try:
-                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), float(value), tags=tags)
+                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], metric_name), float(value), tags=tags)
                 except ValueError:
                     self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (METRIC_SUFFIX[object_type], attribute, value, tags))
 
