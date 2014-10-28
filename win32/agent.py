@@ -175,7 +175,10 @@ class DDForwarder(multiprocessing.Process):
             port = int(port)
         app_config = get_config(parse_args = False)
         self.forwarder = Application(port, app_config, watchdog=False)
-        self.forwarder.run()
+        try:
+            self.forwarder.run()
+        except Exception:
+            log.exception("Uncaught exception in the forwarder")
 
     def stop(self):
         log.debug("Windows Service - Stopping forwarder")

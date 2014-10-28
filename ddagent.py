@@ -500,6 +500,8 @@ def main():
         app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
+        except Exception:
+            log.exception("Uncaught exception in the forwarder")
         finally:
             ForwarderStatus.remove_latest_status()
 
