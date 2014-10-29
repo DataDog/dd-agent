@@ -7,9 +7,9 @@ init_config:
 #        - pagerduty
 
 instances:
-#    -   name: My first service
-#        url: http://some.url.example.com
-#        timeout: 1
+    -   name: Good Cert
+        url: https://github.com
+        timeout: 1
 
          # If your service uses basic authentication, you can optionally
          # specify a username and password that will be used in the check.
@@ -51,8 +51,8 @@ instances:
          # ssl certificate. Allow for a warning to occur when x days are
          # left in the certificate.
 
-#        check_certificate_expiration: false
-#        days_warning: 14
+        check_certificate_expiration: true
+        days_warning: 9
 
          # The (optional) headers parameter allows you to send extra headers
          # with the request. This is useful for explicitly specifying the host
