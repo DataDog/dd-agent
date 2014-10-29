@@ -4,15 +4,25 @@
 init_config:
     # Change the root directory to look at to get cgroup statistics. Useful when running inside a
     # container with host directories mounted on a different folder. Default: /.
-    #
+    # Example for the docker-dd-agent container:
     # docker_root: /host
+    #
+    # docker_root: /
+
+    # Timeout on Docker socket connection. You may have to increase it if you have many containers.
+    #
+    # socket_timeout: 5
 
 instances:
+    # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
+    #
     - url: "unix://var/run/docker.sock"
 
     # You can add extra tags to your Docker metrics with the tags list option. Default: [].
+    # Examples:
+    # tags: ["extra_tag", "env:example"]
     #
-    # tags: [extra_tag1, extra_tag2]
+    # tags: []
 
     # To include or exclude containers based on their tags, use the include and
     # exclude keys in your instance.
@@ -20,8 +30,8 @@ instances:
     # unless it also matches an include rule.
     #
     # Examples:
-    # exclude all, except ubuntu and debian.
     #
+    # exclude all, except ubuntu and debian.
     # include:
     #   - "image:ubuntu"
     #   - "image:debian"
@@ -29,13 +39,19 @@ instances:
     #   - ".*"
     #
     # include all, except ubuntu and debian.
-    #
     # include: []
     # exclude:
     #   - "image:ubuntu"
     #   - "image:debian"
-
-    # If you want to include sub-cgroups metrics, turn the collect_total option on.
-    # It is useless for a normal usage, as total_ metrics will be the same as normal ones. Default: false.
     #
-    # collect_total: true
+    # include: []
+    # exclude: []
+
+    # Create events whenever a container status change.
+    #
+    # collect_events: true
+
+    # Collect disk usage per container with docker.disk.size metric.
+    # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
+    #
+    # collect_container_size: false
