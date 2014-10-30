@@ -278,7 +278,6 @@ SELECT %s
                     continue
 
                 if not results:
-                    warning_func('No results were found for query: "%s"' % query)
                     continue
 
                 # parse & submit results
