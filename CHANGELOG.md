@@ -98,6 +98,14 @@ This release has multiple fixes, see the list below.
 Warning: The way CPU metrics are collected has changed and will be more accurate, you might see some changes in the graphs.
 
 ### What will break ?
+* MySQL integration: If you see this error: ```OperationalError(2003, 'Can\'t connect to MySQL server on \'localhost\' ((1045, u"Access denied for user \'datadog\'@\'127.0.0.1\'...)```
+the Datadog user will need to be modified from ```'datadog'@'localhost'``` to ``` 'datadog'@'127.0.0.1' ``` (your host IP). You can do this by running:
+
+       ```
+           $ mysql -p mysql
+           # UPDATE user SET Host = '127.0.0.1' WHERE User = 'datadog';
+           # FLUSH PRIVILEGES;
+       ```
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
      
        ```
