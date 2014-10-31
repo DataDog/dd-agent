@@ -497,6 +497,7 @@ class Collector(object):
             pass
 
         metadata["hostname"] = get_hostname()
+        metadata["timezones"] = time.tzname
 
         return metadata
 
