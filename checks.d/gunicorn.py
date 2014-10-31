@@ -46,16 +46,11 @@ class GUnicornCheck(AgentCheck):
         worker_procs = master_proc.get_children()
         working, idle = self._count_workers(worker_procs)
 
-        # if no workers are running, alert critical
-
+        # if no workers are running, alert CRITICAL, otherwise OK
         msg = "%s working and %s idle workers for %s" % (working, idle, proc_name)
+        status = AgentCheck.CRITICAL if working == 0 and idle == 0 else AgentCheck.OK
 
-        if working == 0 and idle == 0:
-            self.service_check(self.SVC_NAME, AgentCheck.CRITICAL, tags=['app:'+ proc_name],
-                                message=msg)
-        else:
-            self.service_check(self.SVC_NAME, AgentCheck.OK, tags=['app:'+ proc_name],
-                                message=msg)
+        self.service_check(self.SVC_NAME, status, tags=['app:'+ proc_name], message=msg)
 
         # Submit the data.
         self.log.debug("instance %s procs - working:%s idle:%s" % (proc_name, working, idle))
