@@ -58,7 +58,7 @@ Changes
 # 5.0.5 (Every platform) / 10-31-2014
 
 This release fixes a bug on servers that are configured in local time instead of UTC Time.
-If your server is configured in local time, your server might stop sending metrics for up to one hour when the Daylight Saving Time ends, unless the Agent is restarted after the Daylight Saving Time ends.
+If your server's clock is configured to use daylight saving time, your server might stop sending metrics for up to one hour when the Daylight Saving Time ends or until the Agent is restarted after the Daylight Saving Time ends.
 
 We highly recommend to upgrade to this version if your server is configured in local time.
 
