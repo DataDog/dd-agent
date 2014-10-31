@@ -55,6 +55,13 @@ Changes
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 
+# 5.0.5 (Every platform) / 10-31-2014
+
+This release fixes a bug on servers that are configured in local time instead of UTC Time.
+If your server is configured in local time, your server might stop sending metrics for up to one hour when the Daylight Saving Time ends, unless the Agent is restarted after the Daylight Saving Time ends.
+
+We highly recommend to upgrade to this version of your server is configured in local time.
+
 # 5.0.4 (deb package, rpm package) / 10-17-2014
 
 This is a security update regarding POODLE (CVE-2014-3566).
