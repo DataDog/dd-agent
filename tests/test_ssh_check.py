@@ -1,26 +1,27 @@
 import unittest
+from nose.plugins.attrib import attr
 from tests.common import load_check
 from checks import AgentCheck
 
+@attr(requires='ssh')
 class SshTestCase(unittest.TestCase):
 
     def test_ssh(self):
-
         config = {
             'instances': [{
-                'host': 'sdf.org',
+                'host': 'localhost',
                 'port': 22,
-                'username': 'datadog01',
-                'password': 'abcd',
+                'username': 'test',
+                'password': 'test',
                 'sftp_check': False,
                 'private_key_file': '',
                 'add_missing_keys': True
             },
             {
-                'host': 'sdf.org',
+                'host': 'localhost',
                 'port': 22,
-                'username': 'wrongusername',
-                'password': 'wrongpassword',
+                'username': 'test',
+                'password': 'yodawg',
                 'sftp_check': False,
                 'private_key_file': '',
                 'add_missing_keys': True

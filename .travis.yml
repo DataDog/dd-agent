@@ -8,7 +8,7 @@ env:
     - NOSE_FILTER="not windows"
   matrix:
     - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=cache,gearman,database
+    - TRAVIS_FLAVOR=cache,gearman,database,ssh
     - TRAVIS_FLAVOR=cassandra,tomcat,jmx # JMX testing machine / need the other ones before
     - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
     - TRAVIS_FLAVOR=mongo
