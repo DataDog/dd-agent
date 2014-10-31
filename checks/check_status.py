@@ -109,7 +109,7 @@ class AgentStatus(object):
     NAME = None
 
     def __init__(self):
-        self.created_at = datetime.datetime.now()
+        self.created_at = datetime.datetime.utcnow()
         self.created_by_pid = os.getpid()
 
     def has_error(self):
@@ -128,7 +128,7 @@ class AgentStatus(object):
             log.exception("Error persisting status")
 
     def created_seconds_ago(self):
-        td = datetime.datetime.now() - self.created_at
+        td = datetime.datetime.utcnow() - self.created_at
         return td.seconds
 
     def render(self):
