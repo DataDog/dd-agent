@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.0.4"
+tag="5.0.5"
 
 #######################
 # Define some helpers #
