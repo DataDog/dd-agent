@@ -193,7 +193,7 @@ class NetworkCheck(AgentCheck):
                     self.events.append(event)
 
             # The job is finished here, this instance can be re processed
-            if name in self.jobs_status.keys():
+            if name in self.jobs_status:
                 del self.jobs_status[name]
 
     def _check(self, instance):

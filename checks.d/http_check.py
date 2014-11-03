@@ -203,7 +203,7 @@ class HTTPCheck(NetworkCheck):
             return Status.WARNING, "%s" % (str(e))
 
         exp_date = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
-        days_left = exp_date - datetime.now()
+        days_left = exp_date - datetime.utcnow()
 
         if days_left.days < 0:
             return Status.DOWN, "Expired by {0} days".format(days_left.days)
