@@ -135,7 +135,8 @@ class ProcessCheck(AgentCheck):
                     except AttributeError:
                         self.log.debug("process attribute not supported on this platform")
                     except psutil.AccessDenied:
-                        self.log.info('dd-agent user does not have access \
+                        log_func = self.log.debug if ignore_denied_access else self.log.info
+                        log_func('dd-agent user does not have access \
                             to I/O counters for process %d: %s' % (pid, p.name()))
                         read_count = None
                         write_count = None
