@@ -9,7 +9,7 @@ namespace :ci do
     task :install => ['ci:common:install']
 
     task :before_script => ['ci:common:before_script'] do
-      sh %Q{sudo /tmp/apache-cassandra-2.0.11/bin/cassandra}
+      sh %Q{sudo /tmp/apache-cassandra-2.1.1/bin/cassandra}
       # Wait for cassandra to init
       sh %Q{sleep 10}
     end
