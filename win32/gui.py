@@ -33,7 +33,7 @@ spyderlib.baseconfig.IMG_PATH = [""]
 
 # Datadog
 from util import get_os, yLoader
-from config import (get_confd_path, get_config_path, get_config, 
+from config import (get_confd_path, get_config_path, get_config,
     _windows_commondata_path)
 
 # 3rd Party
@@ -50,7 +50,6 @@ MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
 DATADOG_SERVICE = "DatadogAgent"
 
-STATUS_PAGE_URL = "http://localhost:17125/status"
 AGENT_LOG_FILE = osp.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
 
 HUMAN_SERVICE_STATUS = {
@@ -66,7 +65,6 @@ REFRESH_PERIOD = 5000
 START_AGENT = "Start Agent"
 STOP_AGENT = "Stop Agent"
 RESTART_AGENT = "Restart Agent"
-STATUS_PAGE = "Status page"
 EXIT_MANAGER = "Exit Agent Manager"
 OPEN_LOG = "Open log file"
 
@@ -74,7 +72,6 @@ SYSTEM_TRAY_MENU = [
     (START_AGENT, lambda: service_manager("start")),
     (STOP_AGENT, lambda: service_manager("stop")),
     (RESTART_AGENT, lambda: service_manager("restart")),
-    (STATUS_PAGE, lambda: webbrowser.open(STATUS_PAGE_URL)),
     (EXIT_MANAGER, lambda: sys.exit(0)),
 ]
 
@@ -90,7 +87,7 @@ def get_checks():
             continue
 
         agent_check = AgentCheck(filename, ext, conf_d_directory)
-        if (agent_check.enabled or agent_check.module_name not in checks or 
+        if (agent_check.enabled or agent_check.module_name not in checks or
             (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
             checks[agent_check.module_name] = agent_check
 
@@ -120,7 +117,7 @@ class EditorFile(object):
 class LogFile(EditorFile):
     def __init__(self):
         EditorFile.__init__(self, AGENT_LOG_FILE, "Agent log file")
-    
+
 
 class DatadogConf(EditorFile):
 
@@ -160,7 +157,7 @@ class AgentCheck(EditorFile):
         self.module_name = filename.split('.')[0]
 
         EditorFile.__init__(self, file_path, description=self.module_name.replace("_", " ").title())
-        
+
         self.enabled = ext == '.yaml'
         self.is_example = ext == '.example'
         self.enabled_name = osp.join(conf_d_directory, "%s.yaml" % self.module_name)
@@ -184,7 +181,7 @@ class PropertiesWidget(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         font = QFont(get_family(MONOSPACE), 10, QFont.Normal)
-        
+
         info_icon = QLabel()
         icon = get_std_icon('MessageBoxInformation').pixmap(24, 24)
         info_icon.setPixmap(icon)
@@ -209,7 +206,7 @@ class PropertiesWidget(QWidget):
         layout.addWidget(self.service_status_label  )
 
         group_desc.setLayout(layout)
-        
+
         self.editor = CodeEditor(self)
         self.editor.setup_editor(linenumbers=True, font=font)
         self.editor.setReadOnly(False)
@@ -217,7 +214,7 @@ class PropertiesWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.editor)
         group_code.setLayout(layout)
-        
+
         self.enable_button = QPushButton(get_icon("apply.png"),
                                       "Enable", self)
 
@@ -231,7 +228,7 @@ class PropertiesWidget(QWidget):
                                       "Disable", self)
 
 
-        self.view_log_button = QPushButton(get_icon("txt.png"), 
+        self.view_log_button = QPushButton(get_icon("txt.png"),
                                       "View log", self)
 
         self.menu_button = QPushButton(get_icon("settings.png"),
@@ -251,7 +248,7 @@ class PropertiesWidget(QWidget):
         hlayout.addWidget(self.view_log_button)
         hlayout.addStretch()
         hlayout.addWidget(self.menu_button)
-        
+
         vlayout = QVBoxLayout()
         vlayout.addWidget(group_desc)
         vlayout.addWidget(group_code)
@@ -259,7 +256,7 @@ class PropertiesWidget(QWidget):
         self.setLayout(vlayout)
 
         self.current_file = None
-        
+
     def set_item(self, check):
         self.current_file = check
         self.desc_label.setText(check.get_description())
@@ -298,7 +295,7 @@ class MainWindow(QSplitter):
         QSplitter.__init__(self, parent)
         self.setWindowTitle(MAIN_WINDOW_TITLE)
         self.setWindowIcon(get_icon("agent.svg"))
-        
+
         self.sysTray = SystemTray(self)
 
         self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.__icon_activated)
@@ -309,12 +306,12 @@ class MainWindow(QSplitter):
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
-        
+
         self.properties = PropertiesWidget(self)
-        
+
         self.addWidget(listwidget)
         self.addWidget(self.properties)
-        
+
         self.connect(self.properties.enable_button, SIGNAL("clicked()"),
                      lambda: enable_check(self.properties))
 
@@ -339,7 +336,7 @@ class MainWindow(QSplitter):
 
 
         listwidget.setCurrentRow(0)
-        
+
         self.setSizes([150, 1])
         self.setStretchFactor(1, 1)
         self.resize(QSize(950, 600))
@@ -360,7 +357,7 @@ class MainWindow(QSplitter):
 
     def closeEvent(self, event):
         self.hide()
-        self.sysTray.show() 
+        self.sysTray.show()
         event.ignore()
 
     def __icon_activated(self, reason):
@@ -408,7 +405,7 @@ class SystemTray(QSystemTrayIcon):
         menu = Menu(self.parent())
         self.setContextMenu(menu)
 
-    
+
 def disable_check(properties):
     check = properties.current_file
     new_content = properties.editor.toPlainText().__str__()
@@ -420,7 +417,7 @@ def disable_check(properties):
     properties.enable_button.setEnabled(True)
     properties.disable_button.setEnabled(False)
     check.disable()
-    
+
 def enable_check(properties):
     check = properties.current_file
 
@@ -432,20 +429,20 @@ def enable_check(properties):
     properties.enable_button.setEnabled(False)
     properties.disable_button.setEnabled(True)
     check.enable()
-    
+
 
 def save_file(properties):
     current_file = properties.current_file
     new_content = properties.editor.toPlainText().__str__()
     current_file.save(new_content)
-    
+
 def check_yaml_syntax(content):
     try:
         yaml.load(content, Loader=yLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
-    
+
 def _service_manager(action):
     try:
         if action == 'stop':
