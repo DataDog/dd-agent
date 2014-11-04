@@ -3,7 +3,7 @@ require './ci/common'
 namespace :ci do
   namespace :cassandra do
     task :before_install => ['ci:common:before_install'] do
-      sh %Q{curl http://apache.mesi.com.ar/cassandra/2.0.11/apache-cassandra-2.0.11-bin.tar.gz | tar -C /tmp -xz}
+      sh %Q{curl http://apache.petsads.us/cassandra/2.1.1/apache-cassandra-2.1.1-bin.tar.gz | tar -C /tmp -xz}
     end
 
     task :install => ['ci:common:install']
