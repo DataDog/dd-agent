@@ -359,8 +359,6 @@ SELECT %s
             elif not user:
                 raise CheckException("Please specify a user to connect to Postgres as.")
 
-        connection.autocommit = True
-
         self.dbs[key] = connection
         return connection
 
@@ -392,6 +390,8 @@ SELECT %s
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
+        db = None
+
         # Collect metrics
         try:
             # Check version
@@ -403,3 +403,9 @@ SELECT %s
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
+
+        if db is not None:
+            try:
+                db.commit()
+            except Exception, e:
+                self.log.warning("Unable to commit: {0}".format(e))
