@@ -166,16 +166,18 @@ class MongoDb(AgentCheck):
             if param is None:
                 del ssl_params[key]
 
-        tags = instance.get('tags', [])
-        tags.append('server:%s' % server)
-        # de-dupe tags to avoid a memory leak
-        tags = list(set(tags))
-
         # Configuration a URL, mongodb://user:pass@server/db
         parsed = pymongo.uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
+
+        tags = instance.get('tags', [])
+        tags.append('server:%s' % server.replace(password, "*" * 5))
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
+
+
 
         if not db_name:
             self.log.info('No MongoDB database found in URI. Defaulting to admin.')
