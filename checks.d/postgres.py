@@ -406,6 +406,7 @@ SELECT %s
 
         if db is not None:
             try:
+                # commit to close the current query transaction
                 db.commit()
             except Exception, e:
                 self.log.warning("Unable to commit: {0}".format(e))
