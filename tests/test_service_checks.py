@@ -19,6 +19,31 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.check = load_check(check_name, config, self.agentConfig)
         self.checks.append(self.check)
 
+    def testHTTPWarning(self):
+        config = {
+            'init_config': {},
+            'instances': [{
+                'url': 'http://127.0.0.1:55555',
+                'name': 'DownService',
+                'timeout': 1
+            },{
+                'url': 'https://google.com',
+                'name': 'UpService',
+                'timeout': 1
+            }]
+        }
+        self.init_check(config, 'http_check')
+
+        self.check.run()
+        time.sleep(1)
+        # This would normally be called during the next run(), it is what
+        # flushes the results of the check
+        self.check._process_results()
+        warnings = self.check.get_warnings()
+
+        self.assertTrue(len(warnings) == 3, warnings)
+        self.assertTrue(len([k for k in warnings if "Skipping SSL certificate validation" in k])==1, warnings)
+
     def testHTTP(self):
         # No passwords this time
         config = {

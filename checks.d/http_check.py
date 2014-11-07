@@ -1,6 +1,7 @@
 # stdlib
 import socket
 import time
+from urlparse import urlparse
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
@@ -37,7 +38,7 @@ class HTTPCheck(NetworkCheck):
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
-            if disable_ssl_validation:
+            if disable_ssl_validation and urlparse(addr)[0] == "https":
                 self.warning("Skipping SSL certificate validation for %s based on configuration" % addr)
             h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
             if username is not None and password is not None:
