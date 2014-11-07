@@ -1,3 +1,5 @@
+*.zip
+Gemfile.lock
 *.pyc
 *.*~
 build/*
@@ -6,6 +8,7 @@ datadog_agent.egg-info/*
 artifacts/*
 node_modules/*
 .DS_Store
+venv/*
 *.swp
 *.log
 *.pid
