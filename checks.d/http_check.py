@@ -4,7 +4,7 @@ import time
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
-from util import headers
+from util import headers as agent_headers
 
 # 3rd party
 from httplib2 import Http, HttpLib2Error
@@ -20,7 +20,9 @@ class HTTPCheck(NetworkCheck):
         username = instance.get('username', None)
         password = instance.get('password', None)
         timeout = int(instance.get('timeout', 10))
-        headers = instance.get('headers',{})
+        config_headers = instance.get('headers',{})
+        headers = agent_headers(self.agentConfig)
+        headers.update(config_headers)
         url = instance.get('url', None)
         response_time = instance.get('collect_response_time', True)
         if url is None:
