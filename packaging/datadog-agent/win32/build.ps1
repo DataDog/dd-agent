@@ -41,6 +41,9 @@ cp -R install_files\guidata install_files\files
 # Copy the license file
 cp ..\..\..\LICENSE install_files\license.rtf
 
+#Copy the Status template
+cp ..\..\..\win32\status.html install_files\files
+
 ## Generate the CLI installer with WiX
 
     # Generate fragments for the files in checks.d, conf.d and pup
@@ -64,6 +67,7 @@ rm install_files\files\*.*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
 rm -r install_files\Microsoft.VC90.CRT
+
 
 # Move back to the root workspace
 cd ..\..\..\

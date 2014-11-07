@@ -10,6 +10,9 @@ import os
 import os.path as osp
 import webbrowser
 import thread # To manage the windows process asynchronously
+import tempfile
+import logging
+import pickle
 
 import win32serviceutil
 import win32service
@@ -18,7 +21,7 @@ import win32service
 from guidata.qt.QtGui import (QWidget, QVBoxLayout, QSplitter, QFont,
                               QListWidget, QPushButton, QLabel, QGroupBox,
                               QHBoxLayout, QMessageBox, QInputDialog,
-                              QSystemTrayIcon, QIcon, QMenu)
+                              QSystemTrayIcon, QIcon, QMenu, QTextEdit, QTextDocument)
 from guidata.qt.QtCore import SIGNAL, Qt, QSize, QPoint, QTimer
 
 from guidata.configtools import get_icon, get_family, MONOSPACE
@@ -34,10 +37,15 @@ spyderlib.baseconfig.IMG_PATH = [""]
 # Datadog
 from util import get_os, yLoader
 from config import (get_confd_path, get_config_path, get_config,
-    _windows_commondata_path)
+    _windows_commondata_path, get_version)
+from checks.check_status import DogstatsdStatus, ForwarderStatus, CollectorStatus, logger_info
 
 # 3rd Party
 import yaml
+import tornado.template as template
+import platform
+
+log = logging.getLogger(__name__)
 
 EXCLUDED_WINDOWS_CHECKS = [
     'cacti', 'directory', 'docker', 'gearmand',
@@ -51,6 +59,9 @@ MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 DATADOG_SERVICE = "DatadogAgent"
 
 AGENT_LOG_FILE = osp.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
+COLLECTOR_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
+FORWARDER_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
+DOGSTATSD_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
 
 HUMAN_SERVICE_STATUS = {
     win32service.SERVICE_RUNNING : 'Service is running',
@@ -114,9 +125,17 @@ class EditorFile(object):
             warning_popup("Unable to save file: \n %s" % str(e))
             raise
 
-class LogFile(EditorFile):
+class ForwarderLogFile(EditorFile):
     def __init__(self):
-        EditorFile.__init__(self, AGENT_LOG_FILE, "Agent log file")
+        EditorFile.__init__(self, FORWARDER_LOG_FILE, "Forwarder log file")
+
+class CollectorLogFile(EditorFile):
+    def __init__(self):
+        EditorFile.__init__(self, COLLECTOR_LOG_FILE, "Collector log file")
+
+class DogstatsdLogFile(EditorFile):
+    def __init__(self):
+        EditorFile.__init__(self, DOGSTATSD_LOG_FILE, "Dogstatsd log file")
 
 
 class DatadogConf(EditorFile):
@@ -198,22 +217,22 @@ class PropertiesWidget(QWidget):
         self.desc_label.setAlignment(Qt.AlignTop)
         self.desc_label.setFont(font)
 
-        group_desc = QGroupBox("Description", self)
+        self.group_desc = QGroupBox("Description", self)
         layout = QHBoxLayout()
         layout.addWidget(info_icon)
         layout.addWidget(self.desc_label)
         layout.addStretch()
-        layout.addWidget(self.service_status_label  )
+        layout.addWidget(self.service_status_label)
 
-        group_desc.setLayout(layout)
+        self.group_desc.setLayout(layout)
 
         self.editor = CodeEditor(self)
         self.editor.setup_editor(linenumbers=True, font=font)
         self.editor.setReadOnly(False)
-        group_code = QGroupBox("Source code", self)
+        self.group_code = QGroupBox("Source code", self)
         layout = QVBoxLayout()
         layout.addWidget(self.editor)
-        group_code.setLayout(layout)
+        self.group_code.setLayout(layout)
 
         self.enable_button = QPushButton(get_icon("apply.png"),
                                       "Enable", self)
@@ -221,47 +240,38 @@ class PropertiesWidget(QWidget):
         self.save_button = QPushButton(get_icon("filesave.png"),
                                       "Save", self)
 
-        self.edit_datadog_conf_button = QPushButton(get_icon("edit.png"),
-                                      "Edit agent settings", self)
-
         self.disable_button = QPushButton(get_icon("delete.png"),
                                       "Disable", self)
 
-        self.view_log_button = QPushButton(get_icon("txt.png"),
-                                      "View log", self)
-
-        self.status_button = QPushButton(get_icon("settings.png"),
-                                      "Status", self)
-
-        self.menu_button = QPushButton(get_icon("settings.png"),
-                                      "Manager", self)
-
-
-
+        self.refresh_button = QPushButton(get_icon("restart.png"),
+                                      "Refresh", self)
         hlayout = QHBoxLayout()
         hlayout.addWidget(self.save_button)
-        hlayout.addStretch()
         hlayout.addWidget(self.enable_button)
-        hlayout.addStretch()
         hlayout.addWidget(self.disable_button)
-        hlayout.addStretch()
-        hlayout.addWidget(self.edit_datadog_conf_button)
-        hlayout.addStretch()
-        hlayout.addWidget(self.view_log_button)
-        hlayout.addStretch()
-        hlayout.addWidget(self.status_button)
-        hlayout.addStretch()
-        hlayout.addWidget(self.menu_button)
+        hlayout.addWidget(self.refresh_button)
+
 
         vlayout = QVBoxLayout()
-        vlayout.addWidget(group_desc)
-        vlayout.addWidget(group_code)
+        vlayout.addWidget(self.group_desc)
+        vlayout.addWidget(self.group_code)
+        self.html_window = HTMLWindow()
+        vlayout.addWidget(self.html_window)
+
         vlayout.addLayout(hlayout)
         self.setLayout(vlayout)
 
         self.current_file = None
 
+    def set_status(self):
+        self.refresh_button.setEnabled(True)
+        self.disable_button.setEnabled(False)
+        self.enable_button.setEnabled(False)
+        self.save_button.setEnabled(False)
+
     def set_item(self, check):
+        self.refresh_button.setEnabled(False)
+        self.save_button.setEnabled(True)
         self.current_file = check
         self.desc_label.setText(check.get_description())
         self.editor.set_text_from_file(check.file_path)
@@ -274,16 +284,19 @@ class PropertiesWidget(QWidget):
             self.enable_button.setEnabled(True)
 
     def set_datadog_conf(self, datadog_conf):
+        self.save_button.setEnabled(True)
+        self.refresh_button.setEnabled(False)
         self.current_file = datadog_conf
         self.desc_label.setText(datadog_conf.get_description())
         self.editor.set_text_from_file(datadog_conf.file_path)
         datadog_conf.content = self.editor.toPlainText().__str__()
         self.disable_button.setEnabled(False)
         self.enable_button.setEnabled(False)
-
         datadog_conf.check_api_key(self.editor)
 
     def set_log_file(self, log_file):
+        self.save_button.setEnabled(False)
+        self.refresh_button.setEnabled(True)
         self.current_file = log_file
         self.desc_label.setText(log_file.get_description())
         self.editor.set_text_from_file(log_file.file_path)
@@ -292,6 +305,28 @@ class PropertiesWidget(QWidget):
         self.enable_button.setEnabled(False)
         self.editor.go_to_line(len(log_file.content.splitlines()))
 
+class HTMLWindow(QTextEdit):
+    def __init__(self, parent=None):
+        QTextEdit.__init__(self, parent)
+        self.setReadOnly(True)
+        self.setHtml(self.latest_status())
+
+    def latest_status(self):
+        loaded_template = template.Loader(".")
+        dogstatsd_status = DogstatsdStatus.load_latest_status()
+        forwarder_status = ForwarderStatus.load_latest_status()
+        collector_status = CollectorStatus.load_latest_status()
+        generated_template = loaded_template.load("status.html").generate(
+            port=22,
+            platform=platform.platform(),
+            agent_version=get_version(),
+            python_version=platform.python_version(),
+            logger_info=logger_info(),
+            dogstatsd=dogstatsd_status.to_dict(),
+            forwarder=forwarder_status.to_dict(),
+            collector=collector_status.to_dict(),
+            )
+        return generated_template
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
@@ -306,14 +341,55 @@ class MainWindow(QSplitter):
 
         checks = get_checks()
         datadog_conf = DatadogConf(get_config_path(), description="Agent settings file: datadog.conf")
-        self.log_file = LogFile()
+
+        self.forwarder_log_file = ForwarderLogFile()
+        self.collector_log_file = CollectorLogFile()
+        self.dogstatsd_log_file = DogstatsdLogFile()
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
 
         self.properties = PropertiesWidget(self)
 
-        self.addWidget(listwidget)
+        self.setting_button = QPushButton(get_icon("info.png"),
+                                      "Logs and Status", self)
+        self.menu_button = QPushButton(get_icon("settings.png"),
+                                      "Actions", self)
+        self.settings = [
+            ("Forwader Logs", lambda: [self.properties.set_log_file(self.forwarder_log_file),
+                self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ("Collector Logs", lambda: [self.properties.set_log_file(self.collector_log_file),
+                self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ("Dogstatsd Logs", lambda: [self.properties.set_log_file(self.dogstatsd_log_file),
+                self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ("Agent Status", lambda: [self.properties.html_window.setHtml(self.properties.html_window.latest_status()),
+                self.show_html(self.properties.group_code, self.properties.html_window, True),
+                self.properties.set_status()]),
+        ]
+
+        self.agent_settings = QPushButton(get_icon("edit.png"),
+                                      "Settings", self)
+        self.connect(self.agent_settings, SIGNAL("clicked()"),
+            lambda: [self.properties.set_datadog_conf(datadog_conf),
+                self.show_html(self.properties.group_code, self.properties.html_window, False)])
+
+        self.setting_menu = SettingMenu(self.settings)
+        self.connect(self.setting_button, SIGNAL("clicked()"),
+            lambda: self.setting_menu.popup(self.setting_button.mapToGlobal(QPoint(0,0))))
+
+        self.manager_menu = Menu(self)
+        self.connect(self.menu_button, SIGNAL("clicked()"),
+            lambda: self.manager_menu.popup(self.menu_button.mapToGlobal(QPoint(0,0))))
+
+        holdingBox = QGroupBox("", self)
+        Box = QVBoxLayout(self)
+        Box.addWidget(self.agent_settings)
+        Box.addWidget(self.setting_button)
+        Box.addWidget(self.menu_button)
+        Box.addWidget(listwidget)
+        holdingBox.setLayout(Box)
+
+        self.addWidget(holdingBox)
         self.addWidget(self.properties)
 
         self.connect(self.properties.enable_button, SIGNAL("clicked()"),
@@ -325,19 +401,13 @@ class MainWindow(QSplitter):
         self.connect(self.properties.save_button, SIGNAL("clicked()"),
                      lambda: save_file(self.properties))
 
+        self.connect(self.properties.refresh_button, SIGNAL("clicked()"),
+                     lambda: [self.properties.set_log_file(self.properties.current_file),
+                     self.properties.html_window.setHtml(self.properties.html_window.latest_status())])
+
         self.connect(listwidget, SIGNAL('currentRowChanged(int)'),
-                     lambda row: self.properties.set_item(checks[row]))
-
-        self.connect(self.properties.edit_datadog_conf_button, SIGNAL('clicked()'),
-                     lambda: self.properties.set_datadog_conf(datadog_conf))
-
-        self.connect(self.properties.view_log_button, SIGNAL('clicked()'),
-                     lambda: self.properties.set_log_file(self.log_file))
-
-        self.manager_menu = Menu(self)
-        self.connect(self.properties.menu_button, SIGNAL("clicked()"),
-            lambda: self.manager_menu.popup(self.properties.menu_button.mapToGlobal(QPoint(0,0))))
-
+                     lambda row: [self.properties.set_item(checks[row]),
+                     self.show_html(self.properties.group_code, self.properties.html_window, False)])
 
         listwidget.setCurrentRow(0)
 
@@ -353,9 +423,6 @@ class MainWindow(QSplitter):
             if self.isVisible():
                 service_status = get_service_status()
                 self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[service_status])
-
-                if not is_service_stopped(service_status) and self.properties.current_file == self.log_file:
-                    self.properties.set_log_file(self.log_file)
         finally:
             QTimer.singleShot(REFRESH_PERIOD, self.do_refresh)
 
@@ -367,6 +434,14 @@ class MainWindow(QSplitter):
     def __icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             self.show()
+
+    def show_html(self, editor, html, state):
+        if state is True:
+            editor.setVisible(False)
+            html.setVisible(True)
+        else:
+            editor.setVisible(True)
+            html.setVisible(False)
 
 class Menu(QMenu):
 
@@ -396,6 +471,17 @@ class Menu(QMenu):
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
+
+class SettingMenu(QMenu):
+
+    def __init__(self, settings, parent=None,):
+        QMenu.__init__(self, parent)
+        self.options = {}
+
+        for name, action in settings:
+            menu_action = self.addAction(name)
+            self.connect(menu_action, SIGNAL('triggered()'), action)
+            self.options[name] = menu_action
 
 
 class SystemTray(QSystemTrayIcon):
