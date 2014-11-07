@@ -227,9 +227,11 @@ class PropertiesWidget(QWidget):
         self.disable_button = QPushButton(get_icon("delete.png"),
                                       "Disable", self)
 
-
         self.view_log_button = QPushButton(get_icon("txt.png"),
                                       "View log", self)
+
+        self.status_button = QPushButton(get_icon("settings.png"),
+                                      "Status", self)
 
         self.menu_button = QPushButton(get_icon("settings.png"),
                                       "Manager", self)
@@ -246,6 +248,8 @@ class PropertiesWidget(QWidget):
         hlayout.addWidget(self.edit_datadog_conf_button)
         hlayout.addStretch()
         hlayout.addWidget(self.view_log_button)
+        hlayout.addStretch()
+        hlayout.addWidget(self.status_button)
         hlayout.addStretch()
         hlayout.addWidget(self.menu_button)
 

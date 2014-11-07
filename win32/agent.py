@@ -15,6 +15,7 @@ import multiprocessing
 
 from optparse import Values
 from checks.collector import Collector
+from checks.check_status import CollectorStatus
 from emitter import http_emitter
 from win32.common import handle_exe_click
 import dogstatsd
