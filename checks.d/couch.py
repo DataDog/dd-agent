@@ -15,6 +15,7 @@ class CouchDb(AgentCheck):
     """
 
     SOURCE_TYPE_NAME = 'couchdb'
+    SERVICE_CHECK_NAME = 'couchdb.can_connect'
 
     def _create_metric(self, data, tags=None):
         overall_stats = data.get('stats', {})
@@ -61,7 +62,21 @@ class CouchDb(AgentCheck):
         endpoint = '/_stats/'
 
         url = '%s%s' % (server, endpoint)
-        overall_stats = self._get_stats(url, instance)
+
+        # Fetch initial stats and capture a service check based on response.
+        service_check_tags = ['instance:%s' % server]
+        try:
+            overall_stats = self._get_stats(url, instance)
+        except urllib2.URLError as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=e.reason)
+            raise
+        except Exception as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=str(e))
+            raise
+        else:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
 
         # No overall stats? bail out now
         if overall_stats is None:
