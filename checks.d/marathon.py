@@ -40,7 +40,7 @@ class Marathon(AgentCheck):
                 for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
                     if hasattr(app, attr):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
-                versions_reply = self.get_v2_app_versions(url, app, timeout)
+                versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
 
@@ -82,12 +82,12 @@ class Marathon(AgentCheck):
 
         return req_json
 
-    def get_v2_app_versions(self, url, app, timeout):
+    def get_v2_app_versions(self, url, app_id, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
 
         try:
-            r = requests.get(url + "/v2/apps/" + app['id'] + "/versions", timeout=timeout)
+            r = requests.get(url + "/v2/apps/" + app_id + "/versions", timeout=timeout)
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
