@@ -154,28 +154,30 @@ class Docker(AgentCheck):
 
         service_check_name = 'docker.service_up'
         try:
-            containers = self._get_containers(instance, with_size=with_size)
+            running_containers = self._get_containers(instance, with_size=with_size)
+            all_containers = self._get_containers(instance, get_all=True)
         except (socket.timeout, urllib2.URLError), e:
             self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags)
             raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
         self.service_check(service_check_name, AgentCheck.OK, tags=tags)
 
-        container_count_by_image = defaultdict(int)
-        for container in containers:
-            container_count_by_image[container['Image']] += 1
+        running_containers_ids = set([container['Id'] for container in running_containers])
 
-        for image, count in container_count_by_image.iteritems():
-            self.gauge("docker.containers.running", count, tags=(tags + ['image:%s' % image]))
+        for container in all_containers:
+            container_tags = instance.get("tags", [])
+            for key in DOCKER_TAGS:
+                container_tags.append(self._make_tag(key, container[key]))
+            if container['Id'] in running_containers_ids:
+                self.increment("docker.containers.running", tags=container_tags)
+            else:
+                self.increment("docker.containers.stopped", tags=container_tags)
 
-        all_containers = self._get_containers(instance, get_all=True)
-        stopped_containers_count = len(all_containers) - len(containers)
-        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
-
+        # The index of the names is used to generate and format events
         ids_to_names = {}
         for container in all_containers:
             ids_to_names[container['Id']] = container['Names'][0].lstrip("/")
 
-        return containers, ids_to_names
+        return running_containers, ids_to_names
 
     def _is_container_included(self, instance, tags):
         def _is_tag_included(tag):
