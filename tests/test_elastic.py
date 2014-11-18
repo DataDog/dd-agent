@@ -60,14 +60,10 @@ class TestElastic(unittest.TestCase):
         # Initialize the check from checks.d
         self.check = load_check('elastic', conf, agentConfig)
 
-        try:
-            self.check.check(conf['instances'][0])
-        except Exception:
-            pass
+        self.assertRaises(urllib2.URLError, self.check.check, conf['instances'][0])
         service_checks = self.check.get_service_checks()
         self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_CONNECT_NAME
             and sc['status'] == AgentCheck.CRITICAL]), 1, service_checks)
-
 
     def testElasticChecksD(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
@@ -126,7 +122,6 @@ class TestElastic(unittest.TestCase):
         self.check.check(conf['instances'][0])
         events = self.check.get_events()
         self.assertEquals(len(events),1,events)
-
 
 if __name__ == "__main__":
     unittest.main()
