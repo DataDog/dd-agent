@@ -164,7 +164,7 @@ class ElasticSearch(AgentCheck):
 
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
-        health_data = self._get_data(url, auth,send_service_check=True, service_check_tags=service_check_tags)
+        health_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
         self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
         self.service_check(SERVICE_CHECK_CONNECT_NAME, AgentCheck.OK, tags=service_check_tags)
 
