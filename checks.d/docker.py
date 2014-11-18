@@ -204,14 +204,14 @@ class Docker(AgentCheck):
             if not self._is_container_included(instance, container_tags):
                 continue
 
-            for key, (dd_key, metric_type) in DOCKER_METRICS.items():
+            for key, (dd_key, metric_type) in DOCKER_METRICS.iteritems():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for cgroup in CGROUP_METRICS:
                 stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
-                    for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].items():
+                    for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].iteritems():
                         if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
