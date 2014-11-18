@@ -403,7 +403,7 @@ class ElasticSearch(AgentCheck):
                                  data["unassigned_shards"],
                                  data["timed_out"])
 
-        self.service_check(SERVICE_CHECK_CLUSTER_STATUS, status, message=msg, tags=service_check_tags)
+        self.service_check(self.SERVICE_CHECK_CLUSTER_STATUS, status, message=msg, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):
