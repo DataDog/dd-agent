@@ -20,29 +20,29 @@ CGROUP_METRICS = [
         "cgroup": "memory",
         "file": "memory.stat",
         "metrics": {
-            "active_anon": ("docker.mem.active_anon", "gauge"),
-            "active_file": ("docker.mem.active_file", "gauge"),
-            "cache": ("docker.mem.cache", "gauge"),
-            "hierarchical_memory_limit": ("docker.mem.hierarchical_memory_limit", "gauge"),
-            "hierarchical_memsw_limit": ("docker.mem.hierarchical_memsw_limit", "gauge"),
-            "inactive_anon": ("docker.mem.inactive_anon", "gauge"),
-            "inactive_file": ("docker.mem.inactive_file", "gauge"),
-            "mapped_file": ("docker.mem.mapped_file", "gauge"),
-            "pgfault": ("docker.mem.pgfault", "rate"),
-            "pgmajfault": ("docker.mem.pgmajfault", "rate"),
-            "pgpgin": ("docker.mem.pgpgin", "rate"),
-            "pgpgout": ("docker.mem.pgpgout", "rate"),
-            "rss": ("docker.mem.rss", "gauge"),
-            "swap": ("docker.mem.swap", "gauge"),
-            "unevictable": ("docker.mem.unevictable", "gauge"),
+            # Default metrics
+            "cache": ("docker.mem.cache", "gauge", True),
+            "rss": ("docker.mem.rss", "gauge", True),
+            "swap": ("docker.mem.swap", "gauge", True),
+            # Optional metrics
+            "active_anon": ("docker.mem.active_anon", "gauge", False),
+            "active_file": ("docker.mem.active_file", "gauge", False),
+            "inactive_anon": ("docker.mem.inactive_anon", "gauge", False),
+            "inactive_file": ("docker.mem.inactive_file", "gauge", False),
+            "mapped_file": ("docker.mem.mapped_file", "gauge", False),
+            "pgfault": ("docker.mem.pgfault", "rate", False),
+            "pgmajfault": ("docker.mem.pgmajfault", "rate", False),
+            "pgpgin": ("docker.mem.pgpgin", "rate", False),
+            "pgpgout": ("docker.mem.pgpgout", "rate", False),
+            "unevictable": ("docker.mem.unevictable", "gauge", False),
         }
     },
     {
         "cgroup": "cpuacct",
         "file": "cpuacct.stat",
         "metrics": {
-            "user": ("docker.cpu.user", "rate"),
-            "system": ("docker.cpu.system", "rate"),
+            "user": ("docker.cpu.user", "rate", True),
+            "system": ("docker.cpu.system", "rate", True),
         },
     },
 ]
@@ -192,6 +192,7 @@ class Docker(AgentCheck):
         return False
 
     def _report_containers_metrics(self, containers, instance):
+        collect_uncommon_metrics = instance.get("collect_all_metrics", False)
         for container in containers:
             container_tags = instance.get("tags", [])
             for name in container["Names"]:
@@ -210,8 +211,8 @@ class Docker(AgentCheck):
                 stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
-                    for key, (dd_key, metric_type) in cgroup['metrics'].items():
-                        if key in stats:
+                    for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].items():
+                        if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
     def _make_tag(self, key, value):
