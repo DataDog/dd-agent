@@ -71,6 +71,7 @@ class HaproxyTestCase(unittest.TestCase):
                 'password': 'isdevops',
                 'status_check': True,
                 'collect_aggregates_only': False,
+                'tag_service_check_by_host': True,
             }]
         }
         self.start_server(HAPROXY_CFG, config)
@@ -104,6 +105,10 @@ class HaproxyTestCase(unittest.TestCase):
             if t['status']== 0]), 2, service_checks)
         self.assertEquals(len([t for t in service_checks
             if t['status']== 3]), 6, service_checks)
+
+        # Make sure the service checks aren't tagged with an empty hostname.
+        for service_check in service_checks:
+            self.assertEquals(service_check['host_name'], get_hostname())
 
         inst = config['instances'][0]
         data = self.check._fetch_data(inst['url'], inst['username'], inst['password'])
@@ -219,6 +224,11 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
             if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
+
+        # Make sure the default case has empty hostnames.
+        for service_check in  self.check.get_service_checks():
+            self.assertEquals(service_check['host_name'], '')
+
 
     def tearDown(self):
         if self.process is not None:
