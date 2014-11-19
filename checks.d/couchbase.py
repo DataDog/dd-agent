@@ -110,7 +110,7 @@ class Couchbase(AgentCheck):
             for bucket in buckets:
                 bucket_name = bucket['name']
 
-                # We have to manually build the URI for the stats bucket, as this is not auto discoverable
+                # Fetch URI for the stats bucket
                 endpoint = bucket['stats']['uri']
                 url = '%s%s' % (server, endpoint)
                 bucket_stats = self._get_stats(url, instance)
