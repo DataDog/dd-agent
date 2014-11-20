@@ -25,7 +25,8 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING : "WARN",
 }
 
-JMX_FETCH_JAR_NAME = "jmxfetch-0.3.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.4.0-jar-with-dependencies.jar"
+JMXFETCH_MAIN_CLASS = "org.datadog.jmxfetch.App"
 JMX_CHECKS = [
     'activemq',
     'activemq_58',
@@ -60,7 +61,7 @@ class JMXFetch(object):
         default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
             command = command or JMX_COLLECT_COMMAND
-            jmx_checks, invalid_checks, java_bin_path, java_options = JMXFetch.should_run(confd_path, checks_list)
+            jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path = JMXFetch.should_run(confd_path, checks_list)
             if len(invalid_checks) > 0:
                 try:
                     JMXFetch.write_status_file(invalid_checks)
@@ -74,7 +75,7 @@ class JMXFetch(object):
 
                 JMXFetch.start(confd_path, agentConfig, logging_config,
                     java_bin_path, java_options, default_check_frequency,
-                    jmx_checks, command, reporter)
+                    jmx_checks, command, reporter, tools_jar_path)
                 return True
         except Exception:
             log.exception("Error while initiating JMXFetch")
@@ -111,11 +112,15 @@ class JMXFetch(object):
     java_options: is string contains options that will be passed to java_bin_path
     We assume that this value is alwayws the same for every jmx check
     so we can return the first value returned
+
+    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is 
+    required to connect to a local JMX instance using the attach api.
     """
 
         jmx_checks = []
         java_bin_path = None
         java_options = None
+        tools_jar_path = None
         invalid_checks = {}
 
         for conf in glob.glob(os.path.join(confd_path, '*.yaml')):
@@ -134,25 +139,30 @@ class JMXFetch(object):
                     continue
 
                 try:
-                    is_jmx, check_java_bin_path, check_java_options = JMXFetch.is_jmx_check(check_config, check_name, checks_list)
+                    is_jmx, check_java_bin_path, check_java_options, check_tools_jar_path = JMXFetch.is_jmx_check(check_config, check_name, checks_list)
                     if is_jmx:
                         jmx_checks.append(filename)
                         if java_bin_path is None and check_java_bin_path is not None:
                             java_bin_path = check_java_bin_path
                         if java_options is None and check_java_options is not None:
                             java_options = check_java_options
+                        if tools_jar_path is None and check_tools_jar_path is not None:
+                            tools_jar_path = check_tools_jar_path
                 except InvalidJMXConfiguration, e:
                     log.error("%s check is not a valid jmx configuration: %s" % (check_name, e))
                     invalid_checks[check_name] = e
 
-        return (jmx_checks, invalid_checks, java_bin_path, java_options)
+        return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
 
     @classmethod
     def is_jmx_check(cls, check_config, check_name, checks_list):
-        init_config = check_config.get('init_config', {})
+        init_config = check_config.get('init_config', {}) or {}
         java_bin_path = None
         java_options = None
         is_jmx = False
+        is_attach_api = False
+        tools_jar_path = init_config.get("tools_jar_path")
+
         if init_config is None:
             init_config = {}
 
@@ -174,10 +184,18 @@ class JMXFetch(object):
                 host = inst.get('host', None)
                 port = inst.get('port', None)
                 conf = inst.get('conf', init_config.get('conf', None))
-                if host is None:
-                    raise InvalidJMXConfiguration("A host must be specified")
-                if port is None or type(port) != int:
-                    raise InvalidJMXConfiguration("A numeric port must be specified")
+                tools_jar_path = inst.get('tools_jar_path')
+
+                # Support for attach api using a process name regex
+                proc_regex = inst.get('process_name_regex')
+
+                if proc_regex is not None:
+                    is_attach_api = True
+                else:
+                    if host is None:
+                        raise InvalidJMXConfiguration("A host must be specified")
+                    if port is None or type(port) != int:
+                        raise InvalidJMXConfiguration("A numeric port must be specified")
 
                 if conf is None:
                     log.warning("%s doesn't have a 'conf' section. Only basic JVM metrics will be collected. %s" % (inst, LINK_TO_DOC))
@@ -211,7 +229,20 @@ class JMXFetch(object):
                         if instance and instance.get('java_options'):
                             java_options = instance.get('java_options')
 
-        return is_jmx, java_bin_path, java_options
+            if is_attach_api:
+                if tools_jar_path is None:
+                    for instance in instances:
+                        if instance and instance.get("tools_jar_path"):
+                            tools_jar_path = instance.get("tools_jar_path")
+
+                if tools_jar_path is None:
+                    raise InvalidJMXConfiguration("You must specify the path to tools.jar in your JDK.")
+                elif  not os.path.isfile(tools_jar_path):
+                    raise InvalidJMXConfiguration("Unable to find tools.jar at %s" % tools_jar_path)
+            else:
+                tools_jar_path = None
+
+        return is_jmx, java_bin_path, java_options, tools_jar_path
 
     @classmethod
     def is_running(cls):
@@ -283,7 +314,7 @@ class JMXFetch(object):
 
     @classmethod
     def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts,
-        default_check_frequency, jmx_checks, command, reporter=None):
+        default_check_frequency, jmx_checks, command, reporter, tools_jar_path):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
         if reporter is None:
@@ -297,10 +328,16 @@ class JMXFetch(object):
             path_to_jmxfetch = JMXFetch.get_path_to_jmxfetch()
             path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
 
+            if tools_jar_path is None:
+                classpath = path_to_jmxfetch
+            else:
+                classpath = r"%s:%s" % (tools_jar_path, path_to_jmxfetch)
+
             subprocess_args = [
                 path_to_java, # Path to the java bin
-                '-jar',
-                r"%s" % path_to_jmxfetch, # Path to the jmxfetch jar
+                '-classpath',
+                classpath,
+                JMXFETCH_MAIN_CLASS,
                 '--check_period', str(default_check_frequency * 1000),  # Period of the main loop of jmxfetch in ms
                 '--conf_directory', r"%s" % confd_path, # Path of the conf.d directory that will be read by jmxfetch,
                 '--log_level', JAVA_LOGGING_LEVEL.get(logging_config.get("log_level"), "INFO"),  # Log Level: Mapping from Python log level to log4j log levels
@@ -310,9 +347,10 @@ class JMXFetch(object):
                 command, # Name of the command
             ]
 
-            subprocess_args.insert(3, '--check')
+
+            subprocess_args.insert(4, '--check')
             for check in jmx_checks:
-                subprocess_args.insert(4, check)
+                subprocess_args.insert(5, check)
 
             if java_run_opts:
                 for opt in java_run_opts.split():
