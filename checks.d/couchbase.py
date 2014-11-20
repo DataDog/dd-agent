@@ -3,6 +3,9 @@ import urllib2
 import re
 import sys
 
+# exceptions
+from urllib2 import HTTPError
+
 # project
 from util import headers
 from checks import AgentCheck
@@ -12,7 +15,7 @@ from checks.utils import add_basic_auth
 import simplejson as json
 
 #Constants
-COUCHBASE_STATS_PATH = '/pools/nodes'
+COUCHBASE_STATS_PATH = '/pools/default'
 DEFAULT_TIMEOUT = 10
 class Couchbase(AgentCheck):
     """Extracts stats from Couchbase via its REST API
@@ -90,7 +93,7 @@ class Couchbase(AgentCheck):
         # No overall stats? bail out now
         if overall_stats is None:
             raise Exception("No data returned from couchbase endpoint: %s" % url)
-        
+
         couchbase['stats'] = overall_stats
 
         nodes = overall_stats['nodes']
@@ -110,9 +113,16 @@ class Couchbase(AgentCheck):
             for bucket in buckets:
                 bucket_name = bucket['name']
 
-                # We have to manually build the URI for the stats bucket, as this is not auto discoverable
-                url = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
-                bucket_stats = self._get_stats(url, instance)
+                # Fetch URI for the stats bucket
+                endpoint = bucket['stats']['uri']
+                url = '%s%s' % (server, endpoint)
+
+                try:
+                    bucket_stats = self._get_stats(url, instance)
+                except HTTPError:
+                    url_backup = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
+                    bucket_stats = self._get_stats(url_backup, instance)
+
                 bucket_samples = bucket_stats['op']['samples']
                 if bucket_samples is not None:
                     couchbase['buckets'][bucket['name']] = bucket_samples
@@ -130,7 +140,7 @@ class Couchbase(AgentCheck):
 
         # remove duplicate _
         converted_variable = re.sub('_+', '_', converted_variable)
-        
+
         # handle special case of starting/ending underscores
         converted_variable = re.sub('^_|_$', '', converted_variable)
 
