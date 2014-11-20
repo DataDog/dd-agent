@@ -3,6 +3,9 @@ import urllib2
 import re
 import sys
 
+# exceptions
+from urllib2 import HTTPError
+
 # project
 from util import headers
 from checks import AgentCheck
@@ -113,7 +116,13 @@ class Couchbase(AgentCheck):
                 # Fetch URI for the stats bucket
                 endpoint = bucket['stats']['uri']
                 url = '%s%s' % (server, endpoint)
-                bucket_stats = self._get_stats(url, instance)
+
+                try:
+                    bucket_stats = self._get_stats(url, instance)
+                except HTTPError:
+                    url_backup = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
+                    bucket_stats = self._get_stats(url_backup, instance)
+
                 bucket_samples = bucket_stats['op']['samples']
                 if bucket_samples is not None:
                     couchbase['buckets'][bucket['name']] = bucket_samples
