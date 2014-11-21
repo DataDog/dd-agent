@@ -55,3 +55,8 @@ instances:
     # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
     #
     # collect_container_size: false
+
+    # Collect uncommon metrics from cgroups.
+    # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
+    #
+    # collect_all_metrics: false
