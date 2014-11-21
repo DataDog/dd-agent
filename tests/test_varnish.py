@@ -1,7 +1,8 @@
-import logging
 import os
 import time
 import unittest
+
+from nose.plugins.attrib import attr
 
 from tests.common import get_check
 
@@ -1853,7 +1854,7 @@ instances:
 """
 
 
-    def testParsing(self):
+    def test_parsing(self):
         v, instances = get_check('varnish', self.config)
         v._parse_varnishstat(self.v_dump, False)
         metrics = v.get_metrics()
@@ -1868,7 +1869,7 @@ instances:
             if m[0] == "varnish.SMA.s0.g_space"][0], 120606)
         assert "varnish.SMA.transient.c_bytes" not in [m[0] for m in metrics]
 
-    def testCheck(self):
+    def test_check(self):
         v, instances = get_check('varnish', self.config)
         import pprint
         try:
@@ -1878,6 +1879,37 @@ instances:
                 time.sleep(1)
         except Exception:
             pass
+
+    def test_service_check(self):
+        varnishadm_dump = """
+Backend b0 is Sick
+Current states  good:  0 threshold:  3 window:  5
+Average responsetime of good probes: 0.000000
+Oldest                                                    Newest
+================================================================
+4444444444444444444444444444444444444444444444444444444444444444 Good IPv4
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX Good Xmit
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR Good Recv
+---------------------------------------------------------------- Happy
+Backend b1 is Sick
+Current states  good:  0 threshold:  3 window:  5
+Average responsetime of good probes: 0.000000
+Oldest                                                    Newest
+================================================================
+---------------------------------------------------------------- Happy
+        """
+        v, instances = get_check('varnish', self.config)
+        v._parse_varnishadm(varnishadm_dump)
+        service_checks = v.get_service_checks()
+        self.assertEquals(len(service_checks), 2)
+
+        b0_check = service_checks[0]
+        self.assertEquals(b0_check['check'], v.SERVICE_CHECK_NAME)
+        self.assertEquals(b0_check['tags'], ['backend:b0'])
+
+        b1_check = service_checks[1]
+        self.assertEquals(b1_check['check'], v.SERVICE_CHECK_NAME)
+        self.assertEquals(b1_check['tags'], ['backend:b1'])
 
 if __name__ == '__main__':
     unittest.main()
