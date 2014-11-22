@@ -164,13 +164,13 @@ class Docker(AgentCheck):
         running_containers_ids = set([container['Id'] for container in running_containers])
 
         for container in all_containers:
-            container_tags = instance.get("tags", [])
+            container_tags = list(tags)
             for key in DOCKER_TAGS:
                 container_tags.append(self._make_tag(key, container[key]))
             if container['Id'] in running_containers_ids:
-                self.increment("docker.containers.running", tags=container_tags)
+                self.set("docker.containers.running", container['Id'], tags=container_tags)
             else:
-                self.increment("docker.containers.stopped", tags=container_tags)
+                self.set("docker.containers.stopped", container['Id'], tags=container_tags)
 
         # The index of the names is used to generate and format events
         ids_to_names = {}
