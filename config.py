@@ -833,7 +833,7 @@ def get_bernard_config():
         bernard_config = yaml.load(f.read(), Loader=yLoader)
         assert bernard_config is not None
         f.close()
-    except:
+    except Exception:
         f.close()
         log.error("Unable to parse yaml config in %s" % config_path)
         return {}
