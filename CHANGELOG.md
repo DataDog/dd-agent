@@ -1,7 +1,7 @@
 Changes
 =======
 
-# 5.1.0 / Unreleased
+# 5.1.0 / 11-24-2014
 
 ### Notes
 * Pup is now removed from the Datadog Agent
