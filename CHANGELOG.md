@@ -51,7 +51,9 @@ Changes
 * [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
 * [FEATURE] Add a check to collect system core metrics. See [#1124][]
 * [FEATURE] DogStatsD recognizes and uses `host` and `device` tags as metric attributes. See [#1164][].
-* [FEATURE] Docker: revamp events, tag docker.containers.runnning, add more options. See [#1162][].
+* [FEATURE] Docker: Revamp events and add more options. See [#1162][].
+* [FEATURE] Docker: Collect relevant Docker metrics by default, make the others optional. See [#1207][].
+* [FEATURE] Docker: Improve Docker metrics tagging. See [#1208][] and [#1218][].
 * [BUGGIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
