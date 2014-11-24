@@ -56,6 +56,12 @@ DOCKER_TAGS = [
     "Image",
 ]
 
+NEW_TAGS_MAP = {
+    "name": "container_name",
+    "image": "docker_image",
+    "command": "container_command",
+}
+
 DEFAULT_SOCKET_TIMEOUT = 5
 
 
@@ -235,14 +241,7 @@ class Docker(AgentCheck):
 
     def _new_tags_conversion(self, tag):
         # Prefix tags to avoid conflict with AWS tags
-        if tag == "name":
-            return "container_name"
-        elif tag == "image":
-            return "docker_image"
-        elif tag == "command":
-            return "container_command"
-        else:
-            return tag
+        return NEW_TAGS_MAP.get(tag, tag)
 
 
     # Events
