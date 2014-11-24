@@ -11,8 +11,9 @@ import (
 func check(e error) {
 	if e != nil {
 		panic(e)
+		os.Exit(1)
 	}
-	os.Exit(1)
+	
 }
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	replaceText := args[3]
 
 	if strings.Trim(replaceText, " ") == "" {
-		fmt.Println("Repace text can't be empty")
+		fmt.Println("Replace text can't be empty")
 		os.Exit(1)
 	}
 
@@ -39,6 +40,7 @@ func main() {
 	}
 
 	contents, err := ioutil.ReadFile(filePath)
+	check(err)
 	contentsString := string(contents)
 	newContents := strings.Replace(contentsString, searchText, replaceText, -1)
 	newContentsByte := []byte(newContents)
