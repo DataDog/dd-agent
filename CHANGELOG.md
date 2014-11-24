@@ -47,7 +47,6 @@ Changes
 * [FEATURE] Directory Check: Let the possibilty to tag metrics at the file level. See [#1041][] (Thanks [@Osterjour][])
 * [FEATURE] Jenkins: Add result and build number to events tags. See [#1068][] (Thanks [@jzoldak][])
 * [FEATURE] Add a SSH Check. See [#1117][]
-* [FEATURE] Add a check to collect metrics at the core level.
 * [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
 * [FEATURE] Add a check to collect system core metrics. See [#1124][]
 * [FEATURE] DogStatsD recognizes and uses `host` and `device` tags as metric attributes. See [#1164][].
