@@ -2,7 +2,7 @@ import time
 import os
 import signal
 import subprocess
-from util import namedtuple
+from collections import namedtuple
 import logging
 import re
 
