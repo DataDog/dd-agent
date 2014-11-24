@@ -167,7 +167,9 @@ class Docker(AgentCheck):
         for container in all_containers:
             container_tags = list(tags)
             for key in DOCKER_TAGS:
-                container_tags.append(self._make_tag(key, container[key]))
+                tag = self._make_tag(key, container[key], instance)
+                if tag:
+                    container_tags.append(tag)
             if container['Id'] in running_containers_ids:
                 self.set("docker.containers.running", container['Id'], tags=container_tags)
             else:
@@ -196,12 +198,15 @@ class Docker(AgentCheck):
 
     def _report_containers_metrics(self, containers, instance):
         collect_uncommon_metrics = instance.get("collect_all_metrics", False)
+        tags = instance.get("tags", [])
         for container in containers:
-            container_tags = instance.get("tags", [])
+            container_tags = list(tags)
             for name in container["Names"]:
-                container_tags.append(self._make_tag("name", name.lstrip("/")))
+                container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
-                container_tags.append(self._make_tag(key, container[key]))
+                tag = self._make_tag(key, container[key], instance)
+                if tag:
+                    container_tags.append(tag)
 
             # Check if the container is included/excluded via its tags
             if not self._is_container_included(instance, container_tags):
@@ -218,8 +223,26 @@ class Docker(AgentCheck):
                         if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
-    def _make_tag(self, key, value):
-        return "%s:%s" % (key.lower(), value.strip())
+    def _make_tag(self, key, value, instance):
+
+        tag_name = key.lower()
+        if tag_name == "command" and not instance.get("tag_by_command", False):
+            return None
+        if instance.get("new_tag_names", False):
+            tag_name = self._new_tags_conversion(tag_name)
+
+        return "%s:%s" % (tag_name, value.strip())
+
+    def _new_tags_conversion(self, tag):
+        # Prefix tags to avoid conflict with AWS tags
+        if tag == "name":
+            return "container_name"
+        elif tag == "image":
+            return "docker_image"
+        elif tag == "command":
+            return "container_command"
+        else:
+            return tag
 
 
     # Events
