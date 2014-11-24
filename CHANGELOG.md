@@ -6,6 +6,7 @@ Changes
 ### Notes
 * Pup is now removed from the Datadog Agent
 * The "ALL" parameter in the process check is deprecated and will be removed in a future version of the agent.
+* The Windows installer does not require the .NET framework anymore.
 
 ### New and updated integrations
 * PostgreSQL
