@@ -54,7 +54,7 @@ Changes
 * [FEATURE] Docker: Revamp events and add more options. See [#1162][].
 * [FEATURE] Docker: Collect relevant Docker metrics by default, make the others optional. See [#1207][].
 * [FEATURE] Docker: Improve Docker metrics tagging. See [#1208][] and [#1218][].
-* [BUGGIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
+* [BUGFIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 * [BUGFIX] Docker: Fix various time-outs and errors. See [#1162][].
