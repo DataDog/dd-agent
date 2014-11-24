@@ -640,17 +640,54 @@ class ForwarderStatus(AgentStatus):
         })
         return status_info
 
-def get_jmx_instance_status(instance_name, status, message, metric_count):
-    if status == STATUS_ERROR:
-        instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
+class BernardStatus(AgentStatus):
 
-    elif status == STATUS_WARNING:
-        instance_status = InstanceStatus(instance_name, STATUS_WARNING, warnings=[message], metric_count=metric_count)
+    NAME = 'Bernard'
 
-    elif status == STATUS_OK:
-        instance_status = InstanceStatus(instance_name, STATUS_OK, metric_count=metric_count)
+    def __init__(self, checks=[], schedule_count=0):
+        from checks.bernard_check import S, R
 
-    return instance_status
+        AgentStatus.__init__(self)
+        self.check_stats = [check.get_status() for check in checks]
+        self.schedule_count = schedule_count
+
+        self.STATUS_COLOR = {S.OK: 'green', S.TIMEOUT: 'yellow', S.EXCEPTION: 'red', S.INVALID_OUTPUT: 'red'}
+        self.STATE_COLOR = {R.OK: 'green', R.WARNING: 'yellow', R.CRITICAL: 'red', R.UNKNOWN: 'yellow', R.NONE: 'white'}
+
+    def body_lines(self):
+        lines = [
+            "Schedule count: %s" % self.schedule_count,
+            "Check count: %s" % len(self.check_stats),
+        ]
+
+        lines += [
+            "",
+            "Checks",
+            "======",
+            ""
+        ]
+
+        for check in self.check_stats:
+            status_color = self.STATUS_COLOR[check['status']]
+            state_color = self.STATE_COLOR[check['state']]
+            lines += ['  %s: [%s] #%d run is %s' % (check['check_name'], style(check['status'], status_color),
+                                                    check['run_count'], style(check['state'], state_color))]
+            lines += ['    %s' % ((check['message'] or ' ').splitlines()[0])]
+
+        return lines
+
+    def has_error(self):
+        return False
+
+    def to_dict(self):
+        status_info = AgentStatus.to_dict(self)
+        check_stats = {
+            'checks': self.check_stats,
+            'schedule_count': self.schedule_count,
+        }
+        status_info.update(check_stats)
+
+        return status_info
 
 
 def get_jmx_status():

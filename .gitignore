@@ -4,6 +4,7 @@ Gemfile.lock
 *.*~
 build/*
 datadog.conf
+bernard.yaml
 datadog_agent.egg-info/*
 artifacts/*
 node_modules/*

@@ -264,9 +264,20 @@ class APIMetricTransaction(MetricTransaction):
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
         return url
 
+    # TODO: unused function?
     def get_data(self):
         return self._data
 
+
+class APIEventTransaction(MetricTransaction):
+
+    def get_url(self, endpoint):
+        config = self._application._agentConfig
+        api_key = config['api_key']
+        url = config[endpoint] + '/api/v1/events/?api_key=' + api_key
+        if endpoint == 'pup_url':
+            url = config[endpoint] + '/api/v1/events'
+        return url
 
 class StatusHandler(tornado.web.RequestHandler):
 
@@ -303,7 +314,7 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
         self.write("Transaction: %s" % tr.get_id())
 
-class ApiInputHandler(tornado.web.RequestHandler):
+class ApiMetricInputHandler(tornado.web.RequestHandler):
 
     def post(self):
         """Read the message and forward it to the intake"""
@@ -315,6 +326,21 @@ class ApiInputHandler(tornado.web.RequestHandler):
         if msg is not None:
             # Setup a transaction for this message
             tr = APIMetricTransaction(msg, headers)
+        else:
+            raise tornado.web.HTTPError(500)
+
+class ApiEventInputHandler(tornado.web.RequestHandler):
+
+    def post(self):
+        """Read the message and forward it to the intake"""
+
+        # read message
+        msg = self.request.body
+        headers = self.request.headers
+
+        if msg is not None:
+            # Setup a transaction for this message
+            tr = APIEventTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
 
@@ -382,7 +408,8 @@ class Application(tornado.web.Application):
     def run(self):
         handlers = [
             (r"/intake/?", AgentInputHandler),
-            (r"/api/v1/series/?", ApiInputHandler),
+            (r"/api/v1/series/?", ApiMetricInputHandler),
+            (r"/api/v1/events/?", ApiEventInputHandler),
             (r"/status/?", StatusHandler),
         ]
 

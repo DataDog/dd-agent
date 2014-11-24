@@ -438,6 +438,27 @@ class Watchdog(object):
         signal.alarm(self._duration)
 
 
+class StaticWatchdog(object):
+    """Static version of the Watchdog, without the memory limit.
+    It behaves the same, except it only use staticmethod. It is used by Bernard.
+    """
+    @staticmethod
+    def self_destruct(signum, frame):
+        try:
+            import traceback
+            log.error("Self-destructing by StaticWatchdog...")
+            log.error(traceback.format_exc())
+        finally:
+            os.kill(os.getpid(), signal.SIGKILL)
+
+    @staticmethod
+    def reset(extra_duration=0):
+        duration = 300 + int(extra_duration) # At least 5 minutes
+        log.debug("Resetting static watchdog for %ds" % duration)
+        signal.signal(signal.SIGALRM, StaticWatchdog.self_destruct)
+        signal.alarm(duration)
+
+
 class PidFile(object):
     """ A small helper class for pidfiles. """
 

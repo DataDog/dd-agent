@@ -15,6 +15,7 @@ PATH=$PATH:/sbin # add the location of start-stop-daemon on Debian
 
 AGENTPATH="/usr/bin/dd-agent"
 AGENTCONF="/etc/dd-agent/datadog.conf"
+BERNARDCONF="/etc/dd-agent/bernard.yaml"
 DOGSTATSDPATH="/usr/bin/dogstatsd"
 AGENTUSER="dd-agent"
 FORWARDERPATH="/usr/bin/dd-forwarder"
@@ -67,6 +68,11 @@ case "$1" in
     start)
         if [ ! -f $AGENTCONF ]; then
             echo "$AGENTCONF not found. Exiting."
+            exit 3
+        fi
+
+        if [ ! -f $BERNARDCONF ]; then
+            echo "$BERNARDCONF not found. Exiting."
             exit 3
         fi
 
