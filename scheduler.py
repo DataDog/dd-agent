@@ -2,7 +2,7 @@ import time
 import logging
 import random
 
-from util import namedtuple
+from collections import namedtuple
 
 from checks.bernard_check import S, R
 
