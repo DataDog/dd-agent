@@ -8,14 +8,14 @@ import wmi
 
 class WindowsService(AgentCheck):
     STATE_TO_VALUE = {
-        'Stop Pending': 0,
-        'Stopped': 0,
-        'Start Pending': 1,
-        'Running': 1,
-        'Continue Pending': 1,
-        'Pause Pending': 2,
-        'Paused': 2,
-        'Unknown': -1
+        'Stopped': AgentCheck.CRITICAL,
+        'Start Pending': AgentCheck.WARNING,
+        'Stop Pending': AgentCheck.WARNING,
+        'Running': AgentCheck.OK,
+        'Continue Pending': AgentCheck.WARNING,
+        'Pause Pending': AgentCheck.WARNING,
+        'Paused': AgentCheck.WARNING,
+        'Unknown': AgentCheck.UNKNOWN
     }
 
     def __init__(self, name, init_config, agentConfig):
@@ -59,4 +59,4 @@ class WindowsService(AgentCheck):
         tags = [u'service:%s' % wmi_service.Name]
         tags.extend(custom_tags)
         state_value = self.STATE_TO_VALUE.get(wmi_service.State, -1)
-        self.gauge('windows_service.state', state_value, tags=tags)
+        self.service_check('windows_service.state', state_value, tags=tags)
