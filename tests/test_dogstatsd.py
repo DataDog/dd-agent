@@ -59,8 +59,8 @@ class TestUnitDogStatsd(unittest.TestCase):
             stats.submit_packets('h2:1|h')
 
         metrics = self.sort_metrics(stats.flush())
-        _, _, h1count, _, _, \
-        _, _, h2count, _, _ = metrics
+        _, _, h1count, _, _, _, \
+        _, _, h2count, _, _, _ = metrics
 
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
@@ -317,13 +317,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         metrics = self.sort_metrics(stats.flush())
 
-        nt.assert_equal(len(metrics), 5)
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 6)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95['points'][0][1], 95, 10)
         self.assert_almost_equal(pmax['points'][0][1], 99, 1)
         self.assert_almost_equal(pmed['points'][0][1], 50, 2)
         self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pmin['points'][0][1], 1, 1)
         self.assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
         nt.assert_equals(p95['host'], 'myhost')
 
@@ -340,10 +341,10 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         # Assert we scale up properly.
         metrics = self.sort_metrics(stats.flush())
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
-        for p in [p95, pavg, pmed, pmax]:
+        for p in [p95, pavg, pmed, pmax, pmin]:
             nt.assert_equal(p['points'][0][1], 5)
 
     def test_batch_submission(self):
@@ -378,7 +379,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = stats.flush()
         metrics_ref = stats_ref.flush()
 
-        self.assertTrue(len(metrics) == len(metrics_ref) == 5, (metrics, metrics_ref))
+        self.assertTrue(len(metrics) == len(metrics_ref) == 6, (metrics, metrics_ref))
 
         for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
@@ -422,7 +423,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = self.sort_metrics(stats.flush())
         metrics_ref = self.sort_metrics(stats_ref.flush())
 
-        self.assertTrue(len(metrics) == len(metrics_ref) == 8, (metrics, metrics_ref))
+        self.assertTrue(len(metrics) == len(metrics_ref) == 9, (metrics, metrics_ref))
         for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
             nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
@@ -465,7 +466,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Ensure points keep submitting
         time.sleep(ag_interval)
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
         time.sleep(ag_interval)
@@ -495,7 +496,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         stats.submit_packets('test.histogram:11|h')
 
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
 
@@ -640,9 +641,9 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         flush_timestamp = time.time()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
 
-        first, second, third, h1, h2, h3, h4, h5 = metrics
+        first, second, third, h1, h2, h3, h4, h5, h6 = metrics
         nt.assert_equals(first['metric'], 'my.1.gauge')
         nt.assert_equals(first['points'][0][1], 1)
         nt.assert_equals(first['host'], 'myhost')
