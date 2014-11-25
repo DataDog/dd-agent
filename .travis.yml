@@ -13,10 +13,6 @@ env:
     - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
     - TRAVIS_FLAVOR=mongo
 
-matrix:
-  allow_failures:
-    - env: TRAVIS_FLAVOR=mongo
-
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
 install: echo "OVERRIDING TRAVIS STEPS"
