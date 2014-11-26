@@ -536,7 +536,7 @@ class VSphereCheck(AgentCheck):
             if regexes['host_include'] is not None:
                 match = re.search(regexes['host_include'], obj.name)
                 if not match:
-                    continue
+                    return
             watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -554,7 +554,7 @@ class VSphereCheck(AgentCheck):
             if regexes['vm_include'] is not None:
                 match = re.search(regexes['vm_include'], obj.name)
                 if not match:
-                    continue
+                    return
             watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
