@@ -474,7 +474,7 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
     @atomic_method
-    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
+    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
         Usual hierarchy:
