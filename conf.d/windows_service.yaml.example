@@ -1,4 +1,4 @@
-init_config: []
+init_config:
 
 instances:
     # For each instance you define what host to connect to (defaulting to the

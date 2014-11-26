@@ -50,13 +50,13 @@ class WindowsService(AgentCheck):
                 continue
 
             wmi_service = results[0]
-            self._collect_metrics(wmi_service, tags)
+            self._create_service_check(wmi_service, tags)
 
-    def _collect_metrics(self, wmi_service, custom_tags):
+    def _create_service_check(self, wmi_service, custom_tags):
         """ Given an instance of a wmi_object from Win32_Service, write any
             performance counters to be gathered and flushed by the collector.
         """
         tags = [u'service:%s' % wmi_service.Name]
         tags.extend(custom_tags)
-        state_value = self.STATE_TO_VALUE.get(wmi_service.State, -1)
+        state_value = self.STATE_TO_VALUE.get(wmi_service.State, AgentCheck.UNKNOWN)
         self.service_check('windows_service.state', state_value, tags=tags)
