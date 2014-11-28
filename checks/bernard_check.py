@@ -76,7 +76,7 @@ class BernardCheck(object):
         try:
             try:
                 process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output = process.communicate()[0]
+                output, error = process.communicate()
                 returncode = process.returncode
             except Timeout:
                 os.kill(process.pid, signal.SIGKILL)
@@ -85,7 +85,7 @@ class BernardCheck(object):
             # Re enable the StaticWatchdog
             StaticWatchdog.reset()
 
-        return output, returncode
+        return output, error, returncode
 
     def timeout_handler(self, signum, frame):
         raise Timeout()
@@ -93,7 +93,10 @@ class BernardCheck(object):
     def run(self):
         execution_date = time.time()
         try:
-            output, returncode = self._execute_check()
+            output, error, returncode = self._execute_check()
+            if error:
+                log.warn('Check sent "%s" to stderr' % error)
+
             if output is None:
                 status = S.TIMEOUT
                 state = R.UNKNOWN
