@@ -689,6 +689,18 @@ class BernardStatus(AgentStatus):
 
         return status_info
 
+def get_jmx_instance_status(instance_name, status, message, metric_count):
+    if status == STATUS_ERROR:
+        instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
+
+    elif status == STATUS_WARNING:
+        instance_status = InstanceStatus(instance_name, STATUS_WARNING, warnings=[message], metric_count=metric_count)
+
+    elif status == STATUS_OK:
+        instance_status = InstanceStatus(instance_name, STATUS_OK, metric_count=metric_count)
+
+    return instance_status
+    
 
 def get_jmx_status():
     """This function tries to read the 2 jmxfetch status file which are yaml file
