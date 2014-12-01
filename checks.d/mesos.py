@@ -11,13 +11,6 @@ from util import headers
 import simplejson as json
 import requests
 
-def get_request_json(req):
-    # Condition for request v1.x backward compatibility
-    if hasattr(req.json, '__call__'):
-        return req.json()
-    else:
-        return req.json
-
 class Mesos(AgentCheck):
     check_name = "mesos.can_connect"
 
@@ -95,7 +88,7 @@ class Mesos(AgentCheck):
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
-            msg = "Timeout when hitting %s" % url
+            msg = "%s seconds timeout when hitting %s" % (timeout, url)
             status = AgentCheck.CRITICAL
         except Exception as e:
             msg = e.message
@@ -106,12 +99,7 @@ class Mesos(AgentCheck):
                 self.warning(msg)
                 return None
 
-
-        # Condition for request v1.x backward compatibility
-        if hasattr(r.json, '__call__'):
-            return r.json()
-        else:
-            return r.json
+        return r.json()
 
     def timeout_event(self, url, timeout, aggregation_key):
         self.event({

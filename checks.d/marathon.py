@@ -11,13 +11,6 @@ from util import headers
 import simplejson as json
 import requests
 
-def get_request_json(req):
-    # Condition for request v1.x backward compatibility
-    if hasattr(req.json, '__call__'):
-        return req.json()
-    else:
-        return req.json
-
 class Marathon(AgentCheck):
 
     check_name = "marathon.can_connect"
@@ -40,6 +33,8 @@ class Marathon(AgentCheck):
                 for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
                     if hasattr(app, attr):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
+                    else:
+                        self.warning('Marathon application (id: %s) has no attribute %s' % (app['id'], attr))
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
@@ -59,7 +54,7 @@ class Marathon(AgentCheck):
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
-            msg = "Timeout when hitting %s" % url
+            msg = "%s seconds timeout when hitting %s" % (timeout, url)
             status = AgentCheck.CRITICAL
         except Exception as e:
             msg = e.message
@@ -67,17 +62,22 @@ class Marathon(AgentCheck):
         finally:
             if status is AgentCheck.CRITICAL:
                 self.service_check(self.check_name, status, tags=tags, message=msg)
-                self.warning(msg)
                 raise Exception(msg)
 
-        req_json = get_request_json(r)
+        req_json = r.json()
         app_count = len(req_json['apps'])
 
-        status = AgentCheck.CRITICAL if app_count is 0 else AgentCheck.OK
-        for app in req_json['apps']:
-            tags.append(['app_id:%s' % app['id'], 'version:%s' % app['version']])
+        if app_count is 0:
+            status = AgentCheck.WARN
+            msg = "No marathon applications detected at %s" % url
+        else:
+            instance_count = 0
+            for app in req_json['apps']:
+                instance_count += app['instances']
+            status = AgentCheck.CRITICAL if instance_count is 0 else AgentCheck.OK
+            msg = "%s Marathon app(s) detected with %s instances running at %s" % (app_count, instance_count, url)
 
-        msg = "%s marathon apps detected at %s" % (app_count, url)
+
         self.service_check(self.check_name, status, tags=tags, message=msg)
 
         return req_json
