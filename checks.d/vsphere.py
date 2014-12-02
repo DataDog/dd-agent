@@ -474,7 +474,7 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
     @atomic_method
-    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
+    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes=None):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
         Usual hierarchy:
@@ -533,6 +533,11 @@ class VSphereCheck(AgentCheck):
                 )
 
         elif obj_type == 'host':
+            if regexes and regexes.get('host_include') is not None:
+                match = re.search(regexes['host_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -547,6 +552,11 @@ class VSphereCheck(AgentCheck):
                 )
 
         elif obj_type == 'vm':
+            if regexes and regexes.get('vm_include') is not None:
+                match = re.search(regexes['vm_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -571,9 +581,13 @@ class VSphereCheck(AgentCheck):
         root_folder = server_instance.content.rootFolder
 
         instance_tag = "vcenter_server:%s" % instance.get('name')
+        regexes = {
+            'host_include': instance.get('host_include_only_regex'),
+            'vm_include': instance.get('vm_include_only_regex')
+        }
         self.pool.apply_async(
             self._cache_morlist_raw_atomic,
-            args=(i_key, 'rootFolder', root_folder, [instance_tag])
+            args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes)
         )
         self.cache_times[i_key][MORLIST][LAST] = time.time()
 
