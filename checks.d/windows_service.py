@@ -56,6 +56,8 @@ class WindowsService(AgentCheck):
         """ Given an instance of a wmi_object from Win32_Service, write any
             performance counters to be gathered and flushed by the collector.
         """
-        tags = [u'service:%s' % wmi_service.Name, u'host:%s' % host]
+        if host == ".":
+            host_name = self.hostname
+        tags = [u'service:%s' % wmi_service.Name, u'host:%s' % host_name]
         state_value = self.STATE_TO_VALUE.get(wmi_service.State, AgentCheck.UNKNOWN)
         self.service_check('windows_service.state', state_value, tags=tags)
