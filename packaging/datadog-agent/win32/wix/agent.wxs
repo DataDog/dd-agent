@@ -7,6 +7,7 @@
           InstallerVersion="100" Languages="1033" Compressed="yes" SummaryCodepage="1252" />
 
         <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
+        <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
 
         <Upgrade Id="82210ed1-bbe4-4051-aa15-002ea31dde15">
            <UpgradeVersion
