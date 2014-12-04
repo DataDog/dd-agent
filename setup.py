@@ -40,7 +40,7 @@ if sys.platform == 'win32':
         'pymongo==2.3',
         'pg8000==1.9.6',
         'python-memcached==1.48',
-        'adodbapi==2.4.2.2',
+        'adodbapi==2.6.0.7',
         'elementtree==1.2.7.20070827-preview',
         'pycurl==7.19.0',
         'pymysql==0.6.1',
