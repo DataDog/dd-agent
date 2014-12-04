@@ -504,7 +504,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags_copy)
+                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
                 )
 
         elif obj_type == 'datacenter':
@@ -516,7 +516,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags_copy)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
                 )
 
         elif obj_type == 'compute_resource':
@@ -529,7 +529,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags_copy)
+                    args=(i_key, 'host', host, tags_copy, regexes)
                 )
 
         elif obj_type == 'host':
@@ -548,7 +548,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags_copy)
+                    args=(i_key, 'vm', vm, tags_copy, regexes)
                 )
 
         elif obj_type == 'vm':
