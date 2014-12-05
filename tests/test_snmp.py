@@ -34,6 +34,15 @@ class TestSNMP(unittest.TestCase):
                 custom_folder_represented = True
                 break
         self.assertTrue(custom_folder_represented)
+        self.assertFalse(self.check.cmd_generator.ignoreNonIncreasingOid)
+
+        self.config = {
+            "init_config": {
+                "ignore_nonincreasing_oid": True
+            }
+        }
+        self.check = load_check('snmp', self.config, self.agentConfig)
+        self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
 
     def test_scalar_SNMPCheck(self):
         self.config = {

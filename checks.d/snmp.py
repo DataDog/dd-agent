@@ -41,18 +41,21 @@ class SnmpCheck(AgentCheck):
 
         # Load Custom MIB directory
         mibs_path = None
+        ignore_nonincreasing_oid = False
         if init_config is not None:
             mibs_path = init_config.get("mibs_folder")
-        SnmpCheck.create_command_generator(mibs_path)
+            ignore_nonincreasing_oid = init_config.get("ignore_nonincreasing_oid", False)
+        SnmpCheck.create_command_generator(mibs_path, ignore_nonincreasing_oid)
 
     @classmethod
-    def create_command_generator(cls, mibs_path=None):
+    def create_command_generator(cls, mibs_path, ignore_nonincreasing_oid):
         '''
         Create a command generator to perform all the snmp query.
         If mibs_path is not None, load the mibs present in the custom mibs
         folder. (Need to be in pysnmp format)
         '''
         cls.cmd_generator = cmdgen.CommandGenerator()
+        cls.cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
         if mibs_path is not None:
             mib_builder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
                           mibInstrumController.mibBuilder
