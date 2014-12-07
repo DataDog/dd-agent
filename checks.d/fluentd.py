@@ -1,5 +1,4 @@
 # stdlib
-import re
 import urllib2
 import urlparse
 
@@ -11,6 +10,9 @@ from checks import AgentCheck
 import simplejson as json
 
 class Fluentd(AgentCheck):
+    SERVICE_CHECK_NAME = 'fluentd.is_ok'
+    GAUGES = ['retry_count', 'buffer_total_queued_size', 'buffer_queue_length']
+
     """Tracks basic fluentd metrics via the monitor_agent plugin
     * number of retry_count
     * number of buffer_queue_length
@@ -30,18 +32,26 @@ class Fluentd(AgentCheck):
             parsed_url = urlparse.urlparse(url)
             monitor_agent_host = parsed_url.hostname
             monitor_agent_port = parsed_url.port or 24220
-            service_check_name = 'fluentd.is_ok'
-            service_check_tags = ['host:%s' % monitor_agent_host, 'port:%s' % monitor_agent_port]
+            service_check_tags = ['fluentd_host:%s' % monitor_agent_host, 'fluentd_port:%s' % monitor_agent_port]
 
             req = urllib2.Request(url, None, headers(self.agentConfig))
             res = urllib2.urlopen(req).read()
             status = json.loads(res)
-            for plg in status['plugins']:
-                for metric in ('retry_count', 'buffer_total_queued_size', 'buffer_queue_length'):
-                    if plg.get(metric) is not None:
-                        self.histogram('fluentd.%s' % (metric), plg[metric], tags)
-        except Exception:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=service_check_tags)
-            raise
+            metric = {}
+            for p in status['plugins']:
+                for n in self.GAUGES:
+                    if p.get(n) is None:
+                        continue
+                    if not p.get('type') in metric:
+                        metric[p.get('type')] = {}
+                    if not n in metric[p.get('type')] or metric[p.get('type')][n] < p.get(n):
+                        metric[p.get('type')][n] = p.get(n)
+            for t in metric.keys():
+                for m in metric[t].keys():
+                    self.gauge('fluentd.%s.%s' % (t, m), metric[t][m], tags)
+        except Exception, e:
+            msg = "No stats could be retrieved from %s : %s" % (url, str(e))
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=msg)
+            raise msg
         else:
-            self.service_check(service_check_name, AgentCheck.OK, tags=service_check_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
