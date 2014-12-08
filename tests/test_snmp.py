@@ -179,8 +179,7 @@ class TestSNMP(unittest.TestCase):
         self.check.TIMEOUT = 0.5
 
         # We expect: No SNMP response received before timeout for instance localhost
-        with self.assertRaises(Exception):
-            self.check.check(self.config['instances'][0])
+        self.assertRaises(Exception, self.check.check, self.config['instances'][0])
 
         # Service checks
         service_checks = self.check.get_service_checks()
@@ -216,8 +215,7 @@ class TestSNMP(unittest.TestCase):
         self.check.TIMEOUT = 0.5
 
         # We expect: No symbol IF-MIB::noIdeaWhatIAmDoingHere
-        with self.assertRaises(Exception):
-            self.check.check(self.config['instances'][0])
+        self.assertRaises(Exception, self.check.check, self.config['instances'][0])
 
         # Service checks
         service_checks = self.check.get_service_checks()
