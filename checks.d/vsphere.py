@@ -302,6 +302,8 @@ class VSphereCheck(AgentCheck):
     The other calls are performed synchronously.
     """
 
+    SERVICE_CHECK_NAME = 'vcenter.can_connect'
+
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.time_started = time.time()
@@ -423,6 +425,11 @@ class VSphereCheck(AgentCheck):
     def _get_server_instance(self, instance):
         i_key = self._instance_key(instance)
 
+        service_check_tags = [
+            'vcenter_server:{0}'.format(instance.get('name')),
+            'vcenter_host:{0}'.format(instance.get('host')),
+        ]
+
         if i_key not in self.server_instances:
             try:
                 server_instance = connect.SmartConnect(
@@ -431,9 +438,15 @@ class VSphereCheck(AgentCheck):
                     pwd=instance.get('password')
                 )
             except Exception as e:
-                raise Exception("Connection to %s failed: %s" % (instance.get('host'), e))
+                err_msg = "Connection to %s failed: %s" % (instance.get('host'), e)
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                        tags=service_check_tags, message=err_msg)
+                raise Exception(err_msg)
 
             self.server_instances[i_key] = server_instance
+
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags=service_check_tags)
 
         return self.server_instances[i_key]
 
