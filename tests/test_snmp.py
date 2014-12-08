@@ -79,6 +79,17 @@ class TestSNMP(unittest.TestCase):
             else:
                 self.fail("Missing metric: %s" % metric)
 
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        service_checks = [sc for sc in service_checks if sc['check'].startswith('snmp')]
+        service_checks_count = len(service_checks)
+        # We run the check twice
+        self.assertEquals(service_checks_count, 2, service_checks)
+        for sc in service_checks:
+            self.assertEquals(sc['status'], self.check.OK, sc)
+            self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
+
+
     def test_table_SNMPCheck(self):
         self.config = {
                 "instances": [{
@@ -129,6 +140,94 @@ class TestSNMP(unittest.TestCase):
                         pass
                     else:
                         self.fail("Tag discovered not pretty printed %s" % interface_type)
+
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        service_checks = [sc for sc in service_checks if sc['check'].startswith('snmp')]
+        service_checks_count = len(service_checks)
+        # We run the check twice
+        self.assertEquals(service_checks_count, 2, service_checks)
+        for sc in service_checks:
+            self.assertEquals(sc['status'], self.check.OK, sc)
+            self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
+
+    def test_network_error(self):
+        self.config = {
+                "instances": [{
+                    "ip_address": "localhost",
+                    "port":162,
+                    "community_string": "public",
+                    "metrics": [{
+                        "MIB": "IF-MIB",
+                        "table": "ifTable",
+                        "symbols": ["ifInOctets", "ifOutOctets"],
+                        "metric_tags": [{
+                            "tag":"interface",
+                            "column":"ifDescr"
+                            }, {
+                            "tag":"dumbindex",
+                            "index":1
+                            }]
+                        }]
+                    }]
+                }
+
+        self.check = load_check('snmp', self.config, self.agentConfig)
+
+        # Make it fails faster
+        self.check.RETRIES = 0
+        self.check.TIMEOUT = 0.5
+
+        # We expect: No SNMP response received before timeout for instance localhost
+        with self.assertRaises(Exception):
+            self.check.check(self.config['instances'][0])
+
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        service_checks = [sc for sc in service_checks if sc['check'].startswith('snmp')]
+        service_checks_count = len(service_checks)
+        self.assertEquals(service_checks_count, 1, service_checks)
+        for sc in service_checks:
+            self.assertEquals(sc['status'], self.check.CRITICAL, sc)
+            self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
+
+    def test_invalid_metric(self):
+        self.config = {
+                "instances": [{
+                    "ip_address": "localhost",
+                    "port":161,
+                    "community_string": "public",
+                    "metrics": [{
+                        "MIB": "IF-MIB",
+                        "table": "ifTable",
+                        "symbols": ["ifInOctets", "ifOutOctets"],
+                    },{
+                        "MIB": "IF-MIB",
+                        "table": "noIdeaWhatIAmDoingHere",
+                        "symbols": ["ifInOctets", "ifOutOctets"],
+                    }]
+                }]
+            }
+
+        self.check = load_check('snmp', self.config, self.agentConfig)
+
+        # Make it fails faster
+        self.check.RETRIES = 0
+        self.check.TIMEOUT = 0.5
+
+        # We expect: No symbol IF-MIB::noIdeaWhatIAmDoingHere
+        with self.assertRaises(Exception):
+            self.check.check(self.config['instances'][0])
+
+        # Service checks
+        service_checks = self.check.get_service_checks()
+        service_checks = [sc for sc in service_checks if sc['check'].startswith('snmp')]
+        service_checks_count = len(service_checks)
+        self.assertEquals(service_checks_count, 1, service_checks)
+        for sc in service_checks:
+            self.assertEquals(sc['status'], self.check.CRITICAL, sc)
+            self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
+
 
 if __name__ == "__main__":
     unittest.main()
