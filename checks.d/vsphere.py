@@ -445,8 +445,16 @@ class VSphereCheck(AgentCheck):
 
             self.server_instances[i_key] = server_instance
 
-        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                tags=service_check_tags)
+        # Test if the connection is working
+        try:
+            server_instance.RetrieveContent()
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                    tags=service_check_tags)
+        except Exception as e:
+            err_msg = "Connection to %s died unexpectedly: %s" % (instance.get('host'), e)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                    tags=service_check_tags, message=err_msg)
+            raise Exception(err_msg)
 
         return self.server_instances[i_key]
 
