@@ -43,7 +43,7 @@ EXCLUDED_WINDOWS_CHECKS = [
     'btrfs', 'cacti', 'directory', 'docker', 'gearmand',
     'hdfs', 'kafka_consumer', 'marathon', 'mcache',
     'mesos', 'network', 'postfix', 'process',
-    'gunicorn', 'zk',
+    'gunicorn', 'zk', 'ssh_check'
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
