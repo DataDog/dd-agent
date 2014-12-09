@@ -11,8 +11,8 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
 ### Changes
 
-* [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See #1222
-* [BUGFIX] BTRFS: Handle "unknown" usage type. See #1221
+* [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See [#1222][]
+* [BUGFIX] BTRFS: Handle "unknown" usage type. See [#1221][]
 * [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was wrongly telling the user that the machine would reboot. This is fixed. 
 
 
@@ -1284,6 +1284,8 @@ If you use ganglia, you want this version.
 [#1207]: https://github.com/DataDog/dd-agent/issues/1207
 [#1208]: https://github.com/DataDog/dd-agent/issues/1208
 [#1218]: https://github.com/DataDog/dd-agent/issues/1218
+[#1221]: https://github.com/DataDog/dd-agent/issues/1221
+[#1222]: https://github.com/DataDog/dd-agent/issues/1222
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
