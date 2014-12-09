@@ -1,6 +1,21 @@
 Changes
 =======
 
+# 5.1.1 / Unreleased
+#### Details
+https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
+
+### Updated integrations
+* BTRFS
+* MongoDB
+
+### Changes
+
+* [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See #1222
+* [BUGFIX] BTRFS: Handle "unknown" usage type. See #1221
+* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was wrongly telling the user that the machine would reboot. This is fixed. 
+
+
 # 5.1.0 / 11-24-2014
 
 ### Notes
