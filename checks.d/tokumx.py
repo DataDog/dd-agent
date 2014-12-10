@@ -44,6 +44,7 @@ class LocalRate:
             self.submit_histogram()
 
 class TokuMX(AgentCheck):
+    SERVICE_CHECK_NAME = 'tokumx.can_connect'
 
     GAUGES = [
         "indexCounters.btree.missRatio",
@@ -267,16 +268,37 @@ class TokuMX(AgentCheck):
             self.log.info('No TokuMX database found in URI. Defaulting to admin.')
             db_name = 'admin'
 
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+
+        nodelist = parsed.get('nodelist')
+        if nodelist:
+            host = nodelist[0][0]
+            port = nodelist[0][1]
+            service_check_tags = service_check_tags + [
+                "host:%s" % host,
+                "port:%s" % port
+            ]
+
         do_auth = True
         if username is None or password is None:
             self.log.debug("TokuMX: cannot extract username and password from config %s" % server)
             do_auth = False
+        try:
+            conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
+            db = conn[db_name]
+        except Exception:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
 
-        conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
-        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                raise Exception("TokuMX: cannot connect with config %s" % server)
+                message = "TokuMX: cannot connect with config %s" % server
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=message)
+                raise Exception(message)
+
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
 
         return server, conn, db, tags
 
@@ -426,6 +448,6 @@ class TokuMX(AgentCheck):
 
         if conn.is_mongos:
             self.collect_mongos(server, conn, db, tags)
-            
+
         else:
             self.collect_metrics(server, conn, db, tags)
