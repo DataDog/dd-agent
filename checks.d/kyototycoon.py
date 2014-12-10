@@ -14,6 +14,7 @@ class KyotoTycoonCheck(AgentCheck):
     database server (http://fallabs.com/kyototycoon/)
     """
     SOURCE_TYPE_NAME = 'kyoto tycoon'
+    SERVICE_CHECK_NAME = 'kyototycoon.can_connect'
 
     GAUGES = {
         'repl_delay':         'replication.delay',
@@ -56,7 +57,23 @@ class KyotoTycoonCheck(AgentCheck):
         if name is not None:
             tags.append('instance:%s' % name)
 
-        response = urllib2.urlopen(url)
+        service_check_tags = []
+        if name is not None:
+            service_check_tags.append('instance:%s' % name)
+
+        try:
+            response = urllib2.urlopen(url)
+        except urllib2.URLError as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=e.reason)
+            raise
+        except Exception as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=str(e))
+            raise
+        else:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
+
         body = response.read()
 
         totals = defaultdict(lambda: 0)
