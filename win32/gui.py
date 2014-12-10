@@ -301,13 +301,16 @@ class PropertiesWidget(QWidget):
     def set_log_file(self, log_file):
         self.save_button.setEnabled(False)
         self.refresh_button.setEnabled(True)
-        self.current_file = log_file
-        self.desc_label.setText(log_file.get_description())
-        self.editor.set_text_from_file(log_file.file_path)
-        log_file.content = self.editor.toPlainText().__str__()
         self.disable_button.setEnabled(False)
         self.enable_button.setEnabled(False)
-        self.editor.go_to_line(len(log_file.content.splitlines()))
+        try:
+            self.current_file = log_file
+            self.desc_label.setText(log_file.get_description())
+            self.editor.set_text_from_file(log_file.file_path)
+            log_file.content = self.editor.toPlainText().__str__()
+            self.editor.go_to_line(len(log_file.content.splitlines()))
+        except Exception:
+            self.editor.set_text("Log file not found")
 
 class HTMLWindow(QTextEdit):
     def __init__(self, parent=None):
