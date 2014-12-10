@@ -76,7 +76,9 @@ class CouchDb(AgentCheck):
                 tags=service_check_tags, message=str(e))
             raise
         else:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags=service_check_tags,
+                message='Connection to %s was successful' % url)
 
         # No overall stats? bail out now
         if overall_stats is None:
