@@ -26,7 +26,6 @@ SUPERVISOR_FILE="/etc/dd-agent/supervisor.conf"
 SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
-SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
 
 if [ ! -x $AGENTPATH ]; then
     echo "$AGENTPATH not found. Exiting."
@@ -90,7 +89,7 @@ case "$1" in
 
        
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
-        PATH=$SYSTEM_PATH start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
+        start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
         if [ $? -ne 0 ]; then
             log_end_msg 1
         fi
