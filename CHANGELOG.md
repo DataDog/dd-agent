@@ -1,11 +1,12 @@
 Changes
 =======
 
-# 5.1.0 / Unreleased
+# 5.1.0 / 11-24-2014
 
 ### Notes
 * Pup is now removed from the Datadog Agent
 * The "ALL" parameter in the process check is deprecated and will be removed in a future version of the agent.
+* The Windows installer does not require the .NET framework anymore.
 
 ### New and updated integrations
 * PostgreSQL
@@ -47,12 +48,13 @@ Changes
 * [FEATURE] Directory Check: Let the possibilty to tag metrics at the file level. See [#1041][] (Thanks [@Osterjour][])
 * [FEATURE] Jenkins: Add result and build number to events tags. See [#1068][] (Thanks [@jzoldak][])
 * [FEATURE] Add a SSH Check. See [#1117][]
-* [FEATURE] Add a check to collect metrics at the core level.
 * [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
 * [FEATURE] Add a check to collect system core metrics. See [#1124][]
 * [FEATURE] DogStatsD recognizes and uses `host` and `device` tags as metric attributes. See [#1164][].
-* [FEATURE] Docker: revamp events, tag docker.containers.runnning, add more options. See [#1162][].
-* [BUGGIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
+* [FEATURE] Docker: Revamp events and add more options. See [#1162][].
+* [FEATURE] Docker: Collect relevant Docker metrics by default, make the others optional. See [#1207][].
+* [FEATURE] Docker: Improve Docker metrics tagging. See [#1208][] and [#1218][].
+* [BUGFIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
 * [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
 * [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
 * [BUGFIX] Docker: Fix various time-outs and errors. See [#1162][].
@@ -1262,6 +1264,11 @@ If you use ganglia, you want this version.
 [#1117]: https://github.com/DataDog/dd-agent/issues/1117
 [#1123]: https://github.com/DataDog/dd-agent/issues/1123
 [#1124]: https://github.com/DataDog/dd-agent/issues/1124
+[#1162]: https://github.com/DataDog/dd-agent/issues/1162
+[#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1207]: https://github.com/DataDog/dd-agent/issues/1207
+[#1208]: https://github.com/DataDog/dd-agent/issues/1208
+[#1218]: https://github.com/DataDog/dd-agent/issues/1218
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn

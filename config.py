@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.99.0"
+AGENT_VERSION = "5.99.1"
 DATADOG_CONF = "datadog.conf"
 BERNARD_CONF = "bernard.yaml"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds

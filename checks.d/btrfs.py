@@ -4,6 +4,7 @@ import struct
 import array
 import itertools
 import fcntl
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -20,8 +21,9 @@ RAID0 = "raid0"
 RAID1 = "raid1"
 RAID10 = "raid10"
 DUP = "dup"
+UNKNOWN = "unknown"
 
-FLAGS_MAPPER = {
+FLAGS_MAPPER =defaultdict(lambda:  (SINGLE, UNKNOWN),{
     1: (SINGLE, DATA),
     2: (SINGLE, SYSTEM),
     4: (SINGLE, METADATA),
@@ -43,7 +45,7 @@ FLAGS_MAPPER = {
     68: (RAID10, METADATA),
     69: (RAID10, MIXED),
 
-}
+})
 
 BTRFS_IOC_SPACE_INFO = 0xc0109414
 

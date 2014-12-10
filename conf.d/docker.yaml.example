@@ -7,56 +7,63 @@ init_config:
     # Example for the docker-dd-agent container:
     # docker_root: /host
     #
-    # docker_root: /
+    #docker_root: /
 
     # Timeout on Docker socket connection. You may have to increase it if you have many containers.
     #
-    # socket_timeout: 5
+    #socket_timeout: 5
 
 instances:
-    # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
-    #
+      # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
+      #
     - url: "unix://var/run/docker.sock"
 
-    # You can add extra tags to your Docker metrics with the tags list option. Default: [].
-    # Examples:
-    # tags: ["extra_tag", "env:example"]
-    #
-    # tags: []
+      # Use tag names that don't conflict.
+      # Keep it false if you have old dashboard using the old tag names. Default: false.
+      new_tag_names: true
 
-    # To include or exclude containers based on their tags, use the include and
-    # exclude keys in your instance.
-    # The reasoning is: if a tag matches an exclude rule, it won't be included
-    # unless it also matches an include rule.
-    #
-    # Examples:
-    #
-    # exclude all, except ubuntu and debian.
-    # include:
-    #   - "image:ubuntu"
-    #   - "image:debian"
-    # exclude:
-    #   - ".*"
-    #
-    # include all, except ubuntu and debian.
-    # include: []
-    # exclude:
-    #   - "image:ubuntu"
-    #   - "image:debian"
-    #
-    # include: []
-    # exclude: []
+      # Tag metrics with the command running inside the container.
+      #tag_by_command: false
 
-    # Create events whenever a container status change.
-    #
-    # collect_events: true
+      # You can add extra tags to your Docker metrics with the tags list option. Default: [].
+      # Examples:
+      # tags: ["extra_tag", "env:example"]
+      #
+      #tags: []
 
-    # Collect disk usage per container with docker.disk.size metric.
-    # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
-    #
-    # collect_container_size: false
+      # To include or exclude containers based on their tags, use the include and
+      # exclude keys in your instance.
+      # The reasoning is: if a tag matches an exclude rule, it won't be included
+      # unless it also matches an include rule.
+      #
+      # Examples:
+      #
+      # exclude all, except ubuntu and debian.
+      # include:
+      #   - "image:ubuntu"
+      #   - "image:debian"
+      # exclude:
+      #   - ".*"
+      #
+      # include all, except ubuntu and debian.
+      # include: []
+      # exclude:
+      #   - "image:ubuntu"
+      #   - "image:debian"
+      #
+      #include: []
+      #exclude: []
 
-    # Collect uncommon metrics from cgroups.
-    # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
-    #
-    # collect_all_metrics: false
+      # Create events whenever a container status change.
+      #
+      #collect_events: true
+
+      # Collect disk usage per container with docker.disk.size metric.
+      # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
+      #
+      #collect_container_size: false
+
+      # Collect uncommon metrics from cgroups.
+      # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
+      #
+      #collect_all_metrics: false

@@ -557,11 +557,12 @@ class CollectorStatus(AgentStatus):
         try:
             ntp_offset, ntp_style = get_ntp_info()
             warn_ntp = len(ntp_style) > 0
+            status_info["ntp_offset"] = round(ntp_offset, 4)
         except Exception as e:
             ntp_offset = "Unknown (%s)" % str(e)
             warn_ntp = True
+            status_info["ntp_offset"] = ntp_offset
         status_info["ntp_warning"] = warn_ntp
-        status_info["ntp_offset"] = round(ntp_offset, 4)
         status_info["utc_time"] = datetime.datetime.utcnow().__str__()
 
         return status_info
