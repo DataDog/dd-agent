@@ -62,6 +62,7 @@ AGENT_LOG_FILE = osp.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagen
 COLLECTOR_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
 FORWARDER_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
 DOGSTATSD_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
+JMXFETCH_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
 
 HUMAN_SERVICE_STATUS = {
     win32service.SERVICE_RUNNING : 'Service is running',
@@ -137,6 +138,9 @@ class DogstatsdLogFile(EditorFile):
     def __init__(self):
         EditorFile.__init__(self, DOGSTATSD_LOG_FILE, "Dogstatsd log file")
 
+class JMXFetchLogFile(EditorFile):
+    def __init__(self):
+        EditorFile.__init__(self, JMXFETCH_LOG_FILE, "JMX Fetch log file")
 
 class DatadogConf(EditorFile):
 
@@ -345,6 +349,7 @@ class MainWindow(QSplitter):
         self.forwarder_log_file = ForwarderLogFile()
         self.collector_log_file = CollectorLogFile()
         self.dogstatsd_log_file = DogstatsdLogFile()
+        self.jmxfetch_log_file = JMXFetchLogFile()
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
@@ -361,6 +366,8 @@ class MainWindow(QSplitter):
             ("Collector Logs", lambda: [self.properties.set_log_file(self.collector_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("Dogstatsd Logs", lambda: [self.properties.set_log_file(self.dogstatsd_log_file),
+                self.show_html(self.properties.group_code, self.properties.html_window, False)]),
+            ("JMX Fetch Logs", lambda: [self.properties.set_log_file(self.jmxfetch_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("Agent Status", lambda: [self.properties.html_window.setHtml(self.properties.html_window.latest_status()),
                 self.show_html(self.properties.group_code, self.properties.html_window, True),
