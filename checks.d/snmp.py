@@ -19,7 +19,9 @@ import pysnmp.proto.rfc1902 as snmp_type
 SNMP_COUNTERS = [snmp_type.Counter32.__name__,
                  snmp_type.Counter64.__name__,
                  ZeroBasedCounter64.__name__]
-SNMP_GAUGES = [snmp_type.Gauge32.__name__, CounterBasedGauge64.__name__]
+SNMP_GAUGES = [snmp_type.Gauge32.__name__,
+               snmp_type.Unsigned32.__name__,
+               CounterBasedGauge64.__name__]
 
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
