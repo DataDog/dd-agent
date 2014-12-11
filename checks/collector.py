@@ -267,7 +267,10 @@ class Collector(object):
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
 
-                # Save them for the payload.
+                # Collect metadata
+                current_check_metadata = check.get_service_metadata()
+
+                # Save metrics & events for the payload.
                 metrics.extend(current_check_metrics)
                 if current_check_events:
                     if check.name not in events:
@@ -283,7 +286,8 @@ class Collector(object):
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name,
+                service_metadata=current_check_metadata)
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]
@@ -334,7 +338,16 @@ class Collector(object):
             agent_checks = []
             for check in check_statuses:
                 if check.instance_statuses is not None:
+                    instance_index = 0
                     for instance_status in check.instance_statuses:
+                        # Attach metadata dictionnaries to their instances
+                        if(check.service_metadata and instance_status.status==STATUS_OK):
+                            # Only correctly running services have metadata
+                            instance_meta = check.service_metadata[instance_index]
+                            instance_index += 1
+                        else:
+                            instance_meta = {}
+
                         agent_checks.append(
                             (
                                 check.name, check.source_type_name,
@@ -342,7 +355,8 @@ class Collector(object):
                                 instance_status.status,
                                 # put error message or list of warning messages in the same field
                                 # it will be handled by the UI
-                                instance_status.error or instance_status.warnings or ""
+                                instance_status.error or instance_status.warnings or "",
+                                instance_meta
                             )
                         )
                 else:

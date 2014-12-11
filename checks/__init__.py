@@ -299,6 +299,7 @@ class AgentCheck(object):
         self.warnings = []
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
+        self.service_metadata = []
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -453,6 +454,15 @@ class AgentCheck(object):
         self.service_checks.append(create_service_check(check_name, status,
             tags, timestamp, hostname, check_run_id, message))
 
+    def svc_metadata(self, metadata):
+        """
+        Save metadata.
+
+        :param metadata: The service metadata dictionary
+        """
+        self.service_metadata.append(metadata)
+
+
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -493,6 +503,17 @@ class AgentCheck(object):
         service_checks = self.service_checks
         self.service_checks = []
         return service_checks
+
+    def get_service_metadata(self):
+        """
+        Return a metadata dictionary of the check, if any
+
+        @return check metadata dictionary
+        @rtype dictionary
+        """
+        service_metadata = self.service_metadata
+        self.service_metadata = []
+        return service_metadata
 
     def has_warnings(self):
         """
