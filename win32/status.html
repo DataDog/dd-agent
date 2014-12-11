@@ -199,7 +199,7 @@ ul dt {
           <li><h4>{{ name }}</h4>
           <ul>
           {% if check['init_failed'] %}
-            <li>Initialization error: {{check['traceback']}}</li>
+            <li>Initialization error: {{check['traceback']}}</li></ul>
           {% else %}
           {% for id, instance in check['instances'].iteritems() %}
           <li>
