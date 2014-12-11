@@ -319,26 +319,25 @@ class HTMLWindow(QTextEdit):
         self.setHtml(self.latest_status())
 
     def latest_status(self):
-        loaded_template = template.Loader(".")
-        dogstatsd_status = DogstatsdStatus.load_latest_status()
-        forwarder_status = ForwarderStatus.load_latest_status()
-        collector_status = CollectorStatus.load_latest_status()
-        generated_template = loaded_template.load("status.html").generate(
-            port=22,
-            platform=platform.platform(),
-            agent_version=get_version(),
-            python_version=platform.python_version(),
-            logger_info=logger_info(),
-            try:
+        try:
+            loaded_template = template.Loader(".")
+            dogstatsd_status = DogstatsdStatus.load_latest_status()
+            forwarder_status = ForwarderStatus.load_latest_status()
+            collector_status = CollectorStatus.load_latest_status()
+            generated_template = loaded_template.load("status.html").generate(
+                port=22,
+                platform=platform.platform(),
+                agent_version=get_version(),
+                python_version=platform.python_version(),
+                logger_info=logger_info(),
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
                 collector=collector_status.to_dict(),
-            except Exception:
-                dogstatsd=None,
-                forwarder=None,
-                collector=None,
-            )
-        return generated_template
+                )
+            return generated_template
+        except Exception:
+            return ("Unable to fetch latest status")
+
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
