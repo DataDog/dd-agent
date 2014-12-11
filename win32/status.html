@@ -201,7 +201,7 @@ ul dt {
         <h3>Checks</h3>
 
         {% if collector['checks'] %}
-        <ul id="checks">
+        <ul id="checks" stlye ="list-style-type: None; padding-left: 0;">
           {% for name, check in collector['checks'].iteritems() %}
           <li><h4>{{ name }}</h4>
           <ul>
