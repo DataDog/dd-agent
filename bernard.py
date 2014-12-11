@@ -1,4 +1,4 @@
-#!/opt/datadog-agent/embedded/bin python
+#!/opt/datadog-agent/embedded/bin/python
 
 # set up logging before importing any other components
 from config import initialize_logging; initialize_logging('bernard')
