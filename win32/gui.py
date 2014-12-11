@@ -329,9 +329,14 @@ class HTMLWindow(QTextEdit):
             agent_version=get_version(),
             python_version=platform.python_version(),
             logger_info=logger_info(),
-            dogstatsd=dogstatsd_status.to_dict(),
-            forwarder=forwarder_status.to_dict(),
-            collector=collector_status.to_dict(),
+            try:
+                dogstatsd=dogstatsd_status.to_dict(),
+                forwarder=forwarder_status.to_dict(),
+                collector=collector_status.to_dict(),
+            except Exception:
+                dogstatsd=None,
+                forwarder=None,
+                collector=None,
             )
         return generated_template
 
