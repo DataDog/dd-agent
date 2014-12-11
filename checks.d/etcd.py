@@ -12,6 +12,39 @@ import simplejson as json
 import requests
 
 class Etcd(AgentCheck):
+
+    STORE_RATES = {
+        'getsSuccess': 'etcd.store.gets.success',
+        'getsFail': 'etcd.store.gets.fail',
+        'setsSuccess': 'etcd.store.sets.success',
+        'setsFail': 'etcd.store.sets.fail',
+        'deleteSuccess': 'etcd.store.delete.success',
+        'deleteFail': 'etcd.store.delete.fail',
+        'updateSuccess': 'etcd.store.update.success',
+        'updateFail': 'etcd.store.update.fail',
+        'createSuccess': 'etcd.store.create.success',
+        'createFail': 'etcd.store.create.fail',
+        'compareAndSwapSuccess': 'etcd.store.compareandswap.success',
+        'compareAndSwapFail': 'etcd.store.compareandswap.fail',
+        'compareAndDeleteSuccess': 'etcd.store.compareanddelete.success',
+        'compareAndDeleteFail': 'etcd.store.compareanddelete.fail',
+        'expireCount': 'etcd.store.expire.count'
+    }
+
+    STORE_GAUGES = {
+        'watchers': 'etcd.store.watchers'
+    }
+
+    SELF_GAUGES = {
+        'sendPkgRate': 'etcd.self.send.pkgrate',
+        'sendBandwidthRate': 'etcd.self.send.bandwidthrate'
+    }
+
+    SELF_RATES = {
+        'recvAppendRequestCnt': 'etcd.self.recv.appendrequest.count',
+        'sendAppendRequestCnt': 'etcd.self.send.appendrequest.count'
+    }
+
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('etcd instance missing "url" value.')
@@ -24,11 +57,11 @@ class Etcd(AgentCheck):
 
         storeResponse = self.get_store_metrics(url, timeout)
         if storeResponse is not None:
-            for key in ['getsSuccess', 'getsFail', 'setsSuccess', 'setsFail', 'deleteSuccess', 'deleteFail', 'updateSuccess', 'updateFail', 'createSuccess', 'createFail', 'compareAndSwapSuccess', 'compareAndSwapFail', 'compareAndDeleteSuccess', 'compareAndDeleteFail', 'expireCount']:
-                self.rate('etcd.store.' + key, storeResponse[key], tags=instance_tags)
+            for key, metric_name in self.STORE_RATES:
+                self.rate(metric_name, storeResponse[key], tags=instance_tags)
 
-            for key in ['watchers']:
-                self.gauge('etcd.store.' + key, storeResponse[key], tags=instance_tags)
+            for key, metric_name in self.STORE_GAUGES:
+                self.gauge(metric_name, storeResponse[key], tags=instance_tags)
 
         selfResponse = self.get_self_metrics(url, timeout)
         if selfResponse is not None:
@@ -37,11 +70,11 @@ class Etcd(AgentCheck):
             else:
                 self.gauge('etcd.self.leader', 0, tags=instance_tags)
 
-            for key in ['recvAppendRequestCnt', 'sendAppendRequestCnt']:
-                self.rate('etcd.self.' + key, selfResponse[key], tags=instance_tags)
+            for key, metric_name in self.SELF_RATES:
+                self.rate(metric_name, selfResponse[key], tags=instance_tags)
 
-            for key in ['sendPkgRate', 'sendBandwidthRate']:
-                self.gauge('etcd.self.' + key, selfResponse[key], tags=instance_tags)
+            for key, metric_name in self.SELF_GAUGES:
+                self.gauge(metric_name, selfResponse[key], tags=instance_tags)
 
     def get_self_metrics(self, url, timeout):
         return self.get_json(url + "/v2/stats/self", timeout)
