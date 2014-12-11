@@ -13,6 +13,8 @@ import requests
 
 class Etcd(AgentCheck):
 
+    SERVICE_CHECK_NAME = 'etcd.can_connect'
+
     STORE_RATES = {
         'getsSuccess': 'etcd.store.gets.success',
         'getsFail': 'etcd.store.gets.fail',
@@ -89,36 +91,16 @@ class Etcd(AgentCheck):
             r = requests.get(url, timeout=timeout)
         except requests.exceptions.Timeout as e:
             # If there's a timeout
-            self.timeout_event(url, timeout, aggregation_key)
-            self.warning("Timeout when hitting %s" % url)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                message="Timeout when hitting %s" % url)
             return None
 
         if r.status_code != 200:
-            self.status_code_event(url, r, aggregation_key)
-            self.warning("Got %s when hitting %s" % (r.status_code, url))
-            return None
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                message="Got %s when hitting %s" % (r.status_code, url))
 
         # Condition for request v1.x backward compatibility
         if hasattr(r.json, '__call__'):
             return r.json()
         else:
             return r.json
-
-
-    def timeout_event(self, url, timeout, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'http_check',
-            'msg_title': 'URL timeout',
-            'msg_text': '%s timed out after %s seconds.' % (url, timeout),
-            'aggregation_key': aggregation_key
-        })
-
-    def status_code_event(self, url, r, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'http_check',
-            'msg_title': 'Invalid reponse code for %s' % url,
-            'msg_text': '%s returned a status of %s' % (url, r.status_code),
-            'aggregation_key': aggregation_key
-        })
