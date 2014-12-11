@@ -163,10 +163,12 @@ class Redis(AgentCheck):
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
         start = time.time()
+        info = None
         try:
             info = conn.info()
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
@@ -271,7 +273,6 @@ class Redis(AgentCheck):
             self.service_check('redis.replication.master_link_status', status, tags=tags)
             self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
 
-
     def _check_slowlog(self, instance, custom_tags):
         """Retrieve length and entries from Redis' SLOWLOG
 
@@ -331,3 +332,9 @@ class Redis(AgentCheck):
 
         self._check_db(instance, custom_tags)
         self._check_slowlog(instance, custom_tags)
+
+    def _collect_metadata(self, info):
+        metadata_dict = {}
+        if info and 'redis_version' in info:
+            metadata_dict['version'] = info['redis_version']
+        self.svc_metadata(metadata_dict)

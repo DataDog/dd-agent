@@ -114,6 +114,9 @@ class TestMySql(AgentCheckTest):
                       self.KEY_CACHE + self.COMMON_GAUGES + self.COMMON_RATES):
             self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
 
+        # Assert service metadata
+        self.assertServiceMetadata(['version'], count=1)
+
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
 

@@ -19,7 +19,7 @@ import yaml
 
 # project
 import config
-from config import get_config, get_jmx_status_path, _windows_commondata_path
+from config import get_config, get_jmx_status_path, _is_affirmative, _windows_commondata_path
 from util import plural
 from utils.ntp import get_ntp_args
 from utils.pidfile import PidFile
@@ -79,6 +79,7 @@ class Stylizer(object):
 # a small convienence method
 def style(*args):
     return Stylizer.stylize(*args)
+
 
 def logger_info():
     loggers = []
@@ -285,7 +286,7 @@ class InstanceStatus(object):
 class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count=None,
-                 event_count=None, service_check_count=None,
+                 event_count=None, service_check_count=None, service_metadata=[],
                  init_failed_error=None, init_failed_traceback=None,
                  library_versions=None, source_type_name=None,
                  check_stats=None):
@@ -299,6 +300,7 @@ class CheckStatus(object):
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
         self.check_stats = check_stats
+        self.service_metadata = service_metadata
 
     @property
     def status(self):
@@ -340,7 +342,7 @@ class CollectorStatus(AgentStatus):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
-        self.metadata = metadata or []
+        self.host_metadata = metadata or []
 
     @property
     def status(self):
@@ -433,7 +435,6 @@ class CollectorStatus(AgentStatus):
             'instance-id'
         ]
 
-
         lines = [
             'Clocks',
             '======',
@@ -477,10 +478,10 @@ class CollectorStatus(AgentStatus):
             ''
         ]
 
-        if not self.metadata:
+        if not self.host_metadata:
             lines.append("  No host information available yet.")
         else:
-            for key, host in self.metadata.items():
+            for key, host in self.host_metadata.iteritems():
                 for whitelist_item in metadata_whitelist:
                     if whitelist_item in key:
                         lines.append("  " + key + ": " + host)
@@ -563,6 +564,41 @@ class CollectorStatus(AgentStatus):
 
                 lines += check_lines
 
+        # Metadata status
+        metadata_enabled = _is_affirmative(get_config().get('display_service_metadata', False))
+
+        if metadata_enabled:
+            lines += [
+                "",
+                "Service metadata",
+                "================",
+                ""
+            ]
+            if not check_statuses:
+                lines.append("  No checks have run yet.")
+            else:
+                meta_lines = []
+                for cs in check_statuses:
+                    # Check title
+                    check_line = [
+                        '  ' + cs.name,
+                        '  ' + '-' * len(cs.name)
+                    ]
+                    instance_lines = []
+                    for i, meta in enumerate(cs.service_metadata):
+                        if not meta:
+                            continue
+                        instance_lines += ["    - instance #%s:" % i]
+                        for k, v in meta.iteritems():
+                            instance_lines += ["        - %s: %s" % (k, v)]
+                    if instance_lines:
+                        check_line += instance_lines
+                        meta_lines += check_line
+                if meta_lines:
+                    lines += meta_lines
+                else:
+                    lines.append("  No metadata were collected.")
+
         # Emitter status
         lines += [
             "",
@@ -577,7 +613,7 @@ class CollectorStatus(AgentStatus):
                 c = 'green'
                 if es.has_error():
                     c = 'red'
-                line = "  - %s [%s]" % (es.name, style(es.status,c))
+                line = "  - %s [%s]" % (es.name, style(es.status, c))
                 if es.status != STATUS_OK:
                     line += ": %s" % es.error
                 lines.append(line)
@@ -595,8 +631,8 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
-        if self.metadata:
-            for key, host in self.metadata.items():
+        if self.host_metadata:
+            for key, host in self.host_metadata.iteritems():
                 for whitelist_item in metadata_whitelist:
                     if whitelist_item in key:
                         status_info['hostnames'][key] = host

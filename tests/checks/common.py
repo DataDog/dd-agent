@@ -189,6 +189,7 @@ class AgentCheckTest(unittest.TestCase):
         self.metrics = self.check.get_metrics()
         self.events = self.check.get_events()
         self.service_checks = self.check.get_service_checks()
+        self.service_metadata = self.check.get_service_metadata()
         self.warnings = self.check.get_warnings()
 
         # pylint doesn't understand that we are raising this only if it's here
@@ -206,12 +207,16 @@ EVENTS
 SERVICE CHECKS
     {sc}
 
+SERVICE METADATA
+    {sm}
+
 WARNINGS
     {warnings}
 ++++++++++++++++++++++++++++""".format(
             metrics=pformat(self.metrics),
             events=pformat(self.events),
             sc=pformat(self.service_checks),
+            sm=pformat(self.service_metadata),
             warnings=pformat(self.warnings)
         ))
 
@@ -242,6 +247,21 @@ WARNINGS
             coverage_sc = 100.0
         else:
             coverage_sc = 100.0 * tested_sc / total_sc
+
+        total_sm = len(self.service_metadata)
+        tested_sm = 0
+        untested_sm = []
+        for sm in self.service_metadata:
+            if sm.get('tested'):
+                tested_sm += 1
+            else:
+                untested_sm.append(sm)
+
+        if total_sm == 0:
+            coverage_sm = 100.0
+        else:
+            coverage_sm = 100.0 * tested_sm / total_sm
+
         coverage = """Coverage
 ========================================
     METRICS
@@ -251,6 +271,10 @@ WARNINGS
     SERVICE CHECKS
         Tested {tested_sc}/{total_sc} ({coverage_sc}%)
         UNTESTED: {untested_sc}
+
+    SERVICE METADATA
+        Tested {tested_sm}/{total_sm} ({coverage_sm}%)
+        UNTESTED: {untested_sm}
 ========================================"""
         log.info(coverage.format(
             tested_metrics=tested_metrics,
@@ -261,11 +285,16 @@ WARNINGS
             total_sc=total_sc,
             coverage_sc=coverage_sc,
             untested_sc=pformat(untested_sc),
+            tested_sm=tested_sm,
+            total_sm=total_sm,
+            coverage_sm=coverage_sm,
+            untested_sm=pformat(untested_sm),
         ))
 
         if os.getenv('COVERAGE'):
             self.assertEquals(coverage_metrics, 100.0)
             self.assertEquals(coverage_sc, 100.0)
+            self.assertEquals(coverage_sm, 100.0)
 
     def _candidates_size_assert(self, candidates, count=None, at_least=1):
         try:
@@ -373,8 +402,35 @@ WARNINGS
                     mtuple[3]['tested'] = True
         log.debug("{0} FOUND !".format(metric_name))
 
+    def assertServiceMetadata(self, meta_keys, count=None, at_least=1):
+        log.debug("Looking for service metadata with keys {0}".format(meta_keys))
+        if count is not None:
+            log.debug(" * should be defined for exactly {0} instances".format(count))
+        elif at_least is not None:
+            log.debug(" * should be defined for at least {0} instances".format(at_least))
+
+        candidates = []
+        for sm in self.service_metadata:
+            if sorted(sm.keys()) != sorted(meta_keys):
+                continue
+
+            candidates.append(sm)
+
+        try:
+            self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        except AssertionError:
+            log.error("Candidates size assertion for service metadata with keys {0}"
+                      " (count: {1}, at_least: {2}) failed".format(meta_keys, count, at_least))
+            raise
+
+        for sm in self.service_metadata:
+            for csm in candidates:
+                if sm == csm:
+                    sm['tested'] = True
+        log.debug("Service metadata FOUND !")
+
     def assertServiceCheck(self, service_check_name, status=None, tags=None,
-            count=None, at_least=1):
+                           count=None, at_least=1):
         log.debug("Looking for service check {0}".format(service_check_name))
         if status is not None:
             log.debug(" * with status {0}".format(status))
@@ -383,7 +439,7 @@ WARNINGS
         if count is not None:
             log.debug(" * should have exactly {0} statuses".format(count))
         elif at_least is not None:
-            log.debug(" * should have at least {0} statuses".format(count))
+            log.debug(" * should have at least {0} statuses".format(at_least))
         candidates = []
         for sc in self.service_checks:
             if sc['check'] == service_check_name:

@@ -316,6 +316,7 @@ class AgentCheck(object):
         self.warnings = []
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
+        self.service_metadata = []
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -474,6 +475,14 @@ class AgentCheck(object):
                                  hostname, check_run_id, message)
         )
 
+    def svc_metadata(self, metadata):
+        """
+        Save metadata.
+
+        :param metadata: The service metadata dictionary
+        """
+        self.service_metadata.append(metadata)
+
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -514,6 +523,18 @@ class AgentCheck(object):
         service_checks = self.service_checks
         self.service_checks = []
         return service_checks
+
+    def get_service_metadata(self):
+        """
+        Return a list of the metadata dictionaries saved by the check -if any-
+        and clears them out of the instance's service_checks list
+
+        @return the list of metadata saved by this check
+        @rtype list of metadata dicts
+        """
+        service_metadata = self.service_metadata
+        self.service_metadata = []
+        return service_metadata
 
     def has_warnings(self):
         """
@@ -648,7 +669,7 @@ class AgentCheck(object):
                 after = AgentCheck._collect_internal_stats()
                 self._set_internal_profiling_stats(before, after)
                 log.info("\n \t %s %s" % (self.name, pretty_statistics(self._internal_profiling_stats)))
-            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+            except Exception:  # It's fine if we can't collect stats for the run, just log and proceed
                 self.log.debug("Failed to collect Agent Stats after check {0}".format(self.name))
 
         return instance_statuses

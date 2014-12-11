@@ -212,4 +212,7 @@ class TestPostgres(AgentCheckTest):
             tags=['host:localhost', 'port:15432', 'db:dogs']
         )
 
+        # Assert service metadata
+        self.assertServiceMetadata(['version'], count=2)
+
         self.coverage_report()
