@@ -27,8 +27,9 @@ class Marathon(AgentCheck):
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
                 tags = ['app_id:' + app['id'], 'version:' + app['version']] + instance_tags
-                for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
-                    self.gauge('marathon.' + attr, app[attr], tags=tags)
+                for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning', 'backoffSeconds', 'backoffFactor']:
+		    if attr in app:
+			self.gauge('marathon.' + attr, app[attr], tags=tags)
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
