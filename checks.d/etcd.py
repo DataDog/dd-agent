@@ -56,8 +56,7 @@ class Etcd(AgentCheck):
         # Load values from the instance config
         url = instance['url']
         instance_tags = instance.get('tags', [])
-        default_timeout = self.init_config.get('default_timeout', DEFAULT_TIMEOUT)
-        timeout = float(instance.get('timeout', default_timeout))
+        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
 
         storeResponse = self.get_store_metrics(url, timeout)
         if storeResponse is not None:
