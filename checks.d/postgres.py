@@ -239,7 +239,7 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.instance_metrics.get(key)
-        
+
         if metrics is None:
 
             # Hack to make sure that if we have multiple instances that connect to
@@ -254,7 +254,7 @@ SELECT %s
 
             self.db_instance_metrics.append(sub_key)
 
-            
+
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
             else:
@@ -291,6 +291,11 @@ SELECT %s
                 self.bgw_metrics[key].update(self.NEWER_92_BGW_METRICS)
             metrics = self.bgw_metrics.get(key)
         return metrics
+
+    def _collect_metadata(self, key, db):
+        metadata_dict = {}
+        metadata_dict['version'] = self._get_version(key, db)
+        self.svc_metadata(metadata_dict)
 
     def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
@@ -454,7 +459,7 @@ SELECT %s
                 if param not in m:
                     raise CheckException("Missing {0} parameter in custom metric"\
                         .format(param))
-           
+
             self.log.debug("Metric: {0}".format(m))
 
             for k, v in m['metrics'].items():
@@ -462,7 +467,7 @@ SELECT %s
                     raise CheckException("Collector method {0} is not known."\
                         "Known methods are RATE,GAUGE,MONOTONIC".format(
                             v[1].upper()))
-                                  
+
                 m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
                 self.log.debug("Method: %s" % (str(v[1])))
 
@@ -507,10 +512,12 @@ SELECT %s
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
             self._collect_stats(key, db, tags, relations, custom_metrics)
+            self._collect_metadata(key, db)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations, custom_metrics)
+            self._collect_metadata(key, db)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)
