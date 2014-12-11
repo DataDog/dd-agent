@@ -99,8 +99,4 @@ class Etcd(AgentCheck):
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Got %s when hitting %s" % (r.status_code, url))
 
-        # Condition for request v1.x backward compatibility
-        if hasattr(r.json, '__call__'):
-            return r.json()
-        else:
-            return r.json
+        return r.json
