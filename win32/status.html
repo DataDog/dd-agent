@@ -129,11 +129,10 @@ dt::after {
   content: ':';
 }
 
-/*dt {
-  float: left;
+dt {
   width: 180px;
   font-weight: bold;
-}*/
+}
 
 ul dl {
   margin: 0px;
@@ -201,7 +200,7 @@ ul dt {
           <ul>
           {% if check['init_failed'] %}
             <li>Initialization error: {{check['traceback']}}</li>
-         {% else %}
+          {% else %}
           {% for id, instance in check['instances'].iteritems() %}
           <li>
             <dl>

@@ -316,7 +316,7 @@ class HTMLWindow(QTextEdit):
     def __init__(self, parent=None):
         QTextEdit.__init__(self, parent)
         self.setReadOnly(True)
-        self.setHtml(self.latest_status())
+        self.setPlainText(self.latest_status())
 
     def latest_status(self):
         try:
@@ -376,7 +376,7 @@ class MainWindow(QSplitter):
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("JMX Fetch Logs", lambda: [self.properties.set_log_file(self.jmxfetch_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
-            ("Agent Status", lambda: [self.properties.html_window.setHtml(self.properties.html_window.latest_status()),
+            ("Agent Status", lambda: [self.properties.html_window.setPlainText(self.properties.html_window.latest_status()),
                 self.show_html(self.properties.group_code, self.properties.html_window, True),
                 self.properties.set_status()]),
         ]
@@ -417,7 +417,7 @@ class MainWindow(QSplitter):
 
         self.connect(self.properties.refresh_button, SIGNAL("clicked()"),
                      lambda: [self.properties.set_log_file(self.properties.current_file),
-                     self.properties.html_window.setHtml(self.properties.html_window.latest_status())])
+                     self.properties.html_window.setPlainText(self.properties.html_window.latest_status())])
 
         self.connect(listwidget, SIGNAL('currentRowChanged(int)'),
                      lambda row: [self.properties.set_item(checks[row]),
