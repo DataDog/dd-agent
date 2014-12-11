@@ -95,9 +95,16 @@ html {
   height: 100%;
 }
 
+#checks {
+  list-style-type: none;
+  padding-left: 0;
+}
 /* Status page */
 h2 {
   margin-top: 2em;
+}
+h3 {
+  margin-top: 10px;
 }
 
 h1, h2, h3 {
@@ -194,7 +201,7 @@ ul dt {
         <h3>Checks</h3>
 
         {% if collector['checks'] %}
-        <ul>
+        <ul id="checks">
           {% for name, check in collector['checks'].iteritems() %}
           <li><h4>{{ name }}</h4>
           <ul>
