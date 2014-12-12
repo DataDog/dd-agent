@@ -278,6 +278,9 @@ SELECT %s
                 if not results:
                     continue
 
+                if scope == self.DB_METRICS:
+                    self.gauge("postgresql.db.count", len(results), tags=[t for t in instance_tags if not t.startswith("db:")])
+
                 # parse & submit results
                 # A row should look like this
                 # (descriptor, descriptor, ..., value, value, value, value, ...)
