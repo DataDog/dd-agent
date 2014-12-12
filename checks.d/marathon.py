@@ -1,11 +1,9 @@
 # stdlib
 import time
 from hashlib import md5
-import urllib2
 
 # project
 from checks import AgentCheck
-from util import headers
 
 # 3rd party
 import simplejson as json
@@ -27,8 +25,9 @@ class Marathon(AgentCheck):
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
                 tags = ['app_id:' + app['id'], 'version:' + app['version']] + instance_tags
-                for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
-                    self.gauge('marathon.' + attr, app[attr], tags=tags)
+                for attr in ['taskRateLimit', 'instances', 'cpus', 'mem', 'tasksStaged', 'tasksRunning', 'backoffSeconds', 'backoffFactor']:
+                    if attr in app:
+                        self.gauge('marathon.' + attr, app[attr], tags=tags)
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
@@ -38,7 +37,7 @@ class Marathon(AgentCheck):
         aggregation_key = md5(url).hexdigest()
         try:
             r = requests.get(url + "/v2/apps", timeout=timeout)
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
             raise Exception("Timeout when hitting %s" % url)
@@ -56,10 +55,10 @@ class Marathon(AgentCheck):
     def get_v2_app_versions(self, url, app_id, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
-        
+
         try:
             r = requests.get(url + "/v2/apps/" + app_id + "/versions", timeout=timeout)
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
             self.warning("Timeout when hitting %s" % url)
