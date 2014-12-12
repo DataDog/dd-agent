@@ -37,9 +37,14 @@ class HTTPCheck(NetworkCheck):
         return url, username, password, timeout, include_content, headers, collect_metrics, metrics_prefix, tags, ssl, http_method, http_body
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, collect_metrics, metrics_prefix, tags, disable_ssl_validation = self._load_conf(instance), http_method, http_body
+        addr, username, password, timeout, include_content, headers, collect_metrics, metrics_prefix, tags, disable_ssl_validation, http_method, http_body = self._load_conf(instance)
         content = ''
         start = time.time()
+        # Store tags in a temporary list so that we don't modify the global tags data structure
+        tags_list = []
+        tags_list.extend(tags)
+        tags_list.append('url:%s' % addr)
+
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
@@ -80,15 +85,10 @@ class HTTPCheck(NetworkCheck):
         if collect_metrics:
             self.gauge('%s.response_code', metrics_prefix, resp.status, tags=tags_list)
 
-        if response_time:
+        if collect_metrics:
            # Stop the timer as early as possible
            running_time = time.time() - start
-           # Store tags in a temporary list so that we don't modify the global tags data structure
-           tags_list = []
-           tags_list.extend(tags)
-           tags_list.append('url:%s' % addr)
-           if collect_metrics:
-                self.gauge('%s.response_time', metrics_prefix, running_time, tags=tags_list)
+           self.gauge('%s.response_time', metrics_prefix, running_time, tags=tags_list)
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
