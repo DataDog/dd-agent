@@ -58,37 +58,37 @@ class HTTPCheck(NetworkCheck):
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
             if collect_metrics:
-                self.gauge('%s.response_code', metrics_prefix, HTTPCheck.ERROR_CODE, tags=tags_list)
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except HttpLib2Error, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
             if collect_metrics:
-                self.gauge('%s.response_code', metrics_prefix, HTTPCheck.ERROR_CODE, tags=tags_list)
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except socket.error, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, repr(e), length))
             if collect_metrics:
-                self.gauge('%s.response_code', metrics_prefix, HTTPCheck.ERROR_CODE, tags=tags_list)
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
 
         except Exception, e:
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms" % (str(e), length))
             if collect_metrics:
-                self.gauge('%s.response_code', metrics_prefix, HTTPCheck.ERROR_CODE, tags=tags_list)
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             raise
 
         if collect_metrics:
-            self.gauge('%s.response_code', metrics_prefix, resp.status, tags=tags_list)
+            self.gauge('%s.response_code' % (metrics_prefix), resp.status, tags=tags_list)
 
         if collect_metrics:
            # Stop the timer as early as possible
            running_time = time.time() - start
-           self.gauge('%s.response_time', metrics_prefix, running_time, tags=tags_list)
+           self.gauge('%s.response_time' % (metrics_prefix), running_time, tags=tags_list)
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
