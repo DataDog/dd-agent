@@ -34,7 +34,6 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
-# windows_file_handler_added = False
 
 OLD_STYLE_PARAMETERS = [
     ('apache_status_url', "apache"),
@@ -924,7 +923,6 @@ def get_logging_config(cfg_path=None):
 
 
 def initialize_logging(logger_name):
-    # global windows_file_handler_added
     try:
         logging_config = get_logging_config()
 
@@ -932,11 +930,6 @@ def initialize_logging(logger_name):
             format=get_log_format(logger_name),
             level=logging_config['log_level'] or logging.INFO,
         )
-
-        # set up file loggers
-        # if get_os() == 'windows' and not windows_file_handler_added:
-        #     logger_name = 'ddagent'
-            # windows_file_handler_added = True
 
         log_file = logging_config.get('%s_log_file' % logger_name)
         if log_file is not None and not logging_config['disable_file_logging']:

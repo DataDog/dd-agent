@@ -10,10 +10,9 @@ import os
 import os.path as osp
 import webbrowser
 import thread # To manage the windows process asynchronously
-import tempfile
 import logging
 import pickle
-
+import platform
 import win32serviceutil
 import win32service
 
@@ -43,7 +42,7 @@ from checks.check_status import DogstatsdStatus, ForwarderStatus, CollectorStatu
 # 3rd Party
 import yaml
 import tornado.template as template
-import platform
+
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +57,6 @@ MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
 DATADOG_SERVICE = "DatadogAgent"
 
-AGENT_LOG_FILE = osp.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
 COLLECTOR_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
 FORWARDER_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
 DOGSTATSD_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
@@ -368,7 +366,7 @@ class MainWindow(QSplitter):
         self.menu_button = QPushButton(get_icon("settings.png"),
                                       "Actions", self)
         self.settings = [
-            ("Forwader Logs", lambda: [self.properties.set_log_file(self.forwarder_log_file),
+            ("Forwarder Logs", lambda: [self.properties.set_log_file(self.forwarder_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
             ("Collector Logs", lambda: [self.properties.set_log_file(self.collector_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),

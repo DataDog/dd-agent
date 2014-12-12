@@ -19,7 +19,7 @@ import os.path
 # project
 import config
 from config import _windows_commondata_path
-from util import get_os, plural
+from util import get_os, plural, Platform
 
 # 3rd party
 import ntplib
@@ -245,7 +245,7 @@ class AgentStatus(object):
 
     @classmethod
     def _get_pickle_path(cls):
-        if sys.platform == 'win32':
+        if Platform.is_win32():
             path = os.path.join(_windows_commondata_path(), 'Datadog', cls.__name__ + '.pickle')
         else:
             path = os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
