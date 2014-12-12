@@ -245,7 +245,7 @@ class AgentStatus(object):
 
     @classmethod
     def _get_pickle_path(cls):
-        if platform.system() is 'Windows':
+        if sys.platform == 'win32':
             path = os.path.join(_windows_commondata_path(), 'Datadog', cls.__name__ + '.pickle')
         else:
             path = os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
