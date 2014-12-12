@@ -28,12 +28,14 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'url': 'https://google.com',
                 'name': 'UpService',
                 'timeout': 1,
-                'headers': { "X-Auth-Token": "SOME-AUTH-TOKEN"}
+                'headers': { "X-Auth-Token": "SOME-AUTH-TOKEN"},
+                'http_method': "POST",
+                'http_body': '{"title":"Berlin"}',
             }]
         }
 
         self.init_check(config, 'http_check')
-        url, username, password, timeout, include_content, headers, response_time, tags, ssl = self.check._load_conf(config['instances'][0])
+        url, username, password, timeout, include_content, headers, response_time, tags, ssl, http_method, http_body = self.check._load_conf(config['instances'][0])
 
         self.assertTrue(headers["X-Auth-Token"] == "SOME-AUTH-TOKEN", headers)
         self.assertTrue(headers.get('User-Agent') == agent_headers(self.agentConfig).get('User-Agent'), headers)
