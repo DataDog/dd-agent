@@ -69,17 +69,17 @@ class BernardCheck(object):
     def _execute_check(self):
         timeout = self.config.get('timeout')
         output = None
+        error = None
         returncode = None
         # This is going to disable the StaticWatchdog
         signal.signal(signal.SIGALRM, self.timeout_handler)
         signal.alarm(timeout)
         try:
-            try:
-                process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, error = process.communicate()
-                returncode = process.returncode
-            except Timeout:
-                os.kill(process.pid, signal.SIGKILL)
+            process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, error = process.communicate()
+            returncode = process.returncode
+        except Timeout:
+            os.kill(process.pid, signal.SIGKILL)
         finally:
             signal.alarm(0)
             # Re enable the StaticWatchdog
