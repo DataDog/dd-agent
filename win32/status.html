@@ -174,7 +174,7 @@
           <h3>Checks</h3>
 
           {% if collector['checks'] %}
-          <ul id="checks" stlye ="list-style-type: None; padding-left: 0;">
+          <ul id="checks" style ="list-style-type: None; padding-left: 0;">
             {% for name, check in collector['checks'].iteritems() %}
             <li><h4>{{ name }}</h4>
             <ul>
@@ -202,7 +202,7 @@
               </dl>
             </li>
             {% end %}
-            <li>Collected {{ check['metric_count'] }} metrics, {{ check['event_count'] }} events and {{ check['service_check_count'] }}</li>
+            <li>Collected {{ check['metric_count'] }} metrics, {{ check['event_count'] }} events and {{ check['service_check_count'] }} service check</li>
             </ul></li>
             {% end %}
           {% end %}
