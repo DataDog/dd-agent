@@ -28,7 +28,7 @@ NO_PROXY = {
 def remove_control_chars(s):
     return control_char_re.sub('', s)
 
-def http_emitter(message, log, agentConfig):
+def http_emitter(message, log, agentConfig, endpoint):
     "Send payload"
     url = agentConfig['dd_url']
 
@@ -49,7 +49,7 @@ def http_emitter(message, log, agentConfig):
     if not apiKey:
         raise Exception("The http emitter requires an api key")
 
-    url = "{0}/intake?api_key={1}".format(url, apiKey)
+    url = "{0}/intake/{1}?api_key={2}".format(url, endpoint, apiKey)
 
     try:
         r = requests.post(url, data=zipped, timeout=5,
@@ -76,4 +76,4 @@ def post_headers(agentConfig, payload):
         'Accept': 'text/html, */*',
         'Content-MD5': md5(payload).hexdigest()
     }
-    
+

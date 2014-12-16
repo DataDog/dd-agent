@@ -8,6 +8,7 @@ import time
 import datetime
 import socket
 
+import collections
 import modules
 
 from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
@@ -22,12 +23,89 @@ from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
 
-
 log = logging.getLogger(__name__)
 
 
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
+
+
+
+class AgentPayload(collections.MutableMapping):
+    """
+    AgentPayload
+    One payload to manage data and metadata payloads.
+
+    """
+    METADATA_KEYS = {'meta', 'tags', 'host-tags', 'systemStats', 'agentVersion',
+        'agentVersion', 'agent_checks', 'gohai', 'external_host_tags',
+        'agentVersion'}
+
+    DUPLICATE_KEYS = {'apiKey'}
+
+    DATA_ENDPOINT = 'metrics'
+    METADATA_ENDPOINT = 'metadata'
+
+
+    def __init__(self, start_event=True):
+        self.payload_data = dict()
+        self.payload_meta = dict()
+
+    def __getitem__(self, key):
+        if key in self.METADATA_KEYS:
+            return self.payload_meta[key]
+        else:
+            return self.payload_data[key]
+
+    def __setitem__(self, key, value):
+        if key in self.DUPLICATE_KEYS:
+            self.payload_data[key] = value
+            self.payload_meta[key] = value
+        elif key in self.METADATA_KEYS:
+            self.payload_meta[key] = value
+        else:
+            self.payload_data[key] = value
+
+    def __delitem__(self, key):
+        if key in self.METADATA_KEYS:
+            del self.payload_meta[key]
+        else:
+            del self.payload_data[key]
+
+    def __iter__(self):
+        for item in self.payload_data:
+            yield item
+        for item in self.payload_meta:
+            yield item
+
+    def __len__(self):
+        return len(self.payload_data)+len(self.payload_meta)
+
+    def emit(self, log, config, emitters, continue_running):
+        """ Send payloads via the emitters. """
+        statuses = []
+
+        def _emit_payload(payload, endpoint):
+            """ Send the payload via the emitters. """
+            statuses = []
+            for emitter in emitters:
+                # Don't try to send to an emitter if we're stopping/
+                if not continue_running:
+                    return statuses
+                name = emitter.__name__
+                emitter_status = EmitterStatus(name)
+                try:
+                    emitter(payload, log, config, endpoint)
+                except Exception, e:
+                    log.exception("Error running emitter: %s" % emitter.__name__)
+                    emitter_status = EmitterStatus(name, e)
+                statuses.append(emitter_status)
+            return statuses
+        statuses.extend(_emit_payload(self.payload_data, self.DATA_ENDPOINT))
+        statuses.extend(_emit_payload(self.payload_meta, self.METADATA_ENDPOINT))
+
+        return statuses
+
 
 class Collector(object):
     """
@@ -136,7 +214,9 @@ class Collector(object):
         self.run_count += 1
         log.debug("Starting collection run #%s" % self.run_count)
 
-        payload = self._build_payload(start_event=start_event)
+        payload = AgentPayload(start_event=start_event)
+        # Initialize payload
+        self._build_payload(payload, start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
         service_checks = payload['service_checks']
@@ -379,7 +459,7 @@ class Collector(object):
                 collect_duration, self.emit_duration))
 
 
-        emitter_statuses = self._emit(payload)
+        emitter_statuses = payload.emit(log, self.agentConfig, self.emitters, self.continue_running)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
@@ -420,26 +500,25 @@ class Collector(object):
     def _is_first_run(self):
         return self.run_count <= 1
 
-    def _build_payload(self, start_event=True):
+    def _build_payload(self, payload, start_event=True):
         """
         Return an dictionary that contains all of the generic payload data.
         """
         now = time.time()
-        payload = {
-            'collection_timestamp': now,
-            'os' : self.os,
-            'python': sys.version,
-            'agentVersion' : self.agentConfig['version'],
-            'apiKey': self.agentConfig['api_key'],
-            'events': {},
-            'metrics': [],
-            'service_checks': [],
-            'resources': {},
-            'internalHostname' : self.hostname,
-            'uuid' : get_uuid(),
-            'host-tags': {},
-            'external_host_tags': {}
-        }
+
+        payload['collection_timestamp'] = now
+        payload['os']  = self.os
+        payload['python'] = sys.version
+        payload['agentVersion']  = self.agentConfig['version']
+        payload['apiKey'] = self.agentConfig['api_key']
+        payload['events'] = {}
+        payload['metrics'] = []
+        payload['service_checks'] = []
+        payload['resources'] = {}
+        payload['internalHostname']  = self.hostname
+        payload['uuid']  = get_uuid()
+        payload['host-tags'] = {}
+        payload['external_host_tags'] = {}
 
         # Include system stats on first postback
         if start_event and self._is_first_run():
@@ -511,7 +590,6 @@ class Collector(object):
         if external_host_tags:
             payload['external_host_tags'] = external_host_tags
 
-        return payload
 
     def _get_metadata(self):
         metadata = EC2.get_metadata(self.agentConfig)
