@@ -1,8 +1,8 @@
 init_config:
 
 instances:
-  # Each WMI query has 2 required options, `class` and `metrics` and two
-  # optional options, `filters` and `tag_by`.
+  # Each WMI query has 2 required options, `class` and `metrics` and four
+  # optional options, `filters`, `tag_by`, `constant_tags` and `link_tag`.
   #
   # `class` is the name of the WMI class, for example Win32_OperatingSystem
   # or Win32_PerfFormattedData_PerfProc_Process. You can find many of the
@@ -35,6 +35,17 @@ instances:
   # WMI class you're using. This is only useful when you will have multiple
   # values for your WMI query. The examples below show how you can tag your
   # process metrics with the process name (giving a tag of "name:app_name").
+  #
+  # `constant_tags` optionally lets you tag each metric with a set of fixed values
+  #
+  # `link_tag` optionally specifies how to join to another property for tagging.
+  # Settings this will cause any instance number to be removed from tag_by values
+  # i.e. name:process#1 => name:process
+  # Params are:
+  #   property of source that contains the link value
+  #   class to link to
+  #   property of target class to link to
+  #   property of target class that contains the value to tag with
 
 
   # Fetch the number of processes and users
@@ -63,9 +74,13 @@ instances:
       - Name: app3
     tag_by: Name
 
-  # Fetch process metrics for every available process, tagging by app name.
+  # Fetch process metrics for every available process, tagging by app name, command line params and 2 constants.
   - class: Win32_PerfFormattedData_PerfProc_Process
     metrics:
       - [IOReadBytesPerSec, proc.io.bytes_read, gauge]
       - [IOWriteBytesPerSec, proc.io.bytes_written, gauge]
     tag_by: Name
+    constant_tags:
+        -   'role:test'
+        -   allapps
+    link_tag: [IDProcess, Win32_Process, Handle, CommandLine]
