@@ -14,6 +14,7 @@ class HTTPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'http_check'
+    ERROR_CODE = 999
 
     def _load_conf(self, instance):
         # Fetches the conf
@@ -25,17 +26,25 @@ class HTTPCheck(NetworkCheck):
         headers = agent_headers(self.agentConfig)
         headers.update(config_headers)
         url = instance.get('url', None)
-        response_time = instance.get('collect_response_time', True)
+        collect_metrics = instance.get('collect_metrics', True)
+        metrics_prefix =  instance.get('metrics_prefix', 'network.http')
+        http_method = instance.get('http_method', "GET")
+        http_body = instance.get('htt_body', None)
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
         ssl = instance.get('disable_ssl_validation', True)
-        return url, username, password, timeout, include_content, headers, response_time, tags, ssl
+        return url, username, password, timeout, include_content, headers, collect_metrics, metrics_prefix, tags, ssl, http_method, http_body
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, collect_metrics, metrics_prefix, tags, disable_ssl_validation, http_method, http_body = self._load_conf(instance)
         content = ''
         start = time.time()
+        # Store tags in a temporary list so that we don't modify the global tags data structure
+        tags_list = []
+        tags_list.extend(tags)
+        tags_list.append('url:%s' % addr)
+
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
@@ -43,36 +52,43 @@ class HTTPCheck(NetworkCheck):
             h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
             if username is not None and password is not None:
                 h.add_credentials(username, password)
-            resp, content = h.request(addr, "GET", headers=headers)
+            resp, content = h.request(addr, http_method, headers=headers, body=http_body)
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
+            if collect_metrics:
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except HttpLib2Error, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
+            if collect_metrics:
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "%s. Connection failed after %s ms" % (str(e), length)
 
         except socket.error, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, repr(e), length))
+            if collect_metrics:
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             return Status.DOWN, "Socket error: %s. Connection failed after %s ms" % (repr(e), length)
 
         except Exception, e:
             length = int((time.time() - start) * 1000)
             self.log.error("Unhandled exception %s. Connection failed after %s ms" % (str(e), length))
+            if collect_metrics:
+                self.gauge('%s.response_code' % (metrics_prefix), HTTPCheck.ERROR_CODE, tags=tags_list)
             raise
 
-        if response_time:
+        if collect_metrics:
+            self.gauge('%s.response_code' % (metrics_prefix), resp.status, tags=tags_list)
+
+        if collect_metrics:
            # Stop the timer as early as possible
            running_time = time.time() - start
-           # Store tags in a temporary list so that we don't modify the global tags data structure
-           tags_list = []
-           tags_list.extend(tags)
-           tags_list.append('url:%s' % addr)
-           self.gauge('network.http.response_time', running_time, tags=tags_list)
+           self.gauge('%s.response_time' % (metrics_prefix), running_time, tags=tags_list)
 
         if int(resp.status) >= 400:
             self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
