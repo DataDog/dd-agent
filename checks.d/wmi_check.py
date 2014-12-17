@@ -35,9 +35,11 @@ class WMICheck(AgentCheck):
         metrics = instance.get('metrics')
         filters = instance.get('filters')
         tag_by = instance.get('tag_by')
+        link = instance.get('link_tag')
+        constant_tag = instance.get('constant_tags')
 
         if not wmi_class:
-            raise Exception('WMI instance is missing a value for `class` in wmi.yaml')
+            raise Exception('WMI instance is missing a value for `class` in wmi_check.yaml')
 
         # If there are filters, we need one query per filter.
         if filters:
@@ -51,29 +53,59 @@ class WMICheck(AgentCheck):
                     results = w.query(wql)
                 else:
                     results = getattr(w, wmi_class)(**f)
-                self._extract_metrics(results, metrics, tag_by)
+                self._extract_metrics(results, metrics, tag_by, w, link, constant_tag)
         else:
             results = getattr(w, wmi_class)()
-            self._extract_metrics(results, metrics, tag_by)
+            self._extract_metrics(results, metrics, tag_by, w, link, constant_tag)
 
-    def _extract_metrics(self, results, metrics, tag_by):
+    def _extract_metrics(self, results, metrics, tag_by, wmi, link, constant_tag):
         if len(results) > 1 and tag_by is None:
             raise Exception('WMI query returned multiple rows but no `tag_by` value was given. metrics=%s' % metrics)
 
-        for wmi_property, name, mtype in metrics:
-            for res in results:
+        for res in results:
+            tags = []
+            
+            # include any constant tags...
+            if constant_tag:
+                for c in constant_tag:
+                    tags.append(c)
+                    
+            # if link is specified then get attribute from another class and use it as a tag
+            link_prop = ""
+            link_value = ""
+            if link:
+                source_val = float(getattr(res, link[0]))
+                link_prop = link[3]
+                link_results = wmi.query("SELECT {0} FROM {1} WHERE {2} = {3}".format(link_prop, link[1], link[2], source_val))
+                if len(link_results) == 1:
+                    link_value = getattr(link_results[0], link_prop).lower()
+                    p = 0
+                    for part in link_value.split():
+                        tags.append("{0}{1}:{2}".format(link_prop.lower(), p, part.strip()))
+                        p += 1
+                else:
+                    self.log.warning("Failed to find {0} for {1} {2}. No metrics gathered".format(link[1], link[2], source_val))
+                    continue
+
+            # Grab the tag from the result if there's a `tag_by` value (e.g.: "name:jenkins")
+            # strip any #instance off the value. WMI does this to give unique names
+            # the link_tag enhancement gives us unique tags
+            if tag_by:
+                tag_value = getattr(res, tag_by).lower()
+                if link and tag_value.find("#") > 0:
+                    tag_value = tag_value[:tag_value.find("#")]
+                tags.append('%s:%s' % (tag_by.lower(), tag_value))
+
+            if len(tags) == 0:
+                tags = None
+                
+            for wmi_property, name, mtype in metrics:
                 if wmi_property == UP_METRIC:
                     # Special-case metric will just submit 1 for every value
                     # returned in the result.
                     val = 1
                 else:
                     val = float(getattr(res, wmi_property))
-
-                # Grab the tag from the result if there's a `tag_by` value (e.g.: "name:jenkins")
-                if tag_by:
-                    tags = ['%s:%s' % (tag_by.lower(), getattr(res, tag_by))]
-                else:
-                    tags = None
 
                 try:
                     func = getattr(self, mtype)
