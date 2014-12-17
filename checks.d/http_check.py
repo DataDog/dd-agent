@@ -1,5 +1,7 @@
 # stdlib
+from datetime import datetime
 import socket
+import ssl
 import time
 from urlparse import urlparse
 
@@ -11,7 +13,6 @@ from util import headers as agent_headers
 from httplib2 import Http, HttpLib2Error
 
 class HTTPCheck(NetworkCheck):
-
     SOURCE_TYPE_NAME = 'system'
     SERVICE_CHECK_PREFIX = 'http_check'
 
@@ -30,12 +31,16 @@ class HTTPCheck(NetworkCheck):
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
         ssl = instance.get('disable_ssl_validation', True)
-        return url, username, password, timeout, include_content, headers, response_time, tags, ssl
+        ssl_expire = instance.get('check_certificate_expiration', False)
+
+        return url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expire
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation = self._load_conf(instance)
+
+        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
         content = ''
         start = time.time()
+
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
@@ -157,19 +162,18 @@ class HTTPCheck(NetworkCheck):
         service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
         url = instance.get('url', None)
 
-        if status == Status.DOWN:
-            # format the HTTP response body into the event
-            if isinstance(msg, tuple):
-                code, reason, content = msg
 
-                # truncate and html-escape content
-                if len(content) > 200:
-                    content = content[:197] + '...'
+        # format the HTTP response body into the event
+        if isinstance(msg, tuple):
+            code, reason, content = msg
 
-                msg = "%d %s\n\n%s" % (code, reason, content)
-                msg = msg.rstrip()
-        else:
-            msg=None
+            # truncate and html-escape content
+            if len(content) > 200:
+                content = content[:197] + '...'
+
+            msg = "%d %s\n\n%s" % (code, reason, content)
+            msg = msg.rstrip()
+
 
         self.service_check(service_check_name,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
@@ -177,3 +181,37 @@ class HTTPCheck(NetworkCheck):
                            message=msg
                            )
 
+    def report_ssl(self, instance):
+        warning_days = instance.get('days_warning', 14)
+        host = instance.get('url', None)
+
+        o = urlparse(host)
+        url = o.netloc
+
+        if o.port:
+            port = o.port
+        else:
+            port = 443
+
+        try:
+            CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((url, port))
+            ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED,
+                                           ca_certs=CA_CERTS)
+            cert = ssl_sock.getpeercert()
+
+        except Exception as e:
+            return Status.WARNING, "%s" % (str(e))
+
+        exp_date = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
+        days_left = exp_date - datetime.utcnow()
+
+        if days_left.days < 0:
+            return Status.DOWN, "Expired by {0} days".format(days_left.days)
+
+        elif days_left.days < warning_days:
+            return Status.WARNING, "This cert is almost expired, only {0} days left".format(days_left.days)
+
+        else:
+            return Status.UP, "Days left: {0}".format(days_left.days)

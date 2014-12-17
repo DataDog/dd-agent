@@ -16,6 +16,7 @@ FAILURE = "FAILURE"
 
 class Status:
     DOWN = "DOWN"
+    WARNING = "WARNING"
     UP = "UP"
 
 class EventType:
@@ -29,6 +30,7 @@ class NetworkCheck(AgentCheck):
 
     STATUS_TO_SERVICE_CHECK = {
             Status.UP  : AgentCheck.OK,
+            Status.WARNING : AgentCheck.WARNING,
             Status.DOWN : AgentCheck.CRITICAL
         }
 
@@ -112,7 +114,6 @@ class NetworkCheck(AgentCheck):
 
     def _process(self, instance):
         name = instance.get('name', None)
-
         try:
             status, msg = self._check(instance)
 
@@ -123,6 +124,19 @@ class NetworkCheck(AgentCheck):
         except Exception, e:
             result = (FAILURE, FAILURE, FAILURE, FAILURE)
             self.resultsq.put(result)
+
+        ssl_expire = instance.get('check_certificate_expiration', False)
+        if ssl_expire:
+            try:
+                thestatus, message = self.report_ssl(instance)
+                ssl_name = 'http.ssl_certificate_expiration'
+                result = (thestatus, message, ssl_name, instance)
+                self.resultsq.put(result)
+
+            except Exception:
+                result = (FAILURE, FAILURE, FAILURE, FAILURE)
+                self.resultsq.put(result)
+
 
     def _process_results(self):
         for i in range(MAX_LOOP_ITERATIONS):
@@ -159,8 +173,6 @@ class NetworkCheck(AgentCheck):
                     self.log.warning("Maximum window size (256) exceeded, defaulting it to 256")
                     window = 256
 
-
-
                 threshold = queue_instance.get('threshold', 1)
 
                 if len(self.statuses[name]) > window:
@@ -181,7 +193,8 @@ class NetworkCheck(AgentCheck):
                     self.events.append(event)
 
             # The job is finished here, this instance can be re processed
-            del self.jobs_status[name]
+            if name in self.jobs_status:
+                del self.jobs_status[name]
 
     def _check(self, instance):
         """This function should be implemented by inherited classes"""
