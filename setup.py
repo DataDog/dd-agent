@@ -32,25 +32,24 @@ if sys.platform == 'win32':
     import pyVim
     import pyVmomi
     install_requires.extend([
-        'tornado==3.0.1',
-        'pywin32==217',
-        'wmi==1.4.9',
-        'simplejson==3.3.3',
-        'mysql-python==1.2.3',
-        'pymongo==2.3',
-        'pg8000==1.9.6',
-        'python-memcached==1.48',
         'adodbapi==2.6.0.7',
         'elementtree==1.2.7.20070827-preview',
-        'pycurl==7.19.0',
-        'pymysql==0.6.1',
-        'psutil==2.1.1',
-        'redis==2.10.1',
-        'requests==2.3.0',
         'httplib2==0.9',
-        'pysnmp==4.2.5',
+        'pg8000==1.10.1',
+        'psutil==2.1.3',
+        'pycurl==7.19.5',
+        'pymongo==2.7.2',
+        'pymysql==0.6.2',
         'pysnmp-mibs==0.1.4',
-        'pyvmomi==5.5.0'
+        'pysnmp==4.2.5',
+        'python-memcached==1.53',
+        'pyvmomi==5.5.0.2014.1.1'
+        'pywin32==217',
+        'redis==2.10.3',
+        'requests==2.4.3',
+        'simplejson==3.6.4',
+        'tornado==3.2.2',
+        'wmi==1.4.9',
     ])
 
     # Modules to force-include in the exe
