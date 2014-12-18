@@ -23,7 +23,7 @@ class WindowsService(AgentCheck):
         self.wmi_conns = {}
 
     def _get_wmi_conn(self, host, user, password):
-        key = "%s:%s:%s" % (host, user, password)
+        key = "%s:%s" % (host, user)
         if key not in self.wmi_conns:
             self.wmi_conns[key] = wmi.WMI(host, user=user, password=password)
         return self.wmi_conns[key]
