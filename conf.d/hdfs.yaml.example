@@ -10,11 +10,11 @@ instances:
 # You have to manually install it with the following command:
 # sudo /opt/datadog-agent/embedded/bin/pip install --upgrade snakebite
 #
-# - namenodes: 
-#          - url: namenode.example.com
-#            port: 8020
-#          - url: namenode2.example.com # Optional, to be set when using HA Mode
-#             port: 8020 # Optional, to be set when using HA Mode
+  - namenodes:
+    - url: localhost
+      port: 8020
+#     - url: namenode2.example.com # Optional, to be set when using HA Mode
+#       port: 8020 # Optional, to be set when using HA Mode
 #
-#   tags:
-#     - optional_tag
+#     tags:
+#       - optional_tag
