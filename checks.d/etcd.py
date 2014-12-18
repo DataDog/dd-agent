@@ -56,15 +56,21 @@ class Etcd(AgentCheck):
         # Load values from the instance config
         url = instance['url']
         instance_tags = instance.get('tags', [])
-        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
+        timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
 
         storeResponse = self.get_store_metrics(url, timeout)
         if storeResponse is not None:
-            for key, metric_name in self.STORE_RATES:
-                self.rate(metric_name, storeResponse[key], tags=instance_tags)
+            for key in self.STORE_RATES:
+                if key in storeResponse:
+                    self.rate(self.STORE_RATES[key], storeResponse[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {} in stats.".format(key))
 
-            for key, metric_name in self.STORE_GAUGES:
-                self.gauge(metric_name, storeResponse[key], tags=instance_tags)
+            for key in self.STORE_GAUGES:
+                if key in storeResponse:
+                    self.gauge(self.STORE_GAUGES[key], storeResponse[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {} in stats.".format(key))
 
         selfResponse = self.get_self_metrics(url, timeout)
         if selfResponse is not None:
@@ -73,11 +79,17 @@ class Etcd(AgentCheck):
             else:
                 self.gauge('etcd.self.leader', 0, tags=instance_tags)
 
-            for key, metric_name in self.SELF_RATES:
-                self.rate(metric_name, selfResponse[key], tags=instance_tags)
+            for key in self.SELF_RATES:
+                if key in selfResponse:
+                    self.rate(self.SELF_RATES[key], selfResponse[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {} in stats.".format(key))
 
-            for key, metric_name in self.SELF_GAUGES:
-                self.gauge(metric_name, selfResponse[key], tags=instance_tags)
+            for key in self.SELF_GAUGES:
+                if key in selfResponse:
+                    self.gauge(self.SELF_GAUGES[key], selfResponse[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {} in stats.".format(key))
 
     def get_self_metrics(self, url, timeout):
         return self.get_json(url + "/v2/stats/self", timeout)
@@ -86,8 +98,6 @@ class Etcd(AgentCheck):
         return self.get_json(url + "/v2/stats/store", timeout)
 
     def get_json(self, url, timeout):
-        # Use a hash of the URL as an aggregation key
-        aggregation_key = md5(url).hexdigest()
         try:
             r = requests.get(url, timeout=timeout)
         except requests.exceptions.Timeout as e:
@@ -99,5 +109,6 @@ class Etcd(AgentCheck):
         if r.status_code != 200:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Got %s when hitting %s" % (r.status_code, url))
+            return None
 
-        return r.json
+        return r.json()
