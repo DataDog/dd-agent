@@ -2,7 +2,7 @@ init_config:
   # check_freq: 15
 
 instances:
-  # - nagios_conf: /etc/nagios3/nagios.cfg
+  - nagios_conf: /etc/nagios3/nagios.cfg
   #   # Default to True
   #   collect_events: True
   #

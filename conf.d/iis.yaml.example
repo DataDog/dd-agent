@@ -18,9 +18,13 @@ instances:
   # and a remote machine called MYREMOTESERVER. For the remote host we are
   # only pulling metrics from the default site.
   #
-  # - host: . # "." means the current host
+
+  # "." means the current host
+  - host: .
   #   tags:
   #     - myapp1
+  #   sites:
+  #     - Default Web Site
   #
   # - host: MYREMOTESERVER
   #   username: MYREMOTESERVER\fred

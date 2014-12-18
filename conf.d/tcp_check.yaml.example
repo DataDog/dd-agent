@@ -1,8 +1,4 @@
 init_config:
-  # To notify on every service, set a list of notified uses here.
-  # notify:
-  #   - user1@example.com
-  #   - pagerduty
 
 instances:
   - name: My first service
@@ -32,9 +28,3 @@ instances:
   # - name: My second service
   #   host: 127.0.0.1
   #   port: 80
-
-    # For service-specific notifications, you can optionally specify
-    # a list of users to notify within the service configuration.
-    # notify:
-    #   - user2@example.com
-    #   - pagerduty

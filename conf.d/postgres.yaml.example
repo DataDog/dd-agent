@@ -1,8 +1,8 @@
 init_config:
 
 instances:
-  # - host: localhost
-  #   port: 5432
+  - host: localhost
+    port: 5432
   #   username: my_username
   #   password: my_password
   #   dbname: db_name

@@ -1,10 +1,5 @@
 init_config:
 
-# To notify on every service, set a list of notified uses here.
-  # notify:
-  #   - user1@example.com
-  #   - pagerduty
-
 instances:
   - name: My first service
     url: http://some.url.example.com
@@ -71,9 +66,3 @@ instances:
 
   # - name: My second service
   #   url: https://another.url.example.com
-
-    # For service-specific notifications, you can optionally specify
-    # a list of users to notify within the service configuration.
-    # notify:
-    #   - user2@example.com
-    #   - pagerduty
