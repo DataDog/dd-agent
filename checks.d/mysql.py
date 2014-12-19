@@ -50,6 +50,7 @@ STATUS_VARS = {
 }
 
 class MySql(AgentCheck):
+    SERVICE_CHECK_NAME = 'mysql.can_connect'
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.mysql_version = {}
@@ -84,22 +85,32 @@ class MySql(AgentCheck):
         return host, port, user, password, mysql_sock, defaults_file, tags, options
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
-        if defaults_file != '':
-            db = pymysql.connect(read_default_file=defaults_file)
-        elif  mysql_sock != '':
-            db = pymysql.connect(unix_socket=mysql_sock,
-                                    user=user,
-                                    passwd=password)
-        elif port:
-            db = pymysql.connect(host=host,
-                                    port=port,
-                                    user=user,
-                                    passwd=password)
-        else:
-            db = pymysql.connect(host=host,
-                                    user=user,
-                                    passwd=password)
-        self.log.debug("Connected to MySQL")
+        service_check_tags = [
+            'host:%s' % host,
+            'port:%s' % port
+        ]
+
+        try:
+            if defaults_file != '':
+                db = pymysql.connect(read_default_file=defaults_file)
+            elif  mysql_sock != '':
+                db = pymysql.connect(unix_socket=mysql_sock,
+                                        user=user,
+                                        passwd=password)
+            elif port:
+                db = pymysql.connect(host=host,
+                                        port=port,
+                                        user=user,
+                                        passwd=password)
+            else:
+                db = pymysql.connect(host=host,
+                                        user=user,
+                                        passwd=password)
+            self.log.debug("Connected to MySQL")
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+        except Exception:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
 
         return db
 

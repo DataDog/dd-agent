@@ -1,7 +1,9 @@
 import unittest
 from tests.common import load_check
+from nose.plugins.attrib import attr
 import time
 
+@attr(requires='mysql')
 class TestMySql(unittest.TestCase):
     def setUp(self):
         # This should run on pre-2.7 python so no skiptest
@@ -13,7 +15,7 @@ class TestMySql(unittest.TestCase):
 
     def testChecks(self):
         if not self.skip:
-            agentConfig = { 
+            agentConfig = {
                 'version': '0.1',
                 'api_key': 'toto' }
 
@@ -29,10 +31,22 @@ class TestMySql(unittest.TestCase):
             self.check.run()
             metrics = self.check.get_metrics()
             self.assertTrue(len(metrics) >= 8, metrics)
+
+            # Service checks
+            service_checks = self.check.get_service_checks()
+            service_checks_count = len(service_checks)
+            self.assertTrue(type(service_checks) == type([]))
+            self.assertTrue(service_checks_count > 0)
+            self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_NAME]), 1, service_checks)
+            # Assert that all service checks have the proper tags: host and port
+            self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
+            self.assertEquals(len([sc for sc in service_checks if "port:0" in sc['tags']]), service_checks_count, service_checks)
+
             time.sleep(1)
             self.check.run()
             metrics = self.check.get_metrics()
             self.assertTrue(len(metrics) >= 16, metrics)
-        
+
+
 if __name__ == '__main__':
     unittest.main()

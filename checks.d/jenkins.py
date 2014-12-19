@@ -96,14 +96,24 @@ class Jenkins(AgentCheck):
                         except Exception:
                             continue
 
+                        # If the metadata does not include the results, then
+                        # the build is still running so do not process it yet.
+                        build_result = build_metadata.get('result', None)
+                        if build_result is None:
+                            break
+
                         output = {
                             'job_name':     job_name,
                             'timestamp':    timestamp,
                             'event_type':   'build result'
                         }
+
                         output.update(build_metadata)
                         self.high_watermarks[instance_key][job_name] = timestamp
+                        self.log.debug("Processing %s results '%s'" % (job_name, output))
+
                         yield output
+
                     # If it not a new build, stop here
                     else:
                         break
@@ -140,7 +150,12 @@ class Jenkins(AgentCheck):
                     self.log.debug("Creating event for job: %s" % output['job_name'])
                     self.event(output)
 
-                    tags = ['job_name:%s' % output['job_name']]
+                    tags = [
+                        'job_name:%s' % output['job_name'],
+                        'result:%s' % output['result'],
+                        'build_number:%s' % output['number']
+                    ]
+
                     if 'branch' in output:
                         tags.append('branch:%s' % output['branch'])
                     self.gauge("jenkins.job.duration", float(output['duration'])/1000.0, tags=tags)

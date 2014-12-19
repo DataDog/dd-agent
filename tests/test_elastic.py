@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import logging
 logging.basicConfig()
 import subprocess
@@ -6,10 +7,11 @@ import time
 import urllib2
 import urlparse
 from tests.common import load_check
-
+from checks import AgentCheck
 PORT = 9200
 MAX_WAIT = 150
 
+@attr(requires='elasticsearch')
 class TestElastic(unittest.TestCase):
 
     def _wait(self, url):
@@ -43,6 +45,25 @@ class TestElastic(unittest.TestCase):
     def tearDown(self):
         if self.process is not None:
             self.process.terminate()
+
+    def testBadConfig(self):
+        agentConfig = {'version': '0.1',
+              'api_key': 'toto' }
+
+        conf = {
+                   'init_config': {},
+                   'instances':
+                       [
+                           {'url': 'http://losdfsdsdcalhost:%s' % PORT},
+                       ]
+            }
+        # Initialize the check from checks.d
+        self.check = load_check('elastic', conf, agentConfig)
+
+        self.assertRaises(urllib2.URLError, self.check.check, conf['instances'][0])
+        service_checks = self.check.get_service_checks()
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_CONNECT_NAME
+            and sc['status'] == AgentCheck.CRITICAL]), 1, service_checks)
 
     def testElasticChecksD(self):
         agentConfig = { 'elasticsearch': 'http://localhost:%s' % PORT,
@@ -90,7 +111,8 @@ class TestElastic(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "elasticsearch.cluster_health"]), 1, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_CLUSTER_STATUS]), 1, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_CONNECT_NAME]), 1, service_checks)
         # Assert that all service checks have the proper tags: host and port
         self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "port:%s" % PORT in sc['tags']]), service_checks_count, service_checks)
@@ -101,10 +123,8 @@ class TestElastic(unittest.TestCase):
         events = self.check.get_events()
         self.assertEquals(len(events),1,events)
 
-
 if __name__ == "__main__":
     unittest.main()
-
 """{
     "cluster_name": "elasticsearch_alq",
     "nodes": {

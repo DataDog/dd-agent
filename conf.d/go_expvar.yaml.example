@@ -1,0 +1,31 @@
+init_config:
+
+instances:
+  # Most memstats metrics are exported by default
+  # See http://godoc.org/runtime#MemStats for their explanation
+
+  - expvar_url: http://localhost:8080/debug/vars
+    # tags:
+    #   - "application_name:myapp"
+    #   - "optionaltag2"
+    # metrics:
+    #   # These metrics are just here as examples.
+    #   # Most memstats metrics are collected by default without configuration needed.
+    #   - path: memstats/PauseTotalNs
+    #     alias: go_expvar.gc.pause_time_in_ns
+    #     type: rate
+    #     tags:
+    #       - "metric_tag1:tag_value1"
+    #       - "metric_tag2:tag_value2"
+    #   - path: memstats/Alloc            # metric will be reported as a gauge by default
+    #   - path: memstats/Lookups
+    #     type: rate
+    #   - path: memstats/Mallocs          # with no name specified, the metric name will default to a path based name
+    #     type: rate
+    #   - path: memstats/Frees
+    #     type: rate
+    #   - path: memstats/BySize/1/Mallocs # You can get nested values by separating them with "/"
+    #   - path: myvariable
+    #     alias: go_expvar.my_custom_name
+    #     type: gauge
+    #   - path: routes/get_.*/count       # You can use a regex when you want to report for all elements matching a certain pattern

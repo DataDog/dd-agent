@@ -3,6 +3,21 @@
 
 require 'rake/clean'
 
+# Flavored Travis CI jobs
+require './ci/cache'
+require './ci/cassandra'
+require './ci/database'
+require './ci/default'
+require './ci/elasticsearch'
+require './ci/gearman'
+require './ci/jmx'
+require './ci/mongo'
+require './ci/network'
+require './ci/sysstat'
+require './ci/ssh'
+require './ci/tomcat'
+require './ci/webserver'
+
 CLOBBER.include '**/*.pyc'
 
 desc "Run tests"
@@ -10,6 +25,19 @@ task :test, [:attrs] do |t, args|
   attrs = args.attrs ? "-a #{args.attrs}" : ""
   cmd = "nosetests #{attrs}"
   sh cmd
+end
+
+desc 'Setup a development environment for the Agent'
+task "setup_env" do
+   `mkdir -p venv`
+   `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
+   `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
+   `wget -O venv/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py`
+   `venv/bin/python venv/ez_setup.py`
+   `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
+   `venv/bin/python venv/get-pip.py`
+   `venv/bin/pip install -r source-requirements.txt`
+   `venv/bin/pip install -r optional-requirements.txt`
 end
 
 namespace :test do
@@ -44,18 +72,14 @@ task "run" do
   sh("supervisord -n -c supervisord.dev.conf")
 end
 
-desc "Update pup release tag to the current commit"
-task "pup:tag" do
-  # This is an abomination. We distributed our install pup script via bitly
-  # (which can't change) which is hardcoded to a github url (add-pup). Matt
-  # Perpick made this worse by trying to change it and adding another one
-  # (pup-release). We can't do anything about this now, because both links are
-  # in the wild.
-  tag = "pup-release"
-  sh("git tag -f #{tag}")
-  sh("git push origin --tags")
-  sh("git co add-pup && git merge pup-release")
-  sh("git push origin add-pup")
+namespace :ci do
+  desc 'Run Travis CI flavored tests'
+  task :run, :flavor  do |t, args|
+    fail "Failing because this is supposed to run on Travis" unless ENV['TRAVIS']
+    flavor = args[:flavor] || ENV['TRAVIS_FLAVOR'] || 'default'
+    flavors = flavor.split(',')
+    flavors.each { |f| Rake::Task["ci:#{f}:execute"].invoke}
+  end
 end
 
 task :default => [:test]

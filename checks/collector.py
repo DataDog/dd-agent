@@ -51,6 +51,10 @@ class Collector(object):
                 'start': time.time(),
                 'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
             },
+            'external_host_tags': {
+                'start': time.time() - 3 * 60, # Wait for the checks to init
+                'interval': int(agentConfig.get('external_host_tags', 5 * 60))
+            },
             'agent_checks': {
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
@@ -420,6 +424,7 @@ class Collector(object):
             'internalHostname' : self.hostname,
             'uuid' : get_uuid(),
             'host-tags': {},
+            'external_host_tags': {}
         }
 
         # Include system stats on first postback
@@ -475,6 +480,22 @@ class Collector(object):
             # Log the metadata on the first run
             if self._is_first_run():
                 log.info("Hostnames: %s, tags: %s" % (repr(self.metadata_cache), payload['host-tags']))
+
+        # Periodically send extra hosts metadata (vsphere)
+        # Metadata of hosts that are not the host where the agent runs, not all the checks use
+        # that
+        external_host_tags = []
+        if self._should_send_additional_data('external_host_tags'):
+            for check in self.initialized_checks_d:
+                try:
+                    getter = getattr(check, 'get_external_host_tags')
+                    check_tags = getter()
+                    external_host_tags.extend(check_tags)
+                except AttributeError:
+                    pass
+
+        if external_host_tags:
+            payload['external_host_tags'] = external_host_tags
 
         return payload
 

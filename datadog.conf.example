@@ -72,18 +72,9 @@ use_mount: no
 # If enabled the collector will capture a metric for check run times.
 # check_timings: no
 
-# ========================================================================== #
-# Pup configuration
-# ========================================================================== #
-
-# Pup is a small server that displays metric data collected by the Agent.
-# Think of it as a fancy status page or a toe dip into the world of
-# datadog. It can be connected to on the port below.
-
-# use_pup: no
-# pup_port: 17125
-# pup_interface: localhost
-# pup_url: http://localhost:17125
+# If you want to remove the 'ww' flag from ps catching the arguments of processes
+# for instance for security reasons
+# exclude_process_args: no
 
 # ========================================================================== #
 # DogStatsd configuration                                                    #
@@ -196,7 +187,6 @@ use_mount: no
 # collector_log_file: /var/log/datadog/collector.log
 # forwarder_log_file: /var/log/datadog/forwarder.log
 # dogstatsd_log_file: /var/log/datadog/dogstatsd.log
-# pup_log_file:       /var/log/datadog/pup.log
 
 # if syslog is enabled but a host and port are not set, a local domain socket
 # connection will be attempted

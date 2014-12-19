@@ -1,4 +1,5 @@
 # stdlib
+import urllib
 import urllib2
 import urlparse
 import time
@@ -15,21 +16,43 @@ NODE_TYPE = 'nodes'
 MAX_DETAILED_QUEUES = 200
 MAX_DETAILED_NODES = 100
 ALERT_THRESHOLD = 0.9 # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit
-QUEUE_ATTRIBUTES = [ 
-        'active_consumers',
-        'consumers',
-        'memory',
-        'messages',
-        'messages_ready',
-        'messages_unacknowledged'
-    ]
+QUEUE_ATTRIBUTES = [
+    # Path, Name
+    ('active_consumers', 'active_consumers'),
+    ('consumers', 'consumers'),
+    ('memory', 'memory'),
+
+    ('messages', 'messages'),
+    ('messages_details/rate', 'messages.rate'),
+
+    ('messages_ready', 'messages_ready'),
+    ('messages_ready_details/rate', 'messages_ready.rate'),
+
+    ('messages_unacknowledged', 'messages_unacknowledged'),
+    ('messages_unacknowledged_details/rate', 'messages_unacknowledged.rate'),
+
+    ('message_stats/ack', 'messages.ack.count'),
+    ('message_stats/ack_details/rate', 'messages.ack.rate'),
+
+    ('message_stats/deliver', 'messages.deliver.count'),
+    ('message_stats/deliver_details/rate', 'messages.deliver.rate'),
+
+    ('message_stats/deliver_get', 'messages.deliver_get.count'),
+    ('message_stats/deliver_get_details/rate', 'messages.deliver_get.rate'),
+
+    ('message_stats/publish', 'messages.publish.count'),
+    ('message_stats/publish_details/rate', 'messages.publish.rate'),
+
+    ('message_stats/redeliver', 'messages.redeliver.count'),
+    ('message_stats/redeliver_details/rate', 'messages.redeliver.rate'),
+]
 
 NODE_ATTRIBUTES = [
-                'fd_used',
-                'mem_used',
-                'run_queue',
-                'sockets_used',
-    ]
+    ('fd_used', 'fd_used'),
+    ('mem_used', 'mem_used'),
+    ('run_queue', 'run_queue'),
+    ('sockets_used', 'sockets_used'),
+]
 
 ATTRIBUTES = {
     QUEUE_TYPE: QUEUE_ATTRIBUTES,
@@ -83,7 +106,7 @@ class RabbitMQ(AgentCheck):
         }
 
         # List of queues/nodes to collect metrics from
-        specified = { 
+        specified = {
             QUEUE_TYPE: instance.get('queues', []),
             NODE_TYPE: instance.get('nodes', []),
         }
@@ -103,8 +126,14 @@ class RabbitMQ(AgentCheck):
 
     def check(self, instance):
         base_url, max_detailed, specified = self._get_config(instance)
+
+        # Generate metrics from the status API.
         self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE])
         self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE])
+
+        # Generate a service check from the aliveness API.
+        vhosts = instance.get('vhosts')
+        self._check_aliveness(base_url, vhosts)
 
     def _get_data(self, url):
         try:
@@ -130,9 +159,9 @@ class RabbitMQ(AgentCheck):
 
         """ data is a list of nodes or queues:
         data = [
-            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue1', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
-            {'status': 'running', 'node': 'rabbit@host, 'name': 'queue10', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
-            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue11', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False}, 
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue1', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
+            {'status': 'running', 'node': 'rabbit@host, 'name': 'queue10', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
+            {'status': 'running', 'node': 'rabbit@host', 'name': 'queue11', 'consumers': 0, 'vhost': '/', 'backing_queue_status': {'q1': 0, 'q3': 0, 'q2': 0, 'q4': 0, 'avg_ack_egress_rate': 0.0, 'ram_msg_count': 0, 'ram_ack_count': 0, 'len': 0, 'persistent_count': 0, 'target_ram_count': 'infinity', 'next_seq_id': 0, 'delta': ['delta', 'undefined', 0, 'undefined'], 'pending_acks': 0, 'avg_ack_ingress_rate': 0.0, 'avg_egress_rate': 0.0, 'avg_ingress_rate': 0.0}, 'durable': True, 'idle_since': '2013-10-03 13:38:18', 'exclusive_consumer_tag': '', 'arguments': {}, 'memory': 10956, 'policy': '', 'auto_delete': False},
             ...
         ]
         """
@@ -180,11 +209,17 @@ class RabbitMQ(AgentCheck):
             if tag is not None:
                 tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
-        for attribute in ATTRIBUTES[object_type]:
-            value = data.get(attribute, None)
+        for attribute, metric_name in ATTRIBUTES[object_type]:
+            # Walk down through the data path, e.g. foo/bar => d['foo']['bar']
+            root = data
+            keys = attribute.split('/')
+            for path in keys[:-1]:
+                root = root.get(path, {})
+
+            value = root.get(keys[-1], None)
             if value is not None:
                 try:
-                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], attribute), float(value), tags=tags)
+                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], metric_name), float(value), tags=tags)
                 except ValueError:
                     self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (METRIC_SUFFIX[object_type], attribute, value, tags))
 
@@ -197,11 +232,11 @@ class RabbitMQ(AgentCheck):
         self.already_alerted.append(key)
 
         title = "RabbitMQ integration is approaching the limit on the number of %s that can be collected from on %s" % (object_type, self.hostname)
-        msg = """%s %s are present. The limit is %s. 
+        msg = """%s %s are present. The limit is %s.
         Please get in touch with Datadog support to increase the limit.""" % (size, object_type, max_detailed)
 
         event = {
-                "timestamp": int(time.time()), 
+                "timestamp": int(time.time()),
                 "event_type": EVENT_TYPE,
                 "msg_title": title,
                 "msg_text": msg,
@@ -213,3 +248,37 @@ class RabbitMQ(AgentCheck):
             }
 
         self.event(event)
+
+    def _check_aliveness(self, base_url, vhosts=None):
+        """ Check the aliveness API against all or a subset of vhosts. The API
+            will return {"status": "ok"} and a 200 response code in the case
+            that the check passes.
+            In the case of an invalid response code or unparseable JSON the
+            service check will be CRITICAL.
+        """
+        if not vhosts:
+            # Fetch a list of _all_ vhosts from the API.
+            vhosts_url = urlparse.urljoin(base_url, 'vhosts')
+            vhosts_response = self._get_data(vhosts_url)
+            vhosts = [v['name'] for v in vhosts_response]
+
+        for vhost in vhosts:
+            tags = ['vhost:%s' % vhost]
+            # We need to urlencode the vhost because it can be '/'.
+            path = u'aliveness-test/%s' % (urllib.quote_plus(vhost))
+            aliveness_url = urlparse.urljoin(base_url, path)
+            message = None
+            try:
+                aliveness_response = self._get_data(aliveness_url)
+                message = u"Response from aliveness API: %s" % aliveness_response
+                if aliveness_response.get('status') == 'ok':
+                    status = AgentCheck.OK
+                else:
+                    status = AgentCheck.CRITICAL
+            except Exception as e:
+                # Either we got a bad status code or unparseable JSON.
+                status = AgentCheck.CRITICAL
+                self.warning('Error when checking aliveness for vhost %s: %s'\
+                    % (vhost, str(e)))
+
+            self.service_check('rabbitmq.aliveness', status, tags, message=message)

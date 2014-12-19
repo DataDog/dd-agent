@@ -1,6 +1,116 @@
 Changes
 =======
-# 5.0.0 / Unreleased
+
+# 5.1.1 / 12-09-2014
+#### Details
+https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
+
+### Updated integrations
+* BTRFS
+* MongoDB
+
+### Changes
+
+* [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See [#1222][]
+* [BUGFIX] BTRFS: Handle "unknown" usage type. See [#1221][]
+* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed. 
+
+
+# 5.1.0 / 11-24-2014
+
+### Notes
+* Pup is now removed from the Datadog Agent
+* The "ALL" parameter in the process check is deprecated and will be removed in a future version of the agent.
+* The Windows installer does not require the .NET framework anymore.
+
+### New and updated integrations
+* PostgreSQL
+* Directory
+* Jenkins
+* MongoDB
+* Process
+* ElasticSearch
+* IIS
+* ZooKeeper
+* Memcached
+* SSH
+* System Core
+* BTRFS
+
+### Changes
+
+* [FEATURE] Add Service Checks for the following integration:
+    - Apache
+    - HAProxy
+    - Lighttpd
+    - NginX
+    - NTP
+    - HTTP
+    - TCP
+    - Process
+    - ElasticSearch
+    - IIS
+    - ZooKeeper
+    - Memcached
+    - MongoDB
+    - SQL Server
+    - MySQL
+    - PostgeSQL
+
+
+* [FEATURE] PostgreSQL: Pick up per-table size stats. See [#1105][]
+* [FEATURE] PostgreSQL: Collect locks per mode and bgwriter metrics. See [#1019][]
+* [FEATURE] Directory Check: Let the possibilty to tag metrics at the file level. See [#1041][] (Thanks [@Osterjour][])
+* [FEATURE] Jenkins: Add result and build number to events tags. See [#1068][] (Thanks [@jzoldak][])
+* [FEATURE] Add a SSH Check. See [#1117][]
+* [FEATURE] Add a check to collect metrics from BTRFS. See [#1123][]
+* [FEATURE] Add a check to collect system core metrics. See [#1124][]
+* [FEATURE] DogStatsD recognizes and uses `host` and `device` tags as metric attributes. See [#1164][].
+* [FEATURE] Docker: Revamp events and add more options. See [#1162][].
+* [FEATURE] Docker: Collect relevant Docker metrics by default, make the others optional. See [#1207][].
+* [FEATURE] Docker: Improve Docker metrics tagging. See [#1208][] and [#1218][].
+* [BUGFIX] Jenkins: Fix when build does not yet have results. See [#1060][] (Thanks [@jzoldak][])
+* [BUGFIX] PostgreSQL: If connection drops, re-establish at next run. See [#1105][]
+* [BUGFIX] MongoDB: Add logging of serverStatus errors. See [#1065][] (Thanks [@igroenewold][])
+* [BUGFIX] Docker: Fix various time-outs and errors. See [#1162][].
+
+# 5.0.5 (Every platform) / 10-31-2014
+
+This release fixes a bug on servers that are configured in local time instead of UTC Time.
+If your server's clock is configured to use daylight saving time, your server might stop sending metrics for up to one hour when the Daylight Saving Time ends or until the Agent is restarted after the Daylight Saving Time ends.
+
+We highly recommend to upgrade to this version if your server is configured in local time.
+
+# 5.0.4 (deb package, rpm package) / 10-17-2014
+
+This is a security update regarding POODLE (CVE-2014-3566).
+
+The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-ssl3 flag) and Python 2.7.8 with a patch that disables SSLv3 unless explicity asked http://bugs.python.org/issue22638.
+
+This Omnibus package also adds support of the sqlite3 library for Python. 
+
+# 5.0.3 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Batching jobs to cache the infrastructure of vCenter when autodiscovering Hosts/VMs is configurable
+* [BUGFIX] Fix ESXi host tags not being correctly set
+* [BUGFIX] Fix metadata reset so that metrics processing is not stopped when refreshing metadata
+* [BUGFIX] Fix thread pool crash when one thread would not terminate gracefully
+
+# 5.0.2 (Windows only)
+
+vSphere check:
+
+* [FEATURE] Changed the event filter to remove login events by default
+* [BUGFIX] Duplicate tags on VMs and host
+* [BUGFIX] Ignore duplicate events about VM migrations
+
+# 5.0.1 (Windows only)
+
+[FEATURE] Releasing the vSphere check. This is a new integration able to fetch metrics and events from vCenter.
+
+# 5.0.0 / 08-22-2014
 
 ### Notes
 
@@ -8,14 +118,20 @@ This is a major version of the Datadog-Agent.
 
 * On Linux:
 Packaging of the Agent has changed for RPM and DEB packages.
-To BETA test this version of the agent (at your own risks), please read this guide:
-https://gist.github.com/remh/1426ccb24ec36162ba2b
 
 * On Windows:
 This release has multiple fixes, see the list below.
 Warning: The way CPU metrics are collected has changed and will be more accurate, you might see some changes in the graphs.
 
 ### What will break ?
+* MySQL integration: If you see this error: ```OperationalError(2003, 'Can\'t connect to MySQL server on \'localhost\' ((1045, u"Access denied for user \'datadog\'@\'127.0.0.1\'...)```
+the Datadog user will need to be modified from ```'datadog'@'localhost'``` to ``` 'datadog'@'127.0.0.1' ``` (your host IP). You can do this by running:
+
+       ```
+           $ mysql -p mysql
+           # UPDATE user SET Host = '127.0.0.1' WHERE User = 'datadog';
+           # FLUSH PRIVILEGES;
+       ```
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
      
        ```
@@ -23,6 +139,9 @@ sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
 * Configuring checks in datadog.conf for checks.d is deprecated and won't work anymore. Please configure your checks by editing the yaml files in the conf.d directory.
 
+### How to upgrade?
+
+See this Wiki page https://github.com/DataDog/dd-agent/wiki/Upgrade-to-Agent-5.x
 
 ### New and updated integrations
 
@@ -1099,6 +1218,7 @@ If you use ganglia, you want this version.
 [#875]: https://github.com/DataDog/dd-agent/issues/875
 [#876]: https://github.com/DataDog/dd-agent/issues/876
 [#883]: https://github.com/DataDog/dd-agent/issues/883
+[#887]: https://github.com/DataDog/dd-agent/issues/887
 [#891]: https://github.com/DataDog/dd-agent/issues/891
 [#893]: https://github.com/DataDog/dd-agent/issues/893
 [#894]: https://github.com/DataDog/dd-agent/issues/894
@@ -1141,6 +1261,7 @@ If you use ganglia, you want this version.
 [#1016]: https://github.com/DataDog/dd-agent/issues/1016
 [#1017]: https://github.com/DataDog/dd-agent/issues/1017
 [#1018]: https://github.com/DataDog/dd-agent/issues/1018
+[#1019]: https://github.com/DataDog/dd-agent/issues/1019
 [#1023]: https://github.com/DataDog/dd-agent/issues/1023
 [#1024]: https://github.com/DataDog/dd-agent/issues/1024
 [#1027]: https://github.com/DataDog/dd-agent/issues/1027
@@ -1149,7 +1270,24 @@ If you use ganglia, you want this version.
 [#1031]: https://github.com/DataDog/dd-agent/issues/1031
 [#1035]: https://github.com/DataDog/dd-agent/issues/1035
 [#1036]: https://github.com/DataDog/dd-agent/issues/1036
+[#1041]: https://github.com/DataDog/dd-agent/issues/1041
+[#1060]: https://github.com/DataDog/dd-agent/issues/1060
+[#1065]: https://github.com/DataDog/dd-agent/issues/1065
+[#1068]: https://github.com/DataDog/dd-agent/issues/1068
+[#1069]: https://github.com/DataDog/dd-agent/issues/1069
+[#1105]: https://github.com/DataDog/dd-agent/issues/1105
+[#1117]: https://github.com/DataDog/dd-agent/issues/1117
+[#1123]: https://github.com/DataDog/dd-agent/issues/1123
+[#1124]: https://github.com/DataDog/dd-agent/issues/1124
+[#1162]: https://github.com/DataDog/dd-agent/issues/1162
+[#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1207]: https://github.com/DataDog/dd-agent/issues/1207
+[#1208]: https://github.com/DataDog/dd-agent/issues/1208
+[#1218]: https://github.com/DataDog/dd-agent/issues/1218
+[#1221]: https://github.com/DataDog/dd-agent/issues/1221
+[#1222]: https://github.com/DataDog/dd-agent/issues/1222
 [@CaptTofu]: https://github.com/CaptTofu
+[@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
@@ -1160,11 +1298,13 @@ If you use ganglia, you want this version.
 [@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
+[@igroenewold]: https://github.com/igroenewold
 [@imlucas]: https://github.com/imlucas
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
 [@joningle]: https://github.com/joningle
+[@jzoldak]: https://github.com/jzoldak
 [@leifwalsh]: https://github.com/leifwalsh
 [@loris]: https://github.com/loris
 [@mastrolinux]: https://github.com/mastrolinux

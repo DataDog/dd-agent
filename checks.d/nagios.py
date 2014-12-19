@@ -32,6 +32,12 @@ EVENT_FIELDS = {
     # ACKNOWLEDGE_HOST_PROBLEM;<host_name>;<sticky>;<notify>;<persistent>;<author>;<comment>
     'ACKNOWLEDGE_HOST_PROBLEM': namedtuple('E_HostAck', 'host, sticky_ack, notify_ack, persistent_ack, ack_author, payload'),
 
+    # Comment Format:
+    # PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<result_code>;<comment>
+    # We ignore it because Nagios will log a "PASSIVE SERVICE CHECK" after
+    # receiving this, and we don't want duplicate events to be counted.
+    'PROCESS_SERVICE_CHECK_RESULT': False,
+
     # Host Downtime
     # [1297894825] HOST DOWNTIME ALERT: ip-10-114-89-59;STARTED; Host has entered a period of scheduled downtime
     # [1297894825] SERVICE DOWNTIME ALERT: ip-10-114-237-165;intake;STARTED; Service has entered a period of scheduled downtime
@@ -78,7 +84,8 @@ class Nagios(AgentCheck):
                     instance_key = conf_path
                 if 'nagios_log' in instance:
                     nagios_conf["log_file"] = instance['nagios_log']
-                    instance_key = conf_path or instance['nagios_log']
+                    if instance_key is None:
+                        instance_key = instance['nagios_log']
                 # End of retrocompatibility code
                 if not nagios_conf:
                     self.log.warning("Missing path to nagios_conf")
@@ -93,7 +100,8 @@ class Nagios(AgentCheck):
                                                         hostname=self.hostname,
                                                         event_func=self.event,
                                                         gauge_func=self.gauge,
-                                                        freq=check_freq))
+                                                        freq=check_freq,
+                                                        passive_checks=instance.get('passive_checks_events', False)))
                 if 'host_perfdata_file' in nagios_conf and \
                    'host_perfdata_file_template' in nagios_conf and \
                    instance.get('collect_host_performance_data', False):
@@ -217,6 +225,22 @@ class NagiosTailer(object):
 
 class NagiosEventLogTailer(NagiosTailer):
 
+    def __init__(self, log_path, file_template, logger, hostname, event_func,
+        gauge_func, freq, passive_checks=False):
+        '''
+        :param log_path: string, path to the file to parse
+        :param file_template: string, format of the perfdata file
+        :param logger: Logger object
+        :param hostname: string, name of the host this agent is running on
+        :param event_func: function to create event, should accept dict
+        :param gauge_func: function to report a gauge
+        :param freq: int, size of bucket to aggregate perfdata metrics
+        :param passive_checks: bool, enable or not passive checks events
+        '''
+        self.passive_checks = passive_checks
+        super(NagiosEventLogTailer, self).__init__(log_path, file_template,
+            logger, hostname, event_func, gauge_func, freq)
+
     def _parse_line(self, line):
         """Actual nagios parsing
         Return True if we found an event, False otherwise
@@ -234,10 +258,17 @@ class NagiosEventLogTailer(NagiosTailer):
             (tstamp, event_type, remainder) = m.groups()
             tstamp = int(tstamp)
 
+            # skip passive checks reports by default for spamminess
+            if event_type == 'PASSIVE SERVICE CHECK' and not self.passive_checks:
+                return False
             # then retrieve the event format for each specific event type
             fields = EVENT_FIELDS.get(event_type, None)
             if fields is None:
                 self.log.warning("Ignoring unknown nagios event for line: %s" % (line[:-1]))
+                return False
+            elif fields is False:
+                # Ignore and skip
+                self.log.debug("Ignoring Nagios event for line: %s" % (line[:-1]))
                 return False
 
             # and parse the rest of the line

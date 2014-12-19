@@ -18,6 +18,9 @@ import simplejson as json
 class NodeNotFound(Exception): pass
 
 class ElasticSearch(AgentCheck):
+    SERVICE_CHECK_CONNECT_NAME = 'elasticsearch.can_connect'
+    SERVICE_CHECK_CLUSTER_STATUS = 'elasticsearch.cluster_health'
+    
     METRICS = { # Metrics that are common to all Elasticsearch versions
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
         "elasticsearch.docs.deleted": ("gauge", "indices.docs.deleted"),
@@ -155,21 +158,22 @@ class ElasticSearch(AgentCheck):
 
         # Load stats data.
         url = urlparse.urljoin(config_url, self.STATS_URL)
-        stats_data = self._get_data(url, auth)
+        stats_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
         self._process_stats_data(config_url, stats_data, auth, tags=tags,
                                  is_external=is_external)
 
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
-        health_data = self._get_data(url, auth)
+        health_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
         self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
+        self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.OK, tags=service_check_tags)
 
     def _get_es_version(self, config_url, auth=None):
         """ Get the running version of Elastic Search.
         """
         try:
             data = self._get_data(config_url, auth)
-            version = map(int, data['version']['number'].split('.'))
+            version = map(int, data['version']['number'].split('.')[0:3])
         except Exception, e:
             self.warning("Error while trying to get Elasticsearch version from %s %s" % (config_url, str(e)))
             version = [0, 0, 0]
@@ -184,7 +188,7 @@ class ElasticSearch(AgentCheck):
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             self.HEALTH_URL = "/_cluster/health?pretty=true"
-            self.STATS_URL = "/_nodes/stats?all=true"
+            self.STATS_URL = "/_nodes/_local/stats?all=true"
             self.NODES_URL = "/_nodes?network=true"
 
             additional_metrics = {
@@ -231,14 +235,26 @@ class ElasticSearch(AgentCheck):
 
         self.METRICS.update(additional_metrics)
 
-    def _get_data(self, url, auth=None):
+    def _get_data(self, url, auth=None, send_service_check=False, service_check_tags=None):
         """ Hit a given URL and return the parsed json
             `auth` is a tuple of (username, password) or None
         """
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if auth:
             add_basic_auth(req, *auth)
-        request = urllib2.urlopen(req)
+        try:
+            request = urllib2.urlopen(req)
+        except urllib2.URLError as e:
+            if send_service_check:
+                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=e.reason)
+            raise
+        except Exception as e:
+            if send_service_check:
+                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=str(e))
+            raise
+
         response = request.read()
         return json.loads(response)
 
@@ -371,11 +387,23 @@ class ElasticSearch(AgentCheck):
         cluster_status = data['status']
         if cluster_status == 'green':
             status = AgentCheck.OK
+            tag = "OK"
         elif cluster_status == 'yellow':
             status = AgentCheck.WARNING
+            tag = "WARN"
         else:
             status = AgentCheck.CRITICAL
-        self.service_check('elasticsearch.cluster_health', status, tags=service_check_tags)
+            tag = "ALERT"
+        
+        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={6}" \
+                    .format(tag, data["cluster_name"],
+                                 data["active_shards"],
+                                 data["initializing_shards"],
+                                 data["relocating_shards"],
+                                 data["unassigned_shards"],
+                                 data["timed_out"])
+
+        self.service_check(self.SERVICE_CHECK_CLUSTER_STATUS, status, message=msg, tags=service_check_tags)
 
 
     def _metric_not_found(self, metric, path):

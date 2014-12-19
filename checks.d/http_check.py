@@ -1,10 +1,11 @@
 # stdlib
 import socket
 import time
+from urlparse import urlparse
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
-from util import headers
+from util import headers as agent_headers
 
 # 3rd party
 from httplib2 import Http, HttpLib2Error
@@ -20,9 +21,11 @@ class HTTPCheck(NetworkCheck):
         username = instance.get('username', None)
         password = instance.get('password', None)
         timeout = int(instance.get('timeout', 10))
-        headers = instance.get('headers',{})
+        config_headers = instance.get('headers',{})
+        headers = agent_headers(self.agentConfig)
+        headers.update(config_headers)
         url = instance.get('url', None)
-        response_time = instance.get('collect_response_time', False)
+        response_time = instance.get('collect_response_time', True)
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
         include_content = instance.get('include_content', False)
@@ -35,7 +38,7 @@ class HTTPCheck(NetworkCheck):
         start = time.time()
         try:
             self.log.debug("Connecting to %s" % addr)
-            if disable_ssl_validation:
+            if disable_ssl_validation and urlparse(addr)[0] == "https":
                 self.warning("Skipping SSL certificate validation for %s based on configuration" % addr)
             h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
             if username is not None and password is not None:

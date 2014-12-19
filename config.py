@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.0.0"
+AGENT_VERSION = "5.1.1"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -286,12 +286,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             common_path = _windows_commondata_path()
             agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
 
-        # Whether also to send to Pup
-        if config.has_option('Main', 'use_pup'):
-            agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
-        else:
-            agentConfig['use_pup'] = False
-
         if config.has_option('Main', 'use_dogstatsd'):
             agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
         else:
@@ -303,16 +297,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_web_info_page'] = True
 
-        if agentConfig['use_pup'] or agentConfig['use_web_info_page']:
-            if config.has_option('Main', 'pup_url'):
-                agentConfig['pup_url'] = config.get('Main', 'pup_url')
-            else:
-                agentConfig['pup_url'] = 'http://localhost:17125'
-
-            if config.has_option('Main', 'pup_port'):
-                agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
-
-        if not agentConfig['use_dd'] and not agentConfig['use_pup']:
+        if not agentConfig['use_dd']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
             exit(2)
 
@@ -384,6 +369,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         if config.has_option('Main', 'check_timings'):
             agentConfig['check_timings'] = _is_affirmative(config.get('Main', 'check_timings'))
+
+        if config.has_option('Main', 'exclude_process_args'):
+            agentConfig['exclude_process_args'] = _is_affirmative(config.get('Main', 'exclude_process_args'))
 
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
@@ -852,7 +840,6 @@ def get_logging_config(cfg_path=None):
             'collector_log_file': '/var/log/datadog/collector.log',
             'forwarder_log_file': '/var/log/datadog/forwarder.log',
             'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
-            'pup_log_file': '/var/log/datadog/pup.log',
             'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
             'log_to_event_viewer': False,
             'log_to_syslog': True,

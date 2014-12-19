@@ -40,10 +40,10 @@ from config import (get_confd_path, get_config_path, get_config,
 import yaml
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'cacti', 'directory', 'docker', 'gearmand',
+    'btrfs', 'cacti', 'directory', 'docker', 'gearmand',
     'hdfs', 'kafka_consumer', 'marathon', 'mcache',
     'mesos', 'network', 'postfix', 'process',
-    'gunicorn', 'zk',
+    'gunicorn', 'zk', 'ssh_check'
     ]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"

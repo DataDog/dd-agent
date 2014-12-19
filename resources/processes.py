@@ -26,24 +26,29 @@ class Processes(ResourcePlugin):
     def _get_proc_list(self):
         # Get output from ps
         try:
-            ps = subprocess.Popen(['ps', 'auxww'], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
+            process_exclude_args = self.config.get('exclude_process_args', False)
+            if process_exclude_args:
+                ps_arg = 'aux'
+            else:
+                ps_arg = 'auxww'
+            ps = subprocess.Popen(['ps', ps_arg], stdout=subprocess.PIPE, close_fds=True).communicate()[0]
         except Exception, e:
             self.log.exception('Cannot get process list')
             return False
-        
+
         # Split out each process
         processLines = ps.split('\n')
-        
+
         del processLines[0] # Removes the headers
         processLines.pop() # Removes a trailing empty line
-        
+
         processes = []
-        
+
         for line in processLines:
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
-        
-        return processes 
+
+        return processes
 
     @staticmethod
     def group_by_family(o):
@@ -61,7 +66,7 @@ class Processes(ResourcePlugin):
                 return 'kernel'
             else:
                 return (command.split()[0]).split('/')[-1]
-        
+
         PSLine = namedtuple("PSLine","user,pid,pct_cpu,pct_mem,vsz,rss,tty,stat,started,time,command")
 
         self.start_snapshot()
