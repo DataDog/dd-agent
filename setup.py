@@ -83,8 +83,6 @@ if sys.platform == 'win32':
         'httplib2',
 
         # pup
-        'pup',
-        'pup.pup',
         'tornado.websocket',
         'tornado.web',
         'tornado.ioloop',
@@ -92,7 +90,7 @@ if sys.platform == 'win32':
 
     class Target(object):
         def __init__(self, **kw):
-            self.__dict__.update(kw) 
+            self.__dict__.update(kw)
             self.version = get_version()
             self.company_name = 'Datadog, Inc.'
             self.copyright = 'Copyright 2013 Datadog, Inc.'
@@ -121,8 +119,6 @@ if sys.platform == 'win32':
                      }],
         'data_files': [
             ("Microsoft.VC90.CRT", glob(r'C:\Python27\redist\*.*')),
-            ('pup', [r'pup\status.html']),
-            ('pup/static', glob('pup/static/*.*')),
             ('jmxfetch', [r'checks\libs\%s' % JMX_FETCH_JAR_NAME]),
             ('gohai', [r'gohai\gohai.exe'])
         ],

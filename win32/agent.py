@@ -1,5 +1,4 @@
 # set up logging before importing any other components
-from config import initialize_logging; initialize_logging('collector')
 
 import win32serviceutil
 import win32service
@@ -22,7 +21,6 @@ from ddagent import Application
 from config import (get_config, set_win32_cert_path, get_system_stats,
     load_check_directory, get_win32service_file)
 from win32.common import handle_exe_click
-from pup import pup
 from jmxfetch import JMXFetch
 from util import get_hostname
 
@@ -58,7 +56,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'forwarder': DDForwarder(config, self.hostname),
             'collector': DDAgent(agentConfig, self.hostname),
             'dogstatsd': DogstatsdProcess(config, self.hostname),
-            'pup':       PupProcess(config),
         }
 
     def SvcStop(self):
@@ -73,7 +70,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     def SvcDoRun(self):
         import servicemanager
         servicemanager.LogMsg(
-                servicemanager.EVENTLOG_INFORMATION_TYPE, 
+                servicemanager.EVENTLOG_INFORMATION_TYPE,
                 servicemanager.PYS_SERVICE_STARTED,
                 (self._svc_name_, ''))
         self.start_ts = time.time()
@@ -93,10 +90,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                         log.info("%s has died. Restarting..." % proc.name)
                         # Make a new proc instances because multiprocessing
                         # won't let you call .start() twice on the same instance.
-                        if name != "pup":
-                            new_proc = proc.__class__(proc.config, self.hostname)
-                        else:
-                            new_proc = proc.__class__(proc.config)
+                        new_proc = proc.__class__(proc.config, self.hostname)
                         new_proc.start()
                         self.procs[name] = new_proc
                 # Auto-restart the collector if we've been running for a while.
@@ -127,6 +121,7 @@ class DDAgent(multiprocessing.Process):
         self.is_enabled = True
 
     def run(self):
+        from config import initialize_logging; initialize_logging('windows_collector')
         log.debug("Windows Service - Starting collector")
         emitters = self.get_emitters()
         systemStats = get_system_stats()
@@ -166,6 +161,7 @@ class DDForwarder(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
+        from config import initialize_logging; initialize_logging('windows_forwarder')
         log.debug("Windows Service - Starting forwarder")
         set_win32_cert_path()
         port = self.config.get('listen_port', 17123)
@@ -192,6 +188,7 @@ class DogstatsdProcess(multiprocessing.Process):
         self.hostname = hostname
 
     def run(self):
+        from config import initialize_logging; initialize_logging('windows_dogstatsd')
         if self.is_enabled:
             log.debug("Windows Service - Starting Dogstatsd server")
             self.reporter, self.server, _ = dogstatsd.init(use_forwarder=True)
@@ -206,23 +203,6 @@ class DogstatsdProcess(multiprocessing.Process):
             self.server.stop()
             self.reporter.stop()
             self.reporter.join()
-
-class PupProcess(multiprocessing.Process):
-    def __init__(self, agentConfig):
-        multiprocessing.Process.__init__(self, name='pup')
-        self.config = agentConfig
-        self.is_enabled = self.config.get('use_web_info_page', True)
-
-    def run(self):
-        self.pup = pup
-        if self.is_enabled:
-            log.debug("Windows Service - Starting Pup")
-            self.pup.run_pup(self.config)
-
-    def stop(self):
-        if self.is_enabled:
-            log.debug("Windows Service - Stopping Pup")
-            self.pup.stop()
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()

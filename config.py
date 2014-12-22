@@ -34,7 +34,6 @@ DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
-windows_file_handler_added = False
 
 OLD_STYLE_PARAMETERS = [
     ('apache_status_url', "apache"),
@@ -847,11 +846,15 @@ def get_logging_config(cfg_path=None):
             'syslog_port': None,
         }
     else:
-        windows_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
+        collector_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
+        forwarder_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
+        dogstatsd_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
         jmxfetch_log_file = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
         logging_config = {
             'log_level': None,
-            'ddagent_log_file': windows_log_location,
+            'windows_collector_log_file': collector_log_location,
+            'windows_forwarder_log_file': forwarder_log_location,
+            'windows_dogstatsd_log_file': dogstatsd_log_location,
             'jmxfetch_log_file': jmxfetch_log_file,
             'log_to_event_viewer': False,
             'log_to_syslog': False,
@@ -920,7 +923,6 @@ def get_logging_config(cfg_path=None):
 
 
 def initialize_logging(logger_name):
-    global windows_file_handler_added
     try:
         logging_config = get_logging_config()
 
@@ -928,11 +930,6 @@ def initialize_logging(logger_name):
             format=get_log_format(logger_name),
             level=logging_config['log_level'] or logging.INFO,
         )
-
-        # set up file loggers
-        if get_os() == 'windows' and not windows_file_handler_added:
-            logger_name = 'ddagent'
-            windows_file_handler_added = True
 
         log_file = logging_config.get('%s_log_file' % logger_name)
         if log_file is not None and not logging_config['disable_file_logging']:
