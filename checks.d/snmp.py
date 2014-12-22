@@ -30,6 +30,9 @@ def reply_invalid(oid):
 class SnmpCheck(AgentCheck):
 
     cmd_generator = None
+    # pysnmp default values
+    RETRIES = 5
+    TIMEOUT = 1
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -93,7 +96,7 @@ class SnmpCheck(AgentCheck):
             raise Exception("An authentication method needs to be provided")
 
     @classmethod
-    def get_transport_target(cls, instance):
+    def get_transport_target(cls, instance, timeout, retries):
         '''
         Generate a Transport target object based on the instance's configuration
         '''
@@ -101,7 +104,7 @@ class SnmpCheck(AgentCheck):
             raise Exception("An IP address needs to be specified")
         ip_address = instance["ip_address"]
         port = instance.get("port", 161) # Default SNMP port
-        return cmdgen.UdpTransportTarget((ip_address, port))
+        return cmdgen.UdpTransportTarget((ip_address, port), timeout=timeout, retries=retries)
 
     def check_table(self, instance, oids, lookup_names):
         '''
@@ -114,7 +117,7 @@ class SnmpCheck(AgentCheck):
         dict[oid/metric_name][row index] = value
         In case of scalar objects, the row index is just 0
         '''
-        transport_target = self.get_transport_target(instance)
+        transport_target = self.get_transport_target(instance, self.TIMEOUT, self.RETRIES)
         auth_data = self.get_auth_data(instance)
 
         snmp_command = self.cmd_generator.nextCmd
@@ -128,12 +131,16 @@ class SnmpCheck(AgentCheck):
 
         results = defaultdict(dict)
         if error_indication:
-            raise Exception("{0} for instance {1}".format(error_indication,
-                                                          instance["ip_address"]))
+            message = "{0} for instance {1}".format(error_indication,
+                                                          instance["ip_address"])
+            instance["service_check_error"] = message
+            raise Exception(message)
         else:
             if error_status:
-                self.log.warning("{0} for instance {1}".format(error_status.prettyPrint(),
-                                                              instance["ip_address"]))
+                message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                              instance["ip_address"])
+                instance["service_check_error"] = message
+                self.log.warning(message)
             else:
                 for table_row in var_binds:
                     for result_oid, value in table_row:
@@ -179,16 +186,29 @@ class SnmpCheck(AgentCheck):
                     raw_oids.append(metric['OID'])
             else:
                 raise Exception('Unsupported metric in config file: %s' % metric)
+        try:
+            if table_oids:
+                self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
+                table_results = self.check_table(instance, table_oids, True)
+                self.report_table_metrics(instance, table_results)
 
-        if table_oids:
-            self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-            table_results = self.check_table(instance, table_oids, True)
-            self.report_table_metrics(instance, table_results)
-
-        if raw_oids:
-            self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
-            raw_results = self.check_table(instance, raw_oids, False)
-            self.report_raw_metrics(instance, raw_results)
+            if raw_oids:
+                self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
+                raw_results = self.check_table(instance, raw_oids, False)
+                self.report_raw_metrics(instance, raw_results)
+        except Exception as e:
+            if "service_check_error" not in instance:
+                instance["service_check_error"] = "Fail to collect metrics: {0}".format(e)
+            raise
+        finally:
+            # Report service checks
+            service_check_name = "snmp.can_check"
+            tags = ["snmp_device:%s" % ip_address]
+            if "service_check_error" in instance:
+                self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags,
+                    message=instance["service_check_error"])
+            else:
+                self.service_check(service_check_name, AgentCheck.OK, tags=tags)
 
     def report_raw_metrics(self, instance, results):
         '''
