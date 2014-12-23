@@ -12,6 +12,9 @@ instances:
   #
   # - user: Any valid user name
   #
+  # - event_id: The Event ID can be found through http://www.eventid.net/ and
+  #   viewed in the window event viewer.
+  #
   # - message_filters: A list of message filters, using % as a wildcard.
   #   See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx for
   #   more on the format for LIKE queries.
