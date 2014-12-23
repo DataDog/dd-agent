@@ -32,7 +32,7 @@ class Marathon(AgentCheck):
                     if hasattr(app, attr):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
                     else:
-                        self.warning('Marathon application (id: %s) has no attribute %s' % (app['id'], attr))
+                        self.log.debug('Marathon application (id: %s) has no attribute %s' % (app['id'], attr))
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
