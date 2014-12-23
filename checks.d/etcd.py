@@ -1,14 +1,8 @@
-# stdlib
-import time
-from hashlib import md5
-import urllib2
-
 # project
 from checks import AgentCheck
 from util import headers
 
 # 3rd party
-import simplejson as json
 import requests
 
 class Etcd(AgentCheck):
@@ -56,6 +50,9 @@ class Etcd(AgentCheck):
         # Load values from the instance config
         url = instance['url']
         instance_tags = instance.get('tags', [])
+        # Append the instance's URL in case there are more than one, that
+        # way they can tell the difference!
+        instance_tags.append("url:{}" % url)
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
 
         storeResponse = self.get_store_metrics(url, timeout)
@@ -99,16 +96,18 @@ class Etcd(AgentCheck):
 
     def get_json(self, url, timeout):
         try:
-            r = requests.get(url, timeout=timeout)
+            r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message="Timeout when hitting %s" % url)
+                message="Timeout when hitting %s" % url,
+                service_check_tags = ["url:{}".format(url)])
             return None
 
         if r.status_code != 200:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message="Got %s when hitting %s" % (r.status_code, url))
+                message="Got %s when hitting %s" % (r.status_code, url),
+                service_check_tags = ["url:{}".format(url)])
             return None
 
         return r.json()
