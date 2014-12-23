@@ -33,7 +33,7 @@ class DummyReporter(threading.Thread):
 
 
 @attr(requires='tomcat')
-class JMXTestCase(unittest.TestCase):
+class TestTomcat(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
@@ -43,7 +43,7 @@ class JMXTestCase(unittest.TestCase):
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
-        confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
+        confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
         JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
 
 
@@ -52,7 +52,7 @@ class JMXTestCase(unittest.TestCase):
         self.reporter.finished = True
         JMXFetch.stop()
 
-    def testTomcatMetrics(self):
+    def test_tomcat_metrics(self):
         count = 0
         while self.reporter.metrics is None:
             time.sleep(1)

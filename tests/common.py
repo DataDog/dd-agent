@@ -14,7 +14,7 @@ def load_check(name, config, agentConfig):
     check_module = __import__(name)
     check_class = None
     classes = inspect.getmembers(check_module, inspect.isclass)
-    for name, clsmember in classes:
+    for _, clsmember in classes:
         if clsmember == AgentCheck:
             continue
         if issubclass(clsmember, AgentCheck):
@@ -33,12 +33,8 @@ def load_check(name, config, agentConfig):
     # init the check class
     try:
         return check_class(name, init_config=init_config, agentConfig=agentConfig, instances=instances)
-    except:
-        # Backwards compatitiblity for old checks that don't support the
-        # instances argument.
-        c = check_class(name, init_config=init_config, agentConfig=agentConfig)
-        c.instances = instances
-        return c
+    except Exception as e:
+        raise Exception("Check is using old API, {0}".format(e))
 
 def kill_subprocess(process_obj):
     try:

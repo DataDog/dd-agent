@@ -193,8 +193,8 @@ SELECT %s
 """
     }
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
         self.versions = {}
         self.instance_metrics = {}

@@ -1,46 +1,49 @@
 require './ci/common'
 
-def gearman_version
-  '1.0.6'
+def nginx_version
+  ENV['NGINX_VERSION'] || '1.7.9'
 end
 
-def gearman_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/gearman_#{gearman_version}"
+def nginx_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/nginx_#{nginx_version}"
 end
 
 namespace :ci do
-  namespace :gearman do |flavor|
+  namespace :nginx do |flavor|
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(gearman_rootdir)
+      unless Dir.exist? File.expand_path(nginx_rootdir)
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/gearman-#{gearman_version}.tar.gz\
-             https://launchpad.net/gearmand/#{gearman_version[0..2]}/#{gearman_version}/+download/gearmand-#{gearman_version}.tar.gz)
-        sh %(mkdir -p $VOLATILE_DIR/gearman)
-        sh %(tar zxf $VOLATILE_DIR/gearman-#{gearman_version}.tar.gz\
-             -C $VOLATILE_DIR/gearman --strip-components=1)
-        sh %(mkdir -p #{gearman_rootdir})
-        sh %(cd $VOLATILE_DIR/gearman\
-             && ./configure --prefix=#{gearman_rootdir}\
+             -o $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
+             http://nginx.org/download/nginx-#{nginx_version}.tar.gz)
+        sh %(mkdir -p #{nginx_rootdir})
+        sh %(mkdir -p $VOLATILE_DIR/nginx)
+        sh %(tar zxf $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
+             -C $VOLATILE_DIR/nginx --strip-components=1)
+        sh %(cd $VOLATILE_DIR/nginx\
+             && ./configure --prefix=#{nginx_rootdir} --with-http_stub_status_module\
              && make -j $CONCURRENCY\
              && make install)
       end
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(#{gearman_rootdir}/sbin/gearmand -d -l $VOLATILE_DIR/gearmand.log)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/nginx/nginx.conf\
+           #{nginx_rootdir}/conf/nginx.conf)
+      sh %(#{nginx_rootdir}/sbin/nginx -g "pid #{ENV['VOLATILE_DIR']}/nginx.pid;")
     end
 
     task :script => ['ci:common:script'] do
       this_provides = [
-        'gearman'
+        'nginx'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop gearman
+    task :cleanup => ['ci:common:cleanup'] do
+      sh %(kill `cat $VOLATILE_DIR/nginx.pid`)
+    end
 
     task :execute do
       exception = nil

@@ -1,45 +1,43 @@
 require './ci/common'
 
 # TODO: make this available in the matrix
-def cass_version
-  ENV['CASS_VERSION'] || '2.1.1'
+def memcache_version
+  '1.4.22'
 end
 
-def cass_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/cass_#{cass_version}"
+def memcache_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/memcache_#{memcache_version}"
 end
 
 namespace :ci do
-  namespace :cassandra do |flavor|
+  namespace :memcache do |flavor|
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(cass_rootdir)
+      unless Dir.exist? File.expand_path(memcache_rootdir)
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/apache-cassandra-#{cass_version}-bin.tar.gz\
-              http://apache.petsads.us/cassandra/#{cass_version}/apache-cassandra-#{cass_version}-bin.tar.gz)
-        sh %(mkdir -p #{cass_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/apache-cassandra-#{cass_version}-bin.tar.gz\
-             -C #{cass_rootdir} --strip-components=1)
+             -o $VOLATILE_DIR/memcached-#{memcache_version}.tar.gz\
+              http://memcached.org/files/memcached-#{memcache_version}.tar.gz)
+        sh %(mkdir -p #{memcache_rootdir})
+        sh %(tar zxf $VOLATILE_DIR/memcached-#{memcache_version}.tar.gz\
+             -C #{memcache_rootdir} --strip-components=1)
+        sh %(cd #{memcache_rootdir} && ./configure && make -j $CONCURRENCY)
       end
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(#{cass_rootdir}/bin/cassandra)
-      # Wait for cassandra to init
-      sleep_for 10
+      sh %(#{memcache_rootdir}/memcached -d)
     end
 
     task :script => ['ci:common:script'] do
       this_provides = [
-        'cassandra'
+        'memcache'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task cleanup: ['ci:common:cleanup'] do
-      # FIXME: stop cass
-    end
+    task :cleanup => ['ci:common:cleanup']
+    # FIXME: stop memcache
 
     task :execute do
       exception = nil

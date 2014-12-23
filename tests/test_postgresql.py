@@ -15,7 +15,7 @@ class TestPostgres(unittest.TestCase):
             'instances': [
                 {
                 'host': 'localhost',
-                'port': 5432,
+                'port': 15432,
                 'username': 'datadog',
                 'password': 'datadog',
                 'dbname': 'datadog_test',
