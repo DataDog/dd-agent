@@ -52,7 +52,7 @@ class Etcd(AgentCheck):
         instance_tags = instance.get('tags', [])
         # Append the instance's URL in case there are more than one, that
         # way they can tell the difference!
-        instance_tags.append("url:{}" % url)
+        instance_tags.append("url:{}".format(url))
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
 
         storeResponse = self.get_store_metrics(url, timeout)
