@@ -1,11 +1,9 @@
 # stdlib
 import time
 from hashlib import md5
-import urllib2
 
 # project
 from checks import AgentCheck
-from util import headers
 
 # 3rd party
 import simplejson as json
@@ -30,7 +28,7 @@ class Marathon(AgentCheck):
             self.gauge('marathon.apps', len(response['apps']), tags=instance_tags)
             for app in response['apps']:
                 tags = ['app_id:' + app['id'], 'version:' + app['version']] + instance_tags
-                for attr in ['taskRateLimit','instances','cpus','mem','tasksStaged','tasksRunning']:
+                for attr in ['taskRateLimit', 'instances', 'cpus', 'mem', 'tasksStaged', 'tasksRunning', 'backoffSeconds', 'backoffFactor']:
                     if hasattr(app, attr):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
                     else:
@@ -51,7 +49,7 @@ class Marathon(AgentCheck):
                 self.status_code_event(url, r, aggregation_key)
                 status = AgentCheck.CRITICAL
                 msg = "Got %s when hitting %s" % (r.status_code, url)
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
             msg = "%s seconds timeout when hitting %s" % (timeout, url)
@@ -88,7 +86,7 @@ class Marathon(AgentCheck):
 
         try:
             r = requests.get(url + "/v2/apps/" + app_id + "/versions", timeout=timeout)
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
             self.warning("Timeout when hitting %s" % url)

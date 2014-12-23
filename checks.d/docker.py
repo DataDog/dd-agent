@@ -20,29 +20,29 @@ CGROUP_METRICS = [
         "cgroup": "memory",
         "file": "memory.stat",
         "metrics": {
-            "active_anon": ("docker.mem.active_anon", "gauge"),
-            "active_file": ("docker.mem.active_file", "gauge"),
-            "cache": ("docker.mem.cache", "gauge"),
-            "hierarchical_memory_limit": ("docker.mem.hierarchical_memory_limit", "gauge"),
-            "hierarchical_memsw_limit": ("docker.mem.hierarchical_memsw_limit", "gauge"),
-            "inactive_anon": ("docker.mem.inactive_anon", "gauge"),
-            "inactive_file": ("docker.mem.inactive_file", "gauge"),
-            "mapped_file": ("docker.mem.mapped_file", "gauge"),
-            "pgfault": ("docker.mem.pgfault", "rate"),
-            "pgmajfault": ("docker.mem.pgmajfault", "rate"),
-            "pgpgin": ("docker.mem.pgpgin", "rate"),
-            "pgpgout": ("docker.mem.pgpgout", "rate"),
-            "rss": ("docker.mem.rss", "gauge"),
-            "swap": ("docker.mem.swap", "gauge"),
-            "unevictable": ("docker.mem.unevictable", "gauge"),
+            # Default metrics
+            "cache": ("docker.mem.cache", "gauge", True),
+            "rss": ("docker.mem.rss", "gauge", True),
+            "swap": ("docker.mem.swap", "gauge", True),
+            # Optional metrics
+            "active_anon": ("docker.mem.active_anon", "gauge", False),
+            "active_file": ("docker.mem.active_file", "gauge", False),
+            "inactive_anon": ("docker.mem.inactive_anon", "gauge", False),
+            "inactive_file": ("docker.mem.inactive_file", "gauge", False),
+            "mapped_file": ("docker.mem.mapped_file", "gauge", False),
+            "pgfault": ("docker.mem.pgfault", "rate", False),
+            "pgmajfault": ("docker.mem.pgmajfault", "rate", False),
+            "pgpgin": ("docker.mem.pgpgin", "rate", False),
+            "pgpgout": ("docker.mem.pgpgout", "rate", False),
+            "unevictable": ("docker.mem.unevictable", "gauge", False),
         }
     },
     {
         "cgroup": "cpuacct",
         "file": "cpuacct.stat",
         "metrics": {
-            "user": ("docker.cpu.user", "rate"),
-            "system": ("docker.cpu.system", "rate"),
+            "user": ("docker.cpu.user", "rate", True),
+            "system": ("docker.cpu.system", "rate", True),
         },
     },
 ]
@@ -55,6 +55,12 @@ DOCKER_TAGS = [
     "Command",
     "Image",
 ]
+
+NEW_TAGS_MAP = {
+    "name": "container_name",
+    "image": "docker_image",
+    "command": "container_command",
+}
 
 DEFAULT_SOCKET_TIMEOUT = 5
 
@@ -154,28 +160,33 @@ class Docker(AgentCheck):
 
         service_check_name = 'docker.service_up'
         try:
-            containers = self._get_containers(instance, with_size=with_size)
+            running_containers = self._get_containers(instance, with_size=with_size)
+            all_containers = self._get_containers(instance, get_all=True)
         except (socket.timeout, urllib2.URLError), e:
-            self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags)
+            self.service_check(service_check_name, AgentCheck.CRITICAL,
+                message="Unable to list Docker containers: {0}".format(e), tags=tags)
             raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
         self.service_check(service_check_name, AgentCheck.OK, tags=tags)
 
-        container_count_by_image = defaultdict(int)
-        for container in containers:
-            container_count_by_image[container['Image']] += 1
+        running_containers_ids = set([container['Id'] for container in running_containers])
 
-        for image, count in container_count_by_image.iteritems():
-            self.gauge("docker.containers.running", count, tags=(tags + ['image:%s' % image]))
+        for container in all_containers:
+            container_tags = list(tags)
+            for key in DOCKER_TAGS:
+                tag = self._make_tag(key, container[key], instance)
+                if tag:
+                    container_tags.append(tag)
+            if container['Id'] in running_containers_ids:
+                self.set("docker.containers.running", container['Id'], tags=container_tags)
+            else:
+                self.set("docker.containers.stopped", container['Id'], tags=container_tags)
 
-        all_containers = self._get_containers(instance, get_all=True)
-        stopped_containers_count = len(all_containers) - len(containers)
-        self.gauge("docker.containers.stopped", stopped_containers_count, tags=tags)
-
+        # The index of the names is used to generate and format events
         ids_to_names = {}
         for container in all_containers:
             ids_to_names[container['Id']] = container['Names'][0].lstrip("/")
 
-        return containers, ids_to_names
+        return running_containers, ids_to_names
 
     def _is_container_included(self, instance, tags):
         def _is_tag_included(tag):
@@ -192,30 +203,45 @@ class Docker(AgentCheck):
         return False
 
     def _report_containers_metrics(self, containers, instance):
+        collect_uncommon_metrics = instance.get("collect_all_metrics", False)
+        tags = instance.get("tags", [])
         for container in containers:
-            container_tags = instance.get("tags", [])
+            container_tags = list(tags)
             for name in container["Names"]:
-                container_tags.append(self._make_tag("name", name.lstrip("/")))
+                container_tags.append(self._make_tag("name", name.lstrip("/"), instance))
             for key in DOCKER_TAGS:
-                container_tags.append(self._make_tag(key, container[key]))
+                tag = self._make_tag(key, container[key], instance)
+                if tag:
+                    container_tags.append(tag)
 
             # Check if the container is included/excluded via its tags
             if not self._is_container_included(instance, container_tags):
                 continue
 
-            for key, (dd_key, metric_type) in DOCKER_METRICS.items():
+            for key, (dd_key, metric_type) in DOCKER_METRICS.iteritems():
                 if key in container:
                     getattr(self, metric_type)(dd_key, int(container[key]), tags=container_tags)
             for cgroup in CGROUP_METRICS:
                 stat_file = self._get_cgroup_file(cgroup["cgroup"], container['Id'], cgroup['file'])
                 stats = self._parse_cgroup_file(stat_file)
                 if stats:
-                    for key, (dd_key, metric_type) in cgroup['metrics'].items():
-                        if key in stats:
+                    for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].iteritems():
+                        if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
-    def _make_tag(self, key, value):
-        return "%s:%s" % (key.lower(), value.strip())
+    def _make_tag(self, key, value, instance):
+
+        tag_name = key.lower()
+        if tag_name == "command" and not instance.get("tag_by_command", False):
+            return None
+        if instance.get("new_tag_names", False):
+            tag_name = self._new_tags_conversion(tag_name)
+
+        return "%s:%s" % (tag_name, value.strip())
+
+    def _new_tags_conversion(self, tag):
+        # Prefix tags to avoid conflict with AWS tags
+        return NEW_TAGS_MAP.get(tag, tag)
 
 
     # Events

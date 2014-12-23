@@ -21,23 +21,18 @@ instances:
 # Examples:
 #
 
- - name: ssh
-   search_string: ['ssh', 'sshd']
-   thresholds:
-     # critical if no sshd or more than 8 sshd are running
-     critical: [1, 7]
-     # warning if 1, 2, 6, 7 sshd processes are running
-     warning: [3, 5]
-     # ok if 3, 4, 5 processes are running
+  - name: ssh
+    search_string: ['ssh', 'sshd']
+    thresholds:
+      # critical if no sshd or more than 8 sshd are running
+      critical: [1, 7]
+      # warning if 1, 2, 6, 7 sshd processes are running
+      warning: [3, 5]
+      # ok if 3, 4, 5 processes are running
 
- - name: postgres
-   search_string: ['postgres']
-   ignore_denied_access: True
+  - name: postgres
+    search_string: ['postgres']
+    ignore_denied_access: True
 
- - name: nodeserver
-   search_string: ['node server.js']
-
-#  -  name: python
-#     process: ['python']
-#  -  name: node
-#     process: ['node']
+  - name: nodeserver
+    search_string: ['node server.js']

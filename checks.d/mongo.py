@@ -173,7 +173,11 @@ class MongoDb(AgentCheck):
         db_name = parsed.get('database')
 
         tags = instance.get('tags', [])
-        tags.append('server:%s' % server.replace(password, "*" * 5))
+        if password is not None:
+            tags.append('server:%s' % server.replace(password, "*" * 5))
+        else:
+            tags.append('server:%s' % server)
+
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 

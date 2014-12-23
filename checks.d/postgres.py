@@ -166,9 +166,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
         'relation': False,
         'query': """
 SELECT %s
-  FROM pg_settings
- WHERE name = 'hot_standby'
-   AND setting = 'on'"""
+ WHERE (SELECT pg_is_in_recovery())"""
     }
 
     CONNECTION_METRICS = {
@@ -279,6 +277,9 @@ SELECT %s
 
                 if not results:
                     continue
+
+                if scope == self.DB_METRICS:
+                    self.gauge("postgresql.db.count", len(results), tags=[t for t in instance_tags if not t.startswith("db:")])
 
                 # parse & submit results
                 # A row should look like this

@@ -2,27 +2,30 @@
 # The user running the Datadog Agent (usually "dd-agent") must be part of the "docker" group
 
 init_config:
-    # Change the root directory to look at to get cgroup statistics. Useful when running inside a
-    # container with host directories mounted on a different folder. Default: /.
-    # Example for the docker-dd-agent container:
-    # docker_root: /host
-    #
-    # docker_root: /
+  # Change the root directory to look at to get cgroup statistics. Useful when running inside a
+  # container with host directories mounted on a different folder. Default: /.
+  # Example for the docker-dd-agent container:
+  # docker_root: /host
 
-    # Timeout on Docker socket connection. You may have to increase it if you have many containers.
-    #
-    # socket_timeout: 5
+  docker_root: /
+
+  # Timeout on Docker socket connection. You may have to increase it if you have many containers.
+  # socket_timeout: 5
 
 instances:
     # URL of the Docker daemon socket to reach the Docker API. HTTP also works.
-    #
-    - url: "unix://var/run/docker.sock"
+  - url: "unix://var/run/docker.sock"
+
+    # Use tag names that don't conflict.
+    # Keep it false if you have old dashboard using the old tag names. Default: false.
+    # new_tag_names: true
+
+    # Tag metrics with the command running inside the container.
+    # tag_by_command: false
 
     # You can add extra tags to your Docker metrics with the tags list option. Default: [].
-    # Examples:
+    # Example:
     # tags: ["extra_tag", "env:example"]
-    #
-    # tags: []
 
     # To include or exclude containers based on their tags, use the include and
     # exclude keys in your instance.
@@ -55,3 +58,8 @@ instances:
     # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
     #
     # collect_container_size: false
+
+    # Collect uncommon metrics from cgroups.
+    # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
+    #
+    # collect_all_metrics: false

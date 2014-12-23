@@ -14,10 +14,12 @@ import tempfile
 import traceback
 import time
 from collections import defaultdict
+import os.path
 
 # project
 import config
-from util import get_os, plural
+from config import _windows_commondata_path
+from util import get_os, plural, Platform
 
 # 3rd party
 import ntplib
@@ -214,7 +216,6 @@ class AgentStatus(object):
             finally:
                 f.close()
         except IOError:
-            log.info("Couldn't load latest status")
             return None
 
     @classmethod
@@ -244,7 +245,11 @@ class AgentStatus(object):
 
     @classmethod
     def _get_pickle_path(cls):
-        return os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
+        if Platform.is_win32():
+            path = os.path.join(_windows_commondata_path(), 'Datadog', cls.__name__ + '.pickle')
+        else:
+            path = os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
+        return path
 
 
 class InstanceStatus(object):
@@ -450,7 +455,7 @@ class CollectorStatus(AgentStatus):
 
                     check_lines += [
                         "    - Collected %s metric%s, %s event%s & %s service check%s" % (
-                            cs.metric_count, plural(cs.metric_count), 
+                            cs.metric_count, plural(cs.metric_count),
                             cs.event_count, plural(cs.event_count),
                             cs.service_check_count, plural(cs.service_check_count)),
                     ]
@@ -528,6 +533,7 @@ class CollectorStatus(AgentStatus):
                         status_info['checks'][cs.name]['instances'][s.instance_id]['warnings'] = s.warnings
                 status_info['checks'][cs.name]['metric_count'] = cs.metric_count
                 status_info['checks'][cs.name]['event_count'] = cs.event_count
+                status_info['checks'][cs.name]['service_check_count'] = cs.service_check_count
 
         # Emitter status
         status_info['emitter'] = []
@@ -557,11 +563,12 @@ class CollectorStatus(AgentStatus):
         try:
             ntp_offset, ntp_style = get_ntp_info()
             warn_ntp = len(ntp_style) > 0
+            status_info["ntp_offset"] = round(ntp_offset, 4)
         except Exception as e:
             ntp_offset = "Unknown (%s)" % str(e)
             warn_ntp = True
+            status_info["ntp_offset"] = ntp_offset
         status_info["ntp_warning"] = warn_ntp
-        status_info["ntp_offset"] = round(ntp_offset, 4)
         status_info["utc_time"] = datetime.datetime.utcnow().__str__()
 
         return status_info
