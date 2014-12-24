@@ -101,13 +101,13 @@ class Etcd(AgentCheck):
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Timeout when hitting %s" % url,
-                service_check_tags = ["url:{}".format(url)])
+                tags = ["url:{}".format(url)])
             return None
 
         if r.status_code != 200:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Got %s when hitting %s" % (r.status_code, url),
-                service_check_tags = ["url:{}".format(url)])
+                tags = ["url:{}".format(url)])
             return None
 
         return r.json()
