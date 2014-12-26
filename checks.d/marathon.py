@@ -9,7 +9,7 @@ class Marathon(AgentCheck):
     DEFAULT_TIMEOUT = 5
     SERVICE_CHECK_NAME = 'marathon.can_connect'
 
-    APP_METRICS = ['taskRateLimit', 'instances', 'cpus', 'mem', 'tasksStaged', 'tasksRunning', 'backoffSeconds', 'backoffFactor']
+    APP_METRICS = ['taskRateLimit', 'instances', 'cpus', 'dist', 'mem', 'tasksStaged', 'tasksRunning', 'backoffSeconds', 'backoffFactor']
 
     def check(self, instance):
         if 'url' not in instance:
