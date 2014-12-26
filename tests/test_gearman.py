@@ -38,7 +38,7 @@ class GearmanTestCase(unittest.TestCase):
 
         self.check = load_check('gearmand', config, agentConfig)
         self.check.check(config['instances'][0])
-        self.assertRaises(self.check.check, Exception, config['instances'][1])
+        self.assertRaises(Exception, self.check.check, config['instances'][1])
 
         service_checks = self.check.get_service_checks()
         self.assertEqual(len(service_checks), 2)
