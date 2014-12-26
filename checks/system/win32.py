@@ -57,10 +57,22 @@ class Memory(Check):
         self.gauge('system.mem.free')
         self.gauge('system.mem.used')
         self.gauge('system.mem.total')
+        # area of physical memory that stores recently used pages of data
+        # for applications
         self.gauge('system.mem.cached')
+        # Committed memory is physical memory for which space has been
+        # reserved on the disk paging file in case it must be written
+        # back to disk
         self.gauge('system.mem.committed')
+        # physical memory used by the operating system, for objects
+        # that can be written to disk when they are not being used
         self.gauge('system.mem.paged')
+        # physical memory used by the operating system for objects that
+        # cannot be written to disk, but must remain in physical memory
+        # as long as they are allocated.
         self.gauge('system.mem.nonpaged')
+        # usable = free + cached
+        self.gauge('system.mem.pct_usable')
 
     def check(self, agentConfig):
         try:
@@ -69,6 +81,10 @@ class Memory(Check):
             self.logger.info('Missing Win32_OperatingSystem. No memory metrics will be returned.')
             return
 
+        total = 0
+        free = 0
+        cached = 0
+
         if os.TotalVisibleMemorySize is not None and os.FreePhysicalMemory is not None:
             total = int(os.TotalVisibleMemorySize) / KB2MB
             free = int(os.FreePhysicalMemory) / KB2MB
@@ -76,15 +92,22 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
+
         mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
         if mem.CacheBytes is not None:
-            self.save_sample('system.mem.cached', int(mem.CacheBytes) / B2MB)
+            cached = int(mem.CacheBytes) / B2MB
+            self.save_sample('system.mem.cached', cached)
         if mem.CommittedBytes is not None:
             self.save_sample('system.mem.committed', int(mem.CommittedBytes) / B2MB)
         if mem.PoolPagedBytes is not None:
             self.save_sample('system.mem.paged', int(mem.PoolPagedBytes) / B2MB)
         if mem.PoolNonpagedBytes is not None:
             self.save_sample('system.mem.nonpaged', int(mem.PoolNonpagedBytes) / B2MB)
+
+        if total > 0:
+            usable = free + cached
+            pct_usable = float(usable) / total
+            self.save_sample('system.mem.pct_usable', pct_usable)
 
         return self.get_metrics()
 
