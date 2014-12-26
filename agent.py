@@ -283,6 +283,7 @@ def main():
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                    check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
         osname = get_os()
