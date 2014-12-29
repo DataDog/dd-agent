@@ -20,7 +20,8 @@ from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, \
+    STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
 
 log = logging.getLogger(__name__)
@@ -30,22 +31,20 @@ FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 
 
-
 class AgentPayload(collections.MutableMapping):
     """
     AgentPayload
     One payload to manage data and metadata payloads.
 
     """
-    METADATA_KEYS = {'meta', 'tags', 'host-tags', 'systemStats', 'agentVersion',
-        'agentVersion', 'agent_checks', 'gohai', 'external_host_tags',
-        'agentVersion'}
+    METADATA_KEYS = {'meta', 'tags', 'host-tags', 'systemStats',
+                     'agentVersion', 'agentVersion', 'agent_checks', 'gohai',
+                     'external_host_tags', 'agentVersion'}
 
     DUPLICATE_KEYS = {'apiKey'}
 
     DATA_ENDPOINT = 'metrics'
     METADATA_ENDPOINT = 'metadata'
-
 
     def __init__(self, start_event=True):
         self.payload_data = dict()
@@ -97,12 +96,14 @@ class AgentPayload(collections.MutableMapping):
                 try:
                     emitter(payload, log, config, endpoint)
                 except Exception, e:
-                    log.exception("Error running emitter: %s" % emitter.__name__)
+                    log.exception("Error running emitter: %s"
+                                  % emitter.__name__)
                     emitter_status = EmitterStatus(name, e)
                 statuses.append(emitter_status)
             return statuses
         statuses.extend(_emit_payload(self.payload_data, self.DATA_ENDPOINT))
-        statuses.extend(_emit_payload(self.payload_meta, self.METADATA_ENDPOINT))
+        statuses.extend(_emit_payload(self.payload_meta,
+                                      self.METADATA_ENDPOINT))
 
         return statuses
 
@@ -130,7 +131,7 @@ class Collector(object):
                 'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
             },
             'external_host_tags': {
-                'start': time.time() - 3 * 60, # Wait for the checks to init
+                'start': time.time() - 3 * 60,  # Wait for the checks to init
                 'interval': int(agentConfig.get('external_host_tags', 5 * 60))
             },
             'agent_checks': {
@@ -251,16 +252,16 @@ class Collector(object):
 
             if memory:
                 payload.update({
-                    'memPhysUsed' : memory.get('physUsed'),
-                    'memPhysPctUsable' : memory.get('physPctUsable'),
-                    'memPhysFree' : memory.get('physFree'),
-                    'memPhysTotal' : memory.get('physTotal'),
-                    'memPhysUsable' : memory.get('physUsable'),
-                    'memSwapUsed' : memory.get('swapUsed'),
-                    'memSwapFree' : memory.get('swapFree'),
-                    'memSwapPctFree' : memory.get('swapPctFree'),
-                    'memSwapTotal' : memory.get('swapTotal'),
-                    'memCached' : memory.get('physCached'),
+                    'memPhysUsed': memory.get('physUsed'),
+                    'memPhysPctUsable': memory.get('physPctUsable'),
+                    'memPhysFree': memory.get('physFree'),
+                    'memPhysTotal': memory.get('physTotal'),
+                    'memPhysUsable': memory.get('physUsable'),
+                    'memSwapUsed': memory.get('swapUsed'),
+                    'memSwapFree': memory.get('swapFree'),
+                    'memSwapPctFree': memory.get('swapPctFree'),
+                    'memSwapTotal': memory.get('swapTotal'),
+                    'memCached': memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
                 })
@@ -280,7 +281,6 @@ class Collector(object):
         gangliaData = self._ganglia.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
@@ -458,8 +458,8 @@ class Collector(object):
             payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
-
-        emitter_statuses = payload.emit(log, self.agentConfig, self.emitters, self.continue_running)
+        emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,
+                                        self.continue_running)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
@@ -480,23 +480,6 @@ class Collector(object):
 
         return payload
 
-    def _emit(self, payload):
-        """ Send the payload via the emitters. """
-        statuses = []
-        for emitter in self.emitters:
-            # Don't try to send to an emitter if we're stopping/
-            if not self.continue_running:
-                return statuses
-            name = emitter.__name__
-            emitter_status = EmitterStatus(name)
-            try:
-                emitter(payload, log, self.agentConfig)
-            except Exception, e:
-                log.exception("Error running emitter: %s" % emitter.__name__)
-                emitter_status = EmitterStatus(name, e)
-            statuses.append(emitter_status)
-        return statuses
-
     def _is_first_run(self):
         return self.run_count <= 1
 
@@ -507,16 +490,16 @@ class Collector(object):
         now = time.time()
 
         payload['collection_timestamp'] = now
-        payload['os']  = self.os
+        payload['os'] = self.os
         payload['python'] = sys.version
-        payload['agentVersion']  = self.agentConfig['version']
+        payload['agentVersion'] = self.agentConfig['version']
         payload['apiKey'] = self.agentConfig['api_key']
         payload['events'] = {}
         payload['metrics'] = []
         payload['service_checks'] = []
         payload['resources'] = {}
-        payload['internalHostname']  = self.hostname
-        payload['uuid']  = get_uuid()
+        payload['internalHostname'] = self.hostname
+        payload['uuid'] = get_uuid()
         payload['host-tags'] = {}
         payload['external_host_tags'] = {}
 
@@ -524,12 +507,13 @@ class Collector(object):
         if start_event and self._is_first_run():
             payload['systemStats'] = self.agentConfig.get('system_stats', {})
             # Also post an event in the newsfeed
-            payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
-                                 'host': payload['internalHostname'],
-                                 'timestamp': now,
-                                 'event_type':'Agent Startup',
-                                 'msg_text': 'Version %s' % get_version()
-                                 }]
+            payload['events']['System'] = [{
+                'api_key': self.agentConfig['api_key'],
+                'host': payload['internalHostname'],
+                'timestamp': now,
+                'event_type':'Agent Startup',
+                'msg_text': 'Version %s' % get_version()
+                }]
 
         # Periodically send the host metadata.
         if self._should_send_additional_data('metadata'):
@@ -589,7 +573,6 @@ class Collector(object):
 
         if external_host_tags:
             payload['external_host_tags'] = external_host_tags
-
 
     def _get_metadata(self):
         metadata = EC2.get_metadata(self.agentConfig)

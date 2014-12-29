@@ -28,6 +28,7 @@ NO_PROXY = {
 def remove_control_chars(s):
     return control_char_re.sub('', s)
 
+
 def http_emitter(message, log, agentConfig, endpoint):
     "Send payload"
     url = agentConfig['dd_url']
@@ -43,7 +44,8 @@ def http_emitter(message, log, agentConfig, endpoint):
 
     zipped = zlib.compress(payload)
 
-    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f" % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
+    log.debug("payload_size=%d, compressed_size=%d, compression_ratio=%.3f"
+              % (len(payload), len(zipped), float(len(payload))/float(len(zipped))))
 
     apiKey = message.get('apiKey', None)
     if not apiKey:
@@ -52,7 +54,8 @@ def http_emitter(message, log, agentConfig, endpoint):
     url = "{0}/intake/{1}?api_key={2}".format(url, endpoint, apiKey)
 
     try:
-        r = requests.post(url, data=zipped, timeout=5,
+        r = requests.post(
+            url, data=zipped, timeout=5,
             headers=post_headers(agentConfig, zipped), proxies=NO_PROXY)
 
         r.raise_for_status()
@@ -76,4 +79,3 @@ def post_headers(agentConfig, payload):
         'Accept': 'text/html, */*',
         'Content-MD5': md5(payload).hexdigest()
     }
-
