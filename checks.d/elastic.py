@@ -160,7 +160,7 @@ class ElasticSearch(AgentCheck):
 
         # Load the health data.
         url = urlparse.urljoin(config_url, self.HEALTH_URL)
-        health_data = self._get_data(url. instance)
+        health_data = self._get_data(url, instance)
         self._process_health_data(health_data, instance)
 
         # If we're here we did not have any ES conn issues
@@ -171,10 +171,10 @@ class ElasticSearch(AgentCheck):
         )
 
     def _get_es_version(self, instance):
-        """ Get the running version of Elastic Search.
+        """ Get the running version of elasticsearch.
         """
+        config_url = instance['url']
         try:
-            config_url = instance.get('url')
             data = self._get_data(config_url, instance)
             version = map(int, data['version']['number'].split('.')[0:3])
         except Exception, e:
