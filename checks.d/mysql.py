@@ -318,7 +318,9 @@ class MySql(AgentCheck):
                 status_results['Innodb_buffer_pool_bytes_used'] = innodb_buffer_pool_pages_used * innodb_page_size
 
         # Binary log statistics
-        status_results['Binlog_space_usage_bytes'] = self._get_binary_log_stats(db)
+        binlog_enabled = self._collect_string('log_bin', variables_results)
+        if binlog_enabled is not None and binlog_enabled.lower().strip() == 'on':
+            status_results['Binlog_space_usage_bytes'] = self._get_binary_log_stats(db)
 
         # Additional connection statistics
         status_results['Max_connections'] = self._collect_scalar('max_connections', variables_results)
