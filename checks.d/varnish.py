@@ -92,7 +92,7 @@ class Varnish(AgentCheck):
         output, error = proc.communicate()
         if error and len(error) > 0:
             self.log.error(error)
-        self._parse_varnishstat_metrics(varnishstat_path, use_xml, tags)
+        self._parse_varnishstat(varnishstat_path, use_xml, tags)
 
         # Parse service checks from varnishadm.
         varnishadm_path = instance.get('varnishadm')
