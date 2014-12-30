@@ -31,7 +31,7 @@ namespace :ci do
 
       # mysql
       sh %Q{mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot}
-      sh %Q{mysql -e "grant PROCESS on *.* to 'dog'@'localhost'" -uroot}
+      sh %Q{mysql -e "GRANT SELECT, PROCESS, SUPER ON *.* TO 'dog'@'localhost'" -uroot}
     end
 
     task :script => ['ci:common:script'] do
