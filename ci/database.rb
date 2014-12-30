@@ -30,8 +30,8 @@ namespace :ci do
       sh %Q{psql -U datadog -c "CREATE TABLE Persons (PersonID int, LastName varchar(255), FirstName varchar(255), Address varchar(255), City varchar(255))" datadog_test}
 
       # mysql
-      sh %Q{mysql -e "create user 'dog'@'localhost' identified by 'dog'"}
-      sh %Q{mysql -e "grant PROCESS on *.* to 'dog'@'localhost'"}
+      sh %Q{mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot}
+      sh %Q{mysql -e "grant PROCESS on *.* to 'dog'@'localhost'" -uroot}
     end
 
     task :script => ['ci:common:script'] do
