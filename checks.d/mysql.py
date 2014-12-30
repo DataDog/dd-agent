@@ -209,6 +209,7 @@ STATUS_VARS = {
     'Innodb_x_lock_spin_waits': ('mysql.innodb.x_lock_spin_waits', RATE),
 }
 
+
 class MySql(AgentCheck):
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
