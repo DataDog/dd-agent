@@ -29,7 +29,7 @@ class Marathon(AgentCheck):
                 for attr in self.APP_METRICS:
                     if attr in app:
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
-                versions_reply = self.get_json(url, "/v2/apps/" + app['id'] + "/versions", timeout)
+                versions_reply = self.get_json(url + "/v2/apps/" + app['id'] + "/versions", timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
 
