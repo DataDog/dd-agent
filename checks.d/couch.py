@@ -69,7 +69,7 @@ class CouchDb(AgentCheck):
             overall_stats = self._get_stats(url, instance)
         except urllib2.URLError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=e.reason)
+                tags=service_check_tags, message=str(e.reason))
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
