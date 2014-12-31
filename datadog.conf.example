@@ -108,6 +108,11 @@ use_mount: no
 # statsd_forward_host: address_of_own_statsd_server
 # statsd_forward_port: 8125
 
+# you may want all statsd metrics coming from this host to be namespaced
+# in some way; if so, configure your namespace here. a metric that looks
+# like `metric.name` will instead become `namespace.metric.name`
+# statsd_metric_namespace:
+
 # ========================================================================== #
 # Service-specific configuration                                             #
 # ========================================================================== #

@@ -5,6 +5,7 @@ from checks import AgentCheck
 import gearman
 
 class Gearman(AgentCheck):
+    SERVICE_CHECK_NAME = 'gearman.can_connect'
 
     def get_library_versions(self):
         return {"gearman": gearman.__version__}
@@ -57,4 +58,12 @@ class Gearman(AgentCheck):
         host, port, tags = self._get_conf(instance)
         client = self._get_client(host, port)
         self.log.debug("Connected to gearman")
-        self._get_metrics(client, tags)
+
+        try:
+            self._get_metrics(client, tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                message="Connection to %s:%s succeeded." % (host, port))
+        except Exception as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                message=str(e))
+            raise

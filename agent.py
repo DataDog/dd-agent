@@ -264,6 +264,14 @@ def main():
             agent.run(config=agentConfig)
 
     elif 'check' == command:
+        if len(args) < 2:
+            sys.stderr.write(
+                "Usage: %s check <check_name> [check_rate]\n"
+                "Add check_rate as last argument to compute rates\n"
+                % sys.argv[0]
+            )
+            return 1
+
         check_name = args[1]
         try:
             import checks.collector
@@ -283,6 +291,7 @@ def main():
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                    check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
         osname = get_os()

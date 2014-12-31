@@ -123,8 +123,20 @@ case $action in
         exit $?
         ;;
 
+    check)
+        shift
+        python agent/agent.py check $@
+        exit $?
+        ;;
+
+    jmx)
+        shift
+        python agent/agent.py jmx $@
+        exit $?
+        ;;
+
     *)
-        echo "Usage: $0 {start|stop|restart|info|status|configcheck}"
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|jmx}"
         exit 2
         ;;
 esac
