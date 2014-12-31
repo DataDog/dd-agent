@@ -196,8 +196,10 @@ class Disk(Check):
         self.gauge('system.disk.total')
         self.gauge('system.disk.in_use')
         self.gauge('system.disk.used')
+        self.counter("system.disk.read_time_pct")
+        self.counter("system.disk.write_time_pct")
 
-    def check(self, agentConfig):
+    def check_disk_usage(self, agentConfig):
         try:
             disk = w.Win32_LogicalDisk()
         except AttributeError:
@@ -219,7 +221,21 @@ class Disk(Check):
                 self.save_sample('system.disk.used', used, device_name=name)
                 self.save_sample('system.disk.in_use', (used / total),
                     device_name=name)
+
+    def check_disk_latency(self, agentConfig):
+        disk_io_counters = psutil.disk_io_counters(True)
+        for disk_name, disk in disk_io_counters.iteritems():
+            read_time_pct = disk.read_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+            write_time_pct = disk.write_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+            self.save_sample("system.disk.read_time_pct", read_time_pct, device_name=disk_name) 
+            self.save_sample("system.disk.write_time_pct", write_time_pct, device_name=disk_name)
+
+
+    def check(self, agentConfig):
+        self.check_disk_usage(agentConfig)
+        self.check_disk_latency(agentConfig)
         return self.get_metrics()
+        
 
 class IO(Check):
     def __init__(self, logger):
