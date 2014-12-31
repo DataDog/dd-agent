@@ -5,8 +5,7 @@ import time
 import unittest
 import nose.tools as nt
 
-from aggregator import MetricsAggregator
-
+from aggregator import MetricsAggregator, get_formatter
 
 class TestUnitDogStatsd(unittest.TestCase):
 
@@ -26,6 +25,28 @@ class TestUnitDogStatsd(unittest.TestCase):
     def assert_almost_equal(i, j, e=1):
         # Floating point math?
         assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
+
+    def test_formatter(self):
+        stats = MetricsAggregator('myhost', interval=10, 
+            formatter = get_formatter({"statsd_metric_namespace": "datadog"}))
+        stats.submit_packets('gauge:16|c|#tag3,tag4')
+        metrics = self.sort_metrics(stats.flush())
+        self.assertTrue(len(metrics) == 1)
+        self.assertTrue(metrics[0]['metric'] == "datadog.gauge")
+
+        stats = MetricsAggregator('myhost', interval=10, 
+            formatter = get_formatter({"statsd_metric_namespace": "datadoge."}))
+        stats.submit_packets('gauge:16|c|#tag3,tag4')
+        metrics = self.sort_metrics(stats.flush())
+        self.assertTrue(len(metrics) == 1)
+        self.assertTrue(metrics[0]['metric'] == "datadoge.gauge")
+
+        stats = MetricsAggregator('myhost', interval=10, 
+        formatter = get_formatter({"statsd_metric_namespace": None}))
+        stats.submit_packets('gauge:16|c|#tag3,tag4')
+        metrics = self.sort_metrics(stats.flush())
+        self.assertTrue(len(metrics) == 1)
+        self.assertTrue(metrics[0]['metric'] == "gauge")
 
     def test_counter_normalization(self):
         stats = MetricsAggregator('myhost', interval=10)
