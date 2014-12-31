@@ -25,7 +25,7 @@ import threading
 from urllib import urlencode
 
 # project
-from aggregator import MetricsBucketAggregator
+from aggregator import MetricsBucketAggregator, api_formatter
 from checks.check_status import DogstatsdStatus
 from config import get_config
 from daemon import Daemon, AgentSupervisor
@@ -389,7 +389,27 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
     # server and reporting threads.
     assert 0 < interval
 
-    aggregator = MetricsBucketAggregator(hostname, aggregator_interval, recent_point_threshold=recent_point_threshold)
+    formatter = api_formatter
+    if c['statsd_metric_namespace']:
+      def metric_namespace_formatter_wrapper(*args, **kwargs):
+        metric_prefix = c['statsd_metric_namespace']
+        if metric_prefix[-1] != '.':
+          metric_prefix += '.'
+
+        metric = args[0]
+        new_metric = metric_prefix + metric
+        new_args = [new_metric] + args[1:]
+        return api_formatter(*new_args, **kwargs)
+
+      formatter = metric_namespace_formatter_wrapper
+
+
+    aggregator = MetricsBucketAggregator(
+        hostname,
+        aggregator_interval,
+        recent_point_threshold=recent_point_threshold,
+        formatter = formatter
+        )
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)
