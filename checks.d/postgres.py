@@ -19,6 +19,7 @@ class PostgreSql(AgentCheck):
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
     MONOTONIC = AgentCheck.monotonic_count
+    SERVICE_CHECK_NAME = 'postgres.can_connect'
 
     # turning columns into tags
     DB_METRICS = {
@@ -181,7 +182,7 @@ WITH max_con AS (SELECT setting::float FROM pg_settings WHERE name = 'max_connec
 SELECT %s
   FROM pg_stat_database, max_con
 """
-    }        
+    }
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -347,7 +348,6 @@ SELECT %s
                     connection = pg.connect(host=host, user=user, password=password,
                         database=dbname)
             except Exception as e:
-                status = AgentCheck.CRITICAL
                 message = u'Error establishing postgres connection: %s' % (str(e))
                 service_check_tags = self._get_service_check_tags(host, port, dbname)
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
