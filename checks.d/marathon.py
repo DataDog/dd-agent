@@ -10,6 +10,9 @@ import simplejson as json
 import requests
 
 class Marathon(AgentCheck):
+
+    SERVICE_CHECK_NAME = "marathon.can_connect"
+
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('Marathon instance missing "url" value.')
@@ -26,8 +29,10 @@ class Marathon(AgentCheck):
             for app in response['apps']:
                 tags = ['app_id:' + app['id'], 'version:' + app['version']] + instance_tags
                 for attr in ['taskRateLimit', 'instances', 'cpus', 'mem', 'tasksStaged', 'tasksRunning', 'backoffSeconds', 'backoffFactor']:
-                    if attr in app:
+                    if hasattr(app, attr):
                         self.gauge('marathon.' + attr, app[attr], tags=tags)
+                    else:
+                        self.log.debug('Marathon application (id: %s) has no attribute %s' % (app['id'], attr))
                 versions_reply = self.get_v2_app_versions(url, app['id'], timeout)
                 if versions_reply is not None:
                     self.gauge('marathon.versions', len(versions_reply['versions']), tags=tags)
@@ -35,22 +40,45 @@ class Marathon(AgentCheck):
     def get_v2_apps(self, url, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
+        tags = ['url:%s' % url]
+        msg = None
+        status = None
         try:
             r = requests.get(url + "/v2/apps", timeout=timeout)
+            if r.status_code != 200:
+                self.status_code_event(url, r, aggregation_key)
+                status = AgentCheck.CRITICAL
+                msg = "Got %s when hitting %s" % (r.status_code, url)
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
-            raise Exception("Timeout when hitting %s" % url)
+            msg = "%s seconds timeout when hitting %s" % (timeout, url)
+            status = AgentCheck.CRITICAL
+        except Exception as e:
+            msg = e.message
+            status = AgentCheck.CRITICAL
+        finally:
+            if status is AgentCheck.CRITICAL:
+                self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
+                raise Exception(msg)
 
-        if r.status_code != 200:
-            self.status_code_event(url, r, aggregation_key)
-            raise Exception("Got %s when hitting %s" % (r.status_code, url))
+        req_json = r.json()
+        app_count = len(req_json['apps'])
 
-        # Condition for request v1.x backward compatibility
-        if hasattr(r.json, '__call__'):
-            return r.json()
+        if app_count is 0:
+            status = AgentCheck.WARN
+            msg = "No marathon applications detected at %s" % url
         else:
-            return r.json
+            instance_count = 0
+            for app in req_json['apps']:
+                instance_count += app['instances']
+            status = AgentCheck.CRITICAL if instance_count is 0 else AgentCheck.OK
+            msg = "%s Marathon app(s) detected with %s instances running at %s" % (app_count, instance_count, url)
+
+
+        self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
+
+        return req_json
 
     def get_v2_app_versions(self, url, app_id, timeout):
         # Use a hash of the URL as an aggregation key
@@ -67,7 +95,6 @@ class Marathon(AgentCheck):
         if r.status_code != 200:
             self.status_code_event(url, r, aggregation_key)
             self.warning("Got %s when hitting %s" % (r.status_code, url))
-            return None
 
         return r.json()
 
