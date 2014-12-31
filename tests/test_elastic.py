@@ -64,7 +64,7 @@ class TestElastic(unittest.TestCase):
         self.assertEquals(len([t for t in r if t[0] == "elasticsearch.active_shards"]), 1, r)
 
         # Checks enabled for specific ES versions
-        version = self.check._get_es_version(conf['instances'][0])
+        version = self.check._get_es_version()
         if version >= [0,90,10]:
             # ES versions 0.90.10 and above
             pass

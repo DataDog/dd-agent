@@ -155,8 +155,7 @@ class ESCheck(AgentCheck):
         # Tag by URL so we can differentiate the metrics
         # from multiple instances
         tags = ['url:%s' % url]
-        for tag in instance.get('tags', []):
-            tags.append(tag)
+        tags.extend(instance.get('tags', []))
 
         timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
 
