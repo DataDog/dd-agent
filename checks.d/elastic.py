@@ -1,26 +1,39 @@
 # stdlib
+from collections import namedtuple
 import socket
 import subprocess
-import sys
 import time
 import urlparse
-import urllib2
-import time
+
+# 3p
+import requests
 
 # project
 from checks import AgentCheck
-from checks.utils import add_basic_auth
-from util import headers
+from util import headers, Platform
 
-# 3rd party
-import simplejson as json
 
 class NodeNotFound(Exception): pass
 
-class ElasticSearch(AgentCheck):
+
+ESInstanceConfig = namedtuple(
+    'ESInstanceConfig', [
+        'is_external',
+        'password',
+        'service_check_tags',
+        'tags',
+        'timeout',
+        'url',
+        'username',
+])
+
+
+class ESCheck(AgentCheck):
     SERVICE_CHECK_CONNECT_NAME = 'elasticsearch.can_connect'
     SERVICE_CHECK_CLUSTER_STATUS = 'elasticsearch.cluster_health'
-    
+
+    DEFAULT_TIMEOUT = 5
+
     METRICS = { # Metrics that are common to all Elasticsearch versions
         "elasticsearch.docs.count": ("gauge", "indices.docs.count"),
         "elasticsearch.docs.deleted": ("gauge", "indices.docs.deleted"),
@@ -109,7 +122,7 @@ class ElasticSearch(AgentCheck):
         "elasticsearch.relocating_shards": ("gauge", "relocating_shards"),
         "elasticsearch.initializing_shards": ("gauge", "initializing_shards"),
         "elasticsearch.unassigned_shards": ("gauge", "unassigned_shards"),
-        "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red":0,"yellow":1,"green":2}.get(v, -1)),
+        "elasticsearch.cluster_status": ("gauge", "status", lambda v: {"red":0, "yellow":1, "green":2}.get(v, -1)),
     }
 
     SOURCE_TYPE_NAME = 'elasticsearch'
@@ -120,25 +133,18 @@ class ElasticSearch(AgentCheck):
         # Host status needs to persist across all checks
         self.cluster_status = {}
 
-    def check(self, instance):
-        config_url = instance.get('url')
-        added_tags = instance.get('tags')
-        is_external = instance.get('is_external', False)
-        if config_url is None:
-            raise Exception("An url must be specified")
+    def get_instance_config(self, instance):
+        url = instance.get('url')
+        if url is None:
+            raise Exception("An url must be specified in the instance")
 
-        # Load basic authentication configuration, if available.
-        username, password = instance.get('username'), instance.get('password')
-        if username and password:
-            auth = (username, password)
-        else:
-            auth = None
+        is_external = instance.get('is_external', False)
 
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
-        parsed = urlparse.urlparse(config_url)
+        parsed = urlparse.urlparse(url)
         if parsed[2] != "":
-            config_url = "%s://%s" % (parsed[0], parsed[1])
+            url = "%s://%s" % (parsed[0], parsed[1])
         port = parsed.port
         host = parsed.hostname
         service_check_tags = [
@@ -146,36 +152,61 @@ class ElasticSearch(AgentCheck):
             'port:%s' % port
         ]
 
-        # Tag by URL so we can differentiate the metrics from multiple instances
-        tags = ['url:%s' % config_url]
-        if added_tags is not None:
-            for tag in added_tags:
-                tags.append(tag)
+        # Tag by URL so we can differentiate the metrics
+        # from multiple instances
+        tags = ['url:%s' % url]
+        tags.extend(instance.get('tags', []))
 
-        # Check ES version for this instance and define parameters (URLs and metrics) accordingly
-        version = self._get_es_version(config_url, auth)
+        timeout = instance.get('timeout') or self.DEFAULT_TIMEOUT
+
+        config = ESInstanceConfig(
+            is_external=is_external,
+            password=instance.get('password'),
+            service_check_tags=service_check_tags,
+            tags=tags,
+            timeout=timeout,
+            url=url,
+            username=instance.get('username')
+        )
+        return config
+
+    def check(self, instance):
+        self.curr_config = self.get_instance_config(instance)
+
+        # Check ES version for this instance and define parameters
+        # (URLs and metrics) accordingly
+        version = self._get_es_version()
         self._define_params(version)
 
         # Load stats data.
-        url = urlparse.urljoin(config_url, self.STATS_URL)
-        stats_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
-        self._process_stats_data(config_url, stats_data, auth, tags=tags,
-                                 is_external=is_external)
+        stats_url = urlparse.urljoin(self.curr_config.url, self.STATS_URL)
+        stats_data = self._get_data(stats_url)
+        self._process_stats_data(stats_data)
 
         # Load the health data.
-        url = urlparse.urljoin(config_url, self.HEALTH_URL)
-        health_data = self._get_data(url, auth, send_service_check=True, service_check_tags=service_check_tags)
-        self._process_health_data(config_url, health_data, tags=tags, service_check_tags=service_check_tags)
-        self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.OK, tags=service_check_tags)
+        health_url = urlparse.urljoin(self.curr_config.url, self.HEALTH_URL)
+        health_data = self._get_data(health_url)
+        self._process_health_data(health_data)
 
-    def _get_es_version(self, config_url, auth=None):
-        """ Get the running version of Elastic Search.
+        # If we're here we did not have any ES conn issues
+        self.service_check(
+            self.SERVICE_CHECK_CONNECT_NAME,
+            AgentCheck.OK,
+            tags=self.curr_config.service_check_tags
+        )
+
+    def _get_es_version(self):
+        """ Get the running version of elasticsearch.
         """
         try:
-            data = self._get_data(config_url, auth)
+            data = self._get_data(self.curr_config.url)
             version = map(int, data['version']['number'].split('.')[0:3])
         except Exception, e:
-            self.warning("Error while trying to get Elasticsearch version from %s %s" % (config_url, str(e)))
+            self.warning(
+                "Error while trying to get Elasticsearch version "
+                "from %s %s"
+                % (self.curr_config.url, str(e))
+            )
             version = [0, 0, 0]
 
         self.log.debug("Elasticsearch version is %s" % version)
@@ -235,42 +266,48 @@ class ElasticSearch(AgentCheck):
 
         self.METRICS.update(additional_metrics)
 
-    def _get_data(self, url, auth=None, send_service_check=False, service_check_tags=None):
+    def _get_data(self, url):
         """ Hit a given URL and return the parsed json
-            `auth` is a tuple of (username, password) or None
         """
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        if auth:
-            add_basic_auth(req, *auth)
+        # Load basic authentication configuration, if available.
+        if self.curr_config.username and self.curr_config.password:
+            auth = (self.curr_config.username, self.curr_config.password)
+        else:
+            auth = None
+
         try:
-            request = urllib2.urlopen(req)
-        except urllib2.URLError as e:
-            if send_service_check:
-                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=e.reason)
-            raise
+            resp = requests.get(
+                url,
+                timeout=self.curr_config.timeout,
+                headers=headers(self.agentConfig),
+                auth=auth
+            )
+            resp.raise_for_status()
         except Exception as e:
-            if send_service_check:
-                self.service_check(self.SERVICE_CHECK_CONNECT_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=str(e))
+            self.service_check(
+                self.SERVICE_CHECK_CONNECT_NAME,
+                AgentCheck.CRITICAL,
+                message="Error {0} when hitting {1}".format(e, url),
+                tags=self.curr_config.service_check_tags
+            )
             raise
 
-        response = request.read()
-        return json.loads(response)
+        return resp.json()
 
-    def _process_stats_data(self, config_url, data, auth, tags=None, is_external=False):
+    def _process_stats_data(self, data):
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
             # On newer version of ES it's "host" not "hostname"
             node_hostname = node_data.get('hostname', node_data.get('host', None))
-            should_process = is_external or self.should_process_node(config_url,
-                                                node_name, node_hostname, auth)
+            should_process = self.curr_config.is_external\
+                                or self.should_process_node(node_name, node_hostname)
             if should_process:
                 for metric in self.METRICS:
                     desc = self.METRICS[metric]
-                    self._process_metric(node_data, metric, *desc, tags=tags)
+                    self._process_metric(node_data, metric, *desc,
+                        tags=self.curr_config.tags)
 
-    def should_process_node(self, config_url, node_name, node_hostname, auth):
+    def should_process_node(self, node_name, node_hostname):
         """ The node stats API will return stats for every node so we
             want to filter out nodes that we don't care about.
         """
@@ -288,25 +325,19 @@ class ElasticSearch(AgentCheck):
             # Fetch interface address from ifconfig or ip addr and check
             # against the primary IP from ES
             try:
-                nodes_url = urlparse.urljoin(config_url, self.NODES_URL)
-                primary_addr = self._get_primary_addr(nodes_url, node_name, auth)
+                nodes_url = urlparse.urljoin(self.curr_config.url, self.NODES_URL)
+                primary_addr = self._get_primary_addr(nodes_url, node_name)
             except NodeNotFound:
                 # Skip any nodes that aren't found
                 return False
             if self._host_matches_node(primary_addr):
                 return True
 
-    def _get_primary_addr(self, url, node_name, auth):
+    def _get_primary_addr(self, url, node_name):
         """ Returns a list of primary interface addresses as seen by ES.
             Used in ES < 0.19
         """
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        # Load basic authentication configuration, if available.
-        if auth:
-            add_basic_auth(req, *auth)
-        request = urllib2.urlopen(req)
-        response = request.read()
-        data = json.loads(response)
+        data = self._get_data(url)
 
         if node_name in data['nodes']:
             node = data['nodes'][node_name]
@@ -322,7 +353,7 @@ class ElasticSearch(AgentCheck):
             cluster nodes check `/_cluster/nodes`. Uses `ip addr` on Linux and
             `ifconfig` on Mac
         """
-        if sys.platform == 'darwin':
+        if Platform.is_darwin():
             ifaces = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
         else:
             ifaces = subprocess.Popen(['ip', 'addr'], stdout=subprocess.PIPE)
@@ -337,7 +368,7 @@ class ElasticSearch(AgentCheck):
         for iface in out.split("\n"):
             iface = iface.strip()
             if iface:
-                ips.append( iface.split(' ')[1].split('/')[0] )
+                ips.append(iface.split(' ')[1].split('/')[0])
 
         # Check the interface addresses against the primary address
         return primary_addrs in ips
@@ -366,45 +397,49 @@ class ElasticSearch(AgentCheck):
         else:
             self._metric_not_found(metric, path)
 
-    def _process_health_data(self, config_url, data, tags=None, service_check_tags=None):
-        if self.cluster_status.get(config_url, None) is None:
-            self.cluster_status[config_url] = data['status']
+    def _process_health_data(self, data):
+        if self.cluster_status.get(self.curr_config.url) is None:
+            self.cluster_status[self.curr_config.url] = data['status']
             if data['status'] in ["yellow", "red"]:
                 event = self._create_event(data['status'])
                 self.event(event)
 
-        if data['status'] != self.cluster_status.get(config_url):
-            self.cluster_status[config_url] = data['status']
+        if data['status'] != self.cluster_status.get(self.curr_config.url):
+            self.cluster_status[self.curr_config.url] = data['status']
             event = self._create_event(data['status'])
             self.event(event)
 
         for metric in self.METRICS:
             # metric description
             desc = self.METRICS[metric]
-            self._process_metric(data, metric, *desc, tags=tags)
+            self._process_metric(data, metric, *desc, tags=self.curr_config.tags)
 
         # Process the service check
         cluster_status = data['status']
         if cluster_status == 'green':
             status = AgentCheck.OK
-            tag = "OK"
+            data['tag'] = "OK"
         elif cluster_status == 'yellow':
             status = AgentCheck.WARNING
-            tag = "WARN"
+            data['tag'] = "WARN"
         else:
             status = AgentCheck.CRITICAL
-            tag = "ALERT"
-        
-        msg = "{0} on cluster \"{1}\" | active_shards={2} | initializing_shards={3} | relocating_shards={4} | unassigned_shards={5} | timed_out={6}" \
-                    .format(tag, data["cluster_name"],
-                                 data["active_shards"],
-                                 data["initializing_shards"],
-                                 data["relocating_shards"],
-                                 data["unassigned_shards"],
-                                 data["timed_out"])
+            data['tag'] = "ALERT"
 
-        self.service_check(self.SERVICE_CHECK_CLUSTER_STATUS, status, message=msg, tags=service_check_tags)
+        msg = "{tag} on cluster \"{cluster_name}\" "\
+              "| active_shards={active_shards} "\
+              "| initializing_shards={initializing_shards} "\
+              "| relocating_shards={relocating_shards} "\
+              "| unassigned_shards={unassigned_shards} "\
+              "| timed_out={timed_out}" \
+              .format(**data)
 
+        self.service_check(
+            self.SERVICE_CHECK_CLUSTER_STATUS,
+            status,
+            message=msg,
+            tags=self.curr_config.service_check_tags
+        )
 
     def _metric_not_found(self, metric, path):
         self.log.debug("Metric not found: %s -> %s", path, metric)
@@ -431,9 +466,9 @@ class ElasticSearch(AgentCheck):
                  'host': hostname,
                  'msg_text':msg,
                  'msg_title': msg_title,
-                 "alert_type": alert_type,
-                 "source_type_name": "elasticsearch",
-                 "event_object": hostname
+                 'alert_type': alert_type,
+                 'source_type_name': "elasticsearch",
+                 'event_object': hostname
             }
 
 
