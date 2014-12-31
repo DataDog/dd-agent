@@ -112,15 +112,16 @@ elif [ $OS = "Debian" ]; then
 Failed to update the sources after adding the Datadog repository.
 This may be due to any of the configured APT sources failing -
 see the logs above to determine the cause.
-If the failing repository is Datadog, please contact support.
+If the failing repository is Datadog, please contact Datadog support.
 *****
 "
     $sudo_cmd apt-get update
     ERROR_MESSAGE="ERROR
 Failed to install the Datadog package, sometimes it may be
 due to another APT source failing. See the logs above to
-determine the cause
-If the failing repository is Datadog, please contact support.
+determine the cause.
+If the cause is unclear, please contact Datadog support.
+*****
 "
     $sudo_cmd apt-get install -y --force-yes datadog-agent
     ERROR_MESSAGE=""
