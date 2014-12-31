@@ -72,6 +72,7 @@ class Memory(Check):
         # as long as they are allocated.
         self.gauge('system.mem.nonpaged')
         # usable = free + cached
+        self.gauge('system.mem.usable')
         self.gauge('system.mem.pct_usable')
 
     def check(self, agentConfig):
@@ -104,8 +105,9 @@ class Memory(Check):
         if mem.PoolNonpagedBytes is not None:
             self.save_sample('system.mem.nonpaged', int(mem.PoolNonpagedBytes) / B2MB)
 
+        usable = free + cached
+        self.save_sample('system.mem.usable', usable)
         if total > 0:
-            usable = free + cached
             pct_usable = float(usable) / total
             self.save_sample('system.mem.pct_usable', pct_usable)
 
