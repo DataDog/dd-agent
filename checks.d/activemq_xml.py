@@ -13,6 +13,9 @@ SUBSCRIBER_URL = "/admin/xml/subscribers.jsp"
 
 
 class ActiveMQXML(AgentCheck):
+    # do this so we can mock out requests in unit tests
+    requests = requests
+
     def check(self, instance):
         url = instance.get("url")
         username = instance.get("username")
@@ -35,7 +38,7 @@ class ActiveMQXML(AgentCheck):
             auth = (username, password)
         url = "%s%s" % (base_url, xml_url)
         self.log.debug("ActiveMQ Fetching queue data from: %s" % url)
-        req = requests.get(url, auth=auth)
+        req = self.requests.get(url, auth=auth)
         return req.text
 
     def _process_queue_data(self, data):
