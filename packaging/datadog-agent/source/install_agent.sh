@@ -109,14 +109,19 @@ elif [ $OS = "Debian" ]; then
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
     ERROR_MESSAGE="ERROR
-Failed to install the package from the Datadog APT repository.
-This might be because of a transient error on one other repository
-failing the update. Check the logs above to see which repository
-failed and if not Datadog, you can re-run the install script safely.
-
+Failed to update the sources after adding the Datadog repository.
+This may be due to any of the configured APT sources failing -
+see the logs above to determine the cause.
+If the failing repository is Datadog, please contact support.
 *****
 "
     $sudo_cmd apt-get update
+    ERROR_MESSAGE="ERROR
+Failed to install the Datadog package, sometimes it may be
+due to another APT source failing. See the logs above to
+determine the cause
+If the failing repository is Datadog, please contact support.
+"
     $sudo_cmd apt-get install -y --force-yes datadog-agent
     ERROR_MESSAGE=""
 else
