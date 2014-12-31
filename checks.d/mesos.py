@@ -12,7 +12,7 @@ import simplejson as json
 import requests
 
 class Mesos(AgentCheck):
-    check_name = "mesos.can_connect"
+    SERVICE_CHECK_NAME = "mesos.can_connect"
 
     def check(self, instance):
         if 'url' not in instance:
@@ -94,7 +94,7 @@ class Mesos(AgentCheck):
             msg = e.message
             status = AgentCheck.CRITICAL
         finally:
-            self.service_check(self.check_name, status, tags=tags, message=msg)
+            self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
             if status is AgentCheck.CRITICAL:
                 self.warning(msg)
                 return None
