@@ -11,7 +11,7 @@ import requests
 
 class Marathon(AgentCheck):
 
-    check_name = "marathon.can_connect"
+    SERVICE_CHECK_NAME = "marathon.can_connect"
 
     def check(self, instance):
         if 'url' not in instance:
@@ -59,7 +59,7 @@ class Marathon(AgentCheck):
             status = AgentCheck.CRITICAL
         finally:
             if status is AgentCheck.CRITICAL:
-                self.service_check(self.check_name, status, tags=tags, message=msg)
+                self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
                 raise Exception(msg)
 
         req_json = r.json()
@@ -76,7 +76,7 @@ class Marathon(AgentCheck):
             msg = "%s Marathon app(s) detected with %s instances running at %s" % (app_count, instance_count, url)
 
 
-        self.service_check(self.check_name, status, tags=tags, message=msg)
+        self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
 
         return req_json
 
