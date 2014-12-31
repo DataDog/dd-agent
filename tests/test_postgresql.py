@@ -59,7 +59,7 @@ class TestPostgres(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "postgres.can_connect"]), 1, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "postgres.can_connect"]), 2, service_checks)
         # Assert that all service checks have the proper tags: host, port and db
         self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "port:%s" % config['instances'][0]['port'] in sc['tags']]), service_checks_count, service_checks)
