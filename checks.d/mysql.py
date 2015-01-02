@@ -196,7 +196,7 @@ class MySql(AgentCheck):
         self._get_version(db, host)
 
         if isinstance(queries, list):
-            for check in queries
+            for check in queries:
                 self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
