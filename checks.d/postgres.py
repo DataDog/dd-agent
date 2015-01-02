@@ -19,6 +19,7 @@ class PostgreSql(AgentCheck):
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
     MONOTONIC = AgentCheck.monotonic_count
+    SERVICE_CHECK_NAME = 'postgres.can_connect'
 
     # turning columns into tags
     DB_METRICS = {
@@ -181,7 +182,7 @@ WITH max_con AS (SELECT setting::float FROM pg_settings WHERE name = 'max_connec
 SELECT %s
   FROM pg_stat_database, max_con
 """
-    }        
+    }
 
     def __init__(self, name, init_config, agentConfig):
         AgentCheck.__init__(self, name, init_config, agentConfig)
@@ -322,6 +323,14 @@ SELECT %s
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
+    def _get_service_check_tags(self, host, port, dbname):
+        service_check_tags = [
+            "host:%s" % host,
+            "port:%s" % port,
+            "db:%s" % dbname
+        ]
+        return service_check_tags
+
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
@@ -329,13 +338,6 @@ SELECT %s
 
         elif host != "" and user != "":
             try:
-                service_check_tags = [
-                    "host:%s" % host,
-                    "port:%s" % port
-                ]
-                if dbname:
-                    service_check_tags.append("db:%s" % dbname)
-
                 if host == 'localhost' and password == '':
                     # Use ident method
                     connection = pg.connect("user=%s dbname=%s" % (user, dbname))
@@ -345,14 +347,11 @@ SELECT %s
                 else:
                     connection = pg.connect(host=host, user=user, password=password,
                         database=dbname)
-                status = AgentCheck.OK
-                self.service_check('postgres.can_connect', status, tags=service_check_tags)
-                self.log.info('pg status: %s' % status)
-
-            except Exception:
-                status = AgentCheck.CRITICAL
-                self.service_check('postgres.can_connect', status, tags=service_check_tags)
-                self.log.info('pg status: %s' % status)
+            except Exception as e:
+                message = u'Error establishing postgres connection: %s' % (str(e))
+                service_check_tags = self._get_service_check_tags(host, port, dbname)
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                    tags=service_check_tags, message=message)
                 raise
         else:
             if not host:
@@ -406,6 +405,10 @@ SELECT %s
             self._collect_stats(key, db, tags, relations)
 
         if db is not None:
+            service_check_tags = self._get_service_check_tags(host, port, dbname)
+            message = u'Established connection to postgres://%s:%s/%s' % (host, port, dbname)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags=service_check_tags, message=message)
             try:
                 # commit to close the current query transaction
                 db.commit()
