@@ -125,6 +125,7 @@ class Redis(AgentCheck):
 
     def _check_db(self, instance, custom_tags=None):
         conn = self._get_conn(instance)
+
         tags = set(custom_tags or [])
 
         if 'unix_socket_path' in instance:
@@ -140,17 +141,21 @@ class Redis(AgentCheck):
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
         start = time.time()
+        info = None
         try:
             info = conn.info()
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
             raise
         except Exception, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
             raise
 
         latency_ms = round((time.time() - start) * 1000, 2)
@@ -220,3 +225,9 @@ class Redis(AgentCheck):
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
         self._check_db(instance,custom_tags)
+
+    def _collect_metadata(self, info):
+        metadata_dict = {}
+        if info and 'redis_version' in info:
+            metadata_dict['version'] = info['redis_version'].split('.')
+        self.svc_metadata(metadata_dict)

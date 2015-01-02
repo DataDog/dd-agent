@@ -182,6 +182,9 @@ class ESCheck(AgentCheck):
         version = self._get_es_version()
         self._define_params(version, self.curr_config.is_external)
 
+        # Collect metadata
+        self._collect_metadata(config_url, auth)
+
         # Load stats data.
         stats_url = urlparse.urljoin(self.curr_config.url, self.STATS_URL)
         stats_data = self._get_data(stats_url)
@@ -486,4 +489,7 @@ class ESCheck(AgentCheck):
                  'event_object': hostname
             }
 
-
+    def _collect_metadata(self, config_url, auth):
+        metadata_dict = {}
+        metadata_dict['version'] = self._get_es_version(config_url, auth)
+        self.svc_metadata(metadata_dict)
