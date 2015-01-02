@@ -60,7 +60,7 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-        host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
+        host, port, user, password, mysql_sock, defaults_file, tags, options, queries = self._get_config(instance)
 
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
@@ -68,7 +68,7 @@ class MySql(AgentCheck):
         db = self._connect(host, port, mysql_sock, user, password, defaults_file)
 
         # Metric collection
-        self._collect_metrics(host, db, tags, options)
+        self._collect_metrics(host, db, tags, options, queries)
         if Platform.is_linux():
             self._collect_system_metrics(host, db, tags)
 
@@ -81,8 +81,9 @@ class MySql(AgentCheck):
         defaults_file = instance.get('defaults_file', '')
         tags = instance.get('tags', None)
         options = instance.get('options', {})
+        queries = instance.get('queries', [])
 
-        return host, port, user, password, mysql_sock, defaults_file, tags, options
+        return host, port, user, password, mysql_sock, defaults_file, tags, options, queries
 
     def _connect(self, host, port, mysql_sock, user, password, defaults_file):
         service_check_tags = [
@@ -114,7 +115,7 @@ class MySql(AgentCheck):
 
         return db
 
-    def _collect_metrics(self, host, db, tags, options):
+    def _collect_metrics(self, host, db, tags, options, queries):
         cursor = db.cursor()
         cursor.execute("SHOW /*!50002 GLOBAL */ STATUS;")
         status_results = dict(cursor.fetchall())
@@ -161,6 +162,10 @@ class MySql(AgentCheck):
                     slave_running = 0
                 self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
             self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
+
+        if isinstance(queries, list):
+            for check in queries
+                self._collect_dict(check['type'], {check['field']: check['metric']}, check['query'], db, tags=tags)
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
