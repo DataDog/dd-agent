@@ -37,22 +37,46 @@ SELECT datname,
         'relation': False,
     }
 
+    COMMON_METRICS = {
+        'numbackends'       : ('postgresql.connections', GAUGE),
+        'xact_commit'       : ('postgresql.commits', RATE),
+        'xact_rollback'     : ('postgresql.rollbacks', RATE),
+        'blks_read'         : ('postgresql.disk_read', RATE),
+        'blks_hit'          : ('postgresql.buffer_hit', RATE),
+        'tup_returned'      : ('postgresql.rows_returned', RATE),
+        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
+        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
+        'tup_updated'       : ('postgresql.rows_updated', RATE),
+        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+    }
+
+    NEWER_92_METRICS = {
+        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
+        'temp_bytes'        : ('postgresql.temp_bytes', RATE),
+        'temp_files'        : ('postgresql.temp_files', RATE),
+    }
+
     BGW_METRICS = {
         'descriptors': [],
-        'metrics': {
-            'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', MONOTONIC),
-            'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', MONOTONIC),
-            'checkpoint_write_time': ('postgresql.bgwriter.write_time', MONOTONIC),
-            'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', MONOTONIC),
-            'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', MONOTONIC),
-            'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', MONOTONIC),
-            'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', MONOTONIC),
-            'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', MONOTONIC),
-            'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
-            'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', MONOTONIC),
-        },
+        'metrics': {},
         'query': "select %s FROM pg_stat_bgwriter",
         'relation': False,
+    }
+
+    COMMON_BGW_METRICS = {
+        'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', MONOTONIC),
+        'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', MONOTONIC),
+        'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', MONOTONIC),
+        'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', MONOTONIC),
+        'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', MONOTONIC),
+        'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', MONOTONIC),
+        'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
+        'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', MONOTONIC),
+    }
+
+    NEWER_92_BGW_METRICS = {
+        'checkpoint_write_time': ('postgresql.bgwriter.write_time', MONOTONIC),
+        'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', MONOTONIC),
     }
 
     LOCK_METRICS = {
@@ -75,24 +99,6 @@ SELECT mode,
         'relation': False,
     }
 
-    COMMON_METRICS = {
-        'numbackends'       : ('postgresql.connections', GAUGE),
-        'xact_commit'       : ('postgresql.commits', RATE),
-        'xact_rollback'     : ('postgresql.rollbacks', RATE),
-        'blks_read'         : ('postgresql.disk_read', RATE),
-        'blks_hit'          : ('postgresql.buffer_hit', RATE),
-        'tup_returned'      : ('postgresql.rows_returned', RATE),
-        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
-        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
-        'tup_updated'       : ('postgresql.rows_updated', RATE),
-        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
-    }
-
-    NEWER_92_METRICS = {
-        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
-        'temp_bytes'        : ('postgresql.temp_bytes', RATE),
-        'temp_files'        : ('postgresql.temp_files', RATE),
-    }
 
     REL_METRICS = {
         'descriptors': [
@@ -189,6 +195,7 @@ SELECT %s
         self.dbs = {}
         self.versions = {}
         self.instance_metrics = {}
+        self.bgw_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -228,6 +235,21 @@ SELECT %s
             metrics = self.instance_metrics.get(key)
         return metrics
 
+    def _get_bgw_metrics(self, key, db):
+        """Use either COMMON_BGW_METRICS or COMMON_BGW_METRICS + NEWER_92_BGW_METRICS
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
+        # Extended 9.2+ metrics if needed
+        metrics = self.bgw_metrics.get(key)
+        if metrics is None:
+            if self._is_9_2_or_above(key, db):
+                self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS, **self.NEWER_92_BGW_METRICS)
+            else:
+                self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
+            metrics = self.bgw_metrics.get(key)
+        return metrics
+
     def _collect_stats(self, key, db, instance_tags, relations):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
@@ -235,6 +257,7 @@ SELECT %s
         """
 
         self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
+        self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
 
         # Do we need relation-specific metrics?
         if not relations:
