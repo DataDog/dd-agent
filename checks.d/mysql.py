@@ -31,7 +31,7 @@ STATUS_VARS = {
     'Com_update_multi': ('mysql.performance.com_update_multi', RATE),
     'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
     # MySQL connections metrics
-    'Max_connections': ('mysql.net.max_connections_available', RATE),
+    'Max_connections': ('mysql.net.max_connections_available', GAUGE),
     'Max_used_connections': ('mysql.net.max_connections', RATE),
     'Aborted_clients': ('mysql.net.aborted_clients', RATE),
     'Aborted_connects': ('mysql.net.aborted_connects', RATE),
