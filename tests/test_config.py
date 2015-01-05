@@ -16,6 +16,7 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(agentConfig["api_key"], "1234")
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
+        self.assertTrue("statsd_metric_namespace" in agentConfig)
 
     def testGoodPidFie(self):
         """Verify that the pid file succeeds and fails appropriately"""
