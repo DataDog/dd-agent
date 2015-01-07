@@ -133,11 +133,11 @@ class Docker(AgentCheck):
         containers, ids_to_names = self._get_and_count_containers(instance)
 
         # Report container metrics from cgroups
-        self._report_containers_metrics(containers, instance)
+        skipped_container_ids = self._report_containers_metrics(containers, instance)
 
         # Send events from Docker API
         if instance.get('collect_events', True):
-            self._process_events(instance, ids_to_names)
+            self._process_events(instance, ids_to_names, skipped_container_ids)
 
 
     # Containers
@@ -203,6 +203,7 @@ class Docker(AgentCheck):
         return False
 
     def _report_containers_metrics(self, containers, instance):
+        skipped_container_ids = []
         collect_uncommon_metrics = instance.get("collect_all_metrics", False)
         tags = instance.get("tags", [])
         for container in containers:
@@ -216,6 +217,7 @@ class Docker(AgentCheck):
 
             # Check if the container is included/excluded via its tags
             if not self._is_container_included(instance, container_tags):
+                skipped_container_ids.append(container['Id'])
                 continue
 
             for key, (dd_key, metric_type) in DOCKER_METRICS.iteritems():
@@ -229,8 +231,9 @@ class Docker(AgentCheck):
                         if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
 
-    def _make_tag(self, key, value, instance):
+        return skipped_container_ids
 
+    def _make_tag(self, key, value, instance):
         tag_name = key.lower()
         if tag_name == "command" and not instance.get("tag_by_command", False):
             return None
@@ -246,19 +249,22 @@ class Docker(AgentCheck):
 
     # Events
 
-    def _process_events(self, instance, ids_to_names):
+    def _process_events(self, instance, ids_to_names, skipped_container_ids):
         try:
             api_events = self._get_events(instance)
-            aggregated_events = self._pre_aggregate_events(api_events)
+            aggregated_events = self._pre_aggregate_events(api_events, skipped_container_ids)
             events = self._format_events(aggregated_events, ids_to_names)
             self._report_events(events)
         except (socket.timeout, urllib2.URLError):
             self.warning('Timeout during socket connection. Events will be missing.')
 
-    def _pre_aggregate_events(self, api_events):
+    def _pre_aggregate_events(self, api_events, skipped_container_ids):
         # Aggregate events, one per image. Put newer events first.
         events = defaultdict(list)
         for event in api_events:
+            # Skip events related to filtered containers
+            if event['id'] in skipped_container_ids:
+                continue
             # Known bug: from may be missing
             if 'from' in event:
                 events[event['from']].insert(0, event)
