@@ -82,8 +82,8 @@ class MySqlPS(AgentCheck):
         # Send the metrics to Datadog based on the type of the metric
         self._rate_or_gauge_statuses(METRICS_MAP, mysql_metrics, tags)
 
-        # compute 95th percentile query execution time per database
-        #self.gauge("mysql.sys.query_exec_time_95th_us_per_db", self._get_query_exec_time_95th_us_per_db(db), tags=tags)
+        # report avg query response time per schema to Datadog
+        self._gauge_query_exec_time_per_schema(db, "mysql.performance.query_run_time_avg")
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
@@ -127,51 +127,32 @@ class MySqlPS(AgentCheck):
 
         return query_exec_time_95th_per
 
-    def _get_query_exec_time_95th_us_per_db(self, db):
-        # Fetches the 95th percentile query execution time per db and returns
-        # the value in microseconds
+    def _gauge_query_exec_time_per_schema(self, db, metric_name):
+        # Fetches the avg query execution time per schema and returns the
+        # value in microseconds
 
-        sql_95th_percentile = """SELECT schema_name, avg_us, percentile,
-                ( 
-                    CASE schema_name 
-                    WHEN @cur_schema_name
-                    THEN @row_num := @row_num + 1 
-                    ELSE @row_num := 1 AND @cur_schema_name := schema_name END
-                ) + 1 as row_num
-            FROM
-                (
-                SELECT s2.schema_name, s2.avg_us avg_us,
-                       IFNULL(SUM(s1.cnt)/NULLIF((SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE schema_name=s1.schema_name), 0), 0) percentile
-                  FROM (SELECT schema_name, COUNT(*) cnt, ROUND(avg_timer_wait/1000000) AS avg_us 
-                        FROM performance_schema.events_statements_summary_by_digest 
-                        WHERE schema_name IS NOT NULL 
-                        GROUP BY schema_name, avg_us) AS s1
-                  JOIN (SELECT schema_name, COUNT(*) cnt, ROUND(avg_timer_wait/1000000) AS avg_us 
-                        FROM performance_schema.events_statements_summary_by_digest 
-                        WHERE schema_name IS NOT NULL 
-                        GROUP BY schema_name, avg_us) AS s2
-                    ON s1.avg_us <= s2.avg_us and s1.schema_name = s2.schema_name
-                 GROUP BY s2.schema_name, s2.avg_us
-                HAVING percentile > 0.95
-                 ORDER BY s2.schema_name, percentile
-                ) as t
-            JOIN (SELECT @curRow := 0, @curType := '') r
-            HAVING row_num = 1"""
+        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(avg_timer_wait/1000000) AS avg_us 
+            FROM performance_schema.events_statements_summary_by_digest 
+            WHERE schema_name IS NOT NULL 
+            GROUP BY schema_name"""
 
         cursor = db.cursor()
-        cursor.execute(sql_95th_percentile)
+        cursor.execute(sql_avg_query_run_time)
 
         if cursor.rowcount < 1:
             raise Exception("Failed to fetch records from the table performance_schema.events_statements_summary_by_digest")
 
-        db_query_95th_exec_us = {}
+        schema_query_avg_run_time = {}
         for row in cursor.fetchall():
-            db_query_95th_exec_us[row[0]] = row[1]
+            schema_name = str(row[0])
+            avg_us = long(row[2])
+
+            self.gauge(metric_name, avg_us, tags=["schema:%s" % schema_name])
 
         cursor.close()
         del cursor
 
-        return db_query_95th_exec_us
+        return True
 
     def _get_query_first_seen_seconds(self, db):
         # Returns the number of seconds since any query was first executed
