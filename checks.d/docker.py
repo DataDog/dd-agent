@@ -188,14 +188,29 @@ class Docker(AgentCheck):
 
         return running_containers, ids_to_names
 
+    def _prepare_filters(self, instance):
+        # The reasoning is to check exclude first, so we can skip if there is no exclude
+        if not instance.get("exclude"):
+            return False
+
+        # Compile regex
+        instance["exclude_patterns"] = []
+        instance["include_patterns"] = []
+        for rule in instance.get("exclude"):
+            instance["exclude_patterns"].append(re.compile(rule))
+        for rule in instance.get("include", []):
+            instance["include_patterns"].append(re.compile(rule))
+
+        return True
+
     def _is_container_excluded(self, instance, tags):
-        if self._tags_match_filters(tags, instance.get("exclude", [])):
-            if self._tags_match_filters(tags, instance.get("include", [])):
+        if self._tags_match_patterns(tags, instance.get("exclude_patterns")):
+            if self._tags_match_patterns(tags, instance.get("include_patterns")):
                 return False
             return True
         return False
 
-    def _tags_match_filters(self, tags, filters):
+    def _tags_match_patterns(self, tags, filters):
         for rule in filters:
             for tag in tags:
                 if re.match(rule, tag):
@@ -206,6 +221,10 @@ class Docker(AgentCheck):
         skipped_container_ids = []
         collect_uncommon_metrics = instance.get("collect_all_metrics", False)
         tags = instance.get("tags", [])
+
+        # Pre-compile regex to include/exclude containers
+        use_filters = self._prepare_filters(instance)
+
         for container in containers:
             container_tags = list(tags)
             for name in container["Names"]:
@@ -216,7 +235,7 @@ class Docker(AgentCheck):
                     container_tags.append(tag)
 
             # Check if the container is included/excluded via its tags
-            if self._is_container_excluded(instance, container_tags):
+            if use_filters and self._is_container_excluded(instance, container_tags):
                 skipped_container_ids.append(container['Id'])
                 continue
 
