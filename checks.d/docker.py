@@ -188,18 +188,18 @@ class Docker(AgentCheck):
 
         return running_containers, ids_to_names
 
-    def _is_container_included(self, instance, tags):
-        def _is_tag_included(tag):
-            for exclude_rule in instance.get("exclude") or []:
-                if re.match(exclude_rule, tag):
-                    for include_rule in instance.get("include") or []:
-                        if re.match(include_rule, tag):
-                            return True
-                    return False
+    def _is_container_excluded(self, instance, tags):
+        if self._tags_match_filters(tags, instance.get("exclude", [])):
+            if self._tags_match_filters(tags, instance.get("include", [])):
+                return False
             return True
-        for tag in tags:
-            if _is_tag_included(tag):
-                return True
+        return False
+
+    def _tags_match_filters(self, tags, filters):
+        for rule in filters:
+            for tag in tags:
+                if re.match(rule, tag):
+                    return True
         return False
 
     def _report_containers_metrics(self, containers, instance):
@@ -216,7 +216,7 @@ class Docker(AgentCheck):
                     container_tags.append(tag)
 
             # Check if the container is included/excluded via its tags
-            if not self._is_container_included(instance, container_tags):
+            if self._is_container_excluded(instance, container_tags):
                 skipped_container_ids.append(container['Id'])
                 continue
 
