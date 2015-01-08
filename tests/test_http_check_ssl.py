@@ -44,14 +44,7 @@ class HttpSslTestCase(unittest.TestCase):
             'timeout' : 1,
             'check_certificate_expiration': True,
             'days_warning': 14
-            },
-            {
-            'name' : 'Mon ECP',
-            'url' : 'https://my.ecp.fr',
-            'timeout' : 1,
-            'check_certificate_expiration': True,
-            'days_warning': 14
-            },
+            }
             ]
         }
 
@@ -73,12 +66,6 @@ class HttpSslTestCase(unittest.TestCase):
 
         # Warning Status due to bad link
         self.check.check(config['instances'][2])
-        # status and ssl_cert
-        sc = self.wait_for_async_service_checks(2)
-        self.assertEqual(sc[1].get('status'), AgentCheck.CRITICAL)
-
-        # should fail because using CACert which is not trusted
-        self.check.check(config['instances'][3])
         # status and ssl_cert
         sc = self.wait_for_async_service_checks(2)
         self.assertEqual(sc[1].get('status'), AgentCheck.CRITICAL)
