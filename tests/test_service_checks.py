@@ -62,7 +62,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.check._process_results()
         warnings = self.check.get_warnings()
 
-        self.assertTrue(len(warnings) == 3, warnings)
+        self.assertTrue(len(warnings) == 4, warnings)
         self.assertTrue(len([k for k in warnings if "Skipping SSL certificate validation" in k])==1, warnings)
 
     def testHTTP(self):

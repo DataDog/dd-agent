@@ -12,6 +12,7 @@ import tornado
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
+from config import _is_affirmative
 from util import headers as agent_headers
 
 
@@ -50,12 +51,12 @@ class HTTPCheck(NetworkCheck):
         headers = agent_headers(self.agentConfig)
         headers.update(config_headers)
         url = instance.get('url', None)
-        response_time = instance.get('collect_response_time', True)
+        response_time = _is_affirmative(instance.get('collect_response_time', True))
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
-        include_content = instance.get('include_content', False)
-        ssl = instance.get('disable_ssl_validation', True)
-        ssl_expire = instance.get('check_certificate_expiration', False)
+        include_content = _is_affirmative(instance.get('include_content', False))
+        ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
+        ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
 
         return url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expire
 
@@ -131,7 +132,7 @@ class HTTPCheck(NetworkCheck):
                     self.SC_STATUS, Status.UP, "UP"
                 ))
 
-        if ssl_expire:
+        if ssl_expire and urlparse(addr)[0] == "https":
             status, msg = self.check_cert_expiration(instance)
             service_checks.append((
                 self.SC_SSL_CERT, status, msg

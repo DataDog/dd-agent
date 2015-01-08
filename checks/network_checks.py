@@ -5,6 +5,7 @@ import time
 from Queue import Queue, Empty
 
 # project
+from config import _is_affirmative
 from checks import AgentCheck
 
 # 3rd party
@@ -161,7 +162,7 @@ class NetworkCheck(AgentCheck):
             # FIXME: 5.3, this has been deprecated before, get rid of events
             # Don't create any event to avoid duplicates with server side
             # service_checks
-            skip_event = instance.get('skip_event', False)
+            skip_event = _is_affirmative(instance.get('skip_event', False))
             instance_name = instance['name']
             if not skip_event:
                 self.warning("Using events for service checks is deprecated in favor of monitors and will be removed in future versions of the Datadog Agent.")
