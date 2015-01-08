@@ -23,7 +23,7 @@ trap "rm -f $npipe" EXIT
 
 
 function on_error() {
-    printf "\033[31m
+    printf "\033[31m$ERROR_MESSAGE
 It looks like you hit an issue when trying to install the Agent.
 
 Troubleshooting and basic usage information for the Agent are available at:
@@ -108,8 +108,23 @@ elif [ $OS = "Debian" ]; then
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
+    ERROR_MESSAGE="ERROR
+Failed to update the sources after adding the Datadog repository.
+This may be due to any of the configured APT sources failing -
+see the logs above to determine the cause.
+If the failing repository is Datadog, please contact Datadog support.
+*****
+"
     $sudo_cmd apt-get update
+    ERROR_MESSAGE="ERROR
+Failed to install the Datadog package, sometimes it may be
+due to another APT source failing. See the logs above to
+determine the cause.
+If the cause is unclear, please contact Datadog support.
+*****
+"
     $sudo_cmd apt-get install -y --force-yes datadog-agent
+    ERROR_MESSAGE=""
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
 Please follow the instructions on the Agent setup page:
