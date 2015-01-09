@@ -249,6 +249,8 @@ class Docker(AgentCheck):
                     for key, (dd_key, metric_type, common_metric) in cgroup['metrics'].iteritems():
                         if key in stats and (common_metric or collect_uncommon_metrics):
                             getattr(self, metric_type)(dd_key, int(stats[key]), tags=container_tags)
+        if use_filters:
+            self.log.debug("List of excluded containers: {0}".format(skipped_container_ids))
 
         return skipped_container_ids
 
@@ -283,6 +285,8 @@ class Docker(AgentCheck):
         for event in api_events:
             # Skip events related to filtered containers
             if event['id'] in skipped_container_ids:
+                self.log.debug("Excluded event: container {0} status changed to {1}".format(
+                    event['id'], event['status']))
                 continue
             # Known bug: from may be missing
             if 'from' in event:
