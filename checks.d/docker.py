@@ -194,12 +194,8 @@ class Docker(AgentCheck):
             return False
 
         # Compile regex
-        instance["exclude_patterns"] = []
-        instance["include_patterns"] = []
-        for rule in instance.get("exclude"):
-            instance["exclude_patterns"].append(re.compile(rule))
-        for rule in instance.get("include", []):
-            instance["include_patterns"].append(re.compile(rule))
+        instance["exclude_patterns"] = [re.compile(rule) for rule in instance.get("exclude", [])]
+        instance["include_patterns"] = [re.compile(rule) for rule in instance.get("include", [])]
 
         return True
 
