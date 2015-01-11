@@ -16,7 +16,7 @@ class TestFluentd(unittest.TestCase):
             "instances": [
                 {
                     "monitor_agent_url": "http://localhost:24220/api/plugins.json",
-                    "tags": [ "instance:first" ],
+                    "plugin_ids": [ "plg1" ],
                 }
             ]
         }
@@ -37,7 +37,7 @@ class TestFluentd(unittest.TestCase):
             elif m[0] == 'fluentd.forward.buffer_total_queued_size':
                 self.assertEquals(m[2], 0)
             self.assertEquals(m[3]['type'], 'gauge')
-            self.assertEquals(m[3]['tags'], ['instance:first'])
+            self.assertEquals(m[3]['tags'], ['plugin_id:plg1'])
 
         service_checks = check.get_service_checks()
         service_checks_count = len(service_checks)
@@ -55,7 +55,7 @@ class TestFluentd(unittest.TestCase):
             "instances": [
                 {
                     "monitor_agent_url": "http://localhost:24222/api/plugins.json",
-                    "tags": [ "instance:second" ],
+                    "plugin_ids": [ "plg2" ],
                 }
             ]
         }
