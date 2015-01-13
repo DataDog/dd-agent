@@ -1,0 +1,30 @@
+init_config:
+    default_timeout: 5
+
+instances:
+        # Each instance should contain a URL which will return a JSON hash (and nothing else)
+        # that contains metrics and their values.
+        #
+        # EXAMPLE OUTPUT:
+        #
+        # {"widgets_processed":82004450,"widgets_in_queue":263}
+    -   url: http://my.app.mycompany.com/metrics/widgets
+        #
+        # Metrics will be submitted to Datadog prefixed with the text specified below
+        #
+        prefix: 'myapp.'
+        #
+        # Optionally apply some tags to this instance's metrics
+        #
+        tags:
+        - widgets
+        - prod
+        #
+        # For each of the metrics, you need to specify a data type.
+        # Currently, only "counter" and "gauge" are supported
+        #
+        # Format is:    metric_name_in_json_hash: metric_type
+        #
+        metrics:
+          widgets_processed: counter
+          widgets_in_queue: gauge
