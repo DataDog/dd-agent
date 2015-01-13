@@ -625,6 +625,11 @@ class ForwarderStatus(AgentStatus):
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
         self.proxy_data = get_config().get('proxy_settings')
+        username = self.proxy_data.get('user')
+        if username:
+            hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
+            self.hidden_username = '*' * 5 + username[hidden:]
+            self.hidden_password = '*' * 10
 
     def body_lines(self):
         lines = [
@@ -644,11 +649,7 @@ class ForwarderStatus(AgentStatus):
                 "  Host: %s" % self.proxy_data.get('host'),
                 "  Port: %s" % self.proxy_data.get('port')
             ]
-            username = self.proxy_data.get('user')
-            if username:
-                hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
-                self.hidden_username = '*' * hidden + username[hidden:]
-                self.hidden_password = '*' * len(self.proxy_data.get('password'))
+            if self.proxy_data.get('user'):
                 lines += [
                     "  Username: %s" % self.hidden_username,
                     "  Password: %s" % self.hidden_password
