@@ -570,6 +570,7 @@ class CollectorStatus(AgentStatus):
             status_info["ntp_offset"] = ntp_offset
         status_info["ntp_warning"] = warn_ntp
         status_info["utc_time"] = datetime.datetime.utcnow().__str__()
+
         return status_info
 
 
@@ -597,7 +598,6 @@ class DogstatsdStatus(AgentStatus):
             "Metric count: %s" % self.metric_count,
             "Event count: %s" % self.event_count,
         ]
-
         return lines
 
     def to_dict(self):
@@ -633,14 +633,18 @@ class ForwarderStatus(AgentStatus):
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
             "Transactions received: %s" % self.transactions_received,
-            "Transactions flushed: %s" % self.transactions_flushed
+            "Transactions flushed: %s" % self.transactions_flushed,
+            ""
         ]
 
         if self.proxy_data:
-            lines.extend([
-                "Proxy host: %s" % self.proxy_data.get('host'),
-                "Proxy port: %s" % self.proxy_data.get('port')
-            ])
+            lines += [
+                "Proxy",
+                "=====",
+                "",
+                "  Host: %s" % self.proxy_data.get('host'),
+                "  Port: %s" % self.proxy_data.get('port')
+            ]
         else:
             lines.append("No proxy currently used")
 
