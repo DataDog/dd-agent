@@ -647,9 +647,11 @@ class ForwarderStatus(AgentStatus):
             username = self.proxy_data.get('user')
             if username:
                 hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
+                self.hidden_username = '*' * hidden + username[hidden:]
+                self.hidden_password = '*' * len(self.proxy_data.get('password'))
                 lines += [
-                    "  Username: %s" % ('*' * hidden) + username[hidden:],
-                    "  Password: %s" % ('*' * len(self.proxy_data.get('password')))
+                    "  Username: %s" % self.hidden_username,
+                    "  Password: %s" % self.hidden_password
                 ]
 
         return lines
