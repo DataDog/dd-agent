@@ -1,0 +1,8 @@
+init_config:
+
+instances:
+#   -   username: username
+#       password: password
+#       # the url will probably be something like http://<hostname>:8161
+#       # the agent check will append /admin/xml/queues.jsp to the url
+#       url: http://localhost:8161
