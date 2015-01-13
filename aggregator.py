@@ -806,6 +806,22 @@ class MetricsAggregator(Aggregator):
         self.count = 0
         return metrics
 
+def get_formatter(config):
+  formatter = api_formatter
+
+  if config['statsd_metric_namespace']:
+    def metric_namespace_formatter_wrapper(metric, value, timestamp, tags, 
+        hostname=None, device_name=None, metric_type=None, interval=None):
+      metric_prefix = config['statsd_metric_namespace']
+      if metric_prefix[-1] != '.':
+        metric_prefix += '.'
+
+      return api_formatter(metric_prefix + metric, value, timestamp, tags, hostname, 
+        device_name, metric_type, interval)
+
+    formatter = metric_namespace_formatter_wrapper
+  return formatter
+  
 
 def api_formatter(metric, value, timestamp, tags, hostname=None, device_name=None,
         metric_type=None, interval=None):
