@@ -65,7 +65,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
 * [BUGFIX] Zookeeper: Fix bad command sending.
 
-### TO be merged / To be done
+### To be merged / To be done
 * [FEATURE] Adding “min” metric to histograms. See [#1219][]
 * [FEATURE] Activemq: New ActiveMQ XML check that collect more metrics. See [#1227][] (Thanks [@brettlangdon][])
 * [FEATURE] Postgresql: Include table count as a metric. See [#1192][]
