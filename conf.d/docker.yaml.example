@@ -27,25 +27,26 @@ instances:
     # Example:
     # tags: ["extra_tag", "env:example"]
 
-    # To include or exclude containers based on their tags, use the include and
-    # exclude keys in your instance.
-    # The reasoning is: if a tag matches an exclude rule, it won't be included
-    # unless it also matches an include rule.
+    # Exclude containers based on their tags
+    # An excluded container will ne longer report performance metrics or events. However,
+    # we still count the number of running and stopped of all containers.
     #
+    # How it works: if a tag matches an exclude rule, it won't be included
+    # unless it also matches an include rule.
     # Examples:
     #
     # exclude all, except ubuntu and debian.
     # include:
-    #   - "image:ubuntu"
-    #   - "image:debian"
+    #   - "docker_image:ubuntu"
+    #   - "docker_image:debian"
     # exclude:
     #   - ".*"
     #
     # include all, except ubuntu and debian.
     # include: []
     # exclude:
-    #   - "image:ubuntu"
-    #   - "image:debian"
+    #   - "docker_image:ubuntu"
+    #   - "docker_image:debian"
     #
     # include: []
     # exclude: []
@@ -55,7 +56,8 @@ instances:
     # collect_events: true
 
     # Collect disk usage per container with docker.disk.size metric.
-    # Warning: Some bugs in Docker (especially Docker 1.2) can break it, use with caution.
+    # Warning: This feature is broken in some version of Docker (such as 1.2).
+    # Test it before running it in production.
     #
     # collect_container_size: false
 

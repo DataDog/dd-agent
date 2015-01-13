@@ -1,6 +1,71 @@
 Changes
 =======
 
+# 5.2.0 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.1.1...master
+
+### New and updated integrations
+* CouchDB
+* Couchbase
+* Docker
+* ElasticSearch
+* etcd
+* Gearman
+* GUnicorn
+* HTTP
+* KyotoTycoon
+* Marathon
+* Mesos
+* Network
+* Postgresql
+* Process
+* Riak
+* SNMP
+* Supervisor
+* TokuMX
+* Varnish
+* VSphere
+* Windows Event Viewer
+* Windows Services
+* Windows System metrics
+
+
+### Changes
+* [FEATURE] Dogstatsd: Add an option to namespace all metrics. See [#1210][] (Thanks [@igor47][])
+* [FEATURE] Couchdb: Add a service check. See [#1201][]
+* [FEATURE] Couchbase: Add a service check. See [#1200][]
+* [FEATURE] Gearman: Add a service check. See [#1203][]
+* [FEATURE] GUnicorn: Add a service check. See [#1163][]
+* [FEATURE] KyotoTycoon: Add a service check. See [#1202][]
+* [FEATURE] Marathon: Add a service check. See [#1205][]
+* [FEATURE] Mesos: Add a service check. See [#1205][]
+* [FEATURE] Riak: Add a service check. See [#1187][]
+* [FEATURE] SNMP: Add a service check. See [#1236][]
+* [FEATURE] TokuMX: Add a service check. See [#1173][]
+* [FEATURE] Varnish: Add a service check. See [#1213][]
+* [FEATURE] VSphere: Add a service check. See [#1238][]
+* [FEATURE] VSphere: Allow host filtering. See [#1226][]
+* [FEATURE] HTTPCHeck: Check for SSL certificate expiration. See [#1152][]
+* [FEATURE] etcd: Add new etcd integration. See [#1235][] (Thanks [@gphat][])
+* [FEATURE] Process: Better SmartOS support. See [#1073][] (Thanks [@djensen47][])
+* [FEATURE] Windows Event Viewer: Allow filtering by id. See [#1255][]
+* [FEATURE] Windows Services: Monitor state of Windows Services. See [#1225][]
+* [FEATURE] Windows: Get more system metrics regarding memory and disk usage.
+* [FEATURE] Windows: Better GUI
+
+* [BUGFIX] Docker: Filter events too. See [#1285][]
+* [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
+* [BUGFIX] ElasticSearch: Only query the local node. See [#1181][] (Thanks [@jonaf][])
+* [BUGFIX] Marathon: Fix check on Marathon >= 0.7. See [#1240][]
+* [BUGFIX] Network: Fix interface skipping. See [#1260][] (Thanks [@sirlantis][])
+* [BUGFIX] Postgreql: Fix service check. See [#1273][]
+* [BUGFIX] Postgresql: Fix BGW metrics. See [#1272][] (Thanks [@ipolishchuk][])
+* [BUGFIX] Postgresql: Fix buffers_backend_fsync. See [#1275][]
+* [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
+* [BUGFIX] Zookeeper: Fix bad command sending.
+
+
 # 5.1.1 / 12-09-2014
 #### Details
 https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
@@ -1275,34 +1340,66 @@ If you use ganglia, you want this version.
 [#1065]: https://github.com/DataDog/dd-agent/issues/1065
 [#1068]: https://github.com/DataDog/dd-agent/issues/1068
 [#1069]: https://github.com/DataDog/dd-agent/issues/1069
+[#1073]: https://github.com/DataDog/dd-agent/issues/1073
 [#1105]: https://github.com/DataDog/dd-agent/issues/1105
 [#1117]: https://github.com/DataDog/dd-agent/issues/1117
 [#1123]: https://github.com/DataDog/dd-agent/issues/1123
 [#1124]: https://github.com/DataDog/dd-agent/issues/1124
+[#1152]: https://github.com/DataDog/dd-agent/issues/1152
+[#1155]: https://github.com/DataDog/dd-agent/issues/1155
 [#1162]: https://github.com/DataDog/dd-agent/issues/1162
+[#1163]: https://github.com/DataDog/dd-agent/issues/1163
 [#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1173]: https://github.com/DataDog/dd-agent/issues/1173
+[#1181]: https://github.com/DataDog/dd-agent/issues/1181
+[#1187]: https://github.com/DataDog/dd-agent/issues/1187
+[#1200]: https://github.com/DataDog/dd-agent/issues/1200
+[#1201]: https://github.com/DataDog/dd-agent/issues/1201
+[#1202]: https://github.com/DataDog/dd-agent/issues/1202
+[#1203]: https://github.com/DataDog/dd-agent/issues/1203
+[#1205]: https://github.com/DataDog/dd-agent/issues/1205
 [#1207]: https://github.com/DataDog/dd-agent/issues/1207
 [#1208]: https://github.com/DataDog/dd-agent/issues/1208
+[#1210]: https://github.com/DataDog/dd-agent/issues/1210
+[#1213]: https://github.com/DataDog/dd-agent/issues/1213
 [#1218]: https://github.com/DataDog/dd-agent/issues/1218
 [#1221]: https://github.com/DataDog/dd-agent/issues/1221
 [#1222]: https://github.com/DataDog/dd-agent/issues/1222
+[#1225]: https://github.com/DataDog/dd-agent/issues/1225
+[#1226]: https://github.com/DataDog/dd-agent/issues/1226
+[#1235]: https://github.com/DataDog/dd-agent/issues/1235
+[#1236]: https://github.com/DataDog/dd-agent/issues/1236
+[#1238]: https://github.com/DataDog/dd-agent/issues/1238
+[#1240]: https://github.com/DataDog/dd-agent/issues/1240
+[#1255]: https://github.com/DataDog/dd-agent/issues/1255
+[#1260]: https://github.com/DataDog/dd-agent/issues/1260
+[#1267]: https://github.com/DataDog/dd-agent/issues/1267
+[#1272]: https://github.com/DataDog/dd-agent/issues/1272
+[#1273]: https://github.com/DataDog/dd-agent/issues/1273
+[#1275]: https://github.com/DataDog/dd-agent/issues/1275
+[#1285]: https://github.com/DataDog/dd-agent/issues/1285
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
+[@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
 [@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
 [@dcrosta]: https://github.com/dcrosta
+[@djensen47]: https://github.com/djensen47
 [@echohead]: https://github.com/echohead
+[@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
 [@igroenewold]: https://github.com/igroenewold
 [@imlucas]: https://github.com/imlucas
+[@ipolishchuk]: https://github.com/ipolishchuk
 [@ive]: https://github.com/ive
 [@jamescrowley]: https://github.com/jamescrowley
 [@jkoppe]: https://github.com/jkoppe
+[@jonaf]: https://github.com/jonaf
 [@joningle]: https://github.com/joningle
 [@jzoldak]: https://github.com/jzoldak
 [@leifwalsh]: https://github.com/leifwalsh
@@ -1315,6 +1412,7 @@ If you use ganglia, you want this version.
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford
 [@shamada-kuuluu]: https://github.com/shamada-kuuluu
+[@sirlantis]: https://github.com/sirlantis
 [@skingry]: https://github.com/skingry
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees

@@ -71,8 +71,11 @@ SELECT datname,
         'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', MONOTONIC),
         'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', MONOTONIC),
         'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', MONOTONIC),
-        'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
         'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', MONOTONIC),
+    }
+
+    NEWER_91_BGW_METRICS = {
+        'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
     }
 
     NEWER_92_BGW_METRICS = {
@@ -218,6 +221,9 @@ SELECT %s
 
         return False
 
+    def _is_9_1_or_above(self, key, db):
+        return self._is_above(key, db, [9,1,0])
+
     def _is_9_2_or_above(self, key, db):
         return self._is_above(key, db, [9,2,0])
 
@@ -244,10 +250,11 @@ SELECT %s
         # Extended 9.2+ metrics if needed
         metrics = self.bgw_metrics.get(key)
         if metrics is None:
+            self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
+            if self._is_9_1_or_above(key, db):
+                self.bgw_metrics[key].update(self.NEWER_91_BGW_METRICS)
             if self._is_9_2_or_above(key, db):
-                self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS, **self.NEWER_92_BGW_METRICS)
-            else:
-                self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
+                self.bgw_metrics[key].update(self.NEWER_92_BGW_METRICS)
             metrics = self.bgw_metrics.get(key)
         return metrics
 
