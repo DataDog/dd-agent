@@ -624,8 +624,7 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
-
-        self.proxy_data = get_config().get('proxy_settings', None)
+        self.proxy_data = get_config().get('proxy_settings')
 
     def body_lines(self):
         lines = [
@@ -645,8 +644,13 @@ class ForwarderStatus(AgentStatus):
                 "  Host: %s" % self.proxy_data.get('host'),
                 "  Port: %s" % self.proxy_data.get('port')
             ]
-        else:
-            lines.append("No proxy currently used")
+            username = self.proxy_data.get('user')
+            if username:
+                hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
+                lines += [
+                    "  Username: %s" % ('*' * hidden) + username[hidden:],
+                    "  Password: %s" % ('*' * len(self.proxy_data.get('password')))
+                ]
 
         return lines
 
