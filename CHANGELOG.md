@@ -59,6 +59,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] Network: Fix interface skipping. See [#1260][] (Thanks [@sirlantis][])
 * [BUGFIX] Postgreql: Fix service check. See [#1273][]
 * [BUGFIX] Postgresql: Fix BGW metrics. See [#1272][] (Thanks [@ipolishchuk][])
+* [BUGFIX] Postgresql: Fix buffers_backend_fsync. See [#1275][]
 * [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
 * [BUGFIX] Zookeeper: Fix bad command sending.
 
@@ -1373,6 +1374,7 @@ If you use ganglia, you want this version.
 [#1267]: https://github.com/DataDog/dd-agent/issues/1267
 [#1272]: https://github.com/DataDog/dd-agent/issues/1272
 [#1273]: https://github.com/DataDog/dd-agent/issues/1273
+[#1275]: https://github.com/DataDog/dd-agent/issues/1275
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
