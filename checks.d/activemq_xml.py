@@ -45,7 +45,7 @@ class ActiveMQXML(AgentCheck):
         root = ElementTree.fromstring(data)
         queues = []
 
-        for queue in root.iter("queue"):
+        for queue in root.findall("queue"):
             name = queue.get("name")
             if not name:
                 continue
@@ -79,7 +79,7 @@ class ActiveMQXML(AgentCheck):
         root = ElementTree.fromstring(data)
         topics = []
 
-        for topic in root.iter("topic"):
+        for topic in root.findall("topic"):
             name = topic.get("name")
             if not name:
                 continue
@@ -121,7 +121,7 @@ class ActiveMQXML(AgentCheck):
             "active",
         ]
 
-        for subscriber in root.iter("subscriber"):
+        for subscriber in root.findall("subscriber"):
             clientId = subscriber.get("clientId")
             if not clientId:
                 continue
