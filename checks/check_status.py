@@ -18,7 +18,7 @@ import os.path
 
 # project
 import config
-from config import _windows_commondata_path
+from config import _windows_commondata_path, get_config
 from util import get_os, plural, Platform
 
 # 3rd party
@@ -570,7 +570,6 @@ class CollectorStatus(AgentStatus):
             status_info["ntp_offset"] = ntp_offset
         status_info["ntp_warning"] = warn_ntp
         status_info["utc_time"] = datetime.datetime.utcnow().__str__()
-
         return status_info
 
 
@@ -598,6 +597,7 @@ class DogstatsdStatus(AgentStatus):
             "Metric count: %s" % self.metric_count,
             "Event count: %s" % self.event_count,
         ]
+
         return lines
 
     def to_dict(self):
@@ -625,6 +625,8 @@ class ForwarderStatus(AgentStatus):
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
 
+        self.proxy_data = get_config().get('proxy_settings', None)
+
     def body_lines(self):
         lines = [
             "Queue Size: %s bytes" % self.queue_size,
@@ -633,6 +635,15 @@ class ForwarderStatus(AgentStatus):
             "Transactions received: %s" % self.transactions_received,
             "Transactions flushed: %s" % self.transactions_flushed
         ]
+
+        if self.proxy_data:
+            lines.extend([
+                "Proxy host: %s" % self.proxy_data.get('host'),
+                "Proxy port: %s" % self.proxy_data.get('port')
+            ])
+        else:
+            lines.append("No proxy currently used")
+
         return lines
 
     def has_error(self):
