@@ -8,6 +8,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 ### New and updated integrations
 * CouchDB
 * Couchbase
+* Docker
 * ElasticSearch
 * etcd
 * Gearman
@@ -53,6 +54,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] Windows: Get more system metrics regarding memory and disk usage.
 * [FEATURE] Windows: Better GUI
 
+* [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
 * [BUGFIX] ElasticSearch: Only query the local node. See [#1181][] (Thanks [@jonaf][])
 * [BUGFIX] Marathon: Fix check on Marathon >= 0.7. See [#1240][]
@@ -1375,6 +1377,7 @@ If you use ganglia, you want this version.
 [#1272]: https://github.com/DataDog/dd-agent/issues/1272
 [#1273]: https://github.com/DataDog/dd-agent/issues/1273
 [#1275]: https://github.com/DataDog/dd-agent/issues/1275
+[#1285]: https://github.com/DataDog/dd-agent/issues/1285
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@arthurnn]: https://github.com/arthurnn
