@@ -131,7 +131,7 @@ class MySqlPS(AgentCheck):
         # Fetches the avg query execution time per schema and returns the
         # value in microseconds
 
-        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(avg_timer_wait/1000000) AS avg_us 
+        sql_avg_query_run_time = """SELECT schema_name, SUM(count_star) cnt, ROUND(AVG(avg_timer_wait)/1000000) AS avg_us 
             FROM performance_schema.events_statements_summary_by_digest 
             WHERE schema_name IS NOT NULL 
             GROUP BY schema_name"""
