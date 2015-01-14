@@ -3,6 +3,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 # 3rd party
 from pysnmp.entity.rfc3413.oneliner import cmdgen
@@ -44,7 +45,7 @@ class SnmpCheck(AgentCheck):
         ignore_nonincreasing_oid = False
         if init_config is not None:
             mibs_path = init_config.get("mibs_folder")
-            ignore_nonincreasing_oid = init_config.get("ignore_nonincreasing_oid", False)
+            ignore_nonincreasing_oid = _is_affirmative(init_config.get("ignore_nonincreasing_oid", False))
         SnmpCheck.create_command_generator(mibs_path, ignore_nonincreasing_oid)
 
     @classmethod
