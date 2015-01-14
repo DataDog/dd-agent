@@ -10,6 +10,7 @@ import socket
 import string
 import subprocess as sp
 import sys
+import tempfile
 import time
 
 # project
@@ -906,12 +907,16 @@ def _get_subprocess_output(command, log):
     Run the given subprocess command and return it's output. Raise an Exception
     if an error occurs.
     """
-    proc = sp.Popen(command, stdout=sp.PIPE, close_fds=True, stderr=sp.PIPE)
-    err = proc.stderr.read()
-    if err:
-        log.debug("Error while running %s : %s" %(" ".join(command), err))
+    with tempfile.TemporaryFile('rw') as stdout_f:
+        proc = sp.Popen(command, close_fds=True, stdout=stdout_f, stderr=sp.PIPE)
+        proc.wait()
+        err = proc.stderr.read()
+        if err:
+            log.debug("Error while running %s : %s" %(" ".join(command), err))
 
-    return proc.stdout.read()
+        stdout_f.seek(0)
+        output = stdout_f.read()
+    return output
 
 
 if __name__ == '__main__':
