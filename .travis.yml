@@ -1,5 +1,10 @@
 sudo: false
 
+branches:
+  only:
+    - master
+    - /^\d+\.\d+\.x$/ # release forked patches branch
+
 services:
   - couchdb # FIXME see ci/couchdb
 
@@ -76,6 +81,6 @@ after_error:
   - echo "Logs from installation process come here / DEBUG LOGS"
   - cat /tmp/ci.log
 
-#notifications:
-#  hipchat:
-#    - secure: "DilCAl72f0WU54QIeHzwEfGn2at5+WzEfd3+sFARFyHNje4YLkELnF3iUw5aolaroNUc4Kr0NEYKmpsVQ9EWtKR2DosF2CdMNVv79hntYPyWwU+rfZTRI6NJlnTr1BMUEi7nMraVFDGbpYkXm/qqBPFKp8/cBOHbfNn9m+0dffg="
+notifications:
+  hipchat:
+    - secure: "DilCAl72f0WU54QIeHzwEfGn2at5+WzEfd3+sFARFyHNje4YLkELnF3iUw5aolaroNUc4Kr0NEYKmpsVQ9EWtKR2DosF2CdMNVv79hntYPyWwU+rfZTRI6NJlnTr1BMUEi7nMraVFDGbpYkXm/qqBPFKp8/cBOHbfNn9m+0dffg="
