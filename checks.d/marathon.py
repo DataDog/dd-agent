@@ -9,7 +9,17 @@ class Marathon(AgentCheck):
     DEFAULT_TIMEOUT = 5
     SERVICE_CHECK_NAME = 'marathon.can_connect'
 
-    APP_METRICS = ['backoffFactor', 'backoffSeconds', 'cpus', 'dist', 'instances', 'mem', 'taskRateLimit', 'tasksRunning', 'tasksStaged']
+    APP_METRICS = [
+        'backoffFactor',
+        'backoffSeconds',
+        'cpus',
+        'dist',
+        'instances',
+        'mem',
+        'taskRateLimit',
+        'tasksRunning',
+        'tasksStaged'
+    ]
 
     def check(self, instance):
         if 'url' not in instance:
@@ -47,5 +57,10 @@ class Marathon(AgentCheck):
         if r.status_code != 200:
             self.status_code_event(url, r)
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
+        else:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags = ["url:{}".format(url)]
+            )
+
 
         return r.json()
