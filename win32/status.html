@@ -250,7 +250,7 @@
           <dl>
             <dt>Host</dt>     <dd>{{ forwarder['proxy_data']['host'] }}</dd>
             <dt>Port</dt>     <dd>{{ forwarder['proxy_data']['port'] }}</dd>
-            {% if forwarder['hidden_username'] %}
+            {% if forwarder.get('hidden_username') %}
             <dt>Username</dt>     <dd>{{ forwarder['hidden_username'] }}</dd>
             <dt>Password</dt>     <dd>{{ forwarder['hidden_password'] }}</dd>
             {% end %}
