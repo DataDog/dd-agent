@@ -46,6 +46,7 @@ class Marathon(AgentCheck):
     def get_json(self, url, timeout):
         try:
             r = requests.get(url, timeout=timeout)
+            r.raise_for_status()
         except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
@@ -53,9 +54,12 @@ class Marathon(AgentCheck):
                 tags = ["url:{}".format(url)])
             raise Exception("Timeout when hitting %s" % url)
 
-        if r.status_code != 200:
-            self.status_code_event(url, r)
+        except requests.exceptions.HTTPError:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                message='%s returned a status of %s' % (url, r.status_code),
+                tags = ["url:{}".format(url)])
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
+
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                 tags = ["url:{}".format(url)]
