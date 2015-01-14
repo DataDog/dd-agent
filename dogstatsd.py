@@ -412,7 +412,7 @@ def main(config_path=None):
 
     # If no args were passed in, run the server in the foreground.
     if not args:
-        daemon.run()
+        daemon.start(foreground=True)
         return 0
 
     # Otherwise, we're process the deamon command.

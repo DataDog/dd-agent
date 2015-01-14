@@ -256,12 +256,12 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.run()
+            def child_func(): agent.start(foreground=True)
             def parent_func(): agent.start_event = False
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
-            agent.run(config=agentConfig)
+            agent.start(foreground=True)
 
     elif 'check' == command:
         if len(args) < 2:
