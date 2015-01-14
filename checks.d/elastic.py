@@ -10,6 +10,7 @@ import requests
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import headers, Platform
 
 
@@ -141,7 +142,7 @@ class ESCheck(AgentCheck):
         if url is None:
             raise Exception("An url must be specified in the instance")
 
-        is_external = instance.get('is_external', False)
+        is_external = _is_affirmative(instance.get('is_external', False))
 
         # Support URLs that have a path in them from the config, for
         # backwards-compatibility.
