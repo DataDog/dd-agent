@@ -1,42 +1,25 @@
 require './ci/common'
 
-def es_version
-  ENV['ES_VERSION'] || '1.4.2'
-end
-
-def es_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/es_#{es_version}"
-end
+# FIXME: use our own brew of MySQL like other flavors
 
 namespace :ci do
-  namespace :elasticsearch do |flavor|
+  namespace :mysql do |flavor|
     task :before_install => ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
-      unless Dir.exist? File.expand_path(es_rootdir)
-        sh %(curl -s -L\
-             -o $VOLATILE_DIR/elasticsearch-#{es_version}.tar.gz\
-             https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-#{es_version}.tar.gz)
-        sh %(mkdir -p #{es_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/elasticsearch-#{es_version}.tar.gz\
-             -C #{es_rootdir} --strip-components=1)
-      end
-    end
+    task :install => ['ci:common:install']
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(#{es_rootdir}/bin/elasticsearch -d)
-      sleep_for 10
+      sh %(mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
     end
 
     task :script => ['ci:common:script'] do
       this_provides = [
-        'elasticsearch'
+        'mysql'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
     task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop elasticsearch
 
     task :execute do
       exception = nil

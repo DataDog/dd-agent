@@ -9,10 +9,10 @@ class SshTestCase(unittest.TestCase):
     def test_ssh(self):
         config = {
             'instances': [{
-                'host': 'localhost',
+                'host': 'io.smashthestack.org',
                 'port': 22,
-                'username': 'test',
-                'password': 'test',
+                'username': 'level1',
+                'password': 'level1',
                 'sftp_check': False,
                 'private_key_file': '',
                 'add_missing_keys': True

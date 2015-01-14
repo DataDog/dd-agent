@@ -1,30 +1,65 @@
 require './ci/common'
 
+# FIXME test against different versions of tomcat
+# and JDKs
+
+def tomcat_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/tomcat-6.0.43"
+end
+
 namespace :ci do
-  namespace :tomcat do
-    task :before_install => ['ci:common:before_install'] do
-      apt_update
-    end
+  namespace :tomcat do |flavor|
+    task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
-      sh %Q{sudo apt-get install tomcat6 -qq}
-      sh %Q{sudo apt-get install solr-tomcat -qq}
+      unless Dir.exist? File.expand_path(tomcat_rootdir)
+        sh %(curl -s -L\
+             -o $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
+             http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz)
+        sh %(mkdir -p #{tomcat_rootdir})
+        sh %(tar zxf $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
+             -C #{tomcat_rootdir} --strip-components=1)
+      end
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %Q{sudo cp $TRAVIS_BUILD_DIR/tests/tomcat_cfg.xml /etc/tomcat6/server.xml}
-      sh %Q{sudo cp $TRAVIS_BUILD_DIR/tests/tomcat6 /etc/default/tomcat6}
-      sh %Q{sudo service tomcat6 restart}
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/setenv.sh #{tomcat_rootdir}/bin/)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/server.xml #{tomcat_rootdir}/conf/server.xml)
+      sh %(mkdir -p $VOLATILE_DIR/jmx_yaml)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/tomcat.yaml $VOLATILE_DIR/jmx_yaml/)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/jmx.yaml $VOLATILE_DIR/jmx_yaml/)
+      sh %(#{tomcat_rootdir}/bin/startup.sh)
+      sleep_for 5
     end
 
     task :script => ['ci:common:script'] do
       this_provides = [
-        'solr',
         'tomcat'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :execute => [:before_install, :install, :before_script, :script]
+    task :cleanup => ['ci:common:cleanup'] do
+      sh %(#{tomcat_rootdir}/bin/shutdown.sh)
+    end
+
+    task :execute do
+      exception = nil
+      begin
+        %w(before_install install before_script script).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
+      rescue => e
+        exception = e
+        puts "Failed task: #{e.class} #{e.message}".red
+      end
+      if ENV['SKIP_CLEANUP']
+        puts 'Skipping cleanup, disposable environments are great'.yellow
+      else
+        puts 'Cleaning up'
+        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      fail exception if exception
+    end
   end
 end

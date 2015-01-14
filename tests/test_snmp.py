@@ -39,7 +39,7 @@ class TestSNMP(unittest.TestCase):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "OID": "1.3.6.1.2.1.7.1.0", # Counter (needlessly specify the index)
@@ -94,7 +94,7 @@ class TestSNMP(unittest.TestCase):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "MIB": "IF-MIB",
@@ -194,7 +194,7 @@ class TestSNMP(unittest.TestCase):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "MIB": "IF-MIB",

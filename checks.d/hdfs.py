@@ -5,8 +5,10 @@ from checks import AgentCheck
 import snakebite.client
 import snakebite.version
 try:
+    # FIXME: Can be remove when we upgrade pylint (drop py 2.6)
+    # pylint: disable=E0611
     from snakebite.namenode import Namenode
-except ImportError: 
+except ImportError:
 # This is only available on snakebite >= 2.2.0
 # but snakebite 2.x is only compatible with hadoop >= 2.2.0
 # So we bundle snakebite 1.3.9 and let the possibility to upgrade to a newer version
