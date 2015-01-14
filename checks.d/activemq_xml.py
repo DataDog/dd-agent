@@ -19,12 +19,12 @@ TOPIC_QUEUE_METRICS = {
 }
 
 SUBSCRIBER_TAGS = [
-            "connectionId",
-            "subscriptionName",
-            "destinationName",
-            "selector",
-            "active",
-        ]
+    "connectionId",
+    "subscriptionName",
+    "destinationName",
+    "selector",
+    "active",
+]
 
 MAX_ELEMENTS = 300
 
@@ -37,7 +37,7 @@ class ActiveMQXML(AgentCheck):
         username = instance.get("username")
         password = instance.get("password")
         custom_tags = instance.get('tags', [])
-        max_queues = int(instance.get("mqx_queues", MAX_ELEMENTS))
+        max_queues = int(instance.get("max_queues", MAX_ELEMENTS))
         max_topics = int(instance.get("max_topics", MAX_ELEMENTS))
         max_subscribers = int(instance.get("max_subscribers", MAX_ELEMENTS))
         detailed_queues = instance.get("detailed_queues", [])
