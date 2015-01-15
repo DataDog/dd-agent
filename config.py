@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.1.1"
+AGENT_VERSION = "5.2.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -172,6 +172,10 @@ def _unix_checksd_path():
 
 
 def _is_affirmative(s):
+    # int or real bool
+    if isinstance(s, bool):
+        return bool(s)
+    # try string cast
     return s.lower() in ('yes', 'true', '1')
 
 
@@ -235,6 +239,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
+        'statsd_metric_namespace': None,
     }
 
     # Config handling

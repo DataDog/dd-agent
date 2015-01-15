@@ -54,10 +54,10 @@ class SQLServer(AgentCheck):
         ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''), # BULK_COUNT
         ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''), # BULK_COUNT
         ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User connections', ''), # LARGE_RAWCOUNT
+        ('sqlserver.stats.connections', 'User Connections', ''), # LARGE_RAWCOUNT
         ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
         ('sqlserver.access.page_splits', 'Page Splits/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes Blocked', ''), # LARGE_RAWCOUNT
+        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''), # LARGE_RAWCOUNT
         ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '') #BULK_COUNT
     ]
 
@@ -223,9 +223,9 @@ class SQLServer(AgentCheck):
             # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
-            candidates = ( counter_name + " Base",
-                           counter_name.replace("(ms)", "Base"),
-                           counter_name.replace("Avg ", "") + " Base"
+            candidates = ( counter_name + " base",
+                           counter_name.replace("(ms)", "base"),
+                           counter_name.replace("Avg ", "") + " base"
                            )
             try:
                 cursor.execute(BASE_NAME_QUERY, candidates)

@@ -3,6 +3,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 # 3rd party
 from pysnmp.entity.rfc3413.oneliner import cmdgen
@@ -23,6 +24,8 @@ SNMP_GAUGES = [snmp_type.Gauge32.__name__,
                snmp_type.Unsigned32.__name__,
                CounterBasedGauge64.__name__]
 
+OID_BATCH_SIZE = 10
+
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
            noSuchObject.isSameTypeWith(oid)
@@ -39,18 +42,21 @@ class SnmpCheck(AgentCheck):
 
         # Load Custom MIB directory
         mibs_path = None
+        ignore_nonincreasing_oid = False
         if init_config is not None:
             mibs_path = init_config.get("mibs_folder")
-        SnmpCheck.create_command_generator(mibs_path)
+            ignore_nonincreasing_oid = _is_affirmative(init_config.get("ignore_nonincreasing_oid", False))
+        SnmpCheck.create_command_generator(mibs_path, ignore_nonincreasing_oid)
 
     @classmethod
-    def create_command_generator(cls, mibs_path=None):
+    def create_command_generator(cls, mibs_path, ignore_nonincreasing_oid):
         '''
         Create a command generator to perform all the snmp query.
         If mibs_path is not None, load the mibs present in the custom mibs
         folder. (Need to be in pysnmp format)
         '''
         cls.cmd_generator = cmdgen.CommandGenerator()
+        cls.cmd_generator.ignoreNonIncreasingOid = ignore_nonincreasing_oid
         if mibs_path is not None:
             mib_builder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
                           mibInstrumController.mibBuilder
@@ -121,38 +127,45 @@ class SnmpCheck(AgentCheck):
         auth_data = self.get_auth_data(instance)
 
         snmp_command = self.cmd_generator.nextCmd
-        error_indication, error_status, error_index, var_binds = snmp_command(
-            auth_data,
-            transport_target,
-            *oids,
-            lookupValues = lookup_names,
-            lookupNames = lookup_names
-            )
 
+    	first_oid = 0
+    	all_binds = []
         results = defaultdict(dict)
-        if error_indication:
-            message = "{0} for instance {1}".format(error_indication,
+
+    	while first_oid < len(oids):
+	        error_indication, error_status, error_index, var_binds = snmp_command(
+	            auth_data,
+	            transport_target,
+	            *(oids[first_oid:first_oid+OID_BATCH_SIZE]),
+	            lookupValues = lookup_names,
+	            lookupNames = lookup_names
+	            )
+                if error_indication:
+                    message = "{0} for instance {1}".format(error_indication,
                                                           instance["ip_address"])
-            instance["service_check_error"] = message
-            raise Exception(message)
-        else:
-            if error_status:
-                message = "{0} for instance {1}".format(error_status.prettyPrint(),
-                                                              instance["ip_address"])
-                instance["service_check_error"] = message
-                self.log.warning(message)
-            else:
-                for table_row in var_binds:
-                    for result_oid, value in table_row:
-                        if lookup_names:
-                            object = result_oid.getMibSymbol()
-                            metric =  object[1]
-                            indexes = object[2]
-                            results[metric][indexes] = value
-                        else:
-                            oid = result_oid.asTuple()
-                            matching = ".".join([str(i) for i in oid])
-                            results[matching] = value
+                    instance["service_check_error"] = message
+                    raise Exception(message)
+                else:
+                    if error_status:
+                        message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                                       instance["ip_address"])
+                        instance["service_check_error"] = message
+                        self.log.warning(message)
+                    else:
+                        all_binds.extend(var_binds)
+    		first_oid = first_oid + OID_BATCH_SIZE
+
+        for table_row in all_binds:
+            for result_oid, value in table_row:
+                if lookup_names:
+                    object = result_oid.getMibSymbol()
+                    metric =  object[1]
+                    indexes = object[2]
+                    results[metric][indexes] = value
+                else:
+                    oid = result_oid.asTuple()
+                    matching = ".".join([str(i) for i in oid])
+                    results[matching] = value
 
         return results
 

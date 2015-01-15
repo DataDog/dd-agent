@@ -15,7 +15,7 @@ MAX_WAIT = 30
 HAPROXY_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy.cfg"))
 HAPROXY_OPEN_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy-open.cfg"))
 
-@attr('haproxy', requires='webserver')
+@attr(requires='haproxy')
 class HaproxyTestCase(unittest.TestCase):
     def _wait(self, url):
         loop = 0

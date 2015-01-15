@@ -1,17 +1,68 @@
+sudo: false
+
+branches:
+  only:
+    - master
+    - /^\d+\.\d+\.x$/ # release forked patches branch
+
+services:
+  - couchdb # FIXME see ci/couchdb
+
+cache:
+  bundler: true
+  directories:
+    - $HOME/.pip-cache
+    - $HOME/embedded
+
 language: python
 python:
   - "2.6"
   - "2.7"
 
+matrix:
+  fast_finish: true
+
 env:
   global:
+    - CONCURRENCY=2
     - NOSE_FILTER="not windows"
+    - INTEGRATIONS_DIR=$HOME/embedded
+    - PIP_CACHE=$HOME/.pip-cache
+    - SKIP_CLEANUP=true
+    - VOLATILE_DIR=/tmp
   matrix:
     - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=cache,gearman,database,ssh
-    - TRAVIS_FLAVOR=cassandra,tomcat,jmx # JMX testing machine / need the other ones before
-    - TRAVIS_FLAVOR=elasticsearch,network,sysstat,webserver
     - TRAVIS_FLAVOR=mongo
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.4.2
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.3.7
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.2.4
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.1.2
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.0.3
+    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=0.90.13
+    - TRAVIS_FLAVOR=cassandra
+    - TRAVIS_FLAVOR=sysstat
+    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.8"
+    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.6"
+    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.4"
+    - TRAVIS_FLAVOR=memcache
+    - TRAVIS_FLAVOR=postgres PG_VERSION="9.4.0"
+    - TRAVIS_FLAVOR=postgres PG_VERSION="9.3.5"
+    - TRAVIS_FLAVOR=postgres PG_VERSION="9.2.9"
+    - TRAVIS_FLAVOR=postgres PG_VERSION="9.1.14"
+    - TRAVIS_FLAVOR=postgres PG_VERSION="9.0.18"
+# FIXME: cannot enable gearman on Travis right now
+# because it needs boost
+#    - TRAVIS_FLAVOR=gearman
+    - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
+    - TRAVIS_FLAVOR=mysql
+    - TRAVIS_FLAVOR=couchdb
+    - TRAVIS_FLAVOR=snmpd
+    - TRAVIS_FLAVOR=apache
+    - TRAVIS_FLAVOR=nginx
+    - TRAVIS_FLAVOR=lighttpd
+    - TRAVIS_FLAVOR=haproxy
+    - TRAVIS_FLAVOR=ssh
+    - TRAVIS_FLAVOR=fluentd
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
@@ -20,14 +71,16 @@ before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
   - bundle install
+  - 'ls -al $HOME/embedded'
   - 'rake ci:run'
 
 after_failure:
   - echo "Logs from installation process come here / DEBUG LOGS"
   - cat /tmp/ci.log
-  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /tmp/mongo.log; fi"
-  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod1/mongo.log; fi"
-  - bash -c "if [[ \"$TRAVIS_FLAVOR\" =~ \"mongo\" ]]; then cat /data/mongod2/mongo.log; fi"
+
+after_error:
+  - echo "Logs from installation process come here / DEBUG LOGS"
+  - cat /tmp/ci.log
 
 notifications:
   hipchat:

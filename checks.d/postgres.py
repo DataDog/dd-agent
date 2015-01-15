@@ -19,6 +19,7 @@ class PostgreSql(AgentCheck):
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
     MONOTONIC = AgentCheck.monotonic_count
+    SERVICE_CHECK_NAME = 'postgres.can_connect'
 
     # turning columns into tags
     DB_METRICS = {
@@ -36,22 +37,49 @@ SELECT datname,
         'relation': False,
     }
 
+    COMMON_METRICS = {
+        'numbackends'       : ('postgresql.connections', GAUGE),
+        'xact_commit'       : ('postgresql.commits', RATE),
+        'xact_rollback'     : ('postgresql.rollbacks', RATE),
+        'blks_read'         : ('postgresql.disk_read', RATE),
+        'blks_hit'          : ('postgresql.buffer_hit', RATE),
+        'tup_returned'      : ('postgresql.rows_returned', RATE),
+        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
+        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
+        'tup_updated'       : ('postgresql.rows_updated', RATE),
+        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+    }
+
+    NEWER_92_METRICS = {
+        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
+        'temp_bytes'        : ('postgresql.temp_bytes', RATE),
+        'temp_files'        : ('postgresql.temp_files', RATE),
+    }
+
     BGW_METRICS = {
         'descriptors': [],
-        'metrics': {
-            'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', MONOTONIC),
-            'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', MONOTONIC),
-            'checkpoint_write_time': ('postgresql.bgwriter.write_time', MONOTONIC),
-            'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', MONOTONIC),
-            'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', MONOTONIC),
-            'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', MONOTONIC),
-            'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', MONOTONIC),
-            'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', MONOTONIC),
-            'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
-            'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', MONOTONIC),
-        },
+        'metrics': {},
         'query': "select %s FROM pg_stat_bgwriter",
         'relation': False,
+    }
+
+    COMMON_BGW_METRICS = {
+        'checkpoints_timed'    : ('postgresql.bgwriter.checkpoints_timed', MONOTONIC),
+        'checkpoints_req'      : ('postgresql.bgwriter.checkpoints_requested', MONOTONIC),
+        'buffers_checkpoint'   : ('postgresql.bgwriter.buffers_checkpoint', MONOTONIC),
+        'buffers_clean'        : ('postgresql.bgwriter.buffers_clean', MONOTONIC),
+        'maxwritten_clean'     : ('postgresql.bgwriter.maxwritten_clean', MONOTONIC),
+        'buffers_backend'      : ('postgresql.bgwriter.buffers_backend', MONOTONIC),
+        'buffers_alloc'        : ('postgresql.bgwriter.buffers_alloc', MONOTONIC),
+    }
+
+    NEWER_91_BGW_METRICS = {
+        'buffers_backend_fsync': ('postgresql.bgwriter.buffers_backend_fsync', MONOTONIC),
+    }
+
+    NEWER_92_BGW_METRICS = {
+        'checkpoint_write_time': ('postgresql.bgwriter.write_time', MONOTONIC),
+        'checkpoint_sync_time' : ('postgresql.bgwriter.sync_time', MONOTONIC),
     }
 
     LOCK_METRICS = {
@@ -74,24 +102,6 @@ SELECT mode,
         'relation': False,
     }
 
-    COMMON_METRICS = {
-        'numbackends'       : ('postgresql.connections', GAUGE),
-        'xact_commit'       : ('postgresql.commits', RATE),
-        'xact_rollback'     : ('postgresql.rollbacks', RATE),
-        'blks_read'         : ('postgresql.disk_read', RATE),
-        'blks_hit'          : ('postgresql.buffer_hit', RATE),
-        'tup_returned'      : ('postgresql.rows_returned', RATE),
-        'tup_fetched'       : ('postgresql.rows_fetched', RATE),
-        'tup_inserted'      : ('postgresql.rows_inserted', RATE),
-        'tup_updated'       : ('postgresql.rows_updated', RATE),
-        'tup_deleted'       : ('postgresql.rows_deleted', RATE),
-    }
-
-    NEWER_92_METRICS = {
-        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
-        'temp_bytes'        : ('postgresql.temp_bytes', RATE),
-        'temp_files'        : ('postgresql.temp_files', RATE),
-    }
 
     REL_METRICS = {
         'descriptors': [
@@ -181,13 +191,14 @@ WITH max_con AS (SELECT setting::float FROM pg_settings WHERE name = 'max_connec
 SELECT %s
   FROM pg_stat_database, max_con
 """
-    }        
+    }
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
         self.versions = {}
         self.instance_metrics = {}
+        self.bgw_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -209,6 +220,9 @@ SELECT %s
 
         return False
 
+    def _is_9_1_or_above(self, key, db):
+        return self._is_above(key, db, [9,1,0])
+
     def _is_9_2_or_above(self, key, db):
         return self._is_above(key, db, [9,2,0])
 
@@ -227,6 +241,22 @@ SELECT %s
             metrics = self.instance_metrics.get(key)
         return metrics
 
+    def _get_bgw_metrics(self, key, db):
+        """Use either COMMON_BGW_METRICS or COMMON_BGW_METRICS + NEWER_92_BGW_METRICS
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
+        # Extended 9.2+ metrics if needed
+        metrics = self.bgw_metrics.get(key)
+        if metrics is None:
+            self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
+            if self._is_9_1_or_above(key, db):
+                self.bgw_metrics[key].update(self.NEWER_91_BGW_METRICS)
+            if self._is_9_2_or_above(key, db):
+                self.bgw_metrics[key].update(self.NEWER_92_BGW_METRICS)
+            metrics = self.bgw_metrics.get(key)
+        return metrics
+
     def _collect_stats(self, key, db, instance_tags, relations):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
@@ -234,15 +264,26 @@ SELECT %s
         """
 
         self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
+        self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
+        metric_scope = [
+            self.DB_METRICS,
+            self.CONNECTION_METRICS,
+            self.BGW_METRICS,
+            self.LOCK_METRICS
+        ]
 
         # Do we need relation-specific metrics?
-        if not relations:
-            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
-                            self.LOCK_METRICS, self.REPLICATION_METRICS)
-        else:
-            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
-                            self.LOCK_METRICS, self.REPLICATION_METRICS,
-                            self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
+        if relations:
+            metric_scope += [
+                self.REL_METRICS,
+                self.IDX_METRICS,
+                self.SIZE_METRICS
+            ]
+
+        # Only available for >= 9.1 due to
+        # pg_last_xact_replay_timestamp
+        if self._is_9_1_or_above(key,db):
+            metric_scope.append(self.REPLICATION_METRICS)
 
         try:
             cursor = db.cursor()
@@ -322,6 +363,14 @@ SELECT %s
             self.log.error("Connection error: %s" % str(e))
             raise ShouldRestartException
 
+    def _get_service_check_tags(self, host, port, dbname):
+        service_check_tags = [
+            "host:%s" % host,
+            "port:%s" % port,
+            "db:%s" % dbname
+        ]
+        return service_check_tags
+
     def get_connection(self, key, host, port, user, password, dbname, use_cached=True):
         "Get and memoize connections to instances"
         if key in self.dbs and use_cached:
@@ -329,13 +378,6 @@ SELECT %s
 
         elif host != "" and user != "":
             try:
-                service_check_tags = [
-                    "host:%s" % host,
-                    "port:%s" % port
-                ]
-                if dbname:
-                    service_check_tags.append("db:%s" % dbname)
-
                 if host == 'localhost' and password == '':
                     # Use ident method
                     connection = pg.connect("user=%s dbname=%s" % (user, dbname))
@@ -345,14 +387,11 @@ SELECT %s
                 else:
                     connection = pg.connect(host=host, user=user, password=password,
                         database=dbname)
-                status = AgentCheck.OK
-                self.service_check('postgres.can_connect', status, tags=service_check_tags)
-                self.log.info('pg status: %s' % status)
-
-            except Exception:
-                status = AgentCheck.CRITICAL
-                self.service_check('postgres.can_connect', status, tags=service_check_tags)
-                self.log.info('pg status: %s' % status)
+            except Exception as e:
+                message = u'Error establishing postgres connection: %s' % (str(e))
+                service_check_tags = self._get_service_check_tags(host, port, dbname)
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                    tags=service_check_tags, message=message)
                 raise
         else:
             if not host:
@@ -406,6 +445,10 @@ SELECT %s
             self._collect_stats(key, db, tags, relations)
 
         if db is not None:
+            service_check_tags = self._get_service_check_tags(host, port, dbname)
+            message = u'Established connection to postgres://%s:%s/%s' % (host, port, dbname)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags=service_check_tags, message=message)
             try:
                 # commit to close the current query transaction
                 db.commit()

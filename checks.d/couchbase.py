@@ -94,7 +94,7 @@ class Couchbase(AgentCheck):
                 raise Exception("No data returned from couchbase endpoint: %s" % url)
         except urllib2.URLError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=e.reason)
+                tags=service_check_tags, message=str(e.reason))
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
