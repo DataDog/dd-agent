@@ -211,8 +211,9 @@ STATUS_VARS = {
 
 
 class MySql(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    SERVICE_CHECK_NAME = 'mysql.can_connect'
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
         self.greater_502 = {}
 

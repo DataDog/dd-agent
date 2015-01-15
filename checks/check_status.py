@@ -18,7 +18,7 @@ import os.path
 
 # project
 import config
-from config import _windows_commondata_path
+from config import _windows_commondata_path, get_config
 from util import get_os, plural, Platform
 
 # 3rd party
@@ -624,6 +624,14 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
+        self.proxy_data = get_config().get('proxy_settings')
+        self.hidden_username = None
+        self.hidden_password = None
+        if self.proxy_data and self.proxy_data.get('user'):
+            username = self.proxy_data.get('user')
+            hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
+            self.hidden_username = '*' * 5 + username[hidden:]
+            self.hidden_password = '*' * 10
 
     def body_lines(self):
         lines = [
@@ -631,8 +639,24 @@ class ForwarderStatus(AgentStatus):
             "Queue Length: %s" % self.queue_length,
             "Flush Count: %s" % self.flush_count,
             "Transactions received: %s" % self.transactions_received,
-            "Transactions flushed: %s" % self.transactions_flushed
+            "Transactions flushed: %s" % self.transactions_flushed,
+            ""
         ]
+
+        if self.proxy_data:
+            lines += [
+                "Proxy",
+                "=====",
+                "",
+                "  Host: %s" % self.proxy_data.get('host'),
+                "  Port: %s" % self.proxy_data.get('port')
+            ]
+            if self.proxy_data.get('user'):
+                lines += [
+                    "  Username: %s" % self.hidden_username,
+                    "  Password: %s" % self.hidden_password
+                ]
+
         return lines
 
     def has_error(self):
@@ -644,6 +668,10 @@ class ForwarderStatus(AgentStatus):
             'flush_count': self.flush_count,
             'queue_length': self.queue_length,
             'queue_size': self.queue_size,
+            'proxy_data': self.proxy_data,
+            'hidden_username': self.hidden_username,
+            'hidden_password': self.hidden_password,
+
         })
         return status_info
 
