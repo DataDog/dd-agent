@@ -1,34 +1,25 @@
 import logging
 import unittest
-import os
-import os.path
 
-from nose.plugins.attrib import attr
 
 from dogstream.cassandra import parse_cassandra
 
 
-
 logger = logging.getLogger(__name__)
 
-@attr(requires='cassandra')
 class TestCassandraDogstream(unittest.TestCase):
-    @attr('cassandra')
     def testStart(self):
         events = parse_cassandra(logger, " INFO [main] 2012-12-11 21:46:26,995 StorageService.java (line 687) Bootstrap/Replace/Move completed! Now serving reads.")
         self.assertTrue(events is None)
 
-    @attr('cassandra')
     def testInfo(self):
         events = parse_cassandra(logger, " INFO [CompactionExecutor:35] 2012-12-02 21:15:03,738 AutoSavingCache.java (line 268) Saved KeyCache (5 items) in 3 ms")
         self.assertTrue(events is None)
 
-    @attr('cassandra')
     def testWarn(self):
         events = parse_cassandra(logger, " WARN [MemoryMeter:1] 2012-12-03 20:07:47,158 Memtable.java (line 197) setting live ratio to minimum of 1.0 instead of 0.9416553595658074")
         self.assertTrue(events is None)
 
-    @attr('cassandra')
     def testError(self):
         for line in """\
 ERROR [CompactionExecutor:518] 2012-12-11 21:35:29,686 AbstractCassandraDaemon.java (line 135) Exception in thread Thread[CompactionExecutor:518,1,RMI Runtime]
@@ -57,12 +48,10 @@ java.util.concurrent.RejectedExecutionException
             events = parse_cassandra(logger, line)
             self.assertTrue(events is None)
 
-    @attr('cassandra')
     def testCompactionStart(self):
         events = parse_cassandra(logger, " INFO [CompactionExecutor:2] 2012-12-11 21:46:27,012 CompactionTask.java (line 109) Compacting [SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-11-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-9-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-12-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-10-Data.db')]")
         self.assertEquals(events, [{'alert_type': 'info', 'event_type': 'cassandra.compaction', 'timestamp': 1355262387, 'msg_title': "Compacting [SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-1", 'msg_text': "Compacting [SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-11-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-9-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-12-Data.db'), SSTableReader(path='/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-10-Data.db')]", 'auto_priority': 0}])
 
-    @attr('cassandra')
     def testCompactionEnd(self):
         events = parse_cassandra(logger, "INFO [CompactionExecutor:2] 2012-12-11 21:46:27,095 CompactionTask.java (line 221) Compacted to [/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-13-Data.db,].  880 to 583 (~66% of original) bytes for 4 keys at 0.007831MB/s.  Time: 71ms.")
         self.assertEquals(events, [{'alert_type': 'info', 'event_type': 'cassandra.compaction', 'timestamp': 1355262387, 'msg_title': 'Compacted to [/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-13-Data.db,].  880 ', 'msg_text': 'Compacted to [/var/lib/cassandra/data/system/LocationInfo/system-LocationInfo-he-13-Data.db,].  880 to 583 (~66% of original) bytes for 4 keys at 0.007831MB/s.  Time: 71ms.', 'auto_priority': 0}])

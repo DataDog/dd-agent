@@ -43,7 +43,7 @@ if sys.platform == 'win32':
         'pysnmp-mibs==0.1.4',
         'pysnmp==4.2.5',
         'python-memcached==1.53',
-        'pyvmomi==5.5.0.2014.1.1'
+        'pyvmomi==5.5.0.2014.1.1',
         'pywin32==217',
         'redis==2.10.3',
         'requests==2.4.3',

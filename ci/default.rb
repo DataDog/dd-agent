@@ -1,22 +1,38 @@
 require './ci/common'
 
 namespace :ci do
-  namespace :default do
-    task :before_install => ['ci:common:before_install'] do
-      apt_update
-    end
+  namespace :default do |flavor|
+    task :before_install => ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
-      sh %Q{sudo apt-get install sysstat -qq}
-    end
+    task :install => ['ci:common:install']
 
     task :before_script => ['ci:common:before_script']
 
     task :script => ['ci:common:script'] do
-      sh "find . -name '*.py' | xargs --max-procs=0 -n 1 pylint --rcfile=./.pylintrc"
+      sh %(find . -name '*.py'\
+           | xargs --max-procs=0 -n 1 pylint --rcfile=./.pylintrc)
       Rake::Task['ci:common:run_tests'].invoke('default')
     end
 
-    task :execute => [:before_install, :install, :before_script, :script]
+    task :cleanup => ['ci:common:cleanup']
+
+    task :execute do
+      exception = nil
+      begin
+        %w(before_install install before_script script).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
+      rescue => e
+        exception = e
+        puts "Failed task: #{e.class} #{e.message}".red
+      end
+      if ENV['SKIP_CLEANUP']
+        puts 'Skipping cleanup, disposable environments are great'.yellow
+      else
+        puts 'Cleaning up'
+        Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      fail exception if exception
+    end
   end
 end

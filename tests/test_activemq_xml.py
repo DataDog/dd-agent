@@ -53,8 +53,8 @@ instances:
         check.requests.get.side_effect = response_side_effect
         check.check(instances[0])
         expected = {
-            '': {
-                'activemq.queues.count': (0, 'gauge'),
+            'url:http://localhost:8161': {
+                'activemq.queue.count': (0, 'gauge'),
                 'activemq.topic.count': (0, 'gauge'),
                 'activemq.subscriber.count': (0, 'gauge'),
             }
@@ -88,7 +88,7 @@ instances:
           </queue>
         </queues>
         """
-        check._process_queue_data(data)
+        check._process_data(data, "queue", [], 300, [])
         expected = {
             'queue:Queue2': {
                 'activemq.queue.size': ('10', 'gauge'),
@@ -97,7 +97,7 @@ instances:
                 'activemq.queue.consumer_count': ('3', 'gauge')
             },
             '': {
-                'activemq.queues.count': (2, 'gauge')
+                'activemq.queue.count': (2, 'gauge')
             },
             'queue:Queue1': {
                 'activemq.queue.dequeue_count': ('64714', 'gauge'),
@@ -116,10 +116,10 @@ instances:
         <queues>
         </queues>
         """
-        check._process_queue_data(data)
+        check._process_data(data, "queue", [], 300, [])
         expected = {
             '': {
-                'activemq.queues.count': (0, 'gauge')
+                'activemq.queue.count': (0, 'gauge')
             },
         }
 
@@ -144,7 +144,8 @@ instances:
           </topic>
         </topics>
         """
-        check._process_topic_data(data)
+
+        check._process_data(data, "topic", [], 300, [])
         expected = {
             'topic:Topic1': {
                 'activemq.topic.size': ('5', 'gauge'),
@@ -172,7 +173,7 @@ instances:
         <topics>
         </topics>
         """
-        check._process_topic_data(data)
+        check._process_data(data, "topic", [], 300, [])
         expected = {
             '': {
                 'activemq.topic.count': (0, 'gauge')
@@ -212,9 +213,9 @@ instances:
           </subscriber>
         </subscribers>
         """
-        check._process_subscriber_data(data)
+        check._process_subscriber_data(data, [], 300, [])
         expected = {
-            'clientId:10-connectionId:10-subscriptionName:subscription1-destinationName:Queue1-selector:*-active:yes': {
+            'active:yes-clientId:10-connectionId:10-destinationName:Queue1-selector:*-subscriptionName:subscription1': {
                 'activemq.subscriber.enqueue_counter': ('235', 'gauge'),
                 'activemq.subscriber.dequeue_counter': ('175', 'gauge'),
                 'activemq.subscriber.dispatched_counter': ('15', 'gauge'),
@@ -224,7 +225,7 @@ instances:
             '': {
                 'activemq.subscriber.count': (2, 'gauge'),
             },
-            'clientId:5-connectionId:15-subscriptionName:subscription2-destinationName:Topic1-selector:*-active:no': {
+            'active:no-clientId:5-connectionId:15-destinationName:Topic1-selector:*-subscriptionName:subscription2': {
                 'activemq.subscriber.enqueue_counter': ('12', 'gauge'),
                 'activemq.subscriber.dequeue_counter': ('15', 'gauge'),
                 'activemq.subscriber.dispatched_counter': ('5', 'gauge'),
@@ -242,7 +243,7 @@ instances:
         <subscribers>
         </subscribers>
         """
-        check._process_subscriber_data(data)
+        check._process_subscriber_data(data, [], 300, [])
         expected = {
             '': {
                 'activemq.subscriber.count': (0, 'gauge')
@@ -253,16 +254,16 @@ instances:
 
     def _iter_metrics(self, metrics):
         for name, _, value, data in metrics:
-            tags = data.get('tags', [])
+            tags = sorted(data.get('tags', []))
             tags = '-'.join(tags)
             yield tags, name, value, data['type']
 
     def _assert_expected_metrics(self, expected, metrics):
         count = sum(len(r.keys()) for r in expected.values())
-        assert count == len(metrics)
+        self.assertEqual(count, len(metrics), (count, metrics))
 
-        for tags, key, value, type in self._iter_metrics(metrics):
-            assert expected[tags][key] == (value, type)
+        for tags, key, value, el_type in self._iter_metrics(metrics):
+            self.assertEquals(expected.get(tags, {}).get(key), (value, el_type), (tags, key, metrics))
 
 
 if __name__ == '__main__':

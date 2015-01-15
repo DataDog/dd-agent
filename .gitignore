@@ -28,3 +28,5 @@ packaging/build/
 packaging/root/
 Vagrantfile
 .vagrant/*
+embedded/*
+.pip-cache/*
