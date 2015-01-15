@@ -1,6 +1,5 @@
 import unittest
 import logging
-import os
 from nose.plugins.attrib import attr
 logger = logging.getLogger(__file__)
 
@@ -9,7 +8,7 @@ from tests.common import load_check
 @attr(requires='fluentd')
 class TestFluentd(unittest.TestCase):
 
-    def testFluentd(self):
+    def test_fluentd(self):
         config = {
             "init_config": {
             },
@@ -39,16 +38,18 @@ class TestFluentd(unittest.TestCase):
             self.assertEquals(m[3]['type'], 'gauge')
             self.assertEquals(m[3]['tags'], ['plugin_id:plg1'])
 
+        self.assertEquals(len(metrics), 3, metrics)
+
         service_checks = check.get_service_checks()
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
 
         is_ok = [sc for sc in service_checks if sc['check'] == check.SERVICE_CHECK_NAME]
-        for i in range(len(is_ok)):
-            self.assertEquals(set(is_ok[i]['tags']), set(['fluentd_host:localhost', 'fluentd_port:24220']), service_checks)
+        self.assertEquals(len(is_ok), 1, service_checks)
+        self.assertEquals(set(is_ok[0]['tags']), set(['fluentd_host:localhost', 'fluentd_port:24220']), service_checks)
 
-    def testFluentdException(self):
+    def test_fluentd_exception(self):
         config = {
             "init_config": {
             },
