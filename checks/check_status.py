@@ -625,6 +625,8 @@ class ForwarderStatus(AgentStatus):
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
         self.proxy_data = get_config().get('proxy_settings')
+        self.hidden_username = None
+        self.hidden_password = None
         if self.proxy_data and self.proxy_data.get('user'):
             username = self.proxy_data.get('user')
             hidden = len(username) / 2 if len(username) <= 7 else len(username) - 4
@@ -666,6 +668,10 @@ class ForwarderStatus(AgentStatus):
             'flush_count': self.flush_count,
             'queue_length': self.queue_length,
             'queue_size': self.queue_size,
+            'proxy_data': self.proxy_data,
+            'hidden_username': self.hidden_username,
+            'hidden_password': self.hidden_password,
+
         })
         return status_info
 
