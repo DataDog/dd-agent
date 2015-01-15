@@ -4,27 +4,37 @@
 require 'rake/clean'
 
 # Flavored Travis CI jobs
-require './ci/cache'
+require './ci/apache'
 require './ci/cassandra'
-require './ci/database'
+require './ci/couchdb'
 require './ci/default'
 require './ci/elasticsearch'
+require './ci/fluentd'
 require './ci/gearman'
-require './ci/jmx'
+require './ci/haproxy'
+require './ci/lighttpd'
+require './ci/memcache'
 require './ci/mongo'
-require './ci/network'
+require './ci/mysql'
+require './ci/nginx'
+require './ci/postgres'
+require './ci/redis'
+require './ci/snmpd'
 require './ci/sysstat'
 require './ci/ssh'
 require './ci/tomcat'
-require './ci/webserver'
 
 CLOBBER.include '**/*.pyc'
 
-desc "Run tests"
-task :test, [:attrs] do |t, args|
-  attrs = args.attrs ? "-a #{args.attrs}" : ""
-  cmd = "nosetests #{attrs}"
-  sh cmd
+# Travis-like environment for local use
+
+unless ENV['IS_TRAVIS']
+  rakefile_dir = File.dirname(__FILE__)
+  ENV['TRAVIS_BUILD_DIR'] = rakefile_dir
+  ENV['INTEGRATIONS_DIR'] = File.join(rakefile_dir, 'embedded')
+  ENV['PIP_CACHE'] = File.join(rakefile_dir, '.pip-cache')
+  ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
+  ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2' 
 end
 
 desc 'Setup a development environment for the Agent'
@@ -64,7 +74,7 @@ end
 
 desc "Lint the code through pylint"
 task "lint" do
-  sh("find . -name \\*.py -type f -not -path \\*tests\\* -exec pylint --rcfile=.pylintrc --reports=n --output-format=parseable {} \\;")
+  sh %{find . -name '*.py' -type f -not -path '*venv*' | xargs --max-procs=$CONCURRENCY -n 1 pylint --rcfile=./.pylintrc}
 end
 
 desc "Run the Agent locally"
@@ -73,9 +83,9 @@ task "run" do
 end
 
 namespace :ci do
-  desc 'Run Travis CI flavored tests'
+  desc 'Run integration tests'
   task :run, :flavor  do |t, args|
-    fail "Failing because this is supposed to run on Travis" unless ENV['TRAVIS']
+    puts "Assuming you are running these tests locally" unless ENV['TRAVIS']
     flavor = args[:flavor] || ENV['TRAVIS_FLAVOR'] || 'default'
     flavors = flavor.split(',')
     flavors.each { |f| Rake::Task["ci:#{f}:execute"].invoke}

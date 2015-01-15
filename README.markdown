@@ -26,23 +26,30 @@ pull request.
 
 Required:
 - python 2.6 or 2.7
-- Rake
+- bundler
 
-Clone the repository
 ```
+# Clone the repository
 git clone git@github.com:DataDog/dd-agent.git
-```
 
-Crete a virtual environment and install the dependencies:
-```
+# Crete a virtual environment and install the dependencies:
 cd dd-agent
+bundle install
 rake setup_env
-````
 
-Activate the virtual environment:
-```
+# Activate the virtual environment
 source venv/bin/activate
+
+# Lint
+rake lint
+
+# Run a flavored test
+rake ci:run[apache]
 ```
+
+## Test suite
+
+More about how to write tests and run them [here](https://github.com/DataDog/dd-agent/blob/master/tests/README.md)
 
 # How to configure the Agent
 

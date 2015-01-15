@@ -1,12 +1,7 @@
 instances:
-    -   host: localhost
-        port: 8090
-        name: tomcat_instance
-
-    -  host: dummyurl
-       port: 4444
-       name: fake_url
-
+    -  host: localhost
+       port: 8090
+       name: tomcat_instance
 
 init_config:
   conf:

@@ -194,8 +194,8 @@ SELECT %s
 """
     }
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
         self.versions = {}
         self.instance_metrics = {}
@@ -267,15 +267,25 @@ SELECT %s
 
         self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
         self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
+        metric_scope = [
+            self.DB_METRICS,
+            self.CONNECTION_METRICS,
+            self.BGW_METRICS,
+            self.LOCK_METRICS
+        ]
 
         # Do we need relation-specific metrics?
-        if not relations:
-            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
-                            self.LOCK_METRICS, self.REPLICATION_METRICS)
-        else:
-            metric_scope = (self.DB_METRICS, self.CONNECTION_METRICS, self.BGW_METRICS,
-                            self.LOCK_METRICS, self.REPLICATION_METRICS,
-                            self.REL_METRICS, self.IDX_METRICS, self.SIZE_METRICS)
+        if relations:
+            metric_scope += [
+                self.REL_METRICS,
+                self.IDX_METRICS,
+                self.SIZE_METRICS
+            ]
+
+        # Only available for >= 9.1 due to
+        # pg_last_xact_replay_timestamp
+        if self._is_9_1_or_above(key,db):
+            metric_scope.append(self.REPLICATION_METRICS)
 
         full_metric_scope=list(metric_scope)+custom_metrics
         try:

@@ -1,4 +1,5 @@
 # stdlib
+import socket
 import unittest
 
 # 3p
@@ -36,11 +37,15 @@ class TestElastic(unittest.TestCase):
     def test_check(self):
         agentConfig = {
             'version': '0.1',
-            'api_key': 'toto'
+            'api_key': 'toto',
+            'hostname': 'agent-es-test'
         }
 
         conf = {
-            'instances': [{'url': 'http://localhost:%s' % PORT}]
+            'instances': [
+                {'url': 'http://localhost:%s' % PORT},
+                {'url': 'http://localhost:%s' % PORT, 'is_external': True}
+            ]
         }
 
         # Initialize the check from checks.d
@@ -48,6 +53,7 @@ class TestElastic(unittest.TestCase):
 
         self.check.check(conf['instances'][0])
         r = self.check.get_metrics()
+        self.check.get_events()
 
         self.assertTrue(type(r) == type([]))
         self.assertTrue(len(r) > 0)
@@ -86,4 +92,13 @@ class TestElastic(unittest.TestCase):
         self.check.cluster_status[conf['instances'][0].get('url')] = "red"
         self.check.check(conf['instances'][0])
         events = self.check.get_events()
+        self.check.get_metrics()
         self.assertEquals(len(events),1,events)
+
+        # Check an "external" cluster
+        self.check.check(conf['instances'][1])
+        r = self.check.get_metrics()
+        expected_hostname = socket.gethostname()
+        for m in r:
+            if m[0] not in self.check.CLUSTER_HEALTH_METRICS:
+                self.assertEquals(m[3]['hostname'], expected_hostname)

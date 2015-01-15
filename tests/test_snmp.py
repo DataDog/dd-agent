@@ -34,12 +34,21 @@ class TestSNMP(unittest.TestCase):
                 custom_folder_represented = True
                 break
         self.assertTrue(custom_folder_represented)
+        self.assertFalse(self.check.cmd_generator.ignoreNonIncreasingOid)
+
+        self.config = {
+            "init_config": {
+                "ignore_nonincreasing_oid": True
+            }
+        }
+        self.check = load_check('snmp', self.config, self.agentConfig)
+        self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
 
     def test_scalar_SNMPCheck(self):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "OID": "1.3.6.1.2.1.7.1.0", # Counter (needlessly specify the index)
@@ -94,7 +103,7 @@ class TestSNMP(unittest.TestCase):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "MIB": "IF-MIB",
@@ -194,7 +203,7 @@ class TestSNMP(unittest.TestCase):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":161,
+                    "port":11111,
                     "community_string": "public",
                     "metrics": [{
                         "MIB": "IF-MIB",

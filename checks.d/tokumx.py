@@ -192,8 +192,8 @@ class TokuMX(AgentCheck):
 
     METRICS = GAUGES + RATES
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_state_by_server = {}
         self.idx_rates = {}
 

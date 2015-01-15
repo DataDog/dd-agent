@@ -30,17 +30,17 @@ METRIC_NAMESPACE = "go_expvar"
 # See http://golang.org/pkg/runtime/#MemStats
 DEFAULT_GAUGE_MEMSTAT_METRICS = [
     # General statistics
-    "Alloc", "TotalAlloc", 
+    "Alloc", "TotalAlloc",
 
     # Main allocation heap statistics
     "HeapAlloc", "HeapSys", "HeapIdle", "HeapInuse",
-    "HeapReleased", "HeapObjects", 
+    "HeapReleased", "HeapObjects",
 
 ]
 
 DEFAULT_RATE_MEMSTAT_METRICS = [
     # General statistics
-    "Lookups", "Mallocs", "Frees", 
+    "Lookups", "Mallocs", "Frees",
 
     # Garbage collector statistics
     "PauseTotalNs", "NumGC",
@@ -52,8 +52,8 @@ DEFAULT_METRICS = [{PATH: "memstats/%s" % path, TYPE: GAUGE} for path in DEFAULT
 
 class GoExpvar(AgentCheck):
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_gc_count = defaultdict(int)
 
     def _get_data(self, url):
@@ -65,7 +65,7 @@ class GoExpvar(AgentCheck):
         url = instance.get('expvar_url')
         if not url:
             raise Exception('GoExpvar instance missing "expvar_url" value.')
-        
+
         tags = instance.get('tags', [])
         tags.append("expvar_url:%s" % url)
         data = self._get_data(url)
@@ -187,7 +187,7 @@ class GoExpvar(AgentCheck):
         except Exception:
             self.warning("Cannot compile regex: %s" % regex)
             return []
-            
+
         results = []
         for new_key, new_content in self.items(content):
             if key_rex.match(new_key):
