@@ -367,7 +367,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         sleep(4)
         sys.exit(0)
 
-    log.debug("Configurating     dogstatsd")
+    log.debug("Configuring dogstatsd")
 
     port      = c['dogstatsd_port']
     interval  = DOGSTATSD_FLUSH_INTERVAL
@@ -393,8 +393,10 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         hostname,
         aggregator_interval,
         recent_point_threshold=recent_point_threshold,
-        formatter = get_formatter(c)
-        )
+        formatter=get_formatter(c),
+        histogram_aggregates=c.get('histogram_aggregates'),
+        histogram_percentiles=c.get('histogram_percentiles'),
+    )
 
     # Start the reporting thread.
     reporter = Reporter(interval, aggregator, target, api_key, use_watchdog, event_chunk_size)

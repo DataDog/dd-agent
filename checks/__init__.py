@@ -289,9 +289,13 @@ class AgentCheck(object):
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname,
+        self.aggregator = MetricsAggregator(
+            self.hostname,
             formatter=agent_formatter,
-            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None),
+            histogram_aggregates=agentConfig.get('histogram_aggregates'),
+            histogram_percentiles=agentConfig.get('histogram_percentiles')
+        )
 
         self.events = []
         self.service_checks = []

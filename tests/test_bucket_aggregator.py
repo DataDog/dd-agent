@@ -5,6 +5,7 @@ import time
 import unittest
 import nose.tools as nt
 
+from aggregator import DEFAULT_HISTOGRAM_AGGREGATES
 from dogstatsd import MetricsBucketAggregator
 
 
@@ -64,7 +65,9 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
     def test_histogram_normalization(self):
         ag_interval = 10
-        stats = MetricsBucketAggregator('myhost', interval=ag_interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min'])
         for i in range(5):
             stats.submit_packets('h1:1|h')
         for i in range(20):
@@ -538,7 +541,9 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
     def test_histogram(self):
         ag_interval = self.interval
-        stats = MetricsBucketAggregator('myhost', interval=ag_interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min'])
         self.wait_for_bucket_boundary(ag_interval)
 
         # Sample all numbers between 1-100 many times. This
@@ -572,7 +577,11 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
-        stats = MetricsBucketAggregator('myhost', interval=self.interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost',
+            interval=self.interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         stats.submit_packets('sampled.hist:5|h|@0.5')
 
 
@@ -587,7 +596,9 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
     def test_histogram_buckets(self):
         ag_interval = 1
-        stats = MetricsBucketAggregator('myhost', interval=ag_interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min'])
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -642,7 +653,9 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
     def test_histogram_flush_during_bucket(self):
         ag_interval = 1
-        stats = MetricsBucketAggregator('myhost', interval=ag_interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min'])
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -741,7 +754,10 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         # Ensure metrics eventually expire and stop submitting.
         ag_interval = self.interval
         expiry = ag_interval * 5 + 2
-        stats = MetricsBucketAggregator('myhost', interval=ag_interval, expiry_seconds=expiry)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost', interval=ag_interval,
+            expiry_seconds=expiry,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min'])
         stats.submit_packets('test.counter:123|c')
         stats.submit_packets('test.gauge:55|g')
         stats.submit_packets('test.set:44|s')
@@ -942,7 +958,12 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
     def test_recent_point_threshold(self):
         ag_interval = 1
         threshold = 100
-        stats = MetricsBucketAggregator('myhost', recent_point_threshold=threshold, interval=ag_interval)
+        # The min is not enabled by default
+        stats = MetricsBucketAggregator('myhost',
+            recent_point_threshold=threshold,
+            interval=ag_interval,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         timestamp_beyond_threshold = time.time() - threshold*2
 
         # Ensure that old gauges get dropped due to old timestamps

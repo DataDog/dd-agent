@@ -55,7 +55,7 @@ class TestGoExpVar(unittest.TestCase):
         metrics = self.check.get_metrics()
 
         # The rate is not here so only 2
-        self.assertEqual(len(metrics), 16, metrics)
+        self.assertEqual(len(metrics), 15, metrics)
         self._assert_metric_number(metrics, 'go_expvar.gauge1', 1)
         self._assert_metric_number(metrics, 'go_expvar.memstats.by_size.1.mallocs', 1)
 
