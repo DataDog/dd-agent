@@ -25,7 +25,7 @@ class TeamCity(AgentCheck):
                                                                                            build_configuration),
                 timeout=30, headers=self.headers)
             if request.status_code != requests.codes.ok:
-                raise Exception("TeamCity reported error on initialization. Status code: {}".format(request.status_code))
+                raise Exception("TeamCity reported error on initialization. Status code: {0}".format(request.status_code))
             last_build_id = request.json()["build"][0]["id"]
             self.log.info("Last build id for {0} is {1}.".format(instance_name, last_build_id))
             self.last_build_ids[instance_name] = last_build_id
