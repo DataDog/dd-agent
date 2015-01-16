@@ -21,17 +21,17 @@ class TeamCity(AgentCheck):
         if self.last_build_ids.get(instance_name, None) is None:
             self.log.info("Initializing {}".format(instance_name))
             request = requests.get(
-                "http://{}/guestAuth/app/rest/builds/?locator=buildType:{},count:1".format(self.server,
+                "http://{0}/guestAuth/app/rest/builds/?locator=buildType:{1},count:1".format(self.server,
                                                                                            build_configuration),
                 timeout=30, headers=self.headers)
             if request.status_code != requests.codes.ok:
                 raise Exception("TeamCity reported error on initialization. Status code: {}".format(request.status_code))
             last_build_id = request.json()["build"][0]["id"]
-            self.log.info("Last build id for {} is {}.".format(instance_name, last_build_id))
+            self.log.info("Last build id for {0} is {1}.".format(instance_name, last_build_id))
             self.last_build_ids[instance_name] = last_build_id
 
     def _build_and_send_event(self, new_build, instance_name, is_deployment, host, tags):
-        self.log.info("Found new build with id {}, saving and alerting.".format(new_build["id"]))
+        self.log.info("Found new build with id {0}, saving and alerting.".format(new_build["id"]))
         self.last_build_ids[instance_name] = new_build["id"]
 
         output = {
@@ -41,13 +41,13 @@ class TeamCity(AgentCheck):
         }
         if is_deployment:
             output["event_type"] = "deployment"
-            output["msg_title"] = "{} deployed to {}".format(instance_name, host)
-            output["msg_text"] = "Build Number: {}\n\nMore Info: {}".format(new_build["number"], new_build["webUrl"])
+            output["msg_title"] = "{0} deployed to {1}".format(instance_name, host)
+            output["msg_text"] = "Build Number: {0}\n\nMore Info: {1}".format(new_build["number"], new_build["webUrl"])
             output["tags"].append("deployment")
         else:
             output["event_type"] = "build"
-            output["msg_title"] = "Build for {} successful".format(instance_name)
-            output["msg_text"] = "Build Number: {}\nDeployed To: {}\n\nMore Info: {}".format(new_build["number"], host,
+            output["msg_title"] = "Build for {0} successful".format(instance_name)
+            output["msg_text"] = "Build Number: {0}\nDeployed To: {1}\n\nMore Info: {2}".format(new_build["number"], host,
                                                                                              new_build["webUrl"])
             output["tags"].append("build")
 
@@ -74,12 +74,12 @@ class TeamCity(AgentCheck):
         self._initialize_if_required(instance_name, build_configuration)
 
         request = requests.get(
-            "http://{}/guestAuth/app/rest/builds/?locator=buildType:{},sinceBuild:id:{},status:SUCCESS".format(
+            "http://{0}/guestAuth/app/rest/builds/?locator=buildType:{1},sinceBuild:id:{2},status:SUCCESS".format(
                 self.server, build_configuration, self.last_build_ids[instance_name]), timeout=30,
             headers=self.headers)
 
         if request.status_code != requests.codes.ok:
-            raise Exception("TeamCity reported error on check. Status code: {}".format(request.status_code))
+            raise Exception("TeamCity reported error on check. Status code: {0}".format(request.status_code))
 
         new_builds = request.json()
 
