@@ -19,7 +19,7 @@ class TeamCity(AgentCheck):
 
     def _initialize_if_required(self, instance_name, build_configuration):
         if self.last_build_ids.get(instance_name, None) is None:
-            self.log.info("Initializing {}".format(instance_name))
+            self.log.info("Initializing {0}".format(instance_name))
             request = requests.get(
                 "http://{0}/guestAuth/app/rest/builds/?locator=buildType:{1},count:1".format(self.server,
                                                                                            build_configuration),
