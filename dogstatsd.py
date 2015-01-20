@@ -34,6 +34,11 @@ from util import PidFile, get_hostname, plural, get_uuid, chunks
 import requests
 import simplejson as json
 
+# urllib3 logs a bunch of stuff at the info level
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.WARN)
+requests_log.propagate = True
+
 log = logging.getLogger('dogstatsd')
 
 # Dogstatsd constants in seconds
