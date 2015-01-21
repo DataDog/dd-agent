@@ -391,7 +391,8 @@ class Aggregator(object):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
-            histogram_aggregates=None, histogram_percentiles=None):
+            histogram_aggregates=None, histogram_percentiles=None,
+            utf8_decoding=False):
         self.events = []
         self.total_count = 0
         self.count = 0
@@ -412,6 +413,8 @@ class Aggregator(object):
                 'percentiles': histogram_percentiles
             }
         }
+
+        self.utf8_decoding = utf8_decoding
 
     def packets_per_second(self, interval):
         if interval == 0:
@@ -495,7 +498,7 @@ class Aggregator(object):
             # Event syntax:
             # _e{5,4}:title|body|meta
             name = name_and_metadata[0]
-            metadata = unicode(name_and_metadata[1])
+            metadata = name_and_metadata[1]
             title_length, text_length = name.split(',')
             title_length = int(title_length[3:])
             text_length = int(text_length[:-1])
@@ -525,8 +528,15 @@ class Aggregator(object):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
     def submit_packets(self, packets):
-        for packet in packets.splitlines():
+        # We should probably consider that packets are always encoded
+        # in utf8, but decoding all packets has an perf overhead of 7%
+        # So we let the user decide if we wants utf8 by default
+        # Keep a very conservative approach anyhow
+        # Clients MUST always send UTF-8 encoded content
+        if self.utf8_decoding:
+            packets = unicode(packets, 'utf-8', errors='replace')
 
+        for packet in packets.splitlines():
             if not packet.strip():
                 continue
 
@@ -541,6 +551,7 @@ class Aggregator(object):
                     hostname, device_name, tags = self._extract_magic_tags(tags)
                     self.submit_metric(name, value, mtype, tags=tags, hostname=hostname,
                         device_name=device_name, sample_rate=sample_rate)
+
 
     def _extract_magic_tags(self, tags):
         """Magic tags (host, device) override metric hostname and device_name attributes"""
@@ -620,7 +631,8 @@ class MetricsBucketAggregator(Aggregator):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
-            histogram_aggregates=None, histogram_percentiles=None):
+            histogram_aggregates=None, histogram_percentiles=None,
+            utf8_decoding=False):
         super(MetricsBucketAggregator, self).__init__(
             hostname,
             interval,
@@ -628,7 +640,8 @@ class MetricsBucketAggregator(Aggregator):
             formatter,
             recent_point_threshold,
             histogram_aggregates,
-            histogram_percentiles
+            histogram_percentiles,
+            utf8_decoding
         )
         self.metric_by_bucket = {}
         self.last_sample_time_by_context = {}
@@ -758,7 +771,8 @@ class MetricsAggregator(Aggregator):
 
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
-            histogram_aggregates=None, histogram_percentiles=None):
+            histogram_aggregates=None, histogram_percentiles=None,
+            utf8_decoding=False):
         super(MetricsAggregator, self).__init__(
             hostname,
             interval,
@@ -766,7 +780,8 @@ class MetricsAggregator(Aggregator):
             formatter,
             recent_point_threshold,
             histogram_aggregates,
-            histogram_percentiles
+            histogram_percentiles,
+            utf8_decoding
         )
         self.metrics = {}
         self.metric_type_to_class = {
