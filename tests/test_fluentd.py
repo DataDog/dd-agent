@@ -29,13 +29,11 @@ class TestFluentd(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         for m in metrics:
-            if m[0] == 'fluentd.forward.retry_count':
-                self.assertEquals(m[2], 0)
-            elif m[0] == 'fluentd.forward.buffer_queue_length':
-                self.assertEquals(m[2], 0)
-            elif m[0] == 'fluentd.forward.buffer_total_queued_size':
-                self.assertEquals(m[2], 0)
-            self.assertEquals(m[3]['type'], 'gauge')
+            if m[0] == 'fluentd.forward.buffer_total_queued_size':
+                self.assertEquals(m[3]['type'], 'rate')
+            else:
+                self.assertEquals(m[3]['type'], 'gauge')
+            self.assertEquals(m[2], 0)
             self.assertEquals(m[3]['tags'], ['plugin_id:plg1'])
 
         self.assertEquals(len(metrics), 3, metrics)

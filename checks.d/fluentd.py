@@ -12,7 +12,8 @@ import simplejson as json
 
 class Fluentd(AgentCheck):
     SERVICE_CHECK_NAME = 'fluentd.is_ok'
-    GAUGES = ['retry_count', 'buffer_total_queued_size', 'buffer_queue_length']
+    GAUGES = ['retry_count', 'buffer_queue_length']
+    RATE = 'buffer_total_queued_size'
 
     """Tracks basic fluentd metrics via the monitor_agent plugin
     * number of retry_count
@@ -45,6 +46,9 @@ class Fluentd(AgentCheck):
                         continue
                     if p.get('plugin_id') in plugin_ids:
                         self.gauge('fluentd.%s' % (m), p.get(m), ["plugin_id:%s" % p.get('plugin_id')])
+
+                if p.get(self.RATE) is not None and p.get('plugin_id') in plugin_ids:
+                    self.rate('fluentd.%s' % (self.RATE), p.get(self.RATE), ["plugin_id:%s" % p.get('plugin_id')])
         except Exception, e:
             msg = "No stats could be retrieved from %s : %s" % (url, str(e))
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=msg)
