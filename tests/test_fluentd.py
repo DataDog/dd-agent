@@ -29,14 +29,14 @@ class TestFluentd(unittest.TestCase):
         check.run()
         metrics = check.get_metrics()
         for m in metrics:
-            if m[0] == 'fluentd.forward.buffer_total_queued_size':
+            if m[0] == 'fluentd.buffer_total_queued_size':
                 self.assertEquals(m[3]['type'], 'rate')
             else:
                 self.assertEquals(m[3]['type'], 'gauge')
             self.assertEquals(m[2], 0)
             self.assertEquals(m[3]['tags'], ['plugin_id:plg1'])
 
-        self.assertEquals(len(metrics), 3, metrics)
+        self.assertEquals(len(metrics), 2, metrics)
 
         service_checks = check.get_service_checks()
         service_checks_count = len(service_checks)
