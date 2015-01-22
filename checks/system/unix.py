@@ -894,11 +894,11 @@ class Cpu(Check):
                                               dot(idle, rel_size),
                                               0.0)
             else:
-                    self.logger.warn("CPUStats: unsupported platform")
-                    return False
+                self.logger.warn("CPUStats: unsupported platform")
+                return False
         except Exception:
-                    self.logger.exception("Cannot compute CPU stats")
-                    return False
+            self.logger.exception("Cannot compute CPU stats")
+            return False
 
 
 def _get_subprocess_output(command, log):
