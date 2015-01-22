@@ -265,6 +265,7 @@ class Check(object):
                 pass
         return metrics
 
+
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
@@ -289,7 +290,8 @@ class AgentCheck(object):
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname,
+        self.aggregator = MetricsAggregator(
+            self.hostname,
             formatter=agent_formatter,
             recent_point_threshold=agentConfig.get('recent_point_threshold', None))
 
@@ -462,7 +464,6 @@ class AgentCheck(object):
         """
         self.service_metadata.append(metadata)
 
-
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -506,10 +507,11 @@ class AgentCheck(object):
 
     def get_service_metadata(self):
         """
-        Return a metadata dictionary of the check, if any
+        Return a list of the metadata dictionaries saved by the check, if any
+        and clears them out of the instance's service_checks list
 
-        @return check metadata dictionary
-        @rtype dictionary
+        @return the list of metadata saved by this check
+        @rtype list of metadata dicts
         """
         service_metadata = self.service_metadata
         self.service_metadata = []
@@ -577,6 +579,10 @@ class AgentCheck(object):
                     tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
+            # Generate empty metadata if nonexistent
+            if len(self.service_metadata) != i + 1:
+                self.svc_metadata({})
+
         return instance_statuses
 
     def check(self, instance):

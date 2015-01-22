@@ -150,12 +150,10 @@ class Redis(AgentCheck):
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
-            self._collect_metadata(info)
             raise
         except Exception, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
-            self._collect_metadata(info)
             raise
 
         latency_ms = round((time.time() - start) * 1000, 2)

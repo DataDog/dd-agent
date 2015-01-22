@@ -78,7 +78,7 @@ class AgentPayload(collections.MutableMapping):
             yield item
 
     def __len__(self):
-        return len(self.payload_data)+len(self.payload_meta)
+        return len(self.payload_data) + len(self.payload_meta)
 
     def emit(self, log, config, emitters, continue_running):
         """ Send payloads via the emitters. """
@@ -418,16 +418,7 @@ class Collector(object):
             agent_checks = []
             for check in check_statuses:
                 if check.instance_statuses is not None:
-                    instance_index = 0
-                    for instance_status in check.instance_statuses:
-                        # Attach metadata dictionnaries to their instances
-                        if(check.service_metadata and instance_status.status==STATUS_OK):
-                            # Only correctly running services have metadata
-                            instance_meta = check.service_metadata[instance_index]
-                            instance_index += 1
-                        else:
-                            instance_meta = {}
-
+                    for i, instance_status in enumerate(check.instance_statuses):
                         agent_checks.append(
                             (
                                 check.name, check.source_type_name,
@@ -436,7 +427,7 @@ class Collector(object):
                                 # put error message or list of warning messages in the same field
                                 # it will be handled by the UI
                                 instance_status.error or instance_status.warnings or "",
-                                instance_meta
+                                check.service_metadata[i]
                             )
                         )
                 else:
