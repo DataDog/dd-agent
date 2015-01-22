@@ -51,7 +51,7 @@ SELECT datname,
     }
 
     NEWER_92_METRICS = {
-        'deadlocks'         : ('postgresql.deadlocks', GAUGE),
+        'deadlocks'         : ('postgresql.deadlocks', RATE),
         'temp_bytes'        : ('postgresql.temp_bytes', RATE),
         'temp_files'        : ('postgresql.temp_files', RATE),
     }
