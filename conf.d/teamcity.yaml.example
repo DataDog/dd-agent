@@ -1,29 +1,29 @@
 init_config:
 
-#
-# Specify the server name of your teamcity instance here
-#
-#        server: teamcity.mycompany.com
-
+# Add your different projects in here to monitor their build
+# success with Datadog events
 instances:
-#    -   name: My Website
-#        build_configuration: MyWebsite_Deploy
+    # A custom unique name per build configuration that will show
+    # in the events
+  - name: My Website
 
-         # This is the internal build ID of the build configuration you wish to track.
-         # You can find it labelled as "Build configuration ID" when editing the configuration in question.
+    # Specify the server name of your teamcity instance here
+    # Guest authentication must be on if you want the check to be able to get data
+    server: teamcity.mycompany.com
+    # This is the internal build ID of the build configuration you wish to track.
+    # You can find it labelled as "Build configuration ID" when editing the configuration in question.
+    build_configuration: MyWebsite_Deploy
 
-#        host_affected: msicalweb6
+    # Optional, if you wish to override the host that is affected by this build configuration.
+    # Defaults to the host that the agent is running on.
+    # host_affected: msicalweb6
 
-         # Optional, if you wish to override the host that is affected by this build configuration.
-         # Defaults to the host that the agent is running on.
+    # Optional, this changes the event message slightly to specify that TeamCity was used to deploy something
+    # rather than just that a successful build happened
+    # is_deployment: true
 
-#        is_deployment: true
+    # Optional, any additional tags you'd like to add to the event
+    # tags:
+    #   - test
 
-         # Optional, this changes the event message slightly to specify that TeamCity was used to deploy something
-         # rather than just that a successful build happened
-
-#        tags:
-#          - test
-
-         # Optional, any additional tags you'd like to add to the event
 
