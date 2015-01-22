@@ -38,16 +38,27 @@ class AgentSupervisor(object):
         # Allow the child process to die on SIGTERM
         signal.signal(signal.SIGTERM, cls._handle_sigterm)
 
+        cls.need_stop = False
+
         while True:
             try:
+                if hasattr(cls, 'child_pid'):
+                    delattr(cls, 'child_pid')
                 pid = os.fork()
                 if pid > 0:
                     # The parent waits on the child.
                     cls.child_pid = pid
-                    _, status = os.waitpid(pid, 0)
+                    while not cls.need_stop:
+                        cpid, status = os.waitpid(pid, os.WNOHANG)
+                        if (cpid, status) != (0, 0):
+                            break
+                        time.sleep(1)
                     exit_code = status >> 8
                     if parent_func is not None:
                         parent_func()
+
+                    if cls.need_stop:
+                        break
                 else:
                     # The child will call our given function
                     if child_func is not None:
@@ -66,7 +77,13 @@ class AgentSupervisor(object):
 
     @classmethod
     def _handle_sigterm(cls, signum, frame):
-        os.kill(cls.child_pid, signal.SIGTERM)
+        # in the parent
+        if hasattr(cls, 'child_pid'):
+            os.kill(cls.child_pid, signal.SIGTERM)
+            cls.need_stop = True
+        # in the child
+        else:
+            sys.exit(0)
 
 
 class Daemon(object):

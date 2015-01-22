@@ -63,6 +63,8 @@ class PathNotFound(Exception):
 
 def get_parsed_args():
     parser = OptionParser()
+    parser.add_option('-A', '--autorestart', action='store_true', default=False,
+                        dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
                         dest='dd_url')
     parser.add_option('-c', '--clean', action='store_true', default=False,
@@ -79,7 +81,8 @@ def get_parsed_args():
         options, args = parser.parse_args()
     except SystemExit:
         # Ignore parse errors
-        options, args = Values({'dd_url': None,
+        options, args = Values({'autorestart': False,
+                                'dd_url': None,
                                 'clean': False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
@@ -368,7 +371,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
-        if config.has_option('Main', 'autorestart'):
+        if options is not None and options.autorestart:
+            agentConfig['autorestart'] = True
+        elif config.has_option('Main', 'autorestart'):
             agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
 
         if config.has_option('Main', 'check_timings'):
