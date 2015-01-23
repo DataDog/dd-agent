@@ -102,3 +102,10 @@ class TestElastic(unittest.TestCase):
         for m in r:
             if m[0] not in self.check.CLUSTER_HEALTH_METRICS:
                 self.assertEquals(m[3]['hostname'], expected_hostname)
+
+        # Service metadata
+        service_metadata = self.check.get_service_metadata()
+        service_metadata_count = len(service_metadata)
+        self.assertTrue(service_metadata_count > 0)
+        for meta_dict in service_metadata:
+            assert meta_dict

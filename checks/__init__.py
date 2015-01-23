@@ -580,7 +580,11 @@ class AgentCheck(object):
                 )
             instance_statuses.append(instance_status)
             # Generate empty metadata if nonexistent
-            if len(self.service_metadata) != i + 1:
+            service_metadata_count = len(self.service_metadata)
+            if service_metadata_count > i + 1:
+                self.log.exception("Check'%s' instance #%s failure:"
+                                   "Metadata is not matching number of instances" % (self.name, i))
+            elif service_metadata_count != i + 1:
                 self.svc_metadata({})
 
         return instance_statuses

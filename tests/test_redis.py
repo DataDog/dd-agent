@@ -129,6 +129,13 @@ class TestRedis(unittest.TestCase):
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
 
+        # Service metadata
+        service_metadata = r.get_service_metadata()
+        service_metadata_count = len(service_metadata)
+        self.assertTrue(service_metadata_count > 0)
+        for meta_dict in service_metadata:
+            assert meta_dict
+
     def _sort_metrics(self, metrics):
         def sort_by(m):
             return m[0], m[1], m[3]
