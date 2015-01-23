@@ -10,6 +10,7 @@ import socket
 
 import collections
 import modules
+from sets import Set
 
 from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
 from config import get_version, get_system_stats
@@ -37,11 +38,11 @@ class AgentPayload(collections.MutableMapping):
     One payload to manage data and metadata payloads.
 
     """
-    METADATA_KEYS = {'meta', 'tags', 'host-tags', 'systemStats',
-                     'agentVersion', 'agentVersion', 'agent_checks', 'gohai',
-                     'external_host_tags', 'agentVersion'}
+    METADATA_KEYS = Set(['meta', 'tags', 'host-tags', 'systemStats',
+                         'agentVersion', 'agentVersion', 'agent_checks', 'gohai',
+                         'external_host_tags', 'agentVersion'])
 
-    DUPLICATE_KEYS = {'apiKey'}
+    DUPLICATE_KEYS = Set(['apiKey'])
 
     DATA_ENDPOINT = 'metrics'
     METADATA_ENDPOINT = 'metadata'
@@ -102,8 +103,7 @@ class AgentPayload(collections.MutableMapping):
                 statuses.append(emitter_status)
             return statuses
         statuses.extend(_emit_payload(self.payload_data, self.DATA_ENDPOINT))
-        statuses.extend(_emit_payload(self.payload_meta,
-                                      self.METADATA_ENDPOINT))
+        statuses.extend(_emit_payload(self.payload_meta, self.METADATA_ENDPOINT))
 
         return statuses
 
