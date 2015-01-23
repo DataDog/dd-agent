@@ -9,7 +9,7 @@ namespace :ci do
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf &)
+      sh %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf > /dev/null 2>&1 &)
       sleep_for 10
     end
 
@@ -20,8 +20,9 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop fluentd
+    task :cleanup => ['ci:common:cleanup'] do
+      sh %(pkill fluentd)
+    end
 
     task :execute do
       exception = nil
