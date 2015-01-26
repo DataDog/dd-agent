@@ -72,8 +72,8 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
         self.sleep_for_interval_length(ag_interval)
         metrics = self.sort_metrics(stats.flush())
-        _, _, h1count, _, _, \
-        _, _, h2count, _, _ = metrics
+        _, _, h1count, _, _, _, \
+        _, _, h2count, _, _, _ = metrics
 
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
@@ -554,13 +554,14 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         self.sleep_for_interval_length(ag_interval)
         metrics = self.sort_metrics(stats.flush())
 
-        nt.assert_equal(len(metrics), 5)
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 6)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95['points'][0][1], 95, 10)
         self.assert_almost_equal(pmax['points'][0][1], 99, 1)
         self.assert_almost_equal(pmed['points'][0][1], 50, 2)
         self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pmin['points'][0][1], 1, 1)
         nt.assert_equals(pcount['points'][0][1], 4000) # 100 * 20 * 2
         nt.assert_equals(p95['host'], 'myhost')
 
@@ -578,10 +579,10 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         # Assert we scale up properly.
         self.sleep_for_interval_length()
         metrics = self.sort_metrics(stats.flush())
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
-        for p in [p95, pavg, pmed, pmax]:
+        for p in [p95, pavg, pmed, pmax, pmin]:
             nt.assert_equal(p['points'][0][1], 5)
 
     def test_histogram_buckets(self):
@@ -611,13 +612,14 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         self.sleep_for_interval_length(ag_interval)
         metrics = self.sort_metrics(stats.flush())
 
-        nt.assert_equal(len(metrics), 10)
-        p95, p95_b, pavg, pavg_b, pcount, pcount_b, pmax, pmax_b, pmed, pmed_b = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 12)
+        p95, p95_b, pavg, pavg_b, pcount, pcount_b, pmax, pmax_b, pmed, pmed_b, pmin, pmin_b = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95['points'][0][1], 95, 10)
         self.assert_almost_equal(pmax['points'][0][1], 99, 1)
         self.assert_almost_equal(pmed['points'][0][1], 50, 2)
         self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pmin['points'][0][1], 1, 1)
         nt.assert_equals(pcount['points'][0][1], 4000) # 100 * 20 * 2
 
         nt.assert_equal(p95_b['metric'], 'my.p.95percentile')
@@ -625,6 +627,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         self.assert_almost_equal(pmax_b['points'][0][1], 49, 1)
         self.assert_almost_equal(pmed_b['points'][0][1], 25, 2)
         self.assert_almost_equal(pavg_b['points'][0][1], 25, 2)
+        self.assert_almost_equal(pmin_b['points'][0][1], 1, 1)
         nt.assert_equals(pcount_b['points'][0][1], 2000) # 100 * 20 * 2
 
         nt.assert_equals(p95['host'], 'myhost')
@@ -663,25 +666,27 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
         metrics = self.sort_metrics(stats.flush())
 
-        nt.assert_equal(len(metrics), 5)
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 6)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95['points'][0][1], 95, 10)
         self.assert_almost_equal(pmax['points'][0][1], 99, 1)
         self.assert_almost_equal(pmed['points'][0][1], 50, 2)
         self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pmin['points'][0][1], 1, 1)
         nt.assert_equal(pcount['points'][0][1], 4000) # 100 * 20 * 2
         nt.assert_equals(p95['host'], 'myhost')
 
         self.sleep_for_interval_length()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 5)
-        p95_b, pavg_b, pcount_b, pmax_b, pmed_b = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 6)
+        p95_b, pavg_b, pcount_b, pmax_b, pmed_b, pmin_b = self.sort_metrics(metrics)
         nt.assert_equal(p95_b['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95_b['points'][0][1], 47, 10)
         self.assert_almost_equal(pmax_b['points'][0][1], 49, 1)
         self.assert_almost_equal(pmed_b['points'][0][1], 25, 2)
         self.assert_almost_equal(pavg_b['points'][0][1], 25, 2)
+        self.assert_almost_equal(pmin_b['points'][0][1], 1, 1)
         nt.assert_equals(pcount_b['points'][0][1], 2000) # 100 * 20 * 2
 
         # Ensure that histograms are reset.
@@ -747,7 +752,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         # Ensure points keep submitting
         self.sleep_for_interval_length()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
         nt.assert_equal(metrics[0]['points'][0][0], submit_bucket_timestamp)
@@ -802,7 +807,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         stats.submit_packets('test.histogram:11|h')
         self.sleep_for_interval_length()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
 
@@ -967,9 +972,9 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         # The bucket timestamp is the beginning of the bucket that ended before we flushed
         bucket_timestamp = flush_timestamp - (flush_timestamp % ag_interval) - ag_interval
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 10)
+        nt.assert_equal(len(metrics), 11)
 
-        first, first_b, second, second_b, third, h1, h2, h3, h4, h5 = metrics
+        first, first_b, second, second_b, third, h1, h2, h3, h4, h5, h6 = metrics
         nt.assert_equals(first['metric'], 'my.1.gauge')
         nt.assert_equals(first['points'][0][1], 1)
         nt.assert_equals(first['host'], 'myhost')
