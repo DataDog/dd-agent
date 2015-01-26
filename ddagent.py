@@ -93,6 +93,7 @@ class EmitterThread(threading.Thread):
         except Full:
             self.__logger.warn('Dropping packet for %r due to backlog', self.__name)
 
+
 class EmitterManager(object):
     """Track custom emitters"""
 
@@ -117,13 +118,14 @@ class EmitterManager(object):
 
     def send(self, data, headers=None):
         if not self.emitterThreads:
-            return # bypass decompression/decoding
+            return  # bypass decompression/decoding
         if headers and headers.get('Content-Encoding') == 'deflate':
             data = zlib.decompress(data)
         data = json_decode(data)
         for emitterThread in self.emitterThreads:
             logging.info('Queueing for emitter %r', emitterThread.name)
             emitterThread.enqueue(data, headers)
+
 
 class MetricTransaction(Transaction):
 
@@ -161,9 +163,10 @@ class MetricTransaction(Transaction):
         except Exception:
             log.info("Not a Datadog user")
 
-    def __init__(self, data, headers):
+    def __init__(self, data, headers, msg_type=None):
         self._data = data
         self._headers = headers
+        self._msg_type = msg_type
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -183,8 +186,10 @@ class MetricTransaction(Transaction):
     def get_url(self, endpoint):
         api_key = self._application._agentConfig.get('api_key')
         if api_key:
-            return self._application._agentConfig[endpoint] + '/intake?api_key=%s' % api_key
-        return self._application._agentConfig[endpoint] + '/intake'
+            return self._application._agentConfig[endpoint] + '/intake/%s'\
+                '?api_key=%s' % (self._msg_type, api_key)
+        return self._application._agentConfig[endpoint] + '/intake/%s'\
+            % self._msg_type
 
     def flush(self):
         for endpoint in self._endpoints:
@@ -227,14 +232,14 @@ class MetricTransaction(Transaction):
                     if self._application._agentConfig.get('proxy_forbid_method_switch'):
                         # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
                         tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
-                
+
             if (not self._application.use_simple_http_client or force_use_curl) and pycurl is not None:
                 ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
             req = tornado.httpclient.HTTPRequest(**tornado_client_params)
             use_curl = force_use_curl or self._application._agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
-            
+
             if use_curl:
                 if pycurl is None:
                     log.error("dd-agent is configured to use the Curl HTTP Client, but pycurl is not available on this system.")
@@ -286,7 +291,9 @@ class StatusHandler(tornado.web.RequestHandler):
             if len(transactions) > threshold:
                 self.set_status(503)
 
+
 class AgentInputHandler(tornado.web.RequestHandler):
+    _MSG_TYPE = None
 
     def post(self):
         """Read the message and forward it to the intake"""
@@ -294,14 +301,24 @@ class AgentInputHandler(tornado.web.RequestHandler):
         # read message
         msg = self.request.body
         headers = self.request.headers
+        msg_type = self._MSG_TYPE
 
         if msg is not None:
             # Setup a transaction for this message
-            tr = MetricTransaction(msg, headers)
+            tr = MetricTransaction(msg, headers, msg_type)
         else:
             raise tornado.web.HTTPError(500)
 
         self.write("Transaction: %s" % tr.get_id())
+
+
+class MetricsAgentInputHandler(AgentInputHandler):
+    _MSG_TYPE = "metrics"
+
+
+class MetadataAgentInputHandler(AgentInputHandler):
+    _MSG_TYPE = "metadata"
+
 
 class ApiInputHandler(tornado.web.RequestHandler):
 
@@ -381,7 +398,8 @@ class Application(tornado.web.Application):
 
     def run(self):
         handlers = [
-            (r"/intake/?", AgentInputHandler),
+            (r"/intake/metrics?", MetricsAgentInputHandler),
+            (r"/intake/metadata?", MetadataAgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
             (r"/status/?", StatusHandler),
         ]

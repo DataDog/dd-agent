@@ -276,7 +276,7 @@ class CheckStatus(object):
     def __init__(self, check_name, instance_statuses, metric_count=None,
                  event_count=None, service_check_count=None,
                  init_failed_error=None, init_failed_traceback=None,
-                 library_versions=None, source_type_name=None):
+                 library_versions=None, source_type_name=None, service_metadata=None):
         self.name = check_name
         self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
@@ -286,6 +286,7 @@ class CheckStatus(object):
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
+        self.service_metadata = service_metadata
 
     @property
     def status(self):

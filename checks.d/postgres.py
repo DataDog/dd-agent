@@ -257,6 +257,11 @@ SELECT %s
             metrics = self.bgw_metrics.get(key)
         return metrics
 
+    def _collect_metadata(self, key, db):
+        metadata_dict = {}
+        metadata_dict['version'] = self._get_version(key, db)
+        self.svc_metadata(metadata_dict)
+
     def _collect_stats(self, key, db, instance_tags, relations):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
@@ -402,7 +407,6 @@ SELECT %s
         self.dbs[key] = connection
         return connection
 
-
     def check(self, instance):
         host = instance.get('host', '')
         port = instance.get('port', '')
@@ -439,10 +443,12 @@ SELECT %s
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
             self._collect_stats(key, db, tags, relations)
+            self._collect_metadata(key, db)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations)
+            self._collect_metadata(key, db)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)

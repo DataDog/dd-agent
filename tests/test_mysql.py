@@ -42,10 +42,21 @@ class TestMySql(unittest.TestCase):
             self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
             self.assertEquals(len([sc for sc in service_checks if "port:0" in sc['tags']]), service_checks_count, service_checks)
 
+            # Flush previous metadata
+            self.check.get_service_metadata()
+
             time.sleep(1)
             self.check.run()
             metrics = self.check.get_metrics()
             self.assertTrue(len(metrics) >= 16, metrics)
+
+            # Service metadata
+            service_metadata = self.check.get_service_metadata()
+            service_metadata_count = len(service_metadata)
+            self.assertTrue(service_metadata_count > 0)
+            for meta_dict in service_metadata:
+                assert meta_dict
+
 
 
 if __name__ == '__main__':
