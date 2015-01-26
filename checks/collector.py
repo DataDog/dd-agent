@@ -42,7 +42,7 @@ class AgentPayload(collections.MutableMapping):
                          'agentVersion', 'agentVersion', 'agent_checks', 'gohai',
                          'external_host_tags', 'agentVersion'])
 
-    DUPLICATE_KEYS = Set(['apiKey'])
+    DUPLICATE_KEYS = Set(['apiKey', 'agentVersion'])
 
     DATA_ENDPOINT = 'metrics'
     METADATA_ENDPOINT = 'metadata'
