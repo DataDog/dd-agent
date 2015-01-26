@@ -65,6 +65,29 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
 * [BUGFIX] Zookeeper: Fix bad command sending.
 
+### To be merged / To be done
+* [FEATURE] Adding “min” metric to histograms. See [#1219][]
+* [FEATURE] Activemq: New ActiveMQ XML check that collect more metrics. See [#1227][] (Thanks [@brettlangdon][])
+* [FEATURE] Postgresql: Include table count as a metric. See [#1192][]
+* [FEATURE] TeamCity: New TeamCity integration. See [#1171][] (Thanks [@AirbornePorcine][])
+* [FEATURE] Sidekiq: New Sidekiq integration. See [#1153][] (Thanks [@donalguy][])
+* [FEATURE] Ping: Add a "ping" check. See [#1116][] (Thanks [@nambrosch][])
+* [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
+* [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
+
+* [BUGFIX] ElasticSearch: Fix host tagging. See [#1282][]
+* [BUGFIX] SNMP: Fix non-increasing OID issue. See [#1281][]
+* [BUGFIX] Dogstatsd: Properly handle UTF-8 packets. See [#1279][]
+* [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
+* [BUGFIX] Postgresql: Fix "has an interval of 0" bug when misconfigured. See [#1211][]
+* [BUGFIX] CouchDB: Fix check when too many databases are present. See [#1188][]
+* [BUGFIX] Linux: "Fix [Errno 2] No such file or directory: '/proc/net/dev'". See [#1175][]
+* [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
+* [BUGFIX] Core: Fix handling of tags ending with a semicolon. See [#1115][]
+
+
+
+
 
 # 5.1.1 / 12-09-2014
 #### Details
@@ -1341,18 +1364,28 @@ If you use ganglia, you want this version.
 [#1068]: https://github.com/DataDog/dd-agent/issues/1068
 [#1069]: https://github.com/DataDog/dd-agent/issues/1069
 [#1073]: https://github.com/DataDog/dd-agent/issues/1073
+[#1080]: https://github.com/DataDog/dd-agent/issues/1080
+[#1101]: https://github.com/DataDog/dd-agent/issues/1101
 [#1105]: https://github.com/DataDog/dd-agent/issues/1105
+[#1115]: https://github.com/DataDog/dd-agent/issues/1115
+[#1116]: https://github.com/DataDog/dd-agent/issues/1116
 [#1117]: https://github.com/DataDog/dd-agent/issues/1117
 [#1123]: https://github.com/DataDog/dd-agent/issues/1123
 [#1124]: https://github.com/DataDog/dd-agent/issues/1124
+[#1141]: https://github.com/DataDog/dd-agent/issues/1141
 [#1152]: https://github.com/DataDog/dd-agent/issues/1152
+[#1153]: https://github.com/DataDog/dd-agent/issues/1153
 [#1155]: https://github.com/DataDog/dd-agent/issues/1155
 [#1162]: https://github.com/DataDog/dd-agent/issues/1162
 [#1163]: https://github.com/DataDog/dd-agent/issues/1163
 [#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1171]: https://github.com/DataDog/dd-agent/issues/1171
 [#1173]: https://github.com/DataDog/dd-agent/issues/1173
+[#1175]: https://github.com/DataDog/dd-agent/issues/1175
 [#1181]: https://github.com/DataDog/dd-agent/issues/1181
 [#1187]: https://github.com/DataDog/dd-agent/issues/1187
+[#1188]: https://github.com/DataDog/dd-agent/issues/1188
+[#1192]: https://github.com/DataDog/dd-agent/issues/1192
 [#1200]: https://github.com/DataDog/dd-agent/issues/1200
 [#1201]: https://github.com/DataDog/dd-agent/issues/1201
 [#1202]: https://github.com/DataDog/dd-agent/issues/1202
@@ -1361,12 +1394,16 @@ If you use ganglia, you want this version.
 [#1207]: https://github.com/DataDog/dd-agent/issues/1207
 [#1208]: https://github.com/DataDog/dd-agent/issues/1208
 [#1210]: https://github.com/DataDog/dd-agent/issues/1210
+[#1211]: https://github.com/DataDog/dd-agent/issues/1211
 [#1213]: https://github.com/DataDog/dd-agent/issues/1213
+[#1214]: https://github.com/DataDog/dd-agent/issues/1214
 [#1218]: https://github.com/DataDog/dd-agent/issues/1218
+[#1219]: https://github.com/DataDog/dd-agent/issues/1219
 [#1221]: https://github.com/DataDog/dd-agent/issues/1221
 [#1222]: https://github.com/DataDog/dd-agent/issues/1222
 [#1225]: https://github.com/DataDog/dd-agent/issues/1225
 [#1226]: https://github.com/DataDog/dd-agent/issues/1226
+[#1227]: https://github.com/DataDog/dd-agent/issues/1227
 [#1235]: https://github.com/DataDog/dd-agent/issues/1235
 [#1236]: https://github.com/DataDog/dd-agent/issues/1236
 [#1238]: https://github.com/DataDog/dd-agent/issues/1238
@@ -1377,9 +1414,14 @@ If you use ganglia, you want this version.
 [#1272]: https://github.com/DataDog/dd-agent/issues/1272
 [#1273]: https://github.com/DataDog/dd-agent/issues/1273
 [#1275]: https://github.com/DataDog/dd-agent/issues/1275
+[#1279]: https://github.com/DataDog/dd-agent/issues/1279
+[#1281]: https://github.com/DataDog/dd-agent/issues/1281
+[#1282]: https://github.com/DataDog/dd-agent/issues/1282
 [#1285]: https://github.com/DataDog/dd-agent/issues/1285
+[@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
+[@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
 [@arthurnn]: https://github.com/arthurnn
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
@@ -1388,7 +1430,9 @@ If you use ganglia, you want this version.
 [@clly]: https://github.com/clly
 [@dcrosta]: https://github.com/dcrosta
 [@djensen47]: https://github.com/djensen47
+[@donalguy]: https://github.com/donalguy
 [@echohead]: https://github.com/echohead
+[@glickbot]: https://github.com/glickbot
 [@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
@@ -1408,6 +1452,8 @@ If you use ganglia, you want this version.
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
 [@morskoyzmey]: https://github.com/morskoyzmey
+[@mutemule]: https://github.com/mutemule
+[@nambrosch]: https://github.com/nambrosch
 [@ordenull]: https://github.com/ordenull
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford
@@ -1416,5 +1462,7 @@ If you use ganglia, you want this version.
 [@skingry]: https://github.com/skingry
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees
+[@takus]: https://github.com/takus
 [@tomduckering]: https://github.com/tomduckering
 [@walkeran]: https://github.com/walkeran
+
