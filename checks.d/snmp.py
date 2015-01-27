@@ -214,9 +214,7 @@ class SnmpCheck(AgentCheck):
 
         for result_oid, value in all_binds:
             if lookup_names:
-                object = result_oid.getMibSymbol()
-                metric = object[1]
-                indexes = object[2]
+                _, metric, indexes = result_oid.getMibSymbol()
                 results[metric][indexes] = value
             else:
                 oid = result_oid.asTuple()

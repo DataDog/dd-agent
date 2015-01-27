@@ -1,6 +1,10 @@
 import unittest
 import time
+
+# agent
 from tests.common import load_check
+
+# 3rd party
 from nose.plugins.attrib import attr
 
 # This test is dependent of having a fully open snmpd responding at localhost:161
@@ -293,6 +297,9 @@ class TestSNMP(unittest.TestCase):
                     "OID": "1.3.6.1.2.1.25.6.3.1.4",  # Integer
                     "name": "needFallback"
                 }, {
+                    "OID": "1.3.6.1.2.1.25.6.3.1.4.0",  # Integer
+                    "name": "noFallbackAndSameResult"
+                }, {
                     "OID": "1.3.6.1.2.1.25.6.3.1.4.547",  # Integer
                     "name": "failIfFallback"
                 }
@@ -310,7 +317,13 @@ class TestSNMP(unittest.TestCase):
         self.check.check(self.config['instances'][0])
 
         metrics = self.check.get_metrics()
-        self.assertEqual(len(metrics), 2)
+        self.assertEqual(len(metrics), 3)
+
+        self.assertEqual(metrics[0][0], 'snmp.needFallback')
+        self.assertEqual(metrics[2][0], 'snmp.noFallbackAndSameResult')
+
+        # Should have the same value
+        self.assertEqual(metrics[0][2], metrics[2][2])
 
 
 if __name__ == "__main__":
