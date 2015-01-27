@@ -12,9 +12,9 @@ from nose.plugins.attrib import attr
 # This setup should normally be handled by the .travis.yml file, look there if
 # you want to see how to run these tests locally
 
+
 @attr(requires='snmpd')
 class TestSNMP(unittest.TestCase):
-
     def setUp(self):
         self.agentConfig = {
             'version': '0.1',
@@ -318,12 +318,13 @@ class TestSNMP(unittest.TestCase):
 
         metrics = self.check.get_metrics()
         self.assertEqual(len(metrics), 3)
+        metrics = sorted(metrics, key=lambda metric: metric[0])
 
-        self.assertEqual(metrics[0][0], 'snmp.needFallback')
+        self.assertEqual(metrics[1][0], 'snmp.needFallback')
         self.assertEqual(metrics[2][0], 'snmp.noFallbackAndSameResult')
 
         # Should have the same value
-        self.assertEqual(metrics[0][2], metrics[2][2])
+        self.assertEqual(metrics[1][2], metrics[2][2])
 
 
 if __name__ == "__main__":
