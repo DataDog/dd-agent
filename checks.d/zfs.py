@@ -75,7 +75,3 @@ class Zfs(AgentCheck):
 
 		# Temp hack to read from file
 		pass
-
-print("Hello")
-zc = ZfsCheck()
-zc.parse_zfs_usage()
