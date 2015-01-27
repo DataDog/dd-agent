@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import division
 from checks import AgentCheck
+import subprocess
 
 class Zfs(AgentCheck):
 
@@ -17,18 +18,29 @@ class Zfs(AgentCheck):
 
 	def _process_zfs_usage(self):
 		# Read in zfs used and available
-		# zfs get -o name,value -Hp used
-		# zfs get -o name,value -Hp available
-		# TODO: Read from command line
+		# TODO: Figure out zfs permissioning so that sudo is not required
 
+		# zfs get -o name,value -Hp used
+		p = subprocess.Popen(
+				"sudo zfs get -o name,value -Hp used".split(), 
+				stdout=subprocess.PIPE
+			)
+		zfs_used_output, err = p.communicate()
+
+		# zfs get -o name,value -Hp available
+		p = subprocess.Popen(
+				"sudo zfs get -o name,value -Hp available".split(), 
+				stdout=subprocess.PIPE
+			)
+		zfs_available_output, err = p.communicate()
 		# Temp hack to read from files
-		zfs_used_file = open('./zfs_get_used.out', 'r')
-		zfs_used_output = zfs_used_file.read()
-		zfs_used_file.close()
+		#zfs_used_file = open('./zfs_get_used.out', 'r')
+		#zfs_used_output = zfs_used_file.read()
+		#zfs_used_file.close()
 		
-		zfs_available_file = open('./zfs_get_available.out')
-		zfs_available_output = zfs_available_file.read()
-		zfs_available_file.close()
+		#zfs_available_file = open('./zfs_get_available.out')
+		#zfs_available_output = zfs_available_file.read()
+		#zfs_available_file.close()
 
 		# Parse the output
 		zfs_used = {}
