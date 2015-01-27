@@ -3,6 +3,7 @@ init_config:
 instances:
   - host: localhost
     port: 6379
+    # db: 1 # without this, db 0 is selected
     # unix_socket_path: /var/run/redis/redis.sock # optional, can be used in lieu of host/port
     # password: mypassword
     # tags:
