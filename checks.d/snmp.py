@@ -393,15 +393,13 @@ class SnmpCheck(AgentCheck):
         # wrongfully returns True in the case of CounterBasedGauge64
         # and Counter64 for example
         snmp_class = snmp_value.__class__.__name__
-        for counter_class in SNMP_COUNTERS:
-            if snmp_class == counter_class:
-                value = int(snmp_value)
-                self.rate(metric_name, value, tags)
-                return
-        for gauge_class in SNMP_GAUGES:
-            if snmp_class == gauge_class:
-                value = int(snmp_value)
-                self.gauge(metric_name, value, tags)
-                return
+        if snmp_class in SNMP_COUNTERS:
+            value = int(snmp_value)
+            self.rate(metric_name, value, tags)
+            return
+        if snmp_class in SNMP_GAUGES:
+            value = int(snmp_value)
+            self.gauge(metric_name, value, tags)
+            return
 
         self.log.warning("Unsupported metric type %s", snmp_class)
