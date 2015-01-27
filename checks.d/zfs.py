@@ -1,7 +1,8 @@
 #!/usr/bin/python
 from __future__ import division
+from checks import AgentCheck
 
-class ZfsCheck():
+class Zfs(AgentCheck):
 
 	ZFS_LIST_FORMAT = {
 		'USED' : 0,
@@ -10,7 +11,11 @@ class ZfsCheck():
 		'MOUNTPOINT' : 3,
 	}
 
-	def parse_zfs_usage(self):
+	def check(self, instance):
+		self.log.debug("Processing zfs data")
+		self._process_zfs_usage()
+
+	def _process_zfs_usage(self):
 		# Read in zfs used and available
 		# zfs get -o name,value -Hp used
 		# zfs get -o name,value -Hp available
@@ -36,35 +41,35 @@ class ZfsCheck():
 			temp_list = line.split()
 			zfs_available[temp_list[0]] = temp_list[1]
 
-		# Check report: list available, used
-		# system.zfs.available
-		# system.zfs.total
-		# system.zfs.percent_used
-		# system.zfs.used
-		for mount in zfs_used.keys():
-			print "***Mount Point " + mount
+		for name in zfs_used.keys():
 			try:
-				used = int(zfs_used[mount])
-				available = int(zfs_available[mount])
+				used = int(zfs_used[name])
+				available = int(zfs_available[name])
 			except(ValueError):
 				continue
+			
 			total = used + available
 			percent_used = (used / total) * 100
 			if percent_used < 1:
 				percent_used = 1
-			print '\tused: {}'.format(used)
-			print '\tavailable: {}'.format(available)
-			print '\ttotal: {}'.format(total) 
-			print '\tpercent used: {}'.format(percent_used)
-			print
+
+			tags = [
+                "name:%s" % (name, )
+            ]
+
+			self.gauge('system.zfs.used', used, tags=tags)
+			self.gauge('system.zfs.available', available, tags=tags)
+			self.gauge('system.zfs.total', total, tags=tags)
+			self.gauge('system.zfs.percent_used', percent_used, tags=tags)
+
 		
-	def parse_zpool_list(self):
+	def _parse_zpool_list(self):
 		# Read in zpool list output
 		# TODO: Read from command line
 
 		# Temp hack to read from file
 		pass
-	def parse_zpool_status(self):
+	def _parse_zpool_status(self):
 		# Read in zpool status output
 		# TODO: Read from command line
 
