@@ -121,6 +121,13 @@ class SnmpCheck(AgentCheck):
         port = instance.get("port", 161) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address, port), timeout=timeout, retries=retries)
 
+    def raise_on_error_indication(self, error_indication, instance):
+        if error_indication:
+            message = "{0} for instance {1}".format(error_indication,
+                                                    instance["ip_address"])
+            instance["service_check_error"] = message
+            raise Exception(message)
+
     def check_table(self, instance, oids, lookup_names):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
@@ -155,12 +162,9 @@ class SnmpCheck(AgentCheck):
                 *(oids[first_oid:first_oid + OID_BATCH_SIZE]),
                 lookupValues=lookup_names,
                 lookupNames=lookup_names)
+
             # Raise on error_indication
-            if error_indication:
-                message = "{0} for instance {1}".format(error_indication,
-                                                        instance["ip_address"])
-                instance["service_check_error"] = message
-                raise Exception(message)
+            self.raise_on_error_indication(error_indication, instance)
 
             # Continue on error_status
             if error_status:
@@ -193,11 +197,7 @@ class SnmpCheck(AgentCheck):
                     lookupNames=lookup_names)
 
                 # Raise on error_indication
-                if error_indication:
-                    message = "{0} for instance {1}".format(error_indication,
-                                                            instance["ip_address"])
-                    instance["service_check_error"] = message
-                    raise Exception(message)
+                self.raise_on_error_indication(error_indication, instance)
 
                 # Continue on error_status
                 if error_status:
