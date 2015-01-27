@@ -46,6 +46,7 @@ class Zfs(AgentCheck):
 		zfs_used = {}
 		for line in zfs_used_output.split('\n'):
 			temp_list = line.split()
+			self.log.info(temp_list)
 			zfs_used[temp_list[0]] = temp_list[1]
 		
 		zfs_available = {}
