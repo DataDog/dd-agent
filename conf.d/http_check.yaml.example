@@ -68,7 +68,7 @@ instances:
     # create any event to avoid duplicates with a server side service check.
     # This default to False.
     #
-    # skip_event: false
+    skip_event: true
 
     # tags:
     #   - url:http://alternative.host.example.com
