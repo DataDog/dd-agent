@@ -76,6 +76,9 @@ use_mount: no
 # for instance for security reasons
 # exclude_process_args: no
 
+# histogram_aggregates: max, median, avg, count
+# histogram_percentiles: 0.95
+
 # ========================================================================== #
 # DogStatsd configuration                                                    #
 # ========================================================================== #

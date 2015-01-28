@@ -5,7 +5,7 @@ import time
 import unittest
 import nose.tools as nt
 
-from aggregator import MetricsAggregator, get_formatter
+from aggregator import MetricsAggregator, get_formatter, DEFAULT_HISTOGRAM_AGGREGATES
 
 class TestUnitDogStatsd(unittest.TestCase):
 
@@ -73,15 +73,19 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(intc['host'], 'myhost')
 
     def test_histogram_normalization(self):
-        stats = MetricsAggregator('myhost', interval=10)
+        # The min is not enabled by default
+        stats = MetricsAggregator('myhost',
+            interval=10,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         for i in range(5):
             stats.submit_packets('h1:1|h')
         for i in range(20):
             stats.submit_packets('h2:1|h')
 
         metrics = self.sort_metrics(stats.flush())
-        _, _, h1count, _, _, \
-        _, _, h2count, _, _ = metrics
+        _, _, h1count, _, _, _, \
+        _, _, h2count, _, _, _ = metrics
 
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
@@ -324,7 +328,10 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(m['points'][0][1], 10)
 
     def test_histogram(self):
-        stats = MetricsAggregator('myhost')
+        # The min is not enabled by default
+        stats = MetricsAggregator('myhost',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
 
         # Sample all numbers between 1-100 many times. This
         # means our percentiles should be relatively close to themselves.
@@ -338,13 +345,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         metrics = self.sort_metrics(stats.flush())
 
-        nt.assert_equal(len(metrics), 5)
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        nt.assert_equal(len(metrics), 6)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
         nt.assert_equal(p95['metric'], 'my.p.95percentile')
         self.assert_almost_equal(p95['points'][0][1], 95, 10)
         self.assert_almost_equal(pmax['points'][0][1], 99, 1)
         self.assert_almost_equal(pmed['points'][0][1], 50, 2)
         self.assert_almost_equal(pavg['points'][0][1], 50, 2)
+        self.assert_almost_equal(pmin['points'][0][1], 1, 1)
         self.assert_almost_equal(pcount['points'][0][1], 4000, 0) # 100 * 20 * 2
         nt.assert_equals(p95['host'], 'myhost')
 
@@ -355,16 +363,19 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
-        stats = MetricsAggregator('myhost')
+        # The min is not enabled by default
+        stats = MetricsAggregator('myhost',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         stats.submit_packets('sampled.hist:5|h|@0.5')
 
 
         # Assert we scale up properly.
         metrics = self.sort_metrics(stats.flush())
-        p95, pavg, pcount, pmax, pmed = self.sort_metrics(metrics)
+        p95, pavg, pcount, pmax, pmed, pmin = self.sort_metrics(metrics)
 
         nt.assert_equal(pcount['points'][0][1], 2)
-        for p in [p95, pavg, pmed, pmax]:
+        for p in [p95, pavg, pmed, pmax, pmin]:
             nt.assert_equal(p['points'][0][1], 5)
 
     def test_batch_submission(self):
@@ -385,10 +396,15 @@ class TestUnitDogStatsd(unittest.TestCase):
         assert gauge['points'][0][1] == 1
 
     def test_monokey_batching_notags(self):
-        stats = MetricsAggregator('host')
+        # The min is not enabled by default
+        stats = MetricsAggregator('host',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         stats.submit_packets('test_hist:0.3|ms:2.5|ms|@0.5:3|ms')
 
-        stats_ref = MetricsAggregator('host')
+        stats_ref = MetricsAggregator('host',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         packets = [
                 'test_hist:0.3|ms',
                 'test_hist:2.5|ms|@0.5',
@@ -399,7 +415,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = stats.flush()
         metrics_ref = stats_ref.flush()
 
-        self.assertTrue(len(metrics) == len(metrics_ref) == 5, (metrics, metrics_ref))
+        self.assertTrue(len(metrics) == len(metrics_ref) == 6, (metrics, metrics_ref))
 
         for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
@@ -427,10 +443,15 @@ class TestUnitDogStatsd(unittest.TestCase):
 
 
     def test_monokey_batching_withtags_with_sampling(self):
-        stats = MetricsAggregator('host')
+        # The min is not enabled by default
+        stats = MetricsAggregator('host',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         stats.submit_packets('test_metric:1.5|c|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g:42|h|#tag1:12,tag42:42|@0.22')
 
-        stats_ref = MetricsAggregator('host')
+        stats_ref = MetricsAggregator('host',
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         packets = [
                 'test_metric:1.5|c|#tag1:one,tag2:two',
                 'test_metric:2.3|g|#tag3:three',
@@ -443,7 +464,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         metrics = self.sort_metrics(stats.flush())
         metrics_ref = self.sort_metrics(stats_ref.flush())
 
-        self.assertTrue(len(metrics) == len(metrics_ref) == 8, (metrics, metrics_ref))
+        self.assertTrue(len(metrics) == len(metrics_ref) == 9, (metrics, metrics_ref))
         for i in range(len(metrics)):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
             nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
@@ -477,7 +498,12 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Ensure metrics eventually expire and stop submitting.
         ag_interval = 1
         expiry = ag_interval * 4 + 2
-        stats = MetricsAggregator('myhost', interval=ag_interval, expiry_seconds=expiry)
+        # The min is not enabled by default
+        stats = MetricsAggregator('myhost',
+            interval=ag_interval,
+            expiry_seconds=expiry,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         stats.submit_packets('test.counter:123|c')
         stats.submit_packets('test.gauge:55|g')
         stats.submit_packets('test.set:44|s')
@@ -486,7 +512,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Ensure points keep submitting
         time.sleep(ag_interval)
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
         time.sleep(ag_interval)
@@ -516,7 +542,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         stats.submit_packets('test.histogram:11|h')
 
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
 
@@ -635,7 +661,11 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_recent_point_threshold(self):
         threshold = 100
-        stats = MetricsAggregator('myhost', recent_point_threshold=threshold)
+        # The min is not enabled by default
+        stats = MetricsAggregator('myhost',
+            recent_point_threshold=threshold,
+            histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
+        )
         timestamp_beyond_threshold = time.time() - threshold*2
         timestamp_within_threshold = time.time() - threshold/2
 
@@ -661,9 +691,9 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         flush_timestamp = time.time()
         metrics = self.sort_metrics(stats.flush())
-        nt.assert_equal(len(metrics), 8)
+        nt.assert_equal(len(metrics), 9)
 
-        first, second, third, h1, h2, h3, h4, h5 = metrics
+        first, second, third, h1, h2, h3, h4, h5, h6 = metrics
         nt.assert_equals(first['metric'], 'my.1.gauge')
         nt.assert_equals(first['points'][0][1], 1)
         nt.assert_equals(first['host'], 'myhost')

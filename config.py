@@ -220,6 +220,55 @@ def get_default_bind_host():
         return '127.0.0.1'
     return 'localhost'
 
+
+def get_histogram_aggregates(configstr=None):
+    if configstr is None:
+        return None
+
+    try:
+        vals = configstr.split(',')
+        valid_values = ['min', 'max', 'median', 'avg', 'count']
+        result = []
+
+        for val in vals:
+            val = val.strip()
+            if val not in valid_values:
+                log.warning("Ignored histogram aggregate {0}, invalid".format(val))
+                continue
+            else:
+                result.append(val)
+    except Exception:
+        log.exception("Error when parsing histogram aggregates, skipping")
+        return None
+
+    return result
+
+def get_histogram_percentiles(configstr=None):
+    if configstr is None:
+        return None
+
+    result = []
+    try:
+        vals = configstr.split(',')
+        for val in vals:
+            try:
+                val = val.strip()
+                floatval = float(val)
+                if floatval <= 0 or floatval >= 1:
+                    raise ValueError
+                if len(val) > 4:
+                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"\
+                        .format(floatval))
+                result.append(float(val[0:4]))
+            except ValueError:
+                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"\
+                    .format(val))
+    except Exception:
+        log.exception("Error when parsing histogram percentiles, skipping")
+        return None
+
+    return result
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -324,6 +373,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
             except Exception:
                 pass
+
+        # Custom histogram aggregate/percentile metrics
+        if config.has_option('Main', 'histogram_aggregates'):
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histograms_aggregates'))
+
+        if config.has_option('Main', 'histogram_percentiles'):
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histograms_percentiles'))
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
