@@ -285,12 +285,14 @@ def main():
                     check.run()
                     print check.get_metrics()
                     print check.get_events()
+                    print check.get_service_checks()
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                        print check.get_service_checks()
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
