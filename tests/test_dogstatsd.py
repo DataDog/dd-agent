@@ -624,9 +624,9 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(fourth['tags'], sorted(['t1', 't2']))
 
     def test_event_title(self):
-        stats = MetricsAggregator('myhost')
+        stats = MetricsAggregator('myhost', utf8_decoding=True)
         stats.submit_packets('_e{0,4}:|text')
-        stats.submit_packets(u'_e{9,4}:2intitulé|text')
+        stats.submit_packets(u'_e{9,4}:2intitulé|text'.encode('utf-8')) # comes from socket
         stats.submit_packets('_e{14,4}:3title content|text')
         stats.submit_packets('_e{14,4}:4title|content|text')
         stats.submit_packets('_e{13,4}:5title\\ntitle|text') # \n stays escaped
@@ -634,30 +634,42 @@ class TestUnitDogStatsd(unittest.TestCase):
         events = self.sort_events(stats.flush_events())
 
         assert len(events) == 5
-        first, second, third, fourth, fifth = events
 
-        nt.assert_equal(first['msg_title'], '')
-        nt.assert_equal(second['msg_title'], u'2intitulé')
-        nt.assert_equal(third['msg_title'], '3title content')
-        nt.assert_equal(fourth['msg_title'], '4title|content')
-        nt.assert_equal(fifth['msg_title'], '5title\\ntitle')
+        nt.assert_equal(events[0]['msg_title'], '')
+        nt.assert_equal(events[1]['msg_title'], u'2intitulé')
+        nt.assert_equal(events[2]['msg_title'], '3title content')
+        nt.assert_equal(events[3]['msg_title'], '4title|content')
+        nt.assert_equal(events[4]['msg_title'], '5title\\ntitle')
 
     def test_event_text(self):
         stats = MetricsAggregator('myhost')
         stats.submit_packets('_e{2,0}:t1|')
         stats.submit_packets('_e{2,12}:t2|text|content')
         stats.submit_packets('_e{2,23}:t3|First line\\nSecond line') # \n is a newline
-        stats.submit_packets(u'_e{2,19}:t4|♬ †øU †øU ¥ºu T0µ ♪') # utf-8 compliant
 
         events = self.sort_events(stats.flush_events())
 
-        assert len(events) == 4
-        first, second, third, fourth = events
+        assert len(events) == 3
 
-        nt.assert_equal(first['msg_text'], '')
-        nt.assert_equal(second['msg_text'], 'text|content')
-        nt.assert_equal(third['msg_text'], 'First line\nSecond line')
-        nt.assert_equal(fourth['msg_text'], u'♬ †øU †øU ¥ºu T0µ ♪')
+        nt.assert_equal(events[0]['msg_text'], '')
+        nt.assert_equal(events[1]['msg_text'], 'text|content')
+        nt.assert_equal(events[2]['msg_text'], 'First line\nSecond line')
+
+    def test_event_text_utf8(self):
+        stats = MetricsAggregator('myhost', utf8_decoding=True)
+        # Should raise because content is not encoded
+
+        self.assertRaises(Exception, stats.submit_packets, u'_e{2,19}:t4|♬ †øU †øU ¥ºu T0µ ♪')
+        stats.submit_packets(u'_e{2,19}:t4|♬ †øU †øU ¥ºu T0µ ♪'.encode('utf-8')) # utf-8 compliant
+        # Normal packet
+        stats.submit_packets('_e{2,23}:t3|First line\\nSecond line') # \n is a newline
+
+        events = self.sort_events(stats.flush_events())
+
+        assert len(events) == 2
+
+        nt.assert_equal(events[0]['msg_text'], 'First line\nSecond line')
+        nt.assert_equal(events[1]['msg_text'], u'♬ †øU †øU ¥ºu T0µ ♪')
 
     def test_recent_point_threshold(self):
         threshold = 100

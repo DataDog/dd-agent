@@ -289,6 +289,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
+        'utf8_decoding': False
     }
 
     # Config handling
@@ -488,6 +489,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
+
+        agentConfig["utf8_decoding"] = False
+        if config.has_option("Main", "utf8_decoding"):
+            agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')

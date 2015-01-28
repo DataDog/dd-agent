@@ -384,6 +384,7 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
         formatter=get_formatter(c),
         histogram_aggregates=c.get('histogram_aggregates'),
         histogram_percentiles=c.get('histogram_percentiles'),
+        utf8_decoding=c['utf8_decoding']
     )
 
     # Start the reporting thread.
