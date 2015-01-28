@@ -33,14 +33,6 @@ class Zfs(AgentCheck):
 				stdout=subprocess.PIPE
 			)
 		zfs_available_output, err = p.communicate()
-		# Temp hack to read from files
-		#zfs_used_file = open('./zfs_get_used.out', 'r')
-		#zfs_used_output = zfs_used_file.read()
-		#zfs_used_file.close()
-		
-		#zfs_available_file = open('./zfs_get_available.out')
-		#zfs_available_output = zfs_available_file.read()
-		#zfs_available_file.close()
 
 		# Parse the output
 		zfs_used = {}
@@ -78,16 +70,40 @@ class Zfs(AgentCheck):
 			self.gauge('system.zfs.total', total, tags=tags)
 			self.gauge('system.zfs.percent_used', percent_used, tags=tags)
 
-		
-	def _parse_zpool_list(self):
-		# Read in zpool list output
-		# TODO: Read from command line
-
-		# Temp hack to read from file
-		pass
 	def _parse_zpool_status(self):
-		# Read in zpool status output
-		# TODO: Read from command line
+		# Get list of zpools
+		p = subprocess.Popen(
+				"sudo zpool list -H".split(), 
+				stdout=subprocess.PIPE
+			)
+		zfs_pools_output, err = p.communicate()
+		zpools = []
+		for line in zfs_pools_output.split('\n'):
+			zpools.append(line.split()[0])
 
-		# Temp hack to read from file
-		pass
+		# For each zpool, get the health
+		for zpool in zpools:
+			p = subprocess.Popen(
+					"sudo zpool get health {}".format(zpool).split(), 
+					stdout=subprocess.PIPE
+				)
+			health_output, err = p.communicate()
+			health_line = health_output.split('\n')[1]
+			health_status = health_line.split()[2]
+			check_status = None
+			if health_status == 'ONLINE':
+				check_status = AgentCheck.OK
+			elif check_status == 'DEGRADED':
+				check_status = AgentCheck.WARNING
+			else:
+				check_status = AgentCheck.CRITICAL
+
+			self.service_check('system.zfs.zpoolhealth', check_status)
+
+
+
+
+
+
+
+
