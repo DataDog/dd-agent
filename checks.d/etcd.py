@@ -57,36 +57,36 @@ class Etcd(AgentCheck):
         instance_tags.append("url:{}".format(url))
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
 
-        selfResponse = self.get_self_metrics(url, timeout)
-        if selfResponse is not None:
-            if selfResponse['state'] == 'StateLeader':
+        self_response = self.get_self_metrics(url, timeout)
+        if self_response is not None:
+            if self_response['state'] == 'StateLeader':
                 instance_tags.append('etcd_state:leader')
             else:
                 instance_tags.append('etcd_state:follower')
 
             for key in self.SELF_RATES:
-                if key in selfResponse:
-                    self.rate(self.SELF_RATES[key], selfResponse[key], tags=instance_tags)
+                if key in self_response:
+                    self.rate(self.SELF_RATES[key], self_response[key], tags=instance_tags)
                 else:
                     self.log.warn("Missing key {} in stats.".format(key))
 
             for key in self.SELF_GAUGES:
-                if key in selfResponse:
-                    self.gauge(self.SELF_GAUGES[key], selfResponse[key], tags=instance_tags)
+                if key in self_response:
+                    self.gauge(self.SELF_GAUGES[key], self_response[key], tags=instance_tags)
                 else:
                     self.log.warn("Missing key {} in stats.".format(key))
 
-        storeResponse = self.get_store_metrics(url, timeout)
-        if storeResponse is not None:
+        store_response = self.get_store_metrics(url, timeout)
+        if store_response is not None:
             for key in self.STORE_RATES:
-                if key in storeResponse:
-                    self.rate(self.STORE_RATES[key], storeResponse[key], tags=instance_tags)
+                if key in store_response:
+                    self.rate(self.STORE_RATES[key], store_response[key], tags=instance_tags)
                 else:
                     self.log.warn("Missing key {} in stats.".format(key))
 
             for key in self.STORE_GAUGES:
-                if key in storeResponse:
-                    self.gauge(self.STORE_GAUGES[key], storeResponse[key], tags=instance_tags)
+                if key in store_response:
+                    self.gauge(self.STORE_GAUGES[key], store_response[key], tags=instance_tags)
                 else:
                     self.log.warn("Missing key {} in stats.".format(key))
 
