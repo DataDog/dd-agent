@@ -394,9 +394,11 @@ class Aggregator(object):
             histogram_aggregates=None, histogram_percentiles=None,
             utf8_decoding=False):
         self.events = []
+        self.service_checks = []
         self.total_count = 0
         self.count = 0
         self.event_count = 0
+        self.service_check_count = 0
         self.hostname = hostname
         self.expiry_seconds = expiry_seconds
         self.formatter = formatter or api_formatter
@@ -487,6 +489,9 @@ class Aggregator(object):
 
         return parsed_packets
 
+    def _unescape_sc_content(self, string):
+        return string.replace('\\n', '\n').replace('m\:', 'm:')
+
     def _unescape_event_text(self, string):
         return string.replace('\\n', '\n')
 
@@ -527,6 +532,47 @@ class Aggregator(object):
         except (IndexError, ValueError):
             raise Exception(u'Unparseable event packet: %s' % packet)
 
+    def parse_sc_packet(self, packet):
+        try:
+            _, data_and_metadata = packet.split('|', 1)
+            # Service check syntax:
+            # _sc|check_name|status|meta
+            if data_and_metadata.count('|') == 1:
+                # Case with no metadata
+                check_name, status = data_and_metadata.split('|')
+                metadata = ''
+            else:
+                check_name, status, metadata = data_and_metadata.split('|', 2)
+
+            service_check = {
+                'check_name': check_name,
+                'status': int(status)
+            }
+
+            message_delimiter = '|m:' if '|m:' in metadata else 'm:'
+            if message_delimiter in metadata:
+                meta, message = metadata.rsplit(message_delimiter, 1)
+                service_check['message'] = self._unescape_sc_content(message)
+            else:
+                meta = metadata
+
+            if not meta:
+                return service_check
+
+            meta = unicode(meta)
+            for m in meta.split('|'):
+                if m[0] == u'd':
+                    service_check['timestamp'] = float(m[2:])
+                elif m[0] == u'h':
+                    service_check['hostname'] = m[2:]
+                elif m[0] == u'#':
+                    service_check['tags'] = sorted(m[1:].split(u','))
+
+            return service_check
+
+        except (IndexError, ValueError):
+            raise Exception(u'Unparseable service check packet: %s' % packet)
+
     def submit_packets(self, packets):
         # We should probably consider that packets are always encoded
         # in utf8, but decoding all packets has an perf overhead of 7%
@@ -544,6 +590,10 @@ class Aggregator(object):
                 self.event_count += 1
                 event = self.parse_event_packet(packet)
                 self.event(**event)
+            elif packet.startswith('_sc'):
+                self.service_check_count += 1
+                service_check = self.parse_sc_packet(packet)
+                self.service_check(**service_check)
             else:
                 self.count += 1
                 parsed_packets = self.parse_metric_packet(packet)
@@ -606,8 +656,27 @@ class Aggregator(object):
 
         self.events.append(event)
 
+    def service_check(self, check_name, status, tags=None, timestamp=None,
+                      hostname=None, message=None):
+        service_check = {
+            'check': check_name,
+            'status': status,
+            'timestamp': timestamp or int(time())
+        }
+        if tags is not None:
+            service_check['tags'] = sorted(tags)
+
+        if hostname is not None:
+            service_check['host_name'] = hostname
+        else:
+            service_check['host_name'] = self.hostname
+        if message is not None:
+            service_check['message'] = message
+
+        self.service_checks.append(service_check)
+
     def flush(self):
-        """ Flush aggreaged metrics """
+        """ Flush aggregated metrics """
         raise NotImplementedError()
 
     def flush_events(self):
@@ -620,6 +689,17 @@ class Aggregator(object):
         log.debug("Received %d events since last flush" % len(events))
 
         return events
+
+    def flush_service_checks(self):
+        service_checks = self.service_checks
+        self.service_checks = []
+
+        self.total_count += self.service_check_count
+        self.service_check_count = 0
+
+        log.debug("Received {0} service check runs since last flush".format(len(service_checks)))
+
+        return service_checks
 
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
