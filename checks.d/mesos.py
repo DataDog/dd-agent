@@ -12,6 +12,8 @@ import simplejson as json
 import requests
 
 class Mesos(AgentCheck):
+    SERVICE_CHECK_NAME = "mesos.can_connect"
+
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('Mesos instance missing "url" value.')
@@ -71,25 +73,33 @@ class Mesos(AgentCheck):
     def get_json(self, url, timeout):
         # Use a hash of the URL as an aggregation key
         aggregation_key = md5(url).hexdigest()
+        tags = ["url:%s" % url]
+        msg = None
+        status = None
         try:
             r = requests.get(url, timeout=timeout)
+            if r.status_code != 200:
+                self.status_code_event(url, r, aggregation_key)
+                status = AgentCheck.CRITICAL
+                msg = "Got %s when hitting %s" % (r.status_code, url)
+            else:
+                status = AgentCheck.OK
+                msg = "Mesos master instance detected at %s " % url
         except requests.exceptions.Timeout as e:
             # If there's a timeout
             self.timeout_event(url, timeout, aggregation_key)
-            self.warning("Timeout when hitting %s" % url)
-            return None
+            msg = "%s seconds timeout when hitting %s" % (timeout, url)
+            status = AgentCheck.CRITICAL
+        except Exception as e:
+            msg = e.message
+            status = AgentCheck.CRITICAL
+        finally:
+            self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
+            if status is AgentCheck.CRITICAL:
+                self.warning(msg)
+                return None
 
-        if r.status_code != 200:
-            self.status_code_event(url, r, aggregation_key)
-            self.warning("Got %s when hitting %s" % (r.status_code, url))
-            return None
-
-        # Condition for request v1.x backward compatibility
-        if hasattr(r.json, '__call__'):
-            return r.json()
-        else:
-            return r.json
-
+        return r.json()
 
     def timeout_event(self, url, timeout, aggregation_key):
         self.event({

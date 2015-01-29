@@ -1,11 +1,14 @@
 import unittest
+from nose.plugins.attrib import attr
 import os
 import time
 from subprocess import Popen, PIPE
 
 from tests.common import load_check
 
+from checks import AgentCheck
 
+@attr(requires='memcache')
 class TestMemCache(unittest.TestCase):
     def is_travis(self):
         return 'TRAVIS' in os.environ
@@ -121,6 +124,29 @@ class TestMemCache(unittest.TestCase):
         finally:
             gc.set_debug(0)
 
+    def test_service_checks(self):
+        for instance in self.conf['instances']:
+            self.c.check(instance)
+        svc_checks = self.c.get_service_checks()
+        self.assertEquals(len(svc_checks), len(self.conf['instances']))
+
+        self.assertEquals(svc_checks[0]['check'], self.c.SERVICE_CHECK)
+        self.assertEquals(svc_checks[0]['status'], AgentCheck.OK)
+        assert 'up for' in svc_checks[0]['message']
+
+        # Check an invalid one.
+        try:
+            self.c.check({
+                'url': 'localhost',
+                'port': 12345
+            })
+        except Exception:
+            # We expect an exception here. Just ignore it.
+            pass
+        svc_checks = self.c.get_service_checks()
+        self.assertEquals(len(svc_checks), 1)
+        self.assertEquals(svc_checks[0]['check'], self.c.SERVICE_CHECK)
+        self.assertEquals(svc_checks[0]['status'], AgentCheck.CRITICAL)
 
 if __name__ == '__main__':
     unittest.main()

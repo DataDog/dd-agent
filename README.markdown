@@ -1,4 +1,4 @@
-[![Build Status](https://secure.travis-ci.org/DataDog/dd-agent.png?branch=master)](http://travis-ci.org/DataDog/dd-agent)
+[![Build Status](https://travis-ci.org/DataDog/dd-agent.svg?branch=master)](https://travis-ci.org/DataDog/dd-agent)
 
 The Datadog Agent faithfully collects events and metrics and brings
 them to [Datadog](https://app.datadoghq.com) on your behalf so that
@@ -21,6 +21,35 @@ Exceptions are marked with LICENSE-xxx where xxx is the component name.
 If you do **not** agree with the licensing terms and wish to contribute code nonetheless,
 please email us at <info@datadoghq.com> before submitting your
 pull request.
+
+## Setup your environment
+
+Required:
+- python 2.6 or 2.7
+- bundler
+
+```
+# Clone the repository
+git clone git@github.com:DataDog/dd-agent.git
+
+# Crete a virtual environment and install the dependencies:
+cd dd-agent
+bundle install
+rake setup_env
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Lint
+rake lint
+
+# Run a flavored test
+rake ci:run[apache]
+```
+
+## Test suite
+
+More about how to write tests and run them [here](https://github.com/DataDog/dd-agent/blob/master/tests/README.md)
 
 # How to configure the Agent
 

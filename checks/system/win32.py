@@ -57,10 +57,23 @@ class Memory(Check):
         self.gauge('system.mem.free')
         self.gauge('system.mem.used')
         self.gauge('system.mem.total')
+        # area of physical memory that stores recently used pages of data
+        # for applications
         self.gauge('system.mem.cached')
+        # Committed memory is physical memory for which space has been
+        # reserved on the disk paging file in case it must be written
+        # back to disk
         self.gauge('system.mem.committed')
+        # physical memory used by the operating system, for objects
+        # that can be written to disk when they are not being used
         self.gauge('system.mem.paged')
+        # physical memory used by the operating system for objects that
+        # cannot be written to disk, but must remain in physical memory
+        # as long as they are allocated.
         self.gauge('system.mem.nonpaged')
+        # usable = free + cached
+        self.gauge('system.mem.usable')
+        self.gauge('system.mem.pct_usable')
 
     def check(self, agentConfig):
         try:
@@ -69,6 +82,10 @@ class Memory(Check):
             self.logger.info('Missing Win32_OperatingSystem. No memory metrics will be returned.')
             return
 
+        total = 0
+        free = 0
+        cached = 0
+
         if os.TotalVisibleMemorySize is not None and os.FreePhysicalMemory is not None:
             total = int(os.TotalVisibleMemorySize) / KB2MB
             free = int(os.FreePhysicalMemory) / KB2MB
@@ -76,15 +93,23 @@ class Memory(Check):
             self.save_sample('system.mem.free', free)
             self.save_sample('system.mem.used', total - free)
 
+
         mem = w.Win32_PerfFormattedData_PerfOS_Memory()[0]
         if mem.CacheBytes is not None:
-            self.save_sample('system.mem.cached', int(mem.CacheBytes) / B2MB)
+            cached = int(mem.CacheBytes) / B2MB
+            self.save_sample('system.mem.cached', cached)
         if mem.CommittedBytes is not None:
             self.save_sample('system.mem.committed', int(mem.CommittedBytes) / B2MB)
         if mem.PoolPagedBytes is not None:
             self.save_sample('system.mem.paged', int(mem.PoolPagedBytes) / B2MB)
         if mem.PoolNonpagedBytes is not None:
             self.save_sample('system.mem.nonpaged', int(mem.PoolNonpagedBytes) / B2MB)
+
+        usable = free + cached
+        self.save_sample('system.mem.usable', usable)
+        if total > 0:
+            pct_usable = float(usable) / total
+            self.save_sample('system.mem.pct_usable', pct_usable)
 
         return self.get_metrics()
 
@@ -171,8 +196,10 @@ class Disk(Check):
         self.gauge('system.disk.total')
         self.gauge('system.disk.in_use')
         self.gauge('system.disk.used')
+        self.counter("system.disk.read_time_pct")
+        self.counter("system.disk.write_time_pct")
 
-    def check(self, agentConfig):
+    def check_disk_usage(self, agentConfig):
         try:
             disk = w.Win32_LogicalDisk()
         except AttributeError:
@@ -194,7 +221,21 @@ class Disk(Check):
                 self.save_sample('system.disk.used', used, device_name=name)
                 self.save_sample('system.disk.in_use', (used / total),
                     device_name=name)
+
+    def check_disk_latency(self, agentConfig):
+        disk_io_counters = psutil.disk_io_counters(True)
+        for disk_name, disk in disk_io_counters.iteritems():
+            read_time_pct = disk.read_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+            write_time_pct = disk.write_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+            self.save_sample("system.disk.read_time_pct", read_time_pct, device_name=disk_name) 
+            self.save_sample("system.disk.write_time_pct", write_time_pct, device_name=disk_name)
+
+
+    def check(self, agentConfig):
+        self.check_disk_usage(agentConfig)
+        self.check_disk_latency(agentConfig)
         return self.get_metrics()
+        
 
 class IO(Check):
     def __init__(self, logger):

@@ -7,14 +7,44 @@ import time
 from checks import AgentCheck
 from util import get_hostname
 
-# When running with pymongo < 2.0
-# Not the full spec for mongo URIs -- just extract username and password
-# http://www.mongodb.org/display/DOCS/connections6
-mongo_uri_re=re.compile(r'mongodb://(?P<username>[^:@]+):(?P<password>[^:@]+)@.*')
+# 3rd party
+from pymongo import uri_parser, MongoClient, ReadPreference, version as py_version
 
 DEFAULT_TIMEOUT = 10
 
+class LocalRate:
+    """ To be used for metrics that should be sent as rates but that we want to send as histograms"""
+
+    def __init__(self, agent_check, metric_name, tags):
+        self.agent_check = agent_check
+        self.metric_name = metric_name
+        self.tags = tags
+        self.prev_val = None
+        self.cur_val = None
+        self.prev_ts = None
+        self.cur_ts = None
+
+    def submit_histogram(self):
+        value = float(self.cur_val - self.prev_val)/float(self.cur_ts - self.prev_ts)
+        self.agent_check.histogram(self.metric_name, value=value, tags=self.tags)
+
+    def submit(self, val):
+        if self.prev_val is None:
+            self.prev_val = val
+            self.prev_ts = time.time()
+        elif self.cur_val is None:
+            self.cur_val = val
+            self.cur_ts = time.time()
+            self.submit_histogram()
+        else:
+            self.prev_val = self.cur_val
+            self.prev_ts = self.cur_ts
+            self.cur_val = val
+            self.cur_ts = time.time()
+            self.submit_histogram()
+
 class TokuMX(AgentCheck):
+    SERVICE_CHECK_NAME = 'tokumx.can_connect'
 
     GAUGES = [
         "indexCounters.btree.missRatio",
@@ -162,20 +192,13 @@ class TokuMX(AgentCheck):
 
     METRICS = GAUGES + RATES
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_state_by_server = {}
+        self.idx_rates = {}
 
     def get_library_versions(self):
-        try:
-            import pymongo
-            version = pymongo.version
-        except ImportError:
-            version = "Not Found"
-        except AttributeError:
-            version = "Unknown"
-
-        return {"pymongo": version}
+        return {"pymongo": py_version}
 
     def check_last_state(self, state, server, agentConfig):
         if self._last_state_by_server.get(server, -1) != state:
@@ -212,13 +235,9 @@ class TokuMX(AgentCheck):
             'host': hostname
         })
 
-    def check(self, instance):
-        """
-        Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
-        """
+    def _get_connection(self, instance):
         if 'server' not in instance:
-            self.log.warn("Missing 'server' in tokumx config")
-            return
+            raise Exception("Missing 'server' in tokumx config")
 
         server = instance['server']
 
@@ -239,23 +258,8 @@ class TokuMX(AgentCheck):
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 
-        try:
-            from pymongo import MongoClient, ReadPreference
-        except ImportError:
-            self.log.error('tokumx.yaml exists but pymongo module can not be imported. Skipping check.')
-            raise Exception('Python PyMongo Module can not be imported. Please check the installation instruction on the Datadog Website')
-
-        try:
-            from pymongo import uri_parser
-            # Configuration a URL, mongodb://user:pass@server/db
-            parsed = uri_parser.parse_uri(server)
-        except ImportError:
-            # uri_parser is pymongo 2.0+
-            matches = mongo_uri_re.match(server)
-            if matches:
-                parsed = matches.groupdict()
-            else:
-                parsed = {}
+         # Configuration a URL, mongodb://user:pass@server/db
+        parsed = uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
@@ -264,83 +268,120 @@ class TokuMX(AgentCheck):
             self.log.info('No TokuMX database found in URI. Defaulting to admin.')
             db_name = 'admin'
 
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+
+        nodelist = parsed.get('nodelist')
+        if nodelist:
+            host = nodelist[0][0]
+            port = nodelist[0][1]
+            service_check_tags = service_check_tags + [
+                "host:%s" % host,
+                "port:%s" % port
+            ]
+
         do_auth = True
         if username is None or password is None:
             self.log.debug("TokuMX: cannot extract username and password from config %s" % server)
             do_auth = False
+        try:
+            conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
+            db = conn[db_name]
+        except Exception:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
 
-        conn = MongoClient(server, socketTimeoutMS=DEFAULT_TIMEOUT*1000, **ssl_params)
-        db = conn[db_name]
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("TokuMX: cannot connect with config %s" % server)
+                message = "TokuMX: cannot connect with config %s" % server
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=message)
+                raise Exception(message)
 
-        if conn.is_mongos:
-            tags.append('role:mongos')
-            config = conn['config']
-            agg_result = config['chunks'].aggregate([{'$group': {'_id': {'ns': '$ns', 'shard': '$shard'}, 'count': {'$sum': 1}}}])
-            if agg_result['ok']:
-                for doc in agg_result['result']:
-                    chunk_tags = list(tags)
-                    parts = doc['_id']['ns'].split('.', 1)
-                    chunk_tags.append('db:%s' % parts[0])
-                    chunk_tags.append('coll:%s' % parts[1])
-                    chunk_tags.append('shard:%s' % doc['_id']['shard'])
-                    shard_doc = config['shards'].find_one(doc['_id']['shard'])
-                    host_parts = shard_doc['host'].split('/', 1)
-                    if len(host_parts) == 2:
-                        chunk_tags.append('replset:%s' % host_parts[0])
-                    self.gauge('tokumx.sharding.chunks', doc['count'], tags=chunk_tags)
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+
+        return server, conn, db, tags
+
+    def _get_replica_metrics(self, conn, tags, server, status):
+        try:
+            data = {}
+
+            replSet = conn['admin'].command('replSetGetStatus')
+            if replSet:
+                primary = None
+                current = None
+
+                # find nodes: master and current node (ourself)
+                for member in replSet.get('members'):
+                    if member.get('self'):
+                        current = member
+                    if int(member.get('state')) == 1:
+                        primary = member
+
+                # If we have both we can compute a lag time
+                if current is not None and primary is not None:
+                    lag = primary['optimeDate'] - current['optimeDate']
+                    # Python 2.7 has this built in, python < 2.7 don't...
+                    if hasattr(lag,'total_seconds'):
+                        data['replicationLag'] = lag.total_seconds()
+                    else:
+                        data['replicationLag'] = (lag.microseconds + \
+                                                  (lag.seconds + lag.days * 24 * 3600) * 10**6) / 10.0**6
+
+                if current is not None:
+                    data['health'] = current['health']
+
+                tags.append('replset:%s' % replSet['set'])
+                tags.append('replstate:%s' % current['stateStr'])
+                if current['stateStr'] == 'PRIMARY':
+                    tags.append('role:primary')
+                else:
+                    tags.append('role:secondary')
+                    conn.read_preference = ReadPreference.SECONDARY
+
+                data['state'] = replSet['myState']
+                self.check_last_state(data['state'], server, self.agentConfig)
+                status['replSet'] = data
+        except Exception, e:
+            if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
+                pass
+            else:
+                raise e
+
+    def submit_idx_rate(self, metric_name, value, tags, key):
+        if not key in self.idx_rates:
+            local_rate = LocalRate(self, metric_name, tags)
+            self.idx_rates[key] = local_rate
         else:
+            local_rate = self.idx_rates[key]
+
+        local_rate.submit(value)
+
+    def collect_mongos(self, server, conn, db, tags):
+        tags.append('role:mongos')
+        config = conn['config']
+        agg_result = config['chunks'].aggregate([{'$group': {'_id': {'ns': '$ns', 'shard': '$shard'}, 'count': {'$sum': 1}}}])
+        if agg_result['ok']:
+            for doc in agg_result['result']:
+                chunk_tags = list(tags)
+                parts = doc['_id']['ns'].split('.', 1)
+                chunk_tags.append('db:%s' % parts[0])
+                chunk_tags.append('coll:%s' % parts[1])
+                chunk_tags.append('shard:%s' % doc['_id']['shard'])
+                shard_doc = config['shards'].find_one(doc['_id']['shard'])
+                host_parts = shard_doc['host'].split('/', 1)
+                if len(host_parts) == 2:
+                    chunk_tags.append('replset:%s' % host_parts[0])
+                self.gauge('tokumx.sharding.chunks', doc['count'], tags=chunk_tags)
+
+
+    def collect_metrics(self, server, conn, db, tags):
             status = db["$cmd"].find_one({"serverStatus": 1})
             status['stats'] = db.command('dbstats')
 
             # Handle replica data, if any
             # See http://www.mongodb.org/display/DOCS/Replica+Set+Commands#ReplicaSetCommands-replSetGetStatus
-            try:
-                data = {}
-
-                replSet = conn['admin'].command('replSetGetStatus')
-                if replSet:
-                    primary = None
-                    current = None
-
-                    # find nodes: master and current node (ourself)
-                    for member in replSet.get('members'):
-                        if member.get('self'):
-                            current = member
-                        if int(member.get('state')) == 1:
-                            primary = member
-
-                    # If we have both we can compute a lag time
-                    if current is not None and primary is not None:
-                        lag = primary['optimeDate'] - current['optimeDate']
-                        # Python 2.7 has this built in, python < 2.7 don't...
-                        if hasattr(lag,'total_seconds'):
-                            data['replicationLag'] = lag.total_seconds()
-                        else:
-                            data['replicationLag'] = (lag.microseconds + \
-                                                      (lag.seconds + lag.days * 24 * 3600) * 10**6) / 10.0**6
-
-                    if current is not None:
-                        data['health'] = current['health']
-
-                    tags.append('replset:%s' % replSet['set'])
-                    tags.append('replstate:%s' % current['stateStr'])
-                    if current['stateStr'] == 'PRIMARY':
-                        tags.append('role:primary')
-                    else:
-                        tags.append('role:secondary')
-                        conn.read_preference = ReadPreference.SECONDARY
-
-                    data['state'] = replSet['myState']
-                    self.check_last_state(data['state'], server, self.agentConfig)
-                    status['replSet'] = data
-            except Exception, e:
-                if "OperationFailure" in repr(e) and "replSetGetStatus" in str(e):
-                    pass
-                else:
-                    raise e
+            self._get_replica_metrics(conn, tags, server, status)
 
             for dbname in conn.database_names():
                 db_tags = list(tags)
@@ -354,28 +395,21 @@ class TokuMX(AgentCheck):
                     m = self.normalize(m, 'tokumx')
                     self.gauge(m, v, db_tags)
                 for collname in db.collection_names(False):
-                    coll_tags = list(db_tags)
-                    coll_tags.append('coll:%s' % collname)
                     stats = db.command('collStats', collname)
                     for m, v in stats.items():
                         if m in ['db', 'ok']:
                             continue
                         if m == 'indexDetails':
                             for idx_stats in v:
-                                idx_tags = list(coll_tags)
-                                idx_tags.append('idx:%s' % idx_stats['name'])
                                 for k in ['count', 'size', 'avgObjSize', 'storageSize']:
-                                    mname = 'stats.idx.%s' % k
-                                    mname = self.normalize(mname, 'tokumx')
-                                    self.gauge(mname, idx_stats[k], tags=idx_tags)
+                                    value = idx_stats[k]
+                                    if type(value) in (types.IntType, types.LongType, types.FloatType):
+                                        self.histogram('tokumx.stats.idx.%s' % k, idx_stats[k], tags=db_tags)
                                 for k in ['queries', 'nscanned', 'nscannedObjects', 'inserts', 'deletes']:
-                                    mname = 'stats.idx.%s' % k
-                                    mname = self.normalize(mname, 'tokumx')
-                                    self.rate(mname, idx_stats[k], tags=idx_tags)
-                        else:
-                            m = 'stats.coll.%s' % m
-                            m = self.normalize(m, 'tokumx')
-                            self.gauge(m, v, coll_tags)
+                                    key = (dbname, collname, idx_stats['name'])
+                                    self.submit_idx_rate('tokumx.statsd.idx.%s' % k, idx_stats[k], tags=db_tags, key=key)
+                        elif type(v) in (types.IntType, types.LongType, types.FloatType):
+                            self.histogram('tokumx.stats.coll.%s' % m, v, db_tags)
 
             # If these keys exist, remove them for now as they cannot be serialized
             try:
@@ -403,9 +437,17 @@ class TokuMX(AgentCheck):
 
                 # Check if metric is a gauge or rate
                 if m in self.GAUGES:
-                    m = self.normalize(m, 'tokumx')
-                    self.gauge(m, value, tags=tags)
+                    self.gauge('tokumx.%s' % m, value, tags=tags)
 
                 if m in self.RATES:
-                    m = self.normalize(m, 'tokumx') + "ps"
-                    self.rate(m, value, tags=tags)
+                    self.rate('tokumx.%sps' % m, value, tags=tags)
+
+
+    def check(self, instance):
+        server, conn, db, tags = self._get_connection(instance)
+
+        if conn.is_mongos:
+            self.collect_mongos(server, conn, db, tags)
+
+        else:
+            self.collect_metrics(server, conn, db, tags)

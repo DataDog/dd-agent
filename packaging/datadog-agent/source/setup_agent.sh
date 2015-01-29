@@ -1,7 +1,9 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.0.0"
+tag="5.1.1"
+
+PIP_VERSION="6.0.6"
 
 #######################
 # Define some helpers #
@@ -185,26 +187,14 @@ else
 fi
 
 # create home base for the Agent
-if [ $apikey ]; then
-    if [ $dd_home ]; then
+if [ $dd_home ]; then
   dd_base=$dd_home
-    else
+else
   if [ "$unamestr" = "SunOS" ]; then
       dd_base="/opt/local/datadog"
   else
       dd_base=$HOME/.datadog-agent
   fi
-    fi
-else
-    if [ $dd_home ]; then
-  dd_base=$dd_home
-    else
-  if [ "$unamestr" = "SunOS" ]; then
-      dd_base="/opt/local/datadog"
-  else
-      dd_base=$HOME/.pup
-  fi
-    fi
 fi
 
 
@@ -221,7 +211,7 @@ printf "Operating System: $unamestr\n" >> $logfile
 
 # set up a virtual env
 printf "Setting up virtual environment....." | tee -a $logfile
-$dl_cmd $dd_base/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.X/virtualenv.py >> $logfile 2>&1
+$dl_cmd $dd_base/virtualenv.py https://raw.githubusercontent.com/pypa/virtualenv/1.11.6/virtualenv.py >> $logfile 2>&1
 
 if [ "$is_openshift" = "1" ]; then
     python $dd_base/virtualenv.py --no-pip --no-setuptools --system-site-packages $dd_base/venv >> $logfile 2>&1
@@ -238,6 +228,7 @@ $dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap
 $dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
 $dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
 $dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
+$dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
 print_done
 
 # install dependencies
@@ -268,12 +259,11 @@ print_done
 
 printf "Configuring datadog.conf file......" | tee -a $logfile
 if [ $apikey ]; then
-    sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
-    sed "s/# use_pup:.*/use_pup: no/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
+    sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf 2>> $logfile
 else
-    sed "s/api_key:.*/api_key: pup/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf.1 2>> $logfile
-    sed "s/# use_pup:.*/use_pup: yes/" $dd_base/agent/datadog.conf.1 > $dd_base/agent/datadog.conf 2>> $logfile
+  printf "No api key set. Assuming there is already a configuration file present." | tee -a $logfile
 fi
+
 if [ "$unamestr" = "SunOS" ]; then
     # disable syslog by default on SunOS as it causes errors
     sed -i "s/# log_to_syslog: yes/log_to_syslog: no/" $dd_base/agent/datadog.conf 2>> $logfile
@@ -324,7 +314,6 @@ printf "Cleaning up the installation directory....." | tee -a $logfile
 rm $dd_base/virtualenv.py >> $logfile 2>&1
 rm $dd_base/virtualenv.pyc >> $logfile 2>&1
 rm $dd_base/agent.tar.gz >> $logfile 2>&1
-rm $dd_base/agent/datadog.conf.1  >> $logfile 2>&1
 print_done
 
 # on solaris, skip the test, svcadm the Agent
@@ -393,113 +382,84 @@ if [ "$unamestr" = "SunOS" ]; then
     # kthxbye
     exit $?
 else
-if [ "$start_agent" = "1" ]; then
-    printf "Starting the Agent....." | tee -a $logfile
-    # run Agent
-    cd $dd_base >> $logfile 2>&1
-    supervisord -c $dd_base/supervisord/supervisord.conf >> $logfile 2>&1 &
-    agent_pid=$!
-    sleep 1
-    # Checking that supervisord was properly launched
-    kill -0 $agent_pid > /dev/null 2>&1
-    supervisor_running=$?
+  if [ "$start_agent" = "1" ]; then
+      printf "Starting the Agent....." | tee -a $logfile
+      # run Agent
+      cd $dd_base >> $logfile 2>&1
+      supervisord -c $dd_base/supervisord/supervisord.conf >> $logfile 2>&1 &
+      agent_pid=$!
+      sleep 1
+      # Checking that supervisord was properly launched
+      kill -0 $agent_pid > /dev/null 2>&1
+      supervisor_running=$?
 
-    if [ $supervisor_running != 0 ]; then
-      unknown_error "Failure when launching supervisor.\n"
+      if [ $supervisor_running != 0 ]; then
+        unknown_error "Failure when launching supervisor.\n"
 
-    fi
-    trap "{ kill $agent_pid; exit 255; }" INT TERM
-    trap "{ kill $agent_pid; exit; }" EXIT
-    print_done
+      fi
+      trap "{ kill $agent_pid; exit 255; }" INT TERM
+      trap "{ kill $agent_pid; exit; }" EXIT
+      print_done
 
 
-    # regular Agent install
-    if [ $apikey ]; then
+      # wait for metrics to be submitted
+      printf "$GREEN
+  Your Agent has started up for the first time. We're currently verifying
+  that data is being submitted. You should see your Agent show up in Datadog
+  shortly at:
 
-        # wait for metrics to be submitted
-        printf "$GREEN
-    Your Agent has started up for the first time. We're currently verifying
-    that data is being submitted. You should see your Agent show up in Datadog
-    shortly at:
+      $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
 
-        $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
+    printf "\n\nWaiting for metrics..." | tee -a $logfile
 
-      printf "\n\nWaiting for metrics..." | tee -a $logfile
+      c=0
+      # Wait for 30 secs before checking if metrics have been submitted
+      while [ "$c" -lt "30" ]; do
+          sleep 1
+          printf "."
+          c=$(($c+1))
+      done
 
-        c=0
-        # Wait for 30 secs before checking if metrics have been submitted
-        while [ "$c" -lt "30" ]; do
-            sleep 1
-            printf "."
-            c=$(($c+1))
-        done
+      # Hit this endpoint to check if the Agent is submitting metrics
+      # and retry every sec for 60 more sec before failing
+      curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
+      success=$?
+      while [ "$success" -gt "0" ]; do
+          sleep 1
+          printf "."
+          curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
+          success=$?
+          c=$(($c+1))
+          if [ "$c" -gt "90" ]; then
+            unknown_error "Agent did not submit metrics after 90 seconds
+            "
+          fi
+      done
 
-        # Hit this endpoint to check if the Agent is submitting metrics
-        # and retry every sec for 60 more sec before failing
-        curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
-        success=$?
-        while [ "$success" -gt "0" ]; do
-            sleep 1
-            printf "."
-            curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
-            success=$?
-            c=$(($c+1))
-            if [ "$c" -gt "90" ]; then
-              unknown_error "Agent did not submit metrics after 90 seconds
-              "
-            fi
-        done
+      # print instructions
+      printf "$GREEN
 
-        # print instructions
-        printf "$GREEN
+  Success! Your Agent is functioning properly, and will continue to run
+  in the foreground. To stop it, simply press CTRL-C. To start it back
+  up again in the foreground, run:
 
-    Success! Your Agent is functioning properly, and will continue to run
-    in the foreground. To stop it, simply press CTRL-C. To start it back
-    up again in the foreground, run:
+  cd $dd_base
+  sh bin/agent
 
-    cd $dd_base
-    sh bin/agent
+  " | tee -a $logfile
 
-    " | tee -a $logfile
+      if [ "$unamestr" = "Darwin" ]; then
+      echo "To set it up as a daemon that always runs in the background
+  while you're logged in, run:
 
-        if [ "$unamestr" = "Darwin" ]; then
-        echo "To set it up as a daemon that always runs in the background
-    while you're logged in, run:
+      mkdir -p ~/Library/LaunchAgents
+      cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
+      launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+  " | tee -a $logfile
+      fi
 
-        mkdir -p ~/Library/LaunchAgents
-        cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
-        launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-    " | tee -a $logfile
-        fi
-
-        printf "$DEFAULT"
-
-    # pup install
-    else
-
-        # print instructions
-        printf "$GREEN
-
-    Success! Pup is installed and functioning properly, and will continue to
-    run in the foreground. To stop it, simply press CTRL-C. To start it back
-    up again in the foreground, run:
-
-        cd $dd_base
-        sh bin/agent
-    " | tee -a $logfile
-
-        if [ "$unamestr" = "Darwin" ]; then
-        echo "To set it up as a daemon that always runs in the background
-    while you're logged in, run:
-
-        mkdir -p ~/Library/LaunchAgents
-        cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
-        launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-    " | tee -a $logfile
-        fi
-
-        printf "$DEFAULT"
-    fi
+      printf "$DEFAULT"
 
     wait $agent_pid
-fi; fi
+  fi
+fi

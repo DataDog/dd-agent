@@ -93,13 +93,14 @@ class TCPCheck(NetworkCheck):
         return Status.UP, "UP"
 
 
-    def _create_status_event(self, status, msg, instance):
+    # FIXME: 5.3 remove that
+    def _create_status_event(self, sc_name, status, msg, instance):
         # Get the instance settings
         host = instance.get('host', None)
         port = instance.get('port', None)
         name = instance.get('name', None)
-        nb_failures = self.statuses[name].count(Status.DOWN)
-        nb_tries = len(self.statuses[name])
+        nb_failures = self.statuses[name][sc_name].count(Status.DOWN)
+        nb_tries = len(self.statuses[name][sc_name])
 
         # Get a custom message that will be displayed in the event
         custom_message = instance.get('message', "")
@@ -151,8 +152,9 @@ class TCPCheck(NetworkCheck):
              "event_object": name,
         }
 
-    def report_as_service_check(self, name, status, instance, msg=None):
-        service_check_name = self.normalize(name, self.SERVICE_CHECK_PREFIX)
+    def report_as_service_check(self, sc_name, status, instance, msg=None):
+        instance_name = instance['name']
+        service_check_name = self.normalize(instance_name, self.SERVICE_CHECK_PREFIX)
         host = instance.get('host', None)
         port = instance.get('port', None)
 

@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import time
 import threading
 from aggregator import MetricsAggregator
@@ -31,17 +32,18 @@ class DummyReporter(threading.Thread):
             self.metrics = metrics
 
 
-class JMXTestCase(unittest.TestCase):
+@attr(requires='tomcat')
+class TestTomcat(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
         pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
-        
+
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
-        confd_path = os.path.realpath(os.path.join(os.path.abspath(__file__), "..", "jmx_yamls"))
+        confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
         JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
 
 
@@ -50,13 +52,13 @@ class JMXTestCase(unittest.TestCase):
         self.reporter.finished = True
         JMXFetch.stop()
 
-    def testTomcatMetrics(self):
+    def test_tomcat_metrics(self):
         count = 0
         while self.reporter.metrics is None:
             time.sleep(1)
             count += 1
-            if count > 20:
-                raise Exception("No metrics were received in 20 seconds")
+            if count > 25:
+                raise Exception("No metrics were received in 25 seconds")
 
         metrics = self.reporter.metrics
 

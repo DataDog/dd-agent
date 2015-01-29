@@ -256,14 +256,22 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.run()
+            def child_func(): agent.start(foreground=True)
             def parent_func(): agent.start_event = False
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
-            agent.run(config=agentConfig)
+            agent.start(foreground=True)
 
     elif 'check' == command:
+        if len(args) < 2:
+            sys.stderr.write(
+                "Usage: %s check <check_name> [check_rate]\n"
+                "Add check_rate as last argument to compute rates\n"
+                % sys.argv[0]
+            )
+            return 1
+
         check_name = args[1]
         try:
             import checks.collector
@@ -277,12 +285,15 @@ def main():
                     check.run()
                     print check.get_metrics()
                     print check.get_events()
+                    print check.get_service_checks()
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                        print check.get_service_checks()
+                    check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
         osname = get_os()

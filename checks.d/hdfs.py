@@ -5,8 +5,10 @@ from checks import AgentCheck
 import snakebite.client
 import snakebite.version
 try:
+    # FIXME: Can be remove when we upgrade pylint (drop py 2.6)
+    # pylint: disable=E0611
     from snakebite.namenode import Namenode
-except ImportError: 
+except ImportError:
 # This is only available on snakebite >= 2.2.0
 # but snakebite 2.x is only compatible with hadoop >= 2.2.0
 # So we bundle snakebite 1.3.9 and let the possibility to upgrade to a newer version
@@ -36,7 +38,7 @@ class HDFSCheck(AgentCheck):
             if "url" not in namenode:
                 raise ValueError('Each namenode should specify a "url" parameter.')
 
-        if len(instance['namenodes'] == 1):
+        if len(instance['namenodes']) == 1:
             host, port = instance['namenodes'][0]['url'], instance['namenodes'][0].get('port', DEFAULT_PORT)
             return snakebite.client.Client(host, port)
 

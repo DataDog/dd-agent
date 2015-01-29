@@ -28,13 +28,12 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.0.0"
+AGENT_VERSION = "5.2.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
 log = logging.getLogger(__name__)
-windows_file_handler_added = False
 
 OLD_STYLE_PARAMETERS = [
     ('apache_status_url', "apache"),
@@ -64,6 +63,8 @@ class PathNotFound(Exception):
 
 def get_parsed_args():
     parser = OptionParser()
+    parser.add_option('-A', '--autorestart', action='store_true', default=False,
+                        dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
                         dest='dd_url')
     parser.add_option('-c', '--clean', action='store_true', default=False,
@@ -80,7 +81,8 @@ def get_parsed_args():
         options, args = parser.parse_args()
     except SystemExit:
         # Ignore parse errors
-        options, args = Values({'dd_url': None,
+        options, args = Values({'autorestart': False,
+                                'dd_url': None,
                                 'clean': False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
@@ -173,6 +175,10 @@ def _unix_checksd_path():
 
 
 def _is_affirmative(s):
+    # int or real bool
+    if isinstance(s, bool):
+        return bool(s)
+    # try string cast
     return s.lower() in ('yes', 'true', '1')
 
 
@@ -217,6 +223,55 @@ def get_default_bind_host():
         return '127.0.0.1'
     return 'localhost'
 
+
+def get_histogram_aggregates(configstr=None):
+    if configstr is None:
+        return None
+
+    try:
+        vals = configstr.split(',')
+        valid_values = ['min', 'max', 'median', 'avg', 'count']
+        result = []
+
+        for val in vals:
+            val = val.strip()
+            if val not in valid_values:
+                log.warning("Ignored histogram aggregate {0}, invalid".format(val))
+                continue
+            else:
+                result.append(val)
+    except Exception:
+        log.exception("Error when parsing histogram aggregates, skipping")
+        return None
+
+    return result
+
+def get_histogram_percentiles(configstr=None):
+    if configstr is None:
+        return None
+
+    result = []
+    try:
+        vals = configstr.split(',')
+        for val in vals:
+            try:
+                val = val.strip()
+                floatval = float(val)
+                if floatval <= 0 or floatval >= 1:
+                    raise ValueError
+                if len(val) > 4:
+                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"\
+                        .format(floatval))
+                result.append(float(val[0:4]))
+            except ValueError:
+                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"\
+                    .format(val))
+    except Exception:
+        log.exception("Error when parsing histogram percentiles, skipping")
+        return None
+
+    return result
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -236,6 +291,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
+        'statsd_metric_namespace': None,
+        'utf8_decoding': False
     }
 
     # Config handling
@@ -286,12 +343,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             common_path = _windows_commondata_path()
             agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
 
-        # Whether also to send to Pup
-        if config.has_option('Main', 'use_pup'):
-            agentConfig['use_pup'] = config.get('Main', 'use_pup').lower() in ("yes", "true")
-        else:
-            agentConfig['use_pup'] = False
-
         if config.has_option('Main', 'use_dogstatsd'):
             agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
         else:
@@ -303,16 +354,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         else:
             agentConfig['use_web_info_page'] = True
 
-        if agentConfig['use_pup'] or agentConfig['use_web_info_page']:
-            if config.has_option('Main', 'pup_url'):
-                agentConfig['pup_url'] = config.get('Main', 'pup_url')
-            else:
-                agentConfig['pup_url'] = 'http://localhost:17125'
-
-            if config.has_option('Main', 'pup_port'):
-                agentConfig['pup_port'] = int(config.get('Main', 'pup_port'))
-
-        if not agentConfig['use_dd'] and not agentConfig['use_pup']:
+        if not agentConfig['use_dd']:
             sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
             exit(2)
 
@@ -335,6 +377,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
             except Exception:
                 pass
+
+        # Custom histogram aggregate/percentile metrics
+        if config.has_option('Main', 'histogram_aggregates'):
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histograms_aggregates'))
+
+        if config.has_option('Main', 'histogram_percentiles'):
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histograms_percentiles'))
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
@@ -379,11 +428,16 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
-        if config.has_option('Main', 'autorestart'):
+        if options is not None and options.autorestart:
+            agentConfig['autorestart'] = True
+        elif config.has_option('Main', 'autorestart'):
             agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
 
         if config.has_option('Main', 'check_timings'):
             agentConfig['check_timings'] = _is_affirmative(config.get('Main', 'check_timings'))
+
+        if config.has_option('Main', 'exclude_process_args'):
+            agentConfig['exclude_process_args'] = _is_affirmative(config.get('Main', 'exclude_process_args'))
 
         try:
             filter_device_re = config.get('Main', 'device_blacklist_re')
@@ -440,6 +494,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
+
+        agentConfig["utf8_decoding"] = False
+        if config.has_option("Main", "utf8_decoding"):
+            agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -852,7 +910,6 @@ def get_logging_config(cfg_path=None):
             'collector_log_file': '/var/log/datadog/collector.log',
             'forwarder_log_file': '/var/log/datadog/forwarder.log',
             'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
-            'pup_log_file': '/var/log/datadog/pup.log',
             'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
             'log_to_event_viewer': False,
             'log_to_syslog': True,
@@ -860,11 +917,15 @@ def get_logging_config(cfg_path=None):
             'syslog_port': None,
         }
     else:
-        windows_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'ddagent.log')
+        collector_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
+        forwarder_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
+        dogstatsd_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
         jmxfetch_log_file = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
         logging_config = {
             'log_level': None,
-            'ddagent_log_file': windows_log_location,
+            'windows_collector_log_file': collector_log_location,
+            'windows_forwarder_log_file': forwarder_log_location,
+            'windows_dogstatsd_log_file': dogstatsd_log_location,
             'jmxfetch_log_file': jmxfetch_log_file,
             'log_to_event_viewer': False,
             'log_to_syslog': False,
@@ -933,7 +994,6 @@ def get_logging_config(cfg_path=None):
 
 
 def initialize_logging(logger_name):
-    global windows_file_handler_added
     try:
         logging_config = get_logging_config()
 
@@ -941,11 +1001,6 @@ def initialize_logging(logger_name):
             format=get_log_format(logger_name),
             level=logging_config['log_level'] or logging.INFO,
         )
-
-        # set up file loggers
-        if get_os() == 'windows' and not windows_file_handler_added:
-            logger_name = 'ddagent'
-            windows_file_handler_added = True
 
         log_file = logging_config.get('%s_log_file' % logger_name)
         if log_file is not None and not logging_config['disable_file_logging']:

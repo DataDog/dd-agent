@@ -8,6 +8,7 @@ import re
 import logging
 import subprocess
 import shutil
+from nose.plugins.skip import SkipTest
 
 log = logging.getLogger()
 
@@ -50,6 +51,7 @@ class TestPostfix(unittest.TestCase):
         return re.sub(pattern, '\n', text)
 
     def test_checks(self):
+        raise SkipTest("Skipped for now as it needs sudo")
         self.config = self.stripHeredoc("""init_config:
 
         instances:

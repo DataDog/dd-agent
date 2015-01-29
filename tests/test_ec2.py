@@ -8,8 +8,8 @@ from util import EC2
 class TestEC2(unittest.TestCase):
 
     def test_metadata(self):
-        # Skip this step on travis
-        if os.environ.get('TRAVIS', False): return
+        # Reset metadata just to be sure
+        EC2.metadata = {}
         # Test gathering metadata from ec2
         start = time.time()
         d = EC2.get_metadata({'collect_instance_metadata': True})
@@ -19,7 +19,6 @@ class TestEC2(unittest.TestCase):
         assert len(d) == 0 or len(d) >= 7, d
         if "instance-id" in d:
             assert d["instance-id"].startswith("i-"), d
-            assert d["hostname"].startswith("i-") or d["hostname"].startswith("domU-"), d
         assert end - start <= 1.1, "It took %s seconds to get ec2 metadata" % (end-start)
 
 if __name__ == "__main__":

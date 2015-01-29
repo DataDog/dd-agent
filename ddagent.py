@@ -53,11 +53,15 @@ except ImportError:
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
-PUP_ENDPOINT = "pup_url"
 DD_ENDPOINT  = "dd_url"
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
+HEADERS_TO_REMOVE = [
+    'Host',
+    'Content-Length',
+]
+
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
@@ -149,17 +153,13 @@ class MetricTransaction(Transaction):
     @classmethod
     def set_endpoints(cls):
 
-        if 'use_pup' in cls._application._agentConfig:
-            if cls._application._agentConfig['use_pup']:
-                cls._endpoints.append(PUP_ENDPOINT)
         # Only send data to Datadog if an API KEY exists
         # i.e. user is also Datadog user
         try:
             is_dd_user = 'api_key' in cls._application._agentConfig\
                 and 'use_dd' in cls._application._agentConfig\
                 and cls._application._agentConfig['use_dd']\
-                and cls._application._agentConfig.get('api_key') is not None\
-                and cls._application._agentConfig.get('api_key', "pup") not in ("", "pup")
+                and cls._application._agentConfig.get('api_key')
             if is_dd_user:
                 log.warn("You are a Datadog user so we will send data to https://app.datadoghq.com")
                 cls._endpoints.append(DD_ENDPOINT)
@@ -207,17 +207,18 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
+            # Remove headers that were passed by the emitter. Those don't apply anymore
+            # This is pretty hacky though as it should be done in pycurl or curl or tornado
+            for h in HEADERS_TO_REMOVE:
+                if h in tornado_client_params['headers']:
+                    del tornado_client_params['headers'][h]
+                    log.debug("Removing {0} header.".format(h))
+
             force_use_curl = False
 
-            if proxy_settings is not None and endpoint != PUP_ENDPOINT:
+            if proxy_settings is not None:
                 force_use_curl = True
                 if pycurl is not None:
-                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
-                    # This is pretty hacky though as it should be done in pycurl or curl or tornado
-                    if 'Content-Length' in tornado_client_params['headers']:
-                        del tornado_client_params['headers']['Content-Length']
-                        log.debug("Removing Content-Length header.")
-
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                         proxy_settings['host'], proxy_settings['port']))
                     tornado_client_params['proxy_host'] = proxy_settings['host']
@@ -245,16 +246,7 @@ class MetricTransaction(Transaction):
             else:
                 log.debug("Using SimpleHTTPClient")
             http = tornado.httpclient.AsyncHTTPClient()
-
-
-            # The success of this metric transaction should only depend on
-            # whether or not it's successfully sent to datadoghq. If it fails
-            # getting sent to pup, it's not a big deal.
-            callback = lambda(x): None
-            if len(self._endpoints) <= 1 or endpoint == DD_ENDPOINT:
-                callback = self.on_response
-
-            http.fetch(req, callback=callback)
+            http.fetch(req, callback=self.on_response)
 
     def on_response(self, response):
         if response.error:
@@ -272,8 +264,6 @@ class APIMetricTransaction(MetricTransaction):
         config = self._application._agentConfig
         api_key = config['api_key']
         url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
-        if endpoint == PUP_ENDPOINT:
-            url = config[endpoint] + '/api/v1/series'
         return url
 
     def get_data(self):
@@ -512,6 +502,8 @@ def main():
         app = init(skip_ssl_validation, use_simple_http_client=use_simple_http_client)
         try:
             app.run()
+        except Exception:
+            log.exception("Uncaught exception in the forwarder")
         finally:
             ForwarderStatus.remove_latest_status()
 

@@ -13,7 +13,7 @@ import pymongo
 DEFAULT_TIMEOUT = 10
 
 class MongoDb(AgentCheck):
-
+    SERVICE_CHECK_NAME = 'mongodb.can_connect'
     SOURCE_TYPE_NAME = 'mongodb'
 
     GAUGES = [
@@ -103,8 +103,8 @@ class MongoDb(AgentCheck):
 
     METRICS = GAUGES + RATES
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self._last_state_by_server = {}
 
     def get_library_versions(self):
@@ -150,8 +150,7 @@ class MongoDb(AgentCheck):
         Returns a dictionary that looks a lot like what's sent back by db.serverStatus()
         """
         if 'server' not in instance:
-            self.log.warn("Missing 'server' in mongo config")
-            return
+            raise Exception("Missing 'server' in mongo config")
 
         server = instance['server']
 
@@ -167,34 +166,65 @@ class MongoDb(AgentCheck):
             if param is None:
                 del ssl_params[key]
 
-        tags = instance.get('tags', [])
-        tags.append('server:%s' % server)
-        # de-dupe tags to avoid a memory leak
-        tags = list(set(tags))
-
         # Configuration a URL, mongodb://user:pass@server/db
         parsed = pymongo.uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
         db_name = parsed.get('database')
 
+        tags = instance.get('tags', [])
+        if password is not None:
+            tags.append('server:%s' % server.replace(password, "*" * 5))
+        else:
+            tags.append('server:%s' % server)
+
+        # de-dupe tags to avoid a memory leak
+        tags = list(set(tags))
+
+
+
         if not db_name:
             self.log.info('No MongoDB database found in URI. Defaulting to admin.')
             db_name = 'admin'
+
+        service_check_tags = [
+            "db:%s" % db_name
+        ]
+
+        nodelist = parsed.get('nodelist')
+        if nodelist:
+            host = nodelist[0][0]
+            port = nodelist[0][1]
+            service_check_tags = service_check_tags + [
+                "host:%s" % host,
+                "port:%s" % port
+            ]
 
         do_auth = True
         if username is None or password is None:
             self.log.debug("Mongo: cannot extract username and password from config %s" % server)
             do_auth = False
 
-        conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
-            **ssl_params)
-        db = conn[db_name]
+        try:
+            conn = pymongo.Connection(server, network_timeout=DEFAULT_TIMEOUT,
+                **ssl_params)
+            db = conn[db_name]
+        except Exception:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            raise
+
         if do_auth:
             if not db.authenticate(username, password):
-                self.log.error("Mongo: cannot connect with config %s" % server)
+                message = "Mongo: cannot connect with config %s" % server
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=message)
+                raise Exception(message)
+
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
 
         status = db["$cmd"].find_one({"serverStatus": 1})
+        if status['ok'] == 0:
+            raise Exception(status['errmsg'].__str__())
+
         status['stats'] = db.command('dbstats')
 
         # Handle replica data, if any
