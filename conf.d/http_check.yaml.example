@@ -9,9 +9,16 @@ instances:
 
     # The (optional) content_match parameter will allow the check
     # to look for a particular string within the response. The check
-    # will report as DOWN if the string is not found
+    # will report as DOWN if the string is not found.
     #
-    # content_match: '"status": "green"'
+    # content_match uses Python regular expressions which means that
+    # you will have to escape the following "special" characters with
+    # a backslash (\) if you're trying to match them in your content:
+    #  . ^ $ * + ? { } [ ] \ | ( )
+    #
+    # Examples:
+    # content_match: 'In Stock'
+    # content_match: '^(Bread|Apples|Very small rocks|Cider|Gravy|Cherries|Mud|Churches|Lead) float(s)? in water'
 
     # If your service uses basic authentication, you can optionally
     # specify a username and password that will be used in the check.

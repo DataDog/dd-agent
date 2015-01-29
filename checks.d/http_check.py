@@ -4,6 +4,7 @@ import os.path
 import socket
 import ssl
 import time
+import re
 from urlparse import urlparse
 
 # 3rd party
@@ -152,7 +153,7 @@ class HTTPCheck(NetworkCheck):
                 # Host is UP
                 # Check content matching is set
                 if content_match:
-                    if content_match in content:
+                    if re.search(content_match, content):
                         self.log.debug("%s is found in return content" % content_match)
                         service_checks.append((
                             self.SC_STATUS, Status.UP, "UP"
