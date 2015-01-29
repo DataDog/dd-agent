@@ -4,6 +4,7 @@ import os.path
 import socket
 import ssl
 import time
+import re
 from urlparse import urlparse
 
 # 3rd party
@@ -120,7 +121,7 @@ class HTTPCheck(NetworkCheck):
             self.gauge('network.http.response_time', running_time, tags=tags_list)
 
         if content_match and int(resp.status) == 200:
-            if content_match in content:
+            if re.search(content_match, content):
                 self.log.debug("%s is found in return content" % content_match)
             else:
                 self.log.info("%s not found in content" % content_match)
