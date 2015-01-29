@@ -93,6 +93,7 @@ class NetworkCheck(AgentCheck):
 
         self.resultsq = Queue()
         self.jobs_status = {}
+        self.jobs_results = {}
         self.pool_started = True
 
     def stop_pool(self):
@@ -122,7 +123,7 @@ class NetworkCheck(AgentCheck):
         if name not in self.jobs_status:
             # A given instance should be processed one at a time
             self.jobs_status[name] = time.time()
-            self.pool.apply_async(self._process, args=(instance,))
+            self.jobs_results[name] = self.pool.apply_async(self._process, args=(instance,))
         else:
             self.log.error("Instance: %s skipped because it's already running." % name)
 
@@ -202,6 +203,14 @@ class NetworkCheck(AgentCheck):
             # The job is finished here, this instance can be re processed
             if instance_name in self.jobs_status:
                 del self.jobs_status[instance_name]
+
+            # if an exception happened, log it
+            if instance_name in self.jobs_results:
+                ret = self.jobs_results[instance_name].get()
+                if isinstance(ret, Exception):
+                    self.log.exception("Exception in worker thread: {0}".format(ret))
+                del self.jobs_results[instance_name]
+
 
     def _check(self, instance):
         """This function should be implemented by inherited classes"""
