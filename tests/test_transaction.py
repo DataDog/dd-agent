@@ -17,9 +17,6 @@ from config import get_version
 from util import get_tornado_ioloop
 
 
-
-
-
 class memTransaction(Transaction):
     def __init__(self, size, manager):
         Transaction.__init__(self)
@@ -161,7 +158,7 @@ class TestTransaction(unittest.TestCase):
         
         transaction = MetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://v{0}.agent.datadoghq.com/intake?api_key=foo'.format(
+        expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key=foo'.format(
             get_version().replace(".","-"))]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
@@ -173,7 +170,7 @@ class TestTransaction(unittest.TestCase):
 
         transaction = APIMetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://v{0}.agent.datadoghq.com/api/v1/series/?api_key=foo'.format(
+        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key=foo'.format(
             get_version().replace(".","-"))]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 

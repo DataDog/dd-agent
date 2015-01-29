@@ -199,9 +199,13 @@ class MetricTransaction(Transaction):
         if parsed_url.netloc not in LEGACY_DATADOG_URLS:
             return default_url
 
-        # Replace https://app.datadoghq.com in https://v5-2-0.agent.datadoghq.com
-        return default_url.replace(parsed_url.netloc.split(".")[0], 
-            "v{0}.agent".format(get_version().replace(".", "-")))
+        subdomain = parsed_url.netloc.split(".")[0]
+
+        # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
+        return default_url.replace(subdomain, 
+            "{0}-{1}.agent".format(
+                get_version().replace(".", "-"),
+                subdomain))
 
     def get_url(self, endpoint):
         endpoint_base_url = self.get_url_endpoint(endpoint)
