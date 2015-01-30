@@ -1,10 +1,15 @@
-from checks import AgentCheck
-from config import get_checksd_path, get_confd_path
-from util import get_os, get_hostname
-import sys
+# stdlib
 import inspect
 import os
+from pprint import pprint
 import signal
+import sys
+import unittest
+
+# project
+from checks import AgentCheck
+from config import get_checksd_path
+from util import get_os, get_hostname
 
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
@@ -75,3 +80,97 @@ def get_check(name, config_str):
 
 def read_data_from_file(filename):
     return open(os.path.join(os.path.dirname(__file__), 'data', filename)).read()
+
+
+class AgentCheckTest(unittest.TestCase):
+    DEFAULT_AGENT_CONFIG = {
+        'version': '0.1',
+        'api_key': 'toto'
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(AgentCheckTest, self).__init__(*args, **kwargs)
+
+        if not hasattr(self, 'CHECK_NAME'):
+            raise Exception("You must define CHECK_NAME")
+
+        self.check = None
+
+    def run_check(self, config, agent_config=None):
+        agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
+
+        # If not loaded already, do it!
+        if self.check is None:
+            self.check = load_check(self.CHECK_NAME, config, agent_config)
+
+        for instance in self.check.instances:
+            self.check.check(instance)
+
+        self.metrics = self.check.get_metrics()
+        self.events = self.check.get_events()
+        self.service_checks = self.check.get_service_checks()
+        self.warnings = self.check.get_warnings()
+
+    def print_current_state(self):
+        print "++++++++++++ DEBUG ++++++++++++"
+        print "METRICS ",
+        pprint(self.metrics)
+        print "---------"
+        print "EVENTS",
+        pprint(self.events)
+        print "---------"
+        print "SERVICE CHECKS",
+        pprint(self.service_checks)
+        print "---------"
+        print "WARNINGS",
+        pprint(self.warnings)
+        print "---------"
+        print "++++++++++++ DEBUG ++++++++++++"
+
+    def _candidates_size_assert(self, candidates, count=None, tolerance=1):
+        try:
+            if count is not None:
+                self.assertEquals(len(candidates), count,
+                    "Needed exactly %d candidates, got %d" % (count, len(candidates))
+                )
+            else:
+                self.assertTrue(len(candidates) >= tolerance,
+                    "Needed at least %d candidates, got %d" % (tolerance, len(candidates))
+                )
+        except AssertionError:
+            self.print_current_state()
+            raise
+
+
+    def assertMetric(self, metric_name, metric_value=None, count=None):
+        candidates = []
+        for m_name, ts, val, mdata in self.metrics:
+            if m_name == metric_name:
+                if metric_value is not None and val != metric_value:
+                    continue
+                candidates.append((m_name, ts, val, mdata))
+
+        self._candidates_size_assert(candidates, count=count)
+
+
+    def assertMetricTagPrefix(self, metric_name, tag_prefix, count=None):
+        candidates = []
+        for m_name, ts, val, mdata in self.metrics:
+            if m_name == metric_name:
+                gtags = [t for t in mdata['tags'] if t.startswith(tag_prefix)]
+                if not gtags:
+                    continue
+                candidates.append((m_name, ts, val, mdata))
+
+        self._candidates_size_assert(candidates, count=count)
+
+    def assertMetricTag(self, metric_name, tag, count=None):
+        candidates = []
+        for m_name, ts, val, mdata in self.metrics:
+            if m_name == metric_name:
+                gtags = [t for t in mdata['tags'] if t == tag]
+                if not gtags:
+                    continue
+                candidates.append((m_name, ts, val, mdata))
+
+        self._candidates_size_assert(candidates, count=count)
