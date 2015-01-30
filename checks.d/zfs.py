@@ -161,6 +161,7 @@ class Zfs(AgentCheck):
     def _convert_human_to_bytes(number):
         unit = number[-1:].upper()
         value = float(number[:-1])
+
         if unit == 'K':
             value *= 1024
         elif unit == 'M':
@@ -169,6 +170,11 @@ class Zfs(AgentCheck):
             value *= 1073741824
         elif unit == 'T':
             value *= 1099511627776
+        elif unit not in ('K', 'M', 'G', 'T'):
+            try:
+                value = float(number)
+            except ValueError:
+                raise NotImplementedError
         return int(value)
 
     def _get_zfs_filesystems(self):
