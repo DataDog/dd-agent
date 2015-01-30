@@ -9,6 +9,8 @@ Matt, you need to update the whole thing to use the metrics[] and service_checks
 begun to implement in _process_zpools.  That'll simplify the calls.
 '''
 class Zfs(AgentCheck):
+    # So that we can make mocks work in UnitTests
+    subprocess = subprocess
 
     ZFS_NAMESPACE = 'system.zfs.'
     ZFS_AVAILABLE = 'available'
@@ -67,8 +69,9 @@ class Zfs(AgentCheck):
         """
         Process zpool usage
 
-        :param zfs_name: Name of zfs filesystem
-        :param zfs_stats: Associated statistics
+        :param zpool: Name of zfs filesystem
+        :param zpool_stats: Associated statistics
+        :param zpool_checks: Associated service checks
         :return: None
         """
         tags = [
@@ -90,15 +93,14 @@ class Zfs(AgentCheck):
                     check_status = AgentCheck.CRITICAL
                 self.service_check(Zfs.ZPOOL_NAMESPACE + check, check_status, tags=tags, message=health_status)
 
-    @staticmethod
-    def _get_zpools():
+    def _get_zpools(self):
         """
         Get list of zpools
         :return: List of zpools
         """
-        p = subprocess.Popen(
+        p = self.subprocess.Popen(
             'sudo zpool list -H -o name'.split(),
-            stdout=subprocess.PIPE
+            stdout=self.subprocess.PIPE
             )
         zpools, err = p.communicate()
         return filter(None, zpools.split('\n'))
@@ -110,12 +112,12 @@ class Zfs(AgentCheck):
         :param zpool:
         :return:
         """
-        p = subprocess.Popen(
+        p = self.subprocess.Popen(
             'sudo zpool get {props} {name}'.format(
                 props=','.join(Zfs.zpool_metrics),
                 name=zpool
             ).split(),
-            stdout=subprocess.PIPE
+            stdout=self.subprocess.PIPE
             )
         zpool_output, err = p.communicate()
         stats = {}
@@ -137,12 +139,12 @@ class Zfs(AgentCheck):
         :param zpool:
         :return:
         """
-        p = subprocess.Popen(
+        p = self.subprocess.Popen(
             'sudo zpool get {props} {name}'.format(
                 props=','.join(Zfs.zpool_service_checks),
                 name=zpool
             ).split(),
-            stdout=subprocess.PIPE
+            stdout=self.subprocess.PIPE
             )
         zpool_output, err = p.communicate()
         checks = {}
@@ -169,27 +171,24 @@ class Zfs(AgentCheck):
             value *= 1099511627776
         return int(value)
 
-    @staticmethod
-    def _get_zfs_filesystems():
+    def _get_zfs_filesystems(self):
         """
         Get all zfs filesystems present on the host
         :return: List of zfs filesystems
         """
-        p = subprocess.Popen(
+        p = self.subprocess.Popen(
             'sudo zfs list -o name -H'.split(),
-            stdout=subprocess.PIPE
+            stdout=self.subprocess.PIPE
             )
         zfs_filesystems, err = p.communicate()
         return filter(None, zfs_filesystems.split('\n'))
 
-
-    @staticmethod
-    def _get_zfs_stats(zfs_name):
-        p = subprocess.Popen(
+    def _get_zfs_stats(self, zfs_name):
+        p = self.subprocess.Popen(
             'sudo zfs get -o property,value -p {props} -H {name}'.format(
                 props=','.join(Zfs.zfs_metrics),
                 name=zfs_name).split(),
-            stdout=subprocess.PIPE
+            stdout=self.subprocess.PIPE
             )
         zfs_output, err = p.communicate()
         stats = {}
