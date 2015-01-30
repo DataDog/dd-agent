@@ -10,12 +10,18 @@ begun to implement in _process_zpools.  That'll simplify the calls.
 '''
 class Zfs(AgentCheck):
 
+    ZFS_NAMESPACE = 'system.zfs.'
     ZFS_AVAILABLE = 'available'
     ZFS_USED = 'used'
     ZFS_COMPRESSRATIO = 'compressratio'
 
-    ZFS_NAMESPACE = 'system.zfs.'
     ZPOOL_NAMESPACE = 'zpool.'
+    ZPOOL_CAPACITY = 'capacity'
+    ZPOOL_SIZE = 'size'
+    ZPOOL_DEDUPRATIO = 'dedupratio'
+    ZPOOL_FREE = 'free'
+    ZPOOL_ALLOCATED = 'allocated'
+    ZPOOL_HEALTH = 'health'
 
     zfs_metrics = [
         ZFS_AVAILABLE,
@@ -24,44 +30,38 @@ class Zfs(AgentCheck):
     ]
 
     zpool_metrics = [
-        'capacity',
-        'size',
-        'dedupratio',
-        'free',
-        'allocated',
+        ZPOOL_CAPACITY,
+        ZPOOL_SIZE,
+        ZPOOL_DEDUPRATIO,
+        ZPOOL_FREE,
+        ZPOOL_ALLOCATED
     ]
 
     zpool_service_checks = [
-        'health'
+        ZPOOL_HEALTH
     ]
 
     def check(self, instance):
         # Retrieve the list of ZFS filesystems
+        self.log.debug('Getting list of zfs filesystems')
         zfs_filesystems = self._get_zfs_filesystems()
 
         # Retrieve the list of Zpools
+        self.log.debug('Getting list of zpools')
         zpools = self._get_zpools()
 
         # For each zfs filesystem, retrieve statistics and send them to datadog
         for zfs_fs in zfs_filesystems:
+            self.log.debug('Reporting on ZFS filesystem {}'.format(zfs_fs))
             stats = self._get_zfs_stats(zfs_fs)
             self._process_zfs_usage(zfs_name=zfs_fs, zfs_stats=stats)
 
-
         # For each zpool, retrieve statistics and send them to datadog
-
-
-
-        # # Process the zfs data, including used, available, total, and percentage used on a filesystem level
-        # self.log.debug('Processing zfs data')
-        # zfs_used = self._retrieve_zfs_usage('used')
-        # zfs_available = self._retrieve_zfs_usage('available')
-        # self._process_zfs_usage(zfs_used, zfs_available)
-        #
-        # # Next process the pool-level data, including health checks, compression ratios, dedup ratios, etc
-        # self.log.debug('Processing zpool data')
-        # zpools = self._get_zpools()
-        # self._process_zpools(zpools)
+        for zpool in zpools:
+            self.log.debug('Reporting on zpool {}'.format(zpool))
+            stats = self._get_zpool_stats(zpool)
+            checks = self._get_zpool_checks(zpool)
+            
 
     def _process_zpools(self, zpools):
         pass
@@ -113,6 +113,72 @@ class Zfs(AgentCheck):
         zpools, err = p.communicate()
         return filter(None, zpools.split('\n'))
 
+    def _get_zpool_stats(self, zpool):
+        """
+        Retrieve numerical statistics about zpool.  Parses out all non-digits
+
+        :param zpool:
+        :return:
+        """
+        p = subprocess.Popen(
+            'sudo zpool get {props} {name}'.format(
+                props=','.join(Zfs.zpool_metrics + Zfs.zpool_service_checks),
+                name=zpool
+            ).split(),
+            stdout=subprocess.PIPE
+            )
+        zpool_output, err = p.communicate()
+        stats = {}
+        for line in filter(None, zpool_output.split('\n')):
+            properties = line.split()
+            result = properties[2]
+            # Stupid zpool command doesn't let you skip headers.  Toss this record
+            if result == 'VALUE':
+                continue
+            if re.match('^\d+[K,M,G,T]', result) or re.match('^\d+\.\d+[K,M,G,T]', result):
+                result = self._convert_human_to_bytes(result)
+            stats[properties[1]] = re.sub("[^0-9,\.]", "", result)
+        return stats
+
+    def _get_zpool_checks(self, zpool):
+        """
+        Retrieve service check stats about zpool.  Returns as-is: no parsing
+
+        :param zpool:
+        :return:
+        """
+        p = subprocess.Popen(
+            'sudo zpool get {props} {name}'.format(
+                props=','.join(Zfs.zpool_service_checks),
+                name=zpool
+            ).split(),
+            stdout=subprocess.PIPE
+            )
+        zpool_output, err = p.communicate()
+        checks = {}
+        for line in filter(None, zpool_output.split('\n')):
+            properties = line.split()
+            result = properties[2]
+            # Stupid zpool command doesn't let you skip headers.  Toss this record
+            if result == 'VALUE':
+                continue
+            checks[properties[1]] = result
+        return checks
+
+    @staticmethod
+    def _convert_human_to_bytes(number):
+        unit = number[-1:].upper()
+        value = int(number[:-1])
+        if unit == 'K':
+            value *= 1024
+        elif unit == 'M':
+            value *= 1048576
+        elif unit == 'G':
+            value *= 1073741824
+        elif unit == 'T':
+            value *= 1099511627776
+        return int(value)
+
     @staticmethod
     def _get_zfs_filesystems():
         """
@@ -125,6 +191,7 @@ class Zfs(AgentCheck):
             )
         zfs_filesystems, err = p.communicate()
         return filter(None, zfs_filesystems.split('\n'))
+
 
     @staticmethod
     def _get_zfs_stats(zfs_name):
