@@ -61,44 +61,34 @@ class Zfs(AgentCheck):
             self.log.debug('Reporting on zpool {}'.format(zpool))
             stats = self._get_zpool_stats(zpool)
             checks = self._get_zpool_checks(zpool)
-            
+            self._process_zpools(zpool, stats, checks)
 
-    def _process_zpools(self, zpools):
-        pass
-        # metrics_report = {}
-        # service_check_report = {}
-        #
-        # # For each zpool, report on the pertinent metrics
-        # for zpool in zpools:
-        #     p = subprocess.Popen(
-        #         'sudo zpool get all {}'.format(zpool).split(),
-        #         stdout=subprocess.PIPE
-        #         )
-        #     zpool_get_output, err = p.communicate()
-        #     zpool_get_lines = zpool_get_output.split('\n')[1:]
-        #
-        #     for line in zpool_get_lines:
-        #         line_breakdown = line.split()
-        #         check_name = line_breakdown[1]
-        #         check_value = line_breakdown[2]
-        #         if check_name in metrics:
-        #             metrics_report[check_name] = check_value
-        #         elif check_name in service_checks:
-        #             service_check_report[check_name] = check_value
+    def _process_zpools(self, zpool, zpool_stats, zpool_checks):
+        """
+        Process zpool usage
 
-            # tags = [
-            #     'name:%s' % (zpool, )
-            # ]
-            #
-            # check_status = None
-            # if health_status == 'ONLINE':
-            #     check_status = AgentCheck.OK
-            # elif check_status == 'DEGRADED':
-            #     check_status = AgentCheck.WARNING
-            # else:
-            #     check_status = AgentCheck.CRITICAL
-            #
-            # self.service_check('system.zfs.zpoolhealth', check_status, tags=tags, message=health_status)
+        :param zfs_name: Name of zfs filesystem
+        :param zfs_stats: Associated statistics
+        :return: None
+        """
+        tags = [
+            'zpool_name:{}'.format(zpool)
+        ]
+
+        for metric in zpool_stats.keys():
+            self.gauge(Zfs.ZPOOL_NAMESPACE + metric, zpool_stats[metric], tags=tags)
+
+        for check in zpool_checks.keys():
+            if check == Zfs.ZPOOL_HEALTH:
+                check_status = None
+                health_status = zpool_checks[check]
+                if health_status == 'ONLINE':
+                    check_status = AgentCheck.OK
+                elif check_status == 'DEGRADED':
+                    check_status = AgentCheck.WARNING
+                else:
+                    check_status = AgentCheck.CRITICAL
+                self.service_check(Zfs.ZPOOL_NAMESPACE + check, check_status, tags=tags, message=health_status)
 
     @staticmethod
     def _get_zpools():
