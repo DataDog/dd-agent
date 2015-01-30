@@ -1,0 +1,9 @@
+init_config:
+
+instances:
+  - access_id: access-key
+    access_secret: access-secret
+    is_secure: False
+#   host: localhost
+#   port: 8080
+#   s3_root: s3.amazonaws.com
