@@ -150,7 +150,7 @@ class Zfs(AgentCheck):
         :return: None
         """
         tags = [
-            'name:{}'.format(zfs_name)
+            'zfs_name:{}'.format(zfs_name)
         ]
 
         try:
