@@ -142,12 +142,15 @@ class AgentCheckTest(unittest.TestCase):
             raise
 
 
-    def assertMetric(self, metric_name, metric_value=None, count=None):
+    def assertMetric(self, metric_name, metric_value=None, tags=None, count=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
                 if metric_value is not None and val != metric_value:
                     continue
+                if tags is not None and sorted(tags) != sorted(mdata.get("tags", [])):
+                    continue
+
                 candidates.append((m_name, ts, val, mdata))
 
         self._candidates_size_assert(candidates, count=count)

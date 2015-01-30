@@ -3,6 +3,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 # 3rd party
 import simplejson as json
@@ -53,12 +54,12 @@ class RiakCs(AgentCheck):
             if e not in instance:
                 raise Exception("{0} parameter is required.".format(e))
 
-        s3_settings={
+        s3_settings = {
             "aws_access_key_id": instance.get('access_id', None),
             "aws_secret_access_key": instance.get('access_secret', None),
-            "proxy": instance.get('host','localhost'),
-            "proxy_port": instance.get('port', 8080),
-            "is_secure": instance.get('is_secure', None)
+            "proxy": instance.get('host', 'localhost'),
+            "proxy_port": int(instance.get('port', 8080)),
+            "is_secure": _is_affirmative(instance.get('is_secure', True))
         }
 
         if instance.get('s3_root'):
@@ -69,7 +70,7 @@ class RiakCs(AgentCheck):
         try:
             s3 = S3Connection(**s3_settings)
         except Exception, e:
-            self.log.error("Error connecting to " + aggregation_key, e)
+            self.log.error("Error connecting to {0}: {1}".format(aggregation_key, e))
             raise
 
         tags = instance.get("tags", [])
@@ -85,7 +86,7 @@ class RiakCs(AgentCheck):
             stats = self.load_json(stats_str)
 
         except Exception, e:
-            self.log.error("Error retrieving stats from " + aggregation_key, e)
+            self.log.error("Error retrieving stats from {0}: {1}".format(aggregation_key, e))
             raise
 
         return stats
