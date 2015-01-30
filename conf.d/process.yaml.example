@@ -23,6 +23,9 @@ instances:
 
   - name: ssh
     search_string: ['ssh', 'sshd']
+    # tags:
+    #   - env:staging
+    #   - cluster:big-data
     thresholds:
       # critical if no sshd or more than 8 sshd are running
       critical: [1, 7]
