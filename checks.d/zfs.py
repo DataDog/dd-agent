@@ -112,7 +112,7 @@ class Zfs(AgentCheck):
         """
         p = subprocess.Popen(
             'sudo zpool get {props} {name}'.format(
-                props=','.join(Zfs.zpool_metrics + Zfs.zpool_service_checks),
+                props=','.join(Zfs.zpool_metrics),
                 name=zpool
             ).split(),
             stdout=subprocess.PIPE
