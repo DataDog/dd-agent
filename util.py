@@ -226,6 +226,7 @@ class GCE(object):
     TIMEOUT = 0.1 # second
     SOURCE_TYPE_NAME = 'google cloud platform'
     metadata = None
+    EXCLUDED_ATTRIBUTES = ["sshKeys"]
 
 
     @staticmethod
@@ -273,6 +274,8 @@ class GCE(object):
             tags = []
 
             for key, value in host_metadata['instance'].get('attributes', {}).iteritems():
+                if key in GCE.EXCLUDED_ATTRIBUTES:
+                    continue
                 tags.append("%s:%s" % (key, value))
 
             tags.extend(host_metadata['instance'].get('tags', []))
