@@ -30,9 +30,14 @@ instances:
     # nodes:
     #   - rabbit@localhost
     #   - rabbit2@domain
+    # nodes_regexes:
+    #   - bla.*
     # queues:
     #   - queue1
     #   - queue2
+    # queues_regexes:
+    #   - thisqueue-.*
+    #   - another_\d+queue
     # vhosts:
     #   - vhost1
     #   - vhost2
