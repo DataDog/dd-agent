@@ -1,7 +1,5 @@
 # stdlib
-import time
-from hashlib import md5
-import socket
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -10,88 +8,90 @@ from checks import AgentCheck
 import simplejson as json
 from boto.s3.connection import S3Connection
 
+
+def multidict(ordered_pairs):
+    """Convert duplicate keys values to lists."""
+    # read all values into lists
+    d = defaultdict(list)
+    for k, v in ordered_pairs:
+        d[k].append(v)
+    # unpack lists that have only 1 item
+    for k, v in d.items():
+        if len(v) == 1:
+            d[k] = v[0]
+    return dict(d)
+
+
+
+
 class RiakCs(AgentCheck):
 
     STATS_BUCKET = 'riak-cs'
     STATS_KEY = 'stats'
 
-    STAT_KEYS = [
-        # Object Keys
-        "object_get", "object_put", "object_delete", "object_head",
-        "object_get_acl", "object_put_acl",
-        # Bucket Keys
-        "bucket_create", "service_get_buckets", "bucket_delete",
-        "bucket_list_keys", "bucket_get_acl", "bucket_put_acl",
-        # Block Keys
-        "block_get", "block_put", "block_delete", "block_get_retry" ]
-    STAT_GAUGES = [
-        "rate", "latency_mean", "latency_median",
-        "latency_95", "latency_99" ]
-    POOL_KEYS = [
-        "bucket_list_pool", "request_pool" ]
-    POOL_GAUGES = [
-        "workers", "overflow", "size" ]
-
     def check(self, instance):
+        s3, aggregation_key, tags = self._connect(instance)
 
-      s3_settings=dict(
-        aws_access_key_id=instance.get('access_id', None),
-        aws_secret_access_key=instance.get('access_secret', None),
-        proxy=instance.get('host','localhost'),
-        proxy_port=instance.get('port', 8080),
-        is_secure=instance.get('is_secure', None))
+        stats = self._get_stats(s3, aggregation_key)
+        self.process_stats(stats, tags)
 
-      if instance.get('s3_root'):
-        s3_settings['host'] = instance['s3_root']
+    def process_stats(self, stats, tags):
+        if not stats:
+            raise Exception("No stats were collected")
 
-      aggregation_key = s3_settings['proxy'] + ":" + str(s3_settings['proxy_port'])
+        legends = { len(k): k for k in stats["legend"]}
+        del stats["legend"]
+        for key, values in stats.iteritems():
+            legend = legends[len(values)]
+            for i, value in enumerate(values):
+                metric_name = "riakcs.{0}.{1}".format(key, legend[i])
+                self.gauge(metric_name, value, tags=tags)
 
-      s3 = self._connect(s3_settings, aggregation_key)
 
-      stats = self._get_stats(s3, aggregation_key)
+    def _connect(self, instance):
+        for e in ("access_id", "access_secret"):
+            if e not in instance:
+                raise Exception("{0} parameter is required.".format(e))
 
-      if stats:
+        s3_settings={
+            "aws_access_key_id": instance.get('access_id', None),
+            "aws_secret_access_key": instance.get('access_secret', None),
+            "proxy": instance.get('host','localhost'),
+            "proxy_port": instance.get('port', 8080),
+            "is_secure": instance.get('is_secure', None)
+        }
 
-        for key in self.STAT_KEYS:
-          if key not in stats:
-            continue
-          vals = stats[key]
-          self.count('riakcs.' + key, vals.pop(0))
-          for gauge in self.STAT_GAUGES:
-            self.gauge('riakcs.' + key + "_" + gauge, vals.pop(0))
+        if instance.get('s3_root'):
+            s3_settings['host'] = instance['s3_root']
 
-        for key in self.POOL_KEYS:
-          if key not in stats:
-            continue
-          vals = stats[key]
-          for gauge in self.POOL_GAUGES:
-            self.gauge('riakcs.' + key + "_" + gauge, vals.pop(0))
+        aggregation_key = s3_settings['proxy'] + ":" + str(s3_settings['proxy_port'])
 
-    def _connect(self, s3_settings, aggregation_key):
+        try:
+            s3 = S3Connection(**s3_settings)
+        except Exception, e:
+            self.log.error("Error connecting to " + aggregation_key, e)
+            raise
 
-      try:
-        s3 = S3Connection(**s3_settings)
+        tags = instance.get("tags", [])
+        tags.append("aggregation_key:{0}".format(aggregation_key))
 
-      except Exception, e:
-          self._error("Error connecting to " + aggregation_key, e)
-          return
-
-      return s3
+        return s3, aggregation_key, tags
 
     def _get_stats(self, s3, aggregation_key):
+        try:
+            bucket = s3.get_bucket(self.STATS_BUCKET, validate=False)
+            key = bucket.get_key(self.STATS_KEY)
+            stats_str = key.get_contents_as_string()
+            stats = self.load_json(stats_str)
 
-      try:
-          bucket = s3.get_bucket(self.STATS_BUCKET, validate=False)
-          key = bucket.get_key(self.STATS_KEY)
-          stats_str = key.get_contents_as_string()
-          stats = json.loads(stats_str)
+        except Exception, e:
+            self.log.error("Error retrieving stats from " + aggregation_key, e)
+            raise
 
-      except Exception, e:
-          self._error("Error retrieving stats from " + aggregation_key, e)
-          return
+        return stats
 
-      return stats
 
-    def _error(self, message, error):
-        self.warning(message + ": " + str(error))
-        self.log.critical(message + ": " + str(error))
+    # We need this as the riak cs stats page returns json with duplicate keys
+    @classmethod
+    def load_json(cls, text):
+        return json.JSONDecoder(object_pairs_hook=multidict).decode(text)
