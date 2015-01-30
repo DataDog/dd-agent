@@ -127,7 +127,7 @@ class Zfs(AgentCheck):
                 continue
             if re.match('^\d+[K,M,G,T]', result) or re.match('^\d+\.\d+[K,M,G,T]', result):
                 result = self._convert_human_to_bytes(result)
-            stats[properties[1]] = re.sub("[^0-9,\.]", "", result)
+            stats[properties[1]] = re.sub('[^0-9,\.]', "", str(result))
         return stats
 
     def _get_zpool_checks(self, zpool):
