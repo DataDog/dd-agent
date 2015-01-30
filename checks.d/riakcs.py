@@ -39,7 +39,7 @@ class RiakCs(AgentCheck):
         if not stats:
             raise Exception("No stats were collected")
 
-        legends = { len(k): k for k in stats["legend"]}
+        legends = dict([(len(k), k) for k in stats["legend"]])
         del stats["legend"]
         for key, values in stats.iteritems():
             legend = legends[len(values)]
