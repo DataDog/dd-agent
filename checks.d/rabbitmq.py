@@ -22,6 +22,8 @@ QUEUE_ATTRIBUTES = [
     # Path, Name
     ('active_consumers', 'active_consumers'),
     ('consumers', 'consumers'),
+    ('consumer_utilisation', 'consumer_utilisation'),
+
     ('memory', 'memory'),
 
     ('messages', 'messages'),
