@@ -158,7 +158,7 @@ class Zfs(AgentCheck):
     @staticmethod
     def _convert_human_to_bytes(number):
         unit = number[-1:].upper()
-        value = int(number[:-1])
+        value = float(number[:-1])
         if unit == 'K':
             value *= 1024
         elif unit == 'M':
