@@ -2,114 +2,174 @@
 from __future__ import division
 from checks import AgentCheck
 import subprocess
+import re
 
-
+'''
+Matt, you need to update the whole thing to use the metrics[] and service_checks[] paradigm that you've
+begun to implement in _process_zpools.  That'll simplify the calls.
+'''
 class Zfs(AgentCheck):
 
-    ZFS_LIST_FORMAT = {
-        'USED' : 0,
-        'AVAIL': 1,
-        'REFER' : 2,
-        'MOUNTPOINT' : 3,
-    }
+    ZFS_AVAILABLE = 'available'
+    ZFS_USED = 'used'
+    ZFS_COMPRESSRATIO = 'compressratio'
+
+    ZFS_NAMESPACE = 'system.zfs.'
+    ZPOOL_NAMESPACE = 'zpool.'
+
+    zfs_metrics = [
+        ZFS_AVAILABLE,
+        ZFS_USED,
+        ZFS_COMPRESSRATIO
+    ]
+
+    zpool_metrics = [
+        'capacity',
+        'size',
+        'dedupratio',
+        'free',
+        'allocated',
+    ]
+
+    zpool_service_checks = [
+        'health'
+    ]
 
     def check(self, instance):
-        self.log.debug("Processing zfs data")
-        self._process_zfs_usage()
+        # Retrieve the list of ZFS filesystems
+        zfs_filesystems = self._get_zfs_filesystems()
 
-    def _process_zfs_usage(self):
-        # Read in zfs used and available
-        # TODO: Figure out zfs permissioning so that sudo is not required
+        # Retrieve the list of Zpools
+        zpools = self._get_zpools()
 
-        # zfs get -o name,value -Hp used
+        # For each zfs filesystem, retrieve statistics and send them to datadog
+        for zfs_fs in zfs_filesystems:
+            stats = self._get_zfs_stats(zfs_fs)
+            self._process_zfs_usage(zfs_name=zfs_fs, zfs_stats=stats)
+
+
+        # For each zpool, retrieve statistics and send them to datadog
+
+
+
+        # # Process the zfs data, including used, available, total, and percentage used on a filesystem level
+        # self.log.debug('Processing zfs data')
+        # zfs_used = self._retrieve_zfs_usage('used')
+        # zfs_available = self._retrieve_zfs_usage('available')
+        # self._process_zfs_usage(zfs_used, zfs_available)
+        #
+        # # Next process the pool-level data, including health checks, compression ratios, dedup ratios, etc
+        # self.log.debug('Processing zpool data')
+        # zpools = self._get_zpools()
+        # self._process_zpools(zpools)
+
+    def _process_zpools(self, zpools):
+        pass
+        # metrics_report = {}
+        # service_check_report = {}
+        #
+        # # For each zpool, report on the pertinent metrics
+        # for zpool in zpools:
+        #     p = subprocess.Popen(
+        #         'sudo zpool get all {}'.format(zpool).split(),
+        #         stdout=subprocess.PIPE
+        #         )
+        #     zpool_get_output, err = p.communicate()
+        #     zpool_get_lines = zpool_get_output.split('\n')[1:]
+        #
+        #     for line in zpool_get_lines:
+        #         line_breakdown = line.split()
+        #         check_name = line_breakdown[1]
+        #         check_value = line_breakdown[2]
+        #         if check_name in metrics:
+        #             metrics_report[check_name] = check_value
+        #         elif check_name in service_checks:
+        #             service_check_report[check_name] = check_value
+
+            # tags = [
+            #     'name:%s' % (zpool, )
+            # ]
+            #
+            # check_status = None
+            # if health_status == 'ONLINE':
+            #     check_status = AgentCheck.OK
+            # elif check_status == 'DEGRADED':
+            #     check_status = AgentCheck.WARNING
+            # else:
+            #     check_status = AgentCheck.CRITICAL
+            #
+            # self.service_check('system.zfs.zpoolhealth', check_status, tags=tags, message=health_status)
+
+    @staticmethod
+    def _get_zpools():
+        """
+        Get list of zpools
+        :return: List of zpools
+        """
         p = subprocess.Popen(
-                "sudo zfs get -o name,value -Hp used".split(),
-                stdout=subprocess.PIPE
+            'sudo zpool list -H -o name'.split(),
+            stdout=subprocess.PIPE
             )
-        zfs_used_output, err = p.communicate()
+        zpools, err = p.communicate()
+        return filter(None, zpools.split('\n'))
 
-        # zfs get -o name,value -Hp available
+    @staticmethod
+    def _get_zfs_filesystems():
+        """
+        Get all zfs filesystems present on the host
+        :return: List of zfs filesystems
+        """
         p = subprocess.Popen(
-                "sudo zfs get -o name,value -Hp available".split(),
-                stdout=subprocess.PIPE
+            'sudo zfs list -o name -H'.split(),
+            stdout=subprocess.PIPE
             )
-        zfs_available_output, err = p.communicate()
+        zfs_filesystems, err = p.communicate()
+        return filter(None, zfs_filesystems.split('\n'))
 
-        # Parse the output
-        zfs_used = {}
-        for line in zfs_used_output.split('\n'):
-            temp_list = line.split()
-            if temp_list:
-                self.log.info(temp_list)
-                zfs_used[temp_list[0]] = temp_list[1]
+    @staticmethod
+    def _get_zfs_stats(zfs_name):
+        p = subprocess.Popen(
+            'sudo zfs get -o property,value -p {props} -H {name}'.format(
+                props=','.join(Zfs.zfs_metrics),
+                name=zfs_name).split(),
+            stdout=subprocess.PIPE
+            )
+        zfs_output, err = p.communicate()
+        stats = {}
+        for line in filter(None, zfs_output.split('\n')):
+            properties = line.split()
+            stats[properties[0]] = re.sub("[^0-9,\.]", "", properties[1])
+        return stats
 
-        zfs_available = {}
-        for line in zfs_available_output.split('\n'):
-            temp_list = line.split()
-            if temp_list:
-                self.log.info(temp_list)
-                zfs_available[temp_list[0]] = temp_list[1]
+    def _process_zfs_usage(self, zfs_name, zfs_stats):
+        """
+        Process zfs usage
 
-        for name in zfs_used.keys():
-            try:
-                used = int(zfs_used[name])
-                available = int(zfs_available[name])
-            except(ValueError):
-                continue
+        :param zfs_name: Name of zfs filesystem
+        :param zfs_stats: Associated statistics
+        :return: None
+        """
+        tags = [
+            'name:{}'.format(zfs_name)
+        ]
 
-            total = used + available
-            percent_used = (used / total) * 100
+        try:
+            total = int(zfs_stats[Zfs.ZFS_USED]) + int(zfs_stats[Zfs.ZFS_AVAILABLE])
+            percent_used = (int(zfs_stats[Zfs.ZFS_USED]) / total) * 100
             if percent_used < 1:
                 percent_used = 1
+            self.gauge(Zfs.ZFS_NAMESPACE + 'total', total, tags=tags)
+            self.gauge(Zfs.ZFS_NAMESPACE + 'percent_used', percent_used, tags=tags)
 
-            tags = [
-                "name:%s" % (name, )
-            ]
+        except ValueError:
+            self.log.debug("Could not determine total and percentage for zfs {name}, used {used}, avail {avail}".format(
+                name=zfs_name,
+                used=zfs_stats[Zfs.ZFS_USED],
+                avail=zfs_stats[Zfs.ZFS_AVAILABLE]
+            ))
 
-            self.gauge('system.zfs.used', used, tags=tags)
-            self.gauge('system.zfs.available', available, tags=tags)
-            self.gauge('system.zfs.total', total, tags=tags)
-            self.gauge('system.zfs.percent_used', percent_used, tags=tags)
+        for metric in zfs_stats.keys():
+            self.gauge(Zfs.ZFS_NAMESPACE + metric, zfs_stats[metric], tags=tags)
 
-    def _parse_zpool_status(self):
-        # Get list of zpools
-        p = subprocess.Popen(
-                "sudo zpool list -H".split(),
-                stdout=subprocess.PIPE
-            )
-        zfs_pools_output, err = p.communicate()
-        zpools = []
-        for line in zfs_pools_output.split('\n'):
-            zpools.append(line.split()[0])
-
-        # For each zpool, get the health
-        for zpool in zpools:
-            p = subprocess.Popen(
-                    "sudo zpool get health {}".format(zpool).split(),
-                    stdout=subprocess.PIPE
-                )
-            health_output, err = p.communicate()
-            health_line = health_output.split('\n')[1]
-            health_status = health_line.split()[2]
-
-            tags = [
-                "name:%s" % (zpool, )
-            ]
-
-            check_status = None
-            if health_status == 'ONLINE':
-                check_status = AgentCheck.OK
-            elif check_status == 'DEGRADED':
-                check_status = AgentCheck.WARNING
-            else:
-                check_status = AgentCheck.CRITICAL
-
-            self.service_check('system.zfs.zpoolhealth', check_status, tags=tags)
-
-
-
-
-
-
-
-
+    def get_library_versions(self):
+        return NotImplemented
