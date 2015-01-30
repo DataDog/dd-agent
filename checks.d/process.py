@@ -159,7 +159,7 @@ class ProcessCheck(AgentCheck):
 
     def check(self, instance):
         name = instance.get('name', None)
-	    tags = instance.get('tags', "").split()
+        tags = instance.get('tags', "").split()
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string', None)
         ignore_denied_access = instance.get('ignore_denied_access', True)
