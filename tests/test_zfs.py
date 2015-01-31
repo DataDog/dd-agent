@@ -66,6 +66,26 @@ tank  allocated   9.42T  -"""
         for result in actual.keys():
             assert actual[result] == expected[result]
 
+    def test_get_zpool_checks(self):
+        zpool_get_data = """NAME  PROPERTY    VALUE  SOURCE
+tank  health    ONLINE    -"""
+        expected = {
+            'health': 'ONLINE'
+        }
+        check, instances = get_check('zfs', self.config)
+        check.subprocess.Popen = mock.Mock()
+        check.subprocess.Popen.return_value = mock.Mock()
+        check.subprocess.Popen.return_value.communicate.return_value = (zpool_get_data, None)
+        zpool_name = 'tank'
+        actual = check._get_zpool_checks(zpool_name)
+        assert check.subprocess.Popen.call_count == 1
+        assert check.subprocess.Popen.call_args == mock.call(
+            'sudo zpool get health tank'.split(),
+            stdout=check.subprocess.PIPE
+        )
+        for result in actual.keys():
+            assert actual[result] == expected[result]
+
     def test_convert_human_to_bytes(self):
         check, instances = get_check('zfs', self.config)
 
