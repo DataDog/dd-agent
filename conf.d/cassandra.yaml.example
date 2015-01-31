@@ -25,12 +25,10 @@ init_config:
           - BloomFilterFalsePositives
           - BloomFilterFalseRatio
           - Capacity
-          - CompressionRatio
           - CompletedTasks
+          - CompressionRatio
           - ExceptionCount
           - Hits
-          - RecentHitRate
-          - RowCacheRecentHitRate
           - KeyCacheRecentHitRate
           - LiveDiskSpaceUsed
           - LiveSSTableCount
@@ -41,15 +39,20 @@ init_config:
           - MemtableDataSize
           - MemtableSwitchCount
           - MinRowSize
+          - PendingTasks
           - ReadCount
+          - RecentHitRate
+          - RecentRangeLatencyMicros
+          - RecentReadLatencyMicros
+          - RecentWriteLatencyMicros
           - Requests
+          - RowCacheRecentHitRate
           - Size
           - TotalDiskSpaceUsed
           - TotalReadLatencyMicros
           - TotalWriteLatencyMicros
           - UpdateInterval
           - WriteCount
-          - PendingTasks
       exclude:
         keyspace: system
     - include:
