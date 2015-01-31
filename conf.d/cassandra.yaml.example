@@ -42,6 +42,9 @@ init_config:
           - PendingTasks
           - ReadCount
           - RecentHitRate
+          - RecentRangeLatencyMicros
+          - RecentReadLatencyMicros
+          - RecentWriteLatencyMicros
           - Requests
           - RowCacheRecentHitRate
           - Size
