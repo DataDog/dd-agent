@@ -13,6 +13,35 @@ class ZfsTestCase(unittest.TestCase):
         - name: test
     """
 
+    def test_process_zpool(self):
+        zpool_metrics = {
+            'capacity': '64',
+            'size': '15942918602752',
+            'dedupratio': '1.00',
+            'free': '5585519069102',
+            'allocated': '10357399533649'
+        }
+        zpool_checks = {
+            'health': 'ONLINE'
+        }
+        check, instances = get_check('zfs', self.config)
+        zpool = 'tank'
+        check._process_zpool(zpool=zpool, zpool_metrics=zpool_metrics, zpool_checks=zpool_checks)
+        metrics = check.get_metrics()
+        for metric in metrics:
+            if metric[0] == 'zpool.capacity':
+                assert metric[2] == '64'
+            elif metric[0] == 'zpool.size':
+                assert metric[2] == '15942918602752'
+            elif metric[0] == 'zpool.dedupratio':
+                assert metric[2] == '1.00'
+            elif metric[0] == 'zpool.free':
+                assert metric[2] == '5585519069102'
+            elif metric[0] == 'zpool.allocated':
+                assert metric[2] == '10357399533649'
+            else:
+                assert False, "Unexpcted metric " + metric[0]
+
     def test_process_zfs_usage(self):
         zfs_data = {
             'used': '9110244945920',
@@ -34,6 +63,8 @@ class ZfsTestCase(unittest.TestCase):
                 assert metric[2] == '66'
             elif metric[0] == 'system.zfs.compressratio':
                 assert metric[2] == '2.70'
+            else:
+                assert False, "Unexpcted metric " + metric[0]
 
     def test_get_zfs_stats(self):
         zfs_get_data = """used	9110244945920
@@ -72,7 +103,6 @@ tank  allocated   9.42T  -"""
             'dedupratio': '1.00',
             'free': '5585519069102',
             'allocated': '10357399533649'
-
         }
         check, instances = get_check('zfs', self.config)
         check.subprocess.Popen = mock.Mock()

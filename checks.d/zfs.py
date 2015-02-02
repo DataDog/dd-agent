@@ -63,14 +63,14 @@ class Zfs(AgentCheck):
             self.log.debug('Reporting on zpool {}'.format(zpool))
             stats = self._get_zpool_stats(zpool)
             checks = self._get_zpool_checks(zpool)
-            self._process_zpools(zpool, stats, checks)
+            self._process_zpool(zpool, stats, checks)
 
-    def _process_zpools(self, zpool, zpool_stats, zpool_checks):
+    def _process_zpool(self, zpool, zpool_metrics, zpool_checks):
         """
         Process zpool usage
 
         :param zpool: Name of zfs filesystem
-        :param zpool_stats: Associated statistics
+        :param zpool_metrics: Associated statistics
         :param zpool_checks: Associated service checks
         :return: None
         """
@@ -78,8 +78,8 @@ class Zfs(AgentCheck):
             'zpool_name:{}'.format(zpool)
         ]
 
-        for metric in zpool_stats.keys():
-            self.gauge(Zfs.ZPOOL_NAMESPACE + metric, zpool_stats[metric], tags=tags)
+        for metric in zpool_metrics.keys():
+            self.gauge(Zfs.ZPOOL_NAMESPACE + metric, zpool_metrics[metric], tags=tags)
 
         for check in zpool_checks.keys():
             if check == Zfs.ZPOOL_HEALTH:
