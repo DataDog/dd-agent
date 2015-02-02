@@ -12,6 +12,7 @@ class ZfsTestCase(unittest.TestCase):
     instances:
         - name: test
     """
+        
 
     def test_get_zfs_stats(self):
         zfs_get_data = """used	9110244945920
