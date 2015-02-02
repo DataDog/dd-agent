@@ -150,6 +150,7 @@ class TestRedis(unittest.TestCase):
         self.assertEqual(metric[2], 0, "Value of %s should be 0" % metric_name)
 
         # Unhealthy host
+        time.sleep(5)  # Give time for the replication failure metrics to build up
         metric = extract_metric({
             'host': 'localhost',
             'port': SLAVE_UNHEALTHY_PORT
@@ -166,6 +167,7 @@ class TestRedis(unittest.TestCase):
             return (checks and checks[0]) or None
 
         # Healthy host
+        time.sleep(5)  # Give time for the replication failure metrics to build up
         check = extract_check({
             'host': 'localhost',
             'port': SLAVE_HEALTHY_PORT
