@@ -12,7 +12,28 @@ class ZfsTestCase(unittest.TestCase):
     instances:
         - name: test
     """
-        
+
+    def test_process_zfs_usage(self):
+        zfs_data = {
+            'used': '9110244945920',
+            'available': '4529883320320',
+            'compressratio': '2.70'
+        }
+        check, instances = get_check('zfs', self.config)
+        zfs_name = 'tank'
+        check._process_zfs_usage(zfs_name=zfs_name, zfs_stats=zfs_data)
+        metrics = check.get_metrics()
+        for metric in metrics:
+            if metric[0] == 'system.zfs.available':
+                assert metric[2] == '4529883320320'
+            elif metric[0] == 'system.zfs.used':
+                assert metric[2] == '9110244945920'
+            elif metric[0] == 'system.zfs.total':
+                assert metric[2] == '13640128266240'
+            elif metric[0] == 'system.zfs.percent_used':
+                assert metric[2] == '66'
+            elif metric[0] == 'system.zfs.compressratio':
+                assert metric[2] == '2.70'
 
     def test_get_zfs_stats(self):
         zfs_get_data = """used	9110244945920

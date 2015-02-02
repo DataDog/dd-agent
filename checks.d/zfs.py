@@ -217,11 +217,11 @@ class Zfs(AgentCheck):
 
         try:
             total = int(zfs_stats[Zfs.ZFS_USED]) + int(zfs_stats[Zfs.ZFS_AVAILABLE])
-            percent_used = (int(zfs_stats[Zfs.ZFS_USED]) / total) * 100
+            percent_used = int((int(zfs_stats[Zfs.ZFS_USED]) / total) * 100)
             if percent_used < 1:
                 percent_used = 1
-            self.gauge(Zfs.ZFS_NAMESPACE + 'total', total, tags=tags)
-            self.gauge(Zfs.ZFS_NAMESPACE + 'percent_used', percent_used, tags=tags)
+            self.gauge(Zfs.ZFS_NAMESPACE + 'total', str(total), tags=tags)
+            self.gauge(Zfs.ZFS_NAMESPACE + 'percent_used', str(percent_used), tags=tags)
 
         except ValueError:
             self.log.debug("Could not determine total and percentage for zfs {name}, used {used}, avail {avail}".format(
