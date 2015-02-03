@@ -1,45 +1,48 @@
 init_config:
 
 instances:
-    # Each Event Log instance lets you define the type of events you want to
-    # match and how to tag those events. You can use the following filters:
-    #
-    # - type: Warning, Error, Information
-    #
-    # - log_file: Application, System, Setup, Security
-    #
-    # - source_name: Any available source name
-    #
-    # - user: Any valid user name
-    #
-    # - message_filters: A list of message filters, using % as a wildcard.
-    #   See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx for
-    #   more on the format for LIKE queries.
-    #   NOTE: Any filter that starts with "-" will be a NOT query, e.g.: '-%success%'
-    #   will search for events without 'success' in the message.
-    #
-    # Here are a couple basic examples:
-    #
-    # The following will capture errors and warnings from SQL Server which
-    # puts all events under the MSSQLSERVER source and tag them with #sqlserver.
-    #
-    #-   tags:
-    #        - sqlserver
-    #    type:
-    #        - Warning
-    #        - Error
-    #    log_file:
-    #        - Application
-    #    source_name:
-    #        - MSSQLSERVER
-    #    message_filters:
-    #        - "%error%"
-    #
-    # This instance will capture all system errors and tag them with #system.
-    #
-    #-   tags:
-    #        - system
-    #    type:
-    #        - Error
-    #    log_file:
-    #        - System
+  # Each Event Log instance lets you define the type of events you want to
+  # match and how to tag those events. You can use the following filters:
+  #
+  # - log_file: Application, System, Setup, Security
+  #
+  # - source_name: Any available source name
+  #
+  # - type: Warning, Error, Information
+  #
+  # - user: Any valid user name
+  #
+  # - event_id: The Event ID can be found through http://www.eventid.net/ and
+  #   viewed in the window event viewer.
+  #
+  # - message_filters: A list of message filters, using % as a wildcard.
+  #   See http://msdn.microsoft.com/en-us/library/aa392263(v=vs.85).aspx for
+  #   more on the format for LIKE queries.
+  #   NOTE: Any filter that starts with "-" will be a NOT query, e.g.: '-%success%'
+  #   will search for events without 'success' in the message.
+
+  # Here are a couple basic examples:
+
+  # The following will capture errors and warnings from SQL Server which
+  # puts all events under the MSSQLSERVER source and tag them with #sqlserver.
+  #
+  # - log_file:
+  #     - Application
+  #   source_name:
+  #     - MSSQLSERVER
+  #   type:
+  #     - Warning
+  #     - Error
+  #   message_filters:
+  #     - "%error%"
+  #   tags:
+  #     - sqlserver
+
+  # This instance will capture all system errors and tag them with #system.
+  #
+  # - log_file:
+  #   - System
+  #   type:
+  #     - Error
+  #   tags:
+  #     - system

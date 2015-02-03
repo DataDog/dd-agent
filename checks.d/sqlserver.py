@@ -46,6 +46,7 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
 class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
+    SERVICE_CHECK_NAME = 'sqlserver.can_connect'
 
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''), # RAW_LARGE_FRACTION
@@ -53,10 +54,10 @@ class SQLServer(AgentCheck):
         ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''), # BULK_COUNT
         ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''), # BULK_COUNT
         ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User connections', ''), # LARGE_RAWCOUNT
+        ('sqlserver.stats.connections', 'User Connections', ''), # LARGE_RAWCOUNT
         ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
         ('sqlserver.access.page_splits', 'Page Splits/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes Blocked', ''), # LARGE_RAWCOUNT
+        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''), # LARGE_RAWCOUNT
         ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '') #BULK_COUNT
     ]
 
@@ -173,21 +174,32 @@ class SQLServer(AgentCheck):
         Cursor are cached in the self.connections dict
         '''
         conn_key = self._conn_key(instance)
+        host = instance.get('host')
+        database = instance.get('database')
+        service_check_tags = [
+            'host:%s' % host,
+            'db:%s' % database
+        ]
 
         if conn_key not in self.connections:
             try:
                 conn_str = self._conn_string(instance)
                 conn = adodbapi.connect(conn_str)
                 self.connections[conn_key] = conn
-            except Exception, e:
-                cx = "%s - %s" % (instance.get('host'), instance.get('database'))
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+            except Exception:
+                cx = "%s - %s" % (host, database)
+                message = "Unable to connect to SQL Server for instance %s." % cx
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, 
+                    tags=service_check_tags, message=message)
+                
                 password = instance.get('password')
                 tracebk = traceback.format_exc()
                 if password is not None:
                     tracebk = tracebk.replace(password, "*" * 6)
                     
-                raise Exception("Unable to connect to SQL Server for instance %s.\n %s" \
-                    % (cx, tracebk))
+                raise Exception("%s \n %s" \
+                    % (message, tracebk))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
@@ -211,9 +223,9 @@ class SQLServer(AgentCheck):
             # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
-            candidates = ( counter_name + " Base",
-                           counter_name.replace("(ms)", "Base"),
-                           counter_name.replace("Avg ", "") + " Base"
+            candidates = ( counter_name + " base",
+                           counter_name.replace("(ms)", "base"),
+                           counter_name.replace("Avg ", "") + " base"
                            )
             try:
                 cursor.execute(BASE_NAME_QUERY, candidates)

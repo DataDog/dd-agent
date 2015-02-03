@@ -1,5 +1,6 @@
 import unittest
 import time
+from nose.plugins.attrib import attr
 import threading
 from aggregator import MetricsAggregator
 from dogstatsd import Dogstatsd, init, Server
@@ -30,13 +31,14 @@ class DummyReporter(threading.Thread):
         if metrics:
             self.metrics = metrics
 
+@attr(requires='cassandra')
 class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
         pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
-        
+
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
@@ -55,8 +57,8 @@ class JMXTestCase(unittest.TestCase):
         while self.reporter.metrics is None:
             time.sleep(1)
             count += 1
-            if count > 20:
-                raise Exception("No metrics were received in 20 seconds")
+            if count > 25:
+                raise Exception("No metrics were received in 25 seconds")
 
         metrics = self.reporter.metrics
 

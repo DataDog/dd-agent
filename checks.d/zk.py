@@ -37,7 +37,7 @@ class ZKConnectionFailure(Exception):
     pass
 
 
-class Zookeeper(AgentCheck):
+class ZookeeperCheck(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
     SOURCE_TYPE_NAME = 'zookeeper'
@@ -100,7 +100,7 @@ class Zookeeper(AgentCheck):
             try:
                 # Connect to the zk client port and send the stat command
                 sock.connect((host, port))
-                sock.sendall('stat')
+                sock.sendall(command)
 
                 # Read the response into a StringIO buffer
                 chunk = sock.recv(chunk_size)

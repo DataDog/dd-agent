@@ -82,7 +82,7 @@ class Network(AgentCheck):
             self._check_solaris(instance)
 
     def _submit_devicemetrics(self, iface, vals_by_metric):
-        if self._exclude_iface_re and self._exclude_iface_re.match(iface):
+        if iface in self._excluded_ifaces or (self._exclude_iface_re and self._exclude_iface_re.match(iface)):
             # Skip this network interface.
             return False
 
@@ -98,26 +98,11 @@ class Network(AgentCheck):
             assert m in vals_by_metric
         assert len(vals_by_metric) == len(expected_metrics)
 
-        # For reasons i don't understand only these metrics are skipped if a
-        # particular interface is in the `excluded_interfaces` config list.
-        # Not sure why the others aren't included. Until I understand why, I'm
-        # going to keep the same behaviour.
-        exclude_iface_metrics = [
-            'packets_in.count',
-            'packets_in.error',
-            'packets_out.count',
-            'packets_out.error',
-        ]
-
         count = 0
         for metric, val in vals_by_metric.iteritems():
-            if iface in self._excluded_ifaces and metric in exclude_iface_metrics:
-                # skip it!
-                continue
             self.rate('system.net.%s' % metric, val, device_name=iface)
             count += 1
         self.log.debug("tracked %s network metrics for interface %s" % (count, iface))
-
 
     def _parse_value(self, v):
         if v == "-":
@@ -240,7 +225,13 @@ class Network(AgentCheck):
             self.log.debug("Unable to read /proc/net/snmp.")
 
     def _check_bsd(self, instance):
-        netstat = subprocess.Popen(["netstat", "-i", "-b"],
+        netstat_flags = ['-i', '-b']
+
+        # FreeBSD's netstat truncates device names unless you pass '-W'
+        if Platform.is_freebsd():
+            netstat_flags.append('-W')
+
+        netstat = subprocess.Popen(["netstat"] + netstat_flags,
                                    stdout=subprocess.PIPE,
                                    close_fds=True).communicate()[0]
         # Name  Mtu   Network       Address            Ipkts Ierrs     Ibytes    Opkts Oerrs     Obytes  Coll

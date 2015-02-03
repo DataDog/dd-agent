@@ -48,6 +48,7 @@ class Win32EventLog(AgentCheck):
                 user=instance.get('user'),
                 source_name=instance.get('source_name'),
                 log_file=instance.get('log_file'),
+                event_id=instance.get('event_id'),
                 message_filters=instance.get('message_filters', []),
                 start_ts=last_ts
             )
@@ -80,10 +81,12 @@ class Win32EventLog(AgentCheck):
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-        start_ts=None, message_filters=None):
+        event_id=None, start_ts=None, message_filters=None):
+
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
             ('User', user),
+            ('EventCode', event_id),
             ('SourceName', source_name),
             ('LogFile', log_file)
         ]

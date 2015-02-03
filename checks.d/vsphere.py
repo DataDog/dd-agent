@@ -16,7 +16,8 @@ from checks.libs.vmware.all_metrics import ALL_METRICS
 
 # 3rd party
 from pyVim import connect
-from pyVmomi import vim
+# This drives travis-ci pylint crazy!
+from pyVmomi import vim # pylint: disable=E0611
 
 SOURCE_TYPE = 'vsphere'
 REAL_TIME_INTERVAL = 20 # Default vCenter sampling interval
@@ -63,7 +64,7 @@ INTERVAL = 'interval'
 class VSphereEvent(object):
     UNKNOWN = 'unknown'
 
-    def __init__(self, raw_event):
+    def __init__(self, raw_event, event_config=None):
         self.raw_event = raw_event
         if self.raw_event and self.raw_event.__class__.__name__.startswith('vim.event'):
             self.event_type = self.raw_event.__class__.__name__[10:]
@@ -76,6 +77,10 @@ class VSphereEvent(object):
             "event_type": SOURCE_TYPE,
             "source_type_name": SOURCE_TYPE,
         }
+        if event_config is None:
+            self.event_config = {}
+        else:
+            self.event_config = event_config
 
     def _is_filtered(self):
         # Filter the unwanted types
@@ -141,6 +146,9 @@ class VSphereEvent(object):
         return self.payload
 
     def transform_alarmstatuschangedevent(self):
+        if self.event_config.get('collect_vcenter_alarms') is None:
+            return None
+
         def get_transition(before, after):
             vals = {
                 'gray': -1,
@@ -294,6 +302,8 @@ class VSphereCheck(AgentCheck):
     The other calls are performed synchronously.
     """
 
+    SERVICE_CHECK_NAME = 'vcenter.can_connect'
+
     def __init__(self, name, init_config, agentConfig, instances):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.time_started = time.time()
@@ -303,6 +313,8 @@ class VSphereCheck(AgentCheck):
         # Connections open to vCenter instances
         self.server_instances = {}
 
+        # Event configuration
+        self.event_config = {}
         # Caching resources, timeouts
         self.cache_times = {}
         for instance in self.instances:
@@ -319,6 +331,8 @@ class VSphereCheck(AgentCheck):
                                     REFRESH_METRICS_METADATA_INTERVAL)
                 }
             }
+
+            self.event_config[i_key] = instance.get('event_config')
 
         # First layer of cache (get entities from the tree)
         self.morlist_raw = {}
@@ -383,7 +397,7 @@ class VSphereCheck(AgentCheck):
             new_events = event_manager.QueryEvents(query_filter)
             self.log.debug("Got {0} events from vCenter event manager".format(len(new_events)))
             for event in new_events:
-                normalized_event = VSphereEvent(event)
+                normalized_event = VSphereEvent(event, self.event_config[i_key])
                 # Can return None if the event if filtered out
                 event_payload = normalized_event.get_datadog_payload()
                 if event_payload is not None:
@@ -411,6 +425,11 @@ class VSphereCheck(AgentCheck):
     def _get_server_instance(self, instance):
         i_key = self._instance_key(instance)
 
+        service_check_tags = [
+            'vcenter_server:{0}'.format(instance.get('name')),
+            'vcenter_host:{0}'.format(instance.get('host')),
+        ]
+
         if i_key not in self.server_instances:
             try:
                 server_instance = connect.SmartConnect(
@@ -419,9 +438,23 @@ class VSphereCheck(AgentCheck):
                     pwd=instance.get('password')
                 )
             except Exception as e:
-                raise Exception("Connection to %s failed: %s" % (instance.get('host'), e))
+                err_msg = "Connection to %s failed: %s" % (instance.get('host'), e)
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                        tags=service_check_tags, message=err_msg)
+                raise Exception(err_msg)
 
             self.server_instances[i_key] = server_instance
+
+        # Test if the connection is working
+        try:
+            server_instance.RetrieveContent()
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                    tags=service_check_tags)
+        except Exception as e:
+            err_msg = "Connection to %s died unexpectedly: %s" % (instance.get('host'), e)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                    tags=service_check_tags, message=err_msg)
+            raise Exception(err_msg)
 
         return self.server_instances[i_key]
 
@@ -462,7 +495,7 @@ class VSphereCheck(AgentCheck):
         return external_host_tags
 
     @atomic_method
-    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags):
+    def _cache_morlist_raw_atomic(self, i_key, obj_type, obj, tags, regexes=None):
         """ Compute tags for a single node in the vCenter rootFolder
         and queue other such jobs for children nodes.
         Usual hierarchy:
@@ -492,7 +525,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'datacenter', datacenter, tags_copy)
+                    args=(i_key, 'datacenter', datacenter, tags_copy, regexes)
                 )
 
         elif obj_type == 'datacenter':
@@ -504,7 +537,7 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'compute_resource', compute_resource, tags_copy)
+                    args=(i_key, 'compute_resource', compute_resource, tags_copy, regexes)
                 )
 
         elif obj_type == 'compute_resource':
@@ -517,10 +550,15 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'host', host, tags_copy)
+                    args=(i_key, 'host', host, tags_copy, regexes)
                 )
 
         elif obj_type == 'host':
+            if regexes and regexes.get('host_include') is not None:
+                match = re.search(regexes['host_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of host_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='host', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:host'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -531,10 +569,15 @@ class VSphereCheck(AgentCheck):
                     continue
                 self.pool.apply_async(
                     self._cache_morlist_raw_atomic,
-                    args=(i_key, 'vm', vm, tags_copy)
+                    args=(i_key, 'vm', vm, tags_copy, regexes)
                 )
 
         elif obj_type == 'vm':
+            if regexes and regexes.get('vm_include') is not None:
+                match = re.search(regexes['vm_include'], obj.name)
+                if not match:
+                    self.log.debug(u"Filtered out VM {0} because of vm_include_only_regex".format(obj.name))
+                    return
             watched_mor = dict(mor_type='vm', mor=obj, hostname=obj.name, tags=tags_copy+['vsphere_type:vm'])
             self.morlist_raw[i_key].append(watched_mor)
 
@@ -559,9 +602,13 @@ class VSphereCheck(AgentCheck):
         root_folder = server_instance.content.rootFolder
 
         instance_tag = "vcenter_server:%s" % instance.get('name')
+        regexes = {
+            'host_include': instance.get('host_include_only_regex'),
+            'vm_include': instance.get('vm_include_only_regex')
+        }
         self.pool.apply_async(
             self._cache_morlist_raw_atomic,
-            args=(i_key, 'rootFolder', root_folder, [instance_tag])
+            args=(i_key, 'rootFolder', root_folder, [instance_tag], regexes)
         )
         self.cache_times[i_key][MORLIST][LAST] = time.time()
 

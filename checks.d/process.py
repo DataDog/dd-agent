@@ -76,14 +76,15 @@ class ProcessCheck(AgentCheck):
         involuntary_ctx_switches = 0
 
         # process metrics available for psutil versions 0.6.0 and later
-        if not Platform.is_win32():
-            real = 0
-            if Platform.is_unix():
-                open_file_descriptors = 0
-            else:
-                open_file_descriptors = None
-        else:
+        if Platform.is_win32() or Platform.is_solaris():
             real = None
+        else:
+            real = 0
+
+        if Platform.is_unix():
+            open_file_descriptors = 0
+        else:
+            open_file_descriptors = None
 
         # process I/O counters (agent might not have permission to access)
         read_count = 0
@@ -100,11 +101,13 @@ class ProcessCheck(AgentCheck):
                     if real is not None:
                         mem = p.memory_info_ex()
                         real += mem.rss - mem.shared
+                    else:
+                        mem = p.memory_info()
+
+                    if Platform.is_unix():
                         ctx_switches = p.num_ctx_switches()
                         voluntary_ctx_switches += ctx_switches.voluntary
                         involuntary_ctx_switches += ctx_switches.involuntary
-                    else:
-                        mem = p.memory_info()
 
                     rss += mem.rss
                     vms += mem.vms
@@ -135,7 +138,8 @@ class ProcessCheck(AgentCheck):
                     except AttributeError:
                         self.log.debug("process attribute not supported on this platform")
                     except psutil.AccessDenied:
-                        self.log.info('dd-agent user does not have access \
+                        log_func = self.log.debug if ignore_denied_access else self.log.info
+                        log_func('dd-agent user does not have access \
                             to I/O counters for process %d: %s' % (pid, p.name()))
                         read_count = None
                         write_count = None

@@ -25,6 +25,7 @@ class GUnicornCheck(AgentCheck):
     # Worker state tags.
     IDLE_TAGS = ["state:idle"]
     WORKING_TAGS = ["state:working"]
+    SVC_NAME = "gunicorn.is_running"
 
     def get_library_versions(self):
         return {"psutil": psutil.__version__}
@@ -44,6 +45,12 @@ class GUnicornCheck(AgentCheck):
         # Fetch the worker procs and count their states.
         worker_procs = master_proc.get_children()
         working, idle = self._count_workers(worker_procs)
+
+        # if no workers are running, alert CRITICAL, otherwise OK
+        msg = "%s working and %s idle workers for %s" % (working, idle, proc_name)
+        status = AgentCheck.CRITICAL if working == 0 and idle == 0 else AgentCheck.OK
+
+        self.service_check(self.SVC_NAME, status, tags=['app:'+ proc_name], message=msg)
 
         # Submit the data.
         self.log.debug("instance %s procs - working:%s idle:%s" % (proc_name, working, idle))
@@ -66,17 +73,16 @@ class GUnicornCheck(AgentCheck):
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % proc.name)
                 continue
-        
+
         # Let them do a little bit more work.
         time.sleep(self.CPU_SLEEP_SECS)
 
-        # Processes which have used more CPU are considered active (this is a very 
+        # Processes which have used more CPU are considered active (this is a very
         # naive check, but gunicorn exposes no stats API)
         for proc in worker_procs:
             if proc.pid not in cpu_time_by_pid:
                 # The process is not running anymore, we didn't collect initial cpu times
                 continue
-
             try:
                 cpu_time = sum(proc.get_cpu_times())
             except Exception:
@@ -95,6 +101,9 @@ class GUnicornCheck(AgentCheck):
         master_name = GUnicornCheck._get_master_proc_name(name)
         master_procs = [p for p in psutil.process_iter() if p.cmdline() and p.cmdline()[0] == master_name]
         if len(master_procs) == 0:
+            # process not found, it's dead.
+            self.service_check(self.SVC_NAME, AgentCheck.CRITICAL, tags=['app:'+ name],
+                                message="No gunicorn process with name %s found" % name)
             raise GUnicornCheckError("Found no master process with name: %s" % master_name)
         elif len(master_procs) > 1:
             raise GUnicornCheckError("Found more than one master process with name: %s" % master_name)
@@ -113,4 +122,3 @@ class GUnicornCheck(AgentCheck):
 
 class GUnicornCheckError(Exception):
     pass
-

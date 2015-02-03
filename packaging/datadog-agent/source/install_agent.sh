@@ -23,7 +23,7 @@ trap "rm -f $npipe" EXIT
 
 
 function on_error() {
-    printf "\033[31m
+    printf "\033[31m$ERROR_MESSAGE
 It looks like you hit an issue when trying to install the Agent.
 
 Troubleshooting and basic usage information for the Agent are available at:
@@ -57,6 +57,9 @@ Please use the 1-step script available at https://app.datadoghq.com/account/sett
 elif [ -f /etc/debian_version -o "$DISTRIBUTION" == "Debian" -o "$DISTRIBUTION" == "Ubuntu" ]; then
     OS="Debian"
 elif [ -f /etc/redhat-release -o "$DISTRIBUTION" == "RedHat" -o "$DISTRIBUTION" == "CentOS" -o "$DISTRIBUTION" == "openSUSE" -o "$DISTRIBUTION" == "Amazon" ]; then
+    OS="RedHat"
+# Some newer distros like Amazon may not have a redhat-release file
+elif [ -f /etc/system-release -o "$DISTRIBUTION" == "Amazon" ]; then
     OS="RedHat"
 fi
 
@@ -105,8 +108,23 @@ elif [ $OS = "Debian" ]; then
     $sudo_cmd apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 C7A7DA52
 
     printf "\033[34m\n* Installing the Datadog Agent package\n\033[0m\n"
+    ERROR_MESSAGE="ERROR
+Failed to update the sources after adding the Datadog repository.
+This may be due to any of the configured APT sources failing -
+see the logs above to determine the cause.
+If the failing repository is Datadog, please contact Datadog support.
+*****
+"
     $sudo_cmd apt-get update
+    ERROR_MESSAGE="ERROR
+Failed to install the Datadog package, sometimes it may be
+due to another APT source failing. See the logs above to
+determine the cause.
+If the cause is unclear, please contact Datadog support.
+*****
+"
     $sudo_cmd apt-get install -y --force-yes datadog-agent
+    ERROR_MESSAGE=""
 else
     printf "\033[31mYour OS or distribution are not supported by this install script.
 Please follow the instructions on the Agent setup page:
@@ -115,9 +133,13 @@ Please follow the instructions on the Agent setup page:
     exit;
 fi
 
-printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
-
-$sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+# Set the configuration
+if [ -e /etc/dd-agent/datadog.conf ]; then
+    printf "\033[34m\n* Keeping old datadog.conf configuration file\n\033[0m\n"
+else
+    printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
+    $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
 $sudo_cmd /etc/init.d/datadog-agent restart

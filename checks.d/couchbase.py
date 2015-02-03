@@ -3,6 +3,9 @@ import urllib2
 import re
 import sys
 
+# exceptions
+from urllib2 import HTTPError
+
 # project
 from util import headers
 from checks import AgentCheck
@@ -12,12 +15,13 @@ from checks.utils import add_basic_auth
 import simplejson as json
 
 #Constants
-COUCHBASE_STATS_PATH = '/pools/nodes'
+COUCHBASE_STATS_PATH = '/pools/default'
 DEFAULT_TIMEOUT = 10
 class Couchbase(AgentCheck):
     """Extracts stats from Couchbase via its REST API
     http://docs.couchbase.com/couchbase-manual-2.0/#using-the-rest-api
     """
+    SERVICE_CHECK_NAME = 'couchbase.can_connect'
 
     def _create_metrics(self, data, tags=None):
         storage_totals = data['stats']['storageTotals']
@@ -45,18 +49,14 @@ class Couchbase(AgentCheck):
 
 
     def _get_stats(self, url, instance):
-        "Hit a given URL and return the parsed json"
+        """ Hit a given URL and return the parsed json. """
         self.log.debug('Fetching Couchbase stats at url: %s' % url)
         req = urllib2.Request(url, None, headers(self.agentConfig))
         if 'user' in instance and 'password' in instance:
             add_basic_auth(req, instance['user'], instance['password'])
 
-        if instance['is_recent_python']:
-            timeout = instance.get('timeout' , DEFAULT_TIMEOUT)
-            request = urllib2.urlopen(req,timeout=timeout)
-        else:
-            request = urllib2.urlopen(req)
-
+        timeout = float(instance.get('timeout', DEFAULT_TIMEOUT))
+        request = urllib2.urlopen(req, timeout=timeout)
         response = request.read()
         return json.loads(response)
 
@@ -72,7 +72,6 @@ class Couchbase(AgentCheck):
         else:
             tags = list(set(tags))
         tags.append('instance:%s' % server)
-        instance['is_recent_python'] = sys.version_info >= (2,6,0)
         data = self.get_data(server, instance)
         self._create_metrics(data, tags=list(set(tags)))
 
@@ -85,12 +84,25 @@ class Couchbase(AgentCheck):
 
         # build couchbase stats entry point
         url = '%s%s' % (server, COUCHBASE_STATS_PATH)
-        overall_stats = self._get_stats(url, instance)
 
-        # No overall stats? bail out now
-        if overall_stats is None:
-            raise Exception("No data returned from couchbase endpoint: %s" % url)
-        
+        # Fetch initial stats and capture a service check based on response.
+        service_check_tags = ['instance:%s' % server]
+        try:
+            overall_stats = self._get_stats(url, instance)
+            # No overall stats? bail out now
+            if overall_stats is None:
+                raise Exception("No data returned from couchbase endpoint: %s" % url)
+        except urllib2.URLError as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=str(e.reason))
+            raise
+        except Exception as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message=str(e))
+            raise
+        else:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
+
         couchbase['stats'] = overall_stats
 
         nodes = overall_stats['nodes']
@@ -110,9 +122,16 @@ class Couchbase(AgentCheck):
             for bucket in buckets:
                 bucket_name = bucket['name']
 
-                # We have to manually build the URI for the stats bucket, as this is not auto discoverable
-                url = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
-                bucket_stats = self._get_stats(url, instance)
+                # Fetch URI for the stats bucket
+                endpoint = bucket['stats']['uri']
+                url = '%s%s' % (server, endpoint)
+
+                try:
+                    bucket_stats = self._get_stats(url, instance)
+                except HTTPError:
+                    url_backup = '%s/pools/nodes/buckets/%s/stats' % (server, bucket_name)
+                    bucket_stats = self._get_stats(url_backup, instance)
+
                 bucket_samples = bucket_stats['op']['samples']
                 if bucket_samples is not None:
                     couchbase['buckets'][bucket['name']] = bucket_samples
@@ -130,7 +149,7 @@ class Couchbase(AgentCheck):
 
         # remove duplicate _
         converted_variable = re.sub('_+', '_', converted_variable)
-        
+
         # handle special case of starting/ending underscores
         converted_variable = re.sub('^_|_$', '', converted_variable)
 

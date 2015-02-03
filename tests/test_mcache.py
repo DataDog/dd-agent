@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 import os
 import time
 from subprocess import Popen, PIPE
@@ -7,6 +8,7 @@ from tests.common import load_check
 
 from checks import AgentCheck
 
+@attr(requires='memcache')
 class TestMemCache(unittest.TestCase):
     def is_travis(self):
         return 'TRAVIS' in os.environ

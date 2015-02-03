@@ -289,9 +289,13 @@ class AgentCheck(object):
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname, 
-            formatter=agent_formatter, 
-            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+        self.aggregator = MetricsAggregator(
+            self.hostname,
+            formatter=agent_formatter,
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None),
+            histogram_aggregates=agentConfig.get('histogram_aggregates'),
+            histogram_percentiles=agentConfig.get('histogram_percentiles')
+        )
 
         self.events = []
         self.service_checks = []
@@ -532,7 +536,7 @@ class AgentCheck(object):
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                min_collection_interval = instance.get('min_collection_interval', 
+                min_collection_interval = instance.get('min_collection_interval',
                     self.init_config.get('min_collection_interval', self.DEFAULT_MIN_COLLECTION_INTERVAL))
                 now = time.time()
                 if now - self.last_collection_time[i] < min_collection_interval:
