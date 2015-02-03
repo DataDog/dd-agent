@@ -322,7 +322,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         try:
             for option in config.options('Main'):
                 agentConfig[option] = config.get('Main', option)
-        except ConfigParser.InterpolationMissingOptionError as e:
+        except ConfigParser.InterpolationMissingOptionError:
             sys.stderr.write("The configuration file contains invalid variable substitution. If you want to use environment variables, use the --enable-env option\n")
             sys.exit(3)
 

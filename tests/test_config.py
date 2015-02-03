@@ -4,7 +4,7 @@ import os
 import os.path
 import tempfile
 
-from config import get_config, DATADOG_CONF
+from config import get_config
 from optparse import Values
 from ConfigParser import InterpolationMissingOptionError
 
