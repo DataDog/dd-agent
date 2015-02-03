@@ -73,6 +73,13 @@ def get_parsed_args():
                         default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
                         dest="disable_dd")
+
+    # Allow interpolation of environment variables
+    # This is opt-in initially to avoid recursive interpolation in ConfigParser.
+    # It could be made opt-out (--disable-env) at the next major version if the community prefers it.
+    parser.add_option('--enable-env', action='store_true', default=False,
+                        dest="enable_env")
+
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
@@ -85,6 +92,7 @@ def get_parsed_args():
                                 'dd_url': None,
                                 'clean': False,
                                 'disable_dd':False,
+                                'enable_env': False,
                                 'use_forwarder': False}), []
     return options, args
 
@@ -302,12 +310,21 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         path = os.path.dirname(path)
 
         config_path = get_config_path(cfg_path, os_name=get_os())
-        config = ConfigParser.ConfigParser()
+        if options is not None and options.enable_env:
+            log.info("Interpolation of environment variables in config is enabled")
+            config = ConfigParser.ConfigParser(os.environ)
+        else:
+            config = ConfigParser.ConfigParser()
+
         config.readfp(skip_leading_wsp(open(config_path)))
 
         # bulk import
-        for option in config.options('Main'):
-            agentConfig[option] = config.get('Main', option)
+        try:
+            for option in config.options('Main'):
+                agentConfig[option] = config.get('Main', option)
+        except ConfigParser.InterpolationMissingOptionError as e:
+            sys.stderr.write("The configuration file contains invalid variable substitution. If you want to use environment variables, use the --enable-env option\n")
+            sys.exit(3)
 
         #
         # Core config
