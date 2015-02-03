@@ -37,8 +37,7 @@ class TestConfig(unittest.TestCase):
                 f.write("dd_url:\n")
                 f.write("api_key:\n")
                 f.write("tags: foo:%(BAR)s\n")
-            with self.assertRaises(SystemExit):
-                get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
+            self.assertRaises(SystemExit, get_config, parse_args=False, cfg_path=conf_file.name, options=test_options)
 
     def testEnvInterpolationEnabled(self):
         os.environ["BAR"] = "bar"
