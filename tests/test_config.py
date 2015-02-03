@@ -31,15 +31,14 @@ class TestConfig(unittest.TestCase):
             'enable_env': False,
             'use_forwarder': False
         })
-        conf_file = tempfile.NamedTemporaryFile(delete=False)
-        with open(conf_file.name, "w") as f:
-            f.write("[Main]\n")
-            f.write("dd_url:\n")
-            f.write("api_key:\n")
-            f.write("tags: foo:%(BAR)s\n")
-        with self.assertRaises(SystemExit):
-            get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
-        os.remove(conf_file.name)
+        with tempfile.NamedTemporaryFile() as conf_file:
+            with open(conf_file.name, "w") as f:
+                f.write("[Main]\n")
+                f.write("dd_url:\n")
+                f.write("api_key:\n")
+                f.write("tags: foo:%(BAR)s\n")
+            with self.assertRaises(SystemExit):
+                get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
 
     def testEnvInterpolationEnabled(self):
         os.environ["BAR"] = "bar"
@@ -51,15 +50,14 @@ class TestConfig(unittest.TestCase):
             'enable_env': True,
             'use_forwarder': False
         })
-        conf_file = tempfile.NamedTemporaryFile(delete=False)
-        with open(conf_file.name, "w") as f:
-            f.write("[Main]\n")
-            f.write("dd_url:\n")
-            f.write("api_key:\n")
-            f.write("tags: foo:%(BAR)s\n")
-        agentConfig = get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
+        with tempfile.NamedTemporaryFile() as conf_file:
+            with open(conf_file.name, "w") as f:
+                f.write("[Main]\n")
+                f.write("dd_url:\n")
+                f.write("api_key:\n")
+                f.write("tags: foo:%(BAR)s\n")
+            agentConfig = get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
         self.assertEqual(agentConfig["tags"], "foo:bar")
-        os.remove(conf_file.name)
 
     def testGoodPidFie(self):
         """Verify that the pid file succeeds and fails appropriately"""
