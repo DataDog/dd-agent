@@ -109,8 +109,8 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Initialize a HTTP opener with Unix socket support
         socket_timeout = int(init_config.get('socket_timeout', 0)) or DEFAULT_SOCKET_TIMEOUT
@@ -415,11 +415,13 @@ class Docker(AgentCheck):
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
+        fp = None
         try:
             fp = open(os.path.join(docker_root, "/proc/mounts"))
             mounts = map(lambda x: x.split(), fp.read().splitlines())
         finally:
-            fp.close()
+            if fp is not None:
+                fp.close()
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         if len(cgroup_mounts) == 0:
             raise Exception("Can't find mounted cgroups. If you run the Agent inside a container,"
