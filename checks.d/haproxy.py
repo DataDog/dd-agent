@@ -5,6 +5,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import headers
 
 STATS_URL = "/;csv;norefresh"
@@ -59,10 +60,18 @@ class HAProxy(AgentCheck):
         url = instance.get('url')
         username = instance.get('username')
         password = instance.get('password')
-        collect_aggregates_only = instance.get('collect_aggregates_only', True)
-        collect_status_metrics = instance.get('collect_status_metrics', False)
-        collect_status_metrics_by_host = instance.get('collect_status_metrics_by_host', False)
-        tag_service_check_by_host = instance.get('tag_service_check_by_host', False)
+        collect_aggregates_only = _is_affirmative(
+            instance.get('collect_aggregates_only', True)
+        )
+        collect_status_metrics = _is_affirmative(
+            instance.get('collect_status_metrics', False)
+        )
+        collect_status_metrics_by_host = _is_affirmative(
+            instance.get('collect_status_metrics_by_host', False)
+        )
+        tag_service_check_by_host = _is_affirmative(
+            instance.get('tag_service_check_by_host', False)
+        )
 
         self.log.debug('Processing HAProxy data for %s' % url)
 
