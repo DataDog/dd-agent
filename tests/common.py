@@ -11,6 +11,26 @@ from checks import AgentCheck
 from config import get_checksd_path
 from util import get_os, get_hostname
 
+def get_check_class(name):
+    checksd_path = get_checksd_path(get_os())
+    if checksd_path not in sys.path:
+        sys.path.append(checksd_path)
+
+    check_module = __import__(name)
+    check_class = None
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for _, clsmember in classes:
+        if clsmember == AgentCheck:
+            continue
+        if issubclass(clsmember, AgentCheck):
+            check_class = clsmember
+            if AgentCheck in clsmember.__bases__:
+                continue
+            else:
+                break
+
+    return check_class
+
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:

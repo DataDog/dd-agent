@@ -12,6 +12,7 @@ from collections import defaultdict
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'docker'
 
@@ -108,8 +109,8 @@ class UnixSocketHandler(urllib2.AbstractHTTPHandler):
 class Docker(AgentCheck):
     """Collect metrics and events from Docker API and cgroups"""
 
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Initialize a HTTP opener with Unix socket support
         socket_timeout = int(init_config.get('socket_timeout', 0)) or DEFAULT_SOCKET_TIMEOUT
@@ -127,7 +128,8 @@ class Docker(AgentCheck):
 
     def check(self, instance):
         # Report image metrics
-        self._count_images(instance)
+        if _is_affirmative(instance.get('collect_images_stats', True)):
+            self._count_images(instance)
 
         # Get the list of containers and the index of their names
         containers, ids_to_names = self._get_and_count_containers(instance)
@@ -136,7 +138,7 @@ class Docker(AgentCheck):
         skipped_container_ids = self._report_containers_metrics(containers, instance)
 
         # Send events from Docker API
-        if instance.get('collect_events', True):
+        if _is_affirmative(instance.get('collect_events', True)):
             self._process_events(instance, ids_to_names, skipped_container_ids)
 
 
@@ -156,7 +158,7 @@ class Docker(AgentCheck):
 
     def _get_and_count_containers(self, instance):
         tags = instance.get("tags", [])
-        with_size = instance.get('collect_container_size', False)
+        with_size = _is_affirmative(instance.get('collect_container_size', False))
 
         service_check_name = 'docker.service_up'
         try:
@@ -215,7 +217,7 @@ class Docker(AgentCheck):
 
     def _report_containers_metrics(self, containers, instance):
         skipped_container_ids = []
-        collect_uncommon_metrics = instance.get("collect_all_metrics", False)
+        collect_uncommon_metrics = _is_affirmative(instance.get("collect_all_metrics", False))
         tags = instance.get("tags", [])
 
         # Pre-compile regex to include/exclude containers
@@ -413,11 +415,13 @@ class Docker(AgentCheck):
     def _find_cgroup(self, hierarchy, docker_root):
         """Finds the mount point for a specified cgroup hierarchy. Works with
         old style and new style mounts."""
+        fp = None
         try:
             fp = open(os.path.join(docker_root, "/proc/mounts"))
             mounts = map(lambda x: x.split(), fp.read().splitlines())
         finally:
-            fp.close()
+            if fp is not None:
+                fp.close()
         cgroup_mounts = filter(lambda x: x[2] == "cgroup", mounts)
         if len(cgroup_mounts) == 0:
             raise Exception("Can't find mounted cgroups. If you run the Agent inside a container,"
