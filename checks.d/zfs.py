@@ -6,7 +6,7 @@ import re
 
 
 class Zfs(AgentCheck):
-    # So that we can make mocks work in UnitTests
+    # Inject dependency so that we can make mocks work in UnitTests
     subprocess = subprocess
 
     ZFS_NAMESPACE = 'system.zfs.'
