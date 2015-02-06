@@ -7,7 +7,7 @@
   <key>Label</key>
   <string>com.datadoghq.Agent</string>
   <key>Program</key>
-  <string>AGENT_BASE/bin/agent</string>
+  <string>/usr/bin/datadog-agent</string>
   <key>RunAtLoad</key>
   <true/>
   <key>UserName</key>
@@ -15,6 +15,6 @@
   <key>WorkingDirectory</key>
   <string>AGENT_BASE</string>
   <key>StandardErrorPath</key>
-  <string>AGENT_BASE/launchd/logs/launchd.log</string>
+  <string>/var/log/launchd/logs/launchd.log</string>
 </dict>
 </plist>

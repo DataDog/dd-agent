@@ -1,0 +1,146 @@
+#!/usr/bin/env sh
+AGENTPATH="/opt/datadog-agent/agent/agent.py"
+FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
+DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
+AGENTCONF="/etc/dd-agent/datadog.conf"
+AGENTUSER="dd-agent"
+SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
+SUPERVISOR_CONF_FILE="/etc/dd-agent/supervisor.conf"
+SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
+SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
+SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+
+SUPERVISOR_NOT_RUNNING="Supervisor is not running"
+action=$1
+
+if [ ! -n "$action" ]; then
+    action="start"
+fi
+
+supervisor_running() {
+    # Returns true if the supervisor is running, and false if not.
+    # We check if the supervisor is running by checking if
+    # SUPERVISOR_SOCK exists, and if there is a PID file we also verify
+    # if the PID is in use.
+    if [ -e $SUPERVISOR_SOCK -a -f $SUPERVISOR_PIDFILE ]; then
+        pid=$(cat $SUPERVISOR_PIDFILE)
+        if kill -0 $pid > /dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+execute_if_supervisor_running() {
+    # Executes `$SUPERVISORD -c $SUPERVISOR_CONF_FILE $*`
+    # if the supervisor is running.
+    if supervisor_running; then
+        $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE "$*"
+        return $?
+    else
+        echo $SUPERVISOR_NOT_RUNNING
+        return 0
+    fi
+}
+
+check_agent_status() {
+
+
+    # First, we check if supervisor is running:
+    if ! supervisor_running; then
+        echo $SUPERVISOR_NOT_RUNNING
+        return 1
+    else
+        # Next, we check if supervisor is running all the datadog processes:
+
+        # Check the number of datadog processes supervisor is
+        # currently controlling, and make sure that it's the
+        # same as the number of programs specified in the
+        # supervisor config file:
+        status_output=$($SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE status)
+        datadog_supervisor_processes=$(echo "$status_output" |
+                                       grep 'datadog-agent' |
+                                       grep -c RUNNING)
+        supervisor_config_programs=$(cat $SUPERVISOR_CONF_FILE |
+                                     grep -c '\[program:')
+
+        echo "$status_output"
+        if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+            echo "Supervisor is NOT running all child processes"
+            return 1
+        else
+            echo "Supervisor is running all child processes"
+            return 0
+        fi
+    fi
+}
+
+case $action in
+    start)
+        if supervisor_running; then
+            echo "Supervisor is already running"
+            execute_if_supervisor_running start all
+            exit 0
+        else
+            echo "Starting supervisor"
+            $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
+            # Since the above command currently runs in the foreground, we don't
+            # have to worry about checking the status of the Agent and setting
+            # an exit code here.
+        fi
+        ;;
+
+    stop)
+        execute_if_supervisor_running stop all
+        exit $?
+        ;;
+
+    restart)
+        # FIXME: This command won't do anything if the supervisor isn't running.
+        # The restart command should just call stop and then start so it doesn't
+        # rely on the supervisor running. Once we stop starting the Agent in the
+        # foreground we should fix this.
+        execute_if_supervisor_running restart all
+        exit $?
+        ;;
+
+    status)
+        check_agent_status
+        exit $?
+        ;;
+
+    info)
+        shift # shift to pass the remaining arguments to agent/agent.py info.
+              # Currently only agent.py takes additional arguments
+        $AGENTPATH info $@
+        RETURN_VALUE=$?
+        $DOGSTATSDPATH info
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        $FORWARDERPATH info
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        exit $RETURN_VALUE
+        ;;
+
+    configcheck)
+        $AGENTPATH configcheck
+        exit $?
+        ;;
+
+    check)
+        shift
+        $AGENTPATH check $@
+        exit $?
+        ;;
+
+    jmx)
+        shift
+        $AGENTPATH jmx $@
+        exit $?
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|jmx}"
+        exit 2
+        ;;
+esac
+
