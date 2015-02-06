@@ -26,7 +26,7 @@ from urllib import urlencode
 # project
 from aggregator import MetricsBucketAggregator, get_formatter
 from checks.check_status import DogstatsdStatus
-from config import get_config
+from config import get_config, get_version
 from daemon import Daemon, AgentSupervisor
 from util import PidFile, get_hostname, plural, get_uuid, chunks
 
@@ -198,6 +198,7 @@ class Reporter(threading.Thread):
         # and https://github.com/DataDog/dd-agent/issues/1112
             'no': 'pass',
         }
+        headers["DD-Dogstatsd-Version"] = get_version()
         log.debug("Posting payload to %s" % url)
         try:
             start_time = time()

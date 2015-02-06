@@ -9,6 +9,9 @@ import zlib
 import requests
 import simplejson as json
 
+# project
+from config import get_version
+
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.WARN)
@@ -74,6 +77,7 @@ def post_headers(agentConfig, payload):
         'Content-Type': 'application/json',
         'Content-Encoding': 'deflate',
         'Accept': 'text/html, */*',
-        'Content-MD5': md5(payload).hexdigest()
+        'Content-MD5': md5(payload).hexdigest(),
+        'DD-Collector-Version': get_version()
     }
     
