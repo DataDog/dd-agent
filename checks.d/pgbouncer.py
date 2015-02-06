@@ -14,16 +14,18 @@ class PgBouncer(AgentCheck):
     SOURCE_TYPE_NAME = 'pgbouncer'
     RATE = AgentCheck.rate
     GAUGE = AgentCheck.gauge
+    MONOTONIC = AgentCheck.monotonic_count
+    COUNT = AgentCheck.count
 
     STATS_METRICS = {
         'descriptors': [
             ('database', 'db'),
         ],
         'metrics': OrderedDict([
-            ('total_requests', ('pgbouncer.stats.total_requests', RATE)),
-            ('total_received', ('pgbouncer.stats.total_received', RATE)),
-            ('total_sent', ('pgbouncer.stats.total_sent', RATE)),
-            ('total_query_time', ('pgbouncer.stats.total_query_time', RATE)),
+            ('total_requests', ('pgbouncer.stats.requests_per_second', RATE)),
+            ('total_received', ('pgbouncer.stats.bytes_received_per_second', RATE)),
+            ('total_sent', ('pgbouncer.stats.bytes_sent_per_second', RATE)),
+            ('total_query_time', ('pgbouncer.stats.total_query_time', GAUGE)),
             ('avg_req', ('pgbouncer.stats.avg_req', GAUGE)),
             ('avg_recv', ('pgbouncer.stats.avg_recv', GAUGE)),
             ('avg_sent', ('pgbouncer.stats.avg_sent', GAUGE)),
@@ -123,12 +125,12 @@ class PgBouncer(AgentCheck):
                         database=dbname)
                 status = AgentCheck.OK
                 self.service_check('pgbouncer.can_connect', status, tags=service_check_tags)
-                self.log.info('pgbouncer status: %s' % status)
+                self.log.debug('pgbouncer status: %s' % status)
 
             except Exception:
                 status = AgentCheck.CRITICAL
                 self.service_check('pgbouncer.can_connect', status, tags=service_check_tags)
-                self.log.info('pgbouncer status: %s' % status)
+                self.log.debug('pgbouncer status: %s' % status)
                 raise
         else:
             if not host:
@@ -155,8 +157,6 @@ class PgBouncer(AgentCheck):
             tags = []
         else:
             tags = list(set(tags))
-
-        tags.extend(["db:%s" % dbname])
 
         try:
             db = self._get_connection(key, host, port, user, password, dbname)
