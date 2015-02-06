@@ -1,18 +1,25 @@
-# project
-from util import headers
-from checks import AgentCheck
+# stdlib
+from urlparse import urljoin
 
 # 3rd party
 import simplejson as json
 import requests
+
+# project
+from checks import AgentCheck
+from util import headers
+
+
 
 class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
     http://wiki.apache.org/couchdb/Runtime_Statistics
     """
 
-    SOURCE_TYPE_NAME = 'couchdb'
+    MAX_DB = 50
     SERVICE_CHECK_NAME = 'couchdb.can_connect'
+    SOURCE_TYPE_NAME = 'couchdb'
+    TIMEOUT = 5
 
     def _create_metric(self, data, tags=None):
         overall_stats = data.get('stats', {})
@@ -30,7 +37,6 @@ class CouchDb(AgentCheck):
                     metric_tags.append('db:%s' % db_name)
                     self.gauge(metric_name, val, tags=metric_tags, device_name=db_name)
 
-
     def _get_stats(self, url, instance):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchdb stats at url: %s' % url)
@@ -40,7 +46,7 @@ class CouchDb(AgentCheck):
             auth = (instance['user'], instance['password'])
 
         r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
-            timeout=10)
+                         timeout=int(instance.get('timeout', self.TIMEOUT)))
         r.raise_for_status()
         return r.json()
 
@@ -58,12 +64,16 @@ class CouchDb(AgentCheck):
         # First, get overall statistics.
         endpoint = '/_stats/'
 
-        url = '%s%s' % (server, endpoint)
+        url = urljoin(server, endpoint)
 
         # Fetch initial stats and capture a service check based on response.
         service_check_tags = ['instance:%s' % server]
         try:
             overall_stats = self._get_stats(url, instance)
+        except requests.exceptions.Timeout as e:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                tags=service_check_tags, message="Request timeout: {0}, {1}".format(url, e))
+            raise
         except requests.exceptions.HTTPError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 tags=service_check_tags, message=str(e.message))
@@ -86,17 +96,23 @@ class CouchDb(AgentCheck):
         # Next, get all database names.
         endpoint = '/_all_dbs/'
 
-        url = '%s%s' % (server, endpoint)
-        databases = self._get_stats(url, instance)
+        url = urljoin(server, endpoint)
 
-        if databases is not None:
-            for dbName in databases:
-                endpoint = '/%s/' % dbName
+        # Get the list of whitelisted databases.
+        db_whitelist = instance.get('db_whitelist')
+        whitelist = set(db_whitelist) if db_whitelist else None
+        databases = set(self._get_stats(url, instance))
+        databases = databases.intersection(whitelist) if whitelist else databases
 
-                url = '%s%s' % (server, endpoint)
+        if len(databases) > self.MAX_DB:
+            self.warning('Too many databases, only the first %s will be checked.' % self.MAX_DB)
+            databases = list(databases)[:self.MAX_DB]
 
-                db_stats = self._get_stats(url, instance)
-                if db_stats is not None:
-                    couchdb['databases'][dbName] = db_stats
+        for dbName in databases:
+            url = urljoin(server, dbName)
+
+            db_stats = self._get_stats(url, instance)
+            if db_stats is not None:
+                couchdb['databases'][dbName] = db_stats
 
         return couchdb

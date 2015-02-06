@@ -5,9 +5,6 @@ branches:
     - master
     - /^\d+\.\d+\.x$/ # release forked patches branch
 
-services:
-  - couchdb # FIXME see ci/couchdb
-
 cache:
   bundler: true
   directories:
