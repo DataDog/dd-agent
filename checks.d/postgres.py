@@ -218,6 +218,28 @@ SELECT %s
 """
     }
 
+    STATIO_ALL_TABLES_METRICS = {
+        'descriptors': [
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'schemaname'      : ('postgresql.schemaname', RATE),
+            'heap_blks_read'  : ('postgresql.heap_blks_read', RATE),
+            'heap_blks_hit'   : ('postgresql.heap_blks_hit', RATE),
+            'idx_blks_read'   : ('postgresql.idx_blks_read', RATE),
+            'idx_blks_hit'    : ('postgresql.idx_blks_hit', RATE),
+            'toast_blks_read' : ('postgresql.toast_blks_read', RATE),
+            'toast_blks_hit'  : ('postgresql.toast_blks_hit', RATE),
+            'tidx_blks_read'  : ('postgresql.tidx_blks_read', RATE),
+            'tidx_blks_hit'   : ('postgresql.tidx_blks_hit', RATE),
+        },
+        'query': """
+SELECT relname,
+       %s
+  FROM pg_statio_all_tables""",
+        'relation': False,
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
@@ -341,7 +363,8 @@ SELECT %s
             self.CONNECTION_METRICS,
             self.BGW_METRICS,
             self.LOCK_METRICS,
-            self.COUNT_METRICS
+            self.COUNT_METRICS,
+            self.STATIO_ALL_TABLES_METRICS,
         ]
 
         # Do we need relation-specific metrics?
