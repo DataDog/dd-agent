@@ -53,6 +53,11 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] Windows Services: Monitor state of Windows Services. See [#1225][]
 * [FEATURE] Windows: Get more system metrics regarding memory and disk usage.
 * [FEATURE] Windows: Better GUI
+* [FEATURE] Adding “min” metric to histograms. See [#1219][]
+* [FEATURE] Activemq: New ActiveMQ XML check that collect more metrics. See [#1227][] (Thanks [@brettlangdon][])
+* [FEATURE] TeamCity: New TeamCity integration. See [#1171][] (Thanks [@AirbornePorcine][])
+* [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
+* [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
@@ -64,30 +69,11 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] Postgresql: Fix buffers_backend_fsync. See [#1275][]
 * [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
 * [BUGFIX] Zookeeper: Fix bad command sending.
-
-### To be merged / To be done
-* [FEATURE] Adding “min” metric to histograms. See [#1219][]
-* [FEATURE] Activemq: New ActiveMQ XML check that collect more metrics. See [#1227][] (Thanks [@brettlangdon][])
-* [FEATURE] Postgresql: Include table count as a metric. See [#1192][]
-* [FEATURE] TeamCity: New TeamCity integration. See [#1171][] (Thanks [@AirbornePorcine][])
-* [FEATURE] Sidekiq: New Sidekiq integration. See [#1153][] (Thanks [@donalguy][])
-* [FEATURE] Ping: Add a "ping" check. See [#1116][] (Thanks [@nambrosch][])
-* [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
-* [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
-
 * [BUGFIX] ElasticSearch: Fix host tagging. See [#1282][]
 * [BUGFIX] SNMP: Fix non-increasing OID issue. See [#1281][]
 * [BUGFIX] Dogstatsd: Properly handle UTF-8 packets. See [#1279][]
 * [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
-* [BUGFIX] Postgresql: Fix "has an interval of 0" bug when misconfigured. See [#1211][]
-* [BUGFIX] CouchDB: Fix check when too many databases are present. See [#1188][]
-* [BUGFIX] Linux: "Fix [Errno 2] No such file or directory: '/proc/net/dev'". See [#1175][]
 * [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
-* [BUGFIX] Core: Fix handling of tags ending with a semicolon. See [#1115][]
-
-
-
-
 
 # 5.1.1 / 12-09-2014
 #### Details
