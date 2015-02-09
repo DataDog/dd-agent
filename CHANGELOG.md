@@ -21,8 +21,10 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Postgresql
 * Process
 * Riak
+* RiakCS
 * SNMP
 * Supervisor
+* TeamCity
 * TokuMX
 * Varnish
 * VSphere
