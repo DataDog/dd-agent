@@ -23,17 +23,20 @@ def multidict(ordered_pairs):
     return dict(d)
 
 
-
-
 class RiakCs(AgentCheck):
 
     STATS_BUCKET = 'riak-cs'
     STATS_KEY = 'stats'
+    SERVICE_CHECK_NAME = 'riakcs.can_connect'
 
     def check(self, instance):
         s3, aggregation_key, tags = self._connect(instance)
 
         stats = self._get_stats(s3, aggregation_key)
+
+        self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+          tags=["aggregation_key:{0}".format(aggregation_key)])
+        
         self.process_stats(stats, tags)
 
     def process_stats(self, stats, tags):
@@ -71,6 +74,9 @@ class RiakCs(AgentCheck):
             s3 = S3Connection(**s3_settings)
         except Exception, e:
             self.log.error("Error connecting to {0}: {1}".format(aggregation_key, e))
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+              tags=["aggregation_key:{0}".format(aggregation_key)],
+              message=str(e))
             raise
 
         tags = instance.get("tags", [])
@@ -87,6 +93,9 @@ class RiakCs(AgentCheck):
 
         except Exception, e:
             self.log.error("Error retrieving stats from {0}: {1}".format(aggregation_key, e))
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+              tags=["aggregation_key:{0}".format(aggregation_key)],
+              message=str(e))
             raise
 
         return stats
