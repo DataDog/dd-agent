@@ -18,16 +18,18 @@ import win32serviceutil
 from checks.collector import Collector
 from config import (
     get_config,
+    get_confd_path,
     get_system_stats,
     get_win32service_file,
     load_check_directory,
     set_win32_cert_path,
+    PathNotFound,
 )
 import dogstatsd
 from ddagent import Application
 from emitter import http_emitter
 from jmxfetch import JMXFetch
-from util import get_hostname
+from util import get_hostname, get_os
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +70,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'collector': DDAgent(agentConfig, self.hostname,
                                  heartbeat=self._collector_send_heartbeat),
             'dogstatsd': DogstatsdProcess(config, self.hostname),
+            'jmxfetch': JMXFetchProcess(config, self.hostname),
         }
 
     def SvcStop(self):
@@ -81,9 +84,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
     def SvcDoRun(self):
         servicemanager.LogMsg(
-                servicemanager.EVENTLOG_INFORMATION_TYPE,
-                servicemanager.PYS_SERVICE_STARTED,
-                (self._svc_name_, ''))
+            servicemanager.EVENTLOG_INFORMATION_TYPE,
+            servicemanager.PYS_SERVICE_STARTED,
+            (self._svc_name_, ''))
         self.start_ts = time.time()
 
         # Start all services.
@@ -179,6 +182,7 @@ class DDAgent(multiprocessing.Process):
 
         return emitters
 
+
 class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
         multiprocessing.Process.__init__(self, name='ddforwarder')
@@ -195,7 +199,7 @@ class DDForwarder(multiprocessing.Process):
             port = 17123
         else:
             port = int(port)
-        app_config = get_config(parse_args = False)
+        app_config = get_config(parse_args=False)
         self.forwarder = Application(port, app_config, watchdog=False)
         try:
             self.forwarder.run()
@@ -205,6 +209,7 @@ class DDForwarder(multiprocessing.Process):
     def stop(self):
         log.debug("Windows Service - Stopping forwarder")
         self.forwarder.stop()
+
 
 class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
@@ -229,6 +234,32 @@ class DogstatsdProcess(multiprocessing.Process):
             self.server.stop()
             self.reporter.stop()
             self.reporter.join()
+
+
+class JMXFetchProcess(multiprocessing.Process):
+    def __init__(self, agentConfig, hostname):
+        multiprocessing.Process.__init__(self, name='jmxfetch')
+        self.config = agentConfig
+        self.is_enabled = True
+        self.hostname = hostname
+
+        osname = get_os()
+        try:
+            confd_path = get_confd_path(osname)
+        except PathNotFound, e:
+            log.error("No conf.d folder found at '%s' or in the directory where"
+                      "the Agent is currently deployed.\n" % e.args[0])
+
+        self.jmx_daemon = JMXFetch(confd_path, agentConfig)
+
+    def run(self):
+        log.debug("Windows Service - Starting JMXFetch")
+        self.jmx_daemon.run()
+
+    def stop(self):
+        log.debug("Windows Service - Stopping JMXFetch")
+        self.jmx_daemon.terminate()
+
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
