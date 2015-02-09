@@ -74,7 +74,8 @@ class Collector(object):
             'load': u.Load(log),
             'memory': u.Memory(log),
             'processes': u.Processes(log),
-            'cpu': u.Cpu(log)
+            'cpu': u.Cpu(log),
+            'system': u.System(log)
         }
 
         # Win32 System `Checks
@@ -166,6 +167,9 @@ class Collector(object):
 
             load = sys_checks['load'].check(self.agentConfig)
             payload.update(load)
+
+            system = sys_checks['system'].check(self.agentConfig)
+            payload.update(system)
 
             memory = sys_checks['memory'].check(self.agentConfig)
 

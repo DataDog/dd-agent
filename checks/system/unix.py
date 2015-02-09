@@ -371,19 +371,25 @@ class IO(Check):
             return False
 
 
+class System(Check):
+    def check(self, agentConfig):
+        if Platform.is_linux():
+            with open("/proc/uptime", "r") as f:
+                uptime_seconds = float(f.readline().split()[0])
+            return {"system.uptime": uptime_seconds}
+        return {}
+
+
 class Load(Check):
 
     def check(self, agentConfig):
         if Platform.is_linux():
             try:
-                loadAvrgProc = open('/proc/loadavg', 'r')
-                uptime = loadAvrgProc.readlines()
-                loadAvrgProc.close()
+                with open('/proc/loadavg', 'r') as load_avg:
+                    uptime = load_avg.readline().strip()
             except Exception:
                 self.logger.exception('Cannot extract load')
                 return False
-
-            uptime = uptime[0] # readlines() provides a list but we want a string
 
         elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
@@ -443,9 +449,8 @@ class Memory(Check):
     def check(self, agentConfig):
         if Platform.is_linux():
             try:
-                meminfoProc = open('/proc/meminfo', 'r')
-                lines = meminfoProc.readlines()
-                meminfoProc.close()
+                with open('/proc/meminfo', 'r') as mem_info:
+                    lines = mem_info.readlines()
             except Exception:
                 self.logger.exception('Cannot get memory metrics from /proc/meminfo')
                 return False
