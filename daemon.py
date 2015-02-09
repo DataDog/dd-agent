@@ -21,6 +21,7 @@ import signal
 
 log = logging.getLogger(__name__)
 
+
 class AgentSupervisor(object):
     ''' A simple supervisor to keep a restart a child on expected auto-restarts
     '''
@@ -99,7 +100,7 @@ class Daemon(object):
         self.stderr = stderr
         self.pidfile = pidfile
 
-    def daemonize(self):
+    def daemonize(self, use_chdir):
         """
         Do the UNIX double-fork magic, see Stevens' "Advanced
         Programming in the UNIX Environment" for details (ISBN 0201563177)
@@ -119,8 +120,9 @@ class Daemon(object):
         log.debug("Fork 1 ok")
 
         # Decouple from parent environment
-        os.chdir("/")
         os.setsid()
+        if use_chdir:
+            os.chdir("/")
 
         if self.autorestart:
             # Set up the supervisor callbacks and put a fork in it.
@@ -139,7 +141,7 @@ class Daemon(object):
                 sys.stderr.write(msg + "\n")
                 sys.exit(1)
 
-        if sys.platform != 'darwin': # This block breaks on OS X
+        if sys.platform != 'darwin':  # This block breaks on OS X
             # Redirect standard file descriptors
             sys.stdout.flush()
             sys.stderr.flush()
@@ -152,8 +154,7 @@ class Daemon(object):
 
         log.info("Daemon started")
 
-
-    def start(self, foreground=False):
+    def start(self, foreground=False, use_chdir=True):
         log.info("Starting")
         pid = self.pid()
 
@@ -165,10 +166,9 @@ class Daemon(object):
 
         log.info("Pidfile: %s" % self.pidfile)
         if not foreground:
-            self.daemonize()
+            self.daemonize(use_chdir)
         self.write_pidfile()
         self.run()
-
 
     def stop(self):
         log.info("Stopping daemon")
@@ -206,12 +206,10 @@ class Daemon(object):
 
             return # Not an error in a restart
 
-
     def restart(self):
         "Restart the daemon"
         self.stop()
         self.start()
-
 
     def run(self):
         """
@@ -220,14 +218,12 @@ class Daemon(object):
         """
         raise NotImplementedError
 
-
     def info(self):
         """
         You should override this method when you subclass Daemon. It will be
         called to provide information about the status of the process
         """
         raise NotImplementedError
-
 
     def status(self):
         """
@@ -263,7 +259,6 @@ class Daemon(object):
         sys.stdout.write(message + "\n")
         sys.exit(exit_code)
 
-
     def pid(self):
         # Get the pid from the pidfile
         try:
@@ -275,7 +270,6 @@ class Daemon(object):
             return None
         except ValueError:
             return None
-
 
     def write_pidfile(self):
         # Write pidfile
@@ -291,7 +285,6 @@ class Daemon(object):
             log.exception(msg)
             sys.stderr.write(msg + "\n")
             sys.exit(1)
-
 
     def delpid(self):
         try:

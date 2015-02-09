@@ -44,13 +44,14 @@ class TestTomcat(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
-        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
-
+        self.jmx_daemon = JMXFetch(confd_path, {'dogstatsd_port': STATSD_PORT})
+        self.t2 = threading.Thread(target=self.jmx_daemon.initialize)
+        self.t2.start()
 
     def tearDown(self):
         self.server.stop()
         self.reporter.finished = True
-        JMXFetch.stop()
+        self.jmx_daemon.terminate()
 
     def test_tomcat_metrics(self):
         count = 0
