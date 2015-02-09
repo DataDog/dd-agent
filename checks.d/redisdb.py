@@ -215,6 +215,21 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
+        self._check_replication(info, tags)
+
+    def _check_replication(self, info, tags):
+        status_key = 'master_link_status'
+        if status_key in info:
+            if info[status_key] == 'up':
+                status = AgentCheck.OK
+                down_seconds = 0
+            else:
+                status = AgentCheck.CRITICAL
+                down_seconds = info['master_link_down_since_seconds']
+
+            self.service_check('custom_check.redis.replication.master_link_status', status, tags=tags)
+            self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
+
     def check(self, instance):
         if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
