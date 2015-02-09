@@ -60,6 +60,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] TeamCity: New TeamCity integration. See [#1171][] (Thanks [@AirbornePorcine][])
 * [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
 * [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
+* [FEATURE] Docker: Configurable image count collection. See [#1345][]
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]

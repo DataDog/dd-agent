@@ -67,6 +67,6 @@ instances:
     # collect_all_metrics: false
 
     # Collect images stats
-    # Number of available active images and intermediate images as gauges
+    # Number of available active images and intermediate images as gauges. Default: true.
     #
-    # collect_images_stats: true
+    collect_images_stats: false
