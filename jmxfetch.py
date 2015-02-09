@@ -6,9 +6,13 @@ import signal
 import subprocess
 import tempfile
 import time
+import sys
+import optparse
 
 # datadog
 from util import PidFile, get_os, yLoader, yDumper
+from config import get_config, get_confd_path, get_logging_config, \
+    PathNotFound, DEFAULT_CHECK_FREQUENCY
 
 # 3rd party
 import yaml
@@ -16,13 +20,13 @@ import yaml
 log = logging.getLogger(__name__)
 
 JAVA_LOGGING_LEVEL = {
-    logging.CRITICAL : "FATAL",
-    logging.DEBUG : "DEBUG",
-    logging.ERROR : "ERROR",
-    logging.FATAL : "FATAL",
-    logging.INFO : "INFO",
-    logging.WARN : "WARN",
-    logging.WARNING : "WARN",
+    logging.CRITICAL: "FATAL",
+    logging.DEBUG: "DEBUG",
+    logging.ERROR: "ERROR",
+    logging.FATAL: "FATAL",
+    logging.INFO: "INFO",
+    logging.WARN: "WARN",
+    logging.WARNING: "WARN",
 }
 
 JMX_FETCH_JAR_NAME = "jmxfetch-0.4.0-jar-with-dependencies.jar"
@@ -37,19 +41,21 @@ JMX_CHECKS = [
 ]
 JMX_COLLECT_COMMAND = 'collect'
 JMX_LIST_COMMANDS = {
-        'list_everything': 'List every attributes available that has a type supported by JMXFetch',
-        'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration',
-        'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
-        'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
-        'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
-        JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"
-        }
+    'list_everything': 'List every attributes available that has a type supported by JMXFetch',
+    'list_collected_attributes': 'List attributes that will actually be collected by your current instances configuration',
+    'list_matching_attributes': 'List attributes that match at least one of your instances configuration',
+    'list_not_matching_attributes': "List attributes that don't match any of your instances configuration",
+    'list_limited_attributes': "List attributes that do match one of your instances configuration but that are not being collected because it would exceed the number of metrics that can be collected",
+    JMX_COLLECT_COMMAND: "Start the collection of metrics based on your current configuration and display them in the console"}
 
 PYTHON_JMX_STATUS_FILE = 'jmx_status_python.yaml'
 
 LINK_TO_DOC = "See http://docs.datadoghq.com/integrations/java/ for more information"
 
-class InvalidJMXConfiguration(Exception): pass
+
+class InvalidJMXConfiguration(Exception):
+    pass
+
 
 class JMXFetch(object):
 
@@ -58,10 +64,11 @@ class JMXFetch(object):
 
     @classmethod
     def init(cls, confd_path, agentConfig, logging_config,
-        default_check_frequency, command=None, checks_list=None, reporter=None):
+             default_check_frequency, command=None, checks_list=None, reporter=None):
         try:
             command = command or JMX_COLLECT_COMMAND
-            jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path = JMXFetch.should_run(confd_path, checks_list)
+            jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path = \
+                JMXFetch.should_run(confd_path, checks_list)
             if len(invalid_checks) > 0:
                 try:
                     JMXFetch.write_status_file(invalid_checks)
@@ -73,7 +80,8 @@ class JMXFetch(object):
                     log.warning("JMXFetch is already running, restarting it.")
                     JMXFetch.stop()
 
-                JMXFetch.start(confd_path, agentConfig, logging_config,
+                JMXFetch.start(
+                    confd_path, agentConfig, logging_config,
                     java_bin_path, java_options, default_check_frequency,
                     jmx_checks, command, reporter, tools_jar_path)
                 return True
@@ -83,7 +91,7 @@ class JMXFetch(object):
     @classmethod
     def write_status_file(cls, invalid_checks):
         data = {
-            'timestamp':  time.time(),
+            'timestamp': time.time(),
             'invalid_checks': invalid_checks
         }
         stream = file(os.path.join(tempfile.gettempdir(), PYTHON_JMX_STATUS_FILE), 'w')
@@ -113,7 +121,7 @@ class JMXFetch(object):
     We assume that this value is alwayws the same for every jmx check
     so we can return the first value returned
 
-    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is 
+    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is
     required to connect to a local JMX instance using the attach api.
     """
 
@@ -314,7 +322,7 @@ class JMXFetch(object):
 
     @classmethod
     def start(cls, confd_path, agentConfig, logging_config, path_to_java, java_run_opts,
-        default_check_frequency, jmx_checks, command, reporter, tools_jar_path):
+              default_check_frequency, jmx_checks, command, reporter, tools_jar_path):
         statsd_port = agentConfig.get('dogstatsd_port', "8125")
 
         if reporter is None:
@@ -381,3 +389,41 @@ class JMXFetch(object):
                 os.chmod(JMXFetch.pid_file_path, 0644)
             except Exception:
                 log.exception("Unable to write jmxfetch pidfile: %s" % JMXFetch.pid_file_path)
+
+
+def main():
+    """ JMXFetch main entry point """
+    parser = optparse.OptionParser("%prog [start|stop]")
+    options, args = parser.parse_args()
+
+    # If no args were passed in, do nothing
+    if not args:
+        return 0
+
+    command = args[0]
+
+    if command == "start":
+        # Get agent config and conf.d directory
+        agentConfig = get_config(options=options)
+        osname = get_os()
+        try:
+            confd_path = get_confd_path(osname)
+        except PathNotFound, e:
+            log.error("No conf.d folder found at '%s' or in the directory where"
+                      "the Agent is currently deployed.\n" % e.args[0])
+            return 1
+
+        # Init JMXFetch
+        JMXFetch.init(confd_path, agentConfig, get_logging_config(),
+                      DEFAULT_CHECK_FREQUENCY, JMXFetch.JMX_COLLECT_COMMAND)
+    elif command == "stop":
+        JMXFetch.stop()
+    else:
+        sys.stderr.write("Unknown command: %s\n\n" % command)
+        parser.print_help()
+        return 1
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
