@@ -14,6 +14,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Gearman
 * GUnicorn
 * HTTP
+* JMXFetch
 * KyotoTycoon
 * Marathon
 * Mesos
@@ -79,6 +80,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
 * [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
 * [BUGFIX] SNMP: Fix a 'Missing OID' issue. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
+* [BUGFIX] JMXFetch: Fix a memory leak issue. See [#30](https://github.com/DataDog/jmxfetch/issues/30)
 
 # 5.1.1 / 12-09-2014
 #### Details
@@ -1138,6 +1140,7 @@ If you use ganglia, you want this version.
 [#16]: https://github.com/DataDog/dd-agent/issues/16
 [#21]: https://github.com/DataDog/dd-agent/issues/21
 [#23]: https://github.com/DataDog/dd-agent/issues/23
+[#30]: https://github.com/DataDog/dd-agent/issues/30
 [#42]: https://github.com/DataDog/dd-agent/issues/42
 [#51]: https://github.com/DataDog/dd-agent/issues/51
 [#55]: https://github.com/DataDog/dd-agent/issues/55

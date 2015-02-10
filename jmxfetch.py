@@ -25,7 +25,7 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING : "WARN",
 }
 
-JMX_FETCH_JAR_NAME = "jmxfetch-0.4.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.4.1-jar-with-dependencies.jar"
 JMXFETCH_MAIN_CLASS = "org.datadog.jmxfetch.App"
 JMX_CHECKS = [
     'activemq',
@@ -113,7 +113,7 @@ class JMXFetch(object):
     We assume that this value is alwayws the same for every jmx check
     so we can return the first value returned
 
-    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is 
+    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is
     required to connect to a local JMX instance using the attach api.
     """
 
