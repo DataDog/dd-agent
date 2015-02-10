@@ -18,14 +18,14 @@ from emitter import http_emitter
 from win32.common import handle_exe_click
 import dogstatsd
 from ddagent import Application
-from config import (get_config, set_win32_cert_path, get_system_stats,
-    load_check_directory, get_win32service_file)
-from win32.common import handle_exe_click
+from config import (get_config, get_confd_path, set_win32_cert_path, get_system_stats,
+                    load_check_directory, get_win32service_file, PathNotFound)
 from jmxfetch import JMXFetch
-from util import get_hostname
+from util import get_hostname, get_os
 
 log = logging.getLogger(__name__)
-RESTART_INTERVAL = 24 * 60 * 60 # Defaults to 1 day
+RESTART_INTERVAL = 24 * 60 * 60  # Defaults to 1 day
+
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -57,6 +57,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'forwarder': DDForwarder(config, self.hostname),
             'collector': DDAgent(agentConfig, self.hostname),
             'dogstatsd': DogstatsdProcess(config, self.hostname),
+            'jmxfetch': JMXFetchProcess(config, self.hostname),
         }
 
     def SvcStop(self):
@@ -71,9 +72,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
     def SvcDoRun(self):
         import servicemanager
         servicemanager.LogMsg(
-                servicemanager.EVENTLOG_INFORMATION_TYPE,
-                servicemanager.PYS_SERVICE_STARTED,
-                (self._svc_name_, ''))
+            servicemanager.EVENTLOG_INFORMATION_TYPE,
+            servicemanager.PYS_SERVICE_STARTED,
+            (self._svc_name_, ''))
         self.start_ts = time.time()
 
         # Start all services.
@@ -98,8 +99,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
                 if time.time() - self.start_ts > self.restart_interval:
                     log.info('Auto-restarting collector after %s seconds' % self.restart_interval)
                     collector = self.procs['collector']
-                    new_collector = collector.__class__(collector.config,
-                                    self.hostname, start_event=False)
+                    new_collector = collector.__class__(
+                        collector.config,
+                        self.hostname, start_event=False)
                     collector.terminate()
                     del self.procs['collector']
                     new_collector.start()
@@ -154,6 +156,7 @@ class DDAgent(multiprocessing.Process):
 
         return emitters
 
+
 class DDForwarder(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
         multiprocessing.Process.__init__(self, name='ddforwarder')
@@ -170,7 +173,7 @@ class DDForwarder(multiprocessing.Process):
             port = 17123
         else:
             port = int(port)
-        app_config = get_config(parse_args = False)
+        app_config = get_config(parse_args=False)
         self.forwarder = Application(port, app_config, watchdog=False)
         try:
             self.forwarder.run()
@@ -180,6 +183,7 @@ class DDForwarder(multiprocessing.Process):
     def stop(self):
         log.debug("Windows Service - Stopping forwarder")
         self.forwarder.stop()
+
 
 class DogstatsdProcess(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
@@ -204,6 +208,32 @@ class DogstatsdProcess(multiprocessing.Process):
             self.server.stop()
             self.reporter.stop()
             self.reporter.join()
+
+
+class JMXFetchProcess(multiprocessing.Process):
+    def __init__(self, agentConfig, hostname):
+        multiprocessing.Process.__init__(self, name='jmxfetch')
+        self.config = agentConfig
+        self.is_enabled = True
+        self.hostname = hostname
+
+        osname = get_os()
+        try:
+            confd_path = get_confd_path(osname)
+        except PathNotFound, e:
+            log.error("No conf.d folder found at '%s' or in the directory where"
+                      "the Agent is currently deployed.\n" % e.args[0])
+
+        self.jmx_daemon = JMXFetch(confd_path, agentConfig)
+
+    def run(self):
+        log.debug("Windows Service - Starting JMXFetch")
+        self.jmx_daemon.initialize()
+
+    def stop(self):
+        log.debug("Windows Service - Stopping JMXFetch")
+        self.jmx_daemon.terminate()
+
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
