@@ -61,6 +61,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
 * [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
 * [FEATURE] Docker: Configurable image count collection. See [#1345][]
+* [FEATURE] SNMP: Integer and Integer32 metric types support. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
@@ -77,6 +78,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] Dogstatsd: Properly handle UTF-8 packets. See [#1279][]
 * [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
 * [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
+* [BUGFIX] SNMP: Fix a 'Missing OID' issue. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
 
 # 5.1.1 / 12-09-2014
 #### Details
@@ -90,7 +92,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
 * [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See [#1222][]
 * [BUGFIX] BTRFS: Handle "unknown" usage type. See [#1221][]
-* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed. 
+* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed.
 
 
 # 5.1.0 / 11-24-2014
@@ -164,7 +166,7 @@ This is a security update regarding POODLE (CVE-2014-3566).
 
 The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-ssl3 flag) and Python 2.7.8 with a patch that disables SSLv3 unless explicity asked http://bugs.python.org/issue22638.
 
-This Omnibus package also adds support of the sqlite3 library for Python. 
+This Omnibus package also adds support of the sqlite3 library for Python.
 
 # 5.0.3 (Windows only)
 
@@ -210,7 +212,7 @@ the Datadog user will need to be modified from ```'datadog'@'localhost'``` to ``
            # FLUSH PRIVILEGES;
        ```
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
-     
+
        ```
 sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
@@ -1407,6 +1409,9 @@ If you use ganglia, you want this version.
 [#1281]: https://github.com/DataDog/dd-agent/issues/1281
 [#1282]: https://github.com/DataDog/dd-agent/issues/1282
 [#1285]: https://github.com/DataDog/dd-agent/issues/1285
+[#1310]: https://github.com/DataDog/dd-agent/issues/1310
+[#1318]: https://github.com/DataDog/dd-agent/issues/1318
+[#1345]: https://github.com/DataDog/dd-agent/issues/1345
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
@@ -1454,4 +1459,3 @@ If you use ganglia, you want this version.
 [@takus]: https://github.com/takus
 [@tomduckering]: https://github.com/tomduckering
 [@walkeran]: https://github.com/walkeran
-
