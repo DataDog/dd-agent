@@ -1,0 +1,126 @@
+#!/usr/bin/env sh
+NAME="datadog-agent"
+DESC="Datadog Agent"
+AGENTPATH="/opt/datadog-agent/agent/agent.py"
+FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
+DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
+AGENTCONF="/etc/dd-agent/datadog.conf"
+AGENTUSER="dd-agent"
+SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
+SUPERVISOR_CONF_FILE="/etc/dd-agent/supervisor.conf"
+SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
+SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
+SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+
+SUPERVISOR_NOT_RUNNING="Supervisor is not running"
+
+check_status() {
+    # If the socket exists, we can use supervisorctl
+    if [ -e $SUPERVISOR_SOCK ]; then
+        # If we're using supervisor, check the number of datadog processes
+        # supervisor is currently controlling, and make sure that it's the
+        # same as the number of programs specified in the supervisor config
+        # file:
+
+        supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE status)
+        datadog_supervisor_processes=$(echo "$supervisor_processes" |
+                                       grep -v dogstatsd |
+                                       grep $NAME |
+                                       grep -c RUNNING)
+        supervisor_config_programs=$(grep -v dogstatsd $SUPERVISOR_CONF_FILE |
+                                     grep -c '\[program:')
+
+        if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
+            echo "$supervisor_processes"
+            echo "$DESC (supervisor) is NOT running all child processes"
+            return 1
+        else
+            echo "$DESC (supervisor) is running all child processes"
+            return 0
+        fi
+    else
+        echo "$DESC (supervisor) is not running"
+        return 1
+    fi
+}
+
+case $1 in
+    start)
+        if [ ! -f $AGENTCONF ]; then
+            echo "$AGENTCONF not found. Exiting."
+            exit 3
+        fi
+
+        check_status > /dev/null
+        if [ $? -eq 0 ]; then
+            echo "$DESC is already running"
+            exit 0
+        fi
+
+        $AGENTPATH configcheck > /dev/null
+        if [ $? -ne 0 ]; then
+            echo "Invalid check configuration. Please run sudo datadog-agent configtest for more details."
+            exit 1
+        fi
+
+        echo "Starting $DESC (using supervisord)" "$NAME"
+        $SUPERVISORD_PATH -c $SUPERVISOR_CONF_FILE
+        exit 0
+        ;;
+
+    stop)
+        $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE stop all
+        kill -TERM $(cat $SUPERVISOR_PIDFILE)
+        exit $?
+        ;;
+
+    restart)
+        check_status > /dev/null
+        if [ $? -eq 0 ]; then
+            $0 stop
+        else
+            echo "$DESC was not running"
+        fi
+        $0 start
+        ;;
+
+    status)
+        check_status
+        exit $?
+        ;;
+
+    info)
+        shift # shift to pass the remaining arguments to agent/agent.py info.
+              # Currently only agent.py takes additional arguments
+        $AGENTPATH info $@
+        RETURN_VALUE=$?
+        $DOGSTATSDPATH info
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        $FORWARDERPATH info
+        RETURN_VALUE=$(($RETURN_VALUE || $?))
+        exit $RETURN_VALUE
+        ;;
+
+    configcheck)
+        $AGENTPATH configcheck
+        exit $?
+        ;;
+
+    check)
+        shift
+        $AGENTPATH check $@
+        exit $?
+        ;;
+
+    jmx)
+        shift
+        $AGENTPATH jmx $@
+        exit $?
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|jmx}"
+        exit 2
+        ;;
+esac
+
