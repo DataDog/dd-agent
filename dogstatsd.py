@@ -190,7 +190,7 @@ class Reporter(threading.Thread):
                 params['api_key'] = self.api_key
             url = '%s/intake?%s' % (self.api_host, urlencode(params))
 
-            self.submit_http(url, payload, headers)
+            self.submit_http(url, json.dumps(payload), headers)
 
     def submit_http(self, url, data, headers):
         no_proxy = {
