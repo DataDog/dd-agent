@@ -4,15 +4,12 @@ DESC="Datadog Agent"
 AGENTPATH="/opt/datadog-agent/agent/agent.py"
 FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
-AGENTCONF="/etc/dd-agent/datadog.conf"
-AGENTUSER="dd-agent"
-SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"
-SUPERVISOR_CONF_FILE="/etc/dd-agent/supervisor.conf"
-SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
+AGENTCONF="/opt/datadog-agent/etc/datadog.conf"
+SUPERVISOR_PIDFILE="/opt/datadog-agent/tmp/datadog-supervisord.pid"
+SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
+SUPERVISOR_SOCK="/opt/datadog-agent/tmp/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
-
-SUPERVISOR_NOT_RUNNING="Supervisor is not running"
 
 check_status() {
     # If the socket exists, we can use supervisorctl

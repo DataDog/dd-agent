@@ -10,17 +10,41 @@ import logging
 import os
 import os.path as osp
 import platform
+from subprocess import CalledProcessError, check_call, check_output  # To manage the agent on OSX
 import sys
-import thread  # To manage the windows process asynchronously
+import thread
 
 # 3p
 # GUI Imports
-from guidata.configtools import get_family, get_icon, MONOSPACE
-from guidata.qt.QtCore import QPoint, QSize, Qt, QTimer, SIGNAL
-from guidata.qt.QtGui import (QFont, QGroupBox, QHBoxLayout, QInputDialog,
-                              QLabel, QListWidget, QMenu, QMessageBox,
-                              QPushButton, QSplitter, QSystemTrayIcon,
-                              QTextEdit, QVBoxLayout, QWidget)
+from guidata.configtools import (
+    add_image_path,
+    get_family,
+    get_icon,
+    MONOSPACE,
+)
+from guidata.qt.QtCore import (
+    QPoint,
+    QSize,
+    Qt,
+    QTimer,
+    SIGNAL,
+)
+from guidata.qt.QtGui import (
+    QFont,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QSystemTrayIcon,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 from guidata.qthelpers import get_std_icon
 
 # small hack to avoid having to patch the spyderlib library
@@ -30,24 +54,45 @@ import spyderlib.baseconfig
 spyderlib.baseconfig.IMG_PATH = [""]
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
-# Windows management & others
+# 3rd Party
 import tornado.template as template
-import win32service
-import win32serviceutil
 import yaml
+
 
 # Datadog
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus, logger_info
 from config import (
-    _windows_commondata_path,
     get_confd_path,
     get_config,
     get_config_path,
+    get_logging_config,
     get_version,
 )
 from util import yLoader
+from utils.platform import Platform
+# Constants describing the agent state
+AGENT_RUNNING = 0
+AGENT_START_PENDING = 1
+AGENT_STOP_PENDING = 2
+AGENT_STOPPED = 3
+AGENT_UNKNOWN = 4
+
+# Windows management
+# Import Windows stuff only on Windows
+if Platform.is_windows():
+    import win32serviceutil
+    import win32service
+    WIN_STATUS_TO_AGENT = {
+        win32service.SERVICE_RUNNING : AGENT_RUNNING,
+        win32service.SERVICE_START_PENDING : AGENT_START_PENDING,
+        win32service.SERVICE_STOP_PENDING : AGENT_STOP_PENDING,
+        win32service.SERVICE_STOPPED : AGENT_STOPPED,
+    }
+
 
 log = logging.getLogger(__name__)
+
+SHIPPED_IMAGES_FOLDER = '/opt/datadog-agent/agent/images'
 
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
@@ -68,21 +113,23 @@ EXCLUDED_WINDOWS_CHECKS = [
     'zk',
 ]
 
+WINDOWS_ONLY_CHECKS = [
+    'iis',
+    'win32_event_log',
+    'windows_service',
+    'wmi_check',
+]
+
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
 DATADOG_SERVICE = "DatadogAgent"
 
-COLLECTOR_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
-FORWARDER_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
-DOGSTATSD_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
-JMXFETCH_LOG_FILE = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
-
 HUMAN_SERVICE_STATUS = {
-    win32service.SERVICE_RUNNING : 'Service is running',
-    win32service.SERVICE_START_PENDING : 'Service is starting',
-    win32service.SERVICE_STOP_PENDING : 'Service is stopping',
-    win32service.SERVICE_STOPPED : 'Service is stopped',
-    "Unknown" : "Cannot get service status",
+    AGENT_RUNNING : 'Agent is running',
+    AGENT_START_PENDING : 'Agent is starting',
+    AGENT_STOP_PENDING : 'Agent is stopping',
+    AGENT_STOPPED : 'Agent is stopped',
+    AGENT_UNKNOWN : "Cannot get Agent status",
 }
 
 REFRESH_PERIOD = 5000
@@ -94,9 +141,9 @@ EXIT_MANAGER = "Exit Agent Manager"
 OPEN_LOG = "Open log file"
 
 SYSTEM_TRAY_MENU = [
-    (START_AGENT, lambda: service_manager("start")),
-    (STOP_AGENT, lambda: service_manager("stop")),
-    (RESTART_AGENT, lambda: service_manager("restart")),
+    (START_AGENT, lambda: agent_manager("start")),
+    (STOP_AGENT, lambda: agent_manager("stop")),
+    (RESTART_AGENT, lambda: agent_manager("restart")),
     (EXIT_MANAGER, lambda: sys.exit(0)),
 ]
 
@@ -106,7 +153,11 @@ def get_checks():
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)
-        if filename.split('.')[0] in EXCLUDED_WINDOWS_CHECKS:
+        if Platform.is_windows():
+            excluded_checks = EXCLUDED_WINDOWS_CHECKS
+        else:
+            excluded_checks = WINDOWS_ONLY_CHECKS
+        if filename.split('.')[0] in excluded_checks:
             continue
         if ext not in ('.yaml', '.example', '.disabled'):
             continue
@@ -139,28 +190,14 @@ class EditorFile(object):
             warning_popup("Unable to save file: \n %s" % str(e))
             raise
 
-class ForwarderLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, FORWARDER_LOG_FILE, "Forwarder log file")
-
-class CollectorLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, COLLECTOR_LOG_FILE, "Collector log file")
-
-class DogstatsdLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, DOGSTATSD_LOG_FILE, "Dogstatsd log file")
-
-class JMXFetchLogFile(EditorFile):
-    def __init__(self):
-        EditorFile.__init__(self, JMXFETCH_LOG_FILE, "JMX Fetch log file")
-
 class DatadogConf(EditorFile):
+    def __init__(self, config_path, config_file):
+        self.config = config_file
+        EditorFile.__init__(self, config_path, "Agent settings file: datadog.conf")
 
     @property
     def api_key(self):
-        config = get_config(parse_args=False, cfg_path=self.file_path)
-        api_key = config.get('api_key', None)
+        api_key = self.config.get('api_key', None)
         if not api_key or api_key == 'APIKEYHERE':
             return None
         return api_key
@@ -180,10 +217,10 @@ class DatadogConf(EditorFile):
                 self.save(new_content)
                 editor.set_text(new_content)
 
-                if not is_service_stopped():
-                    service_manager("restart")
+                if agent_status() != AGENT_STOPPED:
+                    agent_manager("restart")
                 else:
-                    service_manager("start")
+                    agent_manager("start")
             else:
                 self.check_api_key(editor)
 
@@ -354,6 +391,15 @@ class HTMLWindow(QTextEdit):
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
+        prefix_conf = ''
+
+        if Platform.is_windows():
+            prefix_conf = 'windows_'
+        else:
+            add_image_path(SHIPPED_IMAGES_FOLDER)
+
+        conf = get_config(parse_args=False)
+        log_conf = get_logging_config()
 
         QSplitter.__init__(self, parent)
         self.setWindowTitle(MAIN_WINDOW_TITLE)
@@ -364,12 +410,8 @@ class MainWindow(QSplitter):
         self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.__icon_activated)
 
         checks = get_checks()
-        datadog_conf = DatadogConf(get_config_path(), description="Agent settings file: datadog.conf")
-
-        self.forwarder_log_file = ForwarderLogFile()
-        self.collector_log_file = CollectorLogFile()
-        self.dogstatsd_log_file = DogstatsdLogFile()
-        self.jmxfetch_log_file = JMXFetchLogFile()
+        datadog_conf = DatadogConf(get_config_path(), conf)
+        self.create_logs_files_windows(log_conf, prefix_conf)
 
         listwidget = QListWidget(self)
         listwidget.addItems([osp.basename(check.module_name).replace("_", " ").title() for check in checks])
@@ -448,7 +490,7 @@ class MainWindow(QSplitter):
     def do_refresh(self):
         try:
             if self.isVisible():
-                service_status = get_service_status()
+                service_status = agent_status()
                 self.properties.service_status_label.setText(HUMAN_SERVICE_STATUS[service_status])
         finally:
             QTimer.singleShot(REFRESH_PERIOD, self.do_refresh)
@@ -470,6 +512,25 @@ class MainWindow(QSplitter):
             editor.setVisible(True)
             html.setVisible(False)
 
+    def create_logs_files_windows(self, config, prefix):
+        self.forwarder_log_file = EditorFile(
+            config.get('%sforwarder_log_file' % prefix),
+            "Forwarder log file"
+        )
+        self.collector_log_file = EditorFile(
+            config.get('%scollector_log_file' % prefix),
+            "Collector log file"
+        )
+        self.dogstatsd_log_file = EditorFile(
+            config.get('%sdogstatsd_log_file' % prefix),
+            "Dogstatsd log file"
+        )
+        self.jmxfetch_log_file = EditorFile(
+            config.get('jmx_log_file'),
+            "JMX log file"
+        )
+
+
 class Menu(QMenu):
 
     def __init__(self, parent=None, ):
@@ -485,16 +546,16 @@ class Menu(QMenu):
 
 
     def update_options(self):
-        status = get_service_status()
-        if is_service_running(status):
+        status = agent_status()
+        if status == AGENT_RUNNING:
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(True)
             self.options[STOP_AGENT].setEnabled(True)
-        elif is_service_stopped(status):
+        elif status == AGENT_STOPPED:
             self.options[START_AGENT].setEnabled(True)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
-        elif is_service_pending(status):
+        elif status in [AGENT_START_PENDING, AGENT_STOP_PENDING]:
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
@@ -560,7 +621,7 @@ def check_yaml_syntax(content):
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
 
-def _service_manager(action):
+def service_manager(action):
     try:
         if action == 'stop':
             win32serviceutil.StopService(DATADOG_SERVICE)
@@ -571,32 +632,49 @@ def _service_manager(action):
     except Exception, e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
-def service_manager(action, async=True):
-    if not async:
-        _service_manager(action)
-    else:
-        thread.start_new_thread(_service_manager, (action,))
-
-def get_service_status():
+def service_manager_status():
     try:
-        return win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+        return WIN_STATUS_TO_AGENT[
+            win32serviceutil.QueryServiceStatus(DATADOG_SERVICE)[1]
+        ]
     except Exception:
-        return "Unknown"
+        return AGENT_UNKNOWN
 
-def is_service_running(status = None):
-    if status is None:
-        status = get_service_status()
-    return status == win32service.SERVICE_RUNNING
+def osx_manager(action):
+    try:
+        check_call(['datadog-agent', action])
+    except Exception, e:
+        warning_popup("Couldn't execute datadog-agent %s: \n %s" % (action, str(e)))
 
-def is_service_pending(status = None):
-    if status is None:
-        status = get_service_status()
-    return status in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
+def osx_manager_status():
+    try:
+        check_output(['datadog-agent', 'status'])
+        return AGENT_RUNNING
+    except CalledProcessError, e:
+        if 'not running' in e.output:
+            return AGENT_STOPPED
+        elif 'STARTING' in e.output:
+            return AGENT_START_PENDING
+        elif 'STOPPED' in e.output:
+            return AGENT_STOP_PENDING
+        else:
+            return AGENT_UNKNOWN
 
-def is_service_stopped(status = None):
-    if status is None:
-        status = get_service_status()
-    return status == win32service.SERVICE_STOPPED
+def agent_status():
+    if Platform.is_windows():
+        return service_manager_status()
+    else:
+        return osx_manager_status()
+
+def agent_manager(action, async=True):
+    if Platform.is_windows():
+        manager = service_manager
+    else:
+        manager = osx_manager
+    if not async:
+        manager(action)
+    else:
+        thread.start_new_thread(manager, (action,))
 
 def warning_popup(message, parent=None):
     QMessageBox.warning(parent, 'Message', message, QMessageBox.Ok)
