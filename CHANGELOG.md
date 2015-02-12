@@ -63,6 +63,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
 * [FEATURE] Docker: Configurable image count collection. See [#1345][]
 * [FEATURE] SNMP: Integer and Integer32 metric types support. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
+* [FEATURE] JMXFetch: Fetch more JVM (Non)Heap variables by default. See [bd8915c2f1eec794f406414b678ce6110407dce1](https://github.com/DataDog/jmxfetch/commit/bd8915c2f1eec794f406414b678ce6110407dce1)
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
