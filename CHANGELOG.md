@@ -11,6 +11,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Docker
 * ElasticSearch
 * etcd
+* fluentd
 * Gearman
 * GUnicorn
 * HTTP
@@ -62,8 +63,8 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
 * [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
 * [FEATURE] Docker: Configurable image count collection. See [#1345][]
-* [FEATURE] SNMP: Integer and Integer32 metric types support. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
-* [FEATURE] JMXFetch: Fetch more JVM (Non)Heap variables by default. See [bd8915c2f1eec794f406414b678ce6110407dce1](https://github.com/DataDog/jmxfetch/commit/bd8915c2f1eec794f406414b678ce6110407dce1)
+* [FEATURE] SNMP: Integer and Integer32 metric types support. See [#1318][]
+* [FEATURE] JMXFetch: Fetch more JVM (Non)Heap variables by default. See [#42](https://github.com/DataDog/jmxfetch/pull/42)
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
@@ -80,8 +81,9 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] Dogstatsd: Properly handle UTF-8 packets. See [#1279][]
 * [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
 * [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
-* [BUGFIX] SNMP: Fix a 'Missing OID' issue. See [#1318](https://github.com/DataDog/dd-agent/pull/1318)
+* [BUGFIX] SNMP: Fix a 'Missing OID' issue. See [#1318][]
 * [BUGFIX] JMXFetch: Fix a memory leak issue. See [#30](https://github.com/DataDog/jmxfetch/issues/30)
+* [BUGFIX] Windows Event Log: Fix a timezone issue. See [#1370][]
 
 # 5.1.1 / 12-09-2014
 #### Details
@@ -1416,6 +1418,7 @@ If you use ganglia, you want this version.
 [#1310]: https://github.com/DataDog/dd-agent/issues/1310
 [#1318]: https://github.com/DataDog/dd-agent/issues/1318
 [#1345]: https://github.com/DataDog/dd-agent/issues/1345
+[#1370]: https://github.com/DataDog/dd-agent/issues/1370
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
