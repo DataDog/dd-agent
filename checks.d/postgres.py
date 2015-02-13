@@ -172,11 +172,32 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
   relname = ANY(%s)"""
     }
 
+    COUNT_METRICS = {
+        'descriptors': [
+            ('schemaname', 'schema')
+        ],
+        'metrics': {
+            'pg_stat_user_tables': ('postgresql.total_tables', GAUGE),
+        },
+        'relation': False,
+        'query': """
+SELECT schemaname, count(*)
+FROM %s
+GROUP BY schemaname
+        """
+    }
+
+    REPLICATION_METRICS_9_1 = {
+        'CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN 0 ELSE GREATEST (0, EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp())) END': ('postgresql.replication_delay', GAUGE),
+    }
+
+    REPLICATION_METRICS_9_2 = {
+        'abs(pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location())) AS replication_delay_bytes': ('postgres.replication_delay_bytes', GAUGE)
+    }
+
     REPLICATION_METRICS = {
         'descriptors': [],
-        'metrics': {
-            'GREATEST(0, EXTRACT(EPOCH FROM now() - pg_last_xact_replay_timestamp())) AS replication_delay': ('postgresql.replication_delay', GAUGE),
-        },
+        'metrics': {},
         'relation': False,
         'query': """
 SELECT %s
@@ -205,6 +226,7 @@ SELECT %s
         self.bgw_metrics = {}
         self.db_instance_metrics = []
         self.db_bgw_metrics = []
+        self.replication_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -239,7 +261,7 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.instance_metrics.get(key)
-        
+
         if metrics is None:
 
             # Hack to make sure that if we have multiple instances that connect to
@@ -254,7 +276,7 @@ SELECT %s
 
             self.db_instance_metrics.append(sub_key)
 
-            
+
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
             else:
@@ -292,6 +314,19 @@ SELECT %s
             metrics = self.bgw_metrics.get(key)
         return metrics
 
+    def _get_replication_metrics(self, key, db):
+        """ Use either REPLICATION_METRICS_9_1 or REPLICATION_METRICS_9_1 + REPLICATION_METRICS_9_2
+        depending on the postgres version.
+        Uses a dictionnary to save the result for each instance
+        """
+        metrics = self.replication_metrics.get(key)
+        if self._is_9_1_or_above(key, db) and metrics is None:
+            self.replication_metrics[key] = dict(self.REPLICATION_METRICS_9_1)
+            if self._is_9_2_or_above(key, db):
+                self.replication_metrics[key].update(self.REPLICATION_METRICS_9_2)
+            metrics = self.replication_metrics.get(key)
+        return metrics
+
     def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
@@ -305,7 +340,8 @@ SELECT %s
             self.DB_METRICS,
             self.CONNECTION_METRICS,
             self.BGW_METRICS,
-            self.LOCK_METRICS
+            self.LOCK_METRICS,
+            self.COUNT_METRICS
         ]
 
         # Do we need relation-specific metrics?
@@ -316,9 +352,9 @@ SELECT %s
                 self.SIZE_METRICS
             ]
 
-        # Only available for >= 9.1 due to
-        # pg_last_xact_replay_timestamp
-        if self._is_9_1_or_above(key,db):
+        replication_metrics = self._get_replication_metrics(key, db)
+        if replication_metrics is not None:
+            self.REPLICATION_METRICS['metrics'] = replication_metrics
             metric_scope.append(self.REPLICATION_METRICS)
 
         full_metric_scope = list(metric_scope) + custom_metrics
@@ -454,7 +490,7 @@ SELECT %s
                 if param not in m:
                     raise CheckException("Missing {0} parameter in custom metric"\
                         .format(param))
-           
+
             self.log.debug("Metric: {0}".format(m))
 
             for k, v in m['metrics'].items():
@@ -462,7 +498,7 @@ SELECT %s
                     raise CheckException("Collector method {0} is not known."\
                         "Known methods are RATE,GAUGE,MONOTONIC".format(
                             v[1].upper()))
-                                  
+
                 m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
                 self.log.debug("Method: %s" % (str(v[1])))
 
