@@ -36,6 +36,8 @@ instances:
 #     port: 9001       # Optional. Defaults to 9001. The port number.
 #     user: user       # Optional. Required only if a username is configured.
 #     pass: pass       # Optional. Required only if a password is configured.
+#     proc_regex:      # Optional. Regex pattern[s] matching the names of processes to monitor
+#      - 'myprocess-\d\d$'
 #     proc_names:      # Optional. The process to monitor within this supervisord instance.
 #      - apache2       #           If not specified, the check will monitor all processes.
 #      - webapp
