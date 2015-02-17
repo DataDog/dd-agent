@@ -3,7 +3,7 @@ Changes
 
 # 5.2.0 / 01-17-2015
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.1.1...master
+https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
 
 ### New and updated integrations
 * CouchDB
