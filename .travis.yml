@@ -64,6 +64,7 @@ env:
     - TRAVIS_FLAVOR=ssh
     - TRAVIS_FLAVOR=fluentd
     - TRAVIS_FLAVOR=rabbitmq
+    - TRAVIS_FLAVOR=etcd
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
