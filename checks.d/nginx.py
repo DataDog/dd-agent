@@ -89,8 +89,10 @@ class Nginx(AgentCheck):
         parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', raw)
         if parsed:
             conn = int(parsed.group(1))
+            handled = int(parsed.group(2))
             requests = int(parsed.group(3))
             output.extend([('nginx.net.conn_opened_per_s', conn, tags, 'rate'),
+                           ('nginx.net.conn_handled_per_s', conn, tags, 'rate'),
                            ('nginx.net.request_per_s', requests, tags, 'rate')])
 
         # Connection states, reading, writing or waiting for clients
