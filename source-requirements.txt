@@ -5,8 +5,6 @@ kafka-python==0.9.0-9bed11db98387c0d9e456528130b330631dc50af
 ntplib==0.3.2
 pg8000==1.9.6
 PyMySQL==0.6.1
-pysnmp-mibs==0.1.4
-pysnmp==4.2.5
 python-memcached==1.53
 pyyaml==3.11
 redis==2.10.1
