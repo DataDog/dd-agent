@@ -1,7 +1,15 @@
 Changes
 =======
 
-# 5.2.0 / 01-17-2015
+# 5.2.1 / 02-19-2015
+### Details
+https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
+
+### Changes
+* [BUGFIX] varnish: fix regression, bad argument in _parse_varnishstat. See [#1377][] (Thanks [@mms-gianni][])
+
+
+# 5.2.0 / 02-17-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
 
@@ -1419,6 +1427,7 @@ If you use ganglia, you want this version.
 [#1318]: https://github.com/DataDog/dd-agent/issues/1318
 [#1345]: https://github.com/DataDog/dd-agent/issues/1345
 [#1370]: https://github.com/DataDog/dd-agent/issues/1370
+[#1377]: https://github.com/DataDog/dd-agent/issues/1377
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
@@ -1452,6 +1461,7 @@ If you use ganglia, you want this version.
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
+[@mms-gianni]: https://github.com/mms-gianni
 [@morskoyzmey]: https://github.com/morskoyzmey
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
