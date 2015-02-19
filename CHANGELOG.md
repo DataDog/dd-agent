@@ -8,6 +8,7 @@ https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
 ### Changes
 * [BUGFIX] varnish: fix regression, bad argument in _parse_varnishstat. See [#1377][] (Thanks [@mms-gianni][])
 * [BUGFIX] source install: move pysnmp and pysnmp-mibs to optional reqs. See [#1380][]
+* [BUGFIX] etcd: service check OK is now returned. See [#1379][]
 
 
 # 5.2.0 / 02-17-2015
@@ -1429,6 +1430,7 @@ If you use ganglia, you want this version.
 [#1345]: https://github.com/DataDog/dd-agent/issues/1345
 [#1370]: https://github.com/DataDog/dd-agent/issues/1370
 [#1377]: https://github.com/DataDog/dd-agent/issues/1377
+[#1379]: https://github.com/DataDog/dd-agent/issues/1379
 [#1380]: https://github.com/DataDog/dd-agent/issues/1380
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
