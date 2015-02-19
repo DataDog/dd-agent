@@ -123,13 +123,22 @@ class AgentCheckTest(unittest.TestCase):
         if self.check is None:
             self.check = load_check(self.CHECK_NAME, config, agent_config)
 
+        error = None
         for instance in self.check.instances:
-            self.check.check(instance)
+            try:
+                self.check.check(instance)
+            except Exception, e:
+                # Catch error before re-raising it to be able to get service_checks
+                print"Exception {0} during check"
+                error = e
 
         self.metrics = self.check.get_metrics()
         self.events = self.check.get_events()
         self.service_checks = self.check.get_service_checks()
         self.warnings = self.check.get_warnings()
+
+        if error is not None:
+            raise error
 
     def print_current_state(self):
         print "++++++++++++ DEBUG ++++++++++++"
@@ -195,5 +204,18 @@ class AgentCheckTest(unittest.TestCase):
                 if not gtags:
                     continue
                 candidates.append((m_name, ts, val, mdata))
+
+        self._candidates_size_assert(candidates, count=count)
+
+    def assertServiceCheck(self, service_check_name, status=None, tags=None, count=None):
+        candidates = []
+        for sc in self.service_checks:
+            if sc['check'] == service_check_name:
+                if status is not None and sc['status'] != status:
+                    continue
+                if tags is not None and sorted(tags) != sorted(sc.get("tags")):
+                    continue
+
+                candidates.append(sc)
 
         self._candidates_size_assert(candidates, count=count)
