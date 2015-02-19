@@ -32,9 +32,7 @@ class RiakCSTest(AgentCheckTest):
             self.check = load_check(self.CHECK_NAME, self.config, {})
             self.assertRaises(error, lambda: self.run_check(self.config))
 
-            service_checks = self.check.get_service_checks()
-            self.assertEqual(len(service_checks), 1, service_checks)
-            sc = service_checks[0]
-            self.assertEquals(sc["check"], self.check.SERVICE_CHECK_NAME, sc["check"])
-            self.assertEquals(sc["status"], AgentCheck.CRITICAL, sc["status"])
-            self.assertEquals(sc["tags"], ['aggregation_key:localhost:8080'], sc["tags"])
+            self.assertEqual(len(self.service_checks), 1, self.service_checks)
+            self.assertServiceCheck(self.check.SERVICE_CHECK_NAME,
+                                    status=AgentCheck.CRITICAL,
+                                    tags=['aggregation_key:localhost:8080'])
