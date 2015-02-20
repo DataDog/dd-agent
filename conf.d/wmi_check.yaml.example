@@ -2,7 +2,7 @@ init_config:
 
 instances:
   # Each WMI query has 2 required options, `class` and `metrics` and four
-  # optional options, `filters`, `tag_by`, `constant_tags` and `link_tag`.
+  # optional options, `filters`, `tag_by`, `constant_tags` and `tag_queries`.
   #
   # `class` is the name of the WMI class, for example Win32_OperatingSystem
   # or Win32_PerfFormattedData_PerfProc_Process. You can find many of the
@@ -38,29 +38,41 @@ instances:
   #
   # `constant_tags` optionally lets you tag each metric with a set of fixed values
   #
-  # `link_tag` optionally specifies how to join to another property for tagging.
-  # Settings this will cause any instance number to be removed from tag_by values
+  # `tag_queries` optionally lets you specify a list of queries, to tag metrics
+  # with a target class property. Each item in the list is a set of
+  # [link source property, target class, link target class property, target property]
+  # where:
+  #
+  # - 'link source property' contains the link value
+  #
+  # - 'target class' is the class to link to
+  #
+  # - 'link target class property' is the target class property to link to
+  #
+  # - 'target property' contains the value to tag with
+  #
+  # It translates to a WMI query:
+  # SELECT 'target property' FROM 'target class'
+  #                 WHERE 'link target class property' = 'link source property'
+  #
+  # Note: setting this will cause any instance number to be removed from tag_by values
   # i.e. name:process#1 => name:process
-  # Params are:
-  #   property of source that contains the link value
-  #   class to link to
-  #   property of target class to link to
-  #   property of target class that contains the value to tag with
 
-
-  # Fetch the number of processes and users
+  # Fetch the number of processes and users.
   - class: Win32_OperatingSystem
     metrics:
       - [NumberOfProcesses, system.proc.count, gauge]
       - [NumberOfUsers, system.users.count, gauge]
 
-  # Fetch metrics for a single running application, called myapp
+  # Fetch metrics for a single running application, called myapp, tagging with 'role:test'.
   - class: Win32_PerfFormattedData_PerfProc_Process
     metrics:
       - [ThreadCount, my_app.threads.count, gauge]
       - [VirtualBytes, my_app.mem.virtual, gauge]
     filters:
       - Name: myapp
+    constant_tags:
+      - 'role:test'
 
   # Fetch process metrics for a set of processes, tagging by app name.
   - class: Win32_PerfFormattedData_PerfProc_Process
@@ -74,13 +86,13 @@ instances:
       - Name: app3
     tag_by: Name
 
-  # Fetch process metrics for every available process, tagging by app name, command line params and 2 constants.
+  # Fetch process metrics for a set of processes, tagging by app name, and command line params.
   - class: Win32_PerfFormattedData_PerfProc_Process
     metrics:
       - [IOReadBytesPerSec, proc.io.bytes_read, gauge]
-      - [IOWriteBytesPerSec, proc.io.bytes_written, gauge]
+    filters:
+      - Name: app1
+      - Name: app2
     tag_by: Name
-    constant_tags:
-        -   'role:test'
-        -   allapps
-    link_tag: [IDProcess, Win32_Process, Handle, CommandLine]
+    tag_queries:
+      - [IDProcess, Win32_Process, Handle, CommandLine]
