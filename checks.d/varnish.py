@@ -98,8 +98,7 @@ class Varnish(AgentCheck):
         varnishadm_path = instance.get('varnishadm')
         if varnishadm_path:
             secretfile_path = instance.get('secretfile', '/etc/varnish/secret')
-            varnishadm_path = 'sudo %s' % varnishadm_path
-            cmd = [varnishadm_path, '-S', secretfile_path, 'debug.health']
+            cmd = ['sudo', varnishadm_path, '-S', secretfile_path, 'debug.health']
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output, _ = proc.communicate()
             if output:
