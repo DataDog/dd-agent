@@ -2,10 +2,10 @@ from Queue import Empty
 import unittest
 import time
 from tests.common import load_check
-import logging
 import nose.tools as nt
 from config import AGENT_VERSION
 from util import headers as agent_headers
+
 
 class ServiceCheckTestCase(unittest.TestCase):
 
@@ -28,17 +28,16 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'url': 'https://google.com',
                 'name': 'UpService',
                 'timeout': 1,
-                'headers': { "X-Auth-Token": "SOME-AUTH-TOKEN"}
+                'headers': {"X-Auth-Token": "SOME-AUTH-TOKEN"}
             }]
         }
 
         self.init_check(config, 'http_check')
-        url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expiration = self.check._load_conf(config['instances'][0])
+        url, username, password, timeout, include_content, headers, response_time, content_match,\
+            tags, ssl, ssl_expiration = self.check._load_conf(config['instances'][0])
 
         self.assertTrue(headers["X-Auth-Token"] == "SOME-AUTH-TOKEN", headers)
         self.assertTrue(headers.get('User-Agent') == agent_headers(self.agentConfig).get('User-Agent'), headers)
-
-
 
     def testHTTPWarning(self):
         config = {
@@ -47,7 +46,7 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'url': 'http://127.0.0.1:55555',
                 'name': 'DownService',
                 'timeout': 1
-            },{
+            }, {
                 'url': 'https://google.com',
                 'name': 'UpService',
                 'timeout': 1
@@ -63,7 +62,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         warnings = self.check.get_warnings()
 
         self.assertTrue(len(warnings) == 4, warnings)
-        self.assertTrue(len([k for k in warnings if "Skipping SSL certificate validation" in k])==1, warnings)
+        self.assertTrue(len([k for k in warnings if "Skipping SSL certificate validation" in k]) == 1, warnings)
 
     def testHTTP(self):
         # No passwords this time
@@ -108,7 +107,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertEqual(events[0]['event_object'], 'DownService')
         assert service_checks
         self.assertEqual(type(service_checks), type([]))
-        self.assertEqual(len(service_checks), 2, service_checks) # 1 per instance
+        self.assertEqual(len(service_checks), 2, service_checks)  # 1 per instance
         verify_service_checks(service_checks)
 
         events = self.check.get_events()
@@ -124,7 +123,6 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.check.log.warning(self.check.notified)
         self.check.notified[('UpService', 'http_check')] = "DOWN"
 
-
         time.sleep(1)
         self.check.run()
         time.sleep(1)
@@ -139,7 +137,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         self.assertEqual(events[0]['event_object'], 'UpService', events)
         self.assertEqual(type(service_checks), type([]))
         # FIXME: sometimes it's 3 instead of 2
-        self.assertTrue(len(service_checks) >= 2, service_checks) # Only 2 because the second run wasn't flushed
+        self.assertTrue(len(service_checks) >= 2, service_checks)  # Only 2 because the second run wasn't flushed
         verify_service_checks(service_checks)
 
         # Cleanup the threads
@@ -155,12 +153,12 @@ class ServiceCheckTestCase(unittest.TestCase):
                 'port': 65530,
                 'timeout': 1,
                 'name': 'DownService'
-            },{
+            }, {
                 'host': '126.0.0.1',
                 'port': 65530,
                 'timeout': 1,
                 'name': 'DownService2'
-            },{
+            }, {
                 'host': 'datadoghq.com',
                 'port': 80,
                 'timeout': 1,
@@ -180,7 +178,6 @@ class ServiceCheckTestCase(unittest.TestCase):
                 else:
                     raise Exception('Bad check name %s' % service_check['check'])
 
-
         self.check.run()
         time.sleep(2)
         nt.assert_equals(self.check.pool.get_nworkers(), 3)
@@ -198,7 +195,7 @@ class ServiceCheckTestCase(unittest.TestCase):
             self.assertTrue(event['event_object'][:11] == 'DownService')
         assert service_checks
         self.assertEqual(type(service_checks), type([]))
-        self.assertEqual(len(service_checks), 3, service_checks) # 1 per instance
+        self.assertEqual(len(service_checks), 3, service_checks)  # 1 per instance
         verify_service_checks(service_checks)
 
         events = self.check.get_events()
@@ -228,7 +225,7 @@ class ServiceCheckTestCase(unittest.TestCase):
         assert service_checks
         self.assertEqual(type(service_checks), type([]))
         # FIXME: sometimes it's 4 instead of 3
-        self.assertTrue(len(service_checks) >= 3, service_checks) # Only 3 because the second run wasn't flushed
+        self.assertTrue(len(service_checks) >= 3, service_checks)  # Only 3 because the second run wasn't flushed
         verify_service_checks(service_checks)
 
     def tearDown(self):

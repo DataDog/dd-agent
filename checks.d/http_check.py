@@ -66,11 +66,9 @@ class HTTPCheck(NetworkCheck):
     def _check(self, instance):
         addr, username, password, timeout, include_content, headers, response_time,\
             content_match, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
-        content = ''
         start = time.time()
 
         service_checks = []
-        resp = None
 
         try:
             self.log.debug("Connecting to %s" % addr)
@@ -81,10 +79,9 @@ class HTTPCheck(NetworkCheck):
             if username is not None and password is not None:
                 auth = (username, password)
 
-            r = requests.get(addr, auth=auth,timeout=timeout, headers=headers,
-                verify=not disable_ssl_validation)
+            r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
+                             verify=not disable_ssl_validation)
             r.raise_for_status()
-
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
@@ -142,35 +139,28 @@ class HTTPCheck(NetworkCheck):
             self.gauge('network.http.response_time', running_time, tags=tags_list)
 
         if not service_checks:
-            if resp is not None and int(resp.status) >= 400:
-                self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
-                if not include_content:
-                    content = ''
-                service_checks.append((
-                    self.SC_STATUS, Status.DOWN, (resp.status, resp.reason, content or '')
-                ))
-            else:
-                # Host is UP
-                # Check content matching is set
-                if content_match:
-                    if re.search(content_match, content):
-                        self.log.debug("%s is found in return content" % content_match)
-                        service_checks.append((
-                            self.SC_STATUS, Status.UP, "UP"
-                        ))
-                    else:
-                        self.log.info("%s not found in content" % content_match)
-                        self.log.debug("Content returned:\n%s" % content)
-                        service_checks.append((
-                            self.SC_STATUS,
-                            Status.DOWN,
-                            "Content %s not found in response" % content_match
-                        ))
-                else:
-                    self.log.debug("%s is UP" % addr)
+            # Host is UP
+            # Check content matching is set
+            if content_match:
+                content = r.content
+                if re.search(content_match, content):
+                    self.log.debug("%s is found in return content" % content_match)
                     service_checks.append((
                         self.SC_STATUS, Status.UP, "UP"
                     ))
+                else:
+                    self.log.info("%s not found in content" % content_match)
+                    self.log.debug("Content returned:\n%s" % content)
+                    service_checks.append((
+                        self.SC_STATUS,
+                        Status.DOWN,
+                        "Content %s not found in response" % content_match
+                    ))
+            else:
+                self.log.debug("%s is UP" % addr)
+                service_checks.append((
+                    self.SC_STATUS, Status.UP, "UP"
+                ))
 
         if ssl_expire and urlparse(addr)[0] == "https":
             status, msg = self.check_cert_expiration(instance)

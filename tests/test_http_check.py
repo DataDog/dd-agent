@@ -13,22 +13,23 @@ CONFIG = {
         'check_certificate_expiration': False,
         'timeout': 1,
     }, {
-        'name': 'timing_out',
-        'url': 'https://github.com',
-        'check_certificate_expiration': False,
-        'timeout': 0.0001,
-    }, {
         'name': 'content_mismatch',
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': False,
-        'content_match': 'thereisnosuchcontent'
+        'content_match': 'thereisnosuchword'
     }, {
-        'name': 'this_one_is_ok',
+        'name': 'simple_match',
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': False,
         'content_match': 'github'
+    }, {
+        'name': 'regexp_match',
+        'url': 'https://github.com',
+        'timeout': 1,
+        'check_certificate_expiration': False,
+        'content_match': '(thereisnosuchword|github)'
     }
     ]
 }
@@ -85,7 +86,7 @@ class HTTPCheckTest(AgentCheckTest):
                 return self.check.get_service_checks()
             time.sleep(1)
             i += 1
-        raise Exception("Didn't get the right count of service checks in time {}"
+        raise Exception("Didn't get the right count of service checks in time {0}"
                         .format(self.check.service_checks))
 
     def test_check(self):
@@ -95,13 +96,13 @@ class HTTPCheckTest(AgentCheckTest):
 
         self.assertServiceCheck("http_check.bad_url", status=AgentCheck.CRITICAL,
                                 tags=['url:https://thereisnosuchlink.com'])
-        self.assertServiceCheck("http_check.timing_out", status=AgentCheck.CRITICAL,
-                                tags=['url:https://github.com'])
         self.assertServiceCheck("http_check.content_mismatch", status=AgentCheck.CRITICAL,
                                 tags=['url:https://github.com'])
-        self.assertRaises(AssertionError, self.assertServiceCheck, "http_check.content_mismatch",
-                          status=AgentCheck.OK, tags=['url:https://github.com'])
-        self.assertServiceCheck("http_check.this_one_is_ok", status=AgentCheck.OK,
+        self.assertServiceCheck("http_check.content_mismatch", status=AgentCheck.OK,
+                                tags=['url:https://github.com'], count=0)
+        self.assertServiceCheck("http_check.simple_match", status=AgentCheck.OK,
+                                tags=['url:https://github.com'])
+        self.assertServiceCheck("http_check.regexp_match", status=AgentCheck.OK,
                                 tags=['url:https://github.com'])
 
     def test_check_ssl(self):
