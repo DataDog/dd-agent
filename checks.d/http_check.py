@@ -51,6 +51,7 @@ class HTTPCheck(NetworkCheck):
         headers = agent_headers(self.agentConfig)
         headers.update(config_headers)
         url = instance.get('url', None)
+        content_match = instance.get('content_match', None)
         response_time = _is_affirmative(instance.get('collect_response_time', True))
         if url is None:
             raise Exception("Bad configuration. You must specify a url")
@@ -58,10 +59,10 @@ class HTTPCheck(NetworkCheck):
         ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
 
-        return url, username, password, timeout, include_content, headers, response_time, tags, ssl, ssl_expire
+        return url, username, password, timeout, include_content, headers, response_time, content_match, tags, ssl, ssl_expire
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
+        addr, username, password, timeout, include_content, headers, response_time, content_match, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
         content = ''
         start = time.time()
 
@@ -117,6 +118,18 @@ class HTTPCheck(NetworkCheck):
             tags_list = list(tags)
             tags_list.append('url:%s' % addr)
             self.gauge('network.http.response_time', running_time, tags=tags_list)
+
+        if content_match and int(resp.status) == 200:
+            if content_match in content:
+                self.log.debug("%s is found in return content" % content_match)
+            else:
+                self.log.info("%s not found in content" % content_match)
+                self.log.debug("Content returned:\n%s" % content)
+                service_checks.append((
+                    self.SC_STATUS,
+                    Status.DOWN,
+                    "Content %s not found in response" % content_match
+                ))
 
         if not service_checks:
             if resp is not None and int(resp.status) >= 400:
