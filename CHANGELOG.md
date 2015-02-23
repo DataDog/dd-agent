@@ -45,6 +45,8 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
 * Windows Services
 * Windows System metrics
 
+### Endpoints
+Starting from this version of the agent, the default endpoint URL `app.datadoghq.com` is replaced by an ad-hoc by version endpoint: `5-2-0-app.agent.datadoghq.com`. We might use other endpoints to better route the traffic on our end in the future. See more details at https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration#new-agent-endpoints
 
 ### Changes
 * [FEATURE] Dogstatsd: Add an option to namespace all metrics. See [#1210][] (Thanks [@igor47][])
