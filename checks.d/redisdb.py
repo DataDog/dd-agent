@@ -4,6 +4,7 @@ Redis checks
 # stdlib
 import re
 import time
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -77,6 +78,7 @@ class Redis(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.connections = {}
+        self.last_timestamp_seen = defaultdict(int)
 
     def get_library_versions(self):
         return {"redis": redis.__version__}
@@ -189,6 +191,9 @@ class Redis(AgentCheck):
         self.rate('redis.net.commands', info['total_commands_processed'],
                   tags=tags)
 
+        # Check the SLOWLOG
+        self._check_slowlog(instance, tags)
+
         # Check some key lengths if asked
         key_list = instance.get('keys')
         if key_list is not None:
@@ -214,6 +219,40 @@ class Redis(AgentCheck):
                         if instance.get("warn_on_missing_keys", True):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
+
+    def _check_slowlog(self, instance, tags):
+        """Retrieve length and entries from Redis' SLOWLOG
+
+        This will parse through all entries of the SLOWLOG and select ones
+        within the time range between the last seen entries and now
+
+        The default slowlog-max-len is 128. This may be configured higher, and
+        should be passed in as ``max_slow_entries``.
+        """
+        # TODO: get this value from config
+        # max_slow_entries = instance.max_slow_entries or 128
+        max_slow_entries = 128
+
+        # Generate a unique id for this instance to be persisted across runs
+        ts_key = self._generate_instance_key(instance)
+
+        # Get all slowlog entries
+        conn = self._get_conn(instance)
+        slowlogs = conn.slowlog_get(max_slow_entries)
+
+        # Find slowlog entries between last timestamp and now using start_time
+        slowlogs = [s for s in slowlogs if s['start_time'] > self.last_timestamp_seen[ts_key]]
+
+        # Slowlog entry looks like:
+        #  {'command': 'LPOP somekey',
+        #   'duration': 11238,
+        #   'id': 496L,
+        #   'start_time': 1422529869}
+        for slowlog in slowlogs:
+            tags += 'command:' + slowlog['command'].split()[0]
+            value = slowlog['duration']
+
+            self.histogram('redis.slowlog.micros', value, tags=tags)
 
     def check(self, instance):
         if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
