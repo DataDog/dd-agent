@@ -6,6 +6,7 @@ from checks import AgentCheck, CheckException
 from collections import OrderedDict
 
 import psycopg2 as pg
+
 class ShouldRestartException(Exception): pass
 
 class PgBouncer(AgentCheck):
@@ -52,7 +53,7 @@ class PgBouncer(AgentCheck):
         'query': """SHOW POOLS""",
     }
 
-    def __init__(self, name, init_config, agentConfig):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.dbs = {}
 
@@ -138,7 +139,8 @@ class PgBouncer(AgentCheck):
             elif not user:
                 raise CheckException("Please specify a user to connect to PgBouncer as.")
 
-        connection.autocommit = True
+        connection.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        # connection.autocommit = True
 
         self.dbs[key] = connection
         return connection

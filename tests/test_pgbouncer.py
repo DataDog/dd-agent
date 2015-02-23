@@ -1,19 +1,23 @@
 import unittest
 from tests.common import load_check
+
+from nose.plugins.attrib import attr
+
 import time
 from pprint import pprint
 
+@attr(requires='pgbouncer')
 class TestPgbouncer(unittest.TestCase):
 
-    def testChecks(self):
+    def test_checks(self):
 
         config = {
             'instances': [
                 {
-                'host': 'localhost',
+                'host': '127.0.0.1',
                 'port': 15433,
-                'username': 'toto',
-                'password': 'toto'
+                'username': 'datadog',
+                'password': 'datadog'
                 }
             ]
         }
@@ -26,10 +30,6 @@ class TestPgbouncer(unittest.TestCase):
 
         self.check.run()
         metrics = self.check.get_metrics()
-        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.total_requests'])       >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.total_received'])       >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.total_sent'])       >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.total_query_time'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.pools.cl_active'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.pools.cl_waiting'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.pools.sv_active'])       >= 1, pprint(metrics))
@@ -39,13 +39,17 @@ class TestPgbouncer(unittest.TestCase):
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.pools.sv_login'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.pools.maxwait'])       >= 1, pprint(metrics))
 
-        # Rate metrics, need 2 collection rounds
-        time.sleep(1)
-        metrics = self.check.get_metrics()
+        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.total_query_time'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.avg_req'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.avg_recv'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.avg_sent'])       >= 1, pprint(metrics))
         self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.avg_query'])       >= 1, pprint(metrics))
+        # Rate metrics, need 2 collection rounds
+        time.sleep(1)
+        metrics = self.check.get_metrics()
+        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.requests_per_second'])       >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.bytes_received_per_second'])       >= 1, pprint(metrics))
+        self.assertTrue(len([m for m in metrics if m[0] == u'pgbouncer.stats.bytes_sent_per_second'])       >= 1, pprint(metrics))
 
         # Service checks
         service_checks = self.check.get_service_checks()
