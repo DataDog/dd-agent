@@ -10,9 +10,14 @@ import logging
 import os
 import os.path as osp
 import platform
-from subprocess import CalledProcessError, check_call, check_output  # To manage the agent on OSX
+# To manage the agent on OSX
+from subprocess import (
+    CalledProcessError,
+    check_call,
+    check_output,
+)
 import sys
-import thread
+import thread  # To manage the windows process asynchronously
 
 # 3p
 # GUI Imports
@@ -54,22 +59,27 @@ import spyderlib.baseconfig
 spyderlib.baseconfig.IMG_PATH = [""]
 from spyderlib.widgets.sourcecode.codeeditor import CodeEditor
 
-# 3rd Party
+# 3rd Party others
 import tornado.template as template
 import yaml
 
-
 # Datadog
-from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus, logger_info
+from checks.check_status import (
+    CollectorStatus,
+    DogstatsdStatus,
+    ForwarderStatus,
+    logger_info,
+)
 from config import (
     get_confd_path,
     get_config,
     get_config_path,
     get_logging_config,
-    get_version,
+    get_version
 )
 from util import yLoader
 from utils.platform import Platform
+
 # Constants describing the agent state
 AGENT_RUNNING = 0
 AGENT_START_PENDING = 1
@@ -83,16 +93,14 @@ if Platform.is_windows():
     import win32serviceutil
     import win32service
     WIN_STATUS_TO_AGENT = {
-        win32service.SERVICE_RUNNING : AGENT_RUNNING,
-        win32service.SERVICE_START_PENDING : AGENT_START_PENDING,
-        win32service.SERVICE_STOP_PENDING : AGENT_STOP_PENDING,
-        win32service.SERVICE_STOPPED : AGENT_STOPPED,
+        win32service.SERVICE_RUNNING: AGENT_RUNNING,
+        win32service.SERVICE_START_PENDING: AGENT_START_PENDING,
+        win32service.SERVICE_STOP_PENDING: AGENT_STOP_PENDING,
+        win32service.SERVICE_STOPPED: AGENT_STOPPED,
     }
 
 
 log = logging.getLogger(__name__)
-
-SHIPPED_IMAGES_FOLDER = '/opt/datadog-agent/agent/images'
 
 EXCLUDED_WINDOWS_CHECKS = [
     'btrfs',
@@ -125,11 +133,11 @@ MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 DATADOG_SERVICE = "DatadogAgent"
 
 HUMAN_SERVICE_STATUS = {
-    AGENT_RUNNING : 'Agent is running',
-    AGENT_START_PENDING : 'Agent is starting',
-    AGENT_STOP_PENDING : 'Agent is stopping',
-    AGENT_STOPPED : 'Agent is stopped',
-    AGENT_UNKNOWN : "Cannot get Agent status",
+    AGENT_RUNNING: 'Agent is running',
+    AGENT_START_PENDING: 'Agent is starting',
+    AGENT_STOP_PENDING: 'Agent is stopping',
+    AGENT_STOPPED: 'Agent is stopped',
+    AGENT_UNKNOWN: "Cannot get Agent status",
 }
 
 REFRESH_PERIOD = 5000
@@ -146,6 +154,7 @@ SYSTEM_TRAY_MENU = [
     (RESTART_AGENT, lambda: agent_manager("restart")),
     (EXIT_MANAGER, lambda: sys.exit(0)),
 ]
+
 
 def get_checks():
     checks = {}
@@ -172,6 +181,7 @@ def get_checks():
 
     return checks_list
 
+
 class EditorFile(object):
     def __init__(self, file_path, description):
         self.file_path = file_path
@@ -182,7 +192,7 @@ class EditorFile(object):
 
     def save(self, content):
         try:
-            f = open(self.file_path,'w')
+            f = open(self.file_path, 'w')
             f.write(content)
             self.content = content
             info_popup("File saved.")
@@ -190,22 +200,26 @@ class EditorFile(object):
             warning_popup("Unable to save file: \n %s" % str(e))
             raise
 
+
 class DatadogConf(EditorFile):
-    def __init__(self, config_path, config_file):
-        self.config = config_file
+    def __init__(self, config_path):
         EditorFile.__init__(self, config_path, "Agent settings file: datadog.conf")
 
     @property
     def api_key(self):
-        api_key = self.config.get('api_key', None)
+        config = get_config(parse_args=False, cfg_path=self.file_path)
+        api_key = config.get('api_key', None)
         if not api_key or api_key == 'APIKEYHERE':
             return None
         return api_key
 
     def check_api_key(self, editor):
         if self.api_key is None:
-            api_key, ok = QInputDialog.getText(None, "Add your API KEY",
-            "You must first set your api key in this file. You can find it here: https://app.datadoghq.com/account/settings#api")
+            api_key, ok = QInputDialog.getText(
+                None, "Add your API KEY",
+                "You must first set your api key in this file."
+                " You can find it here: https://app.datadoghq.com/account/settings#api"
+            )
             if ok and api_key:
                 new_content = []
                 for line in self.content.splitlines():
@@ -221,8 +235,13 @@ class DatadogConf(EditorFile):
                     agent_manager("restart")
                 else:
                     agent_manager("start")
+            elif not ok:
+                warning_popup("The agent needs an API key to send metrics to Datadog")
+                if agent_status() != AGENT_STOPPED:
+                    agent_manager("stop")
             else:
                 self.check_api_key(editor)
+
 
 class AgentCheck(EditorFile):
     def __init__(self, filename, ext, conf_d_directory):
@@ -249,6 +268,7 @@ class AgentCheck(EditorFile):
     def save(self, content):
         check_yaml_syntax(content)
         EditorFile.save(self, content)
+
 
 class PropertiesWidget(QWidget):
     def __init__(self, parent):
@@ -289,22 +309,21 @@ class PropertiesWidget(QWidget):
         self.group_code.setLayout(layout)
 
         self.enable_button = QPushButton(get_icon("apply.png"),
-                                      "Enable", self)
+                                         "Enable", self)
 
         self.save_button = QPushButton(get_icon("filesave.png"),
-                                      "Save", self)
+                                       "Save", self)
 
         self.disable_button = QPushButton(get_icon("delete.png"),
-                                      "Disable", self)
+                                          "Disable", self)
 
         self.refresh_button = QPushButton(get_icon("restart.png"),
-                                      "Refresh", self)
+                                          "Refresh", self)
         hlayout = QHBoxLayout()
         hlayout.addWidget(self.save_button)
         hlayout.addWidget(self.enable_button)
         hlayout.addWidget(self.disable_button)
         hlayout.addWidget(self.refresh_button)
-
 
         vlayout = QVBoxLayout()
         vlayout.addWidget(self.group_desc)
@@ -362,6 +381,7 @@ class PropertiesWidget(QWidget):
         except Exception:
             self.editor.set_text("Log file not found")
 
+
 class HTMLWindow(QTextEdit):
     def __init__(self, parent=None):
         QTextEdit.__init__(self, parent)
@@ -396,9 +416,13 @@ class MainWindow(QSplitter):
         if Platform.is_windows():
             prefix_conf = 'windows_'
         else:
-            add_image_path(SHIPPED_IMAGES_FOLDER)
+            add_image_path(osp.join(os.getcwd(), 'images'))
+            # add datadog-agent in PATH
+            os.environ['PATH'] = "{0}:{1}".format(
+                osp.join(os.getcwd(), '../MacOS'),
+                os.environ['PATH']
+            )
 
-        conf = get_config(parse_args=False)
         log_conf = get_logging_config()
 
         QSplitter.__init__(self, parent)
@@ -410,7 +434,7 @@ class MainWindow(QSplitter):
         self.connect(self.sysTray, SIGNAL("activated(QSystemTrayIcon::ActivationReason)"), self.__icon_activated)
 
         checks = get_checks()
-        datadog_conf = DatadogConf(get_config_path(), conf)
+        datadog_conf = DatadogConf(get_config_path())
         self.create_logs_files_windows(log_conf, prefix_conf)
 
         listwidget = QListWidget(self)
@@ -419,9 +443,9 @@ class MainWindow(QSplitter):
         self.properties = PropertiesWidget(self)
 
         self.setting_button = QPushButton(get_icon("info.png"),
-                                      "Logs and Status", self)
+                                          "Logs and Status", self)
         self.menu_button = QPushButton(get_icon("settings.png"),
-                                      "Actions", self)
+                                       "Actions", self)
         self.settings = [
             ("Forwarder Logs", lambda: [self.properties.set_log_file(self.forwarder_log_file),
                 self.show_html(self.properties.group_code, self.properties.html_window, False)]),
@@ -437,18 +461,18 @@ class MainWindow(QSplitter):
         ]
 
         self.agent_settings = QPushButton(get_icon("edit.png"),
-                                      "Settings", self)
+                                          "Settings", self)
         self.connect(self.agent_settings, SIGNAL("clicked()"),
-            lambda: [self.properties.set_datadog_conf(datadog_conf),
-                self.show_html(self.properties.group_code, self.properties.html_window, False)])
+                     lambda: [self.properties.set_datadog_conf(datadog_conf),
+                     self.show_html(self.properties.group_code, self.properties.html_window, False)])
 
         self.setting_menu = SettingMenu(self.settings)
         self.connect(self.setting_button, SIGNAL("clicked()"),
-            lambda: self.setting_menu.popup(self.setting_button.mapToGlobal(QPoint(0,0))))
+                     lambda: self.setting_menu.popup(self.setting_button.mapToGlobal(QPoint(0, 0))))
 
         self.manager_menu = Menu(self)
         self.connect(self.menu_button, SIGNAL("clicked()"),
-            lambda: self.manager_menu.popup(self.menu_button.mapToGlobal(QPoint(0,0))))
+                     lambda: self.manager_menu.popup(self.menu_button.mapToGlobal(QPoint(0, 0))))
 
         holdingBox = QGroupBox("", self)
         Box = QVBoxLayout(self)
@@ -544,7 +568,6 @@ class Menu(QMenu):
 
         self.connect(self, SIGNAL("aboutToShow()"), lambda: self.update_options())
 
-
     def update_options(self):
         status = agent_status()
         if status == AGENT_RUNNING:
@@ -559,6 +582,7 @@ class Menu(QMenu):
             self.options[START_AGENT].setEnabled(False)
             self.options[RESTART_AGENT].setEnabled(False)
             self.options[STOP_AGENT].setEnabled(False)
+
 
 class SettingMenu(QMenu):
 
@@ -596,6 +620,7 @@ def disable_check(properties):
     properties.disable_button.setEnabled(False)
     check.disable()
 
+
 def enable_check(properties):
     check = properties.current_file
 
@@ -614,12 +639,14 @@ def save_file(properties):
     new_content = properties.editor.toPlainText().__str__()
     current_file.save(new_content)
 
+
 def check_yaml_syntax(content):
     try:
         yaml.load(content, Loader=yLoader)
     except Exception, e:
         warning_popup("Unable to parse yaml: \n %s" % str(e))
         raise
+
 
 def service_manager(action):
     try:
@@ -632,6 +659,7 @@ def service_manager(action):
     except Exception, e:
         warning_popup("Couldn't %s service: \n %s" % (action, str(e)))
 
+
 def service_manager_status():
     try:
         return WIN_STATUS_TO_AGENT[
@@ -640,11 +668,13 @@ def service_manager_status():
     except Exception:
         return AGENT_UNKNOWN
 
+
 def osx_manager(action):
     try:
         check_call(['datadog-agent', action])
     except Exception, e:
         warning_popup("Couldn't execute datadog-agent %s: \n %s" % (action, str(e)))
+
 
 def osx_manager_status():
     try:
@@ -660,11 +690,13 @@ def osx_manager_status():
         else:
             return AGENT_UNKNOWN
 
+
 def agent_status():
     if Platform.is_windows():
         return service_manager_status()
     else:
         return osx_manager_status()
+
 
 def agent_manager(action, async=True):
     if Platform.is_windows():
@@ -676,8 +708,10 @@ def agent_manager(action, async=True):
     else:
         thread.start_new_thread(manager, (action,))
 
+
 def warning_popup(message, parent=None):
     QMessageBox.warning(parent, 'Message', message, QMessageBox.Ok)
+
 
 def info_popup(message, parent=None):
     QMessageBox.information(parent, 'Message', message, QMessageBox.Ok)

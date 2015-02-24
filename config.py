@@ -30,7 +30,6 @@ from utils.subprocess_output import subprocess
 AGENT_VERSION = "5.5.0"
 DATADOG_CONF = "datadog.conf"
 UNIX_CONFIG_PATH = '/etc/dd-agent'
-SHIPPED_CONFIG_PATH = '/opt/datadog-agent/etc'
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
 
@@ -160,6 +159,18 @@ def _windows_checksd_path():
         return _checksd_path(cur_path)
 
 
+def _mac_config_path():
+    return _config_path(os.path.join(os.getcwd()))
+
+
+def _mac_confd_path():
+    return _confd_path(os.path.join(os.getcwd()))
+
+
+def _mac_checksd_path():
+    return _checksd_path(os.path.join(os.getcwd()))
+
+
 def _unix_config_path():
     return _config_path(UNIX_CONFIG_PATH)
 
@@ -173,15 +184,6 @@ def _unix_checksd_path():
     # because checks.d will hang with the other python modules
     cur_path = os.path.dirname(os.path.realpath(__file__))
     return _checksd_path(cur_path)
-
-
-def _shipped_config_path():
-    return _config_path(SHIPPED_CONFIG_PATH)
-
-
-def _shipped_confd_path():
-    return _confd_path(SHIPPED_CONFIG_PATH)
-
 
 def _config_path(directory):
     path = os.path.join(directory, DATADOG_CONF)
@@ -226,7 +228,7 @@ def get_config_path(cfg_path=None, os_name=None):
         if os_name == 'windows':
             return _windows_config_path()
         elif os_name == 'mac':
-            return _shipped_config_path()
+            return _mac_config_path()
         else:
             return _unix_config_path()
     except PathNotFound, e:
@@ -323,9 +325,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'statsd_metric_namespace': None,
         'utf8_decoding': False
     }
-
-    if not os.path.exists(agentConfig['additional_checksd']):
-        agentConfig['additional_checksd'] = '/opt/datadog-agent/etc/checks.d/'
 
     # Config handling
     try:
@@ -627,7 +626,7 @@ def get_confd_path(osname=None):
         if osname == 'windows':
             return _windows_confd_path()
         elif osname == 'mac':
-            return _shipped_confd_path()
+            return _mac_confd_path()
         else:
             return _unix_confd_path()
     except PathNotFound, e:
@@ -648,6 +647,8 @@ def get_checksd_path(osname=None):
         osname = get_os()
     if osname == 'windows':
         return _windows_checksd_path()
+    elif osname == 'mac':
+        return _mac_checksd_path()
     else:
         return _unix_checksd_path()
 
@@ -688,7 +689,8 @@ def get_ssl_certificate(osname, filename):
         if os.path.exists(path):
             log.debug("Certificate file found at %s" % str(path))
             return path
-
+    elif osname == 'mac':
+        return os.path.join(os.getcwd(), filename)
     else:
         cur_path = os.path.dirname(os.path.realpath(__file__))
         path = os.path.join(cur_path, filename)

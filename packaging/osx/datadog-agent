@@ -1,15 +1,29 @@
 #!/usr/bin/env sh
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
 NAME="datadog-agent"
 DESC="Datadog Agent"
-AGENTPATH="/opt/datadog-agent/agent/agent.py"
-FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
-DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
-AGENTCONF="/opt/datadog-agent/etc/datadog.conf"
-SUPERVISOR_PIDFILE="/opt/datadog-agent/tmp/datadog-supervisord.pid"
-SUPERVISOR_CONF_FILE="/opt/datadog-agent/etc/supervisor.conf"
-SUPERVISOR_SOCK="/opt/datadog-agent/tmp/datadog-supervisor.sock"
-SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
-SUPERVISORD_PATH="/opt/datadog-agent/bin/supervisord"
+AGENTPATH="agent"
+FORWARDERPATH="ddagent"
+DOGSTATSDPATH="dogstatsd"
+AGENTCONF="$DIR/../Resources/datadog.conf"
+SUPERVISOR_PIDFILE="/tmp/datadog-supervisord.pid"
+SUPERVISOR_CONF_FILE="../Resources/supervisor.conf"
+SUPERVISOR_SOCK="/tmp/datadog-supervisor.sock"
+SUPERVISORCTL_PATH="supervisorctl"
+SUPERVISORD_PATH="supervisord"
+
+# To find the executables
+PATH="$DIR":$PATH
+
+# to be able to run shipped python
+PYTHONHOME="$DIR"/../Resources
 
 check_status() {
     # If the socket exists, we can use supervisorctl
@@ -24,7 +38,7 @@ check_status() {
                                        grep -v dogstatsd |
                                        grep $NAME |
                                        grep -c RUNNING)
-        supervisor_config_programs=$(grep -v dogstatsd $SUPERVISOR_CONF_FILE |
+        supervisor_config_programs=$(grep -v dogstatsd "$DIR/$SUPERVISOR_CONF_FILE" |
                                      grep -c '\[program:')
 
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
@@ -43,7 +57,7 @@ check_status() {
 
 case $1 in
     start)
-        if [ ! -f $AGENTCONF ]; then
+        if [ ! -f "$AGENTCONF" ]; then
             echo "$AGENTCONF not found. Exiting."
             exit 3
         fi
@@ -74,11 +88,11 @@ case $1 in
     restart)
         check_status > /dev/null
         if [ $? -eq 0 ]; then
-            $0 stop
+            "$0" stop
         else
             echo "$DESC was not running"
         fi
-        $0 start
+        "$0" start
         ;;
 
     status)
