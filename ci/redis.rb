@@ -40,8 +40,27 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop redis
+    task :cleanup => ['ci:common:cleanup'] do
+      # Shutdown redis
+      conf_files = ["#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/redis/auth.conf",
+                    "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/redis/noauth.conf"]
+      for f in conf_files do
+        pass, port = nil, nil
+        File.readlines(f).each do |line|
+          param = line.split(' ')
+          if param[0] == 'port'
+            port = param[1]
+          elsif param[0] == 'requirepass'
+            pass = param[1]
+          end
+        end
+        if pass and port
+          sh %(#{redis_rootdir}/src/redis-cli -p #{port} -a #{pass} SHUTDOWN)
+        elsif port
+          sh %(#{redis_rootdir}/src/redis-cli -p #{port} SHUTDOWN)
+        end
+      end
+    end
 
     task :execute do
       exception = nil

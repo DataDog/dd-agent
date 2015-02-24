@@ -11,8 +11,10 @@ from checks import AgentCheck
 # 3rd party
 import redis
 
+
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
+    slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
 
     SOURCE_TYPE_NAME = 'redis'
@@ -63,7 +65,9 @@ class Redis(AgentCheck):
         'master_last_io_seconds_ago':   'redis.replication.last_io_seconds_ago',
         'master_sync_in_progress':      'redis.replication.sync',
         'master_sync_left_bytes':       'redis.replication.sync_left_bytes',
-
+        'repl_backlog_histlen':         'redis.replication.backlog_histlen',
+        'master_repl_offset':           'redis.replication.master_repl_offset',
+        'slave_repl_offset':            'redis.replication.slave_repl_offset',
     }
 
     RATE_KEYS = {
@@ -109,7 +113,7 @@ class Redis(AgentCheck):
 
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
-                    'connection_pool', 'charset', 'errors', 'unix_socket_path']
+                               'connection_pool', 'charset', 'errors', 'unix_socket_path']
 
                 # Set a default timeout (in seconds) if no timeout is specified in the instance config
                 instance['socket_timeout'] = instance.get('socket_timeout', 5)
@@ -130,7 +134,7 @@ class Redis(AgentCheck):
         if 'unix_socket_path' in instance:
             tags_to_add = ["unix_socket_path:%s" % instance.get("unix_socket_path")]
         else:
-            tags_to_add =  ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
+            tags_to_add = ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
 
         if instance.get('db') is not None:
             tags_to_add.append("db:%s" % instance.get('db'))
@@ -215,8 +219,23 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
+        # Save the replication delay for each slave
+        for key in info:
+            if self.slave_key_pattern.match(key) and isinstance(info[key], dict):
+                slave_offset = info[key].get('offset')
+                master_offset = info.get('master_repl_offset')
+                if slave_offset and master_offset and master_offset - slave_offset >= 0:
+                    delay = master_offset - slave_offset
+                    # Add id, ip, and port tags for the slave
+                    slave_tags = tags[:]
+                    for slave_tag in ('ip', 'port'):
+                        if slave_tag in info[key]:
+                            slave_tags.append('slave_{0}:{1}'.format(slave_tag, info[key][slave_tag]))
+                    slave_tags.append('slave_id:%s' % key.lstrip('slave'))
+                    self.gauge('redis.replication.delay', delay, tags=slave_tags)
+
     def check(self, instance):
-        if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
+        if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
-        self._check_db(instance,custom_tags)
+        self._check_db(instance, custom_tags)
