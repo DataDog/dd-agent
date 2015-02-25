@@ -1,14 +1,25 @@
+import logging
+import os
 import time
 import unittest
+
 from nose.plugins.attrib import attr
-import logging
-logger = logging.getLogger()
-from checks import (Check, AgentCheck,
-    CheckException, UnknownValue, CheckException, Infinity)
-from checks.collector import Collector
+from nose.plugins.skip import SkipTest
+
 from aggregator import MetricsAggregator
-from common import load_check
+from checks import (
+    AgentCheck,
+    Check,
+    CheckException,
+    CheckException,
+    Infinity,
+    UnknownValue,
+)
+from checks.collector import Collector
+from tests.common import load_check
 from util import get_hostname
+
+logger = logging.getLogger()
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -174,7 +185,8 @@ class TestCore(unittest.TestCase):
             assert tag in all_tags, all_tags
 
     def test_min_collection_interval(self):
-
+        if os.environ.get('TRAVIS', False):
+            raise SkipTest('ntp server times out too often on Travis')
         config = {'instances': [{'host': '0.amazon.pool.ntp.org', 'timeout': 1}], 'init_config': {}}
 
         agentConfig = {

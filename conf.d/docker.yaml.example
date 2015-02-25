@@ -18,7 +18,7 @@ instances:
 
     # Use tag names that don't conflict.
     # Keep it false if you have old dashboard using the old tag names. Default: false.
-    # new_tag_names: true
+    new_tag_names: true
 
     # Tag metrics with the command running inside the container.
     # tag_by_command: false
@@ -65,3 +65,8 @@ instances:
     # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
     #
     # collect_all_metrics: false
+
+    # Collect images stats
+    # Number of available active images and intermediate images as gauges. Default: true.
+    #
+    collect_images_stats: false

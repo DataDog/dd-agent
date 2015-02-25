@@ -1,6 +1,10 @@
 import unittest
 import time
+
+# agent
 from tests.common import load_check
+
+# 3rd party
 from nose.plugins.attrib import attr
 
 # This test is dependent of having a fully open snmpd responding at localhost:161
@@ -8,9 +12,9 @@ from nose.plugins.attrib import attr
 # This setup should normally be handled by the .travis.yml file, look there if
 # you want to see how to run these tests locally
 
+
 @attr(requires='snmpd')
 class TestSNMP(unittest.TestCase):
-
     def setUp(self):
         self.agentConfig = {
             'version': '0.1',
@@ -44,19 +48,68 @@ class TestSNMP(unittest.TestCase):
         self.check = load_check('snmp', self.config, self.agentConfig)
         self.assertTrue(self.check.cmd_generator.ignoreNonIncreasingOid)
 
+    def test_types_support(self):
+        self.config = {
+            "instances": [{
+                "ip_address": "localhost",
+                "port": 11111,
+                "community_string": "public",
+                "metrics": [{
+                    "OID": "1.3.6.1.2.1.7.1",  # Counter32
+                    "name": "IAmACounter32"
+                }, {
+                    "OID": "1.3.6.1.2.1.4.31.1.1.6.1",  # Counter32
+                    "name": "IAmACounter64"
+                }, {
+                    "OID": "1.3.6.1.2.1.4.24.6.0",  # Gauge32
+                    "name": "IAmAGauge32"
+                }, {
+                    "OID": "1.3.6.1.2.1.88.1.1.1.0",  # Integer
+                    "name": "IAmAnInteger"
+                }, {
+                    "OID": "1.3.6.1.2.1.25.6.3.1.2.637",  # String (not supported)
+                    "name": "IAmString"
+                }
+                ]
+            }]
+        }
+        self.check = load_check('snmp', self.config, self.agentConfig)
+
+        self.check.check(self.config['instances'][0])
+
+        metrics = self.check.get_metrics()
+        self.assertEqual(len(metrics), 2)
+
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+
+        # Run the check again so we get the rates
+        self.check.check(self.config['instances'][0])
+        metrics = self.check.get_metrics()
+        self.assertEqual(len(metrics), 4)
+
+        expected_metrics = ['snmp.IAmACounter32', 'snmp.IAmACounter64',
+                            'snmp.IAmAGauge32', 'snmp.IAmAnInteger']
+        for metric in expected_metrics:
+            for result in metrics:
+                if result[0] == metric:
+                    break
+            else:
+                self.fail("Missing metric: %s" % metric)
+
     def test_scalar_SNMPCheck(self):
         self.config = {
                 "instances": [{
                     "ip_address": "localhost",
-                    "port":11111,
+                    "port": 11111,
                     "community_string": "public",
                     "metrics": [{
-                        "OID": "1.3.6.1.2.1.7.1.0", # Counter (needlessly specify the index)
+                        "OID": "1.3.6.1.2.1.7.1.0",  # Counter (needlessly specify the index)
                         "name": "udpDatagrams"
-                        },{
-                        "OID": "1.3.6.1.2.1.6.10", # Counter
+                        }, {
+                        "OID": "1.3.6.1.2.1.6.10",  # Counter
                         "name": "tcpInSegs"
-                        },{
+                        }, {
                         "MIB": "TCP-MIB",          # Gauge
                         "symbol": "tcpCurrEstab",
                         }]
@@ -97,7 +150,6 @@ class TestSNMP(unittest.TestCase):
         for sc in service_checks:
             self.assertEquals(sc['status'], self.check.OK, sc)
             self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
-
 
     def test_table_SNMPCheck(self):
         self.config = {
@@ -234,6 +286,45 @@ class TestSNMP(unittest.TestCase):
         for sc in service_checks:
             self.assertEquals(sc['status'], self.check.CRITICAL, sc)
             self.assertEquals(sc['tags'], ['snmp_device:localhost'], sc)
+
+    def test_fallback_snmpgetnext(self):
+        self.config = {
+            "instances": [{
+                "ip_address": "localhost",
+                "port": 11111,
+                "community_string": "public",
+                "metrics": [{
+                    "OID": "1.3.6.1.2.1.25.6.3.1.4",  # Integer
+                    "name": "needFallback"
+                }, {
+                    "OID": "1.3.6.1.2.1.25.6.3.1.4.0",  # Integer
+                    "name": "noFallbackAndSameResult"
+                }, {
+                    "OID": "1.3.6.1.2.1.25.6.3.1.4.547",  # Integer
+                    "name": "failIfFallback"
+                }
+                ]
+            }]
+        }
+
+        # snmpget -v2c -c public localhost:11111 1.3.6.1.2.1.25.6.3.1.4
+        # iso.3.6.1.2.1.25.6.3.1.4 = No Such Instance currently exists at this OID
+        # snmpgetnext -v2c -c public localhost:11111 1.3.6.1.2.1.25.6.3.1.4
+        # iso.3.6.1.2.1.25.6.3.1.4.0 = INTEGER: 4
+
+        self.check = load_check('snmp', self.config, self.agentConfig)
+
+        self.check.check(self.config['instances'][0])
+
+        metrics = self.check.get_metrics()
+        self.assertEqual(len(metrics), 3)
+        metrics = sorted(metrics, key=lambda metric: metric[0])
+
+        self.assertEqual(metrics[1][0], 'snmp.needFallback')
+        self.assertEqual(metrics[2][0], 'snmp.noFallbackAndSameResult')
+
+        # Should have the same value
+        self.assertEqual(metrics[1][2], metrics[2][2])
 
 
 if __name__ == "__main__":

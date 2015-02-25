@@ -1,5 +1,6 @@
 ## -*- coding: latin-1 -*-
 import unittest
+import os
 import os.path
 import tempfile
 
@@ -42,7 +43,7 @@ class TestConfig(unittest.TestCase):
 
         p = PidFile('test', pid_dir)
         path = p.get_path()
-        self.assertEquals(path, "/tmp/test.pid")
+        self.assertEquals(path, os.path.join(tempfile.gettempdir(), 'test.pid'))
 
         pid = "666"
         pid_f = open(path, 'w')

@@ -35,7 +35,9 @@ class Etcd(AgentCheck):
 
     SELF_GAUGES = {
         'sendPkgRate': 'etcd.self.send.pkgrate',
-        'sendBandwidthRate': 'etcd.self.send.bandwidthrate'
+        'sendBandwidthRate': 'etcd.self.send.bandwidthrate',
+        'recvPkgRate': 'etcd.self.recv.pkgrate',
+        'recvBandwidthRate': 'etcd.self.recv.bandwidthrate'
     }
 
     SELF_RATES = {
@@ -52,41 +54,44 @@ class Etcd(AgentCheck):
         instance_tags = instance.get('tags', [])
         # Append the instance's URL in case there are more than one, that
         # way they can tell the difference!
-        instance_tags.append("url:{}".format(url))
+        instance_tags.append("url:{0}".format(url))
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
 
-        storeResponse = self.get_store_metrics(url, timeout)
-        if storeResponse is not None:
-            for key in self.STORE_RATES:
-                if key in storeResponse:
-                    self.rate(self.STORE_RATES[key], storeResponse[key], tags=instance_tags)
-                else:
-                    self.log.warn("Missing key {} in stats.".format(key))
-
-            for key in self.STORE_GAUGES:
-                if key in storeResponse:
-                    self.gauge(self.STORE_GAUGES[key], storeResponse[key], tags=instance_tags)
-                else:
-                    self.log.warn("Missing key {} in stats.".format(key))
-
-        selfResponse = self.get_self_metrics(url, timeout)
-        if selfResponse is not None:
-            if selfResponse['state'] == 'leader':
-                self.gauge('etcd.self.leader', 1, tags=instance_tags)
+        self_response = self.get_self_metrics(url, timeout)
+        if self_response is not None:
+            if self_response['state'] == 'StateLeader':
+                instance_tags.append('etcd_state:leader')
             else:
-                self.gauge('etcd.self.leader', 0, tags=instance_tags)
+                instance_tags.append('etcd_state:follower')
 
             for key in self.SELF_RATES:
-                if key in selfResponse:
-                    self.rate(self.SELF_RATES[key], selfResponse[key], tags=instance_tags)
+                if key in self_response:
+                    self.rate(self.SELF_RATES[key], self_response[key], tags=instance_tags)
                 else:
-                    self.log.warn("Missing key {} in stats.".format(key))
+                    self.log.warn("Missing key {0} in stats.".format(key))
 
             for key in self.SELF_GAUGES:
-                if key in selfResponse:
-                    self.gauge(self.SELF_GAUGES[key], selfResponse[key], tags=instance_tags)
+                if key in self_response:
+                    self.gauge(self.SELF_GAUGES[key], self_response[key], tags=instance_tags)
                 else:
-                    self.log.warn("Missing key {} in stats.".format(key))
+                    self.log.warn("Missing key {0} in stats.".format(key))
+
+        store_response = self.get_store_metrics(url, timeout)
+        if store_response is not None:
+            for key in self.STORE_RATES:
+                if key in store_response:
+                    self.rate(self.STORE_RATES[key], store_response[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {0} in stats.".format(key))
+
+            for key in self.STORE_GAUGES:
+                if key in store_response:
+                    self.gauge(self.STORE_GAUGES[key], store_response[key], tags=instance_tags)
+                else:
+                    self.log.warn("Missing key {0} in stats.".format(key))
+
+        if self_response is not None and store_response is not None:
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=instance_tags)
 
     def get_self_metrics(self, url, timeout):
         return self.get_json(url + "/v2/stats/self", timeout)
@@ -101,13 +106,13 @@ class Etcd(AgentCheck):
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Timeout when hitting %s" % url,
-                tags = ["url:{}".format(url)])
-            return None
+                tags = ["url:{0}".format(url)])
+            raise
 
         if r.status_code != 200:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message="Got %s when hitting %s" % (r.status_code, url),
-                tags = ["url:{}".format(url)])
-            return None
+                tags = ["url:{0}".format(url)])
+            raise Exception("Http status code {0} on url {1}".format(r.status_code, url))
 
         return r.json()

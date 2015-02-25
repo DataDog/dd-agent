@@ -63,6 +63,8 @@ env:
     - TRAVIS_FLAVOR=haproxy
     - TRAVIS_FLAVOR=ssh
     - TRAVIS_FLAVOR=fluentd
+    - TRAVIS_FLAVOR=rabbitmq
+    - TRAVIS_FLAVOR=etcd
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
@@ -83,5 +85,5 @@ after_error:
   - cat /tmp/ci.log
 
 notifications:
-  hipchat:
-    - secure: "DilCAl72f0WU54QIeHzwEfGn2at5+WzEfd3+sFARFyHNje4YLkELnF3iUw5aolaroNUc4Kr0NEYKmpsVQ9EWtKR2DosF2CdMNVv79hntYPyWwU+rfZTRI6NJlnTr1BMUEi7nMraVFDGbpYkXm/qqBPFKp8/cBOHbfNn9m+0dffg="
+  slack:
+    secure: DTv6FhbyKCfQVAQkz4QXDwZeKkGQsFFSoFBdry/Rn+tWet3y/dSDDRCVl7wumJbfsURCtR7qAp2wAn0h/6RGjFBYozzO3Y7UlxA0mtKgIFi7jyMz287NLnIwTN6deHqEaMpMdpiWeBn9QANF/Scyl5/isCOwUpRXYgQR9beV/Rk=

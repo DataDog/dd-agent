@@ -27,6 +27,7 @@ from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
 from socket import gaierror, error as socket_error
+from urlparse import urlparse
 
 # Tornado
 import tornado.httpserver
@@ -38,7 +39,7 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
 from emitter import http_emitter
-from config import get_config
+from config import get_config, get_version
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
@@ -57,6 +58,11 @@ DD_ENDPOINT  = "dd_url"
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
+HEADERS_TO_REMOVE = [
+    'Host',
+    'Content-Length',
+]
+
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
@@ -65,6 +71,11 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
+
+LEGACY_DATADOG_URLS = [
+    "app.datadoghq.com",
+    "app.datad0g.com",
+]
 
 class EmitterThread(threading.Thread):
 
@@ -164,6 +175,7 @@ class MetricTransaction(Transaction):
     def __init__(self, data, headers):
         self._data = data
         self._headers = headers
+        self._headers['DD-Forwarder-Version'] = get_version()
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -180,11 +192,27 @@ class MetricTransaction(Transaction):
     def __sizeof__(self):
         return sys.getsizeof(self._data)
 
+    @classmethod
+    def get_url_endpoint(cls, endpoint):
+        default_url = cls._application._agentConfig[endpoint]
+        parsed_url = urlparse(default_url)
+        if parsed_url.netloc not in LEGACY_DATADOG_URLS:
+            return default_url
+
+        subdomain = parsed_url.netloc.split(".")[0]
+
+        # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
+        return default_url.replace(subdomain, 
+            "{0}-{1}.agent".format(
+                get_version().replace(".", "-"),
+                subdomain))
+
     def get_url(self, endpoint):
+        endpoint_base_url = self.get_url_endpoint(endpoint)
         api_key = self._application._agentConfig.get('api_key')
         if api_key:
-            return self._application._agentConfig[endpoint] + '/intake?api_key=%s' % api_key
-        return self._application._agentConfig[endpoint] + '/intake'
+            return endpoint_base_url + '/intake?api_key=%s' % api_key
+        return endpoint_base_url + '/intake'
 
     def flush(self):
         for endpoint in self._endpoints:
@@ -202,21 +230,18 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
+            # Remove headers that were passed by the emitter. Those don't apply anymore
+            # This is pretty hacky though as it should be done in pycurl or curl or tornado
+            for h in HEADERS_TO_REMOVE:
+                if h in tornado_client_params['headers']:
+                    del tornado_client_params['headers'][h]
+                    log.debug("Removing {0} header.".format(h))
+
             force_use_curl = False
 
             if proxy_settings is not None:
                 force_use_curl = True
                 if pycurl is not None:
-                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
-                    # This is pretty hacky though as it should be done in pycurl or curl or tornado
-                    if 'Content-Length' in tornado_client_params['headers']:
-                        del tornado_client_params['headers']['Content-Length']
-                        log.debug("Removing Content-Length header.")
-
-                    if 'Host' in tornado_client_params['headers']:
-                        del tornado_client_params['headers']['Host']
-                        log.debug("Removing Host header.")
-
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                         proxy_settings['host'], proxy_settings['port']))
                     tornado_client_params['proxy_host'] = proxy_settings['host']
@@ -259,9 +284,10 @@ class MetricTransaction(Transaction):
 class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint):
+        endpoint_base_url = self.get_url_endpoint(endpoint)
         config = self._application._agentConfig
         api_key = config['api_key']
-        url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
+        url = endpoint_base_url + '/api/v1/series/?api_key=' + api_key
         return url
 
     def get_data(self):

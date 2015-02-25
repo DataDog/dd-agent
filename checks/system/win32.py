@@ -223,19 +223,22 @@ class Disk(Check):
                     device_name=name)
 
     def check_disk_latency(self, agentConfig):
-        disk_io_counters = psutil.disk_io_counters(True)
-        for disk_name, disk in disk_io_counters.iteritems():
-            read_time_pct = disk.read_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
-            write_time_pct = disk.write_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
-            self.save_sample("system.disk.read_time_pct", read_time_pct, device_name=disk_name) 
-            self.save_sample("system.disk.write_time_pct", write_time_pct, device_name=disk_name)
+        try:
+            disk_io_counters = psutil.disk_io_counters(True)
+            for disk_name, disk in disk_io_counters.iteritems():
+                read_time_pct = disk.read_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+                write_time_pct = disk.write_time * 100.0 / 1000.0 # x100 to have it as a percentage, /1000 as psutil returns the value in ms
+                self.save_sample("system.disk.read_time_pct", read_time_pct, device_name=disk_name)
+                self.save_sample("system.disk.write_time_pct", write_time_pct, device_name=disk_name)
+        except RuntimeError:
+            self.logger.warning("Unable to fetch disk latency metrics")
 
 
     def check(self, agentConfig):
         self.check_disk_usage(agentConfig)
         self.check_disk_latency(agentConfig)
         return self.get_metrics()
-        
+
 
 class IO(Check):
     def __init__(self, logger):

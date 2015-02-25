@@ -12,23 +12,31 @@ from pysnmp.smi import builder
 import pysnmp.proto.rfc1902 as snmp_type
 
 # Additional types that are not part of the SNMP protocol. cf RFC 2856
-(CounterBasedGauge64, ZeroBasedCounter64) = builder.MibBuilder().importSymbols("HCNUM-TC",
-                                                                               "CounterBasedGauge64",
-                                                                               "ZeroBasedCounter64")
+(CounterBasedGauge64, ZeroBasedCounter64) = builder.MibBuilder().importSymbols(
+    "HCNUM-TC",
+    "CounterBasedGauge64",
+    "ZeroBasedCounter64")
 
 # Metric type that we support
-SNMP_COUNTERS = [snmp_type.Counter32.__name__,
-                 snmp_type.Counter64.__name__,
-                 ZeroBasedCounter64.__name__]
-SNMP_GAUGES = [snmp_type.Gauge32.__name__,
-               snmp_type.Unsigned32.__name__,
-               CounterBasedGauge64.__name__]
+SNMP_COUNTERS = frozenset([
+    snmp_type.Counter32.__name__,
+    snmp_type.Counter64.__name__,
+    ZeroBasedCounter64.__name__])
+
+SNMP_GAUGES = frozenset([
+    snmp_type.Gauge32.__name__,
+    snmp_type.Unsigned32.__name__,
+    CounterBasedGauge64.__name__,
+    snmp_type.Integer.__name__,
+    snmp_type.Integer32.__name__])
 
 OID_BATCH_SIZE = 10
 
+
 def reply_invalid(oid):
     return noSuchInstance.isSameTypeWith(oid) or \
-           noSuchObject.isSameTypeWith(oid)
+        noSuchObject.isSameTypeWith(oid)
+
 
 class SnmpCheck(AgentCheck):
 
@@ -45,7 +53,8 @@ class SnmpCheck(AgentCheck):
         ignore_nonincreasing_oid = False
         if init_config is not None:
             mibs_path = init_config.get("mibs_folder")
-            ignore_nonincreasing_oid = _is_affirmative(init_config.get("ignore_nonincreasing_oid", False))
+            ignore_nonincreasing_oid = _is_affirmative(
+                init_config.get("ignore_nonincreasing_oid", False))
         SnmpCheck.create_command_generator(mibs_path, ignore_nonincreasing_oid)
 
     @classmethod
@@ -112,6 +121,13 @@ class SnmpCheck(AgentCheck):
         port = instance.get("port", 161) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address, port), timeout=timeout, retries=retries)
 
+    def raise_on_error_indication(self, error_indication, instance):
+        if error_indication:
+            message = "{0} for instance {1}".format(error_indication,
+                                                    instance["ip_address"])
+            instance["service_check_error"] = message
+            raise Exception(message)
+
     def check_table(self, instance, oids, lookup_names):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
@@ -123,49 +139,87 @@ class SnmpCheck(AgentCheck):
         dict[oid/metric_name][row index] = value
         In case of scalar objects, the row index is just 0
         '''
+        # UPDATE: We used to perform only a snmpgetnext command to fetch metric values.
+        # It returns the wrong value when the OID passeed is referring to a specific leaf.
+        # For example:
+        # snmpgetnext -v2c -c public localhost:11111 1.36.1.2.1.25.4.2.1.7.222
+        # iso.3.6.1.2.1.25.4.2.1.7.224 = INTEGER: 2
+        # SOLUTION: perform a snmget command and fallback with snmpgetnext if not found
         transport_target = self.get_transport_target(instance, self.TIMEOUT, self.RETRIES)
         auth_data = self.get_auth_data(instance)
 
-        snmp_command = self.cmd_generator.nextCmd
-
-    	first_oid = 0
-    	all_binds = []
+        first_oid = 0
+        all_binds = []
         results = defaultdict(dict)
 
-    	while first_oid < len(oids):
-	        error_indication, error_status, error_index, var_binds = snmp_command(
-	            auth_data,
-	            transport_target,
-	            *(oids[first_oid:first_oid+OID_BATCH_SIZE]),
-	            lookupValues = lookup_names,
-	            lookupNames = lookup_names
-	            )
-                if error_indication:
-                    message = "{0} for instance {1}".format(error_indication,
-                                                          instance["ip_address"])
-                    instance["service_check_error"] = message
-                    raise Exception(message)
-                else:
-                    if error_status:
-                        message = "{0} for instance {1}".format(error_status.prettyPrint(),
-                                                                       instance["ip_address"])
-                        instance["service_check_error"] = message
-                        self.log.warning(message)
-                    else:
-                        all_binds.extend(var_binds)
-    		first_oid = first_oid + OID_BATCH_SIZE
+        while first_oid < len(oids):
 
-        for table_row in all_binds:
-            for result_oid, value in table_row:
-                if lookup_names:
-                    object = result_oid.getMibSymbol()
-                    metric =  object[1]
-                    indexes = object[2]
-                    results[metric][indexes] = value
+            # Start with snmpget command
+            snmp_command = self.cmd_generator.getCmd
+            error_indication, error_status, error_index, var_binds = snmp_command(
+                auth_data,
+                transport_target,
+                *(oids[first_oid:first_oid + OID_BATCH_SIZE]),
+                lookupValues=lookup_names,
+                lookupNames=lookup_names)
+
+            # Raise on error_indication
+            self.raise_on_error_indication(error_indication, instance)
+
+            # Continue on error_status
+            if error_status:
+                message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                        instance["ip_address"])
+                instance["service_check_error"] = message
+                self.log.warning(message)
+                continue
+
+            missing_results = []
+            complete_results = []
+
+            for var in var_binds:
+                result_oid, value = var
+                if reply_invalid(value):
+                    oid_tuple = result_oid.asTuple()
+                    oid = ".".join([str(i) for i in oid_tuple])
+                    missing_results.append(oid)
                 else:
-                    oid = result_oid.asTuple()
-                    matching = ".".join([str(i) for i in oid])
-                    results[matching] = value
+                    complete_results.append(var)
+
+            if missing_results:
+                # If we didn't catch the metric using snmpget, try snmpnext
+                snmp_command = self.cmd_generator.nextCmd
+                error_indication, error_status, error_index, var_binds_table = snmp_command(
+                    auth_data,
+                    transport_target,
+                    *missing_results,
+                    lookupValues=lookup_names,
+                    lookupNames=lookup_names)
+
+                # Raise on error_indication
+                self.raise_on_error_indication(error_indication, instance)
+
+                # Continue on error_status
+                if error_status:
+                    message = "{0} for instance {1}".format(error_status.prettyPrint(),
+                                                            instance["ip_address"])
+                    instance["service_check_error"] = message
+                    self.log.warning(message)
+                    continue
+                for table_row in var_binds_table:
+                    complete_results.extend(table_row)
+
+            all_binds.extend(complete_results)
+            first_oid = first_oid + OID_BATCH_SIZE
+
+        for result_oid, value in all_binds:
+            if lookup_names:
+                _, metric, indexes = result_oid.getMibSymbol()
+                results[metric][indexes] = value
+            else:
+                oid = result_oid.asTuple()
+                matching = ".".join([str(i) for i in oid])
+                results[matching] = value
 
         return results
 
@@ -174,7 +228,7 @@ class SnmpCheck(AgentCheck):
         Perform two series of SNMP requests, one for all that have MIB asociated
         and should be looked up and one for those specified by oids
         '''
-        tags = instance.get("tags",[])
+        tags = instance.get("tags", [])
         ip_address = instance["ip_address"]
         table_oids = []
         raw_oids = []
@@ -190,13 +244,7 @@ class SnmpCheck(AgentCheck):
                     self.log.warning("Can't generate MIB object for variable : %s\n"
                                      "Exception: %s", metric, e)
             elif 'OID' in metric:
-                if metric['OID'].endswith('.0'):
-                    # oid containing the .0 index, as it's a scalar
-                    # because we are querying using getnext, we need to remove it
-                    self.log.debug("Removing the trailing .0 in the oid")
-                    raw_oids.append(metric['OID'][:-2])
-                else:
-                    raw_oids.append(metric['OID'])
+                raw_oids.append(metric['OID'])
             else:
                 raise Exception('Unsupported metric in config file: %s' % metric)
         try:
@@ -219,7 +267,7 @@ class SnmpCheck(AgentCheck):
             tags = ["snmp_device:%s" % ip_address]
             if "service_check_error" in instance:
                 self.service_check(service_check_name, AgentCheck.CRITICAL, tags=tags,
-                    message=instance["service_check_error"])
+                                   message=instance["service_check_error"])
             else:
                 self.service_check(service_check_name, AgentCheck.OK, tags=tags)
 
@@ -232,7 +280,7 @@ class SnmpCheck(AgentCheck):
         Submit the results to the aggregator.
         '''
         tags = instance.get("tags", [])
-        tags = tags + ["snmp_device:"+instance.get('ip_address')]
+        tags = tags + ["snmp_device:" + instance.get('ip_address')]
         for metric in instance.get('metrics', []):
             if 'OID' in metric:
                 queried_oid = metric['OID']
@@ -242,9 +290,9 @@ class SnmpCheck(AgentCheck):
                         break
                 else:
                     self.log.warning("No matching results found for oid %s",
-                                                                  queried_oid)
+                                     queried_oid)
                     continue
-                name = metric.get('name','unnamed_metric')
+                name = metric.get('name', 'unnamed_metric')
                 self.submit_metric(name, value, tags)
 
     def report_table_metrics(self, instance, results):
@@ -343,16 +391,13 @@ class SnmpCheck(AgentCheck):
         # wrongfully returns True in the case of CounterBasedGauge64
         # and Counter64 for example
         snmp_class = snmp_value.__class__.__name__
-        for counter_class in SNMP_COUNTERS:
-            if snmp_class==counter_class:
-                value = int(snmp_value)
-                self.rate(metric_name, value, tags)
-                return
-        for gauge_class in SNMP_GAUGES:
-            if snmp_class==gauge_class:
-                value = int(snmp_value)
-                self.gauge(metric_name, value, tags)
-                return
+        if snmp_class in SNMP_COUNTERS:
+            value = int(snmp_value)
+            self.rate(metric_name, value, tags)
+            return
+        if snmp_class in SNMP_GAUGES:
+            value = int(snmp_value)
+            self.gauge(metric_name, value, tags)
+            return
 
         self.log.warning("Unsupported metric type %s", snmp_class)
-

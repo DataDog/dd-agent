@@ -9,6 +9,9 @@ import zlib
 import requests
 import simplejson as json
 
+# project
+from config import get_version
+
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.WARN)
@@ -17,6 +20,13 @@ requests_log.propagate = True
 # From http://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
 control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
+
+NO_PROXY = {
+# See https://github.com/kennethreitz/requests/issues/879
+# and https://github.com/DataDog/dd-agent/issues/1112
+    'no': 'pass',
+}
+
 
 def remove_control_chars(s):
     return control_char_re.sub('', s)
@@ -45,8 +55,8 @@ def http_emitter(message, log, agentConfig):
     url = "{0}/intake?api_key={1}".format(url, apiKey)
 
     try:
-        r = requests.post(url, data=zipped, timeout=10,
-            headers=post_headers(agentConfig, zipped))
+        r = requests.post(url, data=zipped, timeout=5,
+            headers=post_headers(agentConfig, zipped), proxies=NO_PROXY)
 
         r.raise_for_status()
 
@@ -67,6 +77,7 @@ def post_headers(agentConfig, payload):
         'Content-Type': 'application/json',
         'Content-Encoding': 'deflate',
         'Accept': 'text/html, */*',
-        'Content-MD5': md5(payload).hexdigest()
+        'Content-MD5': md5(payload).hexdigest(),
+        'DD-Collector-Version': get_version()
     }
     

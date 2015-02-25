@@ -1,9 +1,20 @@
 Changes
 =======
 
-# 5.2.0 / Unreleased
+# 5.2.1 / 02-20-2015
 ### Details
-https://github.com/DataDog/dd-agent/compare/5.1.1...master
+https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
+
+### Changes
+* [BUGFIX] varnish: fix regression, bad argument in _parse_varnishstat. See [#1377][] (Thanks [@mms-gianni][])
+* [BUGFIX] source install: move pysnmp and pysnmp-mibs to optional reqs. See [#1380][]
+* [BUGFIX] etcd: service check OK is now returned. See [#1379][]
+* [BUGFIX] varnish: fix varnishadm sudoed call with subprocess. See [#1389][]
+
+
+# 5.2.0 / 02-17-2015
+### Details
+https://github.com/DataDog/dd-agent/compare/5.1.1...5.2.0
 
 ### New and updated integrations
 * CouchDB
@@ -11,9 +22,11 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Docker
 * ElasticSearch
 * etcd
+* fluentd
 * Gearman
 * GUnicorn
 * HTTP
+* JMXFetch
 * KyotoTycoon
 * Marathon
 * Mesos
@@ -21,8 +34,10 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Postgresql
 * Process
 * Riak
+* RiakCS
 * SNMP
 * Supervisor
+* TeamCity
 * TokuMX
 * Varnish
 * VSphere
@@ -30,6 +45,8 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * Windows Services
 * Windows System metrics
 
+### Endpoints
+Starting from this version of the agent, the default endpoint URL `app.datadoghq.com` is replaced by an ad-hoc by version endpoint: `5-2-0-app.agent.datadoghq.com`. We might use other endpoints to better route the traffic on our end in the future. See more details at https://github.com/DataDog/dd-agent/wiki/Network-Traffic-and-Proxy-Configuration#new-agent-endpoints
 
 ### Changes
 * [FEATURE] Dogstatsd: Add an option to namespace all metrics. See [#1210][] (Thanks [@igor47][])
@@ -53,6 +70,14 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [FEATURE] Windows Services: Monitor state of Windows Services. See [#1225][]
 * [FEATURE] Windows: Get more system metrics regarding memory and disk usage.
 * [FEATURE] Windows: Better GUI
+* [FEATURE] Adding “min” metric to histograms. See [#1219][]
+* [FEATURE] Activemq: New ActiveMQ XML check that collect more metrics. See [#1227][] (Thanks [@brettlangdon][])
+* [FEATURE] TeamCity: New TeamCity integration. See [#1171][] (Thanks [@AirbornePorcine][])
+* [FEATURE] RiakCS: Add a RiakCS Integration. See [#1101][] (Thanks [@glickbot][])
+* [FEATURE] FluentD: Add a FluentD integration. See [#1080][] (Thanks [@takus][])
+* [FEATURE] Docker: Configurable image count collection. See [#1345][]
+* [FEATURE] SNMP: Integer and Integer32 metric types support. See [#1318][]
+* [FEATURE] JMXFetch: Fetch more JVM (Non)Heap variables by default. See [#42](https://github.com/DataDog/jmxfetch/pull/42)
 
 * [BUGFIX] Docker: Filter events too. See [#1285][]
 * [BUGFIX] ElasticSearch: Handle Timeout. See [#1267][]
@@ -64,7 +89,14 @@ https://github.com/DataDog/dd-agent/compare/5.1.1...master
 * [BUGFIX] Postgresql: Fix buffers_backend_fsync. See [#1275][]
 * [BUGFIX] SNMP: Fix "tooBig" SNMP error. See [#1155][] (Thanks [@bpuzon][])
 * [BUGFIX] Zookeeper: Fix bad command sending.
-
+* [BUGFIX] ElasticSearch: Fix host tagging. See [#1282][]
+* [BUGFIX] SNMP: Fix non-increasing OID issue. See [#1281][]
+* [BUGFIX] Dogstatsd: Properly handle UTF-8 packets. See [#1279][]
+* [BUGFIX] SQLServer: Fix for Latin1_General_BIN Collection Servers. See [#1214][] (Thanks [@PedroMiguelFigueiredo][])
+* [BUGFIX] FreeBSD: Get full interface name. See [#1141][] (Thanks [@mutemule][])
+* [BUGFIX] SNMP: Fix a 'Missing OID' issue. See [#1318][]
+* [BUGFIX] JMXFetch: Fix a memory leak issue. See [#30](https://github.com/DataDog/jmxfetch/issues/30)
+* [BUGFIX] Windows Event Log: Fix a timezone issue. See [#1370][]
 
 # 5.1.1 / 12-09-2014
 #### Details
@@ -78,7 +110,7 @@ https://github.com/DataDog/dd-agent/compare/5.1.0...5.1.1
 
 * [BUGFIX] MongoDB: Fix TypeError that was happening in some cases. See [#1222][]
 * [BUGFIX] BTRFS: Handle "unknown" usage type. See [#1221][]
-* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed. 
+* [BUGFIX] Windows: When uninstalling the Agent, the uninstaller was mistakenly telling the user that the machine would reboot. This is fixed.
 
 
 # 5.1.0 / 11-24-2014
@@ -152,7 +184,7 @@ This is a security update regarding POODLE (CVE-2014-3566).
 
 The Omnibus package will now bundle OpenSSL 1.0.1j without support of SSLv3 (no-ssl3 flag) and Python 2.7.8 with a patch that disables SSLv3 unless explicity asked http://bugs.python.org/issue22638.
 
-This Omnibus package also adds support of the sqlite3 library for Python. 
+This Omnibus package also adds support of the sqlite3 library for Python.
 
 # 5.0.3 (Windows only)
 
@@ -198,7 +230,7 @@ the Datadog user will need to be modified from ```'datadog'@'localhost'``` to ``
            # FLUSH PRIVILEGES;
        ```
 * If you were using a custom check that needed python dependencies you will have to reinstall them using the bundled pip:
-     
+
        ```
 sudo /opt/datadog-agent/embedded/bin/pip install YOUR_DEPENDENCY
        ```
@@ -1124,6 +1156,7 @@ If you use ganglia, you want this version.
 [#16]: https://github.com/DataDog/dd-agent/issues/16
 [#21]: https://github.com/DataDog/dd-agent/issues/21
 [#23]: https://github.com/DataDog/dd-agent/issues/23
+[#30]: https://github.com/DataDog/dd-agent/issues/30
 [#42]: https://github.com/DataDog/dd-agent/issues/42
 [#51]: https://github.com/DataDog/dd-agent/issues/51
 [#55]: https://github.com/DataDog/dd-agent/issues/55
@@ -1341,18 +1374,28 @@ If you use ganglia, you want this version.
 [#1068]: https://github.com/DataDog/dd-agent/issues/1068
 [#1069]: https://github.com/DataDog/dd-agent/issues/1069
 [#1073]: https://github.com/DataDog/dd-agent/issues/1073
+[#1080]: https://github.com/DataDog/dd-agent/issues/1080
+[#1101]: https://github.com/DataDog/dd-agent/issues/1101
 [#1105]: https://github.com/DataDog/dd-agent/issues/1105
+[#1115]: https://github.com/DataDog/dd-agent/issues/1115
+[#1116]: https://github.com/DataDog/dd-agent/issues/1116
 [#1117]: https://github.com/DataDog/dd-agent/issues/1117
 [#1123]: https://github.com/DataDog/dd-agent/issues/1123
 [#1124]: https://github.com/DataDog/dd-agent/issues/1124
+[#1141]: https://github.com/DataDog/dd-agent/issues/1141
 [#1152]: https://github.com/DataDog/dd-agent/issues/1152
+[#1153]: https://github.com/DataDog/dd-agent/issues/1153
 [#1155]: https://github.com/DataDog/dd-agent/issues/1155
 [#1162]: https://github.com/DataDog/dd-agent/issues/1162
 [#1163]: https://github.com/DataDog/dd-agent/issues/1163
 [#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1171]: https://github.com/DataDog/dd-agent/issues/1171
 [#1173]: https://github.com/DataDog/dd-agent/issues/1173
+[#1175]: https://github.com/DataDog/dd-agent/issues/1175
 [#1181]: https://github.com/DataDog/dd-agent/issues/1181
 [#1187]: https://github.com/DataDog/dd-agent/issues/1187
+[#1188]: https://github.com/DataDog/dd-agent/issues/1188
+[#1192]: https://github.com/DataDog/dd-agent/issues/1192
 [#1200]: https://github.com/DataDog/dd-agent/issues/1200
 [#1201]: https://github.com/DataDog/dd-agent/issues/1201
 [#1202]: https://github.com/DataDog/dd-agent/issues/1202
@@ -1361,12 +1404,16 @@ If you use ganglia, you want this version.
 [#1207]: https://github.com/DataDog/dd-agent/issues/1207
 [#1208]: https://github.com/DataDog/dd-agent/issues/1208
 [#1210]: https://github.com/DataDog/dd-agent/issues/1210
+[#1211]: https://github.com/DataDog/dd-agent/issues/1211
 [#1213]: https://github.com/DataDog/dd-agent/issues/1213
+[#1214]: https://github.com/DataDog/dd-agent/issues/1214
 [#1218]: https://github.com/DataDog/dd-agent/issues/1218
+[#1219]: https://github.com/DataDog/dd-agent/issues/1219
 [#1221]: https://github.com/DataDog/dd-agent/issues/1221
 [#1222]: https://github.com/DataDog/dd-agent/issues/1222
 [#1225]: https://github.com/DataDog/dd-agent/issues/1225
 [#1226]: https://github.com/DataDog/dd-agent/issues/1226
+[#1227]: https://github.com/DataDog/dd-agent/issues/1227
 [#1235]: https://github.com/DataDog/dd-agent/issues/1235
 [#1236]: https://github.com/DataDog/dd-agent/issues/1236
 [#1238]: https://github.com/DataDog/dd-agent/issues/1238
@@ -1377,9 +1424,22 @@ If you use ganglia, you want this version.
 [#1272]: https://github.com/DataDog/dd-agent/issues/1272
 [#1273]: https://github.com/DataDog/dd-agent/issues/1273
 [#1275]: https://github.com/DataDog/dd-agent/issues/1275
+[#1279]: https://github.com/DataDog/dd-agent/issues/1279
+[#1281]: https://github.com/DataDog/dd-agent/issues/1281
+[#1282]: https://github.com/DataDog/dd-agent/issues/1282
 [#1285]: https://github.com/DataDog/dd-agent/issues/1285
+[#1310]: https://github.com/DataDog/dd-agent/issues/1310
+[#1318]: https://github.com/DataDog/dd-agent/issues/1318
+[#1345]: https://github.com/DataDog/dd-agent/issues/1345
+[#1370]: https://github.com/DataDog/dd-agent/issues/1370
+[#1377]: https://github.com/DataDog/dd-agent/issues/1377
+[#1379]: https://github.com/DataDog/dd-agent/issues/1379
+[#1380]: https://github.com/DataDog/dd-agent/issues/1380
+[#1389]: https://github.com/DataDog/dd-agent/issues/1389
+[@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
+[@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
 [@arthurnn]: https://github.com/arthurnn
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
@@ -1388,7 +1448,9 @@ If you use ganglia, you want this version.
 [@clly]: https://github.com/clly
 [@dcrosta]: https://github.com/dcrosta
 [@djensen47]: https://github.com/djensen47
+[@donalguy]: https://github.com/donalguy
 [@echohead]: https://github.com/echohead
+[@glickbot]: https://github.com/glickbot
 [@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
 [@host]: https://github.com/host
@@ -1407,7 +1469,10 @@ If you use ganglia, you want this version.
 [@mastrolinux]: https://github.com/mastrolinux
 [@micktwomey]: https://github.com/micktwomey
 [@mike-lerch]: https://github.com/mike-lerch
+[@mms-gianni]: https://github.com/mms-gianni
 [@morskoyzmey]: https://github.com/morskoyzmey
+[@mutemule]: https://github.com/mutemule
+[@nambrosch]: https://github.com/nambrosch
 [@ordenull]: https://github.com/ordenull
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford
@@ -1416,5 +1481,6 @@ If you use ganglia, you want this version.
 [@skingry]: https://github.com/skingry
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees
+[@takus]: https://github.com/takus
 [@tomduckering]: https://github.com/tomduckering
 [@walkeran]: https://github.com/walkeran

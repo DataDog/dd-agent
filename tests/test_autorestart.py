@@ -25,12 +25,12 @@ class TestAutoRestart(unittest.TestCase):
 
     def _start_foreground(self):
         # Run the agent in the foreground with auto-restarting on.
-        args = shlex.split('python agent.py foreground')
+        args = shlex.split('python agent.py foreground --autorestart')
         self.agent_foreground = subprocess.Popen(args)
         time.sleep(5)
 
     def _start_daemon(self):
-        args = shlex.split('python agent.py start')
+        args = shlex.split('python agent.py start --autorestart')
         self.agent_daemon = subprocess.Popen(args)
         time.sleep(5)
 
@@ -44,8 +44,6 @@ class TestAutoRestart(unittest.TestCase):
         return sorted([int(p) for p in pids], reverse=True)
 
     def test_foreground(self):
-        if os.environ.get('TRAVIS', False):
-            raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_foreground()
 
         grep_str = 'agent.py foreground'
@@ -73,8 +71,6 @@ class TestAutoRestart(unittest.TestCase):
         self.agent_foreground = None
 
     def test_daemon(self):
-        if os.environ.get('TRAVIS', False):
-            raise SkipTest('Autorestart tests don\'t work on travis')
         self._start_daemon()
 
         grep_str = 'agent.py start'
@@ -97,8 +93,7 @@ class TestAutoRestart(unittest.TestCase):
         child_pid, parent_pid = self._get_child_parent_pids(grep_str)
 
         # Kill the daemon process.
-        args = shlex.split('python agent.py stop')
-        subprocess.Popen(args).communicate()
+        os.kill(parent_pid, signal.SIGTERM)
         self.agent_daemon = None
 
 if __name__ == '__main__':

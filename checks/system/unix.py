@@ -371,19 +371,25 @@ class IO(Check):
             return False
 
 
+class System(Check):
+    def check(self, agentConfig):
+        if Platform.is_linux():
+            with open("/proc/uptime", "r") as f:
+                uptime_seconds = float(f.readline().split()[0])
+            return {"system.uptime": uptime_seconds}
+        return {}
+
+
 class Load(Check):
 
     def check(self, agentConfig):
         if Platform.is_linux():
             try:
-                loadAvrgProc = open('/proc/loadavg', 'r')
-                uptime = loadAvrgProc.readlines()
-                loadAvrgProc.close()
+                with open('/proc/loadavg', 'r') as load_avg:
+                    uptime = load_avg.readline().strip()
             except Exception:
                 self.logger.exception('Cannot extract load')
                 return False
-
-            uptime = uptime[0] # readlines() provides a list but we want a string
 
         elif sys.platform in ('darwin', 'sunos5') or sys.platform.startswith("freebsd"):
             # Get output from uptime
@@ -443,9 +449,8 @@ class Memory(Check):
     def check(self, agentConfig):
         if Platform.is_linux():
             try:
-                meminfoProc = open('/proc/meminfo', 'r')
-                lines = meminfoProc.readlines()
-                meminfoProc.close()
+                with open('/proc/meminfo', 'r') as mem_info:
+                    lines = mem_info.readlines()
             except Exception:
                 self.logger.exception('Cannot get memory metrics from /proc/meminfo')
                 return False
@@ -757,148 +762,147 @@ class Cpu(Check):
                 # FIXME return a float or False, would trigger type error if not python
                 self.logger.debug("Cannot extract cpu value %s from %s (%s)" % (name, data, legend))
                 return 0.0
+        try:
+            if Platform.is_linux():
+                mpstat = sp.Popen(['mpstat', '1', '3'], stdout=sp.PIPE, close_fds=True).communicate()[0]
+                # topdog@ip:~$ mpstat 1 3
+                # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)
+                #
+                # 04:22:41 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
+                # 04:22:42 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+                # 04:22:43 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+                # 04:22:44 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+                # Average:     all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
+                #
+                # OR
+                #
+                # Thanks to Mart Visser to spotting this one.
+                # blah:/etc/dd-agent# mpstat
+                # Linux 2.6.26-2-xen-amd64 (atira)  02/17/2012  _x86_64_
+                #
+                # 05:27:03 PM  CPU    %user   %nice   %sys %iowait    %irq   %soft  %steal  %idle   intr/s
+                # 05:27:03 PM  all    3.59    0.00    0.68    0.69    0.00   0.00    0.01   95.03    43.65
+                #
+                lines = mpstat.split("\n")
+                legend = [l for l in lines if "%usr" in l or "%user" in l]
+                avg =    [l for l in lines if "Average" in l]
+                if len(legend) == 1 and len(avg) == 1:
+                    headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
+                    data    = avg[0].split()
 
-        if Platform.is_linux():
-            mpstat = sp.Popen(['mpstat', '1', '3'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-            # topdog@ip:~$ mpstat 1 3
-            # Linux 2.6.32-341-ec2 (ip)   01/19/2012  _x86_64_  (2 CPU)
-            #
-            # 04:22:41 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle
-            # 04:22:42 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
-            # 04:22:43 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
-            # 04:22:44 PM  all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
-            # Average:     all    0.00    0.00    0.00    0.00    0.00    0.00    0.00    0.00  100.00
-            #
-            # OR
-            #
-            # Thanks to Mart Visser to spotting this one.
-            # blah:/etc/dd-agent# mpstat
-            # Linux 2.6.26-2-xen-amd64 (atira)  02/17/2012  _x86_64_
-            #
-            # 05:27:03 PM  CPU    %user   %nice   %sys %iowait    %irq   %soft  %steal  %idle   intr/s
-            # 05:27:03 PM  all    3.59    0.00    0.68    0.69    0.00   0.00    0.01   95.03    43.65
-            #
-            lines = mpstat.split("\n")
-            legend = [l for l in lines if "%usr" in l or "%user" in l]
-            avg =    [l for l in lines if "Average" in l]
-            if len(legend) == 1 and len(avg) == 1:
-                headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
-                data    = avg[0].split()
+                    # Userland
+                    # Debian lenny says %user so we look for both
+                    # One of them will be 0
+                    cpu_metrics = {
+                        "%usr":None, "%user":None, "%nice":None,
+                        "%iowait":None, "%idle":None, "%sys":None,
+                         "%irq":None, "%soft":None, "%steal":None,
+                    }
 
-                # Userland
-                # Debian lenny says %user so we look for both
-                # One of them will be 0
-                cpu_metrics = {
-                    "%usr":None, "%user":None, "%nice":None,
-                    "%iowait":None, "%idle":None, "%sys":None,
-                     "%irq":None, "%soft":None, "%steal":None,
-                }
+                    for cpu_m in cpu_metrics:
+                        cpu_metrics[cpu_m] = get_value(headers, data, cpu_m, filter_value=110)
 
-                for cpu_m in cpu_metrics:
-                    cpu_metrics[cpu_m] = get_value(headers, data, cpu_m, filter_value=110)
+                    if any([v is None for v in cpu_metrics.values()]):
+                        self.logger.warning("Invalid mpstat data: %s" % data)
 
-                if any([v is None for v in cpu_metrics.values()]):
-                    self.logger.warning("Invalid mpstat data: %s" % data)
+                    cpu_user = cpu_metrics["%usr"] + cpu_metrics["%user"] + cpu_metrics["%nice"]
+                    cpu_system = cpu_metrics["%sys"] + cpu_metrics["%irq"] + cpu_metrics["%soft"]
+                    cpu_wait = cpu_metrics["%iowait"]
+                    cpu_idle = cpu_metrics["%idle"]
+                    cpu_stolen = cpu_metrics["%steal"]
 
-                cpu_user = cpu_metrics["%usr"] + cpu_metrics["%user"] + cpu_metrics["%nice"]
-                cpu_system = cpu_metrics["%sys"] + cpu_metrics["%irq"] + cpu_metrics["%soft"]
-                cpu_wait = cpu_metrics["%iowait"]
-                cpu_idle = cpu_metrics["%idle"]
-                cpu_stolen = cpu_metrics["%steal"]
+                    return format_results(cpu_user,
+                                          cpu_system,
+                                          cpu_wait,
+                                          cpu_idle,
+                                          cpu_stolen)
+                else:
+                    return False
 
-                return format_results(cpu_user,
-                                      cpu_system,
-                                      cpu_wait,
-                                      cpu_idle,
-                                      cpu_stolen)
-            else:
-                return False
-
-        elif sys.platform == 'darwin':
-            # generate 3 seconds of data
-            # ['          disk0           disk1       cpu     load average', '    KB/t tps  MB/s     KB/t tps  MB/s  us sy id   1m   5m   15m', '   21.23  13  0.27    17.85   7  0.13  14  7 79  1.04 1.27 1.31', '    4.00   3  0.01     5.00   8  0.04  12 10 78  1.04 1.27 1.31', '']
-            iostats = sp.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-            lines = [l for l in iostats.split("\n") if len(l) > 0]
-            legend = [l for l in lines if "us" in l]
-            if len(legend) == 1:
-                headers = legend[0].split()
-                data = lines[-1].split()
-                cpu_user = get_value(headers, data, "us")
-                cpu_sys  = get_value(headers, data, "sy")
-                cpu_wait = 0
-                cpu_idle = get_value(headers, data, "id")
-                cpu_st   = 0
-                return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
-            else:
-                self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
-                return False
-
-        elif sys.platform.startswith("freebsd"):
-            # generate 3 seconds of data
-            # tty            ada0              cd0            pass0             cpu
-            # tin  tout  KB/t tps  MB/s   KB/t tps  MB/s   KB/t tps  MB/s  us ni sy in id
-            # 0    69 26.71   0  0.01   0.00   0  0.00   0.00   0  0.00   2  0  0  1 97
-            # 0    78  0.00   0  0.00   0.00   0  0.00   0.00   0  0.00   0  0  0  0 100
-            iostats = sp.Popen(['iostat', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-            lines = [l for l in iostats.split("\n") if len(l) > 0]
-            legend = [l for l in lines if "us" in l]
-            if len(legend) == 1:
-                headers = legend[0].split()
-                data = lines[-1].split()
-                cpu_user = get_value(headers, data, "us")
-                cpu_nice = get_value(headers, data, "ni")
-                cpu_sys  = get_value(headers, data, "sy")
-                cpu_intr = get_value(headers, data, "in")
-                cpu_wait = 0
-                cpu_idle = get_value(headers, data, "id")
-                cpu_stol = 0
-                return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
-
-            else:
-                self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
-                return False
-
-        elif sys.platform == 'sunos5':
-            # mpstat -aq 1 2
-            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
-            # 0 5239   0 12857 22969 5523 14628   73  546 4055    1 146856    5   6   0  89  24 <-- since boot
-            # 1 ...
-            # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
-            # 0 20374   0 45634 57792 5786 26767   80  876 20036    2 724475   13  13   0  75  24 <-- past 1s
-            # 1 ...
-            # http://docs.oracle.com/cd/E23824_01/html/821-1462/mpstat-1m.html
-            #
-            # Will aggregate over all processor sets
-            try:
-                mpstat = sp.Popen(['mpstat', '-aq', '1', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
-                lines = [l for l in mpstat.split("\n") if len(l) > 0]
-                # discard the first len(lines)/2 lines
-                lines = lines[len(lines)/2:]
-                legend = [l for l in lines if "SET" in l]
-                assert len(legend) == 1
+            elif sys.platform == 'darwin':
+                # generate 3 seconds of data
+                # ['          disk0           disk1       cpu     load average', '    KB/t tps  MB/s     KB/t tps  MB/s  us sy id   1m   5m   15m', '   21.23  13  0.27    17.85   7  0.13  14  7 79  1.04 1.27 1.31', '    4.00   3  0.01     5.00   8  0.04  12 10 78  1.04 1.27 1.31', '']
+                iostats = sp.Popen(['iostat', '-C', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
+                lines = [l for l in iostats.split("\n") if len(l) > 0]
+                legend = [l for l in lines if "us" in l]
                 if len(legend) == 1:
                     headers = legend[0].split()
-                    # collect stats for each processor set
-                    # and aggregate them based on the relative set size
-                    d_lines = [l for l in lines if "SET" not in l]
-                    user = [get_value(headers, l.split(), "usr") for l in d_lines]
-                    kern = [get_value(headers, l.split(), "sys") for l in d_lines]
-                    wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
-                    idle = [get_value(headers, l.split(), "idl") for l in d_lines]
-                    size = [get_value(headers, l.split(), "sze") for l in d_lines]
-                    count = sum(size)
-                    rel_size = [s/count for s in size]
-                    dot = lambda v1, v2: reduce(operator.add, map(operator.mul, v1, v2))
-                    return format_results(dot(user, rel_size),
-                                          dot(kern, rel_size),
-                                          dot(wait, rel_size),
-                                          dot(idle, rel_size),
-                                          0.0)
-            except Exception:
-                self.logger.exception("Cannot compute CPU stats")
+                    data = lines[-1].split()
+                    cpu_user = get_value(headers, data, "us")
+                    cpu_sys  = get_value(headers, data, "sy")
+                    cpu_wait = 0
+                    cpu_idle = get_value(headers, data, "id")
+                    cpu_st   = 0
+                    return format_results(cpu_user, cpu_sys, cpu_wait, cpu_idle, cpu_st)
+                else:
+                    self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+                    return False
+
+            elif sys.platform.startswith("freebsd"):
+                # generate 3 seconds of data
+                # tty            ada0              cd0            pass0             cpu
+                # tin  tout  KB/t tps  MB/s   KB/t tps  MB/s   KB/t tps  MB/s  us ni sy in id
+                # 0    69 26.71   0  0.01   0.00   0  0.00   0.00   0  0.00   2  0  0  1 97
+                # 0    78  0.00   0  0.00   0.00   0  0.00   0.00   0  0.00   0  0  0  0 100
+                iostats = sp.Popen(['iostat', '-w', '3', '-c', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
+                lines = [l for l in iostats.split("\n") if len(l) > 0]
+                legend = [l for l in lines if "us" in l]
+                if len(legend) == 1:
+                    headers = legend[0].split()
+                    data = lines[-1].split()
+                    cpu_user = get_value(headers, data, "us")
+                    cpu_nice = get_value(headers, data, "ni")
+                    cpu_sys  = get_value(headers, data, "sy")
+                    cpu_intr = get_value(headers, data, "in")
+                    cpu_wait = 0
+                    cpu_idle = get_value(headers, data, "id")
+                    cpu_stol = 0
+                    return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
+
+                else:
+                    self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
+                    return False
+
+            elif sys.platform == 'sunos5':
+                # mpstat -aq 1 2
+                # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+                # 0 5239   0 12857 22969 5523 14628   73  546 4055    1 146856    5   6   0  89  24 <-- since boot
+                # 1 ...
+                # SET minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  wt idl sze
+                # 0 20374   0 45634 57792 5786 26767   80  876 20036    2 724475   13  13   0  75  24 <-- past 1s
+                # 1 ...
+                # http://docs.oracle.com/cd/E23824_01/html/821-1462/mpstat-1m.html
+                #
+                # Will aggregate over all processor sets
+                    mpstat = sp.Popen(['mpstat', '-aq', '1', '2'], stdout=sp.PIPE, close_fds=True).communicate()[0]
+                    lines = [l for l in mpstat.split("\n") if len(l) > 0]
+                    # discard the first len(lines)/2 lines
+                    lines = lines[len(lines)/2:]
+                    legend = [l for l in lines if "SET" in l]
+                    assert len(legend) == 1
+                    if len(legend) == 1:
+                        headers = legend[0].split()
+                        # collect stats for each processor set
+                        # and aggregate them based on the relative set size
+                        d_lines = [l for l in lines if "SET" not in l]
+                        user = [get_value(headers, l.split(), "usr") for l in d_lines]
+                        kern = [get_value(headers, l.split(), "sys") for l in d_lines]
+                        wait = [get_value(headers, l.split(), "wt")  for l in d_lines]
+                        idle = [get_value(headers, l.split(), "idl") for l in d_lines]
+                        size = [get_value(headers, l.split(), "sze") for l in d_lines]
+                        count = sum(size)
+                        rel_size = [s/count for s in size]
+                        dot = lambda v1, v2: reduce(operator.add, map(operator.mul, v1, v2))
+                        return format_results(dot(user, rel_size),
+                                              dot(kern, rel_size),
+                                              dot(wait, rel_size),
+                                              dot(idle, rel_size),
+                                              0.0)
+            else:
+                self.logger.warn("CPUStats: unsupported platform")
                 return False
-        else:
-            self.logger.warn("CPUStats: unsupported platform")
+        except Exception:
+            self.logger.exception("Cannot compute CPU stats")
             return False
 
 

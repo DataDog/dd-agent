@@ -13,6 +13,14 @@ from common import get_check
 from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
+
+    def testUptime(self):
+        global logger
+        system = System(logger)
+        metrics = system.check({})
+        self.assertTrue("system.uptime" in metrics)
+        self.assertTrue(metrics["system.uptime"] > 0)
+
     @attr(requires='sysstat')
     def testCPU(self):
         global logger
@@ -245,9 +253,14 @@ instances:
 
         assert 'system.net.bytes_rcvd' in metric_names
         assert 'system.net.bytes_sent' in metric_names
-        assert 'system.net.tcp.retrans_segs' in metric_names
-        assert 'system.net.tcp.in_segs' in metric_names
-        assert 'system.net.tcp.out_segs' in metric_names
+        if Platform.is_linux():
+            assert 'system.net.tcp.retrans_segs' in metric_names
+            assert 'system.net.tcp.in_segs' in metric_names
+            assert 'system.net.tcp.out_segs' in metric_names
+        elif Platform.is_bsd():
+            assert 'system.net.tcp.retrans_packs' in metric_names
+            assert 'system.net.tcp.sent_packs' in metric_names
+            assert 'system.net.tcp.rcv_packs' in metric_names
 
 
 if __name__ == "__main__":
