@@ -203,6 +203,8 @@ SELECT %s
         self.versions = {}
         self.instance_metrics = {}
         self.bgw_metrics = {}
+        self.db_instance_metrics = []
+        self.db_bgw_metrics = []
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -237,7 +239,22 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.instance_metrics.get(key)
+        
         if metrics is None:
+
+            # Hack to make sure that if we have multiple instances that connect to
+            # the same host, port, we don't collect metrics twice
+            # as it will result in https://github.com/DataDog/dd-agent/issues/1211
+            sub_key = key[:2]
+            if sub_key in self.db_instance_metrics:
+                self.instance_metrics[key] = {}
+                self.log.debug("Not collecting instance metrics for key: {0} as"\
+                    " they are already collected by another instance".format(key))
+                return {}
+
+            self.db_instance_metrics.append(sub_key)
+
+            
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
             else:
@@ -252,7 +269,21 @@ SELECT %s
         """
         # Extended 9.2+ metrics if needed
         metrics = self.bgw_metrics.get(key)
+
         if metrics is None:
+
+            # Hack to make sure that if we have multiple instances that connect to
+            # the same host, port, we don't collect metrics twice
+            # as it will result in https://github.com/DataDog/dd-agent/issues/1211
+            sub_key = key[:2]
+            if sub_key in self.db_bgw_metrics:
+                self.bgw_metrics[key] = {}
+                self.log.debug("Not collecting bgw metrics for key: {0} as"\
+                    " they are already collected by another instance".format(key))
+                return {}
+
+            self.db_bgw_metrics.append(sub_key)
+
             self.bgw_metrics[key] = dict(self.COMMON_BGW_METRICS)
             if self._is_9_1_or_above(key, db):
                 self.bgw_metrics[key].update(self.NEWER_91_BGW_METRICS)
@@ -452,7 +483,7 @@ SELECT %s
         if dbname is None:
             dbname = 'postgres'
 
-        key = '%s:%s:%s' % (host, port, dbname)
+        key = (host, port, dbname)
 
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
