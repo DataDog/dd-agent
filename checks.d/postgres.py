@@ -1,6 +1,6 @@
 """PostgreSQL check
 
-Collects database-wide metrics and optionally per-relation metrics.
+Collects database-wide metrics and optionally per-relation metrics, custom metrics.
 """
 # project
 from checks import AgentCheck, CheckException
@@ -10,10 +10,13 @@ import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
 import socket
 
+
+MAX_CUSTOM_RESULTS = 100
+
 class ShouldRestartException(Exception): pass
 
 class PostgreSql(AgentCheck):
-    """Collects per-database, and optionally per-relation metrics
+    """Collects per-database, and optionally per-relation metrics, custom metrics
     """
     SOURCE_TYPE_NAME = 'postgresql'
     RATE = AgentCheck.rate
@@ -48,6 +51,7 @@ SELECT datname,
         'tup_inserted'      : ('postgresql.rows_inserted', RATE),
         'tup_updated'       : ('postgresql.rows_updated', RATE),
         'tup_deleted'       : ('postgresql.rows_deleted', RATE),
+        'pg_database_size(datname) as pg_database_size' : ('postgresql.database_size', GAUGE),
     }
 
     NEWER_92_METRICS = {
@@ -151,9 +155,9 @@ SELECT relname,
             ('relname', 'table'),
         ],
         'metrics': {
-            'pg_table_size(C.oid)'  : ('postgresql.table_size', GAUGE),
-            'pg_indexes_size(C.oid)'  : ('postgresql.index_size', GAUGE),
-            'pg_total_relation_size(C.oid)': ('postgresql.total_size', GAUGE),
+            'pg_table_size(C.oid) as table_size'  : ('postgresql.table_size', GAUGE),
+            'pg_indexes_size(C.oid) as index_size' : ('postgresql.index_size', GAUGE),
+            'pg_total_relation_size(C.oid) as total_size' : ('postgresql.total_size', GAUGE),
         },
         'relation': True,
         'query': """
@@ -257,10 +261,11 @@ SELECT %s
             metrics = self.bgw_metrics.get(key)
         return metrics
 
-    def _collect_stats(self, key, db, instance_tags, relations):
+    def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
         If relations is not an empty list, gather per-relation metrics
         on top of that.
+        If custom_metrics is not an empty list, gather custom metrics defined in postgres.yaml
         """
 
         self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
@@ -285,10 +290,11 @@ SELECT %s
         if self._is_9_1_or_above(key,db):
             metric_scope.append(self.REPLICATION_METRICS)
 
+        full_metric_scope = list(metric_scope) + custom_metrics
         try:
             cursor = db.cursor()
 
-            for scope in metric_scope:
+            for scope in full_metric_scope:
                 if scope == self.REPLICATION_METRICS or not self._is_above(key, db, [9,0,0]):
                     log_func = self.log.debug
                     warning_func = self.log.debug
@@ -319,8 +325,15 @@ SELECT %s
                 if not results:
                     continue
 
+                if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
+                    self.warning(
+                        "Query: {0} returned more than {1} results ({2})Truncating").format(
+                        query, MAX_CUSTOM_RESULTS, len(results))
+                    results = results[:MAX_CUSTOM_RESULTS]
+
                 if scope == self.DB_METRICS:
-                    self.gauge("postgresql.db.count", len(results), tags=[t for t in instance_tags if not t.startswith("db:")])
+                    self.gauge("postgresql.db.count", len(results),
+                        tags=[t for t in instance_tags if not t.startswith("db:")])
 
                 # parse & submit results
                 # A row should look like this
@@ -402,6 +415,25 @@ SELECT %s
         self.dbs[key] = connection
         return connection
 
+    def _process_customer_metrics(self,custom_metrics):
+        required_parameters = ("descriptors", "metrics", "query", "relation")
+
+        for m in custom_metrics:
+            for param in required_parameters:
+                if param not in m:
+                    raise CheckException("Missing {0} parameter in custom metric"\
+                        .format(param))
+           
+            self.log.debug("Metric: {0}".format(m))
+
+            for k, v in m['metrics'].items():
+                if v[1].upper() not in ['RATE','GAUGE','MONOTONIC']:
+                    raise CheckException("Collector method {0} is not known."\
+                        "Known methods are RATE,GAUGE,MONOTONIC".format(
+                            v[1].upper()))
+                                  
+                m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
+                self.log.debug("Method: %s" % (str(v[1])))
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -411,6 +443,8 @@ SELECT %s
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
+        custom_metrics = instance.get('custom_metrics') or []
+        self._process_customer_metrics(custom_metrics)
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -430,6 +464,9 @@ SELECT %s
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
+        self.log.debug("Custom metrics: %s" % custom_metrics)
+
+        # preset tags to the database name
         db = None
 
         # Collect metrics
@@ -438,11 +475,11 @@ SELECT %s
             db = self.get_connection(key, host, port, user, password, dbname)
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
-            self._collect_stats(key, db, tags, relations)
+            self._collect_stats(key, db, tags, relations, custom_metrics)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
-            self._collect_stats(key, db, tags, relations)
+            self._collect_stats(key, db, tags, relations, custom_metrics)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)

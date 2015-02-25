@@ -1,5 +1,5 @@
 import unittest
-from tests.common import load_check
+from tests.common import load_check, AgentCheckTest
 
 from nose.plugins.attrib import attr
 
@@ -7,7 +7,9 @@ import time
 from pprint import pprint
 
 @attr(requires='postgres')
-class TestPostgres(unittest.TestCase):
+class TestPostgres(AgentCheckTest):
+
+    CHECK_NAME = "postgres"
 
     def test_checks(self):
         host = 'localhost'
@@ -23,6 +25,18 @@ class TestPostgres(unittest.TestCase):
                 'password': 'datadog',
                 'dbname': dbname,
                 'relations': ['persons'],
+                'custom_metrics': [
+                    {
+                        "descriptors": [
+                            ("datname", "customdb")
+                        ],
+                        "metrics": {
+                            "numbackends": ["custom.numbackends", "Gauge"],
+                        },
+                        "query": "SELECT datname, %s FROM pg_stat_database WHERE datname = 'datadog_test' LIMIT(1)", 
+                        "relation": False,
+                    }
+                ]
                 }
             ]
         }
@@ -62,8 +76,8 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
         metrics = self.check.get_metrics()
 
-        exp_metrics = 37
-        exp_db_tagged_metrics = 24
+        exp_metrics = 39
+        exp_db_tagged_metrics = 26
 
         if self.check._is_9_2_or_above(key, db):
             self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.sync_time']) >= 1, pprint(metrics))
@@ -96,6 +110,9 @@ class TestPostgres(unittest.TestCase):
         self.assertEquals(len(metrics), exp_metrics, metrics)
         self.assertEquals(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]), exp_db_tagged_metrics, metrics)
         self.assertEquals(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]), 11, metrics)
+
+        self.metrics = metrics
+        self.assertMetric("custom.numbackendss")
 
 if __name__ == '__main__':
     unittest.main()
