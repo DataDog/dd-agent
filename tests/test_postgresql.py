@@ -112,7 +112,7 @@ class TestPostgres(AgentCheckTest):
         self.assertEquals(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]), 11, metrics)
 
         self.metrics = metrics
-        self.assertMetric("custom.numbackendss")
+        self.assertMetric("custom.numbackends")
 
 if __name__ == '__main__':
     unittest.main()
