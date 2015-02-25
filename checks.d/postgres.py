@@ -10,6 +10,9 @@ import pg8000 as pg
 from pg8000 import InterfaceError, ProgrammingError
 import socket
 
+
+MAX_CUSTOM_RESULTS = 100
+
 class ShouldRestartException(Exception): pass
 
 class PostgreSql(AgentCheck):
@@ -287,7 +290,7 @@ SELECT %s
         if self._is_9_1_or_above(key,db):
             metric_scope.append(self.REPLICATION_METRICS)
 
-        full_metric_scope=list(metric_scope)+custom_metrics
+        full_metric_scope = list(metric_scope) + custom_metrics
         try:
             cursor = db.cursor()
 
@@ -322,8 +325,15 @@ SELECT %s
                 if not results:
                     continue
 
+                if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
+                    self.warning(
+                        "Query: {0} returned more than {1} results ({2})Truncating").format(
+                        query, MAX_CUSTOM_RESULTS, len(results))
+                    results = results[:MAX_CUSTOM_RESULTS]
+
                 if scope == self.DB_METRICS:
-                    self.gauge("postgresql.db.count", len(results), tags=[t for t in instance_tags if not t.startswith("db:")])
+                    self.gauge("postgresql.db.count", len(results),
+                        tags=[t for t in instance_tags if not t.startswith("db:")])
 
                 # parse & submit results
                 # A row should look like this
@@ -406,13 +416,24 @@ SELECT %s
         return connection
 
     def _process_customer_metrics(self,custom_metrics):
+        required_parameters = ("descriptors", "metrics", "query", "relation")
+
         for m in custom_metrics:
-           self.log.debug("Metric: %s" % str(m))
-           for v in m['metrics'].values():
-               if v[1].upper() not in ['RATE','GAUGE','MONOTONIC']:
-                   raise CheckException("Collector method %s is not known. Known methods are RATE,GAUGE,MONOTONIC" % (v[1].upper()))      
-               v[1] = PostgreSql.__dict__[v[1].upper()]
-               self.log.debug("Method: %s" % (str(v[1])))
+            for param in required_parameters:
+                if param not in m:
+                    raise CheckException("Missing {0} parameter in custom metric"\
+                        .format(param))
+           
+            self.log.debug("Metric: {0}".format(m))
+
+            for k, v in m['metrics'].items():
+                if v[1].upper() not in ['RATE','GAUGE','MONOTONIC']:
+                    raise CheckException("Collector method {0} is not known."\
+                        "Known methods are RATE,GAUGE,MONOTONIC".format(
+                            v[1].upper()))
+                                  
+                m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
+                self.log.debug("Method: %s" % (str(v[1])))
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -422,7 +443,8 @@ SELECT %s
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
-        custom_metrics = instance.get('custom_metrics', [])
+        custom_metrics = instance.get('custom_metrics') or []
+        self._process_customer_metrics(custom_metrics)
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -442,13 +464,6 @@ SELECT %s
         # preset tags to the database name
         tags.extend(["db:%s" % dbname])
 
-        # Clean up custom_metrics in case there was a None entry in the instance
-        # e.g. if the yaml contains custom_metrics: but no actual custom_metrics
-        if custom_metrics is None:
-            custom_metrics = []
-        elif custom_metrics != []:
-            self._process_customer_metrics(custom_metrics)
-            
         self.log.debug("Custom metrics: %s" % custom_metrics)
 
         # preset tags to the database name

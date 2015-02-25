@@ -35,5 +35,5 @@ instances:
 #         GREATEST(0, EXTRACT(EPOCH FROM lag)) as lag: [postgresql.londiste_lag, GAUGE]
 #         GREATEST(0, EXTRACT(EPOCH FROM lag)) as last_seen: [postgresql.londiste_last_seen, GAUGE]
 #         pending_events: [postgresql.londiste_pending_events, GAUGE]
-#      query: SELECT  as consumer_name, %s from pgq.get_consumer_info() where consumer_name !~ 'watermark$';
+#      query: SELECT consumer_name, %s from pgq.get_consumer_info() where consumer_name !~ 'watermark$';
 #      relation: false
