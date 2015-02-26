@@ -81,11 +81,24 @@ class SnmpCheck(AgentCheck):
         configuration.
         See http://pysnmp.sourceforge.net/docs/current/security-configuration.html
         '''
-        if "community_string" in instance:
-            # SNMP v1 - SNMP v2
+
+        if "snmp_version" in instance:
+            snmp_version = instance["snmp_version"]
+        else:
+            if "community_string" in instance:
+
+                snmp_version = 2
+            elif "user" in instance:
+                snmp_version = 3
+            else:
+                raise Exception("An authentication method needs to be provided")
+
+
+        if snmp_version == 1:
+            return cmdgen.CommunityData(instance['community_string'],mpModel=0)
+        elif snmp_version == 2:
             return cmdgen.CommunityData(instance['community_string'])
-        elif "user" in instance:
-            # SNMP v3
+        elif snmp_version == 3:
             user = instance["user"]
             auth_key = None
             priv_key = None
@@ -108,7 +121,7 @@ class SnmpCheck(AgentCheck):
                                       auth_protocol,
                                       priv_protocol)
         else:
-            raise Exception("An authentication method needs to be provided")
+            raise Exception("Unable to determine SNMP version")
 
     @classmethod
     def get_transport_target(cls, instance, timeout, retries):
