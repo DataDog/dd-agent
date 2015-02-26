@@ -1,11 +1,10 @@
 import unittest
 import subprocess
 import time
-import urllib2
 import tempfile
 import os
 import logging
-
+import requests
 from util import get_hostname
 from tests.common import load_check, kill_subprocess
 from nose.plugins.attrib import attr
@@ -22,14 +21,12 @@ class HaproxyTestCase(unittest.TestCase):
         while True:
             try:
                 STATS_URL = ";csv;norefresh"
-                passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-                passman.add_password(None, url, "datadog", "isdevops")
-                authhandler = urllib2.HTTPBasicAuthHandler(passman)
-                opener = urllib2.build_opener(authhandler)
-                urllib2.install_opener(opener)
+                auth = ("datadog", "isdevops")
                 url = "%s%s" % (url,STATS_URL)
-                req = urllib2.Request(url)
-                request = urllib2.urlopen(req)
+
+                r = requests.get(url, auth=auth)
+                r.raise_for_status()
+
                 break
             except Exception:
                 time.sleep(0.5)

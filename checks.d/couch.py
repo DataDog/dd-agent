@@ -1,13 +1,10 @@
-# stdlib
-import urllib2
-
 # project
 from util import headers
-from checks.utils import add_basic_auth
 from checks import AgentCheck
 
 # 3rd party
 import simplejson as json
+import requests
 
 class CouchDb(AgentCheck):
     """Extracts stats from CouchDB via its REST API
@@ -37,15 +34,15 @@ class CouchDb(AgentCheck):
     def _get_stats(self, url, instance):
         "Hit a given URL and return the parsed json"
         self.log.debug('Fetching Couchdb stats at url: %s' % url)
-        req = urllib2.Request(url, None, headers(self.agentConfig))
 
+        auth = None
         if 'user' in instance and 'password' in instance:
-            add_basic_auth(req, instance['user'], instance['password'])
+            auth = (instance['user'], instance['password'])
 
-        # Do the request, log any errors
-        request = urllib2.urlopen(req)
-        response = request.read()
-        return json.loads(response)
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig),
+            timeout=10)
+        r.raise_for_status()
+        return r.json()
 
     def check(self, instance):
         server = instance.get('server', None)
@@ -67,9 +64,9 @@ class CouchDb(AgentCheck):
         service_check_tags = ['instance:%s' % server]
         try:
             overall_stats = self._get_stats(url, instance)
-        except urllib2.URLError as e:
+        except requests.exceptions.HTTPError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=str(e.reason))
+                tags=service_check_tags, message=str(e.message))
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,

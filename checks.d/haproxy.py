@@ -1,11 +1,13 @@
 # stdlib
-import urllib2
 import time
 from collections import defaultdict
 
 # project
 from checks import AgentCheck
 from util import headers
+
+# 3rd party
+import requests
 
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
@@ -81,20 +83,16 @@ class HAProxy(AgentCheck):
         ''' Hit a given URL and return the parsed json '''
         # Try to fetch data from the stats URL
 
-        passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        passman.add_password(None, url, username, password)
-        authhandler = urllib2.HTTPBasicAuthHandler(passman)
-        opener = urllib2.build_opener(authhandler)
-        urllib2.install_opener(opener)
+        auth = (username, password)
         url = "%s%s" % (url, STATS_URL)
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        request = urllib2.urlopen(req)
-        response = request.read()
-        # Split the data by line
-        return response.split('\n')
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+        r.raise_for_status()
+
+        return r.content.splitlines()
+
 
     def _process_data(
             self, data, collect_aggregates_only, process_events, url=None,

@@ -1,16 +1,16 @@
 # stdlib
-import urllib
-import urllib2
 import urlparse
 import time
 import re
 import pprint
+import urllib
 
 # project
 from checks import AgentCheck
 
 # 3rd party
 import simplejson as json
+import requests
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'rabbitmq'
 QUEUE_TYPE = 'queues'
@@ -125,37 +125,35 @@ class RabbitMQ(AgentCheck):
                 if type(filter_objects) != list:
                     raise TypeError("{0} / {0}_regexes parameter must be a list".format(object_type))
 
-        # setup urllib2 for Basic Auth
-        auth_handler = urllib2.HTTPBasicAuthHandler()
-        auth_handler.add_password(realm='RabbitMQ Management', uri=base_url, user=username, passwd=password)
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
+        auth = (username, password)
 
-        return base_url, max_detailed, specified
+        return base_url, max_detailed, specified, auth
 
 
     def check(self, instance):
-        base_url, max_detailed, specified = self._get_config(instance)
+        base_url, max_detailed, specified, auth = self._get_config(instance)
 
         # Generate metrics from the status API.
-        self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE])
-        self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE])
+        self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE], auth=auth)
+        self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE], auth=auth)
 
         # Generate a service check from the aliveness API.
         vhosts = instance.get('vhosts')
-        self._check_aliveness(base_url, vhosts)
+        self._check_aliveness(base_url, vhosts, auth=auth)
 
-    def _get_data(self, url):
+    def _get_data(self, url, auth=None):
         try:
-            data = json.loads(urllib2.urlopen(url).read())
-        except urllib2.URLError, e:
+            r = requests.get(url, auth=auth)
+            r.raise_for_status()
+            data = r.json()
+        except requests.exceptions.HTTPError as e:
             raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
             raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
         return data
 
 
-    def get_stats(self, instance, base_url, object_type, max_detailed, filters):
+    def get_stats(self, instance, base_url, object_type, max_detailed, filters, auth=None):
         """
         instance: the check instance
         base_url: the url of the rabbitmq management api (e.g. http://localhost:15672/api)
@@ -164,7 +162,7 @@ class RabbitMQ(AgentCheck):
         filters: explicit or regexes filters of specified queues or nodes (specified in the yaml file)
         """
 
-        data = self._get_data(urlparse.urljoin(base_url, object_type))
+        data = self._get_data(urlparse.urljoin(base_url, object_type), auth=auth)
         explicit_filters = list(filters['explicit']) # Make a copy of this list as we will remove items from it at each iteration
         regex_filters = filters['regexes']
 
@@ -277,7 +275,7 @@ class RabbitMQ(AgentCheck):
 
         self.event(event)
 
-    def _check_aliveness(self, base_url, vhosts=None):
+    def _check_aliveness(self, base_url, vhosts=None, auth=None):
         """ Check the aliveness API against all or a subset of vhosts. The API
             will return {"status": "ok"} and a 200 response code in the case
             that the check passes.
@@ -287,7 +285,7 @@ class RabbitMQ(AgentCheck):
         if not vhosts:
             # Fetch a list of _all_ vhosts from the API.
             vhosts_url = urlparse.urljoin(base_url, 'vhosts')
-            vhosts_response = self._get_data(vhosts_url)
+            vhosts_response = self._get_data(vhosts_url, auth=auth)
             vhosts = [v['name'] for v in vhosts_response]
 
         for vhost in vhosts:
@@ -297,7 +295,7 @@ class RabbitMQ(AgentCheck):
             aliveness_url = urlparse.urljoin(base_url, path)
             message = None
             try:
-                aliveness_response = self._get_data(aliveness_url)
+                aliveness_response = self._get_data(aliveness_url, auth=auth)
                 message = u"Response from aliveness API: %s" % aliveness_response
                 if aliveness_response.get('status') == 'ok':
                     status = AgentCheck.OK

@@ -156,7 +156,6 @@ class NetworkCheck(AgentCheck):
                     self.nb_failures = 0
                     self.restart_pool()
                 continue
-
             self.report_as_service_check(sc_name, status, instance, msg)
 
             # FIXME: 5.3, this has been deprecated before, get rid of events

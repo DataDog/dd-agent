@@ -1,11 +1,12 @@
 # stdlib
-import urllib2
 import urlparse
 
 # project
 from util import headers
 from checks import AgentCheck
-from checks.utils import add_basic_auth
+
+# 3rd party
+import requests
 
 class Apache(AgentCheck):
     """Tracks basic connection/requests/workers metrics
@@ -37,9 +38,10 @@ class Apache(AgentCheck):
         url = self.assumed_url.get(instance['apache_status_url'], instance['apache_status_url'])
 
         tags = instance.get('tags', [])
-        req = urllib2.Request(url, None, headers(self.agentConfig))
+
+        auth = None
         if 'apache_user' in instance and 'apache_password' in instance:
-            add_basic_auth(req, instance['apache_user'], instance['apache_password'])
+            auth = (instance['apache_user'], instance['apache_password'])
 
         # Submit a service check for status page availability.
         parsed_url = urlparse.urlparse(url)
@@ -48,7 +50,9 @@ class Apache(AgentCheck):
         service_check_name = 'apache.can_connect'
         service_check_tags = ['host:%s' % apache_host, 'port:%s' % apache_port]
         try:
-            request = urllib2.urlopen(req)
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+            r.raise_for_status()
+
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                tags=service_check_tags)
@@ -57,10 +61,10 @@ class Apache(AgentCheck):
             self.service_check(service_check_name, AgentCheck.OK,
                                tags=service_check_tags)
 
-        response = request.read()
+        response = r.content
         metric_count = 0
         # Loop through and extract the numerical values
-        for line in response.split('\n'):
+        for line in response.splitlines():
             values = line.split(': ')
             if len(values) == 2: # match
                 metric, value = values
