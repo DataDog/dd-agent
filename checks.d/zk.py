@@ -37,7 +37,7 @@ class ZKConnectionFailure(Exception):
     pass
 
 
-class Zookeeper(AgentCheck):
+class ZookeeperCheck(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
     SOURCE_TYPE_NAME = 'zookeeper'

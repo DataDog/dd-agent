@@ -57,6 +57,11 @@ DD_ENDPOINT  = "dd_url"
 
 TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
 WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
+HEADERS_TO_REMOVE = [
+    'Host',
+    'Content-Length',
+]
+
 
 # Maximum delay before replaying a transaction
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
@@ -202,21 +207,18 @@ class MetricTransaction(Transaction):
                 'validate_cert': not self._application.skip_ssl_validation,
             }
 
+            # Remove headers that were passed by the emitter. Those don't apply anymore
+            # This is pretty hacky though as it should be done in pycurl or curl or tornado
+            for h in HEADERS_TO_REMOVE:
+                if h in tornado_client_params['headers']:
+                    del tornado_client_params['headers'][h]
+                    log.debug("Removing {0} header.".format(h))
+
             force_use_curl = False
 
             if proxy_settings is not None:
                 force_use_curl = True
                 if pycurl is not None:
-                    # When using a proxy we do a CONNECT request which shouldn't include Content-Length
-                    # This is pretty hacky though as it should be done in pycurl or curl or tornado
-                    if 'Content-Length' in tornado_client_params['headers']:
-                        del tornado_client_params['headers']['Content-Length']
-                        log.debug("Removing Content-Length header.")
-
-                    if 'Host' in tornado_client_params['headers']:
-                        del tornado_client_params['headers']['Host']
-                        log.debug("Removing Host header.")
-
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
                         proxy_settings['host'], proxy_settings['port']))
                     tornado_client_params['proxy_host'] = proxy_settings['host']

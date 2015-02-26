@@ -18,6 +18,13 @@ requests_log.propagate = True
 control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
+NO_PROXY = {
+# See https://github.com/kennethreitz/requests/issues/879
+# and https://github.com/DataDog/dd-agent/issues/1112
+    'no': 'pass',
+}
+
+
 def remove_control_chars(s):
     return control_char_re.sub('', s)
 
@@ -45,8 +52,8 @@ def http_emitter(message, log, agentConfig):
     url = "{0}/intake?api_key={1}".format(url, apiKey)
 
     try:
-        r = requests.post(url, data=zipped, timeout=10,
-            headers=post_headers(agentConfig, zipped))
+        r = requests.post(url, data=zipped, timeout=5,
+            headers=post_headers(agentConfig, zipped), proxies=NO_PROXY)
 
         r.raise_for_status()
 

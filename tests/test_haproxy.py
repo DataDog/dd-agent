@@ -15,7 +15,7 @@ MAX_WAIT = 30
 HAPROXY_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy.cfg"))
 HAPROXY_OPEN_CFG = os.path.realpath(os.path.join(os.path.dirname(__file__), "haproxy-open.cfg"))
 
-@attr('haproxy', requires='webserver')
+@attr(requires='haproxy')
 class HaproxyTestCase(unittest.TestCase):
     def _wait(self, url):
         loop = 0
@@ -151,9 +151,8 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
 
         expected_hosts_statuses = defaultdict(int)
         expected_hosts_statuses[('b', 'OPEN')] = 1
-        expected_hosts_statuses[('b', 'UP')] = 4
+        expected_hosts_statuses[('b', 'UP')] = 3
         expected_hosts_statuses[('a', 'OPEN')] = 1
-        expected_hosts_statuses[('a', 'UP')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
 
         # with collect_aggregates_only set to True

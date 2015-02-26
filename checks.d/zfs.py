@@ -4,12 +4,9 @@ from checks import AgentCheck
 import subprocess
 import re
 
-'''
-Matt, you need to update the whole thing to use the metrics[] and service_checks[] paradigm that you've
-begun to implement in _process_zpools.  That'll simplify the calls.
-'''
+
 class Zfs(AgentCheck):
-    # So that we can make mocks work in UnitTests
+    # Inject dependency so that we can make mocks work in UnitTests
     subprocess = subprocess
 
     ZFS_NAMESPACE = 'system.zfs.'

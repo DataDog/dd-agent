@@ -1,6 +1,7 @@
 init_config:
 #    #You can specify an additional folder for your custom mib files (python format)
 #    mibs_folder: /path/to/your/mibs/folder
+#    ignore_nonincreasing_oid: False
 
 instances:
 

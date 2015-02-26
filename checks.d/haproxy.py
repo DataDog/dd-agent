@@ -25,8 +25,8 @@ class Services(object):
             }
 
 class HAProxy(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Host status needs to persist across all checks
         self.host_status = defaultdict(lambda: defaultdict(lambda: None))
@@ -176,10 +176,10 @@ class HAProxy(AgentCheck):
         collect_status_metrics, collect_status_metrics_by_host,
         data_dict, hosts_statuses
     ):
+        if data_dict['svname'] == Services.BACKEND:
+            return
         if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
             if collect_status_metrics_by_host and 'svname' in data_dict:
-                if data_dict['svname'] == Services.BACKEND:
-                    return
                 key = (data_dict['pxname'], data_dict['svname'], data_dict['status'])
             else:
                 key = (data_dict['pxname'], data_dict['status'])
