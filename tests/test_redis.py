@@ -4,8 +4,9 @@ from nose.plugins.attrib import attr
 import time
 import pprint
 import redis
+import random
 
-from tests.common import load_check
+from tests.common import load_check, AgentCheckTest
 logger = logging.getLogger()
 
 MAX_WAIT = 20
@@ -16,7 +17,9 @@ MISSING_KEY_TOLERANCE = 0.5
 
 
 @attr(requires='redis')
-class TestRedis(unittest.TestCase):
+class TestRedis(AgentCheckTest):
+    CHECK_NAME = "redisdb"
+
     def test_redis_auth(self):
         # correct password
         r = load_check('redisdb', {}, {})
@@ -170,6 +173,32 @@ class TestRedis(unittest.TestCase):
         # Assert the presence of replication metrics
         keys = [m[0] for m in metrics]
         assert [x in keys for x in repl_metrics]
+
+    def test_slowlog(self):
+        port = NOAUTH_PORT
+        test_key = "testkey"
+        instance = {
+            'host': 'localhost',
+            'port': port
+        }
+
+
+        db = redis.Redis(port=port, db=14)  # Datadog's test db
+        db.flushdb()
+
+        # Generate some slow commands
+        for i in range(100000):
+            db.lpush(test_key, random.random())
+
+        db.sort(test_key)
+
+        self.assertTrue(db.slowlog_len() > 0)
+
+        self.run_check({"init_config": {}, "instances": [instance]})
+
+        assert self.metrics, "No metrics returned"
+        self.assertMetric("redis.slowlog.micros.max")
+
 
     def _sort_metrics(self, metrics):
         def sort_by(m):
