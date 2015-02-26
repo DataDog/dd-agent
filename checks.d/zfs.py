@@ -233,5 +233,3 @@ class Zfs(AgentCheck):
         for metric in zfs_stats.keys():
             self.gauge(Zfs.ZFS_NAMESPACE + metric, zfs_stats[metric], tags=tags)
 
-    def get_library_versions(self):
-        return NotImplemented
