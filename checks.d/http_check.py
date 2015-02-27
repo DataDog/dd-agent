@@ -7,8 +7,8 @@ import time
 from urlparse import urlparse
 
 # 3rd party
-from httplib2 import Http, HttpLib2Error
 import tornado
+import requests
 
 # project
 from checks.network_checks import NetworkCheck, Status, EventType
@@ -72,10 +72,15 @@ class HTTPCheck(NetworkCheck):
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
                 self.warning("Skipping SSL certificate validation for %s based on configuration" % addr)
-            h = Http(timeout=timeout, disable_ssl_certificate_validation=disable_ssl_validation)
+            
+            auth = None
             if username is not None and password is not None:
-                h.add_credentials(username, password)
-            resp, content = h.request(addr, "GET", headers=headers)
+                auth = (username, password)
+
+            r = requests.get(addr, auth=auth,timeout=timeout, headers=headers,
+                verify=not disable_ssl_validation)
+            r.raise_for_status()
+            
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
@@ -86,7 +91,17 @@ class HTTPCheck(NetworkCheck):
                 "%s. Connection failed after %s ms" % (str(e), length)
             ))
 
-        except HttpLib2Error, e:
+        except requests.exceptions.HTTPError, r:
+            length = int((time.time() - start) * 1000)
+            self.log.info("%s is DOWN, error code: %s" % (addr, str(r.status_code)))
+
+            content = r.content if include_content else ''
+
+            service_checks.append((
+                self.SC_STATUS, Status.DOWN, (r.status_code, r.reason, content or '')
+            ))
+
+        except requests.exceptions.ConnectionError, e:
             length = int((time.time() - start) * 1000)
             self.log.info("%s is DOWN, error: %s. Connection failed after %s ms" % (addr, str(e), length))
             service_checks.append((
@@ -119,18 +134,10 @@ class HTTPCheck(NetworkCheck):
             self.gauge('network.http.response_time', running_time, tags=tags_list)
 
         if not service_checks:
-            if resp is not None and int(resp.status) >= 400:
-                self.log.info("%s is DOWN, error code: %s" % (addr, str(resp.status)))
-                if not include_content:
-                    content = ''
-                service_checks.append((
-                    self.SC_STATUS, Status.DOWN, (resp.status, resp.reason, content or '')
-                ))
-            else:
-                self.log.debug("%s is UP" % addr)
-                service_checks.append((
-                    self.SC_STATUS, Status.UP, "UP"
-                ))
+            self.log.debug("%s is UP" % addr)
+            service_checks.append((
+                self.SC_STATUS, Status.UP, "UP"
+            ))
 
         if ssl_expire and urlparse(addr)[0] == "https":
             status, msg = self.check_cert_expiration(instance)
