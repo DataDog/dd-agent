@@ -13,6 +13,7 @@ from checks import AgentCheck
 import redis
 
 DEFAULT_MAX_SLOW_ENTRIES = 128
+MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
 
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
@@ -253,17 +254,17 @@ class Redis(AgentCheck):
 
         """
 
-        max_slow_entries = "slowlog-max-len"
+        
         conn = self._get_conn(instance)
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
 
-        if not instance.get(max_slow_entries):
-            max_slow_entries = int(conn.config_get(max_slow_entries)[max_slow_entries])
+        if not instance.get(MAX_SLOW_ENTRIES_KEY):
+            max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
             if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
                 self.warning("Redis {0} is higher than {1}. Defaulting to {1}."\
                     "If you need a higher value, please set {0} in your check config"\
-                    .format(max_slow_entries, DEFAULT_MAX_SLOW_ENTRIES))
+                    .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
                 max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
         else:
             max_slow_entries = int(instance.get(max_slow_entries))
