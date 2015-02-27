@@ -94,13 +94,6 @@ use_mount: no
 # to https://app.datadoghq.com.
 # dogstatsd_target : http://localhost:17123
 
-## The dogstatsd flush period.
-# dogstatsd_interval : 10
-
-## If 'yes', counters and rates will be normalized to 1 second (that is divided
-## by the dogstatsd_interval) before being sent to the server. Defaults to 'yes'
-# dogstatsd_normalize : yes
-
 # If you want to forward every packet received by the dogstatsd server
 # to another statsd server, uncomment these lines.
 # WARNING: Make sure that forwarded packets are regular statsd packets and not "dogstatsd" packets,
