@@ -197,7 +197,8 @@ class TestRedis(AgentCheckTest):
         self.run_check({"init_config": {}, "instances": [instance]})
 
         assert self.metrics, "No metrics returned"
-        self.assertMetric("redis.slowlog.micros.max")
+        self.assertMetric("redis.slowlog.micros.max", tags=["command:SORT",
+            "redis_host:localhost", "redis_port:{0}".format(port)])
 
 
     def _sort_metrics(self, metrics):
