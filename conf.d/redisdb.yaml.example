@@ -30,3 +30,11 @@ instances:
     # Default: True
     #
     # warn_on_missing_keys: True
+
+    # Max number of entries to fetch from the sloq query log
+    # By default, the check wil read this value from the redis config
+    # But if it's too high, it will default to 128
+    # If you need to get more entries from the slow query logs
+    # set the value here.
+    # Warning: It maybe impact the performances of your redis instance
+    # slowlog-max-len: 128
