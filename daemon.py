@@ -166,7 +166,7 @@ class Daemon(object):
         log.info("Pidfile: %s" % self.pidfile)
         if not foreground:
             self.daemonize()
-        self.write_pidfile()
+            self.write_pidfile()
         self.run()
 
 
