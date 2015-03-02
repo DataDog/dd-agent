@@ -5,7 +5,7 @@ init_config:
 
 instances:
 
-  # SNMP v1-v2 configuration
+  # SNMP v2 configuration
   #
   # - ip_address: localhost
   #   port: 161
@@ -54,6 +54,19 @@ instances:
   #   privKey: private_key
   #   authProtocol: authProtocol
   #   privProtocol: privProtocol
+  #   tags:
+  #     - optional_tag_1
+  #     - optional_tag_2
+  #   metrics:
+  #     - MIB: UDP-MIB
+  #       symbol: udpInDatagrams
+  #     - MIB: TCP-MIB
+  #       symbol: tcpActiveOpens
+
+  # Force SNMP v1 configuration
+  # - ip_address: localhost
+  #   snmp_version: 1
+  #   community_string: public
   #   tags:
   #     - optional_tag_1
   #     - optional_tag_2
