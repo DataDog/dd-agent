@@ -40,7 +40,9 @@ init_config:
           - MemtableSwitchCount
           - MinRowSize
           - PendingTasks
+          - RangeOperations
           - ReadCount
+          - ReadOperations
           - RecentHitRate
           - RecentRangeLatencyMicros
           - RecentReadLatencyMicros
@@ -49,10 +51,12 @@ init_config:
           - RowCacheRecentHitRate
           - Size
           - TotalDiskSpaceUsed
+          - TotalRangeLatencyMicros
           - TotalReadLatencyMicros
           - TotalWriteLatencyMicros
           - UpdateInterval
           - WriteCount
+          - WriteOperations
       exclude:
         keyspace: system
     - include:
