@@ -1,9 +1,13 @@
-#!/usr/bin/python
-from __future__ import division
-from checks import AgentCheck
+'''
+ZFS check
+'''
+# stdlib
 import subprocess
 import re
+from __future__ import division
 
+# project
+from checks import AgentCheck
 
 class Zfs(AgentCheck):
     # Inject dependency so that we can make mocks work in UnitTests
