@@ -170,7 +170,6 @@ class AgentCheckTest(unittest.TestCase):
             self.print_current_state()
             raise
 
-
     def assertMetric(self, metric_name, metric_value=None, tags=None, count=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
@@ -183,7 +182,6 @@ class AgentCheckTest(unittest.TestCase):
                 candidates.append((m_name, ts, val, mdata))
 
         self._candidates_size_assert(candidates, count=count)
-
 
     def assertMetricTagPrefix(self, metric_name, tag_prefix, count=None):
         candidates = []
@@ -219,3 +217,9 @@ class AgentCheckTest(unittest.TestCase):
                 candidates.append(sc)
 
         self._candidates_size_assert(candidates, count=count)
+
+    def assertIn(self, first, second):
+        self.assertTrue(first in second, "{0} not in {1}".format(first, second))
+
+    def assertNotIn(self, first, second):
+        self.assertTrue(first not in second, "{0} in {1}".format(first, second))
