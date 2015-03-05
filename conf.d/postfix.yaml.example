@@ -4,7 +4,7 @@
 # example /etc/sudoers entry:
 #          dd-agent ALL=(ALL) NOPASSWD:/usr/bin/find
 #
-# Redhat/CentOS flavours will need to add:
+# Redhat/CentOS/Amazon Linux flavours will need to add:
 #          Defaults:dd-agent !requiretty
 
 init_config:
