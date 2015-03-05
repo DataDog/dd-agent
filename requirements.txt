@@ -14,6 +14,7 @@ pysnmp-mibs
 pymysql
 pyvmomi==5.5.0
 pg8000
+psycopg2
 ntplib
 httplib2
 kafka-python==0.9.0-9bed11db98387c0d9e456528130b330631dc50af
