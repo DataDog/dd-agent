@@ -1,7 +1,21 @@
 Changes
 =======
 
+# 5.2.2 / 03-20-2015
+**Linux or Source Install only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.2.1...5.2.2
+
+### Changes
+* [SECURITY] The deb and rpm packages now bundle OpenSSL 1.0.1m
+* [BUGFIX] Fix "pidfile /tmp/dd-agent.pid already exists" bug. See [#1435][]
+* [BUGFIX] Fix bundling of rrdtool python binding
+
+
 # 5.2.1 / 02-20-2015
+**Linux or Source Install only**
+
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
 
@@ -1436,6 +1450,7 @@ If you use ganglia, you want this version.
 [#1379]: https://github.com/DataDog/dd-agent/issues/1379
 [#1380]: https://github.com/DataDog/dd-agent/issues/1380
 [#1389]: https://github.com/DataDog/dd-agent/issues/1389
+[#1435]: https://github.com/DataDog/dd-agent/issues/1435
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
