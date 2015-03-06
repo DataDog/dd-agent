@@ -2,6 +2,8 @@ Changes
 =======
 
 # 5.2.1 / 02-20-2015
+**Linux or Source Install only**
+
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.0...5.2.1
 
