@@ -83,7 +83,13 @@ class SnmpCheck(AgentCheck):
         '''
         if "community_string" in instance:
             # SNMP v1 - SNMP v2
-            return cmdgen.CommunityData(instance['community_string'])
+
+            # See http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+            if int(instance.get("snmp_version", 2)) == 1:
+                return cmdgen.CommunityData(instance['community_string'],
+                    mpModel=0)
+            return cmdgen.CommunityData(instance['community_string'], mpModel=1)
+
         elif "user" in instance:
             # SNMP v3
             user = instance["user"]
