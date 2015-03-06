@@ -33,8 +33,9 @@ class ServiceCheckTestCase(unittest.TestCase):
         }
 
         self.init_check(config, 'http_check')
-        url, username, password, timeout, include_content, headers, response_time, content_match,\
-            tags, ssl, ssl_expiration = self.check._load_conf(config['instances'][0])
+        url, username, password, timeout, http_response_status_code, include_content, headers, \
+            response_time, content_match, tags, ssl, \
+            ssl_expiration = self.check._load_conf(config['instances'][0])
 
         self.assertTrue(headers["X-Auth-Token"] == "SOME-AUTH-TOKEN", headers)
         self.assertTrue(headers.get('User-Agent') == agent_headers(self.agentConfig).get('User-Agent'), headers)

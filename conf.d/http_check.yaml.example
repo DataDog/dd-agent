@@ -26,6 +26,12 @@ instances:
     # username: user
     # password: pass
 
+    # The (optional) http_response_status_code parameter will instruct the check
+    # to look for a particular HTTP response status code.
+    # The check will report as DOWN if status code returned differs.
+    # This defaults to 1xx, 2xx and 3xx HTTP status code: (1|2|3)\d\d.
+    # http_response_status_code: 401
+
     # The (optional) window and threshold parameters allow you to trigger
     # alerts only if the check fails x times within the last y attempts
     # where x is the threshold and y is the window.

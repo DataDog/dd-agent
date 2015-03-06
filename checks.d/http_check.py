@@ -45,27 +45,29 @@ class HTTPCheck(NetworkCheck):
     def _load_conf(self, instance):
         # Fetches the conf
         tags = instance.get('tags', [])
-        username = instance.get('username', None)
-        password = instance.get('password', None)
+        username = instance.get('username')
+        password = instance.get('password')
+        http_response_status_code = instance.get('http_response_status_code', "(1|2|3)\d\d")
         timeout = int(instance.get('timeout', 10))
         config_headers = instance.get('headers', {})
         headers = agent_headers(self.agentConfig)
         headers.update(config_headers)
-        url = instance.get('url', None)
-        content_match = instance.get('content_match', None)
+        url = instance.get('url')
+        content_match = instance.get('content_match')
         response_time = _is_affirmative(instance.get('collect_response_time', True))
-        if url is None:
+        if not url:
             raise Exception("Bad configuration. You must specify a url")
         include_content = _is_affirmative(instance.get('include_content', False))
         ssl = _is_affirmative(instance.get('disable_ssl_validation', True))
         ssl_expire = _is_affirmative(instance.get('check_certificate_expiration', True))
 
-        return url, username, password, timeout, include_content, headers, response_time,\
-            content_match, tags, ssl, ssl_expire
+        return url, username, password, http_response_status_code, timeout, include_content,\
+            headers, response_time, content_match, tags, ssl, ssl_expire
 
     def _check(self, instance):
-        addr, username, password, timeout, include_content, headers, response_time,\
-            content_match, tags, disable_ssl_validation, ssl_expire = self._load_conf(instance)
+        addr, username, password, http_response_status_code, timeout, include_content, headers,\
+            response_time, content_match, tags, disable_ssl_validation,\
+            ssl_expire = self._load_conf(instance)
         start = time.time()
 
         service_checks = []
@@ -73,7 +75,8 @@ class HTTPCheck(NetworkCheck):
         try:
             self.log.debug("Connecting to %s" % addr)
             if disable_ssl_validation and urlparse(addr)[0] == "https":
-                self.warning("Skipping SSL certificate validation for %s based on configuration" % addr)
+                self.warning("Skipping SSL certificate validation for %s based on configuration"
+                             % addr)
 
             auth = None
             if username is not None and password is not None:
@@ -81,7 +84,6 @@ class HTTPCheck(NetworkCheck):
 
             r = requests.get(addr, auth=auth, timeout=timeout, headers=headers,
                              verify=not disable_ssl_validation)
-            r.raise_for_status()
 
         except socket.timeout, e:
             length = int((time.time() - start) * 1000)
@@ -91,16 +93,6 @@ class HTTPCheck(NetworkCheck):
                 self.SC_STATUS,
                 Status.DOWN,
                 "%s. Connection failed after %s ms" % (str(e), length)
-            ))
-
-        except requests.exceptions.HTTPError, r:
-            length = int((time.time() - start) * 1000)
-            self.log.info("%s is DOWN, error code: %s" % (addr, str(r.status_code)))
-
-            content = r.content if include_content else ''
-
-            service_checks.append((
-                self.SC_STATUS, Status.DOWN, (r.status_code, r.reason, content or '')
             ))
 
         except requests.exceptions.ConnectionError, e:
@@ -137,6 +129,18 @@ class HTTPCheck(NetworkCheck):
             tags_list = list(tags)
             tags_list.append('url:%s' % addr)
             self.gauge('network.http.response_time', running_time, tags=tags_list)
+
+        # Check HTTP response status code
+        if not (service_checks or re.match(http_response_status_code, str(r.status_code))):
+            self.log.info("Incorrect HTTP return code. Expected %s, got %s"
+                          % (http_response_status_code, str(r.status_code)))
+
+            service_checks.append((
+                self.SC_STATUS,
+                Status.DOWN,
+                "Incorrect HTTP return code. Expected %s, got %s"
+                % (http_response_status_code, str(r.status_code))
+            ))
 
         if not service_checks:
             # Host is UP
@@ -196,7 +200,6 @@ class HTTPCheck(NetworkCheck):
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, name)
         else:
             source_type = "%s.%s" % (NetworkCheck.SOURCE_TYPE_NAME, instance_source_type_name)
-
 
         # Get the handles you want to notify
         notify = instance.get('notify', self.init_config.get('notify', []))

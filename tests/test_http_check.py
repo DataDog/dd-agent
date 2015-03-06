@@ -8,24 +8,29 @@ RESULTS_TIMEOUT = 5
 
 CONFIG = {
     'instances': [{
-        'name': 'bad_url',
+        'name': 'conn_error',
         'url': 'https://thereisnosuchlink.com',
         'check_certificate_expiration': False,
         'timeout': 1,
     }, {
-        'name': 'content_mismatch',
+        'name': 'http_error_status_code',
+        'url': 'http://httpbin.org/404',
+        'check_certificate_expiration': False,
+        'timeout': 1,
+    }, {
+        'name': 'status_code_match',
+        'url': 'http://httpbin.org/404',
+        'http_response_status_code': '4..',
+        'check_certificate_expiration': False,
+        'timeout': 1,
+    }, {
+        'name': 'cnt_mismatch',
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': False,
         'content_match': 'thereisnosuchword'
     }, {
-        'name': 'simple_match',
-        'url': 'https://github.com',
-        'timeout': 1,
-        'check_certificate_expiration': False,
-        'content_match': 'github'
-    }, {
-        'name': 'regexp_match',
+        'name': 'cnt_match',
         'url': 'https://github.com',
         'timeout': 1,
         'check_certificate_expiration': False,
@@ -48,7 +53,7 @@ CONFIG_SSL_ONLY = {
         'check_certificate_expiration': True,
         'days_warning': 9999
     }, {
-        'name': 'bad_url',
+        'name': 'conn_error',
         'url': 'https://thereisnosuchlink.com',
         'timeout': 1,
         'check_certificate_expiration': True,
@@ -91,18 +96,29 @@ class HTTPCheckTest(AgentCheckTest):
 
     def test_check(self):
         self.run_check(CONFIG)
-        # Overrides self.service_checks attribute when values are available
-        self.service_checks = self.wait_for_async_service_checks(4)
+        # Overrides self.service_checks attribute when values are available\
+        self.service_checks = self.wait_for_async_service_checks(5)
 
-        self.assertServiceCheck("http_check.bad_url", status=AgentCheck.CRITICAL,
+        # HTTP connection error
+        self.assertServiceCheck("http_check.conn_error", status=AgentCheck.CRITICAL,
                                 tags=['url:https://thereisnosuchlink.com'])
-        self.assertServiceCheck("http_check.content_mismatch", status=AgentCheck.CRITICAL,
+
+        # Wrong HTTP response status code
+        self.assertServiceCheck("http_check.http_error_status_code", status=AgentCheck.CRITICAL,
+                                tags=['url:http://httpbin.org/404'])
+        self.assertServiceCheck("http_check.http_error_status_code", status=AgentCheck.OK,
+                                tags=['url:http://httpbin.org/404'], count=0)
+
+        # HTTP response status code match
+        self.assertServiceCheck("http_check.status_code_match", status=AgentCheck.OK,
+                                tags=['url:http://httpbin.org/404'])
+
+        # Content match & mismatching
+        self.assertServiceCheck("http_check.cnt_mismatch", status=AgentCheck.CRITICAL,
                                 tags=['url:https://github.com'])
-        self.assertServiceCheck("http_check.content_mismatch", status=AgentCheck.OK,
+        self.assertServiceCheck("http_check.cnt_mismatch", status=AgentCheck.OK,
                                 tags=['url:https://github.com'], count=0)
-        self.assertServiceCheck("http_check.simple_match", status=AgentCheck.OK,
-                                tags=['url:https://github.com'])
-        self.assertServiceCheck("http_check.regexp_match", status=AgentCheck.OK,
+        self.assertServiceCheck("http_check.cnt_match", status=AgentCheck.OK,
                                 tags=['url:https://github.com'])
 
     def test_check_ssl(self):
@@ -113,7 +129,7 @@ class HTTPCheckTest(AgentCheckTest):
                                 tags=['url:https://github.com'])
         self.assertServiceCheck("http_check.ssl_cert.cert_exp_soon", status=AgentCheck.WARNING,
                                 tags=['url:https://github.com'])
-        self.assertServiceCheck("http_check.ssl_cert.bad_url", status=AgentCheck.CRITICAL,
+        self.assertServiceCheck("http_check.ssl_cert.conn_error", status=AgentCheck.CRITICAL,
                                 tags=['url:https://thereisnosuchlink.com'])
 
     @mock.patch('ssl.SSLSocket.getpeercert', return_value=FAKE_CERT)
