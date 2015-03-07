@@ -223,21 +223,21 @@ SELECT %s
             ('relname', 'table'),
         ],
         'metrics': {
-            'schemaname'      : ('postgresql.schemaname', RATE),
-            'heap_blks_read'  : ('postgresql.heap_blks_read', RATE),
-            'heap_blks_hit'   : ('postgresql.heap_blks_hit', RATE),
-            'idx_blks_read'   : ('postgresql.idx_blks_read', RATE),
-            'idx_blks_hit'    : ('postgresql.idx_blks_hit', RATE),
-            'toast_blks_read' : ('postgresql.toast_blks_read', RATE),
-            'toast_blks_hit'  : ('postgresql.toast_blks_hit', RATE),
-            'tidx_blks_read'  : ('postgresql.tidx_blks_read', RATE),
-            'tidx_blks_hit'   : ('postgresql.tidx_blks_hit', RATE),
+            'heap_blks_read'  : ('postgresql.heap_blocks_read', RATE),
+            'heap_blks_hit'   : ('postgresql.heap_blocks_hit', RATE),
+            'idx_blks_read'   : ('postgresql.index_blocks_read', RATE),
+            'idx_blks_hit'    : ('postgresql.index_blocks_hit', RATE),
+            'toast_blks_read' : ('postgresql.toast_blocks_read', RATE),
+            'toast_blks_hit'  : ('postgresql.toast_blocks_hit', RATE),
+            'tidx_blks_read'  : ('postgresql.toast_index_blocks_read', RATE),
+            'tidx_blks_hit'   : ('postgresql.toast_index_blocks_hit', RATE),
         },
         'query': """
 SELECT relname,
        %s
-  FROM pg_statio_all_tables""",
-        'relation': False,
+  FROM pg_statio_user_tables
+ WHERE relname = ANY(%s)""",
+        'relation': True,
     }
 
     def __init__(self, name, init_config, agentConfig, instances=None):
@@ -417,10 +417,11 @@ SELECT relname,
 
                 if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
                     self.warning(
-                        "Query: {0} returned more than {1} results ({2})Truncating").format(
+                        "Query: {0} returned more than {1} results ({2}). Truncating").format(
                         query, MAX_CUSTOM_RESULTS, len(results))
                     results = results[:MAX_CUSTOM_RESULTS]
 
+                # FIXME this cramps my style
                 if scope == self.DB_METRICS:
                     self.gauge("postgresql.db.count", len(results),
                         tags=[t for t in instance_tags if not t.startswith("db:")])
