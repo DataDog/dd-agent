@@ -605,7 +605,7 @@ def get_proxy(agentConfig, use_system_settings=False):
                 pass
             px = proxy.split(':')
             proxy_settings['host'] = px[0]
-            proxy_settings['port'] = px[1]
+            proxy_settings['port'] = int(px[1])
             proxy_settings['user'] = None
             proxy_settings['password'] = None
             proxy_settings['system_settings'] = True
