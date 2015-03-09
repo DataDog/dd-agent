@@ -22,16 +22,26 @@ import signal
 import sys
 import time
 import glob
+import tarfile
+import subprocess
+import json
+import tempfile
+import re
+import atexit
 
 # Custom modules
 from checks.collector import Collector
-from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
+from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
+from config import get_config, get_system_stats, get_parsed_args,\
+                   load_check_directory, get_logging_config, check_yaml,\
+                   get_config, get_config_path, get_confd_path
 from daemon import Daemon, AgentSupervisor
 from emitter import http_emitter
 from util import Watchdog, PidFile, EC2, get_os, get_hostname
 from jmxfetch import JMXFetch
 
+# 3p
+import requests
 
 # Constants
 PID_NAME = "dd-agent"
@@ -196,6 +206,266 @@ class Agent(Daemon):
             self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+def configcheck():
+    osname = get_os()
+    all_valid = True
+    for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
+        basename = os.path.basename(conf_path)
+        try:
+            check_yaml(conf_path)
+        except Exception, e:
+            all_valid = False
+            print "%s contains errors:\n    %s" % (basename, e)
+        else:
+            print "%s is valid" % basename
+    if all_valid:
+        print "All yaml files passed. You can now run the Datadog agent."
+        return 0
+    else:
+        print("Fix the invalid yaml files above in order to start the Datadog agent. "
+                "A useful external tool for yaml parsing can be found at "
+                "http://yaml-online-parser.appspot.com/")
+        return 1
+
+class Flare(object):
+    """
+    Compress all important logs and configuration files for debug,
+    and then send them to Datadog (which transfers them to Support)
+    """
+
+    DATADOG_SUPPORT_URL = '/zendesk/flare'
+    PASSWORD_REGEX = re.compile('( *(\w|_)*pass(word)?:).+')
+    COMMENT_REGEX = re.compile('^ *#.*')
+    APIKEY_REGEX = re.compile('^api_key:')
+
+    def __init__(self, cmdline=False, case_id=None):
+        self._case_id = case_id
+        self._cmdline = cmdline
+        self._init_tarfile()
+        self._save_logs_path(get_logging_config())
+        config = get_config()
+        self._api_key = config.get('api_key')
+        self._url = "{0}{1}".format(config.get('dd_url'), self.DATADOG_SUPPORT_URL)
+        self._hostname = get_hostname(config)
+        self._prefix = "datadog-{0}".format(self._hostname)
+
+    def collect(self):
+        if not self._api_key:
+            raise Exception('No api_key found')
+        self._print("Collecting logs and configuration files:")
+
+        self._add_logs_tar()
+        self._add_conf_tar()
+        self._print("  * datadog-agent configcheck output")
+        self._add_command_output_tar('configcheck.log', configcheck)
+        self._print("  * datadog-agent status output")
+        self._add_command_output_tar('status.log', self._supervisor_status)
+        self._print("  * datadog-agent info output")
+        self._add_command_output_tar('info.log', self._info_all)
+
+        self._print("Saving all files to {0}".format(self._tar_path))
+        self._tar.close()
+
+    # Upload the tar file
+    def upload(self, confirmation=True):
+        # Ask for confirmation first
+        if confirmation:
+            self._ask_for_confirmation()
+
+        email = self._ask_for_email()
+
+        self._print("Uploading {0} to Datadog Support".format(self._tar_path))
+        url = self._url
+        if self._case_id:
+            url = "{0}/{1}".format(self._url, str(self._case_id))
+        files = {'flare_file': open(self._tar_path, 'rb')}
+        data = {
+            'api_key': self._api_key,
+            'case_id': self._case_id,
+            'hostname': self._hostname,
+            'email': email
+        }
+        r = requests.post(url, files=files, data=data)
+        self._analyse_result(r)
+
+    # Start by creating the tar file which will contain everything
+    def _init_tarfile(self):
+        # Default temp path
+        self._tar_path = os.path.join(tempfile.gettempdir(), 'datadog-agent.tar.bz2')
+
+        if os.path.exists(self._tar_path):
+            os.remove(self._tar_path)
+        self._tar = tarfile.open(self._tar_path, 'w:bz2')
+
+    # Save logs file paths
+    def _save_logs_path(self, config):
+        prefix = ''
+        if get_os() == 'windows':
+            prefix = 'windows_'
+        self._collector_log = config.get('{0}collector_log_file'.format(prefix))
+        self._forwarder_log = config.get('{0}forwarder_log_file'.format(prefix))
+        self._dogstatsd_log = config.get('{0}dogstatsd_log_file'.format(prefix))
+        self._jmxfetch_log = config.get('jmxfetch_log_file')
+
+    # Add logs to the tarfile
+    def _add_logs_tar(self):
+        self._add_log_file_tar(self._collector_log)
+        self._add_log_file_tar(self._forwarder_log)
+        self._add_log_file_tar(self._dogstatsd_log)
+        self._add_log_file_tar(self._jmxfetch_log)
+        self._add_log_file_tar(
+            "{0}/*supervisord.log*".format(os.path.dirname(self._collector_log))
+        )
+
+    def _add_log_file_tar(self, file_path):
+        for f in glob.glob('{0}*'.format(file_path)):
+            self._print("  * {0}".format(f))
+            self._tar.add(
+                f,
+                os.path.join(self._prefix, 'log', os.path.basename(f))
+            )
+
+    # Collect all conf
+    def _add_conf_tar(self):
+        conf_path = get_config_path()
+        self._print("  * {0}".format(conf_path))
+        self._tar.add(
+            self._strip_comment(conf_path),
+            os.path.join(self._prefix, 'etc', 'datadog.conf')
+        )
+
+        if get_os() != 'windows':
+            supervisor_path = os.path.join(
+                os.path.dirname(get_config_path()),
+                'supervisor.conf'
+            )
+            self._print("  * {0}".format(supervisor_path))
+            self._tar.add(
+                self._strip_comment(supervisor_path),
+                os.path.join(self._prefix, 'etc', 'supervisor.conf')
+            )
+
+        for file_path in glob.glob(os.path.join(get_confd_path(), '*.yaml')):
+            self._add_clean_confd(file_path)
+
+    # Return path to a temp file without comment
+    def _strip_comment(self, file_path):
+        _, temp_path = tempfile.mkstemp(prefix='dd')
+        atexit.register(os.remove, temp_path)
+        temp_file = open(temp_path, 'w')
+        orig_file = open(file_path, 'r').read()
+
+        for line in orig_file.splitlines(True):
+            if not self.COMMENT_REGEX.match(line) and not self.APIKEY_REGEX.match(line):
+                temp_file.write(line)
+        temp_file.close()
+
+        return temp_path
+
+    # Remove password before collecting the file
+    def _add_clean_confd(self, file_path):
+        basename = os.path.basename(file_path)
+
+        temp_path, password_found = self._strip_password(file_path)
+        self._print("  * {0}{1}".format(file_path, password_found))
+        self._tar.add(
+            temp_path,
+            os.path.join(self._prefix, 'etc', 'conf.d', basename)
+        )
+
+    # Return path to a temp file without password and comment
+    def _strip_password(self, file_path):
+        _, temp_path = tempfile.mkstemp(prefix='dd')
+        atexit.register(os.remove, temp_path)
+        temp_file = open(temp_path, 'w')
+        orig_file = open(file_path, 'r').read()
+        password_found = ''
+        for line in orig_file.splitlines(True):
+            if self.PASSWORD_REGEX.match(line):
+                line = re.sub(self.PASSWORD_REGEX, r'\1 ********', line)
+                password_found = ' - this file contains a password which '\
+                                 'has been removed in the version collected'
+            if not self.COMMENT_REGEX.match(line):
+                temp_file.write(line)
+        temp_file.close()
+
+        return temp_path, password_found
+
+    # Add output of the command to the tarfile
+    def _add_command_output_tar(self, name, command):
+        temp_file = os.path.join(tempfile.gettempdir(), name)
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        backup = sys.stdout
+        sys.stdout = open(temp_file, 'w')
+        command()
+        sys.stdout.close()
+        sys.stdout = backup
+        self._tar.add(temp_file, os.path.join(self._prefix, name))
+        os.remove(temp_file)
+
+    # Print supervisor status (and nothing on windows)
+    def _supervisor_status(self):
+        if get_os == 'windows':
+            print 'Windows - status not implemented'
+        else:
+            print '/etc/init.d/datadog-agent status'
+            self._print_output_command(['/etc/init.d/datadog-agent', 'status'])
+            print 'supervisorctl status'
+            self._print_output_command(['/opt/datadog-agent/bin/supervisorctl',
+                                        '-c', '/etc/dd-agent/supervisor.conf',
+                                        'status'])
+
+    # Print output of command
+    def _print_output_command(self, command):
+        try:
+            status = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError, e:
+            status = 'Not able to get status, exit number {0}, exit ouput:\n'\
+                     '{1}'.format(str(e.returncode), e.output)
+        print status
+
+    # Print info of all agent components
+    def _info_all(self):
+        CollectorStatus.print_latest_status(verbose=True)
+        DogstatsdStatus.print_latest_status(verbose=True)
+        ForwarderStatus.print_latest_status(verbose=True)
+
+    # Function to ask for confirmation before upload
+    def _ask_for_confirmation(self):
+        print '{0} is going to be uploaded to Datadog.'.format(self._tar_path)
+        print 'Do you want to continue [Y/n]?',
+        choice = raw_input().lower()
+        if choice not in ['yes', 'y', '']:
+            print 'Aborting... (you can still use {0})'.format(self._tar_path)
+            sys.exit(1)
+
+    # Ask for email if needed
+    def _ask_for_email(self):
+        if self._case_id:
+            return None
+        print 'Please enter your email:',
+        return raw_input().lower()
+
+    # Print output (success/error) of the request
+    def _analyse_result(self, resp):
+        if resp.status_code == 200:
+            self._print("Your logs were successfully uploaded. For future reference,"\
+                        " your internal case id is {0}".format(json.loads(resp.text)['case_id']))
+        elif resp.status_code == 400:
+            raise Exception('Your request is incorrect, error {0}'.format(resp.text))
+        elif resp.status_code == 500:
+            raise Exception('An error has occurred while uploading: {0}'.format(resp.text))
+        else:
+            raise Exception('An unknown error has occured, please email support directly')
+
+    # Print to the console or to the log
+    def _print(self, output):
+        if self._cmdline:
+            print output
+        else:
+            log.info(output)
+
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
@@ -212,6 +482,7 @@ def main():
         'check',
         'configcheck',
         'jmx',
+        'flare',
     ]
 
     if len(args) < 1:
@@ -296,25 +567,7 @@ def main():
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
-        osname = get_os()
-        all_valid = True
-        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
-            basename = os.path.basename(conf_path)
-            try:
-                check_yaml(conf_path)
-            except Exception, e:
-                all_valid = False
-                print "%s contains errors:\n    %s" % (basename, e)
-            else:
-                print "%s is valid" % basename
-        if all_valid:
-            print "All yaml files passed. You can now run the Datadog agent."
-            return 0
-        else:
-            print("Fix the invalid yaml files above in order to start the Datadog agent. "
-                    "A useful external tool for yaml parsing can be found at "
-                    "http://yaml-online-parser.appspot.com/")
-            return 1
+        configcheck()
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
@@ -342,6 +595,13 @@ def main():
                 print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
                 print "Have you enabled any JMX check ?"
                 print "If you think it's not normal please get in touch with Datadog Support"
+
+    elif 'flare' == command:
+        case_id = int(args[1]) if len(args) > 1 else None
+        f = Flare(True, case_id)
+        f.collect()
+        f.upload()
+
     return 0
 
 

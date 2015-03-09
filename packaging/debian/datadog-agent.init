@@ -82,13 +82,13 @@ case "$1" in
             log_daemon_msg "Resuming starting process."
         fi
 
-       
+
         log_daemon_msg "Starting $DESC (using supervisord)" "$NAME"
         PATH=$SYSTEM_PATH start-stop-daemon --start --quiet --oknodo --exec $SUPERVISORD_PATH -- -c $SUPERVISOR_FILE --pidfile $SUPERVISOR_PIDFILE
         if [ $? -ne 0 ]; then
             log_end_msg 1
         fi
-   
+
         # check if the agent is running once per second for 10 seconds
         retries=10
         while [ $retries -gt 1 ]; do
@@ -108,10 +108,10 @@ case "$1" in
         exit 1
         ;;
     stop)
-       
+
         log_daemon_msg "Stopping $DESC (stopping supervisord)" "$NAME"
         start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $SUPERVISOR_PIDFILE
-   
+
         log_end_msg $?
 
         ;;
@@ -154,9 +154,15 @@ case "$1" in
         exit $?
         ;;
 
+    flare)
+        shift
+        su $AGENTUSER -c "$AGENTPATH flare $@"
+        exit $?
+        ;;
+
     *)
         N=/etc/init.d/$NAME
-        echo "Usage: $N {start|stop|restart|info|status|configcheck|configtest|jmx}"
+        echo "Usage: $N {start|stop|restart|info|status|configcheck|configtest|jmx|flare}"
         exit 1
         ;;
 esac
