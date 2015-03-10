@@ -44,14 +44,14 @@ check_status() {
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
             echo "$supervisor_processes"
             echo "$DESC (supervisor) is NOT running all child processes"
-            return 1
+            return q
         else
             echo "$DESC (supervisor) is running all child processes"
             return 0
         fi
     else
         echo "$DESC (supervisor) is not running"
-        return 1
+        return 2
     fi
 }
 
@@ -80,8 +80,13 @@ case $1 in
         ;;
 
     stop)
-        $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE stop all
-        kill -TERM $(cat $SUPERVISOR_PIDFILE)
+        check_status > /dev/null
+        if [ $? -ne 2 ]; then
+            $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE stop all
+            kill -TERM $(cat $SUPERVISOR_PIDFILE)
+        else
+            echo "$DESC (supervisor) is not running"
+        fi
         exit $?
         ;;
 

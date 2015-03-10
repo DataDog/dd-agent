@@ -2,19 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>KeepAlive</key>
-  <true/>
-  <key>Label</key>
-  <string>com.datadoghq.Agent</string>
-  <key>Program</key>
-  <string>/usr/bin/datadog-agent</string>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>UserName</key>
-  <string>USER_NAME</string>
-  <key>WorkingDirectory</key>
-  <string>AGENT_BASE</string>
-  <key>StandardErrorPath</key>
-  <string>/var/log/launchd/logs/launchd.log</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>Label</key>
+    <string>com.datadoghq.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/Datadog Agent.app/Contents/MacOS/datadog-agent</string>
+        <string>restart</string>
+    </array>
+    <key>UserName</key>
+    <string>USER_NAME</string>
+    <key>StandardOutPath</key>
+    <string>/var/log/datadog/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/datadog/launchd.log</string>
 </dict>
 </plist>
