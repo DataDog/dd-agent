@@ -1,10 +1,11 @@
 '''
 ZFS check
 '''
+from __future__ import division
+
 # stdlib
 import subprocess
 import re
-from __future__ import division
 
 # project
 from checks import AgentCheck
