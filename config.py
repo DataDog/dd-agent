@@ -293,6 +293,28 @@ def get_histogram_percentiles(configstr=None):
 
     return result
 
+
+def get_governor_config():
+    # YANN TODO: choose where to get the governor config from and load it
+    # HARDCODED TEMPORARY SOLUTION
+    LIMIT_CONFIG = {
+        'limiters': [
+            {
+                'scope': 'check',
+                'selection': 'name',
+                'limit': 15,
+            }, {
+                'scope': 'agent',
+                'selection': 'name',
+                'limit': 200,
+            }
+
+        ]
+    }
+
+    return LIMIT_CONFIG
+
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -647,6 +669,33 @@ def get_proxy(agentConfig, use_system_settings=False):
     return None
 
 
+def format_proxy_settings(proxy_settings):
+    """
+    Returns proxy settings in a format compliant with `requests` package.
+    i.e.
+        {
+          "https": "http://user:password@host:port/",
+        }
+    """
+    if not proxy_settings or proxy_settings['system_settings']:
+        # No proxy or proxy set by environment variables. `requests` will use it automatically
+        return
+
+    host = proxy_settings['host']
+    port = proxy_settings['port']
+    user = proxy_settings['user']
+    password = proxy_settings['password']
+
+    auth = ""
+    if user and password:
+        auth = "{0}:{1}@".format(user, password)
+    proxy_url = "http://{0}{1}:{2}/".format(auth, host, port)
+
+    return {
+        'https': proxy_url
+    }
+
+
 def get_confd_path(osname=None):
     if not osname:
         osname = get_os()
@@ -889,8 +938,8 @@ def load_check_directory(agentConfig, hostname):
         instances = check_config['instances']
         try:
             try:
-                c = check_class(check_name, init_config=init_config,
-                                agentConfig=agentConfig, instances=instances)
+                c = check_class(check_name, init_config=init_config, agentConfig=agentConfig,
+                                instances=instances)
             except TypeError, e:
                 # Backwards compatibility for checks which don't support the
                 # instances argument in the constructor.

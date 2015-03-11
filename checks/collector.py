@@ -1,17 +1,14 @@
 # Core modules
-import os
-import re
 import logging
 import subprocess
 import sys
 import time
-import datetime
 import socket
 
 import modules
 
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
-from config import get_version, get_system_stats
+from util import get_os, get_uuid, Timer, get_hostname, EC2, GCE
+from config import get_governor_config, get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
@@ -21,6 +18,7 @@ from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
+from utils.governor import AgentGovernor, Governor
 
 
 log = logging.getLogger(__name__)
@@ -58,6 +56,10 @@ class Collector(object):
             'agent_checks': {
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
+            },
+            'governor_check': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('governor_check_interval', 2 * 60))
             }
         }
         socket.setdefaulttimeout(15)
@@ -110,8 +112,15 @@ class Collector(object):
 
         # Resource Checks
         self._resources_checks = [
-            ResProcesses(log,self.agentConfig)
+            ResProcesses(log, self.agentConfig)
         ]
+
+        # Init Governor and instantiate an AgentGovernor
+        governor_config = get_governor_config()
+        Governor.init(governor_config, self.agentConfig, self.hostname)
+
+        self.governor = AgentGovernor()
+        self.governor_status = []
 
     def stop(self):
         """
@@ -271,6 +280,9 @@ class Collector(object):
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
 
+                # Collect governor status
+                current_governor_status = check.get_governor_status()
+
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
                 if current_check_events:
@@ -285,9 +297,11 @@ class Collector(object):
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
+            check_status = CheckStatus(
+                check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name,
+                governor_status=current_governor_status)
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]
@@ -328,6 +342,10 @@ class Collector(object):
         service_checks.append(create_service_check('datadog.agent.up', AgentCheck.OK,
             hostname=self.hostname))
 
+        # Governor: process the metric payload
+        if self._should_send_additional_data('governor_check'):
+            self.governor_status = self.governor.process(metrics)
+
         # Store the metrics and events in the payload.
         payload['metrics'] = metrics
         payload['events'] = events
@@ -362,19 +380,21 @@ class Collector(object):
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
+            payload['metrics'].extend(self._agent_metrics.check(
+                payload, self.agentConfig,
                 collect_duration, self.emit_duration, time.clock() - cpu_clock))
         else:
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
+            payload['metrics'].extend(self._agent_metrics.check(
+                payload, self.agentConfig,
                 collect_duration, self.emit_duration))
-
 
         emitter_statuses = self._emit(payload)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
         try:
-            CollectorStatus(check_statuses, emitter_statuses, self.metadata_cache).persist()
+            CollectorStatus(check_statuses, emitter_statuses,
+                            self.metadata_cache, self.governor_status).persist()
         except Exception:
             log.exception("Error persisting collector status")
 
@@ -536,5 +556,3 @@ class Collector(object):
             return True
 
         return False
-
-

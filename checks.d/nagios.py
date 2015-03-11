@@ -4,8 +4,8 @@ import re
 from collections import namedtuple
 
 # project
-from checks.utils import TailFile
 from checks import AgentCheck
+from checks.tail import TailFile
 
 # fields order for each event type, as named tuples
 EVENT_FIELDS = {
