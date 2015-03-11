@@ -379,10 +379,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # Custom histogram aggregate/percentile metrics
         if config.has_option('Main', 'histogram_aggregates'):
-            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histograms_aggregates'))
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histogram_aggregates'))
 
         if config.has_option('Main', 'histogram_percentiles'):
-            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histograms_percentiles'))
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
