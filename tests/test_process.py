@@ -1,124 +1,172 @@
 import unittest
+import os
 
 from checks import AgentCheck
-from util import get_hostname
-from tests.common import load_check
+from tests.common import AgentCheckTest, load_check
 from nose.plugins.attrib import attr
 
 @attr('process')
-class ProcessTestCase(unittest.TestCase):
+class ProcessTestCase(AgentCheckTest):
+    CHECK_NAME = 'process'
 
-    offset = 0
-    nb_procs = [0, 1, 3, 5, 6]
-
-    def build_config(self, config):
-        # 6 possible configurations:
-        # C--W--W--C
-        # W--C--C--W
-        # W--C--W--C
-        # C--W--C--W
-        # C--C--W--W
-        # W--W--C--C
-        # 1--2--4--5
-        # There is some redundancy but every cases should be tested
-        critical_low = [2, 1, 2, 1, 1, 4]
-        critical_high = [4, 5, 5, 4, 2, 5]
-        warning_low = [1, 2, 1, 2, 4, 1]
-        warning_high = [5, 4, 4, 5, 5, 2]
-
-        for i in range(6):
-            name = 'test' + str(i)
-            config['instances'].append({
-                'name': name,
-                'search_string': ['test'],
+    CONFIG_STUBS = [
+        {
+            'config': {
+                'name': 'test_0',
+                'search_string': ['test_0'], # index in the array for our find_pids mock
                 'thresholds': {
-                    'critical': [critical_low[i], critical_high[i]],
-                    'warning': [warning_low[i], warning_high[i]]
+                    'critical': [2, 4],
+                    'warning': [1, 5]
                 }
-            })
+            },
+            'mocked_processes': 0
+        },
+        {
+            'config': {
+                'name': 'test_1',
+                'search_string': ['test_1'], # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [1, 5],
+                    'warning': [2, 4]
+                }
+            },
+            'mocked_processes': 1
+        },
+        {
+            'config': {
+                'name': 'test_2',
+                'search_string': ['test_2'], # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [2, 5],
+                    'warning': [1, 4]
+                }
+            },
+            'mocked_processes': 3
+        },
+        {
+            'config': {
+                'name': 'test_3',
+                'search_string': ['test_3'], # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [1, 4],
+                    'warning': [2, 5]
+                }
+            },
+            'mocked_processes': 5
+        },
+        {
+            'config': {
+                'name': 'test_4',
+                'search_string': ['test_4'], # index in the array for our find_pids mock
+                'thresholds': {
+                    'critical': [1, 4],
+                    'warning': [2, 5]
+                }
+            },
+            'mocked_processes': 6
+        },
+        {
+            'config': {
+                'name': 'test_tags',
+                'search_string': ['test_5'], # index in the array for our find_pids mock
+                'tags': ['onetag', 'env:prod']
+            },
+            'mocked_processes': 1
+        },
+        {
+            'config': {
+                'name': 'test_badthresholds',
+                'search_string': ['test_6'], # index in the array for our find_pids mock
+                'thresholds': {
+                    'test': 'test'
+                }
+            },
+            'mocked_processes': 1
+        },
+    ]
 
-        # Adding two cases where there is no configuration
-        config['instances'].append({
-            'name': 'testnothresholds',
-            'search_string': ['test']
-        })
-        config['instances'].append({
-            'name': 'testnoranges',
-            'search_string': ['test'],
-            'thresholds': {
-                "test": "test"
-            }
-        })
-        return config
+    PROCESS_METRIC = [
+        'system.processes.cpu.pct',
+        'system.processes.involuntary_ctx_switches',
+        'system.processes.ioread_bytes',
+        'system.processes.ioread_count',
+        'system.processes.iowrite_bytes',
+        'system.processes.iowrite_count',
+        'system.processes.mem.real',
+        'system.processes.mem.rss',
+        'system.processes.mem.vms',
+        'system.processes.number',
+        'system.processes.open_file_descriptors',
+        'system.processes.threads',
+        'system.processes.voluntary_ctx_switches'
+    ]
 
-    def find_pids(self, search_string, exact_match=True, ignore_denied_access=True):
-        x = self.nb_procs[self.offset]
-        ret = []
-        for i in range(x):
-            ret.append(0)
-        return ret
+    def mock_find_pids(self, search_string, exact_match=True, ignore_denied_access=True):
+        idx = search_string[0].split('_')[1]
+        # Use a real PID to get real metrics!
+        return [os.getpid()] * self.CONFIG_STUBS[int(idx)]['mocked_processes']
 
     def test_check(self):
+        mocks = {
+            'find_pids': self.mock_find_pids
+        }
+
         config = {
-            'init_config': {},
-            'instances': []
-        }
-        self.agentConfig = {
-            'version': '0.1',
-            'api_key': 'toto'
+            'instances': [stub['config'] for stub in self.CONFIG_STUBS]
         }
 
-        self.check = load_check('process', config, self.agentConfig)
+        self.run_check(config, mocks=mocks)
 
-        config = self.build_config(config)
-        self.check.find_pids = self.find_pids
+        for stub in self.CONFIG_STUBS:
+            # Assert metrics
+            for mname in self.PROCESS_METRIC:
+                proc_name = stub['config']['name']
+                expected_tags = [proc_name, "process_name:{0}".format(proc_name)]
 
-        for i in self.nb_procs:
-            for j in range(len(config['instances'])):
-                self.check.check(config['instances'][j])
+                # If a list of tags is already there, the check extends it
+                if 'tags' in stub['config']:
+                    expected_tags = stub['config']['tags']
 
-            self.offset += 1
+                expected_value = None
+                if mname == 'system.processes.number':
+                    expected_value = stub['mocked_processes']
 
-        service_checks = self.check.get_service_checks()
+                self.assertMetric(mname, count=1, tags=expected_tags, value=expected_value)
 
-        assert service_checks
+            # Assert service checks
+            expected_tags = ['process:{0}'.format(stub['config']['name'])]
+            critical = stub['config'].get('thresholds', {}).get('critical')
+            warning = stub['config'].get('thresholds', {}).get('warning')
+            procs = stub['mocked_processes']
 
-        self.assertTrue(type(service_checks) == type([]))
-        self.assertTrue(len(service_checks) > 0)
-        self.assertEquals(len([t for t in service_checks
-            if t['status']== 0]), 12, service_checks)
-        self.assertEquals(len([t for t in service_checks
-            if t['status']== 1]), 6, service_checks)
-        self.assertEquals(len([t for t in service_checks
-            if t['status']== 2]), 22, service_checks)
+            if critical is not None and (procs < critical[0] or procs > critical[1]):
+                expected_status = AgentCheck.CRITICAL
+            elif warning is not None and (procs < warning[0] or procs > warning[1]):
+                expected_status = AgentCheck.WARNING
+            else:
+                expected_status = AgentCheck.OK
+            self.assertServiceCheck('process.up', status=expected_status, count=1, tags=expected_tags)
+
+        # Raises when COVERAGE=true and coverage < 100%
+        self.coverage_report()
 
     def test_check_real_process(self):
         "Check that we detect python running (at least this process)"
         config = {
-            'instances': [{"name": "py",
-                           "search_string": ["python"],
-                           "exact_match": False,
-                           "ignored_denied_access": True,
-                           "thresholds": {"warning": [1, 10], "critical": [1, 100]},
+            'instances': [{'name': 'py',
+                           'search_string': ['python'],
+                           'exact_match': False,
+                           'ignored_denied_access': True,
+                           'thresholds': {'warning': [1, 10], 'critical': [1, 100]},
                        }]
         }
-        
-        self.agentConfig = {
-            'version': '0.1',
-            'api_key': 'toto'
-        }
 
-        self.check = load_check('process', config, self.agentConfig)
-        self.check.check(config['instances'][0])
-        python_metrics = self.check.get_metrics()
-        service_checks = self.check.get_service_checks()
-        assert service_checks
-        self.assertTrue(len(python_metrics) > 0)
-        # system.process.number >= 1
-        self.assertTrue([m[2] for m in python_metrics if m[0] == "system.process.number"] >= 1)
-        self.assertTrue(len([t for t in service_checks if t['status']== AgentCheck.OK]) > 0, service_checks)
-        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.WARNING]),  0, service_checks)
-        self.assertEquals(len([t for t in service_checks if t['status']== AgentCheck.CRITICAL]), 0, service_checks)
+        self.run_check(config)
 
-if __name__ == "__main__":
-    unittest.main()
+        expected_tags = ['py', 'process_name:py']
+        for mname in self.PROCESS_METRIC:
+            self.assertMetric(mname, at_least=1, tags=expected_tags)
+
+        self.assertServiceCheck('process.up', status=AgentCheck.OK, count=1, tags=['process:py'])
+
+        self.coverage_report()
