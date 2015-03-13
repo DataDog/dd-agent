@@ -1,15 +1,26 @@
+# stdlib
 import unittest
-from nose.plugins.attrib import attr
 import time
 import threading
-from aggregator import MetricsAggregator
-from dogstatsd import Dogstatsd, init, Server
-from util import PidFile
 import os
+import tempfile
+from nose.plugins.attrib import attr
+from mock import patch
+
+# datadog
+from aggregator import MetricsAggregator
+from dogstatsd import Server
+from util import PidFile
 from config import get_logging_config
 from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
+from common import AgentCheckTest
+
+# 3rd party
+import yaml
 
 STATSD_PORT = 8129
+
+
 class DummyReporter(threading.Thread):
     def __init__(self, metrics_aggregator):
         threading.Thread.__init__(self)
@@ -20,7 +31,6 @@ class DummyReporter(threading.Thread):
         self.finished = False
         self.start()
 
-
     def run(self):
         while not self.finished:
             time.sleep(self.interval)
@@ -30,6 +40,59 @@ class DummyReporter(threading.Thread):
         metrics = self.metrics_aggregator.flush()
         if metrics:
             self.metrics = metrics
+
+
+@attr('local')
+class JMXInitTest(AgentCheckTest):
+    CHECK_NAME = "java_jmx"
+
+    @patch("subprocess.call")
+    def _get_jmxfetch_subprocess_args(self, yaml_jmx_conf, mock_subprocess_call):
+        # Helper function
+        # Returns the Java JMX subprocess_args called from a YAML configuration
+        tmp_dir = tempfile.mkdtemp()
+        filename = "jmx.yaml"
+        with open(os.path.join(tmp_dir, filename), 'wb') as temp_file:
+            temp_file.write(yaml.dump(yaml_jmx_conf))
+
+        JMXFetch.init(tmp_dir, {}, {}, 15, None, reporter="console")
+        return mock_subprocess_call.call_args[0][0]
+
+    def _get_jmx_conf(self, java_options):
+        return {
+            'instances': [{
+                'host': "localhost",
+                'port': 7199,
+                'java_options': java_options
+            }]
+        }
+
+    def assertJavaRunsWith(self, yaml_conf, include=[], exclude=[]):
+        subprocess_args = self._get_jmxfetch_subprocess_args(yaml_conf)
+        for i in include:
+            self.assertIn(i, subprocess_args)
+        for e in exclude:
+            self.assertNotIn(e, subprocess_args)
+
+    def test_jmx_start(self):
+        # Empty java_options
+        jmx_conf = self._get_jmx_conf("")
+        self.assertJavaRunsWith(jmx_conf, ['-Xms50m', '-Xmx200m'])
+
+        # Specified initial memory allocation pool for the JVM
+        jmx_conf = self._get_jmx_conf("-Xms10m")
+        self.assertJavaRunsWith(jmx_conf, ['-Xms10m', '-Xmx200m'], ['-Xms50m'])
+
+        jmx_conf = self._get_jmx_conf("-XX:InitialHeapSize=128m")
+        self.assertJavaRunsWith(jmx_conf, ['-XX:InitialHeapSize=128m', '-Xmx200m'], ['-Xms50m'])
+
+        # Specified maximum memory allocation pool for the JVM
+        jmx_conf = self._get_jmx_conf("-Xmx500m")
+        self.assertJavaRunsWith(jmx_conf, ['-Xms50m', '-Xmx500m'], ['-Xmx200m'])
+
+        jmx_conf = self._get_jmx_conf("-XX:MaxHeapSize=500m")
+        self.assertJavaRunsWith(jmx_conf, ['-Xms50m', '-XX:MaxHeapSize=500m'], ['-Xmx200m'])
+
 
 @attr(requires='tomcat')
 class JMXTestCase(unittest.TestCase):
@@ -45,12 +108,10 @@ class JMXTestCase(unittest.TestCase):
         confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
         JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
 
-
     def tearDown(self):
         self.server.stop()
         self.reporter.finished = True
         JMXFetch.stop()
-
 
     def testCustomJMXMetric(self):
         count = 0
