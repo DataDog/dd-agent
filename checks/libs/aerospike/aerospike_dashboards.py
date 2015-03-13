@@ -66,7 +66,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.cluster_size{*} by {node}",
+                        "q": "avg:aerospike.cluster_size{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -79,11 +79,11 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.disk_usage_free{*} by {node}",
+                        "q": "avg:aerospike.disk_usage_free{*} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.disk_usage_total{*} by {node}",
+                        "q": "aerospike.disk_usage_total{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -96,11 +96,11 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.memory_usage_free{*} by {node}",
+                        "q": "avg:aerospike.memory_usage_free{*} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.memory_usage_total{*} by {node}",
+                        "q": "aerospike.memory_usage_total{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -113,11 +113,11 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.successful_read_tps{*} by {node}",
+                        "q": "avg:aerospike.successful_read_tps{*} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.total_read_tps{*} by {node}",
+                        "q": "aerospike.total_read_tps{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -130,11 +130,11 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.successful_write_tps{*} by {node}",
+                        "q": "avg:aerospike.successful_write_tps{*} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.total_write_tps{*} by {node}",
+                        "q": "aerospike.total_write_tps{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -147,19 +147,19 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.writes_master{latency_type:less_than_1ms,value_type:value} by {node}",
+                        "q": "avg:aerospike.node.writes_master{latency_type:less_than_1ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.writes_master{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {node}",
+                        "q": "aerospike.node.writes_master{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.writes_master{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.writes_master{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.writes_master{latency_type:greater_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.writes_master{latency_type:greater_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     }
                 ],
@@ -172,19 +172,19 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.reads{latency_type:less_than_1ms,value_type:value} by {node}",
+                        "q": "avg:aerospike.node.reads{latency_type:less_than_1ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.reads{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {node}",
+                        "q": "aerospike.node.reads{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.reads{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.reads{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.reads{latency_type:greater_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.reads{latency_type:greater_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     }
                 ],
@@ -197,19 +197,19 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.query{latency_type:less_than_1ms,value_type:value} by {node}",
+                        "q": "avg:aerospike.node.query{latency_type:less_than_1ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.query{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {node}",
+                        "q": "aerospike.node.query{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.query{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.query{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.query{latency_type:greater_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.query{latency_type:greater_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     }
                 ],
@@ -222,19 +222,19 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.udf{latency_type:less_than_1ms,value_type:value} by {node}",
+                        "q": "avg:aerospike.node.udf{latency_type:less_than_1ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.udf{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {node}",
+                        "q": "aerospike.node.udf{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.udf{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.udf{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.udf{latency_type:greater_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.udf{latency_type:greater_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     }
                 ],
@@ -247,19 +247,19 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "events": [],
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.proxy{latency_type:less_than_1ms,value_type:value} by {node}",
+                        "q": "avg:aerospike.node.proxy{latency_type:less_than_1ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.proxy{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {node}",
+                        "q": "aerospike.node.proxy{latency_type:greater_than_1ms_to_less_than_8ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.proxy{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.proxy{latency_type:greater_than_8ms_to_less_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     },
                     {
-                        "q": "aerospike.node.proxy{latency_type:greater_than_64ms,value_type:value} by {node}",
+                        "q": "aerospike.node.proxy{latency_type:greater_than_64ms,value_type:value} by {name}",
                         "type": "line"
                     }
                 ],
@@ -272,7 +272,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.objects{*} by {node}",
+                        "q": "avg:aerospike.node.objects{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -285,7 +285,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.client_connections{*} by {node}",
+                        "q": "avg:aerospike.node.client_connections{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -315,7 +315,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.stat_rw_timeout{*} by {node}",
+                        "q": "avg:aerospike.node.stat_rw_timeout{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -335,7 +335,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.err_out_of_space{*} by {node}",
+                        "q": "avg:aerospike.node.err_out_of_space{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -355,7 +355,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.uptime{*} by {node}",
+                        "q": "avg:aerospike.node.uptime{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -375,7 +375,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.migrate_progress_send{*} by {node}",
+                        "q": "avg:aerospike.node.migrate_progress_send{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -395,7 +395,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.migrate_progress_recv{*} by {node}",
+                        "q": "avg:aerospike.node.migrate_progress_recv{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -415,7 +415,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.err_rw_pending_limit{*} by {node}",
+                        "q": "avg:aerospike.node.err_rw_pending_limit{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -428,7 +428,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.used_bytes_disk{*} by {node}",
+                        "q": "avg:aerospike.node.used_bytes_disk{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -441,7 +441,7 @@ def draw_node_dashboard(api_key, api_app_key, instance_name, node_address):
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.node.free_pct_disk{*} by {node}",
+                        "q": "avg:aerospike.node.free_pct_disk{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -493,7 +493,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".available_pct{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".available_pct{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -518,7 +518,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
             "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".hwm_breached{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".hwm_breached{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -538,7 +538,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".stop_writes{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".stop_writes{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -558,7 +558,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".objects{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".objects{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -571,7 +571,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".objects{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".objects{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -584,7 +584,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".used_bytes_disk{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".used_bytes_disk{*} by {name}",
                         "type": "line"
                     }
                 ],
@@ -597,7 +597,7 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".used_bytes_memory{*} by {node}",
+                        "q": "avg:aerospike.namespace." + str(namespace) + ".used_bytes_memory{*} by {name}",
                         "type": "line"
                     }
                 ],
