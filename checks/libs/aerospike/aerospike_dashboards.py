@@ -576,19 +576,6 @@ def draw_namespace_dashboard(api_key, api_app_key, instance_name, node_address, 
                 "viz": "timeseries",
                 "requests": [
                     {
-                        "q": "avg:aerospike.namespace." + str(namespace) + ".objects{name:" + str(instance_name) + "}",
-                        "type": "line"
-                    }
-                ],
-                "events": []
-            },
-            "title": "Objects"
-        },
-        {
-            "definition": {
-                "viz": "timeseries",
-                "requests": [
-                    {
                         "q": "avg:aerospike.namespace." + str(namespace) + ".used_bytes_disk{name:" + str(instance_name) + "}",
                         "type": "line"
                     }
