@@ -22,7 +22,9 @@ instances:
     # conf:
     #   - include:
     #     domain: my_domain
-    #     bean: my_bean
+    #     bean:
+    #       - my_bean
+    #       - my_second_bean
     #     attribute:
     #       attribute1:
     #         metric_type: counter
@@ -33,4 +35,5 @@ instances:
     #   - include:
     #     domain: 2nd_domain
     #   - exclude:
-    #     bean: excluded_bean
+    #     bean:
+    #       - excluded_bean
