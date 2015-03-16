@@ -57,6 +57,8 @@ NAGIOS_OLD_CONF_KEYS = [
     'nagios_perf_cfg'
     ]
 
+DEFAULT_CHECKS = ("network", "ntp")
+
 class PathNotFound(Exception):
     pass
 
@@ -781,14 +783,34 @@ def load_check_directory(agentConfig, hostname):
 
         # Let's see if there is a conf.d for this check
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+
+        # Default checks are checks that are enabled by default
+        # They read their config from the "[CHECKNAME].yaml.default" file
+        if check_name in DEFAULT_CHECKS:
+            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
+        else:
+            default_conf_path = None
+
+        conf_exists = False
+        
         if os.path.exists(conf_path):
+            conf_exists = True
+
+        elif not conf_exists and default_conf_path is not None:
+            if not os.path.exists(default_conf_path):
+                log.error("Default configuration file {0} is missing".format(default_conf_path))
+                continue
+            conf_path = default_conf_path
+            conf_exists = True
+
+        if conf_exists:
             f = open(conf_path)
             try:
                 check_config = check_yaml(conf_path)
             except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                init_failed_checks[check_name] = {'error':str(e), 'traceback':traceback_message}
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured
