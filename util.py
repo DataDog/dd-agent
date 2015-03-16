@@ -12,6 +12,7 @@ import uuid
 import tempfile
 import re
 import simplejson as json
+import threading
 import logging
 from hashlib import md5
 
@@ -398,18 +399,17 @@ class EC2(object):
 
 
 class Watchdog(object):
-    """Simple signal-based watchdog that will scuttle the current process
-    if it has not been reset every N seconds, or if the processes exceeds
-    a specified memory threshold.
+    """Simple threading.Timer-based watchdog that will scuttle the current
+    process if it has not been reset every N seconds, or if the processes
+    exceeds a specified memory threshold.
     Can only be invoked once per process, so don't use with multiple threads.
-    If you instantiate more than one, you're also asking for trouble.
     """
     def __init__(self, duration, max_mem_mb = None):
         import resource
 
         #Set the duration
         self._duration = int(duration)
-        signal.signal(signal.SIGALRM, Watchdog.self_destruct)
+        self._timer = threading.Timer(self._duration, Watchdog.self_destruct)
 
         # cap memory usage
         if max_mem_mb is not None:
@@ -421,24 +421,33 @@ class Watchdog(object):
             self.memory_limit_enabled = False
 
     @staticmethod
-    def self_destruct(signum, frame):
+    def self_destruct():
         try:
             import traceback
             log.error("Self-destructing...")
             log.error(traceback.format_exc())
         finally:
-            os.kill(os.getpid(), signal.SIGKILL)
+            final_countdown = threading.Timer(10.0, os.kill, args=[os.getpid(), signal.SIGKILL])
+            # This way it doesn't block the exit of the main thread
+            final_countdown.setDaemon(True)
+            final_countdown.start()
+            os.kill(os.getpid(), signal.SIGTERM)
 
+    def restart_timer(self):
+        self._timer.cancel()
+        self._timer = threading.Timer(self._duration, Watchdog.self_destruct)
+        self._timer.setDaemon(True)
+        self._timer.start()
 
     def reset(self):
         # self destruct if using too much memory, as tornado will swallow MemoryErrors
         if self.memory_limit_enabled:
             mem_usage_kb = int(os.popen('ps -p %d -o %s | tail -1' % (os.getpid(), 'rss')).read())
             if mem_usage_kb > (0.95 * self._max_mem_kb):
-                Watchdog.self_destruct(signal.SIGKILL, sys._getframe(0))
+                Watchdog.self_destruct()
 
         log.debug("Resetting watchdog for %d" % self._duration)
-        signal.alarm(self._duration)
+        self.restart_timer()
 
 
 class PidFile(object):
