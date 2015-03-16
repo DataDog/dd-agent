@@ -1,7 +1,7 @@
 init_config:
 
 instances:
-  - offset_threshold: 600
+  - offset_threshold: 60
 
     # Optional params:
     #
