@@ -1,9 +1,12 @@
 # stdlib
-import time
 from collections import defaultdict
+import re
+import time
+import urllib2
 
 # project
 from checks import AgentCheck
+from config import _is_affirmative
 from util import headers
 
 # 3rd party
@@ -61,10 +64,20 @@ class HAProxy(AgentCheck):
         url = instance.get('url')
         username = instance.get('username')
         password = instance.get('password')
-        collect_aggregates_only = instance.get('collect_aggregates_only', True)
-        collect_status_metrics = instance.get('collect_status_metrics', False)
-        collect_status_metrics_by_host = instance.get('collect_status_metrics_by_host', False)
-        tag_service_check_by_host = instance.get('tag_service_check_by_host', False)
+        collect_aggregates_only = _is_affirmative(
+            instance.get('collect_aggregates_only', True)
+        )
+        collect_status_metrics = _is_affirmative(
+            instance.get('collect_status_metrics', False)
+        )
+        collect_status_metrics_by_host = _is_affirmative(
+            instance.get('collect_status_metrics_by_host', False)
+        )
+        tag_service_check_by_host = _is_affirmative(
+            instance.get('tag_service_check_by_host', False)
+        )
+        services_incl_filter = instance.get('services_include', [])
+        services_excl_filter = instance.get('services_exclude', [])
 
         self.log.debug('Processing HAProxy data for %s' % url)
 
@@ -76,7 +89,9 @@ class HAProxy(AgentCheck):
             data, collect_aggregates_only, process_events,
             url=url, collect_status_metrics=collect_status_metrics,
             collect_status_metrics_by_host=collect_status_metrics_by_host,
-            tag_service_check_by_host=tag_service_check_by_host
+            tag_service_check_by_host=tag_service_check_by_host,
+            services_incl_filter=services_incl_filter,
+            services_excl_filter=services_excl_filter
         )
 
     def _fetch_data(self, url, username, password):
@@ -97,7 +112,8 @@ class HAProxy(AgentCheck):
     def _process_data(
             self, data, collect_aggregates_only, process_events, url=None,
             collect_status_metrics=False, collect_status_metrics_by_host=False,
-            tag_service_check_by_host=False
+            tag_service_check_by_host=False, services_incl_filter=None,
+            services_excl_filter=None
         ):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
@@ -132,14 +148,25 @@ class HAProxy(AgentCheck):
             if self._should_process(data_dict, collect_aggregates_only):
                 # update status
                 # Send the list of data to the metric and event callbacks
-                self._process_metrics(data_dict, url)
+                self._process_metrics(data_dict, url,
+                    services_incl_filter=services_incl_filter,
+                    services_excl_filter=services_excl_filter
+                )
             if process_events:
-                self._process_event(data_dict, url)
+                self._process_event(data_dict, url,
+                    services_incl_filter=services_incl_filter,
+                    services_excl_filter=services_excl_filter
+                )
             self._process_service_check(data_dict, url,
-                tag_by_host=tag_service_check_by_host)
+                tag_by_host=tag_service_check_by_host,
+                services_incl_filter=services_incl_filter,
+                services_excl_filter=services_excl_filter
+            )
 
         if collect_status_metrics:
-            self._process_status_metric(self.hosts_statuses, collect_status_metrics_by_host)
+            self._process_status_metric(self.hosts_statuses, collect_status_metrics_by_host,
+                    services_incl_filter=services_incl_filter,
+                    services_excl_filter=services_excl_filter)
 
         return data
 
@@ -196,7 +223,24 @@ class HAProxy(AgentCheck):
             return False
         return True
 
-    def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host):
+    def _is_service_excl_filtered(self, service_name, services_incl_filter,
+            services_excl_filter):
+        if self._tag_match_patterns(service_name, services_excl_filter):
+            if self._tag_match_patterns(service_name, services_incl_filter):
+                return False
+            return True
+        return False
+
+    def _tag_match_patterns(self, tag, filters):
+        if not filters:
+            return False
+        for rule in filters:
+            if re.search(rule, tag):
+                return True
+        return False
+
+    def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
+            services_incl_filter=None, services_excl_filter=None):
         agg_statuses = defaultdict(lambda:{'available':0, 'unavailable':0})
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -206,6 +250,10 @@ class HAProxy(AgentCheck):
             status = status.lower()
 
             tags = ['service:%s' % service]
+            if self._is_service_excl_filtered(service,
+                    services_incl_filter, services_excl_filter):
+                continue
+
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
             self._gauge_all_statuses("haproxy.count_per_status", count, status, tags=tags)
@@ -227,7 +275,8 @@ class HAProxy(AgentCheck):
                 self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ","_")])
 
 
-    def _process_metrics(self, data, url):
+    def _process_metrics(self, data, url, services_incl_filter=None,
+            services_excl_filter=None):
         """
         Data is a dictionary related to one host
         (one line) extracted from the csv.
@@ -239,6 +288,11 @@ class HAProxy(AgentCheck):
         back_or_front = data['back_or_front']
         tags = ["type:%s" % back_or_front, "instance_url:%s" % url]
         tags.append("service:%s" % service_name)
+
+        if self._is_service_excl_filtered(service_name,
+                services_incl_filter, services_excl_filter):
+            return
+
         if back_or_front == Services.BACKEND:
             tags.append('backend:%s' % hostname)
 
@@ -251,7 +305,8 @@ class HAProxy(AgentCheck):
                 else:
                     self.gauge(name, value, tags=tags)
 
-    def _process_event(self, data, url):
+    def _process_event(self, data, url, services_incl_filter=None,
+            services_excl_filter=None):
         '''
         Main event processing loop. An event will be created for a service
         status change.
@@ -261,6 +316,10 @@ class HAProxy(AgentCheck):
         service_name = data['pxname']
         key = "%s:%s" % (hostname,service_name)
         status = self.host_status[url][key]
+
+        if self._is_service_excl_filtered(service_name,
+                services_incl_filter, services_excl_filter):
+            return
 
         if status is None:
             self.host_status[url][key] = data['status']
@@ -309,7 +368,8 @@ class HAProxy(AgentCheck):
              "tags": tags
         }
 
-    def _process_service_check(self, data, url, tag_by_host=False):
+    def _process_service_check(self, data, url, tag_by_host=False,
+            services_incl_filter=None, services_excl_filter=None):
         ''' Report a service check, tagged by the service and the backend.
             Statuses are defined in `STATUSES_TO_SERVICE_CHECK` mapping.
         '''
@@ -317,6 +377,10 @@ class HAProxy(AgentCheck):
         status = data['status']
         haproxy_hostname = self.hostname.decode('utf-8')
         check_hostname = haproxy_hostname if tag_by_host else ''
+
+        if self._is_service_excl_filtered(service_name,
+                services_incl_filter, services_excl_filter):
+            return
 
         if status in Services.STATUSES_TO_SERVICE_CHECK:
             service_check_tags = ["service:%s" % service_name]
