@@ -1,17 +1,11 @@
 # Core modules
-import os
-import re
 import logging
 import subprocess
 import sys
 import time
-import datetime
 import socket
-
+import collections
 import modules
-
-from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
-from config import get_version, get_system_stats
 
 import checks.system.unix as u
 import checks.system.win32 as w32
@@ -19,15 +13,97 @@ from checks import create_service_check, AgentCheck
 from checks.agent_metrics import CollectorMetrics
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
-from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
+from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, \
+    STATUS_OK, STATUS_ERROR
 from resources.processes import Processes as ResProcesses
-
+from util import get_os, get_uuid, Timer, get_hostname, EC2, GCE
+from config import get_version, get_system_stats
 
 log = logging.getLogger(__name__)
 
 
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
+
+
+class AgentPayload(collections.MutableMapping):
+    """
+    AgentPayload offers a single payload interface but manages two payloads:
+    * A metadata payload
+    * A data payload that contains all others elements
+    it also take care of submitting each of these payloads to their specific endpoint
+    """
+    METADATA_KEYS = frozenset(['meta', 'tags', 'host-tags', 'systemStats',
+                               'agent_checks', 'gohai', 'external_host_tags'])
+
+    DUPLICATE_KEYS = frozenset(['apiKey', 'agentVersion'])
+
+    DATA_ENDPOINT = 'metrics'
+    METADATA_ENDPOINT = 'metadata'
+
+    def __init__(self):
+        self.payload_data = dict()
+        self.payload_meta = dict()
+
+    def __getitem__(self, key):
+        if key in self.METADATA_KEYS:
+            return self.payload_meta[key]
+        else:
+            return self.payload_data[key]
+
+    def __setitem__(self, key, value):
+        if key in self.DUPLICATE_KEYS:
+            self.payload_data[key] = value
+            self.payload_meta[key] = value
+        elif key in self.METADATA_KEYS:
+            self.payload_meta[key] = value
+        else:
+            self.payload_data[key] = value
+
+    def __delitem__(self, key):
+        if key in self.DUPLICATE_KEYS:
+            del self.payload_data[key]
+            del self.payload_meta[key]
+        elif key in self.METADATA_KEYS:
+            del self.payload_meta[key]
+        else:
+            del self.payload_data[key]
+
+    def __iter__(self):
+        for item in self.payload_data:
+            yield item
+        for item in self.payload_meta:
+            yield item
+
+    def __len__(self):
+        return len(self.payload_data) + len(self.payload_meta)
+
+    def emit(self, log, config, emitters, continue_running):
+        """ Send payloads via the emitters. """
+        statuses = []
+
+        def _emit_payload(payload, endpoint):
+            """ Send the payload via the emitters. """
+            statuses = []
+            for emitter in emitters:
+                # Don't try to send to an emitter if we're stopping/
+                if not continue_running:
+                    return statuses
+                name = emitter.__name__
+                emitter_status = EmitterStatus(name)
+                try:
+                    emitter(payload, log, config, endpoint)
+                except Exception, e:
+                    log.exception("Error running emitter: %s"
+                                  % emitter.__name__)
+                    emitter_status = EmitterStatus(name, e)
+                statuses.append(emitter_status)
+            return statuses
+        statuses.extend(_emit_payload(self.payload_data, self.DATA_ENDPOINT))
+        statuses.extend(_emit_payload(self.payload_meta, self.METADATA_ENDPOINT))
+
+        return statuses
+
 
 class Collector(object):
     """
@@ -52,7 +128,7 @@ class Collector(object):
                 'interval': int(agentConfig.get('metadata_interval', 4 * 60 * 60))
             },
             'external_host_tags': {
-                'start': time.time() - 3 * 60, # Wait for the checks to init
+                'start': time.time() - 3 * 60,  # Wait for the checks to init
                 'interval': int(agentConfig.get('external_host_tags', 5 * 60))
             },
             'agent_checks': {
@@ -137,7 +213,9 @@ class Collector(object):
         self.run_count += 1
         log.debug("Starting collection run #%s" % self.run_count)
 
-        payload = self._build_payload(start_event=start_event)
+        payload = AgentPayload()
+        # Initialize payload
+        self._build_payload(payload, start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
         service_checks = payload['service_checks']
@@ -175,16 +253,16 @@ class Collector(object):
 
             if memory:
                 payload.update({
-                    'memPhysUsed' : memory.get('physUsed'),
-                    'memPhysPctUsable' : memory.get('physPctUsable'),
-                    'memPhysFree' : memory.get('physFree'),
-                    'memPhysTotal' : memory.get('physTotal'),
-                    'memPhysUsable' : memory.get('physUsable'),
-                    'memSwapUsed' : memory.get('swapUsed'),
-                    'memSwapFree' : memory.get('swapFree'),
-                    'memSwapPctFree' : memory.get('swapPctFree'),
-                    'memSwapTotal' : memory.get('swapTotal'),
-                    'memCached' : memory.get('physCached'),
+                    'memPhysUsed': memory.get('physUsed'),
+                    'memPhysPctUsable': memory.get('physPctUsable'),
+                    'memPhysFree': memory.get('physFree'),
+                    'memPhysTotal': memory.get('physTotal'),
+                    'memPhysUsable': memory.get('physUsable'),
+                    'memSwapUsed': memory.get('swapUsed'),
+                    'memSwapFree': memory.get('swapFree'),
+                    'memSwapPctFree': memory.get('swapPctFree'),
+                    'memSwapTotal': memory.get('swapTotal'),
+                    'memCached': memory.get('physCached'),
                     'memBuffers': memory.get('physBuffers'),
                     'memShared': memory.get('physShared')
                 })
@@ -204,7 +282,6 @@ class Collector(object):
         gangliaData = self._ganglia.check(self.agentConfig)
         dogstreamData = self._dogstream.check(self.agentConfig)
         ddforwarderData = self._ddforwarder.check(self.agentConfig)
-
 
         if gangliaData is not False and gangliaData is not None:
             payload['ganglia'] = gangliaData
@@ -271,7 +348,10 @@ class Collector(object):
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
 
-                # Save them for the payload.
+                # Collect metadata
+                current_check_metadata = check.get_service_metadata()
+
+                # Save metrics & events for the payload.
                 metrics.extend(current_check_metrics)
                 if current_check_events:
                     if check.name not in events:
@@ -287,7 +367,8 @@ class Collector(object):
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name,
+                service_metadata=current_check_metadata)
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]
@@ -338,7 +419,7 @@ class Collector(object):
             agent_checks = []
             for check in check_statuses:
                 if check.instance_statuses is not None:
-                    for instance_status in check.instance_statuses:
+                    for i, instance_status in enumerate(check.instance_statuses):
                         agent_checks.append(
                             (
                                 check.name, check.source_type_name,
@@ -346,7 +427,8 @@ class Collector(object):
                                 instance_status.status,
                                 # put error message or list of warning messages in the same field
                                 # it will be handled by the UI
-                                instance_status.error or instance_status.warnings or ""
+                                instance_status.error or instance_status.warnings or "",
+                                check.service_metadata[i]
                             )
                         )
                 else:
@@ -368,8 +450,8 @@ class Collector(object):
             payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
-
-        emitter_statuses = self._emit(payload)
+        emitter_statuses = payload.emit(log, self.agentConfig, self.emitters,
+                                        self.continue_running)
         self.emit_duration = timer.step()
 
         # Persist the status of the collection run.
@@ -390,57 +472,40 @@ class Collector(object):
 
         return payload
 
-    def _emit(self, payload):
-        """ Send the payload via the emitters. """
-        statuses = []
-        for emitter in self.emitters:
-            # Don't try to send to an emitter if we're stopping/
-            if not self.continue_running:
-                return statuses
-            name = emitter.__name__
-            emitter_status = EmitterStatus(name)
-            try:
-                emitter(payload, log, self.agentConfig)
-            except Exception, e:
-                log.exception("Error running emitter: %s" % emitter.__name__)
-                emitter_status = EmitterStatus(name, e)
-            statuses.append(emitter_status)
-        return statuses
-
     def _is_first_run(self):
         return self.run_count <= 1
 
-    def _build_payload(self, start_event=True):
+    def _build_payload(self, payload, start_event=True):
         """
         Return an dictionary that contains all of the generic payload data.
         """
         now = time.time()
-        payload = {
-            'collection_timestamp': now,
-            'os' : self.os,
-            'python': sys.version,
-            'agentVersion' : self.agentConfig['version'],
-            'apiKey': self.agentConfig['api_key'],
-            'events': {},
-            'metrics': [],
-            'service_checks': [],
-            'resources': {},
-            'internalHostname' : self.hostname,
-            'uuid' : get_uuid(),
-            'host-tags': {},
-            'external_host_tags': {}
-        }
+
+        payload['collection_timestamp'] = now
+        payload['os'] = self.os
+        payload['python'] = sys.version
+        payload['agentVersion'] = self.agentConfig['version']
+        payload['apiKey'] = self.agentConfig['api_key']
+        payload['events'] = {}
+        payload['metrics'] = []
+        payload['service_checks'] = []
+        payload['resources'] = {}
+        payload['internalHostname'] = self.hostname
+        payload['uuid'] = get_uuid()
+        payload['host-tags'] = {}
+        payload['external_host_tags'] = {}
 
         # Include system stats on first postback
         if start_event and self._is_first_run():
             payload['systemStats'] = self.agentConfig.get('system_stats', {})
             # Also post an event in the newsfeed
-            payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
-                                 'host': payload['internalHostname'],
-                                 'timestamp': now,
-                                 'event_type':'Agent Startup',
-                                 'msg_text': 'Version %s' % get_version()
-                                 }]
+            payload['events']['System'] = [{
+                'api_key': self.agentConfig['api_key'],
+                'host': payload['internalHostname'],
+                'timestamp': now,
+                'event_type':'Agent Startup',
+                'msg_text': 'Version %s' % get_version()
+                }]
 
         # Periodically send the host metadata.
         if self._should_send_additional_data('metadata'):
@@ -501,8 +566,6 @@ class Collector(object):
         if external_host_tags:
             payload['external_host_tags'] = external_host_tags
 
-        return payload
-
     def _get_metadata(self):
         metadata = EC2.get_metadata(self.agentConfig)
         if metadata.get('hostname'):
@@ -536,5 +599,3 @@ class Collector(object):
             return True
 
         return False
-
-

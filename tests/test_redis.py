@@ -139,6 +139,13 @@ class TestRedis(AgentCheckTest):
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
 
+        # Service metadata
+        service_metadata = r.get_service_metadata()
+        service_metadata_count = len(service_metadata)
+        self.assertTrue(service_metadata_count > 0)
+        for meta_dict in service_metadata:
+            assert meta_dict
+
     def test_redis_repl(self):
         master_instance = {
             'host': 'localhost',

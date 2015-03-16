@@ -67,6 +67,9 @@ class MySql(AgentCheck):
 
         db = self._connect(host, port, mysql_sock, user, password, defaults_file)
 
+        # Metadata collection
+        self._collect_metadata(db, host)
+
         # Metric collection
         self._collect_metrics(host, db, tags, options)
         if Platform.is_linux():
@@ -113,6 +116,11 @@ class MySql(AgentCheck):
             raise
 
         return db
+
+    def _collect_metadata(self, db, host):
+        metadata_dict = {}
+        metadata_dict['version'] = self._get_version(db, host)
+        self.svc_metadata(metadata_dict)
 
     def _collect_metrics(self, host, db, tags, options):
         cursor = db.cursor()

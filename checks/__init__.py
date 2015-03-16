@@ -265,6 +265,7 @@ class Check(object):
                 pass
         return metrics
 
+
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
@@ -303,6 +304,7 @@ class AgentCheck(object):
         self.warnings = []
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
+        self.service_metadata = []
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -457,6 +459,14 @@ class AgentCheck(object):
         self.service_checks.append(create_service_check(check_name, status,
             tags, timestamp, hostname, check_run_id, message))
 
+    def svc_metadata(self, metadata):
+        """
+        Save metadata.
+
+        :param metadata: The service metadata dictionary
+        """
+        self.service_metadata.append(metadata)
+
     def has_events(self):
         """
         Check whether the check has saved any events
@@ -497,6 +507,18 @@ class AgentCheck(object):
         service_checks = self.service_checks
         self.service_checks = []
         return service_checks
+
+    def get_service_metadata(self):
+        """
+        Return a list of the metadata dictionaries saved by the check, if any
+        and clears them out of the instance's service_checks list
+
+        @return the list of metadata saved by this check
+        @rtype list of metadata dicts
+        """
+        service_metadata = self.service_metadata
+        self.service_metadata = []
+        return service_metadata
 
     def has_warnings(self):
         """
@@ -560,6 +582,14 @@ class AgentCheck(object):
                     tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
+            # Generate empty metadata if nonexistent
+            service_metadata_count = len(self.service_metadata)
+            if service_metadata_count > i + 1:
+                self.log.exception("Check'%s' instance #%s failure:"
+                                   "Metadata is not matching number of instances" % (self.name, i))
+            elif service_metadata_count != i + 1:
+                self.svc_metadata({})
+
         return instance_statuses
 
     def check(self, instance):

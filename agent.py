@@ -286,6 +286,7 @@ def main():
                     print check.get_metrics()
                     print check.get_events()
                     print check.get_service_checks()
+                    print check.get_service_metadata()
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
@@ -293,6 +294,7 @@ def main():
                         print check.get_metrics()
                         print check.get_events()
                         print check.get_service_checks()
+                        print check.get_service_metadata()
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:

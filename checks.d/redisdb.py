@@ -150,15 +150,17 @@ class Redis(AgentCheck):
         conn = self._get_conn(instance)
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
-        
+
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
         start = time.time()
+        info = None
         try:
             info = conn.info()
             status = AgentCheck.OK
             self.service_check('redis.can_connect', status, tags=tags_to_add)
+            self._collect_metadata(info)
         except ValueError, e:
             status = AgentCheck.CRITICAL
             self.service_check('redis.can_connect', status, tags=tags_to_add)
@@ -244,7 +246,7 @@ class Redis(AgentCheck):
                             slave_tags.append('slave_{0}:{1}'.format(slave_tag, info[key][slave_tag]))
                     slave_tags.append('slave_id:%s' % key.lstrip('slave'))
                     self.gauge('redis.replication.delay', delay, tags=slave_tags)
-    
+
 
     def _check_slowlog(self, instance, custom_tags):
         """Retrieve length and entries from Redis' SLOWLOG
@@ -254,7 +256,7 @@ class Redis(AgentCheck):
 
         """
 
-        
+
         conn = self._get_conn(instance)
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
@@ -274,7 +276,7 @@ class Redis(AgentCheck):
         ts_key = self._generate_instance_key(instance)
 
         # Get all slowlog entries
-        
+
         slowlogs = conn.slowlog_get(max_slow_entries)
 
         # Find slowlog entries between last timestamp and now using start_time
@@ -305,3 +307,9 @@ class Redis(AgentCheck):
 
         self._check_db(instance, custom_tags)
         self._check_slowlog(instance, custom_tags)
+
+    def _collect_metadata(self, info):
+        metadata_dict = {}
+        if info and 'redis_version' in info:
+            metadata_dict['version'] = info['redis_version'].split('.')
+        self.svc_metadata(metadata_dict)

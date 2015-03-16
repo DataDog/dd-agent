@@ -2,24 +2,23 @@ import logging
 import os
 import time
 import unittest
-
 from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
 
+from checks.collector import Collector
 from aggregator import MetricsAggregator
 from checks import (
     AgentCheck,
     Check,
     CheckException,
-    CheckException,
     Infinity,
     UnknownValue,
 )
-from checks.collector import Collector
 from tests.common import load_check
 from util import get_hostname
 
 logger = logging.getLogger()
+
 
 class TestCore(unittest.TestCase):
     "Tests to validate the core check logic"
@@ -251,8 +250,6 @@ class TestCore(unittest.TestCase):
         self.assertTrue(len(metrics) > 0, metrics)
 
 
-
-
 class TestAggregator(unittest.TestCase):
     def setUp(self):
         self.aggr = MetricsAggregator('test-aggr')
@@ -263,6 +260,7 @@ class TestAggregator(unittest.TestCase):
         self.assertEquals(len(self.aggr.metrics), 1, self.aggr.metrics)
         metric = self.aggr.metrics.values()[0]
         self.assertEquals(metric.value, 2)
+
 
 if __name__ == '__main__':
     unittest.main()
