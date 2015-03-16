@@ -10,6 +10,7 @@ from xml.etree.ElementTree import ElementTree
 from util import get_hostname
 from checks import AgentCheck
 
+
 class Skip(Exception):
     """
     Raised by :class:`Jenkins` when it comes across
@@ -27,13 +28,41 @@ class Jenkins(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.high_watermarks = {}
 
+    def parse_timestamp(self, dir_name):
+        if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
+            raise Skip('the build has already been archived', dir_name)
+
+        # Read the build.xml metadata file that Jenkins generates
+        build_file = os.path.join(dir_name, 'build.xml')
+
+        if not os.access(build_file, os.R_OK):
+            self.log.debug("Can't read build file at %s" % (build_file))
+            raise Exception("Can't access build.xml at %s" % (build_file))
+        else:
+            tree = ElementTree()
+            tree.parse(build_file)
+            timestamp = tree.find('timestamp')
+            if not timestamp or not timestamp.text:
+                raise Skip('the timestamp cannot be found')
+            else:
+                return timestamp.text
+
     def _extract_timestamp(self, dir_name):
         if not os.path.isdir(dir_name):
             raise Skip('its not a build directory', dir_name)
 
+        dir_basename = os.path.basename(dir_name)
         try:
+            dir_basename = int(dir_name)
+        except ValueError:
+            pass
+        if isinstance(dir_basename, int):
+            # Parse the timestamp from the build.xml
+            date_str = self.parse_timestamp(dir_name)
+        else:
             # Parse the timestamp from the directory name
             date_str = os.path.basename(dir_name)
+        try:
             time_tuple = time.strptime(date_str, self.datetime_format)
             return time.mktime(time_tuple)
         except ValueError:
@@ -78,6 +107,9 @@ class Jenkins(AgentCheck):
 
         try:
             dirs = glob(os.path.join(job_dir, 'builds', '*_*'))
+            # versions of Jenkins > 1.597 dropped the timestamp-named folders
+            if len(dirs) == 0:
+                dirs = glob(os.path.join(job_dir, 'builds', '[0-9]+'))
             if len(dirs) > 0:
                 dirs = sorted(dirs, reverse=True)
                 # We try to get the last valid build
@@ -164,4 +196,3 @@ class Jenkins(AgentCheck):
                         self.increment('jenkins.job.success', tags=tags)
                     else:
                         self.increment('jenkins.job.failure', tags=tags)
-
