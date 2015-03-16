@@ -59,7 +59,7 @@ class Flare(object):
     and then send them to Datadog (which transfers them to Support)
     """
 
-    DATADOG_SUPPORT_URL = '/zendesk/flare'
+    DATADOG_SUPPORT_URL = '/support/flare'
     PASSWORD_REGEX = re.compile('( *(\w|_)*pass(word)?:).+')
     COMMENT_REGEX = re.compile('^ *#.*')
     APIKEY_REGEX = re.compile('^api_key: *\w+(\w{5})$')
@@ -113,9 +113,9 @@ class Flare(object):
         url = self._url
         if self._case_id:
             url = '{0}/{1}'.format(self._url, str(self._case_id))
+        url = "{0}?api_key={1}".format(url, self._api_key)
         files = {'flare_file': open(self._tar_path, 'rb')}
         data = {
-            'api_key': self._api_key,
             'case_id': self._case_id,
             'hostname': self._hostname,
             'email': email
