@@ -113,7 +113,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.check._process_data(new_data, False, True, inst['url']),
 
         assert self.check.has_events()
-        assert len(self.check.get_events()) == 6 # The 3 individual backend servers were switched to UP
+        assert len(self.check.get_events()) == 6 # The 3 backends x 2 services were switched to UP
         service_checks = self.check.get_service_checks()
         # The 3 servers + the backend aggregate are reporting UP
         self.assertEquals(len([t for t in service_checks
