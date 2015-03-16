@@ -121,9 +121,16 @@ class MySql(AgentCheck):
         self._rate_or_gauge_statuses(STATUS_VARS, status_results, tags)
         cursor.execute("SHOW VARIABLES LIKE 'Key%';")
         variables_results = dict(cursor.fetchall())
+        cursor.execute('select count(*) from information_schema.processlist')
+        client_conn_results = float(cursor.fetchall()[0][0])
+        cursor.execute("show variables like 'max_connections'")
+        max_conn_results = float(cursor.fetchall()[0][1])
         cursor.close()
         del cursor
 
+        # Client conns and max conn limit
+        self.gauge('mysql.net.total_connection_count', client_conn_results, tags=tags)
+        self.gauge('mysql.net.max_connection_limit', max_conn_results, tags=tags)
         #Compute key cache utilization metric
         key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
         key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
