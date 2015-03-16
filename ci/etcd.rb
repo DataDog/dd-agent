@@ -14,12 +14,20 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(etcd_rootdir)
-        sh %(curl -s -L -o $VOLATILE_DIR/etcd.tar.gz\
-              https://github.com/coreos/etcd/releases/download/v#{etcd_version}/etcd-v#{etcd_version}-linux-amd64.tar.gz)
-        sh %(mkdir -p #{etcd_rootdir})
-        sh %(tar xzvf $VOLATILE_DIR/etcd.tar.gz\
-                      -C #{etcd_rootdir}\
-                      --strip-components=1 >/dev/null)
+        if `uname -s`.strip.downcase == 'darwin'
+          sh %(curl -s -L -o $VOLATILE_DIR/etcd.zip\
+                https://github.com/coreos/etcd/releases/download/v#{etcd_version}/etcd-v#{etcd_version}-darwin-amd64.zip)
+          sh %(mkdir -p #{etcd_rootdir})
+          sh %(unzip -d $VOLATILE_DIR/ -x $VOLATILE_DIR/etcd.zip)
+          sh %(mv -f $VOLATILE_DIR/etcd-*/* #{etcd_rootdir})
+        else
+          sh %(curl -s -L -o $VOLATILE_DIR/etcd.tar.gz\
+                https://github.com/coreos/etcd/releases/download/v#{etcd_version}/etcd-v#{etcd_version}-linux-amd64.tar.gz)
+          sh %(mkdir -p #{etcd_rootdir})
+          sh %(tar xzvf $VOLATILE_DIR/etcd.tar.gz\
+                        -C #{etcd_rootdir}\
+                        --strip-components=1 >/dev/null)
+        end
       end
     end
 

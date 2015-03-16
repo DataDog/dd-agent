@@ -159,6 +159,7 @@ class ProcessCheck(AgentCheck):
 
     def check(self, instance):
         name = instance.get('name', None)
+        tags = instance.get('tags', [])
         exact_match = instance.get('exact_match', True)
         search_string = instance.get('search_string', None)
         ignore_denied_access = instance.get('ignore_denied_access', True)
@@ -184,7 +185,7 @@ class ProcessCheck(AgentCheck):
         pids = self.find_pids(search_string,
                               exact_match,
                               ignore_denied_access)
-        tags = ['process_name:%s' % name, name]
+        tags.extend(['process_name:%s' % name, name])
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
 
