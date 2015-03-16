@@ -25,7 +25,9 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING : "WARN",
 }
 
-JMX_FETCH_JAR_NAME = "jmxfetch-0.4.0-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.5.0-jar-with-dependencies.jar"
+_JVM_DEFAULT_MAX_MEMORY_ALLOCATION = " -Xmx200m"
+_JVM_DEFAULT_INITIAL_MEMORY_ALLOCATION = " -Xms50m"
 JMXFETCH_MAIN_CLASS = "org.datadog.jmxfetch.App"
 JMX_CHECKS = [
     'activemq',
@@ -113,7 +115,7 @@ class JMXFetch(object):
     We assume that this value is alwayws the same for every jmx check
     so we can return the first value returned
 
-    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is 
+    tools_jar_path:  Path to tools.jar, which is only part of the JDK and that is
     required to connect to a local JMX instance using the attach api.
     """
 
@@ -347,14 +349,19 @@ class JMXFetch(object):
                 command, # Name of the command
             ]
 
-
             subprocess_args.insert(4, '--check')
             for check in jmx_checks:
                 subprocess_args.insert(5, check)
 
-            if java_run_opts:
-                for opt in java_run_opts.split():
-                    subprocess_args.insert(1,opt)
+            # Specify a maximum memory allocation pool for the JVM
+            if "Xmx" not in java_run_opts and "XX:MaxHeapSize" not in java_run_opts:
+                java_run_opts += _JVM_DEFAULT_MAX_MEMORY_ALLOCATION
+            # Specify the initial memory allocation pool for the JVM
+            if "Xms" not in java_run_opts and "XX:InitialHeapSize" not in java_run_opts:
+                java_run_opts += _JVM_DEFAULT_INITIAL_MEMORY_ALLOCATION
+
+            for opt in java_run_opts.split():
+                subprocess_args.insert(1, opt)
 
             log.info("Running %s" % " ".join(subprocess_args))
             if reporter != "console":

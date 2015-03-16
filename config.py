@@ -28,7 +28,7 @@ from migration import migrate_old_style_configuration
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.2.0"
+AGENT_VERSION = "5.2.1"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -176,7 +176,7 @@ def _unix_checksd_path():
 
 def _is_affirmative(s):
     # int or real bool
-    if isinstance(s, bool):
+    if isinstance(s, int):
         return bool(s)
     # try string cast
     return s.lower() in ('yes', 'true', '1')
@@ -279,7 +279,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -380,10 +379,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # Custom histogram aggregate/percentile metrics
         if config.has_option('Main', 'histogram_aggregates'):
-            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histograms_aggregates'))
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histogram_aggregates'))
 
         if config.has_option('Main', 'histogram_percentiles'):
-            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histograms_percentiles'))
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
@@ -401,7 +400,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
             'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
-            'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
@@ -414,9 +412,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
             if config.has_option('Main', 'statsd_forward_port'):
                 agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
-
-        # normalize 'yes'/'no' to boolean
-        dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
@@ -610,7 +605,7 @@ def get_proxy(agentConfig, use_system_settings=False):
                 pass
             px = proxy.split(':')
             proxy_settings['host'] = px[0]
-            proxy_settings['port'] = px[1]
+            proxy_settings['port'] = int(px[1])
             proxy_settings['user'] = None
             proxy_settings['password'] = None
             proxy_settings['system_settings'] = True

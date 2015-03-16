@@ -30,3 +30,12 @@ instances:
     # Default: True
     #
     # warn_on_missing_keys: True
+
+    # Max number of entries to fetch from the slow query log
+    # By default, the check will read this value from the redis config
+    # If it's above 128, it will default to 128 due to potential increased latency
+    # to retrieve more than 128 slowlog entries every 15 seconds
+    # If you need to get more entries from the slow query logs
+    # set the value here.
+    # Warning: It may impact the performance of your redis instance
+    # slowlog-max-len: 128

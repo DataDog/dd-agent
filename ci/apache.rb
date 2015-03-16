@@ -16,13 +16,13 @@ namespace :ci do
       unless Dir.exist? File.expand_path(apache_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/httpd-#{apache_version}.tar.bz2\
-             http://apache.claz.org/httpd/httpd-#{apache_version}.tar.bz2)
+             http://mirror.cc.columbia.edu/pub/software/apache/httpd/httpd-#{apache_version}.tar.bz2)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apr.tar.bz2\
-             http://apache.tradebit.com/pub/apr/apr-1.5.1.tar.bz2)
+             http://mirror.cc.columbia.edu/pub/software/apache/apr/apr-1.5.1.tar.bz2)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apr-util.tar.bz2\
-             http://apache.tradebit.com/pub/apr/apr-util-1.5.4.tar.bz2)
+             http://mirror.cc.columbia.edu/pub/software/apache/apr/apr-util-1.5.4.tar.bz2)
         sh %(mkdir -p #{apache_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/apache)
         sh %(tar jxf $VOLATILE_DIR/httpd-#{apache_version}.tar.bz2\

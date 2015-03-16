@@ -92,14 +92,13 @@ class Varnish(AgentCheck):
         output, error = proc.communicate()
         if error and len(error) > 0:
             self.log.error(error)
-        self._parse_varnishstat(varnishstat_path, use_xml, tags)
+        self._parse_varnishstat(output, use_xml, tags)
 
         # Parse service checks from varnishadm.
         varnishadm_path = instance.get('varnishadm')
         if varnishadm_path:
             secretfile_path = instance.get('secretfile', '/etc/varnish/secret')
-            varnishadm_path = 'sudo %s' % varnishadm_path
-            cmd = [varnishadm_path, '-S', secretfile_path, 'debug.health']
+            cmd = ['sudo', varnishadm_path, '-S', secretfile_path, 'debug.health']
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output, _ = proc.communicate()
             if output:

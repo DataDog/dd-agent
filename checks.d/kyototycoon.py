@@ -1,10 +1,12 @@
 # stdlib
 import re
-import urllib2
 from collections import defaultdict
 
 # project
 from checks import AgentCheck
+
+# 3rd party
+import requests
 
 db_stats = re.compile(r'^db_(\d)+$')
 whitespace = re.compile(r'\s')
@@ -61,11 +63,13 @@ class KyotoTycoonCheck(AgentCheck):
         if name is not None:
             service_check_tags.append('instance:%s' % name)
 
+
         try:
-            response = urllib2.urlopen(url)
-        except urllib2.URLError as e:
+            r = requests.get(url)
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                tags=service_check_tags, message=str(e.reason))
+                tags=service_check_tags, message=str(e.message))
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
@@ -74,10 +78,10 @@ class KyotoTycoonCheck(AgentCheck):
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
 
-        body = response.read()
+        body = r.content
 
-        totals = defaultdict(lambda: 0)
-        for line in body.split('\n'):
+        totals = defaultdict(int)
+        for line in body.splitlines():
             if '\t' not in line:
                 continue
 

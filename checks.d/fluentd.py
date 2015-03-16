@@ -1,6 +1,5 @@
 # stdlib
 from collections import defaultdict
-import urllib2
 import urlparse
 
 # project
@@ -9,6 +8,7 @@ from checks import AgentCheck
 
 # 3rd party
 import simplejson as json
+import requests
 
 class Fluentd(AgentCheck):
     SERVICE_CHECK_NAME = 'fluentd.is_ok'
@@ -35,9 +35,9 @@ class Fluentd(AgentCheck):
             monitor_agent_port = parsed_url.port or 24220
             service_check_tags = ['fluentd_host:%s' % monitor_agent_host, 'fluentd_port:%s' % monitor_agent_port]
 
-            req = urllib2.Request(url, None, headers(self.agentConfig))
-            res = urllib2.urlopen(req).read()
-            status = json.loads(res)
+            r = requests.get(url, headers=headers(self.agentConfig))
+            r.raise_for_status()
+            status = r.json()
 
             for p in status['plugins']:
                 for m in self.GAUGES:

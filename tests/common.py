@@ -11,6 +11,26 @@ from checks import AgentCheck
 from config import get_checksd_path
 from util import get_os, get_hostname
 
+def get_check_class(name):
+    checksd_path = get_checksd_path(get_os())
+    if checksd_path not in sys.path:
+        sys.path.append(checksd_path)
+
+    check_module = __import__(name)
+    check_class = None
+    classes = inspect.getmembers(check_module, inspect.isclass)
+    for _, clsmember in classes:
+        if clsmember == AgentCheck:
+            continue
+        if issubclass(clsmember, AgentCheck):
+            check_class = clsmember
+            if AgentCheck in clsmember.__bases__:
+                continue
+            else:
+                break
+
+    return check_class
+
 def load_check(name, config, agentConfig):
     checksd_path = get_checksd_path(get_os())
     if checksd_path not in sys.path:
@@ -103,13 +123,22 @@ class AgentCheckTest(unittest.TestCase):
         if self.check is None:
             self.check = load_check(self.CHECK_NAME, config, agent_config)
 
+        error = None
         for instance in self.check.instances:
-            self.check.check(instance)
+            try:
+                self.check.check(instance)
+            except Exception, e:
+                # Catch error before re-raising it to be able to get service_checks
+                print"Exception {0} during check"
+                error = e
 
         self.metrics = self.check.get_metrics()
         self.events = self.check.get_events()
         self.service_checks = self.check.get_service_checks()
         self.warnings = self.check.get_warnings()
+
+        if error is not None:
+            raise error
 
     def print_current_state(self):
         print "++++++++++++ DEBUG ++++++++++++"
@@ -141,7 +170,6 @@ class AgentCheckTest(unittest.TestCase):
             self.print_current_state()
             raise
 
-
     def assertMetric(self, metric_name, metric_value=None, tags=None, count=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
@@ -154,7 +182,6 @@ class AgentCheckTest(unittest.TestCase):
                 candidates.append((m_name, ts, val, mdata))
 
         self._candidates_size_assert(candidates, count=count)
-
 
     def assertMetricTagPrefix(self, metric_name, tag_prefix, count=None):
         candidates = []
@@ -177,3 +204,22 @@ class AgentCheckTest(unittest.TestCase):
                 candidates.append((m_name, ts, val, mdata))
 
         self._candidates_size_assert(candidates, count=count)
+
+    def assertServiceCheck(self, service_check_name, status=None, tags=None, count=None):
+        candidates = []
+        for sc in self.service_checks:
+            if sc['check'] == service_check_name:
+                if status is not None and sc['status'] != status:
+                    continue
+                if tags is not None and sorted(tags) != sorted(sc.get("tags")):
+                    continue
+
+                candidates.append(sc)
+
+        self._candidates_size_assert(candidates, count=count)
+
+    def assertIn(self, first, second):
+        self.assertTrue(first in second, "{0} not in {1}".format(first, second))
+
+    def assertNotIn(self, first, second):
+        self.assertTrue(first not in second, "{0} in {1}".format(first, second))

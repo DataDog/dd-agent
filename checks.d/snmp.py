@@ -42,8 +42,8 @@ class SnmpCheck(AgentCheck):
 
     cmd_generator = None
     # pysnmp default values
-    RETRIES = 5
-    TIMEOUT = 1
+    DEFAULT_RETRIES = 5
+    DEFAULT_TIMEOUT = 1
 
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
@@ -83,7 +83,13 @@ class SnmpCheck(AgentCheck):
         '''
         if "community_string" in instance:
             # SNMP v1 - SNMP v2
-            return cmdgen.CommunityData(instance['community_string'])
+
+            # See http://pysnmp.sourceforge.net/docs/current/security-configuration.html
+            if int(instance.get("snmp_version", 2)) == 1:
+                return cmdgen.CommunityData(instance['community_string'],
+                    mpModel=0)
+            return cmdgen.CommunityData(instance['community_string'], mpModel=1)
+
         elif "user" in instance:
             # SNMP v3
             user = instance["user"]
@@ -118,7 +124,7 @@ class SnmpCheck(AgentCheck):
         if "ip_address" not in instance:
             raise Exception("An IP address needs to be specified")
         ip_address = instance["ip_address"]
-        port = instance.get("port", 161) # Default SNMP port
+        port = int(instance.get("port", 161)) # Default SNMP port
         return cmdgen.UdpTransportTarget((ip_address, port), timeout=timeout, retries=retries)
 
     def raise_on_error_indication(self, error_indication, instance):
@@ -128,7 +134,7 @@ class SnmpCheck(AgentCheck):
             instance["service_check_error"] = message
             raise Exception(message)
 
-    def check_table(self, instance, oids, lookup_names):
+    def check_table(self, instance, oids, lookup_names, timeout, retries):
         '''
         Perform a snmpwalk on the domain specified by the oids, on the device
         configured in instance.
@@ -145,7 +151,7 @@ class SnmpCheck(AgentCheck):
         # snmpgetnext -v2c -c public localhost:11111 1.36.1.2.1.25.4.2.1.7.222
         # iso.3.6.1.2.1.25.4.2.1.7.224 = INTEGER: 2
         # SOLUTION: perform a snmget command and fallback with snmpgetnext if not found
-        transport_target = self.get_transport_target(instance, self.TIMEOUT, self.RETRIES)
+        transport_target = self.get_transport_target(instance, timeout, retries)
         auth_data = self.get_auth_data(instance)
 
         first_oid = 0
@@ -232,6 +238,8 @@ class SnmpCheck(AgentCheck):
         ip_address = instance["ip_address"]
         table_oids = []
         raw_oids = []
+        timeout = int(instance.get('timeout', self.DEFAULT_TIMEOUT))
+        retries = int(instance.get('retries', self.DEFAULT_RETRIES))
 
         # Check the metrics completely defined
         for metric in instance.get('metrics', []):
@@ -250,12 +258,12 @@ class SnmpCheck(AgentCheck):
         try:
             if table_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(table_oids))
-                table_results = self.check_table(instance, table_oids, True)
+                table_results = self.check_table(instance, table_oids, True, timeout, retries)
                 self.report_table_metrics(instance, table_results)
 
             if raw_oids:
                 self.log.debug("Querying device %s for %s oids", ip_address, len(raw_oids))
-                raw_results = self.check_table(instance, raw_oids, False)
+                raw_results = self.check_table(instance, raw_oids, False, timeout, retries)
                 self.report_raw_metrics(instance, raw_results)
         except Exception as e:
             if "service_check_error" not in instance:

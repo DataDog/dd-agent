@@ -9,6 +9,9 @@ from checks import AgentCheck
 from config import _is_affirmative
 from util import headers
 
+# 3rd party
+import requests
+
 STATS_URL = "/;csv;norefresh"
 EVENT_TYPE = SOURCE_TYPE_NAME = 'haproxy'
 
@@ -95,20 +98,16 @@ class HAProxy(AgentCheck):
         ''' Hit a given URL and return the parsed json '''
         # Try to fetch data from the stats URL
 
-        passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        passman.add_password(None, url, username, password)
-        authhandler = urllib2.HTTPBasicAuthHandler(passman)
-        opener = urllib2.build_opener(authhandler)
-        urllib2.install_opener(opener)
+        auth = (username, password)
         url = "%s%s" % (url, STATS_URL)
 
         self.log.debug("HAProxy Fetching haproxy search data from: %s" % url)
 
-        req = urllib2.Request(url, None, headers(self.agentConfig))
-        request = urllib2.urlopen(req)
-        response = request.read()
-        # Split the data by line
-        return response.split('\n')
+        r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+        r.raise_for_status()
+
+        return r.content.splitlines()
+
 
     def _process_data(
             self, data, collect_aggregates_only, process_events, url=None,
@@ -202,10 +201,10 @@ class HAProxy(AgentCheck):
         collect_status_metrics, collect_status_metrics_by_host,
         data_dict, hosts_statuses
     ):
+        if data_dict['svname'] == Services.BACKEND:
+            return
         if collect_status_metrics and 'status' in data_dict and 'pxname' in data_dict:
             if collect_status_metrics_by_host and 'svname' in data_dict:
-                if data_dict['svname'] == Services.BACKEND:
-                    return
                 key = (data_dict['pxname'], data_dict['svname'], data_dict['status'])
             else:
                 key = (data_dict['pxname'], data_dict['status'])

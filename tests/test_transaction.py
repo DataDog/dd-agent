@@ -1,9 +1,21 @@
+# stdlib
 import unittest
 from datetime import timedelta, datetime
 import time
 
+# 3rd party
+from tornado.web import Application
+import tornado.httpclient
+import requests
+import simplejson as json
+
+# project
 from transaction import Transaction, TransactionManager
-from ddagent import MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY
+from ddagent import (MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY,
+    MetricTransaction, APIMetricTransaction)
+from config import get_version
+from util import get_tornado_ioloop
+
 
 class memTransaction(Transaction):
     def __init__(self, size, manager):
@@ -22,6 +34,7 @@ class memTransaction(Transaction):
             self._trManager.tr_error(self)
 
         self._trManager.flush_next()
+
 
 class TestTransaction(unittest.TestCase):
 
@@ -91,6 +104,80 @@ class TestTransaction(unittest.TestCase):
         after = datetime.now()
         self.assertTrue( (after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000), 
             "before = %s after = %s" % (before, after))
+
+
+    def testCustomEndpoint(self):
+        MetricTransaction._endpoints = []
+        
+        config = {
+            "dd_url": "https://foo.bar.com",
+            "api_key": "foo",
+            "use_dd": True
+        }
+
+        app = Application()
+        app.skip_ssl_validation = False
+        app._agentConfig = config
+        app.use_simple_http_client = True
+
+        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
+        MetricTransaction._trManager = trManager
+        MetricTransaction.set_application(app)
+        MetricTransaction.set_endpoints()
+        
+        transaction = MetricTransaction(None, {})
+        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        expected = ['https://foo.bar.com/intake?api_key=foo']
+        self.assertEqual(endpoints, expected, (endpoints, expected))
+
+
+
+    def testEndpoints(self):
+        """Tests that the logic behind the agent version specific endpoints is ok.
+        Also tests that these endpoints actually exist.
+        """
+        MetricTransaction._endpoints = []
+
+        config = {
+            "dd_url": "https://app.datadoghq.com",
+            "api_key": "foo",
+            "use_dd": True
+        }
+
+        app = Application()
+        app.skip_ssl_validation = False
+        app._agentConfig = config
+        app.use_simple_http_client = True
+
+        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
+        MetricTransaction._trManager = trManager
+        MetricTransaction.set_application(app)
+        MetricTransaction.set_endpoints()
+        
+        transaction = MetricTransaction(None, {})
+        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key=foo'.format(
+            get_version().replace(".","-"))]
+        self.assertEqual(endpoints, expected, (endpoints, expected))
+
+        for url in endpoints:
+            r = requests.post(url, data=json.dumps({"foo":"bar"}), 
+                headers={'Content-Type': "application/json"})
+            r.raise_for_status()
+
+
+        transaction = APIMetricTransaction(None, {})
+        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key=foo'.format(
+            get_version().replace(".","-"))]
+        self.assertEqual(endpoints, expected, (endpoints, expected))
+
+        for url in endpoints:
+            r = requests.post(url, data=json.dumps({"foo":"bar"}), 
+                headers={'Content-Type': "application/json"})
+            r.raise_for_status()
             
 
 if __name__ == '__main__':

@@ -1,11 +1,15 @@
 # stdlib
-import urllib2
 import urlparse
+import re
 
 # project
 from util import headers
 from checks import AgentCheck
-from checks.utils import add_basic_auth
+
+# 3rd party
+import requests
+
+VERSION_REGEX = re.compile(r".*/(\d)")
 
 class Lighttpd(AgentCheck):
     """Tracks basic connection/requests/workers metrics
@@ -71,9 +75,11 @@ class Lighttpd(AgentCheck):
 
         tags = instance.get('tags', [])
         self.log.debug("Connecting to %s" % url)
-        req = urllib2.Request(url, None, headers(self.agentConfig))
+
+        auth = None
         if 'user' in instance and 'password' in instance:
-            add_basic_auth(req, instance['user'], instance['password'])
+            auth = (instance['user'], instance['password'])
+        
 
         # Submit a service check for status page availability.
         parsed_url = urlparse.urlparse(url)
@@ -82,7 +88,8 @@ class Lighttpd(AgentCheck):
         service_check_name = 'lighthttpd.can_connect'
         service_check_tags = ['host:%s' % lighttpd_url, 'port:%s' % lighttpd_port]
         try:
-            request = urllib2.urlopen(req)
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+            r.raise_for_status()
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                tags=service_check_tags)
@@ -91,9 +98,9 @@ class Lighttpd(AgentCheck):
             self.service_check(service_check_name, AgentCheck.OK,
                                tags=service_check_tags)
 
-        headers_resp = request.info().headers
+        headers_resp = r.headers
         server_version = self._get_server_version(headers_resp)
-        response = request.read()
+        response = r.content
 
         metric_count = 0
         # Loop through and extract the numerical values
@@ -138,17 +145,13 @@ class Lighttpd(AgentCheck):
                 raise Exception("No metrics were fetched for this instance. Make sure that %s is the proper url." % instance['lighttpd_status_url'])
 
     def _get_server_version(self, headers):
-        for h in headers:
-            if "Server:" not in h:
-                continue
-            try:
-                version = int(h.split('/')[1][0])
-            except Exception, e:
-                self.log.debug("Error while trying to get server version %s" % str(e))
-                version = "Unknown"
-            self.log.debug("Lighttpd server version is %s" % version)
-            return version
+        server_version = headers.get("server", "")
 
-        self.log.debug("Lighttpd server version is Unknown")
-        return "Unknown"
+        match = VERSION_REGEX.match(server_version)
+        if match is None:
+            self.log.debug("Lighttpd server version is Unknown")
+            return "Unknown"
 
+        version = int(match.group(1))
+        self.log.debug("Lighttpd server version is %s" % version)
+        return version

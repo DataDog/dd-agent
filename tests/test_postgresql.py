@@ -1,5 +1,5 @@
 import unittest
-from tests.common import load_check
+from tests.common import load_check, AgentCheckTest
 
 from nose.plugins.attrib import attr
 
@@ -7,7 +7,9 @@ import time
 from pprint import pprint
 
 @attr(requires='postgres')
-class TestPostgres(unittest.TestCase):
+class TestPostgres(AgentCheckTest):
+
+    CHECK_NAME = "postgres"
 
     def test_checks(self):
         host = 'localhost'
@@ -23,8 +25,26 @@ class TestPostgres(unittest.TestCase):
                 'password': 'datadog',
                 'dbname': dbname,
                 'relations': ['persons'],
+                'custom_metrics': [
+                    {
+                        "descriptors": [
+                            ("datname", "customdb")
+                        ],
+                        "metrics": {
+                            "numbackends": ["custom.numbackends", "Gauge"],
+                        },
+                        "query": "SELECT datname, %s FROM pg_stat_database WHERE datname = 'datadog_test' LIMIT(1)", 
+                        "relation": False,
+                    }]
+                },
+                {
+                'host': host,
+                'port': port,
+                'username': 'datadog',
+                'password': 'datadog',
+                'dbname': 'postgres'
                 }
-            ]
+                ]
         }
         agentConfig = {
             'version': '0.1',
@@ -37,7 +57,7 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
 
         # FIXME: Not great, should have a function like that available
-        key = '%s:%s:%s' % (host, port, dbname)
+        key = (host, port, dbname)
         db = self.check.dbs[key]
 
         metrics = self.check.get_metrics()
@@ -62,8 +82,8 @@ class TestPostgres(unittest.TestCase):
         self.check.run()
         metrics = self.check.get_metrics()
 
-        exp_metrics = 37
-        exp_db_tagged_metrics = 24
+        exp_metrics = 39
+        exp_db_tagged_metrics = 26
 
         if self.check._is_9_2_or_above(key, db):
             self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.sync_time']) >= 1, pprint(metrics))
@@ -83,11 +103,11 @@ class TestPostgres(unittest.TestCase):
         service_checks_count = len(service_checks)
         self.assertTrue(type(service_checks) == type([]))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "postgres.can_connect"]), 2, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "postgres.can_connect"]), 4, service_checks)
         # Assert that all service checks have the proper tags: host, port and db
         self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "port:%s" % config['instances'][0]['port'] in sc['tags']]), service_checks_count, service_checks)
-        self.assertEquals(len([sc for sc in service_checks if "db:%s" % config['instances'][0]['dbname'] in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(len([sc for sc in service_checks if "db:%s" % config['instances'][0]['dbname'] in sc['tags']]), service_checks_count/2, service_checks)
 
         time.sleep(1)
         self.check.run()
@@ -96,6 +116,9 @@ class TestPostgres(unittest.TestCase):
         self.assertEquals(len(metrics), exp_metrics, metrics)
         self.assertEquals(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]), exp_db_tagged_metrics, metrics)
         self.assertEquals(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]), 11, metrics)
+
+        self.metrics = metrics
+        self.assertMetric("custom.numbackends")
 
 if __name__ == '__main__':
     unittest.main()

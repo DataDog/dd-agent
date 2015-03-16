@@ -4,8 +4,9 @@ from nose.plugins.attrib import attr
 import time
 import pprint
 import redis
+import random
 
-from tests.common import load_check
+from tests.common import load_check, AgentCheckTest
 logger = logging.getLogger()
 
 MAX_WAIT = 20
@@ -16,7 +17,9 @@ MISSING_KEY_TOLERANCE = 0.5
 
 
 @attr(requires='redis')
-class TestRedis(unittest.TestCase):
+class TestRedis(AgentCheckTest):
+    CHECK_NAME = "redisdb"
+
     def test_redis_auth(self):
         # correct password
         r = load_check('redisdb', {}, {})
@@ -49,10 +52,10 @@ class TestRedis(unittest.TestCase):
         except Exception as e:
             self.assertTrue(
                 # 2.8
-                'noauth authentication required' in str(e).lower()\
+                'noauth authentication required' in str(e).lower()
                 # previously
-                or 'operation not permitted' in str(e).lower()
-                , str(e))
+                or 'operation not permitted' in str(e).lower(),
+                str(e))
 
         r = load_check('redisdb', {}, {})
         try:
@@ -68,7 +71,7 @@ class TestRedis(unittest.TestCase):
             'port': port
         }
 
-        db = redis.Redis(port=port, db=14) # Datadog's test db
+        db = redis.Redis(port=port, db=14)  # Datadog's test db
         db.flushdb()
         db.set("key1", "value")
         db.set("key2", "value")
@@ -101,8 +104,8 @@ class TestRedis(unittest.TestCase):
 
         # Assert that the keys metrics are tagged by db. just check db0, since
         # it's the only one we can guarantee is there.
-        db_metrics = self._sort_metrics([m for m in metrics if m[0] in ['redis.keys',
-        'redis.expires'] and "redis_db:db14" in m[3]["tags"]])
+        db_metrics = self._sort_metrics(
+            [m for m in metrics if m[0] in ['redis.keys', 'redis.expires'] and "redis_db:db14" in m[3]["tags"]])
         self.assertEquals(2, len(db_metrics))
 
         self.assertEquals('redis.expires', db_metrics[0][0])
@@ -114,12 +117,19 @@ class TestRedis(unittest.TestCase):
         # Service checks
         service_checks = r.get_service_checks()
         service_checks_count = len(service_checks)
-        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(isinstance(service_checks, list))
         self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "redis.can_connect"]), 1, service_checks)
+        self.assertEquals(
+            len([sc for sc in service_checks if sc['check'] == "redis.can_connect"]), 1, service_checks)
         # Assert that all service checks have the proper tags: host and port
-        self.assertEquals(len([sc for sc in service_checks if "redis_host:localhost" in sc['tags']]), service_checks_count, service_checks)
-        self.assertEquals(len([sc for sc in service_checks if "redis_port:%s" % port in sc['tags']]), service_checks_count, service_checks)
+        self.assertEquals(
+            len([sc for sc in service_checks if "redis_host:localhost" in sc['tags']]),
+            service_checks_count,
+            service_checks)
+        self.assertEquals(
+            len([sc for sc in service_checks if "redis_port:%s" % port in sc['tags']]),
+            service_checks_count,
+            service_checks)
 
         # Run one more check and ensure we get total command count
         # and other rates
@@ -128,6 +138,68 @@ class TestRedis(unittest.TestCase):
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
+
+    def test_redis_repl(self):
+        master_instance = {
+            'host': 'localhost',
+            'port': NOAUTH_PORT
+        }
+
+        slave_instance = {
+            'host': 'localhost',
+            'port': AUTH_PORT,
+            'password': 'datadog-is-devops-best-friend'
+        }
+
+        repl_metrics = [
+            'redis.replication.delay',
+            'redis.replication.backlog_histlen',
+            'redis.replication.delay',
+            'redis.replication.master_repl_offset',
+        ]
+
+        master_db = redis.Redis(port=NOAUTH_PORT, db=14)
+        slave_db = redis.Redis(port=AUTH_PORT, password=slave_instance['password'], db=14)
+        master_db.flushdb()
+
+        # Assert that the replication works
+        master_db.set('replicated:test', 'true')
+        self.assertEquals(slave_db.get('replicated:test'), 'true')
+
+        r = load_check('redisdb', {}, {})
+        r.check(master_instance)
+        metrics = self._sort_metrics(r.get_metrics())
+
+        # Assert the presence of replication metrics
+        keys = [m[0] for m in metrics]
+        assert [x in keys for x in repl_metrics]
+
+    def test_slowlog(self):
+        port = NOAUTH_PORT
+        test_key = "testkey"
+        instance = {
+            'host': 'localhost',
+            'port': port
+        }
+
+
+        db = redis.Redis(port=port, db=14)  # Datadog's test db
+        db.flushdb()
+
+        # Generate some slow commands
+        for i in range(100000):
+            db.lpush(test_key, random.random())
+
+        db.sort(test_key)
+
+        self.assertTrue(db.slowlog_len() > 0)
+
+        self.run_check({"init_config": {}, "instances": [instance]})
+
+        assert self.metrics, "No metrics returned"
+        self.assertMetric("redis.slowlog.micros.max", tags=["command:SORT",
+            "redis_host:localhost", "redis_port:{0}".format(port)])
+
 
     def _sort_metrics(self, metrics):
         def sort_by(m):

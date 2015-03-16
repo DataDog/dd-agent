@@ -4,6 +4,7 @@ Redis checks
 # stdlib
 import re
 import time
+from collections import defaultdict
 
 # project
 from checks import AgentCheck
@@ -11,8 +12,12 @@ from checks import AgentCheck
 # 3rd party
 import redis
 
+DEFAULT_MAX_SLOW_ENTRIES = 128
+MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
+
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
+    slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
 
     SOURCE_TYPE_NAME = 'redis'
@@ -63,7 +68,9 @@ class Redis(AgentCheck):
         'master_last_io_seconds_ago':   'redis.replication.last_io_seconds_ago',
         'master_sync_in_progress':      'redis.replication.sync',
         'master_sync_left_bytes':       'redis.replication.sync_left_bytes',
-
+        'repl_backlog_histlen':         'redis.replication.backlog_histlen',
+        'master_repl_offset':           'redis.replication.master_repl_offset',
+        'slave_repl_offset':            'redis.replication.slave_repl_offset',
     }
 
     RATE_KEYS = {
@@ -77,6 +84,7 @@ class Redis(AgentCheck):
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.connections = {}
+        self.last_timestamp_seen = defaultdict(int)
 
     def get_library_versions(self):
         return {"redis": redis.__version__}
@@ -109,7 +117,7 @@ class Redis(AgentCheck):
 
                 # Only send useful parameters to the redis client constructor
                 list_params = ['host', 'port', 'db', 'password', 'socket_timeout',
-                    'connection_pool', 'charset', 'errors', 'unix_socket_path']
+                               'connection_pool', 'charset', 'errors', 'unix_socket_path']
 
                 # Set a default timeout (in seconds) if no timeout is specified in the instance config
                 instance['socket_timeout'] = instance.get('socket_timeout', 5)
@@ -123,19 +131,26 @@ class Redis(AgentCheck):
 
         return self.connections[key]
 
-    def _check_db(self, instance, custom_tags=None):
-        conn = self._get_conn(instance)
+    def _get_tags(self, custom_tags, instance):
         tags = set(custom_tags or [])
 
         if 'unix_socket_path' in instance:
             tags_to_add = ["unix_socket_path:%s" % instance.get("unix_socket_path")]
         else:
-            tags_to_add =  ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
+            tags_to_add = ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
 
         if instance.get('db') is not None:
             tags_to_add.append("db:%s" % instance.get('db'))
 
         tags = sorted(tags.union(tags_to_add))
+
+        return tags, tags_to_add
+
+    def _check_db(self, instance, custom_tags=None):
+        conn = self._get_conn(instance)
+
+        tags, tags_to_add = self._get_tags(custom_tags, instance)
+        
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
@@ -215,8 +230,78 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
+        # Save the replication delay for each slave
+        for key in info:
+            if self.slave_key_pattern.match(key) and isinstance(info[key], dict):
+                slave_offset = info[key].get('offset')
+                master_offset = info.get('master_repl_offset')
+                if slave_offset and master_offset and master_offset - slave_offset >= 0:
+                    delay = master_offset - slave_offset
+                    # Add id, ip, and port tags for the slave
+                    slave_tags = tags[:]
+                    for slave_tag in ('ip', 'port'):
+                        if slave_tag in info[key]:
+                            slave_tags.append('slave_{0}:{1}'.format(slave_tag, info[key][slave_tag]))
+                    slave_tags.append('slave_id:%s' % key.lstrip('slave'))
+                    self.gauge('redis.replication.delay', delay, tags=slave_tags)
+    
+
+    def _check_slowlog(self, instance, custom_tags):
+        """Retrieve length and entries from Redis' SLOWLOG
+
+        This will parse through all entries of the SLOWLOG and select ones
+        within the time range between the last seen entries and now
+
+        """
+
+        
+        conn = self._get_conn(instance)
+
+        tags, tags_to_add = self._get_tags(custom_tags, instance)
+
+        if not instance.get(MAX_SLOW_ENTRIES_KEY):
+            max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
+            if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
+                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."\
+                    "If you need a higher value, please set {0} in your check config"\
+                    .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
+                max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
+        else:
+            max_slow_entries = int(instance.get(max_slow_entries))
+
+
+        # Generate a unique id for this instance to be persisted across runs
+        ts_key = self._generate_instance_key(instance)
+
+        # Get all slowlog entries
+        
+        slowlogs = conn.slowlog_get(max_slow_entries)
+
+        # Find slowlog entries between last timestamp and now using start_time
+        slowlogs = [s for s in slowlogs if s['start_time'] >
+            self.last_timestamp_seen[ts_key]]
+
+
+        max_ts = 0
+        # Slowlog entry looks like:
+        #  {'command': 'LPOP somekey',
+        #   'duration': 11238,
+        #   'id': 496L,
+        #   'start_time': 1422529869}
+        for slowlog in slowlogs:
+            if slowlog['start_time'] > max_ts:
+                max_ts = slowlog['start_time']
+
+            command_tag = 'command:{0}'.format(slowlog['command'].split()[0])
+            value = slowlog['duration']
+            self.histogram('redis.slowlog.micros', value, tags=tags + [command_tag])
+
+        self.last_timestamp_seen[ts_key] = max_ts
+
     def check(self, instance):
-        if (not "host" in instance or not "port" in instance) and not "unix_socket_path" in instance:
+        if ("host" not in instance or "port" not in instance) and "unix_socket_path" not in instance:
             raise Exception("You must specify a host/port couple or a unix_socket_path")
         custom_tags = instance.get('tags', [])
-        self._check_db(instance,custom_tags)
+
+        self._check_db(instance, custom_tags)
+        self._check_slowlog(instance, custom_tags)

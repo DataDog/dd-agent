@@ -3,17 +3,37 @@ init_config:
 instances:
   - host: localhost
     port: 5432
-  #   username: my_username
-  #   password: my_password
-  #   dbname: db_name
-  #   tags:
-  #     - optional_tag1
-  #     - optional_tag2
+#    username: my_username
+#    password: my_password
+#    dbname: db_name
+#    tags:
+#      - optional_tag1
+#      - optional_tag2
 
-    # Track per-relation (table) metrics
-    # The list of relations/tables must be specified here.
-    # Each relation generates many metrics (10 + 10 per index)
-    #
-    # relations:
-    #   - my_table
-    #   - my_other_table
+# Track per-relation (table) metrics
+# The list of relations/tables must be specified here.
+# Each relation generates many metrics (10 + 10 per index)
+#
+#    relations:
+#      - my_table
+#      - my_other_table
+
+
+# Custom metrics 
+# Below are some examples of commonly used metrics, which are implemented as custom metrics.
+# Uncomment them if you want to use them as is, or use as an example for creating your own custom metrics. 
+# The format for describing custome metrics is identical with the one used for common metrics in postgres.py
+# Be extra careful with ensuring proper custom metrics description format. If your custom metric does not work 
+# after an agent restart, look for errors in the otput of "/etc/init.d/datadog-agent info" command, as well as 
+# /var/log/datadog/collector.log file. 
+#
+#    custom_metrics:
+#    - # Londiste 3 replication lag 
+#      descriptors: 
+#        - [consumer_name, consumer_name]
+#      metrics: 
+#         GREATEST(0, EXTRACT(EPOCH FROM lag)) as lag: [postgresql.londiste_lag, GAUGE]
+#         GREATEST(0, EXTRACT(EPOCH FROM lag)) as last_seen: [postgresql.londiste_last_seen, GAUGE]
+#         pending_events: [postgresql.londiste_pending_events, GAUGE]
+#      query: SELECT consumer_name, %s from pgq.get_consumer_info() where consumer_name !~ 'watermark$';
+#      relation: false
