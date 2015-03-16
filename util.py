@@ -305,7 +305,9 @@ class GCE(object):
 class EC2(object):
     """Retrieve EC2 metadata
     """
-    URL = "http://169.254.169.254/latest/meta-data"
+    EC2_METADATA_HOST = "http://169.254.169.254"
+    METADATA_URL_BASE = EC2_METADATA_HOST + "/latest/meta-data"
+    INSTANCE_IDENTITY_URL = EC2_METADATA_HOST + "/latest/dynamic/instance-identity/document"
     TIMEOUT = 0.1 # second
     metadata = {}
 
@@ -323,10 +325,13 @@ class EC2(object):
             pass
 
         try:
-            iam_role = urllib2.urlopen(EC2.URL + "/iam/security-credentials").read().strip()
-            iam_params = json.loads(urllib2.urlopen(EC2.URL + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
-            from boto.ec2.connection import EC2Connection
-            connection = EC2Connection(aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
+            iam_role = urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials").read().strip()
+            iam_params = json.loads(urllib2.urlopen(EC2.METADATA_URL_BASE + "/iam/security-credentials" + "/" + unicode(iam_role)).read().strip())
+            instance_identity = json.loads(urllib2.urlopen(EC2.INSTANCE_IDENTITY_URL).read().strip())
+            region = instance_identity['region']
+
+            import boto.ec2
+            connection = boto.ec2.connect_to_region(region, aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
             instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
 
             EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
@@ -374,7 +379,7 @@ class EC2(object):
 
         for k in ('instance-id', 'hostname', 'local-hostname', 'public-hostname', 'ami-id', 'local-ipv4', 'public-keys', 'public-ipv4', 'reservation-id', 'security-groups'):
             try:
-                v = urllib2.urlopen(EC2.URL + "/" + unicode(k)).read().strip()
+                v = urllib2.urlopen(EC2.METADATA_URL_BASE + "/" + unicode(k)).read().strip()
                 assert type(v) in (types.StringType, types.UnicodeType) and len(v) > 0, "%s is not a string" % v
                 EC2.metadata[k] = v
             except Exception:
