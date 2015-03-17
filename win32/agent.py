@@ -29,12 +29,10 @@ from emitter import http_emitter
 from jmxfetch import JMXFetch
 from util import get_hostname
 
-# 3p
-import psutil
-
 log = logging.getLogger(__name__)
-MAX_FAILED_HEARTBEATS = 8 * 3 # 8 runs of 15s
-MAX_ALLOWED_MEMORY = 200 # 200MB
+
+SERVICE_SLEEP_INTERVAL = 1
+MAX_FAILED_HEARTBEATS = 8 # runs of collector
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -56,13 +54,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
         self.hostname = get_hostname(agentConfig)
-        memory_limit_mb = agentConfig.get('limit_memory_consumption') or MAX_ALLOWED_MEMORY
-        self._memory_limit = 1024 * 1024 * int(memory_limit_mb)
-        log.info("Memory limit: {0}".format(str(self._memory_limit)))
 
         # Watchdog for Windows
         self._collector_heartbeat, self._collector_send_heartbeat = multiprocessing.Pipe(False)
         self._collector_failed_heartbeats = 0
+        self._max_failed_heartbeats = \
+            MAX_FAILED_HEARTBEATS * agentConfig['check_freq'] / SERVICE_SLEEP_INTERVAL
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
@@ -83,7 +80,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             proc.terminate()
 
     def SvcDoRun(self):
-        import servicemanager
         servicemanager.LogMsg(
                 servicemanager.EVENTLOG_INFORMATION_TYPE,
                 servicemanager.PYS_SERVICE_STARTED,
@@ -101,19 +97,12 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             # Restart any processes that might have died.
             for name, proc in self.procs.iteritems():
                 if not proc.is_alive() and proc.is_enabled:
-                    servicemanager.LogInfoMsg(
-                        "%s has died. Restarting..." % proc.name)
+                    servicemanager.LogInfoMsg("%s has died. Restarting..." % proc.name)
                     self._restart_proc(name)
-                else:
-                    mem = psutil.Process(proc.pid).get_memory_info()[0]
-                    if mem > self._memory_limit:
-                        servicemanager.LogInfoMsg(
-                            "%s uses too much memory. Restarting..." % proc.name)
-                        self._restart_proc(name)
 
             self._check_collector_blocked()
 
-            time.sleep(5)
+            time.sleep(SERVICE_SLEEP_INTERVAL)
 
     def _check_collector_blocked(self):
         if self._collector_heartbeat.poll():
@@ -122,7 +111,9 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             self._collector_failed_heartbeats = 0
         else:
             self._collector_failed_heartbeats += 1
-            if self._collector_failed_heartbeats > MAX_FAILED_HEARTBEATS:
+            if self._collector_failed_heartbeats > self._max_failed_heartbeats:
+                servicemanager.LogInfoMsg(
+                    "%s was unresponsive for too long. Restarting..." % 'collector')
                 self._restart_proc('collector')
                 self._collector_failed_heartbeats = 0
 
