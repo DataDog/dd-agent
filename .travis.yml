@@ -64,6 +64,7 @@ env:
     - TRAVIS_FLAVOR=etcd
     - TRAVIS_FLAVOR=pgbouncer
     - TRAVIS_FLAVOR=supervisord
+    - TRAVIS_FLAVOR=phpfpm
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
