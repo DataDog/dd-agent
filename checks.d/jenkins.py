@@ -28,7 +28,7 @@ class Jenkins(AgentCheck):
         AgentCheck.__init__(self, name, init_config, agentConfig)
         self.high_watermarks = {}
 
-    def parse_timestamp(self, dir_name):
+    def _parse_timestamp(self, dir_name):
         if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
             raise Skip('the build has already been archived', dir_name)
 
@@ -42,8 +42,8 @@ class Jenkins(AgentCheck):
             tree = ElementTree()
             tree.parse(build_file)
             timestamp = tree.find('timestamp')
-            if not timestamp or not timestamp.text:
-                raise Skip('the timestamp cannot be found')
+            if timestamp is None or not timestamp.text:
+                raise Skip('the timestamp cannot be found', dir_name)
             else:
                 return timestamp.text
 
@@ -53,20 +53,21 @@ class Jenkins(AgentCheck):
 
         dir_basename = os.path.basename(dir_name)
         try:
-            dir_basename = int(dir_name)
+            dir_basename = int(dir_basename)
         except ValueError:
             pass
         if isinstance(dir_basename, int):
             # Parse the timestamp from the build.xml
-            date_str = self.parse_timestamp(dir_name)
+            date_str = self._parse_timestamp(dir_name)
+            return int(date_str) / 1000.0
         else:
             # Parse the timestamp from the directory name
-            date_str = os.path.basename(dir_name)
-        try:
-            time_tuple = time.strptime(date_str, self.datetime_format)
-            return time.mktime(time_tuple)
-        except ValueError:
-            raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
+            try:
+                date_str = os.path.basename(dir_name)
+                time_tuple = time.strptime(date_str, self.datetime_format)
+                return time.mktime(time_tuple)
+            except ValueError:
+                raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
 
     def _get_build_metadata(self, dir_name):
         if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
@@ -109,11 +110,11 @@ class Jenkins(AgentCheck):
             dirs = glob(os.path.join(job_dir, 'builds', '*_*'))
             # versions of Jenkins > 1.597 dropped the timestamp-named folders
             if len(dirs) == 0:
-                dirs = glob(os.path.join(job_dir, 'builds', '[0-9]+'))
+                dirs = glob(os.path.join(job_dir, 'builds', '[0-9]*'))
             if len(dirs) > 0:
                 dirs = sorted(dirs, reverse=True)
                 # We try to get the last valid build
-                for index in xrange(0, len(dirs) - 1):
+                for index in xrange(len(dirs)):
                     dir_name = dirs[index]
                     try:
                         timestamp = self._extract_timestamp(dir_name)
