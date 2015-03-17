@@ -5,6 +5,8 @@ import os.path
 import tempfile
 
 from config import get_config
+from optparse import Values
+from ConfigParser import InterpolationMissingOptionError
 
 from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
@@ -18,6 +20,43 @@ class TestConfig(unittest.TestCase):
         self.assertEquals(agentConfig["nagios_log"], "/var/log/nagios3/nagios.log")
         self.assertEquals(agentConfig["graphite_listen_port"], 17126)
         self.assertTrue("statsd_metric_namespace" in agentConfig)
+
+    def testEnvInterpolationDisabled(self):
+        os.environ["BAR"] = "bar"
+        test_options = Values({
+            'autorestart': False,
+            'dd_url': None,
+            'clean': False,
+            'disable_dd':False,
+            'enable_env': False,
+            'use_forwarder': False
+        })
+        with tempfile.NamedTemporaryFile() as conf_file:
+            with open(conf_file.name, "w") as f:
+                f.write("[Main]\n")
+                f.write("dd_url:\n")
+                f.write("api_key:\n")
+                f.write("tags: foo:%(BAR)s\n")
+            self.assertRaises(SystemExit, get_config, parse_args=False, cfg_path=conf_file.name, options=test_options)
+
+    def testEnvInterpolationEnabled(self):
+        os.environ["BAR"] = "bar"
+        test_options = Values({
+            'autorestart': False,
+            'dd_url': None,
+            'clean': False,
+            'disable_dd':False,
+            'enable_env': True,
+            'use_forwarder': False
+        })
+        with tempfile.NamedTemporaryFile() as conf_file:
+            with open(conf_file.name, "w") as f:
+                f.write("[Main]\n")
+                f.write("dd_url:\n")
+                f.write("api_key:\n")
+                f.write("tags: foo:%(BAR)s\n")
+            agentConfig = get_config(parse_args=False, cfg_path=conf_file.name, options=test_options)
+        self.assertEqual(agentConfig["tags"], "foo:bar")
 
     def testGoodPidFie(self):
         """Verify that the pid file succeeds and fails appropriately"""
