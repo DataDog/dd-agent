@@ -19,6 +19,9 @@ import logging
 import errno
 import signal
 
+# 3p
+from psutil import pid_exists
+
 log = logging.getLogger(__name__)
 
 class AgentSupervisor(object):
@@ -158,10 +161,14 @@ class Daemon(object):
         pid = self.pid()
 
         if pid:
-            message = "pidfile %s already exists. Is it already running?\n"
-            log.error(message % self.pidfile)
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
+            # Check if the pid in the pidfile corresponds to a running process
+            if pid_exists(pid):
+                log.error("Not starting, another instance is already running"\
+                          " (using pidfile {0})".format(self.pidfile))
+                sys.exit(1)
+            else:
+                log.warn('pidfile contains the pid of a stopped process.'\
+                         ' Starting normally')
 
         log.info("Pidfile: %s" % self.pidfile)
         if not foreground:
