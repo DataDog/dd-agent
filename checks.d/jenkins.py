@@ -54,20 +54,18 @@ class Jenkins(AgentCheck):
         dir_basename = os.path.basename(dir_name)
         try:
             dir_basename = int(dir_basename)
-        except ValueError:
-            pass
-        if isinstance(dir_basename, int):
             # Parse the timestamp from the build.xml
             date_str = self._parse_timestamp(dir_name)
             return int(date_str) / 1000.0
-        else:
+        except ValueError:
+            pass
+        try:
             # Parse the timestamp from the directory name
-            try:
-                date_str = os.path.basename(dir_name)
-                time_tuple = time.strptime(date_str, self.datetime_format)
-                return time.mktime(time_tuple)
-            except ValueError:
-                raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
+            date_str = os.path.basename(dir_name)
+            time_tuple = time.strptime(date_str, self.datetime_format)
+            return time.mktime(time_tuple)
+        except ValueError:
+            raise Exception("Error with build directory name, not a parsable date: %s" % (dir_name))
 
     def _get_build_metadata(self, dir_name):
         if os.path.exists(os.path.join(dir_name, 'jenkins_build.tar.gz')):
@@ -105,14 +103,19 @@ class Jenkins(AgentCheck):
 
     def _get_build_results(self, instance_key, job_dir):
         job_name = os.path.basename(job_dir)
-
         try:
             dirs = glob(os.path.join(job_dir, 'builds', '*_*'))
-            # versions of Jenkins > 1.597 dropped the timestamp-named folders
+            # Before Jenkins v1.597 the build folders were named with a timestamp (eg: 2015-03-10_19-59-29)
+            # Starting from Jenkins v1.597 they are named after the build ID (1, 2, 3...)
+            # So we need try both format when trying to find the latest build and parsing build.xml
             if len(dirs) == 0:
                 dirs = glob(os.path.join(job_dir, 'builds', '[0-9]*'))
             if len(dirs) > 0:
-                dirs = sorted(dirs, reverse=True)
+                # versions of Jenkins > 1.597 need to be sorted by build number (integer)
+                try:
+                    dirs = sorted(dirs, key=lambda x: int(x.split('/')[-1]), reverse=True)
+                except ValueError:
+                    dirs = sorted(dirs, reverse=True)
                 # We try to get the last valid build
                 for index in xrange(len(dirs)):
                     dir_name = dirs[index]
@@ -142,6 +145,8 @@ class Jenkins(AgentCheck):
                         }
 
                         output.update(build_metadata)
+                        if 'number' not in output:
+                            output['number'] = dir_name.split('/')[-1]
                         self.high_watermarks[instance_key][job_name] = timestamp
                         self.log.debug("Processing %s results '%s'" % (job_name, output))
 
