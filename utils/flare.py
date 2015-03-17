@@ -19,6 +19,7 @@ from config import (
     get_config_path,
     get_logging_config,
     get_os,
+    get_url_endpoint,
 )
 from util import (
     get_hostname,
@@ -27,7 +28,6 @@ from util import (
 
 # 3p
 import requests
-
 
 # Globals
 log = logging.getLogger('flare')
@@ -76,7 +76,10 @@ class Flare(object):
         self._save_logs_path()
         config = get_config()
         self._api_key = config.get('api_key')
-        self._url = "{0}{1}".format(config.get('dd_url'), self.DATADOG_SUPPORT_URL)
+        self._url = "{0}{1}".format(
+            get_url_endpoint(config.get('dd_url'), endpoint_type='flare'),
+            self.DATADOG_SUPPORT_URL
+        )
         self._hostname = get_hostname(config)
         self._prefix = "datadog-{0}".format(self._hostname)
 
@@ -296,18 +299,21 @@ class Flare(object):
     # Ask for email if needed
     def _ask_for_email(self):
         if self._case_id:
-            return None
+            return ''
         return raw_input('Please enter your email: ').lower()
 
     # Print output (success/error) of the request
     def _analyse_result(self, resp):
-        if resp.status_code == 200:
+        if resp.status_code in range(200, 203):
             log.info("Your logs were successfully uploaded. For future reference,"\
-                     " your internal case id is {0}".format(json.loads(resp.text)['case_id']))
-        elif resp.status_code == 400:
-            raise Exception('Your request is incorrect: {0}'.format(resp.text))
-        elif resp.status_code == 500:
-            raise Exception('An error has occurred while uploading: {0}'.format(resp).text)
+                     " your internal case id is {0}".format(
+                        json.loads(resp.text)['case_id']))
+        elif resp.status_code in range(400, 405):
+            raise Exception('Your request is incorrect: {0}'.format(
+                                json.loads(resp.text)['error']))
+        elif resp.status_code in range(500, 506):
+            raise Exception('An error has occurred while uploading: {0}'.format(
+                                json.loads(resp.text)['error']))
         else:
             raise Exception('An unknown error has occured: {0}\n'\
                             'Please contact support by email'.format(resp.text))

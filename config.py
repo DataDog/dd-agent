@@ -17,6 +17,7 @@ import socket
 from socket import gaierror
 from optparse import OptionParser, Values
 from cStringIO import StringIO
+from urlparse import urlparse
 
 # project
 
@@ -57,6 +58,10 @@ NAGIOS_OLD_CONF_KEYS = [
     ]
 
 DEFAULT_CHECKS = ("network", "ntp")
+LEGACY_DATADOG_URLS = [
+    "app.datadoghq.com",
+    "app.datad0g.com",
+]
 
 class PathNotFound(Exception):
     pass
@@ -92,6 +97,21 @@ def get_parsed_args():
 
 def get_version():
     return AGENT_VERSION
+
+
+# Return url endpoint, here because needs access to version number
+def get_url_endpoint(default_url, endpoint_type='app'):
+    parsed_url = urlparse(default_url)
+    if parsed_url.netloc not in LEGACY_DATADOG_URLS:
+        return default_url
+
+    subdomain = parsed_url.netloc.split(".")[0]
+
+    # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
+    return default_url.replace(subdomain,
+        "{0}-{1}.agent".format(
+            get_version().replace(".", "-"),
+            endpoint_type))
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"

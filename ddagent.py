@@ -28,7 +28,6 @@ from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
 from socket import gaierror, error as socket_error
-from urlparse import urlparse
 
 # Tornado
 import tornado.httpserver
@@ -40,7 +39,7 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
 from emitter import http_emitter
-from config import get_config, get_version
+from config import get_config, get_url_endpoint, get_version
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
@@ -72,11 +71,6 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
-
-LEGACY_DATADOG_URLS = [
-    "app.datadoghq.com",
-    "app.datad0g.com",
-]
 
 class EmitterThread(threading.Thread):
 
@@ -193,23 +187,8 @@ class MetricTransaction(Transaction):
     def __sizeof__(self):
         return sys.getsizeof(self._data)
 
-    @classmethod
-    def get_url_endpoint(cls, endpoint):
-        default_url = cls._application._agentConfig[endpoint]
-        parsed_url = urlparse(default_url)
-        if parsed_url.netloc not in LEGACY_DATADOG_URLS:
-            return default_url
-
-        subdomain = parsed_url.netloc.split(".")[0]
-
-        # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
-        return default_url.replace(subdomain,
-            "{0}-{1}.agent".format(
-                get_version().replace(".", "-"),
-                subdomain))
-
     def get_url(self, endpoint):
-        endpoint_base_url = self.get_url_endpoint(endpoint)
+        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
         api_key = self._application._agentConfig.get('api_key')
         if api_key:
             return endpoint_base_url + '/intake?api_key=%s' % api_key
@@ -285,7 +264,7 @@ class MetricTransaction(Transaction):
 class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint):
-        endpoint_base_url = self.get_url_endpoint(endpoint)
+        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
         config = self._application._agentConfig
         api_key = config['api_key']
         url = endpoint_base_url + '/api/v1/series/?api_key=' + api_key
