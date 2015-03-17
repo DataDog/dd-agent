@@ -7,7 +7,7 @@ from checks import AgentCheck
 # 3rd party
 import ntplib
 
-DEFAULT_OFFSET_THRESHOLD = 600 # in seconds
+DEFAULT_OFFSET_THRESHOLD = 60 # in seconds
 DEFAULT_NTP_VERSION = 3
 DEFAULT_TIMEOUT = 1 # in seconds
 DEFAULT_HOST = "pool.ntp.org"
