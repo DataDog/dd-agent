@@ -180,7 +180,10 @@ WARNINGS
                 tested_metrics += 1
             else:
                 untested_metrics.append(m)
-        coverage_metrics=100.0 * tested_metrics / total_metrics
+        if total_metrics == 0:
+            coverage_metrics = 100.0
+        else:
+            coverage_metrics = 100.0 * tested_metrics / total_metrics
 
         total_sc = len(self.service_checks)
         tested_sc = 0
@@ -190,7 +193,11 @@ WARNINGS
                 tested_sc += 1
             else:
                 untested_sc.append(sc)
-        coverage_sc=100.0 * tested_sc / total_sc
+
+        if total_sc == 0:
+            coverage_sc = 100.0
+        else:
+            coverage_sc = 100.0 * tested_sc / total_sc
 
         coverage = """Coverage
 ========================================
@@ -240,8 +247,6 @@ WARNINGS
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
         if at_least is not None:
-            if count is not None:
-                log.warn("Tolerance param will be ignored b/c count is present")
             log.debug(" * should have at least {0} data points".format(at_least))
 
         candidates = []
@@ -266,8 +271,6 @@ WARNINGS
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
         if at_least is not None:
-            if count is not None:
-                log.warn("Tolerance param will be ignored b/c count is present")
             log.debug(" * should have at least {0} data points".format(at_least))
 
         candidates = []
@@ -290,8 +293,6 @@ WARNINGS
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
         if at_least is not None:
-            if count is not None:
-                log.warn("Tolerance param will be ignored b/c count is present")
             log.debug(" * should have at least {0} data points".format(at_least))
 
         candidates = []
