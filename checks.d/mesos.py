@@ -1,7 +1,6 @@
 # stdlib
 import time
 from hashlib import md5
-import urllib2
 
 # project
 from checks import AgentCheck

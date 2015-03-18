@@ -65,3 +65,8 @@ instances:
     # Collect all the available cgroups metrics. All the relevant metrics are collected by default.
     #
     # collect_all_metrics: false
+
+    # Collect images stats
+    # Number of available active images and intermediate images as gauges. Default: true.
+    #
+    collect_images_stats: false

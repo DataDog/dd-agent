@@ -45,6 +45,7 @@ class CheckSSH(AgentCheck):
 
     def check(self, instance):
         conf = self._load_conf(instance)
+        tags = ["instance:{0}-{1}".format(conf.host, conf.port)] 
 
         try:
             private_key = paramiko.RSAKey.from_private_key_file (conf.private_key_file)
@@ -60,15 +61,19 @@ class CheckSSH(AgentCheck):
         exception_message = None
         #Service Availability to check status of SSH
         try:
-            client.connect(conf.host, port=conf.port, username=conf.username, password=conf.password, pkey=private_key)
-            self.service_check('ssh.can_connect', AgentCheck.OK, message=exception_message)
+            client.connect(conf.host, port=conf.port, username=conf.username,
+                password=conf.password, pkey=private_key)
+            self.service_check('ssh.can_connect', AgentCheck.OK,  tags=tags,
+                message=exception_message)
 
         except Exception as e:
             exception_message = str(e)
             status = AgentCheck.CRITICAL
-            self.service_check('ssh.can_connect', status, message=exception_message)
+            self.service_check('ssh.can_connect', status, tags=tags,
+                message=exception_message)
             if conf.sftp_check:
-                self.service_check('sftp.can_connect', status, message=exception_message)
+                self.service_check('sftp.can_connect', status, tags=tags,
+                    message=exception_message)
             raise Exception (e)
 
         #Service Availability to check status of SFTP
@@ -81,7 +86,7 @@ class CheckSSH(AgentCheck):
                 status = AgentCheck.OK
                 end_time = time.time()
                 time_taken = end_time - start_time
-                self.gauge('sftp.response_time', time_taken)
+                self.gauge('sftp.response_time', time_taken, tags=tags)
 
             except Exception as e:
                 exception_message = str(e)
@@ -90,4 +95,5 @@ class CheckSSH(AgentCheck):
             if exception_message is None:
                 exception_message = "No errors occured"
 
-            self.service_check('sftp.can_connect', status, message=exception_message)
+            self.service_check('sftp.can_connect', status, tags=tags,
+                message=exception_message)

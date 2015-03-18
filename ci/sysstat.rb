@@ -18,7 +18,7 @@ namespace :ci do
       unless Dir.exist? File.expand_path(sysstat_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/sysstat-#{sysstat_version}.tar.xz\
-             http://perso.orange.fr/sebastien.godard/sysstat-11.0.1.tar.xz)
+             https://s3.amazonaws.com/travis-archive/sysstat-11.0.1.tar.xz)
         sh %(mkdir -p $VOLATILE_DIR/sysstat)
         sh %(mkdir -p #{sysstat_rootdir})
         sh %(mkdir -p #{sysstat_rootdir}/var/log/sa)

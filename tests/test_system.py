@@ -13,6 +13,14 @@ from common import get_check
 from config import get_system_stats
 
 class TestSystem(unittest.TestCase):
+
+    def testUptime(self):
+        global logger
+        system = System(logger)
+        metrics = system.check({})
+        self.assertTrue("system.uptime" in metrics)
+        self.assertTrue(metrics["system.uptime"] > 0)
+
     @attr(requires='sysstat')
     def testCPU(self):
         global logger

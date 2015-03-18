@@ -1,11 +1,10 @@
 import unittest
 import subprocess
 import time
-import urllib2
 import tempfile
 import os
 import logging
-
+import requests
 from util import get_hostname
 from tests.common import load_check, kill_subprocess
 from nose.plugins.attrib import attr
@@ -22,14 +21,12 @@ class HaproxyTestCase(unittest.TestCase):
         while True:
             try:
                 STATS_URL = ";csv;norefresh"
-                passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-                passman.add_password(None, url, "datadog", "isdevops")
-                authhandler = urllib2.HTTPBasicAuthHandler(passman)
-                opener = urllib2.build_opener(authhandler)
-                urllib2.install_opener(opener)
+                auth = ("datadog", "isdevops")
                 url = "%s%s" % (url,STATS_URL)
-                req = urllib2.Request(url)
-                request = urllib2.urlopen(req)
+
+                r = requests.get(url, auth=auth)
+                r.raise_for_status()
+
                 break
             except Exception:
                 time.sleep(0.5)
@@ -94,7 +91,7 @@ class HaproxyTestCase(unittest.TestCase):
         self.assertTrue(len(service_checks) > 0)
 
         self.assertEquals(len([t for t in metrics
-            if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics)
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 6, metrics)
         self.assertEquals(len([t for t in metrics
             if t[0] == "haproxy.frontend.session.current"]), 1, metrics)
         # check was run 2 times
@@ -102,9 +99,9 @@ class HaproxyTestCase(unittest.TestCase):
         #       - only the BACKEND aggregate is reporting UP -> OK
         #       - The 3 individual servers are returning no check -> UNKNOWN
         self.assertEquals(len([t for t in service_checks
-            if t['status']== 0]), 2, service_checks)
+            if t['status']== 0]), 4, service_checks)
         self.assertEquals(len([t for t in service_checks
-            if t['status']== 3]), 6, service_checks)
+            if t['status']== 3]), 12, service_checks)
 
         # Make sure the service checks aren't tagged with an empty hostname.
         for service_check in service_checks:
@@ -116,11 +113,53 @@ class HaproxyTestCase(unittest.TestCase):
         self.check._process_data(new_data, False, True, inst['url']),
 
         assert self.check.has_events()
-        assert len(self.check.get_events()) == 3 # The 3 individual backend servers were switched to UP
+        assert len(self.check.get_events()) == 6 # The 3 backends x 2 services were switched to UP
         service_checks = self.check.get_service_checks()
         # The 3 servers + the backend aggregate are reporting UP
         self.assertEquals(len([t for t in service_checks
-            if t['status'] == 0]), 4, service_checks)
+            if t['status'] == 0]), 8, service_checks)
+
+    def testCheckServiceFilter(self):
+        config = {
+            'init_config': {},
+            'instances': [{
+                'url': 'http://localhost:3834/stats',
+                'username': 'datadog',
+                'password': 'isdevops',
+                'status_check': True,
+                'collect_aggregates_only': False,
+                'tag_service_check_by_host': True,
+                'services_include': ['datadog'],
+                'services_exclude': ['.*'],
+            }]
+        }
+        self.start_server(HAPROXY_CFG, config)
+
+        # Run the check against our running server
+        self.check.check(config['instances'][0])
+        # Sleep for 1 second so the rate interval >=1
+        time.sleep(1)
+        # Run the check again so we get the rates
+        self.check.check(config['instances'][0])
+
+        metrics = self.check.get_metrics()
+        service_checks = self.check.get_service_checks()
+        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(len(service_checks) > 0)
+
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.backend.bytes.in_rate"]), 3, metrics) # 3 backends for service:datadog
+        # Should exclude this one because of the tag
+        self.assertEquals(len([t for t in metrics
+            if t[0] == "haproxy.frontend.session.current"]), 0, metrics)
+        # check was run 2 times
+        #       - FRONTEND is reporting OPEN that we ignore
+        #       - only the BACKEND aggregate is reporting UP -> OK
+        #       - The 3 individual servers are returning no check -> UNKNOWN
+        self.assertEquals(len([t for t in service_checks
+            if t['status']== 0]), 2, service_checks)
+        self.assertEquals(len([t for t in service_checks
+            if t['status']== 3]), 6, service_checks)
 
     def testCountPerStatuses(self):
         try:
@@ -151,9 +190,8 @@ b,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
 
         expected_hosts_statuses = defaultdict(int)
         expected_hosts_statuses[('b', 'OPEN')] = 1
-        expected_hosts_statuses[('b', 'UP')] = 4
+        expected_hosts_statuses[('b', 'UP')] = 3
         expected_hosts_statuses[('a', 'OPEN')] = 1
-        expected_hosts_statuses[('a', 'UP')] = 1
         self.assertEquals(self.check.hosts_statuses, expected_hosts_statuses)
 
         # with collect_aggregates_only set to True

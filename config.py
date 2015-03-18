@@ -21,14 +21,13 @@ from cStringIO import StringIO
 # project
 
 from util import get_os, Platform, yLoader
-from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
 # 3rd party
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.2.0"
+AGENT_VERSION = "5.3.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -56,6 +55,8 @@ NAGIOS_OLD_CONF_KEYS = [
     'nagios_log',
     'nagios_perf_cfg'
     ]
+
+DEFAULT_CHECKS = ("network", "ntp")
 
 class PathNotFound(Exception):
     pass
@@ -176,7 +177,7 @@ def _unix_checksd_path():
 
 def _is_affirmative(s):
     # int or real bool
-    if isinstance(s, bool):
+    if isinstance(s, int):
         return bool(s)
     # try string cast
     return s.lower() in ('yes', 'true', '1')
@@ -279,7 +280,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -380,10 +380,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # Custom histogram aggregate/percentile metrics
         if config.has_option('Main', 'histogram_aggregates'):
-            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histograms_aggregates'))
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histogram_aggregates'))
 
         if config.has_option('Main', 'histogram_percentiles'):
-            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histograms_percentiles'))
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
 
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
@@ -401,7 +401,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
             'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
-            'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
@@ -414,9 +413,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
             if config.has_option('Main', 'statsd_forward_port'):
                 agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
-
-        # normalize 'yes'/'no' to boolean
-        dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
 
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
@@ -610,7 +606,7 @@ def get_proxy(agentConfig, use_system_settings=False):
                 pass
             px = proxy.split(':')
             proxy_settings['host'] = px[0]
-            proxy_settings['port'] = px[1]
+            proxy_settings['port'] = int(px[1])
             proxy_settings['user'] = None
             proxy_settings['password'] = None
             proxy_settings['system_settings'] = True
@@ -768,11 +764,6 @@ def load_check_directory(agentConfig, hostname):
     # Migrate datadog.conf integration configurations that are not supported anymore
     migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
-    # Start JMXFetch if needed
-    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
-
-
-
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
     # If there is a matching configuration file in the conf.d directory
@@ -786,14 +777,34 @@ def load_check_directory(agentConfig, hostname):
 
         # Let's see if there is a conf.d for this check
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+
+        # Default checks are checks that are enabled by default
+        # They read their config from the "[CHECKNAME].yaml.default" file
+        if check_name in DEFAULT_CHECKS:
+            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
+        else:
+            default_conf_path = None
+
+        conf_exists = False
+
         if os.path.exists(conf_path):
+            conf_exists = True
+
+        elif not conf_exists and default_conf_path is not None:
+            if not os.path.exists(default_conf_path):
+                log.error("Default configuration file {0} is missing".format(default_conf_path))
+                continue
+            conf_path = default_conf_path
+            conf_exists = True
+
+        if conf_exists:
             f = open(conf_path)
             try:
                 check_config = check_yaml(conf_path)
             except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                init_failed_checks[check_name] = {'error':str(e), 'traceback':traceback_message}
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured

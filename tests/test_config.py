@@ -4,7 +4,7 @@ import os
 import os.path
 import tempfile
 
-from config import get_config
+from config import get_config, load_check_directory, DEFAULT_CHECKS
 
 from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
@@ -95,6 +95,14 @@ class TestConfig(unittest.TestCase):
         finally:
             # cleanup
             Platform.is_win32 = staticmethod(func)
+
+    def testDefaultChecks(self):
+        checks = load_check_directory({"additional_checksd": "/etc/dd-agent/checks.d/"}, "foo")
+        init_checks_names = [c.name for c in checks['initialized_checks']]
+
+        for c in DEFAULT_CHECKS:
+            self.assertTrue(c in init_checks_names)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,12 +1,11 @@
 # stdlib
 import re
-import urllib2
+import requests
 import urlparse
 
 # project
 from util import headers
 from checks import AgentCheck
-from checks.utils import add_basic_auth
 
 # 3rd party
 import simplejson as json
@@ -51,9 +50,10 @@ class Nginx(AgentCheck):
 
     def _get_data(self, instance):
         url = instance.get('nginx_status_url')
-        req = urllib2.Request(url, None, headers(self.agentConfig))
+
+        auth = None
         if 'user' in instance and 'password' in instance:
-            add_basic_auth(req, instance['user'], instance['password'])
+           auth = (instance['user'], instance['password'])
 
         # Submit a service check for status page availability.
         parsed_url = urlparse.urlparse(url)
@@ -62,7 +62,8 @@ class Nginx(AgentCheck):
         service_check_name = 'nginx.can_connect'
         service_check_tags = ['host:%s' % nginx_host, 'port:%s' % nginx_port]
         try:
-            response = urllib2.urlopen(req)
+            r = requests.get(url, auth=auth, headers=headers(self.agentConfig))
+            r.raise_for_status()
         except Exception:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
                                tags=service_check_tags)
@@ -71,9 +72,9 @@ class Nginx(AgentCheck):
             self.service_check(service_check_name, AgentCheck.OK,
                                tags=service_check_tags)
 
-        body = response.read()
-        resp_headers = response.info()
-        return body, resp_headers.get('Content-Type', 'text/plain')
+        body = r.content
+        resp_headers = r.headers
+        return body, resp_headers.get('content-type', 'text/plain')
 
     @classmethod
     def parse_text(cls, raw, tags):
@@ -89,8 +90,10 @@ class Nginx(AgentCheck):
         parsed = re.search(r'\s*(\d+)\s+(\d+)\s+(\d+)', raw)
         if parsed:
             conn = int(parsed.group(1))
+            handled = int(parsed.group(2))
             requests = int(parsed.group(3))
             output.extend([('nginx.net.conn_opened_per_s', conn, tags, 'rate'),
+                           ('nginx.net.conn_handled_per_s', conn, tags, 'rate'),
                            ('nginx.net.request_per_s', requests, tags, 'rate')])
 
         # Connection states, reading, writing or waiting for clients

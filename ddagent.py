@@ -1,3 +1,4 @@
+
 #!/opt/datadog-agent/embedded/bin/python
 '''
     Datadog
@@ -27,6 +28,7 @@ from subprocess import Popen
 from hashlib import md5
 from datetime import datetime, timedelta
 from socket import gaierror, error as socket_error
+from urlparse import urlparse
 
 # Tornado
 import tornado.httpserver
@@ -38,7 +40,7 @@ from tornado.options import define, parse_command_line, options
 # agent import
 from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
 from emitter import http_emitter
-from config import get_config
+from config import get_config, get_version
 from checks.check_status import ForwarderStatus
 from transaction import Transaction, TransactionManager
 import modules
@@ -70,6 +72,11 @@ MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
 
 THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
+
+LEGACY_DATADOG_URLS = [
+    "app.datadoghq.com",
+    "app.datad0g.com",
+]
 
 class EmitterThread(threading.Thread):
 
@@ -169,6 +176,7 @@ class MetricTransaction(Transaction):
     def __init__(self, data, headers):
         self._data = data
         self._headers = headers
+        self._headers['DD-Forwarder-Version'] = get_version()
 
         # Call after data has been set (size is computed in Transaction's init)
         Transaction.__init__(self)
@@ -185,11 +193,27 @@ class MetricTransaction(Transaction):
     def __sizeof__(self):
         return sys.getsizeof(self._data)
 
+    @classmethod
+    def get_url_endpoint(cls, endpoint):
+        default_url = cls._application._agentConfig[endpoint]
+        parsed_url = urlparse(default_url)
+        if parsed_url.netloc not in LEGACY_DATADOG_URLS:
+            return default_url
+
+        subdomain = parsed_url.netloc.split(".")[0]
+
+        # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
+        return default_url.replace(subdomain,
+            "{0}-{1}.agent".format(
+                get_version().replace(".", "-"),
+                subdomain))
+
     def get_url(self, endpoint):
+        endpoint_base_url = self.get_url_endpoint(endpoint)
         api_key = self._application._agentConfig.get('api_key')
         if api_key:
-            return self._application._agentConfig[endpoint] + '/intake?api_key=%s' % api_key
-        return self._application._agentConfig[endpoint] + '/intake'
+            return endpoint_base_url + '/intake?api_key=%s' % api_key
+        return endpoint_base_url + '/intake'
 
     def flush(self):
         for endpoint in self._endpoints:
@@ -229,14 +253,14 @@ class MetricTransaction(Transaction):
                     if self._application._agentConfig.get('proxy_forbid_method_switch'):
                         # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
                         tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
-                
+
             if (not self._application.use_simple_http_client or force_use_curl) and pycurl is not None:
                 ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
             req = tornado.httpclient.HTTPRequest(**tornado_client_params)
             use_curl = force_use_curl or self._application._agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
-            
+
             if use_curl:
                 if pycurl is None:
                     log.error("dd-agent is configured to use the Curl HTTP Client, but pycurl is not available on this system.")
@@ -261,9 +285,10 @@ class MetricTransaction(Transaction):
 class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint):
+        endpoint_base_url = self.get_url_endpoint(endpoint)
         config = self._application._agentConfig
         api_key = config['api_key']
-        url = config[endpoint] + '/api/v1/series/?api_key=' + api_key
+        url = endpoint_base_url + '/api/v1/series/?api_key=' + api_key
         return url
 
     def get_data(self):
