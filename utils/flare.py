@@ -18,7 +18,6 @@ from config import (
     get_config,
     get_config_path,
     get_logging_config,
-    get_os,
     get_url_endpoint,
 )
 from util import (
@@ -33,9 +32,8 @@ import requests
 log = logging.getLogger('flare')
 
 def configcheck():
-    osname = get_os()
     all_valid = True
-    for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
+    for conf_path in glob.glob(os.path.join(get_confd_path(), "*.yaml")):
         basename = os.path.basename(conf_path)
         try:
             check_yaml(conf_path)
@@ -67,6 +65,7 @@ class Flare(object):
     COMPRESSED_FILE = 'datadog-agent-{0}.tar.bz2'
     # We limit to 10MB arbitrary
     MAX_UPLOAD_SIZE = 10485000
+    TIMEOUT = 15
 
 
     def __init__(self, cmdline=False, case_id=None):
@@ -123,8 +122,8 @@ class Flare(object):
             'hostname': self._hostname,
             'email': email
         }
-        r = requests.post(url, files=files, data=data)
-        self._analyse_result(r)
+        self._resp = requests.post(url, files=files, data=data, timeout=self.TIMEOUT)
+        self._analyse_result()
 
     # Start by creating the tar file which will contain everything
     def _init_tarfile(self):
@@ -303,17 +302,21 @@ class Flare(object):
         return raw_input('Please enter your email: ').lower()
 
     # Print output (success/error) of the request
-    def _analyse_result(self, resp):
-        if resp.status_code in range(200, 203):
-            log.info("Your logs were successfully uploaded. For future reference,"\
-                     " your internal case id is {0}".format(
-                        json.loads(resp.text)['case_id']))
-        elif resp.status_code in range(400, 405):
-            raise Exception('Your request is incorrect: {0}'.format(
-                                json.loads(resp.text)['error']))
-        elif resp.status_code in range(500, 506):
-            raise Exception('An error has occurred while uploading: {0}'.format(
-                                json.loads(resp.text)['error']))
-        else:
+    def _analyse_result(self):
+        try:
+            json_resp = json.loads(self._resp.text)
+        except ValueError, e:
             raise Exception('An unknown error has occured: {0}\n'\
-                            'Please contact support by email'.format(resp.text))
+                            'Please contact support by email'.format(self._resp.text))
+        if self._resp.status_code in range(200, 203):
+            log.info("Your logs were successfully uploaded. For future reference,"\
+                     " your internal case id is {0}".format(json_resp['case_id']))
+        elif self._resp.status_code in range(400, 405):
+            raise Exception('Your request is incorrect: {0}'.format(json_resp['error']))
+        elif self._resp.status_code in range(500, 506):
+            raise Exception('An error has occurred while uploading: {0}'.format(
+                                json_resp['error']))
+        else:
+            raise Exception('An unknown error has occured: {0} - {1}\n'\
+                            'Please contact support by email'.format(
+                                self._resp.status_code, self._resp.text))
