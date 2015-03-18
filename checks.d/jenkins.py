@@ -52,7 +52,7 @@ class Jenkins(AgentCheck):
             raise Skip('the build has already been archived', dir_name)
         timestamp = self._timestamp_from_dirname(dir_name)
         # This is not the latest build
-        if timestamp is not None and timestamp < watermark:
+        if timestamp is not None and timestamp <= watermark:
             return None
         # Read the build.xml metadata file that Jenkins generates
         build_metadata = os.path.join(dir_name, 'build.xml')
@@ -67,7 +67,7 @@ class Jenkins(AgentCheck):
                 try:
                     timestamp = self._timestamp_from_build_file(dir_name, tree)
                     # This is not the latest build
-                    if timestamp < watermark:
+                    if timestamp <= watermark:
                         return None
                 except ValueError:
                     return None
