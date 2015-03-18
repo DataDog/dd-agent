@@ -48,6 +48,8 @@ class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
     SERVICE_CHECK_NAME = 'sqlserver.can_connect'
+    # FIXME: 6.x, set default to 5s (like every check)
+    DEFAULT_COMMAND_TIMEOUT = 30
 
     METRICS = [
         ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''),  # RAW_LARGE_FRACTION
@@ -181,8 +183,11 @@ class SQLServer(AgentCheck):
 
         if conn_key not in self.connections:
             try:
-                conn_str = self._conn_string(instance)
-                conn = adodbapi.connect(conn_str)
+                conn = adodbapi.connect(
+                    self._conn_string(instance),
+                    timeout=int(instance.get('command_timeout',
+                                             self.DEFAULT_COMMAND_TIMEOUT))
+                )
                 self.connections[conn_key] = conn
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
             except Exception:
