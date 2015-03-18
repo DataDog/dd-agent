@@ -3,11 +3,10 @@ from nose.plugins.attrib import attr
 import time
 import threading
 from aggregator import MetricsAggregator
-from dogstatsd import Dogstatsd, init, Server
+from dogstatsd import Server
 from util import PidFile
 import os
-from config import get_logging_config
-from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
+from jmxfetch import JMXFetch
 
 STATSD_PORT = 8126
 class DummyReporter(threading.Thread):
@@ -44,13 +43,14 @@ class TestTomcat(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
-        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
-
+        self.jmx_daemon = JMXFetch(confd_path, {'dogstatsd_port': STATSD_PORT})
+        self.t2 = threading.Thread(target=self.jmx_daemon.run)
+        self.t2.start()
 
     def tearDown(self):
         self.server.stop()
         self.reporter.finished = True
-        JMXFetch.stop()
+        self.jmx_daemon.terminate()
 
     def test_tomcat_metrics(self):
         count = 0

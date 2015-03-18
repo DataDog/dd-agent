@@ -11,8 +11,7 @@ from mock import patch
 from aggregator import MetricsAggregator
 from dogstatsd import Server
 from util import PidFile
-from config import get_logging_config
-from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
+from jmxfetch import JMXFetch
 from common import AgentCheckTest
 
 # 3rd party
@@ -46,7 +45,7 @@ class DummyReporter(threading.Thread):
 class JMXInitTest(AgentCheckTest):
     CHECK_NAME = "java_jmx"
 
-    @patch("subprocess.call")
+    @patch("subprocess.Popen")
     def _get_jmxfetch_subprocess_args(self, yaml_jmx_conf, mock_subprocess_call):
         # Helper function
         # Returns the Java JMX subprocess_args called from a YAML configuration
@@ -55,7 +54,8 @@ class JMXInitTest(AgentCheckTest):
         with open(os.path.join(tmp_dir, filename), 'wb') as temp_file:
             temp_file.write(yaml.dump(yaml_jmx_conf))
 
-        JMXFetch.init(tmp_dir, {}, {}, 15, None, reporter="console")
+        jmx = JMXFetch(tmp_dir, {})
+        jmx.run(reporter="console")
         return mock_subprocess_call.call_args[0][0]
 
     def _get_jmx_conf(self, java_options):
@@ -106,12 +106,14 @@ class JMXTestCase(unittest.TestCase):
         self.t1.start()
 
         confd_path = os.path.join(os.environ['VOLATILE_DIR'], 'jmx_yaml')
-        JMXFetch.init(confd_path, {'dogstatsd_port':STATSD_PORT}, get_logging_config(), 15, JMX_COLLECT_COMMAND)
+        self.jmx_daemon = JMXFetch(confd_path, {'dogstatsd_port': STATSD_PORT})
+        self.t2 = threading.Thread(target=self.jmx_daemon.run)
+        self.t2.start()
 
     def tearDown(self):
         self.server.stop()
         self.reporter.finished = True
-        JMXFetch.stop()
+        self.jmx_daemon.terminate()
 
     def testCustomJMXMetric(self):
         count = 0

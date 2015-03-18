@@ -1,3 +1,4 @@
+
 #!/opt/datadog-agent/embedded/bin/python
 '''
     Datadog
@@ -202,7 +203,7 @@ class MetricTransaction(Transaction):
         subdomain = parsed_url.netloc.split(".")[0]
 
         # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
-        return default_url.replace(subdomain, 
+        return default_url.replace(subdomain,
             "{0}-{1}.agent".format(
                 get_version().replace(".", "-"),
                 subdomain))
@@ -252,14 +253,14 @@ class MetricTransaction(Transaction):
                     if self._application._agentConfig.get('proxy_forbid_method_switch'):
                         # See http://stackoverflow.com/questions/8156073/curl-violate-rfc-2616-10-3-2-and-switch-from-post-to-get
                         tornado_client_params['prepare_curl_callback'] = lambda curl: curl.setopt(pycurl.POSTREDIR, pycurl.REDIR_POST_ALL)
-                
+
             if (not self._application.use_simple_http_client or force_use_curl) and pycurl is not None:
                 ssl_certificate = self._application._agentConfig.get('ssl_certificate', None)
                 tornado_client_params['ca_certs'] = ssl_certificate
 
             req = tornado.httpclient.HTTPRequest(**tornado_client_params)
             use_curl = force_use_curl or self._application._agentConfig.get("use_curl_http_client") and not self._application.use_simple_http_client
-            
+
             if use_curl:
                 if pycurl is None:
                     log.error("dd-agent is configured to use the Curl HTTP Client, but pycurl is not available on this system.")

@@ -21,7 +21,6 @@ from cStringIO import StringIO
 # project
 
 from util import get_os, Platform, yLoader
-from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
 from migration import migrate_old_style_configuration
 
 # 3rd party
@@ -765,11 +764,6 @@ def load_check_directory(agentConfig, hostname):
     # Migrate datadog.conf integration configurations that are not supported anymore
     migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
-    # Start JMXFetch if needed
-    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
-
-
-
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
     # If there is a matching configuration file in the conf.d directory
@@ -792,7 +786,7 @@ def load_check_directory(agentConfig, hostname):
             default_conf_path = None
 
         conf_exists = False
-        
+
         if os.path.exists(conf_path):
             conf_exists = True
 
