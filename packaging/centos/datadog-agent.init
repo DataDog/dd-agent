@@ -186,6 +186,13 @@ case "$1" in
         su $AGENTUSER -c "$AGENTPATH jmx $@"
         exit $?
         ;;
+
+    flare)
+        shift
+        su $AGENTUSER -c "$AGENTPATH flare $@"
+        exit $?
+        ;;
+
     *)
         echo "Usage: $0 {start|stop|restart|info|status|configcheck|configtest|jmx}"
         exit 2

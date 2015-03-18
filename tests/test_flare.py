@@ -26,6 +26,12 @@ class FakeResponse(object):
 		self.status_code = status_code
 		self.text = '{"case_id":1337}'
 
+	def json(self):
+		return {'case_id': 1337}
+
+	def raise_for_status(self):
+		return None
+
 class FlareTest(unittest.TestCase):
 
 	@mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
@@ -99,4 +105,4 @@ class FlareTest(unittest.TestCase):
 			f.upload(confirmation=False)
 			raise Exception('Should fail before')
 		except Exception, e:
-			self.assertEqual(str(e), "Invalid inputs: {'email': None}")
+			self.assertEqual(str(e), "Your request is incorrect: Invalid inputs: {'email': None}")

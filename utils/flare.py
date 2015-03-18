@@ -3,7 +3,6 @@ import glob
 import logging
 import os.path
 import re
-import simplejson as json
 import subprocess
 import sys
 import tarfile
@@ -65,7 +64,7 @@ class Flare(object):
     COMPRESSED_FILE = 'datadog-agent-{0}.tar.bz2'
     # We limit to 10MB arbitrary
     MAX_UPLOAD_SIZE = 10485000
-    TIMEOUT = 15
+    TIMEOUT = 30
 
 
     def __init__(self, cmdline=False, case_id=None):
@@ -193,13 +192,11 @@ class Flare(object):
     def _strip_comment(self, file_path):
         _, temp_path = tempfile.mkstemp(prefix='dd')
         atexit.register(os.remove, temp_path)
-        temp_file = open(temp_path, 'w')
-        orig_file = open(file_path, 'r').read()
-
-        for line in orig_file.splitlines(True):
-            if not self.COMMENT_REGEX.match(line):
-                temp_file.write(re.sub(self.APIKEY_REGEX, self.REPLACE_APIKEY, line))
-        temp_file.close()
+        with open(temp_path, 'w') as temp_file:
+            with open(file_path, 'r') as orig_file:
+                for line in orig_file.readlines():
+                    if not self.COMMENT_REGEX.match(line):
+                        temp_file.write(re.sub(self.APIKEY_REGEX, self.REPLACE_APIKEY, line))
 
         return temp_path
 
@@ -218,17 +215,16 @@ class Flare(object):
     def _strip_password(self, file_path):
         _, temp_path = tempfile.mkstemp(prefix='dd')
         atexit.register(os.remove, temp_path)
-        temp_file = open(temp_path, 'w')
-        orig_file = open(file_path, 'r').read()
-        password_found = ''
-        for line in orig_file.splitlines(True):
-            if self.PASSWORD_REGEX.match(line):
-                line = re.sub(self.PASSWORD_REGEX, r'\1 ********', line)
-                password_found = ' - this file contains a password which '\
-                                 'has been removed in the version collected'
-            if not self.COMMENT_REGEX.match(line):
-                temp_file.write(line)
-        temp_file.close()
+        with open(temp_path, 'w') as temp_file:
+            with open(file_path, 'r') as orig_file:
+                password_found = ''
+                for line in orig_file.readlines():
+                    if self.PASSWORD_REGEX.match(line):
+                        line = re.sub(self.PASSWORD_REGEX, r'\1 ********', line)
+                        password_found = ' - this file contains a password which '\
+                                         'has been removed in the version collected'
+                    if not self.COMMENT_REGEX.match(line):
+                        temp_file.write(line)
 
         return temp_path, password_found
 
@@ -250,12 +246,44 @@ class Flare(object):
         if Platform.is_windows():
             print 'Windows - status not implemented'
         else:
-            print '/etc/init.d/datadog-agent status'
-            self._print_output_command(['/etc/init.d/datadog-agent', 'status'])
-            print 'supervisorctl status'
-            self._print_output_command(['/opt/datadog-agent/bin/supervisorctl',
-                                        '-c', '/etc/dd-agent/supervisor.conf',
+            agent_exec = self._get_path_agent_exec()
+            print '{0} status'.format(agent_exec)
+            self._print_output_command([agent_exec, 'status'])
+            supervisor_exec = self._get_path_supervisor_exec()
+            print '{0} status'.format(supervisor_exec)
+            self._print_output_command([supervisor_exec,
+                                        '-c', self._get_path_supervisor_conf(),
                                         'status'])
+
+    # Find the agent exec (package or source)
+    def _get_path_agent_exec(self):
+        agent_exec = '/etc/init.d/datadog-agent'
+        if not os.path.isfile(agent_exec):
+            agent_exec = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                '../../bin/agent'
+            )
+        return agent_exec
+
+    # Find the supervisor exec (package or source)
+    def _get_path_supervisor_exec(self):
+        supervisor_exec = '/opt/datadog-agent/bin/supervisorctl'
+        if not os.path.isfile(supervisor_exec):
+            supervisor_exec = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                '../../venv/bin/supervisorctl'
+            )
+        return supervisor_exec
+
+    # Find the supervisor conf (package or source)
+    def _get_path_supervisor_conf(self):
+        supervisor_conf = '/etc/init.d/datadog-agent'
+        if not os.path.isfile(supervisor_conf):
+            supervisor_conf = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                '../../supervisord/supervisord.conf'
+            )
+        return supervisor_conf
 
     # Print output of command
     def _print_output_command(self, command):
@@ -303,20 +331,17 @@ class Flare(object):
 
     # Print output (success/error) of the request
     def _analyse_result(self):
+        # First catch our custom explicit 400
+        if self._resp.status_code == 400:
+            raise Exception('Your request is incorrect: {0}'.format(self._resp.json()['error']))
+        # Then raise potential 500 and 404
+        self._resp.raise_for_status()
         try:
-            json_resp = json.loads(self._resp.text)
+            json_resp = self._resp.json()
+        # Failed parsing
         except ValueError, e:
-            raise Exception('An unknown error has occured: {0}\n'\
-                            'Please contact support by email'.format(self._resp.text))
-        if self._resp.status_code in range(200, 203):
-            log.info("Your logs were successfully uploaded. For future reference,"\
-                     " your internal case id is {0}".format(json_resp['case_id']))
-        elif self._resp.status_code in range(400, 405):
-            raise Exception('Your request is incorrect: {0}'.format(json_resp['error']))
-        elif self._resp.status_code in range(500, 506):
-            raise Exception('An error has occurred while uploading: {0}'.format(
-                                json_resp['error']))
-        else:
-            raise Exception('An unknown error has occured: {0} - {1}\n'\
-                            'Please contact support by email'.format(
-                                self._resp.status_code, self._resp.text))
+            raise Exception('An unknown error has occured - '\
+                            'Please contact support by email')
+        # Finally, correct
+        log.info("Your logs were successfully uploaded. For future reference,"\
+                 " your internal case id is {0}".format(json_resp['case_id']))
