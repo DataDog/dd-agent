@@ -1,31 +1,38 @@
-# set up logging before importing any other components
-
-import win32serviceutil
-import win32service
+# stdlib
+import logging
+import modules
+import multiprocessing
+from optparse import Values
+import servicemanager
+import sys
+import threading
+import time
+import tornado.httpclient
+from win32.common import handle_exe_click
 import win32event
 import win32evtlogutil
-import sys
-import logging
-import tornado.httpclient
-import threading
-import modules
-import time
-import multiprocessing
+import win32service
+import win32serviceutil
 
-from optparse import Values
+# DD
 from checks.collector import Collector
-from emitter import http_emitter
-from win32.common import handle_exe_click
+from config import (
+    get_config,
+    get_system_stats,
+    get_win32service_file,
+    load_check_directory,
+    set_win32_cert_path,
+)
 import dogstatsd
 from ddagent import Application
-from config import (get_config, set_win32_cert_path, get_system_stats,
-    load_check_directory, get_win32service_file)
-from win32.common import handle_exe_click
+from emitter import http_emitter
 from jmxfetch import JMXFetch
 from util import get_hostname
 
 log = logging.getLogger(__name__)
-RESTART_INTERVAL = 24 * 60 * 60 # Defaults to 1 day
+
+SERVICE_SLEEP_INTERVAL = 1
+MAX_FAILED_HEARTBEATS = 8 # runs of collector
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -47,15 +54,19 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
         self.hostname = get_hostname(agentConfig)
-        self.restart_interval = \
-            int(agentConfig.get('autorestart_interval', RESTART_INTERVAL))
-        log.info("Autorestarting the collector ever %s seconds" % self.restart_interval)
+
+        # Watchdog for Windows
+        self._collector_heartbeat, self._collector_send_heartbeat = multiprocessing.Pipe(False)
+        self._collector_failed_heartbeats = 0
+        self._max_failed_heartbeats = \
+            MAX_FAILED_HEARTBEATS * agentConfig['check_freq'] / SERVICE_SLEEP_INTERVAL
 
         # Keep a list of running processes so we can start/end as needed.
         # Processes will start started in order and stopped in reverse order.
         self.procs = {
             'forwarder': DDForwarder(config, self.hostname),
-            'collector': DDAgent(agentConfig, self.hostname),
+            'collector': DDAgent(agentConfig, self.hostname,
+                                 heartbeat=self._collector_send_heartbeat),
             'dogstatsd': DogstatsdProcess(config, self.hostname),
         }
 
@@ -69,7 +80,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             proc.terminate()
 
     def SvcDoRun(self):
-        import servicemanager
         servicemanager.LogMsg(
                 servicemanager.EVENTLOG_INFORMATION_TYPE,
                 servicemanager.PYS_SERVICE_STARTED,
@@ -84,39 +94,52 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         # running in separate processes
         self.running = True
         while self.running:
-            if self.running:
-                # Restart any processes that might have died.
-                for name, proc in self.procs.iteritems():
-                    if not proc.is_alive() and proc.is_enabled:
-                        log.info("%s has died. Restarting..." % proc.name)
-                        # Make a new proc instances because multiprocessing
-                        # won't let you call .start() twice on the same instance.
-                        new_proc = proc.__class__(proc.config, self.hostname)
-                        new_proc.start()
-                        self.procs[name] = new_proc
-                # Auto-restart the collector if we've been running for a while.
-                if time.time() - self.start_ts > self.restart_interval:
-                    log.info('Auto-restarting collector after %s seconds' % self.restart_interval)
-                    collector = self.procs['collector']
-                    new_collector = collector.__class__(collector.config,
-                                    self.hostname, start_event=False)
-                    collector.terminate()
-                    del self.procs['collector']
-                    new_collector.start()
+            # Restart any processes that might have died.
+            for name, proc in self.procs.iteritems():
+                if not proc.is_alive() and proc.is_enabled:
+                    servicemanager.LogInfoMsg("%s has died. Restarting..." % proc.name)
+                    self._restart_proc(name)
 
-                    # Replace old process and reset timer.
-                    self.procs['collector'] = new_collector
-                    self.start_ts = time.time()
+            self._check_collector_blocked()
 
-            time.sleep(1)
+            time.sleep(SERVICE_SLEEP_INTERVAL)
 
+    def _check_collector_blocked(self):
+        if self._collector_heartbeat.poll():
+            while self._collector_heartbeat.poll():
+                self._collector_heartbeat.recv()
+            self._collector_failed_heartbeats = 0
+        else:
+            self._collector_failed_heartbeats += 1
+            if self._collector_failed_heartbeats > self._max_failed_heartbeats:
+                servicemanager.LogInfoMsg(
+                    "%s was unresponsive for too long. Restarting..." % 'collector')
+                self._restart_proc('collector')
+                self._collector_failed_heartbeats = 0
+
+    def _restart_proc(self, proc_name):
+        # Make a new proc instances because multiprocessing
+        # won't let you call .start() twice on the same instance.
+        old_proc = self.procs[proc_name]
+        if proc_name == 'collector':
+            new_proc = old_proc.__class__(
+                old_proc.config, self.hostname, heartbeat=self._collector_send_heartbeat)
+        else:
+            new_proc = old_proc.__class__(old_proc.config, self.hostname)
+
+        if old_proc.is_alive():
+            old_proc.terminate()
+        del self.procs[proc_name]
+
+        new_proc.start()
+        self.procs[proc_name] = new_proc
 
 class DDAgent(multiprocessing.Process):
-    def __init__(self, agentConfig, hostname, start_event=True):
+    def __init__(self, agentConfig, hostname, heartbeat=None):
         multiprocessing.Process.__init__(self, name='ddagent')
         self.config = agentConfig
         self.hostname = hostname
-        self.start_event = start_event
+        self._heartbeat = heartbeat
         # FIXME: `running` flag should be handled by the service
         self.running = True
         self.is_enabled = True
@@ -133,7 +156,9 @@ class DDAgent(multiprocessing.Process):
 
         # Main agent loop will run until interrupted
         while self.running:
-            self.collector.run(checksd=checksd, start_event=self.start_event)
+            if self._heartbeat:
+                self._heartbeat.send(0)
+            self.collector.run(checksd=checksd)
             time.sleep(self.config['check_freq'])
 
     def stop(self):
