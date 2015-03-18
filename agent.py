@@ -21,17 +21,29 @@ import os.path
 import signal
 import sys
 import time
-import glob
 
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
-from daemon import Daemon, AgentSupervisor
+from config import (
+    get_confd_path,
+    get_config,
+    get_logging_config,
+    get_parsed_args,
+    get_system_stats,
+    load_check_directory,
+)
+from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2, get_os, get_hostname
 from jmxfetch import JMXFetch
-
+from util import (
+    EC2,
+    get_hostname,
+    get_os,
+    PidFile,
+    Watchdog,
+)
+from utils.flare import configcheck, Flare
 
 # Constants
 PID_NAME = "dd-agent"
@@ -212,6 +224,7 @@ def main():
         'check',
         'configcheck',
         'jmx',
+        'flare',
     ]
 
     if len(args) < 1:
@@ -296,25 +309,7 @@ def main():
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
-        osname = get_os()
-        all_valid = True
-        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
-            basename = os.path.basename(conf_path)
-            try:
-                check_yaml(conf_path)
-            except Exception, e:
-                all_valid = False
-                print "%s contains errors:\n    %s" % (basename, e)
-            else:
-                print "%s is valid" % basename
-        if all_valid:
-            print "All yaml files passed. You can now run the Datadog agent."
-            return 0
-        else:
-            print("Fix the invalid yaml files above in order to start the Datadog agent. "
-                    "A useful external tool for yaml parsing can be found at "
-                    "http://yaml-online-parser.appspot.com/")
-            return 1
+        configcheck()
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
@@ -342,6 +337,16 @@ def main():
                 print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
                 print "Have you enabled any JMX check ?"
                 print "If you think it's not normal please get in touch with Datadog Support"
+
+    elif 'flare' == command:
+        case_id = int(args[1]) if len(args) > 1 else None
+        f = Flare(True, case_id)
+        f.collect()
+        try:
+            f.upload()
+        except Exception, e:
+            print 'The upload failed:\n{0}'.format(str(e))
+
     return 0
 
 

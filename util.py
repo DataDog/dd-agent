@@ -567,6 +567,10 @@ class Platform(object):
         return 'darwin' in name
 
     @staticmethod
+    def is_mac(name=None):
+        Platform.is_darwin(name)
+
+    @staticmethod
     def is_freebsd(name=None):
         name = name or sys.platform
         return name.startswith("freebsd")
@@ -600,6 +604,10 @@ class Platform(object):
     def is_win32(name=None):
         name = name or sys.platform
         return name == "win32"
+
+    @staticmethod
+    def is_windows(name=None):
+        return Platform.is_win32(name)
 
 """
 Iterable Recipes
