@@ -1,3 +1,4 @@
+from checks import AgentCheck
 import logging
 import unittest
 from nose.plugins.attrib import attr
@@ -12,6 +13,8 @@ logger = logging.getLogger()
 MAX_WAIT = 20
 NOAUTH_PORT = 16379
 AUTH_PORT = 26379
+SLAVE_HEALTHY_PORT = 36379
+SLAVE_UNHEALTHY_PORT = 46379
 DEFAULT_PORT = 6379
 MISSING_KEY_TOLERANCE = 0.5
 
@@ -138,6 +141,56 @@ class TestRedis(AgentCheckTest):
         metrics = self._sort_metrics(r.get_metrics())
         keys = [m[0] for m in metrics]
         assert 'redis.net.commands' in keys
+
+    def test_redis_replication_link_metric(self):
+        metric_name = 'redis.replication.master_link_down_since_seconds'
+        r = load_check('redisdb', {}, {})
+
+        def extract_metric(instance):
+            r.check(instance)
+            metrics = [m for m in r.get_metrics() if m[0] == metric_name]
+            return (metrics and metrics[0]) or None
+
+        # Healthy host
+        metric = extract_metric({
+            'host': 'localhost',
+            'port': SLAVE_HEALTHY_PORT
+        })
+        assert metric, "%s metric not returned" % metric_name
+        self.assertEqual(metric[2], 0, "Value of %s should be 0" % metric_name)
+
+        # Unhealthy host
+        time.sleep(5)  # Give time for the replication failure metrics to build up
+        metric = extract_metric({
+            'host': 'localhost',
+            'port': SLAVE_UNHEALTHY_PORT
+        })
+        self.assert_(metric[2] > 0, "Value of %s should be greater than 0" % metric_name)
+
+    def test_redis_replication_service_check(self):
+        check_name = 'redis.replication.master_link_status'
+        r = load_check('redisdb', {}, {})
+
+        def extract_check(instance):
+            r.check(instance)
+            checks = [c for c in r.get_service_checks() if c['check'] == check_name]
+            return (checks and checks[0]) or None
+
+        # Healthy host
+        time.sleep(5)  # Give time for the replication failure metrics to build up
+        check = extract_check({
+            'host': 'localhost',
+            'port': SLAVE_HEALTHY_PORT
+        })
+        assert check, "%s service check not returned" % check_name
+        self.assertEqual(check['status'], AgentCheck.OK, "Value of %s service check should be OK" % check_name)
+
+        # Unhealthy host
+        check = extract_check({
+            'host': 'localhost',
+            'port': SLAVE_UNHEALTHY_PORT
+        })
+        self.assertEqual(check['status'], AgentCheck.CRITICAL, "Value of %s service check should be CRITICAL" % check_name)
 
     def test_redis_repl(self):
         master_instance = {

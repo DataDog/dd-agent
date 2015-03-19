@@ -31,6 +31,10 @@ namespace :ci do
            $TRAVIS_BUILD_DIR/ci/resources/redis/auth.conf)
       sh %(#{redis_rootdir}/src/redis-server\
            $TRAVIS_BUILD_DIR/ci/resources/redis/noauth.conf)
+      sh %(#{redis_rootdir}/src/redis-server\
+           $TRAVIS_BUILD_DIR/ci/resources/redis/slave_healthy.conf)
+      sh %(#{redis_rootdir}/src/redis-server\
+           $TRAVIS_BUILD_DIR/ci/resources/redis/slave_unhealthy.conf)
     end
 
     task :script => ['ci:common:script'] do

@@ -15,10 +15,15 @@ import redis
 DEFAULT_MAX_SLOW_ENTRIES = 128
 MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
 
+REPL_KEY = 'master_link_status'
+LINK_DOWN_KEY = 'master_link_down_since_seconds'
+
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
+
+    
 
     SOURCE_TYPE_NAME = 'redis'
 
@@ -230,6 +235,11 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
+
+        self._check_replication(info, tags)
+
+    def _check_replication(self, info, tags):
+
         # Save the replication delay for each slave
         for key in info:
             if self.slave_key_pattern.match(key) and isinstance(info[key], dict):
@@ -244,7 +254,18 @@ class Redis(AgentCheck):
                             slave_tags.append('slave_{0}:{1}'.format(slave_tag, info[key][slave_tag]))
                     slave_tags.append('slave_id:%s' % key.lstrip('slave'))
                     self.gauge('redis.replication.delay', delay, tags=slave_tags)
-    
+
+        if REPL_KEY in info:
+            if info[REPL_KEY] == 'up':
+                status = AgentCheck.OK
+                down_seconds = 0
+            else:
+                status = AgentCheck.CRITICAL
+                down_seconds = info[LINK_DOWN_KEY]
+
+            self.service_check('redis.replication.master_link_status', status, tags=tags)
+            self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
+
 
     def _check_slowlog(self, instance, custom_tags):
         """Retrieve length and entries from Redis' SLOWLOG
