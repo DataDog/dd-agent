@@ -9,7 +9,9 @@ namespace :ci do
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf &)
+      pid = spawn %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf)
+      Process.detach(pid)
+      sh %(echo #{pid} > $VOLATILE_DIR/fluentd.pid)
       sleep_for 10
     end
 
@@ -20,8 +22,9 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop fluentd
+    task :cleanup => ['ci:common:cleanup'] do
+      sh %(kill `cat $VOLATILE_DIR/fluentd.pid`)
+    end
 
     task :execute do
       exception = nil
