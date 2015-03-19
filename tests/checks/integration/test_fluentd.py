@@ -1,5 +1,6 @@
 import unittest
 import logging
+import re
 from nose.plugins.attrib import attr
 from types import ListType
 logger = logging.getLogger(__file__)
@@ -70,3 +71,54 @@ class TestFluentd(unittest.TestCase):
 
         check = load_check('fluentd', config, agentConfig)
         self.assertRaises(Exception, check.run())
+
+    def test_fluentd_with_tag_by_type(self):
+        config = {
+            "init_config": {
+            },
+            "instances": [
+                {
+                    "monitor_agent_url": "http://localhost:24220/api/plugins.json",
+                    "tag_by": "type",
+                }
+            ]
+        }
+
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        check = load_check('fluentd', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        for m in metrics:
+            self.assertEquals(m[3]['tags'], ['type:forward'])
+
+    def test_fluentd_with_tag_by_plugin_id(self):
+        config = {
+            "init_config": {
+            },
+            "instances": [
+                {
+                    "monitor_agent_url": "http://localhost:24220/api/plugins.json",
+                    "tag_by": "plugin_id",
+                }
+            ]
+        }
+
+        agentConfig = {
+            'version': '0.1',
+            'api_key': 'toto'
+        }
+
+        check = load_check('fluentd', config, agentConfig)
+        check.run()
+        metrics = check.get_metrics()
+        p = re.compile('plugin_id:plg[12]')
+        for m in metrics:
+            self.assertEquals(len(m[3]['tags']), 1)
+            self.assertTrue(p.match(m[3]['tags'][0]))
+
+if __name__ == '__main__':
+    unittest.main()
