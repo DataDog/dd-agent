@@ -285,19 +285,17 @@ SELECT relname,
         metrics = self.instance_metrics.get(key)
 
         if metrics is None:
-
             # Hack to make sure that if we have multiple instances that connect to
             # the same host, port, we don't collect metrics twice
             # as it will result in https://github.com/DataDog/dd-agent/issues/1211
             sub_key = key[:2]
             if sub_key in self.db_instance_metrics:
-                self.instance_metrics[key] = {}
-                self.log.debug("Not collecting instance metrics for key: {0} as"\
+                self.instance_metrics[key] = None
+                self.log.debug("Not collecting instance metrics for key: {0} as"
                     " they are already collected by another instance".format(key))
-                return {}
+                return None
 
             self.db_instance_metrics.append(sub_key)
-
 
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
@@ -315,16 +313,15 @@ SELECT relname,
         metrics = self.bgw_metrics.get(key)
 
         if metrics is None:
-
             # Hack to make sure that if we have multiple instances that connect to
             # the same host, port, we don't collect metrics twice
             # as it will result in https://github.com/DataDog/dd-agent/issues/1211
             sub_key = key[:2]
             if sub_key in self.db_bgw_metrics:
-                self.bgw_metrics[key] = {}
-                self.log.debug("Not collecting bgw metrics for key: {0} as"\
+                self.bgw_metrics[key] = None
+                self.log.debug("Not collecting bgw metrics for key: {0} as"
                     " they are already collected by another instance".format(key))
-                return {}
+                return None
 
             self.db_bgw_metrics.append(sub_key)
 
@@ -356,15 +353,23 @@ SELECT relname,
         If custom_metrics is not an empty list, gather custom metrics defined in postgres.yaml
         """
 
-        self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
-        self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
         metric_scope = [
-            self.DB_METRICS,
             self.CONNECTION_METRICS,
-            self.BGW_METRICS,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
         ]
+
+        # These are added only once per PG server, thus the test
+        db_instance_metrics = self._get_instance_metrics(key, db)
+        bgw_instance_metrics = self._get_bgw_metrics(key, db)
+
+        if db_instance_metrics is not None:
+            self.DB_METRICS['metrics'] = db_instance_metrics
+            metric_scope.append(self.DB_METRICS)
+
+        if bgw_instance_metrics is not None:
+            self.BGW_METRICS['metrics'] = bgw_instance_metrics
+            metric_scope.append(self.BGW_METRICS)
 
         # Do we need relation-specific metrics?
         if relations:
