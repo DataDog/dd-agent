@@ -218,7 +218,7 @@ SELECT %s
 """
     }
 
-    STATIO_ALL_TABLES_METRICS = {
+    STATIO_METRICS = {
         'descriptors': [
             ('relname', 'table'),
         ],
@@ -364,7 +364,6 @@ SELECT relname,
             self.BGW_METRICS,
             self.LOCK_METRICS,
             self.COUNT_METRICS,
-            self.STATIO_ALL_TABLES_METRICS,
         ]
 
         # Do we need relation-specific metrics?
@@ -372,7 +371,8 @@ SELECT relname,
             metric_scope += [
                 self.REL_METRICS,
                 self.IDX_METRICS,
-                self.SIZE_METRICS
+                self.SIZE_METRICS,
+                self.STATIO_METRICS
             ]
 
         replication_metrics = self._get_replication_metrics(key, db)
@@ -387,10 +387,8 @@ SELECT relname,
             for scope in full_metric_scope:
                 if scope == self.REPLICATION_METRICS or not self._is_above(key, db, [9,0,0]):
                     log_func = self.log.debug
-                    warning_func = self.log.debug
                 else:
                     log_func = self.log.warning
-                    warning_func = self.warning
 
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
