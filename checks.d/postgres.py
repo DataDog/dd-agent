@@ -177,7 +177,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
             ('schemaname', 'schema')
         ],
         'metrics': {
-            'pg_stat_user_tables': ('postgresql.total_tables', GAUGE),
+            'pg_stat_user_tables': ('postgresql.table.count', GAUGE),
         },
         'relation': False,
         'query': """
