@@ -1,151 +1,222 @@
-import os
-import unittest
-from tests.common import load_check, AgentCheckTest
+# stdlib
+import time
 
+# 3p
 from nose.plugins.attrib import attr
 
-import time
-from pprint import pprint
+# project
+from checks import AgentCheck
+from tests.common import AgentCheckTest
 
-
-# postgres version: (expected metrics, expected tagged metrics per database)
-METRICS = {
-    '9.4.1': (40, 26),
-    '9.3.6': (40, 26),
-    '9.2.10': (40, 26),
-    '9.1.15': (35, 23),
-    '9.0.19': (34, 23),
-}
 
 @attr(requires='postgres')
 class TestPostgres(AgentCheckTest):
-
-    CHECK_NAME = "postgres"
+    CHECK_NAME = 'postgres'
 
     def test_checks(self):
         host = 'localhost'
         port = 15432
         dbname = 'datadog_test'
 
-        config = {
-            'instances': [
-                {
+        instances = [
+            {
                 'host': host,
                 'port': port,
                 'username': 'datadog',
                 'password': 'datadog',
                 'dbname': dbname,
                 'relations': ['persons'],
-                'custom_metrics': [
-                    {
-                        "descriptors": [
-                            ("datname", "customdb")
-                        ],
-                        "metrics": {
-                            "numbackends": ["custom.numbackends", "Gauge"],
-                        },
-                        "query": "SELECT datname, %s FROM pg_stat_database WHERE datname = 'datadog_test' LIMIT(1)",
-                        "relation": False,
-                    }]
-                },
-                {
+                'custom_metrics': [{
+                    'descriptors': [('datname', 'customdb')],
+                    'metrics': {
+                        'numbackends': ['custom.numbackends', 'Gauge'],
+                    },
+                    'query': "SELECT datname, %s FROM pg_stat_database WHERE datname = 'datadog_test' LIMIT(1)",
+                    'relation': False,
+                }]
+            },
+            {
                 'host': host,
                 'port': port,
                 'username': 'datadog',
                 'password': 'datadog',
-                'dbname': 'postgres'
-                }
-                ]
-        }
-        agentConfig = {
-            'version': '0.1',
-            'api_key': 'toto'
-        }
+                'dbname': 'dogs',
+                'relations': ['breed', 'kennel']
+            }
+        ]
 
+        self.run_check(dict(instances=instances))
+        # Rate metrics, need 2 collection rounds
+        time.sleep(1)
+        self.run_check(dict(instances=instances))
 
-        self.check = load_check('postgres', config, agentConfig)
-
-        self.check.run()
-
+        # Useful to get server version
         # FIXME: Not great, should have a function like that available
         key = (host, port, dbname)
         db = self.check.dbs[key]
 
-        metrics = self.check.get_metrics()
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.connections'])                          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.dead_rows'])                            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.live_rows'])                            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.table_size'])                           >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.index_size'])                           >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.total_size'])                           >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.max_connections'])                      >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.percent_usage_connections'])            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.total_tables'])                         == 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.db.count'])                             == 1, pprint(metrics))
+        # Testing DB_METRICS scope
+        COMMON_METRICS = [
+            'postgresql.connections',
+            'postgresql.commits',
+            'postgresql.rollbacks',
+            'postgresql.disk_read',
+            'postgresql.buffer_hit',
+            'postgresql.rows_returned',
+            'postgresql.rows_fetched',
+            'postgresql.rows_inserted',
+            'postgresql.rows_updated',
+            'postgresql.rows_deleted',
+            'postgresql.database_size',
+        ]
 
-        # Rate metrics, need 2 collection rounds
-        time.sleep(1)
-        self.check.run()
-        metrics = self.check.get_metrics()
+        for mname in COMMON_METRICS:
+            for db in ('datadog_test', 'dogs'):
+                self.assertMetric(mname, count=1, tags=['db:%s' % db])
 
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.checkpoints_timed'])           >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.checkpoints_requested'])       >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.buffers_checkpoint'])          >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.buffers_clean'])               >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.maxwritten_clean'])            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.buffers_backend'])             >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.buffers_alloc'])               >= 1, pprint(metrics))
-
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.commits'])                              >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rollbacks'])                            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.disk_read'])                            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.buffer_hit'])                           >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_returned'])                        >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_fetched'])                         >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_inserted'])                        >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_updated'])                         >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_deleted'])                         >= 1, pprint(metrics))
-
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.seq_scans'])                            >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.seq_rows_read'])                        >= 1, pprint(metrics))
-        self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.rows_hot_updated'])                     >= 1, pprint(metrics))
-
-        if self.check._is_9_1_or_above(key, db):
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.buffers_backend_fsync'])   >= 1, pprint(metrics))
+        NEWER_92_METRICS = [
+            'postgresql.deadlocks',
+            'postgresql.temp_bytes',
+            'postgresql.temp_files',
+        ]
 
         if self.check._is_9_2_or_above(key, db):
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.write_time'])              >= 1, pprint(metrics))
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.bgwriter.sync_time'])               >= 1, pprint(metrics))
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.deadlocks'])                        >= 1, pprint(metrics))
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.temp_bytes'])                       >= 1, pprint(metrics))
-            self.assertTrue(len([m for m in metrics if m[0] == u'postgresql.temp_files'])                       >= 1, pprint(metrics))
+            for mname in NEWER_92_METRICS:
+                for db in ('datadog_test', 'dogs'):
+                    self.assertMetric(mname, count=1, tags=['db:%s' % db])
 
-        # Service checks
-        service_checks = self.check.get_service_checks()
-        service_checks_count = len(service_checks)
-        self.assertTrue(type(service_checks) == type([]))
-        self.assertTrue(service_checks_count > 0)
-        self.assertEquals(len([sc for sc in service_checks if sc['check'] == "postgres.can_connect"]), 4, service_checks)
-        # Assert that all service checks have the proper tags: host, port and db
-        self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
-        self.assertEquals(len([sc for sc in service_checks if "port:%s" % config['instances'][0]['port'] in sc['tags']]), service_checks_count, service_checks)
-        self.assertEquals(len([sc for sc in service_checks if "db:%s" % config['instances'][0]['dbname'] in sc['tags']]), service_checks_count/2, service_checks)
+        # Testing BGW_METRICS scope
+        COMMON_BGW_METRICS = [
+            'postgresql.bgwriter.checkpoints_timed',
+            'postgresql.bgwriter.checkpoints_requested',
+            'postgresql.bgwriter.buffers_checkpoint',
+            'postgresql.bgwriter.buffers_clean',
+            'postgresql.bgwriter.maxwritten_clean',
+            'postgresql.bgwriter.buffers_backend',
+            'postgresql.bgwriter.buffers_alloc',
+        ]
 
-        time.sleep(1)
-        self.check.run()
-        metrics = self.check.get_metrics()
+        for mname in COMMON_BGW_METRICS:
+            self.assertMetric(mname, count=1)
 
-        self.assertEquals(len([m for m in metrics if 'table:persons' in str(m[3].get('tags', [])) ]), 11, metrics)
+        NEWER_91_BGW_METRICS = [
+            'postgresql.bgwriter.buffers_backend_fsync',
+        ]
 
-        pg_version_array = self.check._get_version(key, db)
-        pg_version = '.'.join(str(x) for x in pg_version_array)
-        exp_metrics = METRICS[pg_version][0]
-        exp_db_tagged_metrics = METRICS[pg_version][1]
-        self.assertEquals(len(metrics), exp_metrics, metrics)
-        self.assertEquals(len([m for m in metrics if 'db:datadog_test' in str(m[3].get('tags', []))]), exp_db_tagged_metrics, metrics)
+        if self.check._is_9_1_or_above(key, db):
+            for mname in NEWER_91_BGW_METRICS:
+                self.assertMetric(mname, count=1)
 
-        self.metrics = metrics
-        self.assertMetric("custom.numbackends")
+        NEWER_92_BGW_METRICS = [
+            'postgresql.bgwriter.write_time',
+            'postgresql.bgwriter.sync_time',
+        ]
 
-if __name__ == '__main__':
-    unittest.main()
+        if self.check._is_9_2_or_above(key, db):
+            for mname in NEWER_92_BGW_METRICS:
+                self.assertMetric(mname, count=1)
+
+        # FIXME: Test postgresql.locks
+
+        # Relation specific metrics
+        RELATION_METRICS = [
+            'postgresql.seq_scans',
+            'postgresql.seq_rows_read',
+            'postgresql.index_scans',
+            'postgresql.index_rows_fetched',
+            'postgresql.rows_inserted',
+            'postgresql.rows_updated',
+            'postgresql.rows_deleted',
+            'postgresql.rows_hot_updated',
+            'postgresql.live_rows',
+            'postgresql.dead_rows',
+        ]
+
+        SIZE_METRICS = [
+            'postgresql.table_size',
+            'postgresql.index_size',
+            'postgresql.total_size',
+        ]
+
+        STATIO_METRICS = [
+            'postgresql.heap_blocks_read',
+            'postgresql.heap_blocks_hit',
+            'postgresql.index_blocks_read',
+            'postgresql.index_blocks_hit',
+            'postgresql.toast_blocks_read',
+            'postgresql.toast_blocks_hit',
+            'postgresql.toast_index_blocks_read',
+            'postgresql.toast_index_blocks_hit',
+        ]
+
+        for inst in instances:
+            for rel in inst.get('relations', []):
+                expected_tags = ['db:%s' % inst['dbname'], 'table:%s' % rel]
+                for mname in RELATION_METRICS:
+                    count = 1
+                    # We only build a test index and stimulate it on breed
+                    # in the dogs DB, so the other index metrics shouldn't be
+                    # here.
+                    if 'index' in mname and rel != 'breed':
+                        count = 0
+                    self.assertMetric(mname, count=count, tags=expected_tags)
+
+                for mname in SIZE_METRICS:
+                    self.assertMetric(mname, count=1, tags=expected_tags)
+
+                for mname in STATIO_METRICS:
+                    at_least = None
+                    count = 1
+                    if '.index' in mname and rel != 'breed':
+                        count = 0
+                    # FIXME: toast are not reliable, need to do some more setup
+                    # to get some values here I guess
+                    if 'toast' in mname:
+                        at_least = 0  # how to set easily a flaky metric, w/o impacting coverage
+                        count = None
+                    self.assertMetric(mname, count=count, at_least=at_least, tags=expected_tags)
+
+        # Index metrics
+        IDX_METRICS = [
+            'postgresql.index_scans',
+            'postgresql.index_rows_read',
+            'postgresql.index_rows_fetched',
+        ]
+
+        # we have a single index defined!
+        expected_tags = ['db:dogs', 'table:breed', 'index:breed_names']
+        for mname in IDX_METRICS:
+            self.assertMetric(mname, count=1, tags=expected_tags)
+
+        # instance connection metrics
+        CONNECTION_METRICS = [
+            'postgresql.max_connections',
+            'postgresql.percent_usage_connections',
+        ]
+        for mname in CONNECTION_METRICS:
+            self.assertMetric(mname, count=1)
+
+        # db level connections
+        for inst in instances:
+            expected_tags = ['db:%s' % inst['dbname']]
+            self.assertMetric('postgresql.connections', count=1, tags=expected_tags)
+
+        # By schema metrics
+        self.assertMetric('postgresql.table.count', value=2, count=1, tags=['schema:public'])
+        self.assertMetric('postgresql.db.count', value=2, count=1)
+
+        # Our custom metric
+        self.assertMetric('custom.numbackends', value=1, tags=['customdb:datadog_test'])
+
+        # Test service checks
+        self.assertServiceCheck('postgres.can_connect',
+            count=1, status=AgentCheck.OK,
+            tags=['host:localhost', 'port:15432', 'db:datadog_test']
+        )
+        self.assertServiceCheck('postgres.can_connect',
+            count=1, status=AgentCheck.OK,
+            tags=['host:localhost', 'port:15432', 'db:dogs']
+        )
+
+        self.coverage_report()
+        return

@@ -285,7 +285,7 @@ WARNINGS
         log.debug("Looking for a tag starting with `{0}:` on metric {1}".format(tag_prefix, metric_name))
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
-        if at_least is not None:
+        elif at_least is not None:
             log.debug(" * should have at least {0} data points".format(at_least))
 
         candidates = []
@@ -314,7 +314,7 @@ WARNINGS
         log.debug("Looking for tag {0} on metric {1}".format(tag, metric_name))
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
-        if at_least is not None:
+        elif at_least is not None:
             log.debug(" * should have at least {0} data points".format(at_least))
 
         candidates = []
@@ -348,6 +348,8 @@ WARNINGS
             log.debug(" * tagged with {0}".format(tags))
         if count is not None:
             log.debug(" * should have exactly {0} statuses".format(count))
+        elif at_least is not None:
+            log.debug(" * should have at least {0} statuses".format(count))
         candidates = []
         for sc in self.service_checks:
             if sc['check'] == service_check_name:
