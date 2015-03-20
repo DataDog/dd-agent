@@ -69,9 +69,6 @@ class Agent(Daemon):
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
 
-        if JMXFetch.is_running():
-            JMXFetch.stop()
-
         if self.collector:
             self.collector.stop()
         log.debug("Collector is stopped.")
