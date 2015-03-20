@@ -249,6 +249,7 @@ SELECT relname,
         self.db_instance_metrics = []
         self.db_bgw_metrics = []
         self.replication_metrics = {}
+        self.custom_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -509,7 +510,12 @@ SELECT relname,
         self.dbs[key] = connection
         return connection
 
-    def _process_customer_metrics(self,custom_metrics):
+    def _get_custom_metrics(self, custom_metrics, key):
+        # Pre-processed cached custom_metrics
+        if key in self.custom_metrics:
+            return self.custom_metrics[key]
+
+        # Otherwise pre-process custom metrics and verify definition
         required_parameters = ("descriptors", "metrics", "query", "relation")
 
         for m in custom_metrics:
@@ -520,14 +526,17 @@ SELECT relname,
 
             self.log.debug("Metric: {0}".format(m))
 
-            for k, v in m['metrics'].items():
-                if v[1].upper() not in ['RATE','GAUGE','MONOTONIC']:
-                    raise CheckException("Collector method {0} is not known."\
-                        "Known methods are RATE,GAUGE,MONOTONIC".format(
-                            v[1].upper()))
+            for ref, (_, mtype) in m['metrics'].iteritems():
+                cap_mtype = mtype.upper()
+                if cap_mtype not in ('RATE', 'GAUGE', 'MONOTONIC'):
+                    raise CheckException("Collector method {0} is not known."
+                        " Known methods are RATE, GAUGE, MONOTONIC".format(cap_mtype))
 
-                m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
-                self.log.debug("Method: %s" % (str(v[1])))
+                m['metrics'][ref][1] = getattr(PostgreSql, cap_mtype)
+                self.log.debug("Method: %s" % (str(mtype)))
+
+        self.custom_metrics[key] = custom_metrics
+        return custom_metrics
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -537,8 +546,6 @@ SELECT relname,
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
-        custom_metrics = instance.get('custom_metrics') or []
-        self._process_customer_metrics(custom_metrics)
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -547,6 +554,8 @@ SELECT relname,
             dbname = 'postgres'
 
         key = (host, port, dbname)
+
+        custom_metrics = self._get_custom_metrics(instance.get('custom_metrics', []), key)
 
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
