@@ -624,7 +624,7 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
-        self.proxy_data = get_config().get('proxy_settings')
+        self.proxy_data = get_config(parse_args=False).get('proxy_settings')
         self.hidden_username = None
         self.hidden_password = None
         if self.proxy_data and self.proxy_data.get('user'):
