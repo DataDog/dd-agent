@@ -13,11 +13,11 @@
 . /lib/lsb/init-functions
 PATH=$PATH:/sbin # add the location of start-stop-daemon on Debian
 
-AGENTPATH="/usr/bin/dd-agent"
+AGENTPATH="/opt/datadog-agent/agent/agent.py"
 AGENTCONF="/etc/dd-agent/datadog.conf"
-DOGSTATSDPATH="/usr/bin/dogstatsd"
+DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 AGENTUSER="dd-agent"
-FORWARDERPATH="/usr/bin/dd-forwarder"
+FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
 NAME="datadog-agent"
 DESC="Datadog Agent"
 SUPERVISOR_PIDFILE="/var/run/datadog-supervisord.pid"

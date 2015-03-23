@@ -48,6 +48,7 @@ PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
+DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
 # Globals
 log = logging.getLogger('collector')
@@ -232,6 +233,12 @@ def main():
     if command not in COMMANDS:
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
+
+    # Deprecation notice
+    if command not in DD_AGENT_COMMANDS:
+        # Will become an error message and exit after deprecation period
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
 
     pid_file = PidFile('dd-agent')
 

@@ -419,6 +419,10 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
+    # Deprecation notice
+    from utils.deprecations import deprecate_old_command_line_tools
+    deprecate_old_command_line_tools()
+
     parser = optparse.OptionParser("%prog [start|stop|restart|status]")
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                       dest="use_forwarder", default=False)
