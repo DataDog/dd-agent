@@ -49,7 +49,7 @@ class Varnish(AgentCheck):
 
             # reset for next stat element
             self._reset()
-        elif name in ("type", "ident", "name"):
+        elif name in ("ident", "name") or (name == "type" and self._current_str != "MAIN"):
             self._current_metric += "." + self._current_str
 
     def _char_data(self, data):
