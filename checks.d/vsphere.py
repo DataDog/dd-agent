@@ -447,7 +447,7 @@ class VSphereCheck(AgentCheck):
 
         # Test if the connection is working
         try:
-            server_instance.RetrieveContent()
+            self.server_instances[i_key].RetrieveContent()
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
                     tags=service_check_tags)
         except Exception as e:
