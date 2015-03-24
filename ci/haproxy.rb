@@ -30,7 +30,16 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script']
+    task :before_script => ['ci:common:before_script'] do
+      %w(haproxy haproxy-open).each do |name|
+        pid = spawn("#{haproxy_rootdir}/haproxy", '-d', '-f',
+                    "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/haproxy/#{name}.cfg",
+                    out: '/dev/null')
+        Process.detach(pid)
+        sh %(echo #{pid} > $VOLATILE_DIR/#{name}.pid)
+      end
+      sleep_for 2
+    end
 
     task :script => ['ci:common:script'] do
       this_provides = [
@@ -39,7 +48,11 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
+     task :cleanup => ['ci:common:cleanup'] do
+      %w(haproxy haproxy-open).each do |name|
+        sh %(kill `cat $VOLATILE_DIR/#{name}.pid`)
+      end
+    end
 
     task :execute do
       exception = nil
