@@ -60,11 +60,18 @@ namespace :ci do
              && ./configure --prefix=#{couchdb_rootdir} --with-js-lib=#{couchdb_rootdir}/lib --with-js-include=#{couchdb_rootdir}/include/js\
              && make -j $CONCURRENCY\
              && make install)
+      else
+        # Still needed to start
+        ENV['PATH'] = "#{couchdb_rootdir}/bin:#{ENV['PATH']}"
+        ENV['LD_LIBRARY_PATH'] = "#{couchdb_rootdir}/lib:#{ENV['LD_LIBRARY_PATH']}"
+        ENV['DYLD_LIBRARY_PATH'] = "#{couchdb_rootdir}/lib:#{ENV['DYLD_LIBRARY_PATH']}"
       end
     end
 
     task :before_script => ['ci:common:before_script'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -b)
+      # Couch takes some time to start
+      sleep_for 2
     end
 
     task :script => ['ci:common:script'] do

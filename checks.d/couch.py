@@ -2,13 +2,11 @@
 from urlparse import urljoin
 
 # 3rd party
-import simplejson as json
 import requests
 
 # project
 from checks import AgentCheck
 from util import headers
-
 
 
 class CouchDb(AgentCheck):
