@@ -41,11 +41,15 @@ check_status() {
         # file:
 
         supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_FILE status)
+
+        # Number of RUNNING supervisord programs (ignoring dogstatsd and jmxfetch)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
-                                       grep -v dogstatsd |
+                                       grep -Ev 'dogstatsd|jmxfetch' |
                                        grep $NAME |
                                        grep -c RUNNING)
-        supervisor_config_programs=$(grep -v dogstatsd $SUPERVISOR_FILE |
+
+        # Number of expected running supervisord programs (ignoring dogstatsd and jmxfetch)
+        supervisor_config_programs=$(grep -Ev 'dogstatsd|jmxfetch' $SUPERVISOR_FILE |
                                      grep -c '\[program:')
 
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
