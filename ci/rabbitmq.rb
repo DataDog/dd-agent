@@ -29,9 +29,10 @@ namespace :ci do
       sleep_for 5
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-plugins enable rabbitmq_management)
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-plugins enable rabbitmq_management)
-      sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare queue name=test1)
-      sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare queue name=test5)
-      sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare queue name=tralala)
+      %w(test1 test5 tralala).each do |q|
+        sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` declare queue name=#{q})
+        sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` publish exchange=amq.default routing_key=#{q} payload="hello, world")
+      end
       sh %(python `find #{rabbitmq_rootdir} -name rabbitmqadmin` list queues)
     end
 
