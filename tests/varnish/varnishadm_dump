@@ -1,0 +1,15 @@
+Backend b0 is Sick
+Current states  good:  0 threshold:  3 window:  5
+Average responsetime of good probes: 0.000000
+Oldest                                                    Newest
+================================================================
+4444444444444444444444444444444444444444444444444444444444444444 Good IPv4
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX Good Xmit
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR Good Recv
+---------------------------------------------------------------- Happy
+Backend b1 is Sick
+Current states  good:  0 threshold:  3 window:  5
+Average responsetime of good probes: 0.000000
+Oldest                                                    Newest
+================================================================
+---------------------------------------------------------------- Happy
