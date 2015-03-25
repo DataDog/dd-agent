@@ -30,6 +30,7 @@ import requests
 # Globals
 log = logging.getLogger('flare')
 
+
 def configcheck():
     all_valid = True
     for conf_path in glob.glob(os.path.join(get_confd_path(), "*.yaml")):
@@ -46,9 +47,10 @@ def configcheck():
         return 0
     else:
         print("Fix the invalid yaml files above in order to start the Datadog agent. "
-                "A useful external tool for yaml parsing can be found at "
-                "http://yaml-online-parser.appspot.com/")
+              "A useful external tool for yaml parsing can be found at "
+              "http://yaml-online-parser.appspot.com/")
         return 1
+
 
 class Flare(object):
     """
@@ -64,8 +66,7 @@ class Flare(object):
     COMPRESSED_FILE = 'datadog-agent-{0}.tar.bz2'
     # We limit to 10MB arbitrary
     MAX_UPLOAD_SIZE = 10485000
-    TIMEOUT = 30
-
+    TIMEOUT = 60
 
     def __init__(self, cmdline=False, case_id=None):
         self._case_id = case_id
@@ -311,8 +312,8 @@ class Flare(object):
     # Check if the file is not too big before upload
     def _check_size(self):
         if os.path.getsize(self._tar_path) > self.MAX_UPLOAD_SIZE:
-            log.info('{0} won\'t be uploaded, its size is too important.\n'\
-                      'You can send it directly to support by mail.')
+            log.info('{0} won\'t be uploaded, its size is too important.\n'
+                     'You can send it directly to support by mail.')
             sys.exit(1)
 
     # Function to ask for confirmation before upload
@@ -339,9 +340,9 @@ class Flare(object):
         try:
             json_resp = self._resp.json()
         # Failed parsing
-        except ValueError, e:
-            raise Exception('An unknown error has occured - '\
+        except ValueError:
+            raise Exception('An unknown error has occured - '
                             'Please contact support by email')
         # Finally, correct
-        log.info("Your logs were successfully uploaded. For future reference,"\
+        log.info("Your logs were successfully uploaded. For future reference,"
                  " your internal case id is {0}".format(json_resp['case_id']))
