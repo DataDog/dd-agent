@@ -140,12 +140,14 @@ class MySql(AgentCheck):
             innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
             innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
             innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
-            innodb_buffer_pool_pages_utilization = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
 
             self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
-            self.gauge("mysql.innodb.buffer_pool_utilization", innodb_buffer_pool_pages_utilization, tags=tags)
+
+            if innodb_buffer_pool_pages_total != 0:
+                innodb_buffer_pool_pages_utilization = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
+                self.gauge("mysql.innodb.buffer_pool_utilization", innodb_buffer_pool_pages_utilization, tags=tags)
 
         if 'galera_cluster' in options and options['galera_cluster']:
             value = self._collect_scalar('wsrep_cluster_size', status_results)
