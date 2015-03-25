@@ -1,9 +1,9 @@
-import unittest
 import os
+from nose.plugins.attrib import attr
 
 from checks import AgentCheck
-from tests.common import AgentCheckTest, load_check
-from nose.plugins.attrib import attr
+from tests.common import AgentCheckTest
+
 
 @attr('process')
 class ProcessTestCase(AgentCheckTest):
@@ -13,7 +13,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_0',
-                'search_string': ['test_0'], # index in the array for our find_pids mock
+                'search_string': ['test_0'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'critical': [2, 4],
                     'warning': [1, 5]
@@ -24,7 +24,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_1',
-                'search_string': ['test_1'], # index in the array for our find_pids mock
+                'search_string': ['test_1'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'critical': [1, 5],
                     'warning': [2, 4]
@@ -35,7 +35,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_2',
-                'search_string': ['test_2'], # index in the array for our find_pids mock
+                'search_string': ['test_2'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'critical': [2, 5],
                     'warning': [1, 4]
@@ -46,7 +46,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_3',
-                'search_string': ['test_3'], # index in the array for our find_pids mock
+                'search_string': ['test_3'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'critical': [1, 4],
                     'warning': [2, 5]
@@ -57,7 +57,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_4',
-                'search_string': ['test_4'], # index in the array for our find_pids mock
+                'search_string': ['test_4'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'critical': [1, 4],
                     'warning': [2, 5]
@@ -68,7 +68,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_tags',
-                'search_string': ['test_5'], # index in the array for our find_pids mock
+                'search_string': ['test_5'],  # index in the array for our find_pids mock
                 'tags': ['onetag', 'env:prod']
             },
             'mocked_processes': 1
@@ -76,7 +76,7 @@ class ProcessTestCase(AgentCheckTest):
         {
             'config': {
                 'name': 'test_badthresholds',
-                'search_string': ['test_6'], # index in the array for our find_pids mock
+                'search_string': ['test_6'],  # index in the array for our find_pids mock
                 'thresholds': {
                     'test': 'test'
                 }
@@ -114,7 +114,6 @@ class ProcessTestCase(AgentCheckTest):
         config = {
             'instances': [stub['config'] for stub in self.CONFIG_STUBS]
         }
-
         self.run_check(config, mocks=mocks)
 
         for stub in self.CONFIG_STUBS:
@@ -145,7 +144,8 @@ class ProcessTestCase(AgentCheckTest):
                 expected_status = AgentCheck.WARNING
             else:
                 expected_status = AgentCheck.OK
-            self.assertServiceCheck('process.up', status=expected_status, count=1, tags=expected_tags)
+            self.assertServiceCheck('process.up', status=expected_status,
+                                    count=1, tags=expected_tags)
 
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
@@ -153,12 +153,13 @@ class ProcessTestCase(AgentCheckTest):
     def test_check_real_process(self):
         "Check that we detect python running (at least this process)"
         config = {
-            'instances': [{'name': 'py',
-                           'search_string': ['python'],
-                           'exact_match': False,
-                           'ignored_denied_access': True,
-                           'thresholds': {'warning': [1, 10], 'critical': [1, 100]},
-                       }]
+            'instances': [{
+                'name': 'py',
+                'search_string': ['python'],
+                'exact_match': False,
+                'ignored_denied_access': True,
+                'thresholds': {'warning': [1, 10], 'critical': [1, 100]},
+            }]
         }
 
         self.run_check(config)
@@ -167,6 +168,7 @@ class ProcessTestCase(AgentCheckTest):
         for mname in self.PROCESS_METRIC:
             self.assertMetric(mname, at_least=1, tags=expected_tags)
 
-        self.assertServiceCheck('process.up', status=AgentCheck.OK, count=1, tags=['process:py'])
+        self.assertServiceCheck('process.up', status=AgentCheck.OK,
+                                count=1, tags=['process:py'])
 
         self.coverage_report()
