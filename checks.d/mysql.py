@@ -36,7 +36,7 @@ STATUS_VARS = {
     'Com_update_multi': ('mysql.performance.com_update_multi', RATE),
     'Com_delete_multi': ('mysql.performance.com_delete_multi', RATE),
     'Com_replace_select': ('mysql.performance.com_replace_select', RATE),
-    'Qcache_hits':('mysql.performance.qcache_hits', RATE),
+    'Qcache_hits': ('mysql.performance.qcache_hits', RATE),
     'Innodb_mutex_spin_waits': ('mysql.innodb.mutex_spin_waits', RATE),
     'Innodb_mutex_spin_rounds': ('mysql.innodb.mutex_spin_rounds', RATE),
     'Innodb_mutex_os_waits': ('mysql.innodb.mutex_os_waits', RATE),
@@ -49,8 +49,10 @@ STATUS_VARS = {
     'Open_tables': ('mysql.performance.open_tables', GAUGE),
 }
 
+
 class MySql(AgentCheck):
     SERVICE_CHECK_NAME = 'mysql.can_connect'
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.mysql_version = {}
@@ -60,7 +62,8 @@ class MySql(AgentCheck):
         return {"pymysql": pymysql.__version__}
 
     def check(self, instance):
-        host, port, user, password, mysql_sock, defaults_file, tags, options = self._get_config(instance)
+        host, port, user, password, mysql_sock, defaults_file, tags, options = \
+            self._get_config(instance)
 
         if (not host or not user) and not defaults_file:
             raise Exception("Mysql host and user are needed.")
@@ -93,23 +96,31 @@ class MySql(AgentCheck):
         try:
             if defaults_file != '':
                 db = pymysql.connect(read_default_file=defaults_file)
-            elif  mysql_sock != '':
-                db = pymysql.connect(unix_socket=mysql_sock,
-                                        user=user,
-                                        passwd=password)
+            elif mysql_sock != '':
+                db = pymysql.connect(
+                    unix_socket=mysql_sock,
+                    user=user,
+                    passwd=password
+                )
             elif port:
-                db = pymysql.connect(host=host,
-                                        port=port,
-                                        user=user,
-                                        passwd=password)
+                db = pymysql.connect(
+                    host=host,
+                    port=port,
+                    user=user,
+                    passwd=password
+                )
             else:
-                db = pymysql.connect(host=host,
-                                        user=user,
-                                        passwd=password)
+                db = pymysql.connect(
+                    host=host,
+                    user=user,
+                    passwd=password
+                )
             self.log.debug("Connected to MySQL")
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=service_check_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                               tags=service_check_tags)
         except Exception:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
+                               tags=service_check_tags)
             raise
 
         return db
@@ -124,7 +135,7 @@ class MySql(AgentCheck):
         cursor.close()
         del cursor
 
-        #Compute key cache utilization metric
+        # Compute key cache utilization metric
         key_blocks_unused = self._collect_scalar('Key_blocks_unused', status_results)
         key_cache_block_size = self._collect_scalar('key_cache_block_size', variables_results)
         key_buffer_size = self._collect_scalar('key_buffer_size', variables_results)
@@ -135,19 +146,24 @@ class MySql(AgentCheck):
         # Be sure InnoDB is enabled
         if 'Innodb_page_size' in status_results:
             page_size = self._collect_scalar('Innodb_page_size', status_results)
-            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total', status_results)
-            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free', status_results)
+            innodb_buffer_pool_pages_total = self._collect_scalar('Innodb_buffer_pool_pages_total',
+                                                                  status_results)
+            innodb_buffer_pool_pages_free = self._collect_scalar('Innodb_buffer_pool_pages_free',
+                                                                 status_results)
             innodb_buffer_pool_pages_total = innodb_buffer_pool_pages_total * page_size
             innodb_buffer_pool_pages_free = innodb_buffer_pool_pages_free * page_size
-            innodb_buffer_pool_pages_used = innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
+            innodb_buffer_pool_pages_used = \
+                innodb_buffer_pool_pages_total - innodb_buffer_pool_pages_free
 
             self.gauge("mysql.innodb.buffer_pool_free", innodb_buffer_pool_pages_free, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_used", innodb_buffer_pool_pages_used, tags=tags)
             self.gauge("mysql.innodb.buffer_pool_total", innodb_buffer_pool_pages_total, tags=tags)
 
             if innodb_buffer_pool_pages_total != 0:
-                innodb_buffer_pool_pages_utilization = innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
-                self.gauge("mysql.innodb.buffer_pool_utilization", innodb_buffer_pool_pages_utilization, tags=tags)
+                innodb_buffer_pool_pages_utilization = \
+                    innodb_buffer_pool_pages_used / innodb_buffer_pool_pages_total
+                self.gauge("mysql.innodb.buffer_pool_utilization",
+                           innodb_buffer_pool_pages_utilization, tags=tags)
 
         if 'galera_cluster' in options and options['galera_cluster']:
             value = self._collect_scalar('wsrep_cluster_size', status_results)
@@ -162,7 +178,11 @@ class MySql(AgentCheck):
                 else:
                     slave_running = 0
                 self.gauge("mysql.replication.slave_running", slave_running, tags=tags)
-            self._collect_dict(GAUGE, {"Seconds_behind_master": "mysql.replication.seconds_behind_master"}, "SHOW SLAVE STATUS", db, tags=tags)
+            self._collect_dict(
+                GAUGE,
+                {"Seconds_behind_master": "mysql.replication.seconds_behind_master"},
+                "SHOW SLAVE STATUS", db, tags=tags
+            )
 
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
@@ -194,7 +214,8 @@ class MySql(AgentCheck):
                 greater_502 = True
 
         except Exception, exception:
-            self.warning("Cannot compute mysql version, assuming older than 5.0.2: %s" % str(exception))
+            self.warning("Cannot compute mysql version, assuming older than 5.0.2: %s"
+                         % str(exception))
 
         self.greater_502[host] = greater_502
 
@@ -263,7 +284,8 @@ class MySql(AgentCheck):
                         else:
                             self.log.debug("Received value is None for index %d" % col_idx)
                     except ValueError:
-                        self.log.exception("Cannot find %s in the columns %s" % (field, cursor.description))
+                        self.log.exception("Cannot find %s in the columns %s"
+                                           % (field, cursor.description))
             cursor.close()
             del cursor
         except Exception:
@@ -294,10 +316,13 @@ class MySql(AgentCheck):
                 # Convert time to s (number of second of CPU used by mysql)
                 # It's a counter, it will be divided by the period, multiply by 100
                 # to get the percentage of CPU used by mysql over the period
-                self.rate("mysql.performance.user_time", int((float(ucpu)/float(clk_tck)) * 100), tags=tags)
-                self.rate("mysql.performance.kernel_time", int((float(kcpu)/float(clk_tck)) * 100), tags=tags)
+                self.rate("mysql.performance.user_time",
+                          int((float(ucpu) / float(clk_tck)) * 100), tags=tags)
+                self.rate("mysql.performance.kernel_time",
+                          int((float(kcpu) / float(clk_tck)) * 100), tags=tags)
             except Exception:
-                self.warning("Error while reading mysql (pid: %s) procfs data\n%s" % (pid, traceback.format_exc()))
+                self.warning("Error while reading mysql (pid: %s) procfs data\n%s"
+                             % (pid, traceback.format_exc()))
 
     def _get_server_pid(self, db):
         pid = None
@@ -326,8 +351,8 @@ class MySql(AgentCheck):
         if pid is None:
             try:
                 if sys.platform.startswith("linux"):
-                    ps = subprocess.Popen(['ps', '-C', 'mysqld', '-o', 'pid'], stdout=subprocess.PIPE,
-                                          close_fds=True).communicate()[0]
+                    ps = subprocess.Popen(['ps', '-C', 'mysqld', '-o', 'pid'],
+                                          stdout=subprocess.PIPE, close_fds=True).communicate()[0]
                     pslines = ps.strip().split('\n')
                     # First line is header, second line is mysql pid
                     if len(pslines) == 2 and pslines[1] != '':

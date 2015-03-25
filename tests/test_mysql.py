@@ -1,52 +1,141 @@
-import unittest
-from tests.common import load_check
+# stdlib
 from nose.plugins.attrib import attr
-import time
+
+# project
+from checks import AgentCheck
+from tests.common import AgentCheckTest
+
 
 @attr(requires='mysql')
-class TestMySql(unittest.TestCase):
-    def setUp(self):
-        # This should run on pre-2.7 python so no skiptest
-        self.skip = False
-        try:
-            import pymysql
-        except ImportError:
-            self.skip = True
+class TestMySql(AgentCheckTest):
+    CHECK_NAME = 'mysql'
 
-    def testChecks(self):
-        if not self.skip:
-            agentConfig = {
-                'version': '0.1',
-                'api_key': 'toto' }
+    METRIC_TAGS = ['tag1', 'tag2']
+    SC_TAGS = ['host:localhost', 'port:0']
 
-            conf = {'init_config': {}, 'instances': [{
-                'server': 'localhost',
-                'user': 'dog',
-                'pass': 'dog',
-                'options': {'replication': True},
-            }]}
-            # Initialize the check from checks.d
-            self.check = load_check('mysql', conf, agentConfig)
+    MYSQL_CONFIG = [{
+        'server': 'localhost',
+        'user': 'dog',
+        'pass': 'dog',
+        'options': {'replication': True},
+        'tags': METRIC_TAGS
+    }]
 
-            self.check.run()
-            metrics = self.check.get_metrics()
-            self.assertTrue(len(metrics) >= 8, metrics)
+    CONNECTION_FAILURE = [{
+        'server': 'localhost',
+        'user': 'unknown',
+        'pass': 'dog',
+    }]
 
-            # Service checks
-            service_checks = self.check.get_service_checks()
-            service_checks_count = len(service_checks)
-            self.assertTrue(type(service_checks) == type([]))
-            self.assertTrue(service_checks_count > 0)
-            self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_NAME]), 1, service_checks)
-            # Assert that all service checks have the proper tags: host and port
-            self.assertEquals(len([sc for sc in service_checks if "host:localhost" in sc['tags']]), service_checks_count, service_checks)
-            self.assertEquals(len([sc for sc in service_checks if "port:0" in sc['tags']]), service_checks_count, service_checks)
+    # Available by default on MySQL > 5.5
+    INNODB_METRICS = [
+        'mysql.innodb.buffer_pool_free',
+        'mysql.innodb.buffer_pool_used',
+        'mysql.innodb.buffer_pool_total',
+        'mysql.innodb.buffer_pool_utilization'
+    ]
 
-            time.sleep(1)
-            self.check.run()
-            metrics = self.check.get_metrics()
-            self.assertTrue(len(metrics) >= 16, metrics)
+    REPLICATION_METRICS = [
+        'mysql.replication.slave_running'
+    ]
 
+    KEY_CACHE = [
+        'mysql.performance.key_cache_utilization'
+    ]
 
-if __name__ == '__main__':
-    unittest.main()
+    # Available on Linux
+    SYSTEM_METRICS = [
+        'mysql.performance.user_time',
+        'mysql.performance.kernel_time'
+    ]
+
+    COMMON_GAUGES = [
+        'mysql.net.max_connections',
+        'mysql.performance.open_files',
+        'mysql.performance.table_locks_waited',
+        'mysql.performance.threads_connected',
+        'mysql.innodb.current_row_locks',
+        'mysql.performance.open_tables',
+    ]
+
+    COMMON_RATES = [
+        'mysql.net.connections',
+        'mysql.innodb.data_reads',
+        'mysql.innodb.data_writes',
+        'mysql.innodb.os_log_fsyncs',
+        'mysql.innodb.buffer_pool_size',
+        'mysql.performance.slow_queries',
+        'mysql.performance.questions',
+        'mysql.performance.queries',
+        'mysql.performance.com_select',
+        'mysql.performance.com_insert',
+        'mysql.performance.com_update',
+        'mysql.performance.com_delete',
+        'mysql.performance.com_insert_select',
+        'mysql.performance.com_update_multi',
+        'mysql.performance.com_delete_multi',
+        'mysql.performance.com_replace_select',
+        'mysql.performance.qcache_hits',
+        'mysql.innodb.mutex_spin_waits',
+        'mysql.innodb.mutex_spin_rounds',
+        'mysql.innodb.mutex_os_waits',
+        'mysql.performance.created_tmp_tables',
+        'mysql.performance.created_tmp_disk_tables',
+        'mysql.performance.created_tmp_files',
+        'mysql.innodb.row_lock_waits',
+        'mysql.innodb.row_lock_time',
+    ]
+
+    def _test_optional_metrics(self, optional_metrics, at_least):
+        """
+        Check optional metrics - there should be at least `at_least` matches
+        """
+
+        before = len(filter(lambda m: m[3].get('tested'), self.metrics))
+
+        for mname in optional_metrics:
+            self.assertMetric(mname, tags=self.METRIC_TAGS, at_least=0)
+
+        # Compute match rate
+        after = len(filter(lambda m: m[3].get('tested'), self.metrics))
+
+        self.assertTrue(after - before > at_least)
+
+    def test_check(self):
+        config = {'instances': self.MYSQL_CONFIG}
+        self.run_check_twice(config)
+
+        # Test service check
+        self.assertServiceCheck('mysql.can_connect', status=AgentCheck.OK,
+                                tags=self.SC_TAGS, count=1)
+
+        print self.metrics
+        # Test gauge mandatory metrics
+        for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS +
+                      self.REPLICATION_METRICS + self.KEY_CACHE):
+            self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
+
+        # Test optional metrics
+        # Gauges - at least 1 match
+        # self._test_optional_metrics(self.COMMON_GAUGES, at_least=1)
+
+        # Rates -  at least 1 match
+        # self._test_optional_metrics(self.COMMON_RATES, at_least=1)
+        self.assertTrue(0 == 1)
+
+        # Raises when COVERAGE=true and coverage < 100%
+        self.coverage_report()
+
+    def test_connection_failure(self):
+        """
+        Service check reports connection failure
+        """
+        config = {'instances': self.CONNECTION_FAILURE}
+
+        self.assertRaises(
+            Exception,
+            lambda: self.run_check(config)
+        )
+        self.assertServiceCheck('mysql.can_connect', status=AgentCheck.CRITICAL,
+                                tags=self.SC_TAGS, count=1)
+        self.coverage_report()
