@@ -121,6 +121,8 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheck("http_check.cnt_match", status=AgentCheck.OK,
                                 tags=['url:https://github.com'])
 
+        self.coverage_report()
+
     def test_check_ssl(self):
         self.run_check(CONFIG_SSL_ONLY)
         # Overrides self.service_checks attribute when values are available
@@ -132,6 +134,8 @@ class HTTPCheckTest(AgentCheckTest):
         self.assertServiceCheck("http_check.ssl_cert.conn_error", status=AgentCheck.CRITICAL,
                                 tags=['url:https://thereisnosuchlink.com'])
 
+        self.coverage_report()
+
     @mock.patch('ssl.SSLSocket.getpeercert', return_value=FAKE_CERT)
     def test_mock_case(self, getpeercert_func):
         self.run_check(CONFIG_EXPIRED_SSL)
@@ -140,3 +144,4 @@ class HTTPCheckTest(AgentCheckTest):
         self.service_checks = self.wait_for_async_service_checks(2)
         self.assertServiceCheck("http_check.ssl_cert.expired_cert", status=AgentCheck.CRITICAL,
                                 tags=['url:https://github.com'])
+        self.coverage_report()
