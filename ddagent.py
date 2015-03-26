@@ -131,12 +131,14 @@ class EmitterManager(object):
             logging.info('Queueing for emitter %r', emitterThread.name)
             emitterThread.enqueue(data, headers)
 
-class MetricTransaction(Transaction):
+
+class AgentTransaction(Transaction):
 
     _application = None
     _trManager = None
     _endpoints = []
     _emitter_manager = None
+    _type = None
 
     @classmethod
     def set_application(cls, app):
@@ -187,17 +189,10 @@ class MetricTransaction(Transaction):
     def __sizeof__(self):
         return sys.getsizeof(self._data)
 
-    def get_url(self, endpoint):
-        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
-        api_key = self._application._agentConfig.get('api_key')
-        if api_key:
-            return endpoint_base_url + '/intake?api_key=%s' % api_key
-        return endpoint_base_url + '/intake'
-
     def flush(self):
         for endpoint in self._endpoints:
             url = self.get_url(endpoint)
-            log.debug("Sending metrics to endpoint %s at %s" % (endpoint, url))
+            log.debug("Sending %s to endpoint %s at %s" % (self._type, endpoint, url))
 
             # Getting proxy settings
             proxy_settings = self._application._agentConfig.get('proxy_settings', None)
@@ -261,6 +256,17 @@ class MetricTransaction(Transaction):
         self._trManager.flush_next()
 
 
+class MetricTransaction(AgentTransaction):
+    _type = "metrics"
+
+    def get_url(self, endpoint):
+        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
+        api_key = self._application._agentConfig.get('api_key')
+        if api_key:
+            return endpoint_base_url + '/intake?api_key=%s' % api_key
+        return endpoint_base_url + '/intake'
+
+
 class APIMetricTransaction(MetricTransaction):
 
     def get_url(self, endpoint):
@@ -272,6 +278,17 @@ class APIMetricTransaction(MetricTransaction):
 
     def get_data(self):
         return self._data
+
+
+class APIServiceCheckTransaction(AgentTransaction):
+    _type = "service checks"
+
+    def get_url(self, endpoint):
+        endpoint_base_url = get_url_endpoint(self._application._agentConfig[endpoint])
+        config = self._application._agentConfig
+        api_key = config['api_key']
+        url = endpoint_base_url + '/api/v1/check_run/?api_key=' + api_key
+        return url
 
 
 class StatusHandler(tornado.web.RequestHandler):
@@ -292,6 +309,7 @@ class StatusHandler(tornado.web.RequestHandler):
             if len(transactions) > threshold:
                 self.set_status(503)
 
+
 class AgentInputHandler(tornado.web.RequestHandler):
 
     def post(self):
@@ -309,6 +327,7 @@ class AgentInputHandler(tornado.web.RequestHandler):
 
         self.write("Transaction: %s" % tr.get_id())
 
+
 class ApiInputHandler(tornado.web.RequestHandler):
 
     def post(self):
@@ -323,6 +342,24 @@ class ApiInputHandler(tornado.web.RequestHandler):
             tr = APIMetricTransaction(msg, headers)
         else:
             raise tornado.web.HTTPError(500)
+
+
+class ApiCheckRunHandler(tornado.web.RequestHandler):
+    """
+    Handler to submit Service Checks
+    """
+    def post(self):
+        # read message
+        msg = self.request.body
+        headers = self.request.headers
+
+        if msg is not None:
+            # Setup a transaction for this message
+            tr = APIServiceCheckTransaction(msg, headers)
+        else:
+            raise tornado.web.HTTPError(500)
+
+        self.write("Transaction: %s" % tr.get_id())
 
 
 class Application(tornado.web.Application):
@@ -389,6 +426,7 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/intake/?", AgentInputHandler),
             (r"/api/v1/series/?", ApiInputHandler),
+            (r"/api/v1/check_run/?", ApiCheckRunHandler),
             (r"/status/?", StatusHandler),
         ]
 
