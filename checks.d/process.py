@@ -1,12 +1,10 @@
-# stdlib
-import time
-
 # project
 from checks import AgentCheck
 from util import Platform
 
 # 3rd party
 import psutil
+
 
 class ProcessCheck(AgentCheck):
 
@@ -45,7 +43,8 @@ class ProcessCheck(AgentCheck):
                     except psutil.AccessDenied, e:
                         self.log.error('Access denied to %s process' % string)
                         self.log.error('Error: %s' % e)
-                        if not ignore_denied_access: raise
+                        if not ignore_denied_access:
+                            raise
                 else:
                     if not found:
                         try:
@@ -57,7 +56,8 @@ class ProcessCheck(AgentCheck):
                         except psutil.AccessDenied, e:
                             self.log.error('Access denied to %s process' % string)
                             self.log.error('Error: %s' % e)
-                            if not ignore_denied_access: raise
+                            if not ignore_denied_access:
+                                raise
 
                 if found or string == 'All':
                     found_process_list.append(proc.pid)
@@ -151,11 +151,13 @@ class ProcessCheck(AgentCheck):
                 self.warning('Process %s disappeared while scanning' % pid)
 
         if got_denied and not ignore_denied_access:
-            self.warning("The Datadog Agent was denied access when trying to get the number of file descriptors")
+            self.warning('The Datadog Agent was denied access '
+                         'when trying to get the number of file descriptors')
 
-        #Memory values are in Byte
+        # Memory values are in Byte
         return (thr, cpu, rss, vms, real, open_file_descriptors,
-            read_count, write_count, read_bytes, write_bytes, voluntary_ctx_switches, involuntary_ctx_switches)
+                read_count, write_count, read_bytes, write_bytes,
+                voluntary_ctx_switches, involuntary_ctx_switches)
 
     def check(self, instance):
         name = instance.get('name', None)
@@ -169,8 +171,9 @@ class ProcessCheck(AgentCheck):
             raise KeyError('"search_string" parameter should be a list')
 
         if "All" in search_string:
-            self.warning('Deprecated: Having "All" in your search_string will\
-             greatly reduce the performance of the check and will be removed in a future version of the agent. ')
+            self.warning('Deprecated: Having "All" in your search_string will'
+                         'greatly reduce the performance of the check and '
+                         'will be removed in a future version of the agent.')
 
         if name is None:
             raise KeyError('The "name" of process groups is mandatory')
@@ -192,14 +195,13 @@ class ProcessCheck(AgentCheck):
         self.gauge('system.processes.number', len(pids), tags=tags)
 
         metrics = dict(zip(ProcessCheck.PROCESS_GAUGE, self.get_process_metrics(pids,
-            cpu_check_interval, ignore_denied_access)))
+                           cpu_check_interval, ignore_denied_access)))
 
         for metric, value in metrics.iteritems():
             if value is not None:
                 self.gauge(metric, value, tags=tags)
 
         self._process_service_check(name, len(pids), instance.get('thresholds', None))
-
 
     def _process_service_check(self, name, nb_procs, bounds):
         '''
