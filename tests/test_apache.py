@@ -1,39 +1,76 @@
-import unittest
+# stdlib
 from nose.plugins.attrib import attr
 
-from tests.common import load_check
+# project
+from checks import AgentCheck
+from tests.common import AgentCheckTest
+
 
 @attr(requires='apache')
-class TestCheckApache(unittest.TestCase):
-    def test_apache(self):
-        agent_config = {
-            'version': '0.1',
-            'api_key': 'toto'
+class TestCheckApache(AgentCheckTest):
+    CHECK_NAME = 'apache'
+
+    CONFIG_STUBS = [
+        {
+            'apache_status_url': 'http://localhost:8080/server-status',
+            'tags': ['instance:first']
+        },
+        {
+            'apache_status_url': 'http://localhost:8080/server-status?auto',
+            'tags': ['instance:second']
+        },
+    ]
+    BAD_CONFIG = [
+        {
+            'apache_status_url': 'http://localhost:1234/server-status',
         }
+    ]
+
+    APACHE_GAUGES = [
+        'apache.performance.idle_workers',
+        'apache.performance.busy_workers',
+        'apache.performance.cpu_load',
+        'apache.performance.uptime',
+        'apache.net.bytes',
+        'apache.net.hits'
+    ]
+
+    APACHE_RATES = [
+        'apache.net.bytes_per_s',
+        'apache.net.request_per_s'
+    ]
+
+    def test_check(self):
         config = {
-            'init_config': {},
-            'instances': [
-                {
-                    'apache_status_url': 'http://localhost:8080/server-status',
-                    'tags': ['instance:first']
-                },
-                {
-                    'apache_status_url': 'http://localhost:8080/server-status?auto',
-                    'tags': ['instance:second']
-                },
-            ]
+            'instances': self.CONFIG_STUBS
         }
-        check = load_check('apache', config, agent_config)
 
-        check.check(config['instances'][0])
-        metrics = check.get_metrics()
-        self.assertEquals(metrics[0][3].get('tags'), ['instance:first'])
+        self.run_check_twice(config)
 
-        check.check(config['instances'][1])
-        metrics = check.get_metrics()
-        self.assertEquals(metrics[0][3].get('tags'), ['instance:second'])
+        # Assert metrics
+        for stub in self.CONFIG_STUBS:
+            expected_tags = stub['tags']
 
-        service_checks = check.get_service_checks()
-        can_connect = [sc for sc in service_checks if sc['check'] == 'apache.can_connect']
-        for i in range(len(can_connect)):
-            self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:8080']), service_checks)
+            for mname in self.APACHE_GAUGES + self.APACHE_RATES:
+                self.assertMetric(mname, tags=expected_tags, count=1)
+
+        # Assert service checks
+        self.assertServiceCheck('apache.can_connect', status=AgentCheck.OK,
+                                tags=['host:localhost', 'port:8080'], count=2)
+
+        self.coverage_report()
+
+    def test_connection_failure(self):
+        config = {
+            'instances': self.BAD_CONFIG
+        }
+
+        # Assert service check
+        self.assertRaises(
+            Exception,
+            lambda: self.run_check(config)
+        )
+        self.assertServiceCheck('apache.can_connect', status=AgentCheck.CRITICAL,
+                                tags=['host:localhost', 'port:1234'], count=1)
+
+        self.coverage_report()
