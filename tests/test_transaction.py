@@ -11,8 +11,10 @@ import simplejson as json
 
 # project
 from transaction import Transaction, TransactionManager
-from ddagent import (MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY,
-    MetricTransaction, APIMetricTransaction)
+from ddagent import (
+    MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY,
+    APIMetricTransaction, APIServiceCheckTransaction, MetricTransaction
+    )
 from config import get_version
 from util import get_tornado_ioloop
 
@@ -46,7 +48,7 @@ class TestTransaction(unittest.TestCase):
 
         # No throttling, no delay for replay
         trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, timedelta(seconds=0))
-       
+
         step = 10
         oneTrSize = (MAX_QUEUE_SIZE / step) - 1
         for i in xrange(step):
@@ -65,7 +67,7 @@ class TestTransaction(unittest.TestCase):
         tr = memTransaction(oneTrSize + 10, trManager)
         trManager.append(tr)
 
-        # At this point, transaction one (the oldest) should have been removed from the list 
+        # At this point, transaction one (the oldest) should have been removed from the list
         self.assertEqual(len(trManager._transactions), step)
         for tr in trManager._transactions:
             self.assertNotEqual(tr._id,1)
@@ -84,10 +86,10 @@ class TestTransaction(unittest.TestCase):
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
 
-        
+
     def testThrottling(self):
         """Test throttling while flushing"""
- 
+
         # No throttling, no delay for replay
         trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
         trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
@@ -102,13 +104,13 @@ class TestTransaction(unittest.TestCase):
         before = datetime.now()
         trManager.flush()
         after = datetime.now()
-        self.assertTrue( (after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000), 
+        self.assertTrue( (after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
             "before = %s after = %s" % (before, after))
 
 
     def testCustomEndpoint(self):
         MetricTransaction._endpoints = []
-        
+
         config = {
             "dd_url": "https://foo.bar.com",
             "api_key": "foo",
@@ -125,16 +127,15 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
-        
+
         transaction = MetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
         expected = ['https://foo.bar.com/intake?api_key=foo']
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
-
-
     def testEndpoints(self):
-        """Tests that the logic behind the agent version specific endpoints is ok.
+        """
+        Tests that the logic behind the agent version specific endpoints is ok.
         Also tests that these endpoints actually exist.
         """
         MetricTransaction._endpoints = []
@@ -150,36 +151,51 @@ class TestTransaction(unittest.TestCase):
         app._agentConfig = config
         app.use_simple_http_client = True
 
-        trManager = TransactionManager(timedelta(seconds = 0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
-        trManager._flush_without_ioloop = True # Use blocking API to emulate tornado ioloop
+        trManager = TransactionManager(timedelta(seconds=0), MAX_QUEUE_SIZE, THROTTLING_DELAY)
+        trManager._flush_without_ioloop = True  # Use blocking API to emulate tornado ioloop
         MetricTransaction._trManager = trManager
         MetricTransaction.set_application(app)
         MetricTransaction.set_endpoints()
-        
+
         transaction = MetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
         expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key=foo'.format(
-            get_version().replace(".","-"))]
+            get_version().replace(".", "-"))]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
-            r = requests.post(url, data=json.dumps({"foo":"bar"}), 
-                headers={'Content-Type': "application/json"})
+            r = requests.post(url, data=json.dumps({"foo": "bar"}),
+                              headers={'Content-Type': "application/json"})
             r.raise_for_status()
 
-
+        # API Metric Transaction
         transaction = APIMetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
         expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key=foo'.format(
-            get_version().replace(".","-"))]
+            get_version().replace(".", "-"))]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
-            r = requests.post(url, data=json.dumps({"foo":"bar"}), 
-                headers={'Content-Type': "application/json"})
+            r = requests.post(url, data=json.dumps({"foo": "bar"}),
+                              headers={'Content-Type': "application/json"})
             r.raise_for_status()
-            
+
+        # API Service Check Transaction
+        APIServiceCheckTransaction._trManager = trManager
+        APIServiceCheckTransaction.set_application(app)
+        APIServiceCheckTransaction.set_endpoints()
+
+        transaction = APIServiceCheckTransaction(None, {})
+        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/check_run/?api_key=foo'.format(
+            get_version().replace(".", "-"))]
+        self.assertEqual(endpoints, expected, (endpoints, expected))
+
+        for url in endpoints:
+            r = requests.post(url, data=json.dumps({'check': 'test', 'status': 0}),
+                              headers={'Content-Type': "application/json"})
+            r.raise_for_status()
+
 
 if __name__ == '__main__':
     unittest.main()
-
