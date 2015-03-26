@@ -1,4 +1,3 @@
-
 #!/opt/datadog-agent/embedded/bin/python
 '''
     Datadog
