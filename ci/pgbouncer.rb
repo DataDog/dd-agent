@@ -27,8 +27,9 @@ namespace :ci do
 
     task :before_script do
       Rake::Task['ci:postgres:before_script'].invoke
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/pgbouncer.ini\
-           #{pgb_rootdir}/pgbouncer.ini)
+      sh %(sed 's#USERS_TXT##{pgb_rootdir}/users.txt#'\
+           $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/pgbouncer.ini\
+           > #{pgb_rootdir}/pgbouncer.ini)
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/users.txt\
            #{pgb_rootdir}/users.txt)
       sh %(#{pgb_rootdir}/pgbouncer -d #{pgb_rootdir}/pgbouncer.ini)
@@ -52,8 +53,8 @@ namespace :ci do
     task :cache => ['ci:common:cache']
 
     task :cleanup do
-      sh %(rm -rf $VOLATILE_DIR/pgbouncer*)
       sh %(killall pgbouncer)
+      sh %(rm -rf $VOLATILE_DIR/pgbouncer*)
       Rake::Task['ci:postgres:cleanup'].invoke
     end
 

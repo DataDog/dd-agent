@@ -78,6 +78,7 @@ script:
   - 'rake ci:run'
   - ls -al $INTEGRATIONS_DIR
 
+
 after_failure:
   - echo "Logs from installation process come here / DEBUG LOGS"
   - cat /tmp/ci.log
