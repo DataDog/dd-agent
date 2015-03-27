@@ -56,14 +56,20 @@ class Gearman(AgentCheck):
         self.log.debug("Gearman check start")
 
         host, port, tags = self._get_conf(instance)
+        service_check_tags = ["server:{0}".format(host),
+            "port:{0}".format(port)]
+
         client = self._get_client(host, port)
         self.log.debug("Connected to gearman")
+
+        tags += service_check_tags
 
         try:
             self._get_metrics(client, tags)
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                message="Connection to %s:%s succeeded." % (host, port))
+                message="Connection to %s:%s succeeded." % (host, port),
+                tags=service_check_tags)
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message=str(e))
+                message=str(e), tags=service_check_tags)
             raise
