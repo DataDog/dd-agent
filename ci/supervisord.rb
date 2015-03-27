@@ -1,29 +1,42 @@
 require './ci/common'
 
+def supervisor_version
+  ENV['FLAVOR_VERSION'] || '3.1.3'
+end
+
+def supervisor_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/supervisor_#{supervisor_version}_#{ENV['TRAVIS_PYTHON_VERSION']}"
+end
+
 namespace :ci do
   namespace :supervisord do |flavor|
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
-        sh %(pip install supervisor)
+      unless Dir.exist? File.expand_path(supervisor_rootdir)
+        sh %(pip install supervisor==#{supervisor_version} --ignore-installed\
+             --install-option="--prefix=#{supervisor_rootdir}")
+      end
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/supervisord.conf $VOLATILE_DIR/)
-      sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/','\/'}/g' $VOLATILE_DIR/supervisord.conf)
+      sh %(mkdir -p $VOLATILE_DIR/supervisor)
+      %w(supervisord.conf supervisord.yaml).each do |conf|
+        sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/#{conf}\
+             $VOLATILE_DIR/supervisor/)
+        sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/','\/'}/g'\
+           $VOLATILE_DIR/supervisor/#{conf})
+      end
 
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/supervisord.yaml $VOLATILE_DIR/)
-      sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/','\/'}/g' $VOLATILE_DIR/supervisord.yaml)
+      3.times do |i|
+        sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/program_#{i}.sh\
+             $VOLATILE_DIR/supervisor/)
+      end
+      sh %(chmod a+x $VOLATILE_DIR/supervisor/program_*.sh)
 
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/program_1.sh $VOLATILE_DIR/)
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/program_2.sh $VOLATILE_DIR/)
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/supervisord/program_3.sh $VOLATILE_DIR/)
-      sh %(chmod a+x $VOLATILE_DIR/program_*.sh)
-
-      sh %(supervisord -c $VOLATILE_DIR/supervisord.conf)
-      sh %(sed -i -- 's/VOLATILE_DIR/#{ENV['VOLATILE_DIR'].gsub '/','\/'}/g' $VOLATILE_DIR/supervisord.conf)
-
-      sleep_for 10
+      sh %(#{supervisor_rootdir}/bin/supervisord\
+           -c $VOLATILE_DIR/supervisor/supervisord.conf)
+      sleep_for 3
     end
 
     task :script => ['ci:common:script'] do
@@ -35,16 +48,8 @@ namespace :ci do
     task :cache => ['ci:common:cache']
 
     task :cleanup => ['ci:common:cleanup'] do
-      sh %(rm -f $VOLATILE_DIR/supervisord.conf)
-      sh %(rm -f $VOLATILE_DIR/supervisord.yaml)
-      sh %(rm -f $VOLATILE_DIR/program*.sh)
-      sh %(rm -f $VOLATILE_DIR/supervisord.conf)
-      sh %(rm -f $VOLATILE_DIR/supervisord.log)
-      sh %(rm -f $VOLATILE_DIR/supervisord.pid)
-      sh %(rm -f $VOLATILE_DIR/program*.log)
-      sh %(rm -f $VOLATILE_DIR/ci.log)
-
-      sh %(unlink $VOLATILE_DIR/supervisor.sock)
+      sh %(kill `cat $VOLATILE_DIR/supervisor/supervisord.pid`)
+      sh %(rm -rf $VOLATILE_DIR/supervisor)
     end
 
     task :execute do

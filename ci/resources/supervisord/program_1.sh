@@ -1,3 +1,3 @@
-# dummy program that runs for 30 seconds and dies
+# dummy program that runs for 20 seconds and dies
 
-sleep 30
+sleep 20

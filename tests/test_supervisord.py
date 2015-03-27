@@ -11,6 +11,7 @@ import xmlrpclib
 from checks import AgentCheck
 from tests.common import get_check
 
+
 class TestSupervisordCheck(unittest.TestCase):
 
     TEST_CASES = [{
@@ -180,7 +181,7 @@ instances:
     def tearDown(self):
         self.patcher.stop()
 
-    ### Integration Test #####################################################
+    # Integration Test #####################################################
 
     def test_check(self):
         """Integration test for supervisord check. Using a mocked supervisord."""
@@ -214,14 +215,13 @@ instances:
         """Integration test for supervisord check. Using a supervisord on Travis."""
 
         # Load yaml config
-        config_str = open(os.environ['VOLATILE_DIR'] + '/supervisord.yaml', 'r').read()
+        config_str = open(os.environ['VOLATILE_DIR'] + '/supervisor/supervisord.yaml', 'r').read()
         ok_(config_str is not None and len(config_str) > 0, msg=config_str)
 
         # init the check and get the instances
         check, instances = get_check('supervisord', config_str)
         ok_(check is not None, msg=check)
         eq_(len(instances), 1)
-
 
         # Supervisord should run 3 programs for 30, 60 and 90 seconds
         # respectively. The tests below will ensure that the process count
@@ -243,10 +243,9 @@ instances:
                             down = value
                 eq_(up, 3 - i)
                 eq_(down, i)
-                sleep(30)
+                sleep(10)
 
-
-    ### Unit Tests ###########################################################
+    # Unit Tests ###########################################################
 
     def test_build_message(self):
         """Unit test supervisord build service check message."""
@@ -281,7 +280,7 @@ Stop time: \nExit Status: 0"""
         check, _ = get_check('supervisord', self.TEST_CASES[0]['yaml'])
         eq_(expected_message, check._build_message(process))
 
-    ### Helper Methods #######################################################
+    # Helper Methods #######################################################
 
     @staticmethod
     def mock_server(url):
