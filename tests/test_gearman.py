@@ -1,6 +1,6 @@
 # Agent
 from checks import AgentCheck
-from tests.common import AgentCheckTest, load_check
+from tests.common import AgentCheckTest
 
 # 3rd party
 from nose.plugins.attrib import attr
@@ -9,8 +9,6 @@ from nose.plugins.attrib import attr
 @attr(requires='gearman')
 class GearmanTestCase(AgentCheckTest):
     CHECK_NAME = "gearmand"
-
-    
 
     def test_metrics(self):
         tags = ['first_tag', 'second_tag']
@@ -22,10 +20,10 @@ class GearmanTestCase(AgentCheckTest):
         }
         tags += service_checks_tags
         self.run_check(config)
-        self.assertMetric('gearman.unique_tasks', value=0.0, tags=tags)
-        self.assertMetric('gearman.running', value=0.0, tags=tags)
-        self.assertMetric('gearman.queued', value=0.0, tags=tags)
-        self.assertMetric('gearman.workers', value=0.0, tags=tags)
+        self.assertMetric('gearman.unique_tasks', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.running', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.queued', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.workers', value=0.0, tags=tags, count=1)
 
         self.assertServiceCheck("gearman.can_connect", status=AgentCheck.OK,
             tags=service_checks_tags, count=1)
@@ -45,14 +43,13 @@ class GearmanTestCase(AgentCheckTest):
 
         tags = service_checks_tags_ok
 
-        self.assertMetric('gearman.unique_tasks', value=0.0, tags=tags)
-        self.assertMetric('gearman.running', value=0.0, tags=tags)
-        self.assertMetric('gearman.queued', value=0.0, tags=tags)
-        self.assertMetric('gearman.workers', value=0.0, tags=tags)
+        self.assertMetric('gearman.unique_tasks', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.running', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.queued', value=0.0, tags=tags, count=1)
+        self.assertMetric('gearman.workers', value=0.0, tags=tags, count=1)
         self.assertServiceCheck("gearman.can_connect", status=AgentCheck.OK,
             tags=service_checks_tags_ok, count=1)
         self.assertServiceCheck("gearman.can_connect", status=AgentCheck.CRITICAL,
             tags=service_checks_tags_not_ok, count=1)
-
 
         self.coverage_report()
