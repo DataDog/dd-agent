@@ -367,11 +367,11 @@ class Application(tornado.web.Application):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
-        MetricTransaction.set_application(self)
-        MetricTransaction.set_endpoints()
+        AgentTransaction.set_application(self)
+        AgentTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
             MAX_QUEUE_SIZE, THROTTLING_DELAY)
-        MetricTransaction.set_tr_manager(self._tr_manager)
+        AgentTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
         self.skip_ssl_validation = skip_ssl_validation or agentConfig.get('skip_ssl_validation', False)
