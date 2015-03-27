@@ -43,6 +43,9 @@ namespace :ci do
     end
 
     task :before_cache => ['ci:common:before_cache'] do
+      # Delete the RabbitMQ RABBITMQ_MNESIA_DIR which contains the data
+      sh %(rm -rf #{rabbitmq_rootdir}/var/lib/rabbitmq/mnesia)
+    end
 
     task :cache => ['ci:common:cache']
 
