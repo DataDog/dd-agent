@@ -1,6 +1,8 @@
 require 'colorize'
 require 'time'
 
+require './ci/resources/cache'
+
 def sleep_for(secs)
   puts "Sleeping for #{secs}s".blue
   sleep(secs)
@@ -13,11 +15,27 @@ def section(name)
   puts ''
 end
 
+# Initialize cache if in travis
+if ENV['TRAVIS']
+  cache = Cache.new({
+    debug: ENV['DEBUG_CACHE'],
+    s3: {
+      bucket: 'dd-agent-travis-cache',
+      access_key_id: ENV['AWS_ACCESS_KEY_ID'],
+      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+    }
+  })
+end
+
 namespace :ci do
   namespace :common do
     task :before_install do |t|
       section('BEFORE_INSTALL')
       sh %(mkdir -p $VOLATILE_DIR)
+      if ENV['TRAVIS']
+        cache.directories = ["#{ENV['HOME']}/embedded"]
+        cache.setup
+      end
       t.reenable
     end
 
@@ -25,15 +43,12 @@ namespace :ci do
       section('INSTALL')
       sh %(pip install\
            -r requirements.txt\
-           --use-mirrors --download-cache $PIP_CACHE\
+           --cache-dir $PIP_CACHE\
            2>&1 >> $VOLATILE_DIR/ci.log)
       sh %(pip install\
            -r test-requirements.txt\
-           --use-mirrors --download-cache $PIP_CACHE\
+           --cache-dir $PIP_CACHE\
             2>&1 >> $VOLATILE_DIR/ci.log)
-      sh %(pip install .\
-           --use-mirrors\
-           2>&1 >> $VOLATILE_DIR/ci.log)
       t.reenable
     end
 
@@ -47,6 +62,16 @@ namespace :ci do
     task :script do |t|
       section('SCRIPT')
       t.reenable
+    end
+
+    task :before_cache do |t|
+      section('BEFORE_CACHE')
+      sh %(rm -f $INTEGRATIONS_DIR/**/*.log)
+      t.reenable
+    end
+
+    task :cache do |t|
+      cache.push
     end
 
     task :cleanup do |t|

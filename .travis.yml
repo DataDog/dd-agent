@@ -5,16 +5,15 @@ branches:
     - master
     - /^\d+\.\d+\.x$/ # release forked patches branch
 
-cache:
-  bundler: true
-  directories:
-    - $HOME/.pip-cache
-    - $HOME/embedded
-
 language: python
 python:
   - "2.6"
   - "2.7"
+
+cache:
+  directories:
+    - $HOME/virtualenv/python2.6.9/lib/python2.6/site-packages
+    - $HOME/virtualenv/python2.7.9/lib/python2.7/site-packages
 
 matrix:
   fast_finish: true
@@ -24,47 +23,48 @@ env:
     - CONCURRENCY=2
     - NOSE_FILTER="not windows"
     - INTEGRATIONS_DIR=$HOME/embedded
-    - PIP_CACHE=$HOME/.pip-cache
+    - PIP_CACHE=$HOME/.cache/pip
     - SKIP_CLEANUP=true
     - VOLATILE_DIR=/tmp
+    - DD_CASHER_DIR=/tmp/casher
   matrix:
     - TRAVIS_FLAVOR=default
-    - TRAVIS_FLAVOR=mongo
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.4.2
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.3.7
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.2.4
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.1.2
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=1.0.3
-    - TRAVIS_FLAVOR=elasticsearch ES_VERSION=0.90.13
-    - TRAVIS_FLAVOR=cassandra
-    - TRAVIS_FLAVOR=sysstat
-    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.8"
-    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.6"
-    - TRAVIS_FLAVOR=redis REDIS_VERSION="2.4"
-    - TRAVIS_FLAVOR=memcache
-    - TRAVIS_FLAVOR=postgres PG_VERSION="9.4.0"
-    - TRAVIS_FLAVOR=postgres PG_VERSION="9.3.5"
-    - TRAVIS_FLAVOR=postgres PG_VERSION="9.2.9"
-    - TRAVIS_FLAVOR=postgres PG_VERSION="9.1.14"
-    - TRAVIS_FLAVOR=postgres PG_VERSION="9.0.18"
-# FIXME: cannot enable gearman on Travis right now
-# because it needs boost
-#    - TRAVIS_FLAVOR=gearman
-    - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
-    - TRAVIS_FLAVOR=mysql
-    - TRAVIS_FLAVOR=couchdb
-    - TRAVIS_FLAVOR=snmpd
     - TRAVIS_FLAVOR=apache
-    - TRAVIS_FLAVOR=nginx
-    - TRAVIS_FLAVOR=lighttpd
-    - TRAVIS_FLAVOR=haproxy
-    - TRAVIS_FLAVOR=ssh
-    - TRAVIS_FLAVOR=fluentd
-    - TRAVIS_FLAVOR=rabbitmq
+    - TRAVIS_FLAVOR=cassandra
+    - TRAVIS_FLAVOR=couchdb
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=0.90.13
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.0.3
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.1.2
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.2.4
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.3.7
+    - TRAVIS_FLAVOR=elasticsearch FLAVOR_VERSION=1.4.2
     - TRAVIS_FLAVOR=etcd
+    - TRAVIS_FLAVOR=fluentd
+    # FIXME: cannot enable gearman on Travis right now
+    # because it needs boost
+    # - TRAVIS_FLAVOR=gearman
+    - TRAVIS_FLAVOR=haproxy
+    - TRAVIS_FLAVOR=lighttpd
+    - TRAVIS_FLAVOR=memcache
+    - TRAVIS_FLAVOR=mongo
+    - TRAVIS_FLAVOR=mysql
+    - TRAVIS_FLAVOR=nginx
     - TRAVIS_FLAVOR=pgbouncer
-    - TRAVIS_FLAVOR=supervisord
     - TRAVIS_FLAVOR=phpfpm
+    - TRAVIS_FLAVOR=postgres FLAVOR_VERSION="9.0.18"
+    - TRAVIS_FLAVOR=postgres FLAVOR_VERSION="9.1.14"
+    - TRAVIS_FLAVOR=postgres FLAVOR_VERSION="9.2.9"
+    - TRAVIS_FLAVOR=postgres FLAVOR_VERSION="9.3.5"
+    - TRAVIS_FLAVOR=postgres FLAVOR_VERSION="9.4.0"
+    - TRAVIS_FLAVOR=rabbitmq
+    - TRAVIS_FLAVOR=redis FLAVOR_VERSION="2.4"
+    - TRAVIS_FLAVOR=redis FLAVOR_VERSION="2.6"
+    - TRAVIS_FLAVOR=redis FLAVOR_VERSION="2.8"
+    - TRAVIS_FLAVOR=snmpd
+    - TRAVIS_FLAVOR=ssh
+    - TRAVIS_FLAVOR=supervisord
+    - TRAVIS_FLAVOR=sysstat
+    - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"
@@ -73,14 +73,13 @@ before_script: echo "OVERRIDING TRAVIS STEPS"
 
 script:
   - bundle install
-  - 'ls -al $HOME/embedded'
+  - mkdir -p $INTEGRATIONS_DIR
+  - ls -al $INTEGRATIONS_DIR
   - 'rake ci:run'
+  - ls -al $INTEGRATIONS_DIR
+
 
 after_failure:
-  - echo "Logs from installation process come here / DEBUG LOGS"
-  - cat /tmp/ci.log
-
-after_error:
   - echo "Logs from installation process come here / DEBUG LOGS"
   - cat /tmp/ci.log
 

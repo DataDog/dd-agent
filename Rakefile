@@ -33,11 +33,11 @@ CLOBBER.include '**/*.pyc'
 
 # Travis-like environment for local use
 
-unless ENV['IS_TRAVIS']
+unless ENV['TRAVIS']
   rakefile_dir = File.dirname(__FILE__)
   ENV['TRAVIS_BUILD_DIR'] = rakefile_dir
   ENV['INTEGRATIONS_DIR'] = File.join(rakefile_dir, 'embedded')
-  ENV['PIP_CACHE'] = File.join(rakefile_dir, '.pip-cache')
+  ENV['PIP_CACHE'] = File.join(rakefile_dir, '.cache/pip')
   ENV['VOLATILE_DIR'] = '/tmp/dd-agent-testing'
   ENV['CONCURRENCY'] = ENV['CONCURRENCY'] || '2'
   ENV['NOSE_FILTER'] = 'not windows'

@@ -39,6 +39,10 @@ namespace :ci do
     task :cleanup => ['ci:common:cleanup']
     # FIXME: stop memcache
 
+    task :before_cache => ['ci:common:before_cache']
+
+    task :cache => ['ci:common:cache']
+
     task :execute do
       exception = nil
       begin
@@ -54,6 +58,11 @@ namespace :ci do
       else
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      if ENV['TRAVIS']
+        %w(before_cache cache).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
       end
       fail exception if exception
     end

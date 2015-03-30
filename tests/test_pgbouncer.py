@@ -1,9 +1,10 @@
-from tests.common import load_check, AgentCheckTest
+from tests.common import AgentCheckTest
 
 import time
 import psycopg2 as pg
 from nose.plugins.attrib import attr
 from checks import AgentCheck
+
 
 @attr(requires='pgbouncer')
 class TestPgbouncer(AgentCheckTest):
@@ -14,10 +15,10 @@ class TestPgbouncer(AgentCheckTest):
             'init_config': {},
             'instances': [
                 {
-                'host': 'localhost',
-                'port': 15433,
-                'username': 'datadog',
-                'password': 'datadog'
+                    'host': 'localhost',
+                    'port': 15433,
+                    'username': 'datadog',
+                    'password': 'datadog'
                 }
             ]
         }
@@ -66,6 +67,3 @@ class TestPgbouncer(AgentCheckTest):
             status=AgentCheck.OK,
             tags=['host:localhost', 'port:15433', 'db:pgbouncer'],
             count=service_checks_count)
-
-if __name__ == '__main__':
-    unittest.main()

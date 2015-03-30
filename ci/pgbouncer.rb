@@ -27,8 +27,9 @@ namespace :ci do
 
     task :before_script do
       Rake::Task['ci:postgres:before_script'].invoke
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/pgbouncer.ini\
-           #{pgb_rootdir}/pgbouncer.ini)
+      sh %(sed 's#USERS_TXT##{pgb_rootdir}/users.txt#'\
+           $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/pgbouncer.ini\
+           > #{pgb_rootdir}/pgbouncer.ini)
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/pgbouncer/users.txt\
            #{pgb_rootdir}/users.txt)
       sh %(#{pgb_rootdir}/pgbouncer -d #{pgb_rootdir}/pgbouncer.ini)
@@ -47,9 +48,13 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
+    task :before_cache => ['ci:common:before_cache']
+
+    task :cache => ['ci:common:cache']
+
     task :cleanup do
-      sh %(rm -rf $VOLATILE_DIR/pgbouncer*)
       sh %(killall pgbouncer)
+      sh %(rm -rf $VOLATILE_DIR/pgbouncer*)
       Rake::Task['ci:postgres:cleanup'].invoke
     end
 
@@ -68,6 +73,11 @@ namespace :ci do
       else
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      if ENV['TRAVIS']
+        %w(before_cache cache).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
       end
       fail exception if exception
     end

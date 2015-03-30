@@ -1,7 +1,7 @@
 require './ci/common'
 
 def es_version
-  ENV['ES_VERSION'] || '1.4.2'
+  ENV['FLAVOR_VERSION'] || '1.4.2'
 end
 
 def es_rootdir
@@ -35,6 +35,10 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
+    task :before_cache => ['ci:common:before_cache']
+
+    task :cache => ['ci:common:cache']
+
     task :cleanup => ['ci:common:cleanup']
     # FIXME: stop elasticsearch
 
@@ -53,6 +57,11 @@ namespace :ci do
       else
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
+      end
+      if ENV['TRAVIS']
+        %w(before_cache cache).each do |t|
+          Rake::Task["#{flavor.scope.path}:#{t}"].invoke
+        end
       end
       fail exception if exception
     end
