@@ -126,11 +126,11 @@ class AgentCheckTest(unittest.TestCase):
         time.sleep(1)
         self.run_check(config, agent_config, mocks)
 
-    def run_check(self, config, agent_config=None, mocks=None):
+    def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
         agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
 
         # If not loaded already, do it!
-        if self.check is None:
+        if self.check is None or force_reload:
             self.check = load_check(self.CHECK_NAME, config, agent_config)
 
         if mocks is not None:
