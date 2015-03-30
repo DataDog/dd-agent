@@ -568,7 +568,7 @@ class Platform(object):
 
     @staticmethod
     def is_mac(name=None):
-        Platform.is_darwin(name)
+        return Platform.is_darwin(name)
 
     @staticmethod
     def is_freebsd(name=None):
