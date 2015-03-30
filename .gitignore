@@ -30,4 +30,5 @@ Vagrantfile
 .vagrant/*
 embedded/*
 .pip-cache/*
+.cache
 dump.rdb

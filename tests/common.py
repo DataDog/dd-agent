@@ -1,4 +1,5 @@
 # stdlib
+import copy
 import inspect
 import logging
 import os
@@ -148,7 +149,10 @@ class AgentCheckTest(unittest.TestCase):
         error = None
         for instance in self.check.instances:
             try:
-                self.check.check(instance)
+                # Deepcopy needed to avoid weird duplicate tagging situations
+                # ie the check edits the tags of the instance, problematic if
+                # run twice
+                self.check.check(copy.deepcopy(instance))
             except Exception, e:
                 # Catch error before re-raising it to be able to get service_checks
                 print "Exception {0} during check".format(e)
@@ -210,7 +214,6 @@ WARNINGS
             coverage_sc = 100.0
         else:
             coverage_sc = 100.0 * tested_sc / total_sc
-
         coverage = """Coverage
 ========================================
     METRICS
