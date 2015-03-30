@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.2.3 / 03-30-2015
+**Windows only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.2.2...5.2.3
+
+### Changes
+* [BUGFIX] Fix vSphere service check
+
 # 5.2.2 / 03-20-2015
 **Linux or Source Install only**
 
