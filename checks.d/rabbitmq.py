@@ -244,8 +244,8 @@ class RabbitMQ(AgentCheck):
     def _get_metrics(self, data, object_type):
         tags = []
         tag_list = TAGS_MAP[object_type]
-        for t in tag_list.keys():
-            tag = data.get(t, None)
+        for t in tag_list:
+            tag = data.get(t)
             if tag:
                 # FIXME 6.x: remove this suffix or unify (sc doesn't have it)
                 tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
