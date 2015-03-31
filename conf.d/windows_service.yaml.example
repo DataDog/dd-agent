@@ -12,12 +12,13 @@ instances:
     #-  host: MYREMOTESERVER
     #   username: MYREMOTESERVER\fred
     #   password: mysecretpassword
-    #   tags:
-    #       - fredserver
+    #   services:
+    #     - ServiceExample
+    #     - AnotherService
     #
     # The sample configuration will monitor the WMI Performance Adapter service,
     # named "wmiApSrv" in the service properties.
     #
     -   host: . # "." means the current host
         services:
-            - wmiApSrv
+          - wmiApSrv
