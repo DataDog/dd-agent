@@ -10,11 +10,11 @@ from pprint import pprint
 
 # postgres version: (expected metrics, expected tagged metrics per database)
 METRICS = {
-    '9.4.0': (40, 26),
-    '9.3.5': (40, 26),
-    '9.2.9': (40, 26),
-    '9.1.14': (35, 23),
-    '9.0.18': (34, 23),
+    '9.4.1': (40, 26),
+    '9.3.6': (40, 26),
+    '9.2.10': (40, 26),
+    '9.1.15': (35, 23),
+    '9.0.19': (34, 23),
 }
 
 @attr(requires='postgres')

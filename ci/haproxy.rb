@@ -1,7 +1,7 @@
 require './ci/common'
 
 def haproxy_version
-  ENV['HAPROXY_VERSION'] || '1.5.10'
+  ENV['FLAVOR_VERSION'] || '1.5.11'
 end
 
 def haproxy_rootdir
@@ -14,9 +14,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(haproxy_rootdir)
+        # Downloads
+        # http://www.haproxy.org/download/#{haproxy_version[0..2]}/src/haproxy-#{haproxy_version}.tar.gz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/haproxy-#{haproxy_version}.tar.gz\
-             http://www.haproxy.org/download/#{haproxy_version[0..2]}/src/haproxy-#{haproxy_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/haproxy-#{haproxy_version}.tar.gz)
         sh %(mkdir -p #{haproxy_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/haproxy)
         sh %(tar zxf $VOLATILE_DIR/haproxy-#{haproxy_version}.tar.gz\

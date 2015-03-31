@@ -14,9 +14,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(es_rootdir)
+        # Downloads
+        # https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-#{es_version}.tar.gz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/elasticsearch-#{es_version}.tar.gz\
-             https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-#{es_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/elasticsearch-#{es_version}.tar.gz)
         sh %(mkdir -p #{es_rootdir})
         sh %(tar zxf $VOLATILE_DIR/elasticsearch-#{es_version}.tar.gz\
              -C #{es_rootdir} --strip-components=1)

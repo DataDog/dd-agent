@@ -14,9 +14,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(gearman_rootdir)
+        # Downloads
+        # https://launchpad.net/gearmand/#{gearman_version[0..2]}/#{gearman_version}/+download/gearmand-#{gearman_version}.tar.gz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/gearman-#{gearman_version}.tar.gz\
-             https://launchpad.net/gearmand/#{gearman_version[0..2]}/#{gearman_version}/+download/gearmand-#{gearman_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/gearmand-#{gearman_version}.tar.gz)
         sh %(mkdir -p $VOLATILE_DIR/gearman)
         sh %(tar zxf $VOLATILE_DIR/gearman-#{gearman_version}.tar.gz\
              -C $VOLATILE_DIR/gearman --strip-components=1)

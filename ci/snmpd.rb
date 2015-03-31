@@ -9,10 +9,12 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # http://sourceforge.net/projects/net-snmp/files/net-snmp/5.7.3/net-snmp-5.7.3.tar.gz/download
       unless Dir.exist? File.expand_path(snmpd_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/snmpd.tar.gz\
-             http://sourceforge.net/projects/net-snmp/files/net-snmp/5.7.3/net-snmp-5.7.3.tar.gz/download)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/net-snmp-5.7.3.tar.gz)
         sh %(mkdir -p $VOLATILE_DIR/snmpd)
         sh %(mkdir -p #{snmpd_rootdir})
         sh %(tar zxf $VOLATILE_DIR/snmpd.tar.gz\

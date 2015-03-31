@@ -12,10 +12,12 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz
       unless Dir.exist? File.expand_path(tomcat_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
-             http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/apache-tomcat-6.0.43.tar.gz)
         sh %(mkdir -p #{tomcat_rootdir})
         sh %(tar zxf $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
              -C #{tomcat_rootdir} --strip-components=1)

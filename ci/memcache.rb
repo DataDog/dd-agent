@@ -15,9 +15,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(memcache_rootdir)
+        # Downloads
+        # http://memcached.org/files/memcached-#{memcache_version}.tar.gz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/memcached-#{memcache_version}.tar.gz\
-              http://memcached.org/files/memcached-#{memcache_version}.tar.gz)
+              https://s3.amazonaws.com/dd-agent-tarball-mirror/memcached-#{memcache_version}.tar.gz)
         sh %(mkdir -p #{memcache_rootdir})
         sh %(tar zxf $VOLATILE_DIR/memcached-#{memcache_version}.tar.gz\
              -C #{memcache_rootdir} --strip-components=1)

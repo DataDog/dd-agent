@@ -1,8 +1,7 @@
 require './ci/common'
 
-# TODO: make this available in the matrix
 def mongo_version
-  '2.6.6'
+  ENV['FLAVOR_VERSION'] || '3.0.1'
 end
 
 def mongo_rootdir
@@ -15,11 +14,13 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(mongo_rootdir)
+        # Downloads
+        # https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-#{mongo_version}.tgz
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/mongodb-linux-x86_64-2.6.6.tgz\
-             https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-2.6.6.tgz)
+             -o $VOLATILE_DIR/mongodb-linux-x86_64-#{mongo_version}.tgz\
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/mongodb-linux-x86_64-#{mongo_version}.tgz)
         sh %(mkdir -p #{mongo_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/mongodb-linux-x86_64-2.6.6.tgz\
+        sh %(tar zxf $VOLATILE_DIR/mongodb-linux-x86_64-#{mongo_version}.tgz\
              -C #{mongo_rootdir} --strip-components=1)
       end
     end

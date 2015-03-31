@@ -1,9 +1,7 @@
 require './ci/common'
 
-# FIXME: use our own brew of couchdb
-
 def couchdb_version
-  ENV['COUCHDB_VERSION']  || '1.6.1'
+  ENV['FLAVOR_VERSION']  || '1.6.1'
 end
 
 def couchdb_rootdir
@@ -16,18 +14,23 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(couchdb_rootdir)
+        # Downloads
+        # http://www.erlang.org/download/otp_src_17.4.tar.gz
+        # http://mirrors.gigenet.com/apache/couchdb/source/#{couchdb_version}/apache-couchdb-#{couchdb_version}.tar.gz
+        # http://ftp.mozilla.org/pub/mozilla.org/js/js185-1.0.0.tar.gz
+        # http://download.icu-project.org/files/icu4c/54.1/icu4c-54_1-src.tgz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/erlang.tar.gz\
-             http://www.erlang.org/download/otp_src_17.4.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/otp_src_17.4.tar.gz)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/couchdb-#{couchdb_version}.tar.gz\
-             http://mirrors.gigenet.com/apache/couchdb/source/#{couchdb_version}/apache-couchdb-#{couchdb_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/apache-couchdb-#{couchdb_version}.tar.gz)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/js185.tar.gz\
-             http://ftp.mozilla.org/pub/mozilla.org/js/js185-1.0.0.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/js185-1.0.0.tar.gz)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/icu.tar.gz\
-             http://download.icu-project.org/files/icu4c/54.1/icu4c-54_1-src.tgz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/icu4c-54_1-src.tgz)
         sh %(mkdir -p $VOLATILE_DIR/couchdb)
         sh %(mkdir -p $VOLATILE_DIR/js185)
         sh %(mkdir -p $VOLATILE_DIR/icu)

@@ -2,7 +2,7 @@ require './ci/common'
 
 # TODO: make this available in the matrix
 def rabbitmq_version
-  '3.4.3'
+  '3.5.0'
 end
 
 def rabbitmq_rootdir
@@ -14,12 +14,14 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # http://www.rabbitmq.com/releases/rabbitmq-server/v#{mongo_version}/rabbitmq-server-generic-unix-#{mongo_version}.tar.gz
       unless Dir.exist? File.expand_path(rabbitmq_rootdir)
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/rabbitmq-server-generic-unix-3.4.3.tar.gz\
-             http://www.rabbitmq.com/releases/rabbitmq-server/v3.4.3/rabbitmq-server-generic-unix-3.4.3.tar.gz)
+             -o $VOLATILE_DIR/rabbitmq-server-generic-unix-#{rabbitmq_version}.tar.gz\
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/rabbitmq-server-generic-unix-#{rabbitmq_version}.tar.gz)
         sh %(mkdir -p #{rabbitmq_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/rabbitmq-server-generic-unix-3.4.3.tar.gz\
+        sh %(tar zxf $VOLATILE_DIR/rabbitmq-server-generic-unix-#{rabbitmq_version}.tar.gz\
              -C #{rabbitmq_rootdir} --strip-components=1)
       end
     end

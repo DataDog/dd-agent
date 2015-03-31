@@ -1,7 +1,7 @@
 require './ci/common'
 
 def redis_version
-  ENV['REDIS_VERSION'] || '2.8'
+  ENV['FLAVOR_VERSION'] || '2.8.19'
 end
 
 def redis_rootdir
@@ -13,10 +13,12 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # https://github.com/antirez/redis/archive/#{redis_version}.zip
       unless Dir.exist? File.expand_path(redis_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/redis.zip\
-             https://github.com/antirez/redis/archive/#{redis_version}.zip)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/redis-#{redis_version}.zip)
         sh %(mkdir -p #{redis_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/redis)
         sh %(unzip -x $VOLATILE_DIR/redis.zip -d $VOLATILE_DIR/)
