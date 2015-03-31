@@ -20,9 +20,7 @@ from cStringIO import StringIO
 from urlparse import urlparse
 
 # project
-
 from util import get_os, Platform, yLoader
-from migration import migrate_old_style_configuration
 
 # 3rd party
 import yaml
@@ -784,9 +782,6 @@ def load_check_directory(agentConfig, hostname):
     except PathNotFound, e:
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
-
-    # Migrate datadog.conf integration configurations that are not supported anymore
-    migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
 
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
