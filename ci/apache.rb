@@ -16,7 +16,7 @@ namespace :ci do
       unless Dir.exist? File.expand_path(apache_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/httpd-#{apache_version}.tar.bz2\
-             http://mirror.cc.columbia.edu/pub/software/apache/httpd/httpd-#{apache_version}.tar.bz2)
+             https://archive.apache.org/dist/httpd/httpd-#{apache_version}.tar.bz2
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apr.tar.bz2\
              http://mirror.cc.columbia.edu/pub/software/apache/apr/apr-1.5.1.tar.bz2)
