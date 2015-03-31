@@ -158,7 +158,6 @@ class AgentCheckTest(unittest.TestCase):
                 print "Exception {0} during check".format(e)
                 print traceback.format_exc()
                 error = e
-
         self.metrics = self.check.get_metrics()
         self.events = self.check.get_events()
         self.service_checks = self.check.get_service_checks()
@@ -254,7 +253,7 @@ WARNINGS
             raise
 
     def assertMetric(self, metric_name, value=None, tags=None, count=None,
-        at_least=1, hostname=None):
+                     at_least=1, hostname=None, device_name=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
@@ -264,6 +263,8 @@ WARNINGS
                     continue
                 if hostname is not None and mdata['hostname'] != hostname:
                     continue
+                if device_name is not None and mdata['device_name'] != device_name:
+                    continue
 
                 candidates.append((m_name, ts, val, mdata))
 
@@ -271,8 +272,8 @@ WARNINGS
             self._candidates_size_assert(candidates, count=count, at_least=at_least)
         except AssertionError:
             log.error("Candidates size assertion for {0} (value: {1}, tags: {2}, "
-                "count: {3}, at_least: {4}, hostname: {5}) failed"\
-                .format(metric_name, value, tags, count, at_least, hostname))
+                      "count: {3}, at_least: {4}, hostname: {5}) failed"
+                      .format(metric_name, value, tags, count, at_least, hostname))
             raise
 
         for mtuple in self.metrics:
@@ -282,7 +283,8 @@ WARNINGS
         log.debug("FOUND !")
 
     def assertMetricTagPrefix(self, metric_name, tag_prefix, count=None, at_least=1):
-        log.debug("Looking for a tag starting with `{0}:` on metric {1}".format(tag_prefix, metric_name))
+        log.debug("Looking for a tag starting with `{0}:` on metric {1}"
+                  .format(tag_prefix, metric_name))
         if count is not None:
             log.debug(" * should have exactly {0} data points".format(count))
         if at_least is not None:
