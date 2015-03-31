@@ -17,7 +17,9 @@ QUEUE_TYPE = 'queues'
 NODE_TYPE = 'nodes'
 MAX_DETAILED_QUEUES = 200
 MAX_DETAILED_NODES = 100
-ALERT_THRESHOLD = 0.9 # Post an event in the stream when the number of queues or nodes to collect is above 90% of the limit:
+# Post an event in the stream when the number of queues or nodes to
+# collect is above 90% of the limit:
+ALERT_THRESHOLD = 0.9
 QUEUE_ATTRIBUTES = [
     # Path, Name
     ('active_consumers', 'active_consumers'),
@@ -65,13 +67,13 @@ ATTRIBUTES = {
 
 TAGS_MAP = {
     QUEUE_TYPE: {
-                'node':'node',
-                'name':'queue',
-                'vhost':'vhost',
-                'policy':'policy',
-            },
+        'node': 'node',
+                'name': 'queue',
+                'vhost': 'vhost',
+                'policy': 'policy',
+    },
     NODE_TYPE: {
-                'name':'node',
+        'name': 'node',
     }
 }
 
@@ -82,6 +84,7 @@ METRIC_SUFFIX = {
 
 
 class RabbitMQ(AgentCheck):
+
     """This check is for gathering statistics from the RabbitMQ
     Management Plugin (http://www.rabbitmq.com/management.html)
     """
@@ -123,19 +126,21 @@ class RabbitMQ(AgentCheck):
         for object_type, filters in specified.iteritems():
             for filter_type, filter_objects in filters.iteritems():
                 if type(filter_objects) != list:
-                    raise TypeError("{0} / {0}_regexes parameter must be a list".format(object_type))
+                    raise TypeError(
+                        "{0} / {0}_regexes parameter must be a list".format(object_type))
 
         auth = (username, password)
 
         return base_url, max_detailed, specified, auth
 
-
     def check(self, instance):
         base_url, max_detailed, specified, auth = self._get_config(instance)
 
         # Generate metrics from the status API.
-        self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[QUEUE_TYPE], specified[QUEUE_TYPE], auth=auth)
-        self.get_stats(instance, base_url, NODE_TYPE, max_detailed[NODE_TYPE], specified[NODE_TYPE], auth=auth)
+        self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[
+                       QUEUE_TYPE], specified[QUEUE_TYPE], auth=auth)
+        self.get_stats(instance, base_url, NODE_TYPE, max_detailed[
+                       NODE_TYPE], specified[NODE_TYPE], auth=auth)
 
         # Generate a service check from the aliveness API.
         vhosts = instance.get('vhosts')
@@ -147,11 +152,12 @@ class RabbitMQ(AgentCheck):
             r.raise_for_status()
             data = r.json()
         except requests.exceptions.HTTPError as e:
-            raise Exception('Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
+            raise Exception(
+                'Cannot open RabbitMQ API url: %s %s' % (url, str(e)))
         except ValueError, e:
-            raise Exception('Cannot parse JSON response from API url: %s %s' % (url, str(e)))
+            raise Exception(
+                'Cannot parse JSON response from API url: %s %s' % (url, str(e)))
         return data
-
 
     def get_stats(self, instance, base_url, object_type, max_detailed, filters, auth=None):
         """
@@ -162,8 +168,11 @@ class RabbitMQ(AgentCheck):
         filters: explicit or regexes filters of specified queues or nodes (specified in the yaml file)
         """
 
-        data = self._get_data(urlparse.urljoin(base_url, object_type), auth=auth)
-        explicit_filters = list(filters['explicit']) # Make a copy of this list as we will remove items from it at each iteration
+        data = self._get_data(
+            urlparse.urljoin(base_url, object_type), auth=auth)
+        # Make a copy of this list as we will remove items from it at each
+        # iteration
+        explicit_filters = list(filters['explicit'])
         regex_filters = filters['regexes']
 
         """ data is a list of nodes or queues:
@@ -175,9 +184,11 @@ class RabbitMQ(AgentCheck):
         ]
         """
         if len(explicit_filters) > max_detailed:
-            raise Exception("The maximum number of %s you can specify is %d." % (object_type, max_detailed))
+            raise Exception(
+                "The maximum number of %s you can specify is %d." % (object_type, max_detailed))
 
-        if explicit_filters or regex_filters: # a list of queues/nodes is specified. We process only those
+        # a list of queues/nodes is specified. We process only those
+        if explicit_filters or regex_filters:
             matching_lines = []
             for data_line in data:
                 name = data_line.get("name")
@@ -193,10 +204,12 @@ class RabbitMQ(AgentCheck):
                         match_found = True
                         break
 
-                if match_found: continue
+                if match_found:
+                    continue
 
                 # Absolute names work only for queues
-                if object_type != QUEUE_TYPE: continue
+                if object_type != QUEUE_TYPE:
+                    continue
                 absolute_name = '%s/%s' % (data_line.get("vhost"), name)
                 if absolute_name in explicit_filters:
                     matching_lines.append(data_line)
@@ -209,7 +222,8 @@ class RabbitMQ(AgentCheck):
                         match_found = True
                         break
 
-                if match_found: continue
+                if match_found:
+                    continue
 
             data = matching_lines
 
@@ -220,19 +234,20 @@ class RabbitMQ(AgentCheck):
 
         if len(data) > max_detailed:
             # Display a warning in the info page
-            self.warning("Too many queues to fetch. You must choose the %s you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support" % object_type)
+            self.warning(
+                "Too many queues to fetch. You must choose the %s you are interested in by editing the rabbitmq.yaml configuration file or get in touch with Datadog Support" % object_type)
 
         for data_line in data[:max_detailed]:
             # We truncate the list of nodes/queues if it's above the limit
             self._get_metrics(data_line, object_type)
 
-
     def _get_metrics(self, data, object_type):
         tags = []
         tag_list = TAGS_MAP[object_type]
-        for t in tag_list.keys():
-            tag = data.get(t, None)
-            if tag is not None:
+        for t in tag_list:
+            tag = data.get(t)
+            if tag:
+                # FIXME 6.x: remove this suffix or unify (sc doesn't have it)
                 tags.append('rabbitmq_%s:%s' % (tag_list[t], tag))
 
         for attribute, metric_name in ATTRIBUTES[object_type]:
@@ -245,9 +260,11 @@ class RabbitMQ(AgentCheck):
             value = root.get(keys[-1], None)
             if value is not None:
                 try:
-                    self.gauge('rabbitmq.%s.%s' % (METRIC_SUFFIX[object_type], metric_name), float(value), tags=tags)
+                    self.gauge('rabbitmq.%s.%s' % (
+                        METRIC_SUFFIX[object_type], metric_name), float(value), tags=tags)
                 except ValueError:
-                    self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (METRIC_SUFFIX[object_type], attribute, value, tags))
+                    self.log.debug("Caught ValueError for %s %s = %s  with tags: %s" % (
+                        METRIC_SUFFIX[object_type], attribute, value, tags))
 
     def alert(self, base_url, max_detailed, size, object_type):
         key = "%s%s" % (base_url, object_type)
@@ -257,21 +274,22 @@ class RabbitMQ(AgentCheck):
 
         self.already_alerted.append(key)
 
-        title = "RabbitMQ integration is approaching the limit on the number of %s that can be collected from on %s" % (object_type, self.hostname)
+        title = "RabbitMQ integration is approaching the limit on the number of %s that can be collected from on %s" % (
+            object_type, self.hostname)
         msg = """%s %s are present. The limit is %s.
         Please get in touch with Datadog support to increase the limit.""" % (size, object_type, max_detailed)
 
         event = {
-                "timestamp": int(time.time()),
-                "event_type": EVENT_TYPE,
-                "msg_title": title,
-                "msg_text": msg,
-                "alert_type": 'warning',
-                "source_type_name": SOURCE_TYPE_NAME,
-                "host": self.hostname,
-                "tags": ["base_url:%s" % base_url, "host:%s" % self.hostname],
-                "event_object": "rabbitmq.limit.%s" % object_type,
-            }
+            "timestamp": int(time.time()),
+            "event_type": EVENT_TYPE,
+            "msg_title": title,
+            "msg_text": msg,
+            "alert_type": 'warning',
+            "source_type_name": SOURCE_TYPE_NAME,
+            "host": self.hostname,
+            "tags": ["base_url:%s" % base_url, "host:%s" % self.hostname],
+            "event_object": "rabbitmq.limit.%s" % object_type,
+        }
 
         self.event(event)
 
@@ -304,7 +322,8 @@ class RabbitMQ(AgentCheck):
             except Exception as e:
                 # Either we got a bad status code or unparseable JSON.
                 status = AgentCheck.CRITICAL
-                self.warning('Error when checking aliveness for vhost %s: %s'\
-                    % (vhost, str(e)))
+                self.warning('Error when checking aliveness for vhost %s: %s'
+                             % (vhost, str(e)))
 
-            self.service_check('rabbitmq.aliveness', status, tags, message=message)
+            self.service_check(
+                'rabbitmq.aliveness', status, tags, message=message)

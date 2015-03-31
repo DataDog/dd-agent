@@ -342,6 +342,34 @@ WARNINGS
                     sc['tested'] = True
         log.debug("FOUND !")
 
+    def assertServiceCheckOK(self, service_check_name, tags=None, count=None, at_least=1):
+        self.assertServiceCheck(service_check_name,
+                                status=AgentCheck.OK,
+                                tags=tags,
+                                count=count,
+                                at_least=at_least)
+
+    def assertServiceCheckWarning(self, service_check_name, tags=None, count=None, at_least=1):
+        self.assertServiceCheck(service_check_name,
+                                status=AgentCheck.WARNING,
+                                tags=tags,
+                                count=count,
+                                at_least=at_least)
+
+    def assertServiceCheckCritical(self, service_check_name, tags=None, count=None, at_least=1):
+        self.assertServiceCheck(service_check_name,
+                                status=AgentCheck.CRITICAL,
+                                tags=tags,
+                                count=count,
+                                at_least=at_least)
+
+    def assertServiceCheckUnknown(self, service_check_name, tags=None, count=None, at_least=1):
+        self.assertServiceCheck(service_check_name,
+                                status=AgentCheck.UNKNOWN,
+                                tags=tags,
+                                count=count,
+                                at_least=at_least)
+
     def assertIn(self, first, second):
         self.assertTrue(first in second, "{0} not in {1}".format(first, second))
 

@@ -28,6 +28,13 @@ CONFIG_REGEX = {
     ]
 }
 
+COMMON_METRICS = [
+    'rabbitmq.node.fd_used',
+    'rabbitmq.node.mem_used',
+    'rabbitmq.node.run_queue',
+    'rabbitmq.node.sockets_used',
+]
+
 
 @attr(requires='rabbitmq')
 class RabbitMQCheckTest(AgentCheckTest):
@@ -37,15 +44,13 @@ class RabbitMQCheckTest(AgentCheckTest):
         self.run_check(CONFIG)
 
         # Node attributes
-        self.assertMetric('rabbitmq.node.fd_used')
-        self.assertMetric('rabbitmq.node.mem_used')
-        self.assertMetric('rabbitmq.node.run_queue')
-        self.assertMetric('rabbitmq.node.sockets_used')
-        self.assertMetricTagPrefix('rabbitmq.node.fd_used', 'rabbitmq_node')
+        for mname in COMMON_METRICS:
+            self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
 
         # Queue attributes, should be only one queue fetched
+        # TODO: create a 'fake consumer' and get missing metrics
+        # active_consumers, acks, delivers, redelivers
         Q_METRICS = [
-#            'active_consumers',  # no active consumers in this test..
             'consumers',
             'memory',
             'messages',
@@ -54,26 +59,25 @@ class RabbitMQCheckTest(AgentCheckTest):
             'messages_ready.rate',
             'messages_unacknowledged',
             'messages_unacknowledged.rate',
-# Not available right now b/c of the way we configure rabbitmq on Travis
-#            'messages.ack.count',
-#            'messages.ack.rate',
-#            'messages.deliver.count',
-#            'messages.deliver.rate',
-#            'messages.deliver_get.count',
-#            'messages.deliver_get.rate',
-#            'messages.publish.count',
-#            'messages.publish.rate',
-#            'messages.redeliver.count',
-#            'messages.redeliver.rate',
+            'messages.publish.count',
+            'messages.publish.rate',
         ]
         for mname in Q_METRICS:
-            self.assertMetricTag('rabbitmq.queue.%s' % mname, 'rabbitmq_queue:test1', count=1)
+            self.assertMetricTag('rabbitmq.queue.%s' %
+                                 mname, 'rabbitmq_queue:test1', count=1)
+
+        self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+
+        self.coverage_report()
 
     def test_queue_regex(self):
         self.run_check(CONFIG_REGEX)
 
+        # Node attributes
+        for mname in COMMON_METRICS:
+            self.assertMetricTagPrefix(mname, 'rabbitmq_node', count=1)
+
         Q_METRICS = [
-#            'active_consumers',  # no active consumers in this test..
             'consumers',
             'memory',
             'messages',
@@ -82,19 +86,17 @@ class RabbitMQCheckTest(AgentCheckTest):
             'messages_ready.rate',
             'messages_unacknowledged',
             'messages_unacknowledged.rate',
-# Not available right now b/c of the way we configure rabbitmq on Travis
-#            'messages.ack.count',
-#            'messages.ack.rate',
-#            'messages.deliver.count',
-#            'messages.deliver.rate',
-#            'messages.deliver_get.count',
-#            'messages.deliver_get.rate',
-#            'messages.publish.count',
-#            'messages.publish.rate',
-#            'messages.redeliver.count',
-#            'messages.redeliver.rate',
+            'messages.publish.count',
+            'messages.publish.rate',
         ]
         for mname in Q_METRICS:
-            self.assertMetricTag('rabbitmq.queue.%s' % mname, 'rabbitmq_queue:test1', count=1)
-            self.assertMetricTag('rabbitmq.queue.%s' % mname, 'rabbitmq_queue:test5', count=1)
-            self.assertMetricTag('rabbitmq.queue.%s' % mname, 'rabbitmq_queue:tralala', count=0)
+            self.assertMetricTag('rabbitmq.queue.%s' %
+                                 mname, 'rabbitmq_queue:test1', count=1)
+            self.assertMetricTag('rabbitmq.queue.%s' %
+                                 mname, 'rabbitmq_queue:test5', count=1)
+            self.assertMetricTag('rabbitmq.queue.%s' %
+                                 mname, 'rabbitmq_queue:tralala', count=0)
+
+        self.assertServiceCheckOK('rabbitmq.aliveness', tags=['vhost:/'])
+
+        self.coverage_report()
