@@ -48,6 +48,11 @@ namespace :ci do
       sh %(sed -i -e "s@%VOLATILE_DIR%@$VOLATILE_DIR@"\
             #{apache_rootdir}/conf/httpd.conf)
       sh %(#{apache_rootdir}/bin/apachectl start)
+      # Simulate activity to populate metrics
+      100.times do
+        sh %(curl --silent http://localhost:8080 > /dev/null)
+      end
+      sleep_for 2
     end
 
     task :script => ['ci:common:script'] do
