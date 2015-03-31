@@ -66,11 +66,12 @@ namespace :ci do
 
     task :before_cache do |t|
       section('BEFORE_CACHE')
-      sh %(rm -f $INTEGRATIONS_DIR/**/*.log)
+      sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log' -delete)
       t.reenable
     end
 
     task :cache do |t|
+      section('CACHE')
       cache.push
     end
 
