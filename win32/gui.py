@@ -552,7 +552,7 @@ class MainWindow(QSplitter):
             "Dogstatsd log file"
         )
         self.jmxfetch_log_file = EditorFile(
-            config.get('jmx_log_file'),
+            config.get('jmxfetch_log_file'),
             "JMX log file"
         )
 

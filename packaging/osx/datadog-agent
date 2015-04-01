@@ -35,10 +35,10 @@ check_status() {
 
         supervisor_processes=$($SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE status)
         datadog_supervisor_processes=$(echo "$supervisor_processes" |
-                                       grep -v dogstatsd |
+                                       grep -Ev 'dogstatsd|jmxfetch' |
                                        grep $NAME |
-                                       grep -c RUNNING)
-        supervisor_config_programs=$(grep -v dogstatsd "$DIR/$SUPERVISOR_CONF_FILE" |
+                                       grep -c -E 'RUNNING|STARTING')
+        supervisor_config_programs=$(grep -v -Ev 'dogstatsd|jmxfetch' "$DIR/$SUPERVISOR_CONF_FILE" |
                                      grep -c '\[program:')
 
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
@@ -82,7 +82,7 @@ case $1 in
     stop)
         check_status > /dev/null
         if [ $? -ne 2 ]; then
-            $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE stop all
+            $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE shutdown
             kill -TERM $(cat $SUPERVISOR_PIDFILE)
         else
             echo "$DESC (supervisor) is not running"

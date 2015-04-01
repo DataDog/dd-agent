@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 
 # project
 from config import get_version
-from jmxfetch import JMX_FETCH_JAR_NAME
+from utils.jmx import JMX_FETCH_JAR_NAME
 
 # Extra arguments to pass to the setup function
 extra_args = {}
@@ -125,19 +125,35 @@ elif sys.platform == 'darwin':
     from plistlib import Plist
     plist = Plist.fromFile(os.path.dirname(os.path.realpath(__file__)) + '/packaging/Info.plist')
     plist.update(dict(
-        CFBundleGetInfoString="{0}, Copyright (c) 2009-{1}, Datadog Inc.".format(get_version(), date.today().year),
+        CFBundleGetInfoString="{0}, Copyright (c) 2009-{1}, Datadog Inc.".format(
+            get_version(), date.today().year),
         CFBundleVersion=get_version()
     ))
 
     extra_args = {
         'app': ['gui.py'],
-        'data_files': ['status.html', 'datadog-cert.pem', 'checks', 'checks.d', 'images', 'dogstream'],
+        'data_files': [
+            'checks',
+            'checks.d',
+            'datadog-cert.pem',
+            'dogstream',
+            'images',
+            'status.html',
+            'utils',
+        ],
         'options': {
             'py2app': {
                 'optimize': 0,
                 'iconfile': 'packaging/Agent.icns',
                 'packages': ['requests', 'supervisor', 'tornado'],
-                'extra_scripts': ['agent.py', 'ddagent.py', 'dogstatsd.py', 'supervisord.py', 'supervisorctl.py'],
+                'extra_scripts': [
+                    'agent.py',
+                    'ddagent.py',
+                    'dogstatsd.py',
+                    'jmxfetch.py',
+                    'supervisorctl.py',
+                    'supervisord.py',
+                ],
                 'plist': plist
             }
         }
