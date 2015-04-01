@@ -5,6 +5,7 @@ require 'rake/clean'
 
 # Flavored Travis CI jobs
 require './ci/apache'
+require './ci/activemq'
 require './ci/cassandra'
 require './ci/couchdb'
 require './ci/default'
