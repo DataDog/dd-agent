@@ -1,335 +1,77 @@
 #!/bin/sh
+# Bail on errors
+set -e
+# We shouldn't have unbounded vars
+set -u
 
-# figure out where to pull from
-tag="5.6.3"
+#######################################################################
+# SCRIPT KNOBS
+#######################################################################
+# Update for new releases, will pull this tag in the repo
+AGENT_VERSION="5.6.3"
+# Pin pip version, in the past there was some buggy releases and get-pip.py
+# always pulls the latest version
+PIP_VERSION="6.0.8"
+VIRTUALENV_VERSION="1.11.6"
+SUPERVISOR_VERSION="3.0b2"
 
-PIP_VERSION="6.0.6"
-
-#######################
-# Define some helpers #
-#######################
-
-dogweb_reporting_failure_url="https://app.datadoghq.com/agent_stats/report_failure"
-email_reporting_failure="support@datadoghq.com"
-agent_help_page="http://docs.datadoghq.com/guides/basic_agent_usage/"
-see_agent_on_datadog_page="https://app.datadoghq.com/infrastructure"
-
-RED="\033[31m"
-GREEN="\033[32m"
-DEFAULT="\033[0m"
-
-# Function to display a message passed as an argument in red and then exit
-quit_error() {
-  printf "$RED"
-  printf "$1" | tee -a $logfile
-  printf "\nExiting...\n" | tee -a $logfile
-  printf "$DEFAULT"
-  exit 1
-}
-
-get_api_key_to_report() {
-    if [ $apikey ]; then
-        key_to_report=$apikey
+#######################################################################
+# OVERRIDABLE VARIABLES:
+#
+# $DD_API_KEY
+#   Sets your API key in the config when installing.
+#   If not specified, the script will not install a default config.
+#   You can find a sample at $DD_HOME/datadog.conf.example and create
+#   one yourself at $DD_HOME/datadog.conf
+# $DD_HOME
+#   Sets the agent installation directory.
+#   Defaults to $HOME/.datadog-agent
+# $DD_START_AGENT
+#   0/1 value. 1 will start the agent at the end of the script
+#   Defaults to 1.
+# $DD_DOG
+#   0/1 value. 1 will print a cute pup at the beginning of the script
+#   Defaults to 0.
+#
+#
+# $IS_OPENSHIFT DEPRECATED!
+#   Used to be a different setup for OpenShift, it's no a noop, upgrade
+#   your cartridge if you're using it.
+#######################################################################
+set +u # accept temporarily unbound vars, because we set defaults
+# If DD_HOME is unset
+if [ -z "$DD_HOME" ]; then
+    # Compatibilty: dd_home used in lieu of DD_HOME
+    if [ -n "$dd_home" ]; then
+        DD_HOME="$dd_home"
     else
-        key_to_report="No_key"
+        if [ "$(uname)" = "SunOS" ]; then
+            DD_HOME="/opt/local/datadog"
+        else
+            DD_HOME=$HOME/.datadog-agent
+        fi
     fi
-}
-
-# Try to use curl to post the log in case of failure to an endpoint
-# Will try to send it by mail usint the mail function if curl failed
-report() {
-    get_api_key_to_report
-    log=$(cat "$logfile")
-    encoded_log=$(echo "$log" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
-    OS=$(echo "$unamestr" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
-    key_to_report=$(echo "$key_to_report" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
-    agent_version=$(echo "$tag" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
-    notification_message="$RED
-A notification has been sent to Datadog with the content of $logfile.
-
-Troubleshooting and basic usage information for the Agent are available at:
-
-    $agent_help_page
-
-If you're still having problems please send an email to $email_reporting_failure
-and we'll do our very best to help you solve your problem.\n$DEFAULT"
-
-    curl -f -s -d "version=$agent_version&os=$OS&apikey=$key_to_report&log=$encoded_log" $dogweb_reporting_failure_url >> $logfile 2>&1 && printf "$notification_message" || report_using_mail
-
-    exit 1
-
-}
-
-# If the user doesn't want to automatically report, display a message so he can reports manually
-report_manual() {
-
-   printf "$RED
-Troubleshooting and basic usage information for the Agent are available at:
-
-    $agent_help_page
-
-If you're still having problems, please send an email to $email_reporting_failure
-with the content of $logfile and any
-information you think would be useful and we'll do our very best to help you
-solve your problem.
-
-\n$DEFAULT"
-
- exit 1
-
-}
-
-# Try to send the report using the mail function if curl failed, and display
-# a message in case the mail function also failed
-report_using_mail() {
-    log=$(cat "$logfile")
-    notfication_message_manual="$RED
-Unable to send the report (you need curl or mail to send the report).
-
-Troubleshooting and basic usage information for the Agent are available at:
-
-    $agent_help_page
-
-If you're still having problems, please send an email to $email_reporting_failure
-with the content of $logfile and any
-information you think would be useful and we'll do our very best to help you
-solve your problem.
-
-
-\n$DEFAULT"
-
-    printf "$log" | mail -s "Agent source installation failure" $email_reporting_failure  2>> $logfile && printf "$notification_message" | tee -a $logfile || printf "$notfication_message_manual" | tee -a $logfile
-
-exit 1
-
-}
-
-# Will be called if an unknown error appears and that the Agent is not running
-# It asks the user if he wants to automatically send a failure report
-unknown_error() {
-  printf "$RED It looks like you hit an issue when trying to install the Agent.\n$DEFAULT" | tee -a $logfile
-  printf "$1" | tee -a $logfile
-
-  while true; do
-    read -p "Do you want to send a failure report to Datadog (Content of the report is in $logfile)? (y/n)" yn
-    case $yn in
-        [Yy]* ) report; break;;
-        [Nn]* ) report_manual; break;;
-        * ) echo "Please answer yes or no.";;
-    esac
-  done
-}
-
-
-# Small helper to display "Done"
-print_done() {
-  printf "$GREEN"
-  printf "Done\n" | tee -a $logfile
-  printf "$DEFAULT"
-}
-
-unamestr=`uname`
-
-
-#################################
-# Beginning of the installation #
-#################################
-
-printf "\n\nInstalling Datadog Agent $tag\n\n\n"
-
-
-if [ -n "$DD_API_KEY" ]; then
-    apikey=$DD_API_KEY
 fi
 
-if [ -n "$DD_HOME" ]; then
-    dd_home=$DD_HOME
-fi
+DD_API_KEY=${DD_API_KEY:-no_key}
 
-if [ -n "$DD_START_AGENT" ]; then
-    start_agent=$DD_START_AGENT
-else
-    start_agent=1
-fi
+DD_START_AGENT=${DD_START_AGENT:-1}
 
 if [ -n "$IS_OPENSHIFT" ]; then
-    is_openshift=$IS_OPENSHIFT
-else
-    is_openshift=0
+    printf "IS_OPENSHIFT is deprecated and won't do anything\n"
 fi
 
+DD_DOG=${DD_DOG:-0}
+set -u
+#######################################################################
+# CONSTANTS
+#######################################################################
+REPORT_FAILURE_URL="https://app.datadoghq.com/agent_stats/report_failure"
+REPORT_FAILURE_EMAIL="support@datadoghq.com"
 
-# Checking sysstat is installed
-if [ "$unamestr" != "Darwin" ]; then
-  iostat > /dev/null 2>&1
-  success=$?
-  if [ $success != 0 ]; then
-    quit_error "sysstat is not installed in your system
-If you run CentOs/RHEL, you can install it by running:
-  sudo yum install sysstat
-If you run Debian/Ubuntu, you can install it by running:
-  sudo apt-get install sysstat"
-  fi
-fi
-
-# Check python >= 2.6 is installed
-python -c "import sys; exit_code = 0 if sys.version_info[0]==2 and sys.version_info[1] > 5 else 66 ; sys.exit(exit_code)" > /dev/null 2>&1
-success=$?
-if [ $success != 0 ]; then
-  quit_error "Python 2.6 or 2.7 is required to install the Agent from source."
-fi
-
-# Determining which command to use to download files
-if [ $(which curl) ]; then
-    dl_cmd="curl -k -L -o"
-else
-    dl_cmd="wget -O"
-fi
-
-# create home base for the Agent
-if [ $dd_home ]; then
-  dd_base=$dd_home
-else
-  if [ "$unamestr" = "SunOS" ]; then
-      dd_base="/opt/local/datadog"
-  else
-      dd_base=$HOME/.datadog-agent
-  fi
-fi
-
-
-printf "Creating Agent directory $dd_base....."
-mkdir -p $dd_base
-printf "$GREEN Done\n$DEFAULT"
-
-logfile="$dd_base/ddagent-install.log"
-printf "Creating log file $logfile....." | tee -a $logfile
-print_done
-
-# Log the operating system version
-printf "Operating System: $unamestr\n" >> $logfile
-
-# set up a virtual env
-printf "Setting up virtual environment....." | tee -a $logfile
-$dl_cmd $dd_base/virtualenv.py https://raw.githubusercontent.com/pypa/virtualenv/1.11.6/virtualenv.py >> $logfile 2>&1
-
-if [ "$is_openshift" = "1" ]; then
-    python $dd_base/virtualenv.py --no-pip --no-setuptools --system-site-packages $dd_base/venv >> $logfile 2>&1
-else
-    python $dd_base/virtualenv.py --no-pip --no-setuptools $dd_base/venv >> $logfile 2>&1
-fi
-
-. $dd_base/venv/bin/activate >> $logfile 2>&1
-print_done
-
-# set up setuptools and pip with wheels support
-printf "Setting up setuptools and pip....." | tee -a $logfile
-$dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py >> $logfile 2>&1
-$dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
-$dl_cmd $dd_base/get-pip.py https://bootstrap.pypa.io/get-pip.py >> $logfile 2>&1
-$dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
-$dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
-print_done
-
-# install dependencies
-printf "Installing requirements using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements.txt  >> $logfile 2>&1
-$dd_base/venv/bin/pip install -r $dd_base/requirements.txt >> $logfile 2>&1
-rm $dd_base/requirements.txt
-print_done
-
-printf "Trying to install optional dependencies using pip....." | tee -a $logfile
-$dl_cmd $dd_base/requirements.txt https://raw.githubusercontent.com/DataDog/dd-agent/$tag/requirements-opt.txt  >> $logfile 2>&1
-while read DEPENDENCY
-do
-    ($dd_base/venv/bin/pip install $DEPENDENCY || printf "Cannot install $DEPENDENCY. There is probably no Compiler on the system.") >> $logfile 2>&1
-done < $dd_base/requirements.txt
-rm $dd_base/requirements.txt
-print_done
-
-# set up the Agent
-mkdir -p $dd_base/agent >> $logfile 2>&1
-
-printf "Downloading the latest version of the Agent from github (~2.5 MB)....." | tee -a $logfile
-$dl_cmd $dd_base/agent.tar.gz https://github.com/DataDog/dd-agent/tarball/$tag >> $logfile 2>&1
-print_done
-printf "Uncompressing the archive....." | tee -a $logfile
-tar -xz -C $dd_base/agent --strip-components 1 -f $dd_base/agent.tar.gz >> $logfile 2>&1
-print_done
-
-printf "Configuring datadog.conf file......" | tee -a $logfile
-if [ $apikey ]; then
-    sed "s/api_key:.*/api_key: $apikey/" $dd_base/agent/datadog.conf.example > $dd_base/agent/datadog.conf 2>> $logfile
-    chmod 640 $dd_base/agent/datadog.conf
-else
-  printf "No api key set. Assuming there is already a configuration file present." | tee -a $logfile
-fi
-
-if [ "$unamestr" = "SunOS" ]; then
-    # disable syslog by default on SunOS as it causes errors
-    sed -i "s/# log_to_syslog: yes/log_to_syslog: no/" $dd_base/agent/datadog.conf 2>> $logfile
-fi
-printf "disable_file_logging: True" >> $dd_base/agent/datadog.conf
-
-print_done
-
-printf "Setting up launching scripts....." | tee -a $logfile
-mkdir -p $dd_base/bin >> $logfile 2>&1
-cp $dd_base/agent/packaging/datadog-agent/source/agent $dd_base/bin/agent >> $logfile 2>&1
-cp $dd_base/agent/packaging/datadog-agent/source/info  $dd_base/bin/info >> $logfile 2>&1
-chmod +x $dd_base/bin/agent >> $logfile 2>&1
-chmod +x $dd_base/bin/info >> $logfile 2>&1
-print_done
-
-# This is the script that will be used by SMF
-if [ "$unamestr" = "SunOS" ]; then
-    cp $dd_base/agent/packaging/datadog-agent/smartos/dd-agent $dd_base/bin/dd-agent >> $logfile 2>&1
-    chmod +x $dd_base/bin/dd-agent >> $logfile 2>&1
-fi
-
-# set up supervisor
-printf "Setting up supervisor....." | tee -a $logfile
-mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
-$dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
-cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
-mkdir -p $dd_base/run
-print_done
-
-if [ "$unamestr" = "Darwin" ]; then
-    # prepare launchd
-    mkdir -p $dd_base/launchd/logs >> $logfile 2>&1
-    touch $dd_base/launchd/logs/launchd.log >> $logfile 2>&1
-    sed "s|AGENT_BASE|$dd_base|; s|USER_NAME|$(whoami)|" $dd_base/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example > $dd_base/launchd/com.datadoghq.Agent.plist
-fi
-
-# consolidate logging
-printf "Consolidating logging....." | tee -a $logfile
-mkdir -p $dd_base/logs >> $logfile 2>&1
-ln -s $dd_base/supervisord/logs $dd_base/logs/supervisord >> $logfile 2>&1
-if [ "$unamestr" = "Darwin" ]; then
-    ln -s $dd_base/launchd/logs $dd_base/logs/launchd >> $logfile 2>&1
-fi
-print_done
-
-# clean up
-printf "Cleaning up the installation directory....." | tee -a $logfile
-rm $dd_base/virtualenv.py >> $logfile 2>&1
-rm $dd_base/virtualenv.pyc >> $logfile 2>&1
-rm $dd_base/agent.tar.gz >> $logfile 2>&1
-print_done
-
-# on solaris, skip the test, svcadm the Agent
-if [ "$unamestr" = "SunOS" ]; then
-    # Install pyexpat for our version of python, a dependency for xml parsing (varnish et al.)
-    # Tested with /bin/sh
-    python -V 2>&1 | awk '{split($2, arr, "."); printf("py%d%d-expat", arr[1], arr[2]);}' | xargs pkgin -y in
-    # SMF work now
-    svccfg import $dd_base/agent/packaging/datadog-agent/smartos/dd-agent.xml >> $logfile 2>&1
-    svcadm enable site/datadog >> $logfile 2>&1
-    svcs datadog >> $logfile 2>&1
-
-    printf "*** The Agent is running. My work here is done... ( ^_^) ***" | tee -a $logfile
-    printf "
+AGENT_HELP_URL="http://docs.datadoghq.com/guides/basic_agent_usage/"
+INFRA_URL="https://app.datadoghq.com/infrastructure"
+DOG="
 
                                          7           77II?+~,,,,,,
                                         77II?~:,,,,,,,,,,,,,,,,,,,
@@ -380,88 +122,410 @@ if [ "$unamestr" = "SunOS" ]; then
                     I       7,,
                     I,,~++:,,,
                        ?:,:I 7
-    " | tee -a $logfile
-    # kthxbye
-    exit $?
-else
-  if [ "$start_agent" = "1" ]; then
-      printf "Starting the Agent....." | tee -a $logfile
-      # run Agent
-      cd $dd_base >> $logfile 2>&1
-      supervisord -c $dd_base/supervisord/supervisord.conf >> $logfile 2>&1 &
-      agent_pid=$!
-      sleep 1
-      # Checking that supervisord was properly launched
-      kill -0 $agent_pid > /dev/null 2>&1
-      supervisor_running=$?
+"
 
-      if [ $supervisor_running != 0 ]; then
-        unknown_error "Failure when launching supervisor.\n"
+LOGFILE="$DD_HOME/ddagent-install.log"
+BASE_GITHUB_URL="https://raw.githubusercontent.com/DataDog/dd-agent/$AGENT_VERSION"
 
-      fi
-      trap "{ kill $agent_pid; exit 255; }" INT TERM
-      trap "{ kill $agent_pid; exit; }" EXIT
-      print_done
+#######################################################################
+# Error reporting helpers
+#######################################################################
+print_console() {
+    printf "%s\n" "$*" | tee /dev/fd/3
+}
 
+print_red() {
+    printf "\033[31m%s\033[0m\n" "$*" | tee /dev/fd/3
+}
 
-      # wait for metrics to be submitted
-      printf "$GREEN
-  Your Agent has started up for the first time. We're currently verifying
-  that data is being submitted. You should see your Agent show up in Datadog
-  shortly at:
+print_green() {
+    printf "\033[32m%s\033[0m\n" "$*" | tee /dev/fd/3
+}
 
-      $see_agent_on_datadog_page $DEFAULT" | tee -a $logfile
+print_done() {
+    print_green "Done"
+}
 
-    printf "\n\nWaiting for metrics..." | tee -a $logfile
+# If the user doesn't want to automatically report, give info so he can report manually
+report_manual() {
+    print_red "Troubleshooting and basic usage information for the Agent are available at:
 
-      c=0
-      # Wait for 30 secs before checking if metrics have been submitted
-      while [ "$c" -lt "30" ]; do
-          sleep 1
-          printf "."
-          c=$(($c+1))
-      done
+    $AGENT_HELP_URL
 
-      # Hit this endpoint to check if the Agent is submitting metrics
-      # and retry every sec for 60 more sec before failing
-      curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
-      success=$?
-      while [ "$success" -gt "0" ]; do
-          sleep 1
-          printf "."
-          curl -f http://localhost:17123/status?threshold=0 >> $logfile 2>&1
-          success=$?
-          c=$(($c+1))
-          if [ "$c" -gt "90" ]; then
-            unknown_error "Agent did not submit metrics after 90 seconds
-            "
-          fi
-      done
+If you're still having problems, please send an email to $REPORT_FAILURE_EMAIL
+with the content of $LOGFILE and any
+information you think would be useful and we'll do our very best to help you
+solve your problem."
+    exit 1
+}
 
-      # print instructions
-      printf "$GREEN
+# Try to send the report using the mail function if curl failed, and display
+# a message in case the mail function also failed
+report_using_mail() {
+    if mail -s "Agent source installation failure" "$REPORT_FAILURE_EMAIL" < "$LOGFILE"; then
+        print_red "Unable to send the report (you need curl or mail to send the report).
 
-  Success! Your Agent is functioning properly, and will continue to run
-  in the foreground. To stop it, simply press CTRL-C. To start it back
-  up again in the foreground, run:
+Troubleshooting and basic usage information for the Agent are available at:
 
-  cd $dd_base
-  sh bin/agent
+    $REPORT_FAILURE_URL
 
-  " | tee -a $logfile
+If you're still having problems, please send an email to $REPORT_FAILURE_EMAIL
+with the content of $LOGFILE and any
+information you think would be useful and we'll do our very best to help you
+solve your problem."
+        exit 1
+    else
+        report_manual
+    fi
+}
 
-      if [ "$unamestr" = "Darwin" ]; then
-      echo "To set it up as a daemon that always runs in the background
-  while you're logged in, run:
+# Try to use curl to post the log in case of failure to an endpoint
+# Will try to send it by mail using the mail function if curl failed
+report() {
+    ESC_LOG=$(python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())' < "$LOGFILE")
+    ESC_OS=$(uname | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    ESC_API_KEY=$(echo "$DD_API_KEY" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
+    ESC_AGENT_VERSION=$(echo "$AGENT_VERSION" | python -c 'import sys, urllib; print urllib.quote(sys.stdin.read().strip())')
 
-      mkdir -p ~/Library/LaunchAgents
-      cp $dd_base/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/.
-      launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
-  " | tee -a $logfile
-      fi
+    if curl -f -s -d "version=$ESC_AGENT_VERSION&os=$ESC_OS&apikey=$ESC_API_KEY&log=$ESC_LOG" $REPORT_FAILURE_URL; then
+        print_red "A notification has been sent to Datadog with the content of $LOGFILE
 
-      printf "$DEFAULT"
+Troubleshooting and basic usage information for the Agent are available at:
 
-    wait $agent_pid
-  fi
+    $AGENT_HELP_URL
+
+If you're still having problems please send an email to $REPORT_FAILURE_EMAIL
+and we'll do our very best to help you solve your problem."
+        exit 1
+    else
+        report_using_mail
+    fi
+}
+
+# Will be called if an unknown error appears and that the Agent is not running
+# It asks the user if he wants to automatically send a failure report
+error_trap() {
+    print_red "It looks like you hit an issue when trying to install the Datadog agent."
+    print_console "###"
+    if [ -n "$ERROR_MESSAGE" ]; then
+        print_red "$ERROR_MESSAGE"
+    else
+        tail -n 5 "$LOGFILE" | tee /dev/fd/3
+    fi
+    print_console "###"
+
+    print_console
+    while true; do
+        print_console "Do you want to send a failure report to Datadog (Content of the report is in $LOGFILE)? (y/n)"
+        read yn
+        case $yn in
+            [Yy]* ) report; break;;
+            [Nn]* ) report_manual; break;;
+            * ) print_console "Please answer yes or no.";;
+        esac
+    done
+}
+
+#######################################################################
+# PREPARING FOR EXECUTION
+#######################################################################
+
+# We need to create this dir beforehand to put the logfile somewhere
+mkdir -p "$DD_HOME"
+# Redirect all stdout/stderr to a log file
+# Let fd 3 opened to output to console
+exec 3>&1 1>>"$LOGFILE" 2>&1
+# Check logfile is writable
+print_console "Checking that logfile is writable"
+print_green "OK"
+
+# Catch errors and handle them
+trap error_trap INT TERM EXIT
+
+if [ "$DD_DOG" != "0" ]; then
+    echo "$DOG" 1>&3
 fi
+
+#######################################################################
+# CHECKING REQUIREMENTS
+#######################################################################
+detect_python() {
+    if command -v python2.7; then
+        export PYTHON_CMD="python2.7"
+    elif command -v python2; then
+        # FreeBSD apparently uses this
+        export PYTHON_CMD="python2"
+    else
+        export PYTHON_CMD="python"
+    fi
+}
+
+detect_downloader() {
+    if command -v curl; then
+        export DOWNLOADER="curl -k -L -o"
+    elif command -v wget; then
+        export DOWNLOADER="wget -O"
+    fi
+}
+
+detect_sed() {
+    if command -v sed; then
+        export SED_CMD="sed"
+    fi
+}
+
+print_console "Checking installation requirements"
+
+print_green "* uname $(uname)"
+
+# Sysstat must be installed, except on Macs
+ERROR_MESSAGE="sysstat is not installed on your system
+If you run CentOs/RHEL, you can install it by running:
+  sudo yum install sysstat
+If you run Debian/Ubuntu, you can install it by running:
+  sudo apt-get install sysstat"
+
+if [ "$(uname)" != "Darwin" ]; then
+    iostat > /dev/null 2>&1
+fi
+print_green "* sysstat is installed"
+
+# Detect Python version
+ERROR_MESSAGE="Python 2.6 or 2.7 is required to install the agent from source"
+detect_python
+if [ -z "$PYTHON_CMD" ]; then exit 1; fi
+$PYTHON_CMD -c "import sys; exit_code = 0 if sys.version_info[0]==2 and sys.version_info[1] > 5 else 66 ; sys.exit(exit_code)" > /dev/null 2>&1
+print_green "* python found, using \`$PYTHON_CMD\`"
+
+# Detect downloader
+ERROR_MESSAGE="curl OR wget are required to install the agent from source"
+detect_downloader
+if [ -z "$DOWNLOADER" ]; then exit 1; fi
+print_green "* downloader found, using \`$DOWNLOADER\`"
+
+# sed is required to "template" the configuration files
+detect_sed
+if [ -z "$SED_CMD" ]; then
+    print_red "* sed command not found. Will proceed without configuring the agent"
+else
+    print_green "* sed found, using \`$SED_CMD\`"
+fi
+
+
+#######################################################################
+# INSTALLING
+#######################################################################
+
+print_console
+print_console
+print_console "Installing Datadog Agent $AGENT_VERSION"
+print_console "Installation is logged at $LOGFILE"
+print_console
+
+# The steps are detailed enough to know where it fails
+ERROR_MESSAGE=""
+
+print_console "* Setting up a python virtual env"
+$DOWNLOADER "$DD_HOME/virtualenv.py" "https://raw.githubusercontent.com/pypa/virtualenv/$VIRTUALENV_VERSION/virtualenv.py"
+$PYTHON_CMD "$DD_HOME/virtualenv.py" --no-pip --no-setuptools "$DD_HOME/venv"
+rm -f "$DD_HOME/virtualenv.py"
+rm -f "$DD_HOME/virtualenv.pyc"
+print_done
+
+print_console "* Activating the virtual env"
+# venv activation script doesn't handle -u mode
+set +u
+. "$DD_HOME/venv/bin/activate"
+set -u
+print_done
+
+VENV_PYTHON_CMD="$DD_HOME/venv/bin/python"
+VENV_PIP_CMD="$DD_HOME/venv/bin/pip"
+
+print_console "* Setting up setuptools"
+$DOWNLOADER "$DD_HOME/ez_setup.py" https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py
+$VENV_PYTHON_CMD "$DD_HOME/ez_setup.py"
+rm -f "$DD_HOME/ez_setup.py"
+rm -f "$DD_HOME/ez_setup.pyc"
+print_done
+
+print_console "* Setting up pip"
+$DOWNLOADER "$DD_HOME/get-pip.py" https://bootstrap.pypa.io/get-pip.py
+$VENV_PYTHON_CMD "$DD_HOME/get-pip.py"
+$VENV_PIP_CMD install "pip==$PIP_VERSION"
+rm -f "$DD_HOME/get-pip.py"
+rm -f "$DD_HOME/get-pip.pyc"
+print_done
+
+print_console "* Installing requirements"
+$DOWNLOADER "$DD_HOME/requirements.txt" "$BASE_GITHUB_URL/requirements.txt"
+$VENV_PIP_CMD install -r "$DD_HOME/requirements.txt"
+rm -f "$DD_HOME/requirements.txt"
+print_done
+
+print_console "* Trying to install optional requirements"
+$DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
+OPTIONAL_FAILED="0"
+while read DEPENDENCY; do
+    if $VENV_PIP_CMD install "$DEPENDENCY"; then
+        print_console "   - $DEPENDENCY installed"
+    else
+        print_console "   - Couldn't install $DEPENDENCY"
+        OPTIONAL_FAILED="1"
+    fi
+done < "$DD_HOME/requirements-opt.txt"
+if [ "$OPTIONAL_FAILED" = "1" ]; then
+    print_console "Some optional requirements couldn't be installed (but you may not need them).
+Usually this can be fixed easily by installing the python-dev package and/or compiling tools"
+fi
+print_done
+
+print_console "* Downloading agent version $AGENT_VERSION from GitHub (~5 MB)"
+mkdir -p "$DD_HOME/agent"
+$DOWNLOADER "$DD_HOME/agent.tar.gz" "https://github.com/DataDog/dd-agent/tarball/$AGENT_VERSION"
+print_done
+
+print_console "* Uncompressing tarball"
+tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
+rm -f "$DD_HOME/agent.tar.gz"
+print_done
+
+print_console "* Setting up a datadog.conf generic configuration file"
+if [ "$DD_API_KEY" = "no_key" ]; then
+    print_console "    Got no API KEY through $DD_API_KEY. Proceeding without installing datadog.conf"
+elif [ -z "$SED_CMD" ]; then
+    print_console "    No sed command. Proceeding without installing datadog.conf"
+else
+    # Install API key
+    $SED_CMD "s/api_key:.*/api_key: $DD_API_KEY/" "$DD_HOME/agent/datadog.conf.example" > "$DD_HOME/agent/datadog.conf"
+    # Disable syslog by default on SunOS as it causes errors
+    if [ "$(uname)" = "SunOS" ]; then
+        $SED_CMD -i "s/# log_to_syslog: yes/log_to_syslog: no/" "$DD_HOME/agent/datadog.conf"
+    fi
+    echo "disable_file_logging: True" >> "$DD_HOME/agent/datadog.conf"
+    chmod 640 "$DD_HOME/agent/datadog.conf"
+fi
+print_done
+
+print_console "* Setting up init scripts"
+mkdir -p "$DD_HOME/bin"
+cp "$DD_HOME/agent/packaging/datadog-agent/source/agent" "$DD_HOME/bin/agent"
+cp "$DD_HOME/agent/packaging/datadog-agent/source/info" "$DD_HOME/bin/info"
+chmod +x "$DD_HOME/bin/agent"
+chmod +x "$DD_HOME/bin/info"
+if [ "$(uname)" = "SunOS" ]; then
+    cp "$DD_HOME/agent/packaging/datadog-agent/smartos/dd-agent" "$DD_HOME/bin/dd-agent"
+    chmod +x "$DD_HOME/bin/dd-agent"
+fi
+print_done
+
+print_console "* Setting up supervisord (or launchd on OSX)"
+if [ "$(uname)" = "Darwin" ]; then
+    mkdir -p "$DD_HOME/launchd/logs"
+    touch "$DD_HOME/launchd/logs/launchd.log"
+    $SED_CMD "s|AGENT_BASE|$DD_HOME|; s|USER_NAME|$(whoami)|" "$DD_HOME/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example" > "$DD_HOME/launchd/com.datadoghq.Agent.plist"
+    ln -s "$DD_HOME/launchd/logs" "$DD_HOME/logs"
+else
+    mkdir -p "$DD_HOME/supervisord/logs"
+    $VENV_PIP_CMD install "supervisor==$SUPERVISOR_VERSION"
+    cp "$DD_HOME/agent/packaging/datadog-agent/source/supervisord.conf" "$DD_HOME/supervisord/supervisord.conf"
+    ln -s "$DD_HOME/supervisord/logs" "$DD_HOME/logs"
+    mkdir -p "$DD_HOME/run"
+fi
+print_done
+
+print_console "* Starting the agent"
+if [ "$DD_START_AGENT" = "0" ]; then
+    print_console "    Skipping due to \$DD_AGENT_START"
+    exit 0
+fi
+
+# on solaris, skip the test, svcadm the Agent
+if [ "$(uname)" = "SunOs" ]; then
+    # Install pyexpat for our version of python, a dependency for xml parsing (varnish et al.)
+    # Tested with /bin/sh
+    $PYTHON_CMD -V 2>&1 | awk '{split($2, arr, "."); printf("py%d%d-expat", arr[1], arr[2]);}' | xargs pkgin -y in
+    # SMF work now
+    svccfg import "$DD_HOME/agent/packaging/datadog-agent/smartos/dd-agent.xml"
+    svcadm enable site/datadog
+    if svcs datadog; then
+        print_done
+        print_console "*** The Agent is running. My work here is done... (^_^) ***"
+        exit 0
+    else
+        # KTHXBYE
+        exit $?
+    fi
+fi
+
+# supervisord.conf uses relative paths so need to chdir
+cd "$DD_HOME"
+supervisord -c supervisord/supervisord.conf &
+cd -
+AGENT_PID=$!
+sleep 1
+
+# Checking that the agent is up
+if ! kill -0 $AGENT_PID; then
+    ERROR_MESSAGE="Failure when launching supervisord"
+    exit 1
+fi
+print_green "    - supervisord started"
+
+# On errors and exit, quit properly
+trap '{ kill $AGENT_PID; exit 255; }' INT TERM
+trap '{ kill $AGENT_PID; exit; }' EXIT
+
+print_console
+print_green "Your Agent has started up for the first time. We're currently verifying
+that data is being submitted. You should see your Agent show up in Datadog
+shortly at:
+
+      $INFRA_URL"
+
+print_console
+print_console "* Waiting 30s to see if the agent submits metrics correctly"
+c=0
+while [ "$c" -lt "30" ]; do
+    sleep 1
+    printf "."
+    c=$((c+1))
+done
+
+# Hit this endpoint to check if the Agent is submitting metrics
+# and retry every sec for 60 more sec before failing
+ERROR_MESSAGE="Agent did not submit metrics after 90 seconds"
+while [ "$c" -lt "90" ]; do
+    sleep 1
+    printf "."
+    if curl -f "http://localhost:17123/status?threshold=0"; then
+        break
+    fi
+    c=$((c+1))
+done
+
+if [ "$c" -gt "91" ]; then
+    exit 1
+fi
+
+# Yay IT WORKED!
+print_console
+
+print_green "Success! Your Agent is functioning properly, and will continue to run
+in the foreground. To stop it, simply press CTRL-C. To start it back
+up again in the foreground, run:
+
+    $DD_HOME/bin/agent
+"
+
+if [ "$(uname)" = "Darwin" ]; then
+    print_console "To set it up as a daemon that always runs in the background
+while you're logged in, run:
+
+    mkdir -p ~/Library/LaunchAgents
+    cp $DD_HOME/launchd/com.datadoghq.Agent.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.datadoghq.Agent.plist
+"
+fi
+
+wait $AGENT_PID
