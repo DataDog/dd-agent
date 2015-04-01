@@ -16,8 +16,8 @@ SEARCH_WILDCARD = '*'
 
 
 class WMICheck(AgentCheck):
-    def __init__(self, name, init_config, agentConfig):
-        AgentCheck.__init__(self, name, init_config, agentConfig)
+    def __init__(self, name, init_config, agentConfig, instances):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.wmi_conns = {}
 
     def _get_wmi_conn(self, host, user, password):
@@ -31,7 +31,6 @@ class WMICheck(AgentCheck):
         user = instance.get('username', None)
         password = instance.get('password', None)
         w = self._get_wmi_conn(host, user, password)
-
         wmi_class = instance.get('class')
         metrics = instance.get('metrics')
         filters = instance.get('filters')
