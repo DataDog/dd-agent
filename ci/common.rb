@@ -67,7 +67,7 @@ namespace :ci do
 
     task :before_cache do |t|
       section('BEFORE_CACHE')
-      sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log' -delete)
+      sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log*' -delete)
       t.reenable
     end
 
