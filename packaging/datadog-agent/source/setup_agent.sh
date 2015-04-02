@@ -8,7 +8,7 @@ set -u
 # SCRIPT KNOBS
 #######################################################################
 # Update for new releases, will pull this tag in the repo
-AGENT_VERSION="5.6.3"
+DEFAULT_AGENT_VERSION="5.6.3"
 # Pin pip version, in the past there was some buggy releases and get-pip.py
 # always pulls the latest version
 PIP_VERSION="6.0.8"
@@ -17,7 +17,9 @@ SUPERVISOR_VERSION="3.0b2"
 
 #######################################################################
 # OVERRIDABLE VARIABLES:
-#
+# $AGENT_VERSION
+#   The tag or branch from which the source install performs.
+#   Defaults to $DEFAULT_AGENT_VERSION
 # $DD_API_KEY
 #   Sets your API key in the config when installing.
 #   If not specified, the script will not install a default config.
@@ -39,6 +41,8 @@ SUPERVISOR_VERSION="3.0b2"
 #   your cartridge if you're using it.
 #######################################################################
 set +u # accept temporarily unbound vars, because we set defaults
+AGENT_VERSION=${AGENT_VERSION:-$DEFAULT_AGENT_VERSION}
+
 # If DD_HOME is unset
 if [ -z "$DD_HOME" ]; then
     # Compatibilty: dd_home used in lieu of DD_HOME
