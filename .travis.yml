@@ -11,6 +11,8 @@ python:
   - "2.7"
 
 cache:
+  debug: true
+  edge: true
   directories:
     - $HOME/virtualenv/python2.6.9/lib/python2.6/site-packages
     - $HOME/virtualenv/python2.7.9/lib/python2.7/site-packages
@@ -77,7 +79,7 @@ env:
     - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
 
 # Override travis defaults with empty jobs
-before_install: echo "OVERRIDING TRAVIS STEPS"
+before_install: cat $HOME/.casher/fetch.log
 install: echo "OVERRIDING TRAVIS STEPS"
 before_script: echo "OVERRIDING TRAVIS STEPS"
 
