@@ -120,9 +120,13 @@ class AgentCheckTest(unittest.TestCase):
 
         self.check = None
 
+    def is_travis(self):
+        return "TRAVIS" in os.environ
+
     # Helper function when testing rates
-    def run_check_twice(self, config, agent_config=None, mocks=None):
-        self.run_check(config, agent_config, mocks)
+    def run_check_twice(self, config, agent_config=None, mocks=None,
+        force_reload=False):
+        self.run_check(config, agent_config, mocks, force_reload)
         time.sleep(1)
         self.run_check(config, agent_config, mocks)
 

@@ -4,7 +4,7 @@ from checks import AgentCheck
 # 3rd party
 import memcache
 
-# Reference: http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
+# Ref: http://code.sixapart.com/svn/memcached/trunk/server/doc/protocol.txt
 # Name              Type     Meaning
 # ----------------------------------
 # pid               32u      Process id of this server process
@@ -61,6 +61,7 @@ import memcache
 # http://www.couchbase.org/wiki/display/membase/Membase+Statistics
 # https://github.com/membase/ep-engine/blob/master/docs/stats.org
 
+
 class Memcache(AgentCheck):
 
     SOURCE_TYPE_NAME = 'memcached'
@@ -111,7 +112,10 @@ class Memcache(AgentCheck):
             mc = memcache.Client(["%s:%s" % (server, port)])
             raw_stats = mc.get_stats()
 
-            assert len(raw_stats) == 1 and len(raw_stats[0]) == 2, "Malformed response: %s" % raw_stats
+            assert len(raw_stats) == 1 and len(raw_stats[0]) == 2,\
+                "Malformed response: %s" % raw_stats
+            
+
             # Access the dict
             stats = raw_stats[0][1]
             for metric in stats:
@@ -123,7 +127,8 @@ class Memcache(AgentCheck):
                 # Tweak the name if it's a rate so that we don't use the exact
                 # same metric name as the memcache documentation
                 if metric in self.RATES:
-                    our_metric = self.normalize(metric.lower() + "_rate", 'memcache')
+                    our_metric = self.normalize(
+                        "{0}_rate".format(metric.lower()), 'memcache')
                     self.rate(our_metric, float(stats[metric]), tags=tags)
 
             # calculate some metrics based on other metrics.
@@ -157,14 +162,18 @@ class Memcache(AgentCheck):
                 pass
 
             uptime = stats.get("uptime", 0)
-            self.service_check(self.SERVICE_CHECK, AgentCheck.OK,
+            self.service_check(
+                self.SERVICE_CHECK, AgentCheck.OK,
                 tags=service_check_tags,
                 message="Server has been up for %s seconds" % uptime)
         except AssertionError:
-            self.service_check(self.SERVICE_CHECK, AgentCheck.CRITICAL,
+            self.service_check(
+                self.SERVICE_CHECK, AgentCheck.CRITICAL,
                 tags=service_check_tags,
                 message="Unable to fetch stats from server")
-            raise Exception("Unable to retrieve stats from memcache instance: " + server + ":" + str(port) + ". Please check your configuration")
+            raise Exception(
+                "Unable to retrieve stats from memcache instance: {0}:{1}."
+                "Please check your configuration".format(server, port))
 
         if mc is not None:
             mc.disconnect_all()
@@ -172,23 +181,18 @@ class Memcache(AgentCheck):
         del mc
 
     def check(self, instance):
-        socket = instance.get('socket', None)
-        server = instance.get('url', None)
+        socket = instance.get('socket')
+        server = instance.get('url')
         if not server and not socket:
-            raise Exception("Missing or null 'url' and 'socket' in mcache config")
-
-        # Hacky monkeypatch to fix a memory leak in the memcache library.
-        # See https://github.com/DataDog/dd-agent/issues/278 for details.
-        try:
-            memcache.Client.debuglog = None
-        except Exception:
-            pass
+            raise Exception('Either "url" or "socket" must be configured')
 
         if socket:
             server = 'unix'
             port = socket
         else:
             port = int(instance.get('port', self.DEFAULT_PORT))
-        tags = instance.get('tags', None)
+        custom_tags = instance.get('tags') or []
+
+        tags = ["url:{0}:{1}".format(server, port)] + custom_tags
 
         self._get_metrics(server, port, tags)
