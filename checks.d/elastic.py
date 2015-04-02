@@ -499,11 +499,11 @@ class ESCheck(AgentCheck):
 
         return {
             'timestamp': int(time.time()),
-            'event_type': 'elasticsearch',
+            'event_type': self.SOURCE_TYPE_NAME,
             'host': hostname,
             'msg_text': msg,
             'msg_title': msg_title,
             'alert_type': alert_type,
-            'source_type_name': "elasticsearch",
+            'source_type_name': self.SOURCE_TYPE_NAME,
             'event_object': hostname
         }
