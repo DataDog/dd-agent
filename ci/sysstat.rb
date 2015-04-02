@@ -32,9 +32,9 @@ namespace :ci do
     end
 
     task :before_script => ['ci:common:before_script'] do
-      # FIXME: probably not the cleanest way to go
       sh %(mkdir -p $INTEGRATIONS_DIR/bin)
-      sh %(cp #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin)
+      sh %(rm -f $INTEGRATIONS_DIR/bin/mpstat)
+      sh %(ln -s #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin/mpstat)
     end
 
     task :script => ['ci:common:script'] do

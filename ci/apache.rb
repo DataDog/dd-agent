@@ -66,7 +66,10 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # Useless to cache the conf, as it is regenerated every time
+      sh %(rm -f #{apache_rootdir}/conf/httpd.conf)
+    end
 
     task :cache => ['ci:common:cache']
 

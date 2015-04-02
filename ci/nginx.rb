@@ -43,7 +43,10 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # Conf is regenerated at every run
+      sh %(rm -f #{nginx_rootdir}/conf/nginx.conf)
+    end
 
     task :cache => ['ci:common:cache']
 

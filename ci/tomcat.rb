@@ -41,7 +41,11 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # Regenerated at every run
+      sh %(rm -f #{tomcat_rootdir}/bin/setenv.sh)
+      sh %(rm -f #{tomcat_rootdir}/conf/server.xml)
+    end
 
     task :cache => ['ci:common:cache']
 

@@ -84,12 +84,17 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # It's the pid file which changes eveytime,
+      # so let's actually cleanup before cache
+      Rake::Task['ci:couchdb:cleanup'].invoke
+    end
 
     task :cache => ['ci:common:cache']
 
     task :cleanup => ['ci:common:cleanup'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -k)
+      sh %(rm -f #{couchdb_rootdir}/var/run/couchdb/couchdb.pid)
     end
 
     task :execute do
