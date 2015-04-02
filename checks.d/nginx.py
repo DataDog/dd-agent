@@ -93,7 +93,7 @@ class Nginx(AgentCheck):
             handled = int(parsed.group(2))
             requests = int(parsed.group(3))
             output.extend([('nginx.net.conn_opened_per_s', conn, tags, 'rate'),
-                           ('nginx.net.conn_handled_per_s', conn, tags, 'rate'),
+                           ('nginx.net.conn_dropped_per_s', conn - handled, tags, 'rate'),
                            ('nginx.net.request_per_s', requests, tags, 'rate')])
 
         # Connection states, reading, writing or waiting for clients
