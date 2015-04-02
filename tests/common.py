@@ -248,16 +248,6 @@ WARNINGS
 
     def assertMetric(self, metric_name, value=None, tags=None, count=None,
         at_least=1, hostname=None):
-        log.debug("Looking for metric {0}".format(metric_name))
-        if value is not None:
-            log.debug(" * with value {0}".format(value))
-        if tags is not None:
-            log.debug(" * tagged with {0}".format(tags))
-        if count is not None:
-            log.debug(" * should have exactly {0} data points".format(count))
-        if at_least is not None:
-            log.debug(" * should have at least {0} data points".format(at_least))
-
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
@@ -273,7 +263,8 @@ WARNINGS
         try:
             self._candidates_size_assert(candidates, count=count, at_least=at_least)
         except AssertionError:
-            log.error("No candidates for {0} (value: {1}, tags: {2}, count: {3}, at_least: {4}, hostname: {5})"\
+            log.error("Candidates size assertion for {0} (value: {1}, tags: {2}, "
+                "count: {3}, at_least: {4}, hostname: {5}) failed"\
                 .format(metric_name, value, tags, count, at_least, hostname))
             raise
 
@@ -301,7 +292,8 @@ WARNINGS
         try:
             self._candidates_size_assert(candidates, count=count)
         except AssertionError:
-            log.error("No candidates for {0} (tag_prefix: {1}, count: {2}, at_least: {3}"\
+            log.error("Candidates size assertion for {0} (tag_prefix: {1}, "
+                "count: {2}, at_least: {3}) failed"\
                 .format(metric_name, tag_prefix, count, at_least))
             raise
 
@@ -329,7 +321,8 @@ WARNINGS
         try:
             self._candidates_size_assert(candidates, count=count)
         except AssertionError:
-            log.error("No candidates for {0} (tag: {1}, count={2}, at_least={3}"\
+            log.error("Candidates size assertion for {0} (tag: {1}, count={2},"
+                " at_least={3}) failed"\
                 .format(metric_name, tag, count, at_least))
             raise
 
@@ -361,7 +354,8 @@ WARNINGS
         try:
             self._candidates_size_assert(candidates, count=count, at_least=at_least)
         except AssertionError:
-            log.error("No candidates for {0} (status: {1}, tags: {2}, count: {3}, at_least: {4}"\
+            log.error("Candidates size assertion for {0} (status: {1}, "
+                "tags: {2}, count: {3}, at_least: {4}) failed"\
                 .format(service_check_name, status, tags, count, at_least))
             raise
 

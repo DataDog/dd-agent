@@ -153,6 +153,7 @@ class TestElastic(AgentCheckTest):
     def test_check(self):
         conf_hostname = "foo"
         port = 9200
+        bad_port = 9205
         agent_config = {
             "hostname": conf_hostname, "version": get_version(),
             "api_key": "bar"
@@ -160,7 +161,7 @@ class TestElastic(AgentCheckTest):
 
         tags = ['foo:bar', 'baz']
         url = 'http://localhost:{0}'.format(port)
-        bad_url = 'http://localhost:{0}'.format(port + 1)
+        bad_url = 'http://localhost:{0}'.format(bad_port)
 
         config = {
             'instances': [
@@ -210,7 +211,7 @@ class TestElastic(AgentCheckTest):
                         m_name, tags=m_tags, count=1, hostname=hostname)
 
         good_sc_tags = ['host:localhost', 'port:{0}'.format(port)]
-        bad_sc_tags = ['host:localhost', 'port:{0}'.format(port + 1)]
+        bad_sc_tags = ['host:localhost', 'port:{0}'.format(bad_port)]
 
         self.assertServiceCheck('elasticsearch.can_connect',
                                 status=AgentCheck.OK, tags=good_sc_tags,
@@ -220,7 +221,8 @@ class TestElastic(AgentCheckTest):
                                 count=1)
 
 
-        status = AgentCheck.OK if os.environ.get("TRAVIS") else AgentCheck.CRITICAL
+        status = AgentCheck.OK if os.environ.get("TRAVIS")\
+            else AgentCheck.CRITICAL
         # Travis doesn't have any shards in the cluster and consider this as green
         self.assertServiceCheck('elasticsearch.cluster_health',
                                 status=status, tags=good_sc_tags,
