@@ -20,9 +20,17 @@ def pid_exists(pid):
     if psutil:
         return psutil.pid_exists(pid)
 
-    # We don't support windows for now
     if Platform.is_windows():
-        raise NotImplementedError("pid_exists is not implemented for Windows")
+        import ctypes  # Available from python2.5
+        kernel32 = ctypes.windll.kernel32
+        synchronize = 0x100000
+
+        process = kernel32.OpenProcess(synchronize, 0, pid)
+        if process != 0:
+            kernel32.CloseHandle(process)
+            return True
+        else:
+            return False
 
     # Code from psutil._psposix.pid_exists
     # See https://github.com/giampaolo/psutil/blob/master/psutil/_psposix.py
