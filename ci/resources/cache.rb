@@ -23,6 +23,7 @@
 # Original file:
 # https://github.com/travis-ci/travis-build/blob/d1c3be0b6aec5989872f9c534185585108125d0d/lib/travis/build/script/shared/directory_cache/s3.rb
 
+require 'digest/md5'
 require 'shellwords'
 
 require './ci/resources/cache/aws4_signature'
@@ -70,9 +71,13 @@ class Cache
     @data = data
     @start = start
     @msgs = []
-    @slug = ENV['TRAVIS_FLAVOR'] || (0...50).map { ('a'..'z').to_a[rand(26)] }.join
+    @slug = ENV['TRAVIS_FLAVOR']
     @slug += '-' + ENV['FLAVOR_VERSION'] if ENV['FLAVOR_VERSION']
+    # the cached artifacts depend on the CI file version
+    @slug += '-' + Digest::MD5.hexdigest(File.read("#{ENV['TRAVIS_BUILD_DIR']}/ci/#{ENV['TRAVIS_FLAVOR']}.rb"))
     @directories = []
+
+    puts "SLUG #{@slug}"
   end
 
   def valid?
