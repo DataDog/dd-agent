@@ -15,8 +15,9 @@ def section(name)
   puts ''
 end
 
-# Initialize cache if in travis
-if ENV['TRAVIS']
+# Initialize cache if in travis and in our repository
+# (no cache for external contributors)
+if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
   cache = Cache.new({
     debug: ENV['DEBUG_CACHE'],
     s3: {
@@ -32,7 +33,7 @@ namespace :ci do
     task :before_install do |t|
       section('BEFORE_INSTALL')
       sh %(mkdir -p $VOLATILE_DIR)
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         cache.directories = ["#{ENV['HOME']}/embedded"]
         cache.setup
       end
