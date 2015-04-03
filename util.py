@@ -332,9 +332,9 @@ class EC2(object):
 
             import boto.ec2
             connection = boto.ec2.connect_to_region(region, aws_access_key_id=iam_params['AccessKeyId'], aws_secret_access_key=iam_params['SecretAccessKey'], security_token=iam_params['Token'])
-            instance_object = connection.get_only_instances([EC2.metadata['instance-id']])[0]
+            tag_object = connection.get_all_tags({'resource-id': EC2.metadata['instance-id']})
 
-            EC2_tags = [u"%s:%s" % (tag_key, tag_value) for tag_key, tag_value in instance_object.tags.iteritems()]
+            EC2_tags = [u"%s:%s" % (tag.name, tag.value) for tag in tag_object]
 
         except Exception:
             log.exception("Problem retrieving custom EC2 tags")
