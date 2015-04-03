@@ -7,6 +7,7 @@ import sys
 import time
 import traceback
 import unittest
+from pprint import pformat
 
 # project
 from checks import AgentCheck
@@ -176,10 +177,10 @@ SERVICE CHECKS
 WARNINGS
     {warnings}
 ++++++++++++++++++++++++++++""".format(
-            metrics=self.metrics,
-            events=self.events,
-            sc=self.service_checks,
-            warnings=self.warnings
+            metrics=pformat(self.metrics),
+            events=pformat(self.events),
+            sc=pformat(self.service_checks),
+            warnings=pformat(self.warnings)
         ))
 
     def coverage_report(self):
@@ -224,11 +225,11 @@ WARNINGS
             tested_metrics=tested_metrics,
             total_metrics=total_metrics,
             coverage_metrics=coverage_metrics,
-            untested_metrics=untested_metrics,
+            untested_metrics=pformat(untested_metrics),
             tested_sc=tested_sc,
             total_sc=total_sc,
             coverage_sc=coverage_sc,
-            untested_sc=untested_sc,
+            untested_sc=pformat(untested_sc),
         ))
 
         if os.getenv('COVERAGE'):
@@ -249,17 +250,8 @@ WARNINGS
             self.print_current_state()
             raise
 
-    def assertMetric(self, metric_name, value=None, tags=None, count=None, at_least=1):
-        log.debug("Looking for metric {0}".format(metric_name))
-        if value is not None:
-            log.debug(" * with value {0}".format(value))
-        if tags is not None:
-            log.debug(" * tagged with {0}".format(tags))
-        if count is not None:
-            log.debug(" * should have exactly {0} data points".format(count))
-        if at_least is not None:
-            log.debug(" * should have at least {0} data points".format(at_least))
-
+    def assertMetric(self, metric_name, value=None, tags=None, count=None,
+        at_least=1, hostname=None):
         candidates = []
         for m_name, ts, val, mdata in self.metrics:
             if m_name == metric_name:
@@ -267,10 +259,19 @@ WARNINGS
                     continue
                 if tags is not None and sorted(tags) != sorted(mdata.get("tags", [])):
                     continue
+                if hostname is not None and mdata['hostname'] != hostname:
+                    continue
 
                 candidates.append((m_name, ts, val, mdata))
 
-        self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        try:
+            self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        except AssertionError:
+            log.error("Candidates size assertion for {0} (value: {1}, tags: {2}, "
+                "count: {3}, at_least: {4}, hostname: {5}) failed"\
+                .format(metric_name, value, tags, count, at_least, hostname))
+            raise
+
         for mtuple in self.metrics:
             for cmtuple in candidates:
                 if mtuple == cmtuple:
@@ -292,7 +293,14 @@ WARNINGS
                     continue
                 candidates.append((m_name, ts, val, mdata))
 
-        self._candidates_size_assert(candidates, count=count)
+        try:
+            self._candidates_size_assert(candidates, count=count)
+        except AssertionError:
+            log.error("Candidates size assertion for {0} (tag_prefix: {1}, "
+                "count: {2}, at_least: {3}) failed"\
+                .format(metric_name, tag_prefix, count, at_least))
+            raise
+
         for mtuple in self.metrics:
             for cmtuple in candidates:
                 if mtuple == cmtuple:
@@ -314,14 +322,22 @@ WARNINGS
                     continue
                 candidates.append((m_name, ts, val, mdata))
 
-        self._candidates_size_assert(candidates, count=count)
+        try:
+            self._candidates_size_assert(candidates, count=count)
+        except AssertionError:
+            log.error("Candidates size assertion for {0} (tag: {1}, count={2},"
+                " at_least={3}) failed"\
+                .format(metric_name, tag, count, at_least))
+            raise
+
         for mtuple in self.metrics:
             for cmtuple in candidates:
                 if mtuple == cmtuple:
                     mtuple[3]['tested'] = True
         log.debug("FOUND !")
 
-    def assertServiceCheck(self, service_check_name, status=None, tags=None, count=None, at_least=1):
+    def assertServiceCheck(self, service_check_name, status=None, tags=None,
+        count=None, at_least=1):
         log.debug("Looking for service check {0}".format(service_check_name))
         if status is not None:
             log.debug(" * with status {0}".format(status))
@@ -339,7 +355,14 @@ WARNINGS
 
                 candidates.append(sc)
 
-        self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        try:
+            self._candidates_size_assert(candidates, count=count, at_least=at_least)
+        except AssertionError:
+            log.error("Candidates size assertion for {0} (status: {1}, "
+                "tags: {2}, count: {3}, at_least: {4}) failed"\
+                .format(service_check_name, status, tags, count, at_least))
+            raise
+
         for sc in self.service_checks:
             for csc in candidates:
                 if sc == csc:
