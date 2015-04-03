@@ -1,6 +1,50 @@
 Changes
 =======
 
+# 5.3.0 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.2.2...master
+
+### New integrations
+* PGBouncer: See [#1391][]
+* Supervisor. See [#1165][]
+* PHP-FPM: See [#1441][] (Thanks [@arosenhagen][])
+
+### Updated integrations
+
+### Changes
+* [FEATURE] Add support of Debian Jessie
+* [FEATURE] Add a "flare" feature to contact our support team. See [#1422][]
+* [FEATURE] nginx: Add a metric to track dropped connections
+* [FEATURE] Redis: Add replication metrics and status. See [#1350][] and [#1447][] (Thanks [@pbitty][]).
+* [FEATURE] Redis: Collect slow log metrics. See [#1400][] 
+* [FEATURE] WMI: Extend tagging options: tag metrics with a target class property, or a set of fixed values. See [#1388][]
+* [FEATURE] PostgreSQL: Add support for custom queries, StatIO metrics, and database size metric. See [#1395][] and [#1415][]. Thanks to [@ipolishchuk][] and [@adriandoolittle][]
+* [FEATURE] Kafka: Add support of kafka >= 0.8.2. See [#1438][] (Thanks [@patrickbcullen][])
+* [FEATURE] Cassandra: Add more storage proxy metrics to default config. See [#1393][]
+* [FEATURE] SNMP: Add support of SNMPv1. See [#1408][]. Thanks [@slushpupie][]
+* [FEATURE] Jenkins: Add support of version >= 1.598. See [#1442][]
+* [FEATURE] JMX Checks: Add service checks
+* [FEATURE] JMX Checks: Add support of list of filters. See http://docs.datadoghq.com/integrations/java/
+* [FEATURE] Varnish: Add support of Varnish 4.x. See [#1459][] and [#1461][]
+
+* [IMPROVEMENT] JMXFetch: Move JMXFetch to its own entry in the supervisor
+* [IMPROVEMENT] Switch http library used in checks to requests. See [#1399][]
+* [IMPROVEMENT] NTP Check: Enable by default
+
+* [BUGFIX] JMXFetch: Add default min and max heap size
+* [BUGFIX] PostgreSQL: Fix "Metric has an interval of 0 bug". See [#1211][] and [#1396][]
+* [BUGFIX] Marathon: Fix bad url construction. See [#1278][] and [#1401][]
+* [BUGFIX] Zookeeper: Fix misleading metric name. See [#1443][] and [#1383][]
+* [BUGFIX] Proxy settings: Cast proxy port to an integer. See [#1414][] and [#1416][]
+* [BUGFIX] Support EC2 tag discovery in all regions. See [#1332][]
+* [BUGFIX] Source installation: Fix "error: no such option: --use_simple_http_client" See [#1454][]
+* [BUGFIX] Memcache: Fix bad support of multi instances. See [#1490][]
+* [BUGFIX] Gearman: Fix bad support of multi instances. See [#1476][]
+* [BUGFIX] HTTP Check: Fix for servers using SNI
+
+
+
 # 5.2.3 / 03-30-2015
 **Windows only**
 
@@ -1412,6 +1456,7 @@ If you use ganglia, you want this version.
 [#1162]: https://github.com/DataDog/dd-agent/issues/1162
 [#1163]: https://github.com/DataDog/dd-agent/issues/1163
 [#1164]: https://github.com/DataDog/dd-agent/issues/1164
+[#1165]: https://github.com/DataDog/dd-agent/issues/1165
 [#1171]: https://github.com/DataDog/dd-agent/issues/1171
 [#1173]: https://github.com/DataDog/dd-agent/issues/1173
 [#1175]: https://github.com/DataDog/dd-agent/issues/1175
@@ -1447,23 +1492,52 @@ If you use ganglia, you want this version.
 [#1272]: https://github.com/DataDog/dd-agent/issues/1272
 [#1273]: https://github.com/DataDog/dd-agent/issues/1273
 [#1275]: https://github.com/DataDog/dd-agent/issues/1275
+[#1278]: https://github.com/DataDog/dd-agent/issues/1278
 [#1279]: https://github.com/DataDog/dd-agent/issues/1279
 [#1281]: https://github.com/DataDog/dd-agent/issues/1281
 [#1282]: https://github.com/DataDog/dd-agent/issues/1282
 [#1285]: https://github.com/DataDog/dd-agent/issues/1285
 [#1310]: https://github.com/DataDog/dd-agent/issues/1310
 [#1318]: https://github.com/DataDog/dd-agent/issues/1318
+[#1332]: https://github.com/DataDog/dd-agent/issues/1332
 [#1345]: https://github.com/DataDog/dd-agent/issues/1345
+[#1350]: https://github.com/DataDog/dd-agent/issues/1350
 [#1370]: https://github.com/DataDog/dd-agent/issues/1370
 [#1377]: https://github.com/DataDog/dd-agent/issues/1377
 [#1379]: https://github.com/DataDog/dd-agent/issues/1379
 [#1380]: https://github.com/DataDog/dd-agent/issues/1380
+[#1383]: https://github.com/DataDog/dd-agent/issues/1383
+[#1388]: https://github.com/DataDog/dd-agent/issues/1388
 [#1389]: https://github.com/DataDog/dd-agent/issues/1389
+[#1391]: https://github.com/DataDog/dd-agent/issues/1391
+[#1393]: https://github.com/DataDog/dd-agent/issues/1393
+[#1395]: https://github.com/DataDog/dd-agent/issues/1395
+[#1396]: https://github.com/DataDog/dd-agent/issues/1396
+[#1399]: https://github.com/DataDog/dd-agent/issues/1399
+[#1400]: https://github.com/DataDog/dd-agent/issues/1400
+[#1401]: https://github.com/DataDog/dd-agent/issues/1401
+[#1408]: https://github.com/DataDog/dd-agent/issues/1408
+[#1414]: https://github.com/DataDog/dd-agent/issues/1414
+[#1415]: https://github.com/DataDog/dd-agent/issues/1415
+[#1416]: https://github.com/DataDog/dd-agent/issues/1416
+[#1422]: https://github.com/DataDog/dd-agent/issues/1422
 [#1435]: https://github.com/DataDog/dd-agent/issues/1435
+[#1438]: https://github.com/DataDog/dd-agent/issues/1438
+[#1441]: https://github.com/DataDog/dd-agent/issues/1441
+[#1442]: https://github.com/DataDog/dd-agent/issues/1442
+[#1443]: https://github.com/DataDog/dd-agent/issues/1443
+[#1447]: https://github.com/DataDog/dd-agent/issues/1447
+[#1454]: https://github.com/DataDog/dd-agent/issues/1454
+[#1459]: https://github.com/DataDog/dd-agent/issues/1459
+[#1461]: https://github.com/DataDog/dd-agent/issues/1461
+[#1476]: https://github.com/DataDog/dd-agent/issues/1476
+[#1490]: https://github.com/DataDog/dd-agent/issues/1490
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
 [@PedroMiguelFigueiredo]: https://github.com/PedroMiguelFigueiredo
+[@adriandoolittle]: https://github.com/adriandoolittle
+[@arosenhagen]: https://github.com/arosenhagen
 [@arthurnn]: https://github.com/arthurnn
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
@@ -1498,11 +1572,14 @@ If you use ganglia, you want this version.
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
 [@ordenull]: https://github.com/ordenull
+[@patrickbcullen]: https://github.com/patrickbcullen
+[@pbitty]: https://github.com/pbitty
 [@rl-0x0]: https://github.com/rl-0x0
 [@ronaldbradford]: https://github.com/ronaldbradford
 [@shamada-kuuluu]: https://github.com/shamada-kuuluu
 [@sirlantis]: https://github.com/sirlantis
 [@skingry]: https://github.com/skingry
+[@slushpupie]: https://github.com/slushpupie
 [@steeve]: https://github.com/steeve
 [@stefan-mees]: https://github.com/stefan-mees
 [@takus]: https://github.com/takus
