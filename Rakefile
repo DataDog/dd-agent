@@ -27,6 +27,7 @@ require './ci/snmpd'
 require './ci/sysstat'
 require './ci/ssh'
 require './ci/supervisord'
+require './ci/tokumx'
 require './ci/tomcat'
 
 CLOBBER.include '**/*.pyc'

@@ -68,6 +68,9 @@ env:
     - TRAVIS_FLAVOR=ssh
     - TRAVIS_FLAVOR=supervisord
     - TRAVIS_FLAVOR=sysstat
+# FIXME: reenable, but right now cannot run on Travis because
+# hugepages are enabled
+#    - TRAVIS_FLAVOR=tokumx
     - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
 
 # Override travis defaults with empty jobs

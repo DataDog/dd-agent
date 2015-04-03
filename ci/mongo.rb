@@ -15,12 +15,17 @@ namespace :ci do
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(mongo_rootdir)
         # Downloads
-        # https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-#{mongo_version}.tgz
-        sh %(curl -s -L\
-             -o $VOLATILE_DIR/mongodb-linux-x86_64-#{mongo_version}.tgz\
-             https://s3.amazonaws.com/dd-agent-tarball-mirror/mongodb-linux-x86_64-#{mongo_version}.tgz)
+        # https://fastdl.mongodb.org/linux/mongodb-#{target}-x86_64-#{mongo_version}.tgz
+        if `uname`.strip == 'Darwin'
+          target = 'osx'
+        else
+          target = 'linux'
+        end
+          sh %(curl -s -L\
+               -o $VOLATILE_DIR/mongodb-#{target}-x86_64-#{mongo_version}.tgz\
+               https://s3.amazonaws.com/dd-agent-tarball-mirror/mongodb-#{target}-x86_64-#{mongo_version}.tgz)
         sh %(mkdir -p #{mongo_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/mongodb-linux-x86_64-#{mongo_version}.tgz\
+        sh %(tar zxf $VOLATILE_DIR/mongodb-#{target}-x86_64-#{mongo_version}.tgz\
              -C #{mongo_rootdir} --strip-components=1)
       end
     end
@@ -30,11 +35,13 @@ namespace :ci do
       sh %(mkdir -p $VOLATILE_DIR/mongod2)
       hostname = `hostname`.strip
       sh %(#{mongo_rootdir}/bin/mongod --port 37017\
+           --pidfilepath $VOLATILE_DIR/mongod1/mongo.pid\
            --dbpath $VOLATILE_DIR/mongod1\
            --replSet rs0/#{hostname}:37018\
            --logpath $VOLATILE_DIR/mongod1/mongo.log\
            --noprealloc --rest --fork)
       sh %(#{mongo_rootdir}/bin/mongod --port 37018\
+          --pidfilepath $VOLATILE_DIR/mongod2/mongo.pid\
           --dbpath $VOLATILE_DIR/mongod2\
           --replSet rs0/#{hostname}:37017\
           --logpath $VOLATILE_DIR/mongod2/mongo.log\
@@ -71,8 +78,9 @@ namespace :ci do
 
     task :cache => ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop both mongos
+    task :cleanup => ['ci:common:cleanup'] do
+      sh %(kill `cat $VOLATILE_DIR/mongod1/mongo.pid` `cat $VOLATILE_DIR/mongod2/mongo.pid`)
+    end
 
     task :execute do
       exception = nil
