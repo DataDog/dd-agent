@@ -27,11 +27,10 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...master
 * [FEATURE] JMX Checks: Add service checks
 * [FEATURE] JMX Checks: Add support of list of filters. See http://docs.datadoghq.com/integrations/java/
 * [FEATURE] Varnish: Add support of Varnish 4.x. See [#1459][] and [#1461][]
-
+* [FEATURE] HTTP Check: Add the possibility to test for the content of the response. See [#1297][], [#1326][] and [#1390][]. Thanks to [@chrissnel][] and [@handigarde][]
 * [IMPROVEMENT] JMXFetch: Move JMXFetch to its own entry in the supervisor
 * [IMPROVEMENT] Switch http library used in checks to requests. See [#1399][]
 * [IMPROVEMENT] NTP Check: Enable by default
-
 * [BUGFIX] JMXFetch: Add default min and max heap size
 * [BUGFIX] PostgreSQL: Fix "Metric has an interval of 0 bug". See [#1211][] and [#1396][]
 * [BUGFIX] Marathon: Fix bad url construction. See [#1278][] and [#1401][]
@@ -1497,8 +1496,10 @@ If you use ganglia, you want this version.
 [#1281]: https://github.com/DataDog/dd-agent/issues/1281
 [#1282]: https://github.com/DataDog/dd-agent/issues/1282
 [#1285]: https://github.com/DataDog/dd-agent/issues/1285
+[#1297]: https://github.com/DataDog/dd-agent/issues/1297
 [#1310]: https://github.com/DataDog/dd-agent/issues/1310
 [#1318]: https://github.com/DataDog/dd-agent/issues/1318
+[#1326]: https://github.com/DataDog/dd-agent/issues/1326
 [#1332]: https://github.com/DataDog/dd-agent/issues/1332
 [#1345]: https://github.com/DataDog/dd-agent/issues/1345
 [#1350]: https://github.com/DataDog/dd-agent/issues/1350
@@ -1509,6 +1510,7 @@ If you use ganglia, you want this version.
 [#1383]: https://github.com/DataDog/dd-agent/issues/1383
 [#1388]: https://github.com/DataDog/dd-agent/issues/1388
 [#1389]: https://github.com/DataDog/dd-agent/issues/1389
+[#1390]: https://github.com/DataDog/dd-agent/issues/1390
 [#1391]: https://github.com/DataDog/dd-agent/issues/1391
 [#1393]: https://github.com/DataDog/dd-agent/issues/1393
 [#1395]: https://github.com/DataDog/dd-agent/issues/1395
@@ -1542,6 +1544,7 @@ If you use ganglia, you want this version.
 [@bpuzon]: https://github.com/bpuzon
 [@brettlangdon]: https://github.com/brettlangdon
 [@charles-dyfis-net]: https://github.com/charles-dyfis-net
+[@chrissnel]: https://github.com/chrissnel
 [@ckrough]: https://github.com/ckrough
 [@clly]: https://github.com/clly
 [@dcrosta]: https://github.com/dcrosta
@@ -1551,6 +1554,7 @@ If you use ganglia, you want this version.
 [@glickbot]: https://github.com/glickbot
 [@gphat]: https://github.com/gphat
 [@graemej]: https://github.com/graemej
+[@handigarde]: https://github.com/handigarde
 [@host]: https://github.com/host
 [@igor47]: https://github.com/igor47
 [@igroenewold]: https://github.com/igroenewold
