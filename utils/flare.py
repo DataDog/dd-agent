@@ -303,9 +303,11 @@ class Flare(object):
 
     # Run a pip freeze
     def _pip_freeze(self):
+        # pip uses a debug log file EVEN FOR FREEZE, potentially
+        # resulting in warning which we cannot remove (no option for this)
         try:
             import pip
-            pip.main(['freeze'])
+            pip.main(['freeze', '--no-cache-dir'])
         except ImportError:
             print 'Unable to import pip'
 
