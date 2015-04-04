@@ -154,6 +154,7 @@ fi
 
 if [ -n "$IS_OPENSHIFT" ]; then
     is_openshift=$IS_OPENSHIFT
+    export PATH=/bin:/usr/bin/:/usr/sbin
 else
     is_openshift=0
 fi
