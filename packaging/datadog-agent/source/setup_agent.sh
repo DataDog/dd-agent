@@ -154,7 +154,6 @@ fi
 
 if [ -n "$IS_OPENSHIFT" ]; then
     is_openshift=$IS_OPENSHIFT
-    export PATH=/bin:/usr/bin/:/usr/sbin
 else
     is_openshift=0
 fi
@@ -229,7 +228,12 @@ $dl_cmd $dd_base/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap
 $dd_base/venv/bin/python $dd_base/ez_setup.py >> $logfile 2>&1
 $dl_cmd $dd_base/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py >> $logfile 2>&1
 $dd_base/venv/bin/python $dd_base/get-pip.py >> $logfile 2>&1
-$dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
+if [ "$is_openshift" != "0" ]; then
+	# use latest pip and upgrade pytz
+	$dd_base/venv/bin/pip install pytz --upgrade >> $logfile 2>&1
+else
+	$dd_base/venv/bin/pip install pip==$PIP_VERSION >> $logfile 2>&1
+fi
 print_done
 
 # install dependencies
