@@ -127,7 +127,7 @@ class AgentCheckTest(unittest.TestCase):
 
     # Helper function when testing rates
     def run_check_twice(self, config, agent_config=None, mocks=None,
-        force_reload=False):
+                        force_reload=False):
         self.run_check(config, agent_config, mocks, force_reload)
         time.sleep(1)
         self.run_check(config, agent_config, mocks)
