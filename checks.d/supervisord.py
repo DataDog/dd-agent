@@ -43,7 +43,6 @@ class SupervisordCheck(AgentCheck):
     def check(self, instance):
         server_name = instance.get('name')
 
-
         if not server_name or not server_name.strip():
             raise Exception("Supervisor server name not specified in yaml configuration.")
 
