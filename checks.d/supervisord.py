@@ -83,19 +83,23 @@ class SupervisordCheck(AgentCheck):
                     'is running and socket is enabled and socket file' \
                     ' has the right permissions.' % sock
 
-            if e.errno not in [errno.EACCES, errno.ENOENT]: # permissions denied, no such file
-                self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
-                                   tags=server_service_check_tags,
-                                   message='Supervisor server %s is down.' % server_name)
+            self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
+                               tags=server_service_check_tags,
+                               message=msg)
 
             raise Exception(msg)
         except xmlrpclib.ProtocolError, e:
             if e.errcode == 401: # authorization error
-                raise Exception('Username or password to %s are incorrect.' %
-                                server_name)
+                msg = 'Username or password to %s are incorrect.' % server_name
             else:
-                raise Exception('An error occurred while connecting to %s: '
-                                '%s %s ' % (server_name, e.errcode, e.errmsg))
+                msg = "An error occurred while connecting to %s: "\
+                    "%s %s " % (server_name, e.errcode, e.errmsg)
+
+            self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
+                               tags=server_service_check_tags,
+                               message=msg)
+            raise Exception(msg)
+
 
         # If we're here, we were able to connect to the server
         self.service_check(SERVER_SERVICE_CHECK, AgentCheck.OK,
