@@ -75,11 +75,11 @@ class SupervisordCheck(AgentCheck):
             sock = instance.get('socket')
             if sock is None:
                 msg = 'Cannot connect to http://%s:%s. ' \
-                    'Make sure supervisor is running and XML-RPC ' \
+                    'Make sure that supervisor is running and XML-RPC ' \
                     'inet interface is enabled.' % (host, port)
             else:
-                msg = 'Cannot connect to %s. Make sure sure supervisor ' \
-                    'is running and socket is enabled and socket file' \
+                msg = 'Cannot connect to %s. Make sure that supervisor ' \
+                    'is running and that the socket file' \
                     ' has the right permissions.' % sock
 
             self.service_check(SERVER_SERVICE_CHECK, AgentCheck.CRITICAL,
