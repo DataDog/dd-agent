@@ -64,7 +64,7 @@ class Flare(object):
     APIKEY_REGEX = re.compile('^api_key: *\w+(\w{5})$')
     REPLACE_APIKEY = r'api_key: *************************\1'
     COMPRESSED_FILE = 'datadog-agent-{0}.tar.bz2'
-    # We limit to 10MB arbitrary
+    # We limit to 10MB arbitrarily
     MAX_UPLOAD_SIZE = 10485000
     TIMEOUT = 60
 
@@ -81,6 +81,20 @@ class Flare(object):
         )
         self._hostname = get_hostname(config)
         self._prefix = "datadog-{0}".format(self._hostname)
+
+    # On Unix system, check that the user is root (to call supervisorctl & status)
+    # Otherwise emit a warning, and ask for confirmation
+    @staticmethod
+    def check_user_rights():
+        if Platform.is_unix() and not os.geteuid() == 0:
+            log.warning("You are not root, some information won't be collected")
+            choice = raw_input('Are you sure you want to continue [y/N]? ').lower()
+            if choice not in ['yes', 'y']:
+                print 'Aborting'
+                sys.exit(1)
+            else:
+                log.warn('Your user has to have at least read access'
+                         ' to the logs and conf files of the agent')
 
     # Collect all conf and logs files and compress them
     def collect(self):
@@ -103,10 +117,10 @@ class Flare(object):
         self._tar.close()
 
     # Upload the tar file
-    def upload(self, confirmation=True):
+    def upload(self):
         self._check_size()
 
-        if confirmation:
+        if self._cmdline:
             self._ask_for_confirmation()
 
         email = self._ask_for_email()
@@ -314,8 +328,8 @@ class Flare(object):
     # Check if the file is not too big before upload
     def _check_size(self):
         if os.path.getsize(self._tar_path) > self.MAX_UPLOAD_SIZE:
-            log.info('{0} won\'t be uploaded, its size is too important.\n'
-                     'You can send it directly to support by mail.')
+            log.info("{0} won't be uploaded, its size is too important.\n"
+                     "You can send it directly to support by mail.")
             sys.exit(1)
 
     # Function to ask for confirmation before upload
@@ -328,8 +342,8 @@ class Flare(object):
 
     # Ask for email if needed
     def _ask_for_email(self):
-        if self._case_id:
-            return ''
+        # We ask everytime now, as it is also the 'id' to check
+        # that the case is the good one if it exists
         return raw_input('Please enter your email: ').lower()
 
     # Print output (success/error) of the request

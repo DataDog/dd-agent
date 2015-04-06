@@ -336,6 +336,7 @@ def main():
                 print "If you think it's not normal please get in touch with Datadog Support"
 
     elif 'flare' == command:
+        Flare.check_user_rights()
         case_id = int(args[1]) if len(args) > 1 else None
         f = Flare(True, case_id)
         f.collect()

@@ -189,7 +189,7 @@ case "$1" in
 
     flare)
         shift
-        su $AGENTUSER -c "$AGENTPATH flare $@"
+        $AGENTPATH flare $@
         exit $?
         ;;
 

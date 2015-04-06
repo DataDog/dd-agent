@@ -59,9 +59,10 @@ class FlareTest(unittest.TestCase):
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)
     def test_upload_with_case(self, mock_config, mock_tempdir, mock_stfrtime, mock_version, mock_requests):
         f = Flare(case_id=1337)
+        f._ask_for_email = lambda: 'test@example.com'
 
         assert not mock_requests.called
-        f.upload(confirmation=False)
+        f.upload()
         assert mock_requests.called
         args, kwargs = mock_requests.call_args_list[0]
         self.assertEqual(
@@ -73,7 +74,7 @@ class FlareTest(unittest.TestCase):
             os.path.join(get_mocked_temp(), "datadog-agent-1.tar.bz2")
         )
         self.assertEqual(kwargs['data']['case_id'], 1337)
-        self.assertEqual(kwargs['data']['email'], '')
+        self.assertEqual(kwargs['data']['email'], 'test@example.com')
         assert kwargs['data']['hostname']
 
     @mock.patch('utils.flare.requests.post', return_value=FakeResponse())
@@ -86,7 +87,7 @@ class FlareTest(unittest.TestCase):
         f._ask_for_email = lambda: 'test@example.com'
 
         assert not mock_requests.called
-        f.upload(confirmation=False)
+        f.upload()
         assert mock_requests.called
         args, kwargs = mock_requests.call_args_list[0]
         self.assertEqual(
@@ -108,7 +109,7 @@ class FlareTest(unittest.TestCase):
         f = Flare()
         f._ask_for_email = lambda: None
         try:
-            f.upload(confirmation=False)
+            f.upload()
             raise Exception('Should fail before')
         except Exception, e:
             self.assertEqual(str(e), "Your request is incorrect: Invalid inputs: 'API key unknown'")
