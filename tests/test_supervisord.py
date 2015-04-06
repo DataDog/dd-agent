@@ -4,7 +4,6 @@ from time import sleep
 
 from mock import patch
 from nose.plugins.attrib import attr
-from nose.tools import ok_, eq_
 import unittest
 import xmlrpclib
 
@@ -39,16 +38,20 @@ instances:
         'expected_service_checks': {
             'server1': [{
                 'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server1'],
+                'check': 'supervisord.can_connect',
+            }, {
+                'status': AgentCheck.OK,
                 'tags': ['supervisord_server:server1', 'supervisord_process:mysql'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }, {
                 'status': AgentCheck.CRITICAL,
                 'tags': ['supervisord_server:server1', 'supervisord_process:java'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }, {
                 'status': AgentCheck.UNKNOWN,
                 'tags': ['supervisord_server:server1', 'supervisord_process:python'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }]
         }
     }, {
@@ -94,18 +97,26 @@ instances:
         },
         'expected_service_checks': {
             'server0': [{
+                'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server0'],
+                'check': 'supervisord.can_connect',
+            }, {
                 'status': AgentCheck.CRITICAL,
                 'tags': ['supervisord_server:server0', 'supervisord_process:apache2'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }, {
                 'status': AgentCheck.CRITICAL,
                 'tags': ['supervisord_server:server0', 'supervisord_process:webapp'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }],
             'server1': [{
+                'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server1'],
+                'check': 'supervisord.can_connect',
+            }, {
                 'status': AgentCheck.CRITICAL,
                 'tags': ['supervisord_server:server1', 'supervisord_process:ruby'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }]
         }
     }, {
@@ -168,8 +179,12 @@ instances:
         'expected_service_checks': {
             'server0': [{
                 'status': AgentCheck.OK,
+                'tags': ['supervisord_server:server0'],
+                'check': 'supervisord.can_connect',
+            }, {
+                'status': AgentCheck.OK,
                 'tags': ['supervisord_server:server0', 'supervisord_process:mysql'],
-                'check': 'supervisord.process.check'
+                'check': 'supervisord.process.status'
             }]
         }
     }]
@@ -187,8 +202,8 @@ instances:
         """Integration test for supervisord check. Using a mocked supervisord."""
         for tc in self.TEST_CASES:
             check, instances = get_check('supervisord', tc['yaml'])
-            ok_(check is not None, msg=check)
-            eq_(tc['expected_instances'], instances)
+            self.assertTrue(check is not None, msg=check)
+            self.assertEquals(tc['expected_instances'], instances)
             for instance in instances:
                 name = instance['name']
 
@@ -197,9 +212,9 @@ instances:
                     check.check(instance)
                 except Exception, e:
                     if 'error_message' in tc:  # excepted error
-                        eq_(str(e), tc['error_message'])
+                        self.assertEquals(str(e), tc['error_message'])
                     else:
-                        ok_(False, msg=str(e))
+                        self.assertTrue(False, msg=str(e))
                 else:
                     # Assert that the check collected the right metrics
                     expected_metrics = tc['expected_metrics'][name]
@@ -216,12 +231,12 @@ instances:
 
         # Load yaml config
         config_str = open(os.environ['VOLATILE_DIR'] + '/supervisor/supervisord.yaml', 'r').read()
-        ok_(config_str is not None and len(config_str) > 0, msg=config_str)
+        self.assertTrue(config_str is not None and len(config_str) > 0, msg=config_str)
 
         # init the check and get the instances
         check, instances = get_check('supervisord', config_str)
-        ok_(check is not None, msg=check)
-        eq_(len(instances), 1)
+        self.assertTrue(check is not None, msg=check)
+        self.assertEquals(len(instances), 1)
 
         # Supervisord should run 3 programs for 30, 60 and 90 seconds
         # respectively. The tests below will ensure that the process count
@@ -232,7 +247,7 @@ instances:
                 check.check(instances[0])
             except Exception, e:
                 # Make sure that it ran successfully
-                ok_(False, msg=str(e))
+                self.assertTrue(False, msg=str(e))
             else:
                 up, down = 0, 0
                 for name, timestamp, value, meta in check.get_metrics():
@@ -241,8 +256,8 @@ instances:
                             up = value
                         elif 'status:down' in meta['tags']:
                             down = value
-                eq_(up, 3 - i)
-                eq_(down, i)
+                self.assertEquals(up, 3 - i)
+                self.assertEquals(down, i)
                 sleep(10)
 
     # Unit Tests ###########################################################
@@ -278,7 +293,7 @@ Start time: 2014-11-01 04:16:28
 Stop time: \nExit Status: 0"""
 
         check, _ = get_check('supervisord', self.TEST_CASES[0]['yaml'])
-        eq_(expected_message, check._build_message(process))
+        self.assertEquals(expected_message, check._build_message(process))
 
     # Helper Methods #######################################################
 
@@ -286,22 +301,20 @@ Stop time: \nExit Status: 0"""
     def mock_server(url):
         return MockXmlRcpServer(url)
 
-    @staticmethod
-    def assert_metrics(expected, actual):
+    def assert_metrics(self, expected, actual):
         actual = [TestSupervisordCheck.norm_metric(metric) for metric in actual]
-        eq_(len(actual), len(expected), msg='Invalid # metrics reported.\n'
+        self.assertEquals(len(actual), len(expected), msg='Invalid # metrics reported.\n'
             'Expected: {0}. Found: {1}'.format(len(expected), len(actual)))
-        ok_(all([expected_metric in actual for expected_metric in expected]),
+        self.assertTrue(all([expected_metric in actual for expected_metric in expected]),
             msg='Reported metrics are incorrect.\nExpected: {0}.\n'
                 'Found: {1}'.format(expected, actual))
 
-    @staticmethod
-    def assert_service_checks(expected, actual):
+    def assert_service_checks(self, expected, actual):
         actual = [TestSupervisordCheck.norm_service_check(service_check)
                   for service_check in actual]
-        eq_(len(actual), len(expected), msg='Invalid # service checks reported.'
-            '\nExpected: {0}. Found: {1}.'.format(len(expected), len(actual)))
-        ok_(all([expected_service_check in actual
+        self.assertEquals(len(actual), len(expected), msg='Invalid # service checks reported.'
+            '\nExpected: {0}. Found: {1}.'.format(expected, actual))
+        self.assertTrue(all([expected_service_check in actual
                  for expected_service_check in expected]),
             msg='Reported service checks are incorrect.\nExpected:{0}\n'
                 'Found:{1}'.format(expected, actual))
