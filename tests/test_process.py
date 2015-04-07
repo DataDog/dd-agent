@@ -124,7 +124,7 @@ class ProcessTestCase(AgentCheckTest):
 
                 # If a list of tags is already there, the check extends it
                 if 'tags' in stub['config']:
-                    expected_tags = stub['config']['tags']
+                    expected_tags += stub['config']['tags']
 
                 expected_value = None
                 if mname == 'system.processes.number':

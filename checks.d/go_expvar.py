@@ -94,7 +94,6 @@ class GoExpvar(AgentCheck):
                 self.normalize("memstats.PauseNs", METRIC_NAMESPACE, fix_case=True),
                 value, tags=tags)
 
-
     def check(self, instance):
         data, tags, metrics, max_metrics, url = self._load(instance)
         self.get_gc_collection_histogram(data, tags, url)
@@ -141,11 +140,12 @@ class GoExpvar(AgentCheck):
                 try:
                     float(value)
                 except ValueError:
-                    self.log.warning("Unreportable value for path %s: %s" % (path,value))
+                    self.log.warning("Unreportable value for path %s: %s" % (path, value))
                     continue
 
                 if count >= max_metrics:
-                    self.warning("Reporting more metrics than the allowed maximum. Please contact support@datadoghq.com for more information.")
+                    self.warning("Reporting more metrics than the allowed maximum. "
+                                 "Please contact support@datadoghq.com for more information.")
                     return
 
                 SUPPORTED_TYPES[metric_type](self, metric_name, value, metric_tags)
@@ -181,7 +181,7 @@ class GoExpvar(AgentCheck):
             return [(traversed_path, content)]
 
         key = keys[0]
-        regex = "".join(["^",key,"$"])
+        regex = "".join(["^", key, "$"])
         try:
             key_rex = re.compile(regex)
         except Exception:
