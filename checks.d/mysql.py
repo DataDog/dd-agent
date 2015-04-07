@@ -24,7 +24,6 @@ STATUS_VARS = {
     'Innodb_data_reads': ('mysql.innodb.data_reads', RATE),
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
-    'Innodb_buffer_pool_size': ('mysql.innodb.buffer_pool_size', RATE),
     'Slow_queries': ('mysql.performance.slow_queries', RATE),
     'Questions': ('mysql.performance.questions', RATE),
     'Queries': ('mysql.performance.queries', RATE),

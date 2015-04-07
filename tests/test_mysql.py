@@ -54,7 +54,7 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.open_files',
         'mysql.performance.table_locks_waited',
         'mysql.performance.threads_connected',
-        'mysql.innodb.current_row_locks',
+        # 'mysql.innodb.current_row_locks',  MariaDB status
         'mysql.performance.open_tables',
     ]
 
@@ -63,7 +63,6 @@ class TestMySql(AgentCheckTest):
         'mysql.innodb.data_reads',
         'mysql.innodb.data_writes',
         'mysql.innodb.os_log_fsyncs',
-        'mysql.innodb.buffer_pool_size',
         'mysql.performance.slow_queries',
         'mysql.performance.questions',
         'mysql.performance.queries',
@@ -76,9 +75,9 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.com_delete_multi',
         'mysql.performance.com_replace_select',
         'mysql.performance.qcache_hits',
-        'mysql.innodb.mutex_spin_waits',
-        'mysql.innodb.mutex_spin_rounds',
-        'mysql.innodb.mutex_os_waits',
+        # 'mysql.innodb.mutex_spin_waits',  MariaDB status
+        # 'mysql.innodb.mutex_spin_rounds', MariaDB status
+        # 'mysql.innodb.mutex_os_waits',  MariaDB status
         'mysql.performance.created_tmp_tables',
         'mysql.performance.created_tmp_disk_tables',
         'mysql.performance.created_tmp_files',
@@ -109,19 +108,10 @@ class TestMySql(AgentCheckTest):
         self.assertServiceCheck('mysql.can_connect', status=AgentCheck.OK,
                                 tags=self.SC_TAGS, count=1)
 
-        print self.metrics
-        # Test gauge mandatory metrics
-        for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS +
-                      self.REPLICATION_METRICS + self.KEY_CACHE):
+        # Test metrics
+        for mname in (self.INNODB_METRICS + self.SYSTEM_METRICS + self.REPLICATION_METRICS +
+                      self.KEY_CACHE + self.COMMON_GAUGES + self.COMMON_RATES):
             self.assertMetric(mname, tags=self.METRIC_TAGS, count=1)
-
-        # Test optional metrics
-        # Gauges - at least 1 match
-        # self._test_optional_metrics(self.COMMON_GAUGES, at_least=1)
-
-        # Rates -  at least 1 match
-        # self._test_optional_metrics(self.COMMON_RATES, at_least=1)
-        self.assertTrue(0 == 1)
 
         # Raises when COVERAGE=true and coverage < 100%
         self.coverage_report()
