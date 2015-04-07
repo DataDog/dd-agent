@@ -132,7 +132,7 @@ instances:
             'host': 'invalid_host',
             'port': 9009
         }],
-        'error_message': """Cannot connect to http://invalid_host:9009. Make sure supervisor is running and XML-RPC inet interface is enabled."""
+        'error_message': """Cannot connect to http://invalid_host:9009. Make sure that supervisor is running and XML-RPC inet interface is enabled."""
     }, {
         'yaml': """
 init_config:
