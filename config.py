@@ -645,6 +645,34 @@ def get_proxy(agentConfig, use_system_settings=False):
     return None
 
 
+def format_proxy_settings(agent_config):
+    """
+    Returns proxy settings in a format compliant with `requests` package.
+    i.e.
+        {
+          "https": "http://user:password@host:port/",
+        }
+    """
+    proxy_settings = get_proxy(agent_config)
+    if not proxy_settings or proxy_settings['system_settings']:
+        # No proxy or proxy set by environment variables. `requests` will use it automatically
+        return None
+
+    host = proxy_settings['host']
+    port = proxy_settings['port']
+    user = proxy_settings['user']
+    password = proxy_settings['password']
+
+    auth = ""
+    if user and password:
+        auth = "{0}:{1}@".format(user, password)
+    proxy_url = "http://{0}{1}:{2}/".format(auth, host, port)
+
+    return {
+        'https': proxy_url
+    }
+
+
 def get_confd_path(osname=None):
     if not osname:
         osname = get_os()
