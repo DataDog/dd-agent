@@ -12,8 +12,7 @@ python:
 
 cache:
   directories:
-    - $HOME/virtualenv/python2.6.9/lib/python2.6/site-packages
-    - $HOME/virtualenv/python2.7.9/lib/python2.7/site-packages
+    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION.9
 
 matrix:
   fast_finish: true

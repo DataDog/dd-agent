@@ -84,12 +84,17 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # It's the pid file which changes eveytime,
+      # so let's actually cleanup before cache
+      Rake::Task['ci:couchdb:cleanup'].invoke
+    end
 
     task :cache => ['ci:common:cache']
 
     task :cleanup => ['ci:common:cleanup'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -k)
+      sh %(rm -f #{couchdb_rootdir}/var/run/couchdb/couchdb.pid)
     end
 
     task :execute do
@@ -108,7 +113,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         %w(before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end

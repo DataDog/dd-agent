@@ -42,12 +42,14 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => :cleanup
 
     task :cache => ['ci:common:cache']
 
     task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/cass.pid`)
+      sleep_for 3
+      sh %(rm -rf #{cass_rootdir}/data)
     end
 
     task :execute do
@@ -66,7 +68,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         %w(before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end

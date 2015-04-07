@@ -66,7 +66,10 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # Useless to cache the conf, as it is regenerated every time
+      sh %(rm -f #{apache_rootdir}/conf/httpd.conf)
+    end
 
     task :cache => ['ci:common:cache']
 
@@ -90,7 +93,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         %w(before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end

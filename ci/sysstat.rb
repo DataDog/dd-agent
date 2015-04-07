@@ -32,9 +32,9 @@ namespace :ci do
     end
 
     task :before_script => ['ci:common:before_script'] do
-      # FIXME: probably not the cleanest way to go
       sh %(mkdir -p $INTEGRATIONS_DIR/bin)
-      sh %(cp #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin)
+      sh %(rm -f $INTEGRATIONS_DIR/bin/mpstat)
+      sh %(ln -s #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin/mpstat)
     end
 
     task :script => ['ci:common:script'] do
@@ -66,7 +66,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         %w(before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end

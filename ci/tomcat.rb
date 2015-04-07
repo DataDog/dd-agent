@@ -41,7 +41,11 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task :before_cache => ['ci:common:before_cache'] do
+      # Regenerated at every run
+      sh %(rm -f #{tomcat_rootdir}/bin/setenv.sh)
+      sh %(rm -f #{tomcat_rootdir}/conf/server.xml)
+    end
 
     task :cache => ['ci:common:cache']
 
@@ -65,7 +69,7 @@ namespace :ci do
         puts 'Cleaning up'
         Rake::Task["#{flavor.scope.path}:cleanup"].invoke
       end
-      if ENV['TRAVIS']
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
         %w(before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
