@@ -46,26 +46,13 @@ namespace :ci do
       sleep_for 5
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U $USER\
-           -c "CREATE USER datadog WITH PASSWORD 'datadog'"\
-           postgres)
-      sh %(#{pg_rootdir}/bin/psql\
-           -p 15432 -U $USER\
-           -c "GRANT SELECT ON pg_stat_database TO datadog"\
-           postgres)
-      sh %(#{pg_rootdir}/bin/psql\
-           -p 15432 -U $USER\
-           -c "CREATE DATABASE datadog_test"\
-           postgres)
-      sh %(#{pg_rootdir}/bin/psql\
-           -p 15432 -U $USER\
-           -c "GRANT ALL PRIVILEGES ON DATABASE datadog_test TO datadog"\
-           postgres)
+           postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U datadog\
-           -c "CREATE TABLE persons (personid INT, lastname VARCHAR(255), firstname VARCHAR(255), address VARCHAR(255), city VARCHAR(255))"\
-           datadog_test)
-      # For pg_stat_user_table to return stuff
-      sleep_for 5
+           datadog_test < $TRAVIS_BUILD_DIR/ci/resources/postgres/datadog_test.sql)
+      sh %(#{pg_rootdir}/bin/psql\
+           -p 15432 -U datadog\
+           dogs < $TRAVIS_BUILD_DIR/ci/resources/postgres/dogs.sql)
     end
 
     task :script => ['ci:common:script'] do

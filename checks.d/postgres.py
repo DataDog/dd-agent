@@ -177,7 +177,7 @@ WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND
             ('schemaname', 'schema')
         ],
         'metrics': {
-            'pg_stat_user_tables': ('postgresql.total_tables', GAUGE),
+            'pg_stat_user_tables': ('postgresql.table.count', GAUGE),
         },
         'relation': False,
         'query': """
@@ -218,6 +218,28 @@ SELECT %s
 """
     }
 
+    STATIO_METRICS = {
+        'descriptors': [
+            ('relname', 'table'),
+        ],
+        'metrics': {
+            'heap_blks_read'  : ('postgresql.heap_blocks_read', RATE),
+            'heap_blks_hit'   : ('postgresql.heap_blocks_hit', RATE),
+            'idx_blks_read'   : ('postgresql.index_blocks_read', RATE),
+            'idx_blks_hit'    : ('postgresql.index_blocks_hit', RATE),
+            'toast_blks_read' : ('postgresql.toast_blocks_read', RATE),
+            'toast_blks_hit'  : ('postgresql.toast_blocks_hit', RATE),
+            'tidx_blks_read'  : ('postgresql.toast_index_blocks_read', RATE),
+            'tidx_blks_hit'   : ('postgresql.toast_index_blocks_hit', RATE),
+        },
+        'query': """
+SELECT relname,
+       %s
+  FROM pg_statio_user_tables
+ WHERE relname = ANY(%s)""",
+        'relation': True,
+    }
+
     def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
         self.dbs = {}
@@ -227,6 +249,7 @@ SELECT %s
         self.db_instance_metrics = []
         self.db_bgw_metrics = []
         self.replication_metrics = {}
+        self.custom_metrics = {}
 
     def _get_version(self, key, db):
         if key not in self.versions:
@@ -263,19 +286,17 @@ SELECT %s
         metrics = self.instance_metrics.get(key)
 
         if metrics is None:
-
             # Hack to make sure that if we have multiple instances that connect to
             # the same host, port, we don't collect metrics twice
             # as it will result in https://github.com/DataDog/dd-agent/issues/1211
             sub_key = key[:2]
             if sub_key in self.db_instance_metrics:
-                self.instance_metrics[key] = {}
-                self.log.debug("Not collecting instance metrics for key: {0} as"\
+                self.instance_metrics[key] = None
+                self.log.debug("Not collecting instance metrics for key: {0} as"
                     " they are already collected by another instance".format(key))
-                return {}
+                return None
 
             self.db_instance_metrics.append(sub_key)
-
 
             if self._is_9_2_or_above(key, db):
                 self.instance_metrics[key] = dict(self.COMMON_METRICS, **self.NEWER_92_METRICS)
@@ -293,16 +314,15 @@ SELECT %s
         metrics = self.bgw_metrics.get(key)
 
         if metrics is None:
-
             # Hack to make sure that if we have multiple instances that connect to
             # the same host, port, we don't collect metrics twice
             # as it will result in https://github.com/DataDog/dd-agent/issues/1211
             sub_key = key[:2]
             if sub_key in self.db_bgw_metrics:
-                self.bgw_metrics[key] = {}
-                self.log.debug("Not collecting bgw metrics for key: {0} as"\
+                self.bgw_metrics[key] = None
+                self.log.debug("Not collecting bgw metrics for key: {0} as"
                     " they are already collected by another instance".format(key))
-                return {}
+                return None
 
             self.db_bgw_metrics.append(sub_key)
 
@@ -334,26 +354,38 @@ SELECT %s
         If custom_metrics is not an empty list, gather custom metrics defined in postgres.yaml
         """
 
-        self.DB_METRICS['metrics'] = self._get_instance_metrics(key, db)
-        self.BGW_METRICS['metrics'] = self._get_bgw_metrics(key, db)
         metric_scope = [
-            self.DB_METRICS,
             self.CONNECTION_METRICS,
-            self.BGW_METRICS,
             self.LOCK_METRICS,
-            self.COUNT_METRICS
+            self.COUNT_METRICS,
         ]
+
+        # These are added only once per PG server, thus the test
+        db_instance_metrics = self._get_instance_metrics(key, db)
+        bgw_instance_metrics = self._get_bgw_metrics(key, db)
+
+        if db_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
+            self.DB_METRICS['metrics'] = db_instance_metrics
+            metric_scope.append(self.DB_METRICS)
+
+        if bgw_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
+            self.BGW_METRICS['metrics'] = bgw_instance_metrics
+            metric_scope.append(self.BGW_METRICS)
 
         # Do we need relation-specific metrics?
         if relations:
             metric_scope += [
                 self.REL_METRICS,
                 self.IDX_METRICS,
-                self.SIZE_METRICS
+                self.SIZE_METRICS,
+                self.STATIO_METRICS
             ]
 
         replication_metrics = self._get_replication_metrics(key, db)
         if replication_metrics is not None:
+            # FIXME: constants shouldn't be modified
             self.REPLICATION_METRICS['metrics'] = replication_metrics
             metric_scope.append(self.REPLICATION_METRICS)
 
@@ -364,10 +396,8 @@ SELECT %s
             for scope in full_metric_scope:
                 if scope == self.REPLICATION_METRICS or not self._is_above(key, db, [9,0,0]):
                     log_func = self.log.debug
-                    warning_func = self.log.debug
                 else:
                     log_func = self.log.warning
-                    warning_func = self.warning
 
                 # build query
                 cols = scope['metrics'].keys()  # list of metrics to query, in some order
@@ -394,10 +424,11 @@ SELECT %s
 
                 if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
                     self.warning(
-                        "Query: {0} returned more than {1} results ({2})Truncating").format(
+                        "Query: {0} returned more than {1} results ({2}). Truncating").format(
                         query, MAX_CUSTOM_RESULTS, len(results))
                     results = results[:MAX_CUSTOM_RESULTS]
 
+                # FIXME this cramps my style
                 if scope == self.DB_METRICS:
                     self.gauge("postgresql.db.count", len(results),
                         tags=[t for t in instance_tags if not t.startswith("db:")])
@@ -482,7 +513,12 @@ SELECT %s
         self.dbs[key] = connection
         return connection
 
-    def _process_customer_metrics(self,custom_metrics):
+    def _get_custom_metrics(self, custom_metrics, key):
+        # Pre-processed cached custom_metrics
+        if key in self.custom_metrics:
+            return self.custom_metrics[key]
+
+        # Otherwise pre-process custom metrics and verify definition
         required_parameters = ("descriptors", "metrics", "query", "relation")
 
         for m in custom_metrics:
@@ -493,14 +529,17 @@ SELECT %s
 
             self.log.debug("Metric: {0}".format(m))
 
-            for k, v in m['metrics'].items():
-                if v[1].upper() not in ['RATE','GAUGE','MONOTONIC']:
-                    raise CheckException("Collector method {0} is not known."\
-                        "Known methods are RATE,GAUGE,MONOTONIC".format(
-                            v[1].upper()))
+            for ref, (_, mtype) in m['metrics'].iteritems():
+                cap_mtype = mtype.upper()
+                if cap_mtype not in ('RATE', 'GAUGE', 'MONOTONIC'):
+                    raise CheckException("Collector method {0} is not known."
+                        " Known methods are RATE, GAUGE, MONOTONIC".format(cap_mtype))
 
-                m['metrics'][k][1] = getattr(PostgreSql, v[1].upper())
-                self.log.debug("Method: %s" % (str(v[1])))
+                m['metrics'][ref][1] = getattr(PostgreSql, cap_mtype)
+                self.log.debug("Method: %s" % (str(mtype)))
+
+        self.custom_metrics[key] = custom_metrics
+        return custom_metrics
 
     def check(self, instance):
         host = instance.get('host', '')
@@ -510,8 +549,6 @@ SELECT %s
         tags = instance.get('tags', [])
         dbname = instance.get('dbname', None)
         relations = instance.get('relations', [])
-        custom_metrics = instance.get('custom_metrics') or []
-        self._process_customer_metrics(custom_metrics)
 
         if relations and not dbname:
             self.warning('"dbname" parameter must be set when using the "relations" parameter.')
@@ -520,6 +557,8 @@ SELECT %s
             dbname = 'postgres'
 
         key = (host, port, dbname)
+
+        custom_metrics = self._get_custom_metrics(instance.get('custom_metrics', []), key)
 
         # Clean up tags in case there was a None entry in the instance
         # e.g. if the yaml contains tags: but no actual tags
