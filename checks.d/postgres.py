@@ -365,10 +365,12 @@ SELECT relname,
         bgw_instance_metrics = self._get_bgw_metrics(key, db)
 
         if db_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
             self.DB_METRICS['metrics'] = db_instance_metrics
             metric_scope.append(self.DB_METRICS)
 
         if bgw_instance_metrics is not None:
+            # FIXME: constants shouldn't be modified
             self.BGW_METRICS['metrics'] = bgw_instance_metrics
             metric_scope.append(self.BGW_METRICS)
 
@@ -383,6 +385,7 @@ SELECT relname,
 
         replication_metrics = self._get_replication_metrics(key, db)
         if replication_metrics is not None:
+            # FIXME: constants shouldn't be modified
             self.REPLICATION_METRICS['metrics'] = replication_metrics
             metric_scope.append(self.REPLICATION_METRICS)
 

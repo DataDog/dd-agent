@@ -45,10 +45,7 @@ class TestPostgres(AgentCheckTest):
             }
         ]
 
-        self.run_check(dict(instances=instances))
-        # Rate metrics, need 2 collection rounds
-        time.sleep(1)
-        self.run_check(dict(instances=instances))
+        self.run_check_twice(dict(instances=instances))
 
         # Useful to get server version
         # FIXME: Not great, should have a function like that available
@@ -219,4 +216,3 @@ class TestPostgres(AgentCheckTest):
         )
 
         self.coverage_report()
-        return
