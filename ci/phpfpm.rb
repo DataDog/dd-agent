@@ -1,11 +1,11 @@
 require './ci/common'
 
 def nginx_version
-  ENV['NGINX_VERSION'] || '1.7.9'
+  ENV['NGINX_VERSION'] || '1.7.11'
 end
 
 def php_version
-  ENV['PHP_VERSION'] || '5.6.6'
+  ENV['PHP_VERSION'] || '5.6.7'
 end
 
 def phpfpm_rootdir
@@ -17,10 +17,13 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # http://nginx.org/download/nginx-#{nginx_version}.tar.gz
+      # http://us1.php.net/get/php-#{php_version}.tar.bz2/from/this/mirror
       unless Dir.exist? File.expand_path(phpfpm_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
-             http://nginx.org/download/nginx-#{nginx_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/nginx-#{nginx_version}.tar.gz)
         sh %(mkdir -p #{phpfpm_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/nginx)
         sh %(tar zxf $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
@@ -31,7 +34,7 @@ namespace :ci do
              && make install)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/php-#{php_version}.tar.bz2\
-             http://us1.php.net/get/php-#{php_version}.tar.bz2/from/this/mirror)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/php-#{php_version}.tar.bz2)
         sh %(mkdir -p $VOLATILE_DIR/php)
         sh %(tar jxf $VOLATILE_DIR/php-#{php_version}.tar.bz2\
              -C $VOLATILE_DIR/php --strip-components=1)

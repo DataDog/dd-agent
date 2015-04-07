@@ -2,7 +2,7 @@ require './ci/common'
 
 # TODO: make this available in the matrix
 def cass_version
-  ENV['CASS_VERSION'] || '2.1.1'
+  ENV['FLAVOR_VERSION'] || '2.1.3'
 end
 
 def cass_rootdir
@@ -15,9 +15,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(cass_rootdir)
+        # Downloads
+        # http://cassandra.apache.org/download/
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apache-cassandra-#{cass_version}-bin.tar.gz\
-              http://apache.petsads.us/cassandra/#{cass_version}/apache-cassandra-#{cass_version}-bin.tar.gz)
+              https://s3.amazonaws.com/dd-agent-tarball-mirror/apache-cassandra-#{cass_version}-bin.tar.gz)
         sh %(mkdir -p #{cass_rootdir})
         sh %(tar zxf $VOLATILE_DIR/apache-cassandra-#{cass_version}-bin.tar.gz\
              -C #{cass_rootdir} --strip-components=1)
@@ -25,7 +27,10 @@ namespace :ci do
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(#{cass_rootdir}/bin/cassandra)
+      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/cassandra/cassandra_#{cass_version.split('.')[0..1].join('.')}.yaml #{cass_rootdir}/conf/cassandra.yaml)
+      sh %(#{cass_rootdir}/bin/cassandra -p $VOLATILE_DIR/cass.pid)
+      # Create temp cassandra workdir
+      sh %(mkdir -p $VOLATILE_DIR/cassandra)
       # Wait for cassandra to init
       sleep_for 10
     end
@@ -42,7 +47,7 @@ namespace :ci do
     task :cache => ['ci:common:cache']
 
     task cleanup: ['ci:common:cleanup'] do
-      # FIXME: stop cass
+      sh %(kill `cat $VOLATILE_DIR/cass.pid`)
     end
 
     task :execute do

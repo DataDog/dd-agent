@@ -1,7 +1,7 @@
 require './ci/common'
 
 def nginx_version
-  ENV['NGINX_VERSION'] || '1.7.9'
+  ENV['FLAVOR_VERSION'] || '1.7.11'
 end
 
 def nginx_rootdir
@@ -13,10 +13,12 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # http://nginx.org/download/nginx-#{nginx_version}.tar.gz
       unless Dir.exist? File.expand_path(nginx_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\
-             http://nginx.org/download/nginx-#{nginx_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/nginx-#{nginx_version}.tar.gz)
         sh %(mkdir -p #{nginx_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/nginx)
         sh %(tar zxf $VOLATILE_DIR/nginx-#{nginx_version}.tar.gz\

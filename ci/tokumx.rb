@@ -1,42 +1,46 @@
 require './ci/common'
 
-# FIXME test against different versions of tomcat
-# and JDKs
+def tokumx_version
+  ENV['FLAVOR_VERSION'] || '2.0.1'
+end
 
-def tomcat_rootdir
-  "#{ENV['INTEGRATIONS_DIR']}/tomcat-6.0.43"
+def tokumx_rootdir
+  "#{ENV['INTEGRATIONS_DIR']}/tokumx_#{tokumx_version}"
 end
 
 namespace :ci do
-  namespace :tomcat do |flavor|
+  namespace :tokumx do |flavor|
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
-      # Downloads
-      # http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz
-      unless Dir.exist? File.expand_path(tomcat_rootdir)
+      unless Dir.exist? File.expand_path(tokumx_rootdir)
+        # Downloads
+        # http://www.tokutek.com/tokumx-for-mongodb/download-community/
         sh %(curl -s -L\
-             -o $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
-             https://s3.amazonaws.com/dd-agent-tarball-mirror/apache-tomcat-6.0.43.tar.gz)
-        sh %(mkdir -p #{tomcat_rootdir})
-        sh %(tar zxf $VOLATILE_DIR/apache-tomcat-6.0.43.tar.gz\
-             -C #{tomcat_rootdir} --strip-components=1)
+             -o $VOLATILE_DIR/tokumx-#{tokumx_version}.tgz\
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/tokumx-#{tokumx_version}-linux-x86_64-main.tar.gz)
+        sh %(mkdir -p #{tokumx_rootdir})
+        sh %(tar zxf $VOLATILE_DIR/tokumx-#{tokumx_version}.tgz\
+             -C #{tokumx_rootdir} --strip-components=1)
       end
     end
 
     task :before_script => ['ci:common:before_script'] do
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/setenv.sh #{tomcat_rootdir}/bin/)
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/server.xml #{tomcat_rootdir}/conf/server.xml)
-      sh %(mkdir -p $VOLATILE_DIR/jmx_yaml)
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/tomcat.yaml $VOLATILE_DIR/jmx_yaml/)
-      sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/jmx.yaml $VOLATILE_DIR/jmx_yaml/)
-      sh %(#{tomcat_rootdir}/bin/startup.sh)
-      sleep_for 5
+      sh %(mkdir -p $VOLATILE_DIR/tokumxd1)
+      hostname = `hostname`.strip
+      sh %(#{tokumx_rootdir}/bin/mongod --port 37017\
+           --pidfilepath $VOLATILE_DIR/tokumxd1/tokumx.pid\
+           --dbpath $VOLATILE_DIR/tokumxd1\
+           --logpath $VOLATILE_DIR/tokumxd1/tokumx.log\
+           --noprealloc --rest --fork)
+
+      sh %(#{tokumx_rootdir}/bin/mongo\
+           --eval "printjson(db.serverStatus())" 'localhost:37017')
     end
 
     task :script => ['ci:common:script'] do
       this_provides = [
-        'tomcat'
+        'tokumx'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
@@ -46,7 +50,7 @@ namespace :ci do
     task :cache => ['ci:common:cache']
 
     task :cleanup => ['ci:common:cleanup'] do
-      sh %(#{tomcat_rootdir}/bin/shutdown.sh)
+      sh %(kill `cat $VOLATILE_DIR/tokumxd1/tokumx.pid`)
     end
 
     task :execute do

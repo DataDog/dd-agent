@@ -41,6 +41,7 @@ namespace :ci do
 
     task :install do |t|
       section('INSTALL')
+      sh %(pip install --upgrade pip setuptools)
       sh %(pip install\
            -r requirements.txt\
            --cache-dir $PIP_CACHE\

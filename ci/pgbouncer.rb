@@ -5,7 +5,6 @@ def pgb_rootdir
   "#{ENV['INTEGRATIONS_DIR']}/pgbouncer"
 end
 
-
 namespace :ci do
   namespace :pgbouncer do |flavor|
     task :before_install => ['ci:common:before_install']
@@ -13,12 +12,14 @@ namespace :ci do
     task :install do
       Rake::Task['ci:postgres:install'].invoke
       unless Dir.exist? File.expand_path(pgb_rootdir)
-        sh %(wget -O $VOLATILE_DIR/pgbouncer-1.5.4.tar.gz https://s3.amazonaws.com/travis-archive/pgbouncer-1.5.4.tar.gz)
-        sh %(mkdir -p $VOLATILE_DIR/pgbouncer)
-        sh %(tar xzf $VOLATILE_DIR/pgbouncer-1.5.4.tar.gz\
-             -C $VOLATILE_DIR/pgbouncer --strip-components=1)
+        # upstream link: https://github.com/markokr/pgbouncer-dev/archive/pgbouncer_1_5_4.tar.gz
         sh %(mkdir -p #{pgb_rootdir})
+        sh %(git clone https://github.com/markokr/pgbouncer-dev $VOLATILE_DIR/pgbouncer)
         sh %(cd $VOLATILE_DIR/pgbouncer\
+             && git checkout pgbouncer_1_5_4\
+             && git submodule init\
+             && git submodule update\
+             && ./autogen.sh\
              && ./configure --prefix=#{pgb_rootdir}\
              && make\
              && cp pgbouncer #{pgb_rootdir})

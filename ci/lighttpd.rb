@@ -1,7 +1,7 @@
 require './ci/common'
 
 def lighttpd_version
-  ENV['LIGHTTPD_VERSION'] || '1.4.35'
+  ENV['FLAVOR_VERSION'] || '1.4.35'
 end
 
 def lighttpd_rootdir
@@ -14,9 +14,11 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(lighttpd_rootdir)
+        # Downloads
+        # http://download.lighttpd.net/lighttpd/releases-#{lighttpd_version[0..2]}.x/lighttpd-#{lighttpd_version}.tar.gz
         sh %(curl -s -L\
              -o $VOLATILE_DIR/lighttpd-#{lighttpd_version}.tar.gz\
-             http://download.lighttpd.net/lighttpd/releases-#{lighttpd_version[0..2]}.x/lighttpd-#{lighttpd_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/lighttpd-#{lighttpd_version}.tar.gz)
         sh %(mkdir -p #{lighttpd_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/lighttpd)
         sh %(tar zxf $VOLATILE_DIR/lighttpd-#{lighttpd_version}.tar.gz\

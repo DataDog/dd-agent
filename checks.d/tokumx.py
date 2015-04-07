@@ -393,6 +393,7 @@ class TokuMX(AgentCheck):
                         continue
                     m = 'stats.db.%s' % m
                     m = self.normalize(m, 'tokumx')
+                    # FIXME: here tokumx.stats.db.* are potentially unbounded
                     self.gauge(m, v, db_tags)
                 for collname in db.collection_names(False):
                     stats = db.command('collStats', collname)
@@ -408,6 +409,7 @@ class TokuMX(AgentCheck):
                                 for k in ['queries', 'nscanned', 'nscannedObjects', 'inserts', 'deletes']:
                                     key = (dbname, collname, idx_stats['name'])
                                     self.submit_idx_rate('tokumx.statsd.idx.%s' % k, idx_stats[k], tags=db_tags, key=key)
+                        # FIXME: here tokumx.stats.coll.* are potentially unbounded
                         elif type(v) in (types.IntType, types.LongType, types.FloatType):
                             self.histogram('tokumx.stats.coll.%s' % m, v, db_tags)
 

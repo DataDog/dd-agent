@@ -1,7 +1,7 @@
 require './ci/common'
 
 def raw_pg_version
-  ENV['FLAVOR_VERSION'] || '9.4.0'
+  ENV['FLAVOR_VERSION'] || '9.4.1'
 end
 
 def pg_version
@@ -17,10 +17,12 @@ namespace :ci do
     task :before_install => ['ci:common:before_install']
 
     task :install => ['ci:common:install'] do
+      # Downloads
+      # https://github.com/postgres/postgres/archive/#{pg_version}.tar.gz
       unless Dir.exist? File.expand_path(pg_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/postgres-#{pg_version}.tar.gz\
-             https://github.com/postgres/postgres/archive/#{pg_version}.tar.gz)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/#{pg_version}.tar.gz)
         sh %(mkdir -p $VOLATILE_DIR/postgres)
         sh %(tar zxf $VOLATILE_DIR/postgres-#{pg_version}.tar.gz\
              -C $VOLATILE_DIR/postgres --strip-components=1)

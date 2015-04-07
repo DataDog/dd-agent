@@ -1,7 +1,7 @@
 require './ci/common'
 
 def apache_version
-  ENV['APACHE_VERSION'] || '2.4.10'
+  ENV['FLAVOR_VERSION'] || '2.4.12'
 end
 
 def apache_rootdir
@@ -14,15 +14,18 @@ namespace :ci do
 
     task :install => ['ci:common:install'] do
       unless Dir.exist? File.expand_path(apache_rootdir)
+        # Downloads:
+        # http://httpd.apache.org/download.cgi#apache24
+        # apr/apr-util on any apache mirror https://www.apache.org/mirrors/
         sh %(curl -s -L\
              -o $VOLATILE_DIR/httpd-#{apache_version}.tar.bz2\
-             http://mirror.cc.columbia.edu/pub/software/apache/httpd/httpd-#{apache_version}.tar.bz2)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/httpd-#{apache_version}.tar.bz2)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apr.tar.bz2\
-             http://mirror.cc.columbia.edu/pub/software/apache/apr/apr-1.5.1.tar.bz2)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/apr-1.5.1.tar.bz2)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/apr-util.tar.bz2\
-             http://mirror.cc.columbia.edu/pub/software/apache/apr/apr-util-1.5.4.tar.bz2)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/apr-util-1.5.4.tar.bz2)
         sh %(mkdir -p #{apache_rootdir})
         sh %(mkdir -p $VOLATILE_DIR/apache)
         sh %(tar jxf $VOLATILE_DIR/httpd-#{apache_version}.tar.bz2\
@@ -48,6 +51,7 @@ namespace :ci do
       sh %(sed -i -e "s@%VOLATILE_DIR%@$VOLATILE_DIR@"\
             #{apache_rootdir}/conf/httpd.conf)
       sh %(#{apache_rootdir}/bin/apachectl start)
+      sleep_for 2
       # Simulate activity to populate metrics
       100.times do
         sh %(curl --silent http://localhost:8080 > /dev/null)
