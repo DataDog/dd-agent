@@ -74,6 +74,7 @@ env:
 # hugepages are enabled
 #    - TRAVIS_FLAVOR=tokumx
     - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
+    - TRAVIS_FLAVOR=zookeeper
 
 # Override travis defaults with empty jobs
 before_install: echo "OVERRIDING TRAVIS STEPS"

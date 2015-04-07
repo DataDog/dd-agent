@@ -32,6 +32,7 @@ from StringIO import StringIO
 # project
 from checks import AgentCheck
 
+
 class ZKConnectionFailure(Exception):
     """ Raised when we are unable to connect or get the output of a command. """
     pass
@@ -73,6 +74,7 @@ class ZookeeperCheck(AgentCheck):
             stat_out = self._send_command('stat', *cx_args)
         except ZKConnectionFailure:
             self.increment('zookeeper.timeouts')
+            raise
         else:
             # Parse the response
             metrics, new_tags, mode = self.parse_stat(stat_out)
@@ -87,7 +89,8 @@ class ZookeeperCheck(AgentCheck):
                     message = u"Server is in %s mode" % mode
                 else:
                     status = AgentCheck.CRITICAL
-                    message = u"Server is in %s mode but check expects %s mode" % (expected_mode, mode)
+                    message = u"Server is in %s mode but check expects %s mode"\
+                              % (mode, expected_mode)
                 self.service_check('zookeeper.mode', status, message=message)
 
     def _send_command(self, command, host, port, timeout):
@@ -110,7 +113,8 @@ class ZookeeperCheck(AgentCheck):
                 while chunk:
                     if num_reads > max_reads:
                         # Safeguard against an infinite loop
-                        raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                        raise Exception("Read %s bytes before exceeding max reads of %s. "
+                                        % (buf.tell(), max_reads))
                     chunk = sock.recv(chunk_size)
                     buf.write(chunk)
                     num_reads += 1
