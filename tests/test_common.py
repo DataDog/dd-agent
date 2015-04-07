@@ -184,6 +184,43 @@ class TestCore(unittest.TestCase):
             tag = "check:%s" % check.name
             assert tag in all_tags, all_tags
 
+    def test_no_proxy(self):
+        """ Starting with Agent 5.0.0, there should always be a local forwarder
+        running and all payloads should go through it. So we should make sure
+        that we pass the no_proxy environment variable that will be used by requests
+        (See: https://github.com/kennethreitz/requests/pull/945 )
+        """
+        from requests.utils import get_environ_proxies
+        import dogstatsd
+        from os import environ as env
+        
+        env["http_proxy"] = "http://localhost:3128"
+        env["https_proxy"] = env["http_proxy"]
+        env["HTTP_PROXY"] = env["http_proxy"]
+        env["HTTPS_PROXY"] = env["http_proxy"]
+
+        self.assertTrue("no_proxy" in env)
+
+        self.assertEquals(env["no_proxy"], "127.0.0.1,localhost")
+        self.assertEquals({}, get_environ_proxies(
+            "http://localhost:17123/intake"))
+
+        expected_proxies = {
+            'http': 'http://localhost:3128',
+            'https': 'http://localhost:3128',
+            'no': '127.0.0.1,localhost'
+        }
+        environ_proxies = get_environ_proxies("https://www.google.com")
+        self.assertEquals(expected_proxies, environ_proxies,
+            (expected_proxies, environ_proxies))
+
+        # Clear the env variables set
+        del env["http_proxy"]
+        del env["https_proxy"]
+        del env["HTTP_PROXY"]
+        del env["HTTPS_PROXY"]
+
+
     def test_min_collection_interval(self):
         if os.environ.get('TRAVIS', False):
             raise SkipTest('ntp server times out too often on Travis')
