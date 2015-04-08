@@ -10,6 +10,12 @@ initialize_logging('dogstatsd')
 import os
 os.umask(022)
 
+# Starting with Agent 5.0.0, there should always be a local forwarder
+# running and all payloads should go through it. So we should make sure
+# that we pass the no_proxy environment variable that will be used by requests
+# See: https://github.com/kennethreitz/requests/pull/945
+os.environ['no_proxy'] = '127.0.0.1,localhost'
+
 # stdlib
 import logging
 import optparse
@@ -193,18 +199,11 @@ class Reporter(threading.Thread):
             self.submit_http(url, json.dumps(payload), headers)
 
     def submit_http(self, url, data, headers):
-        no_proxy = {
-        # See https://github.com/kennethreitz/requests/issues/879
-        # and https://github.com/DataDog/dd-agent/issues/1112
-            'no': 'pass',
-        }
         headers["DD-Dogstatsd-Version"] = get_version()
         log.debug("Posting payload to %s" % url)
         try:
             start_time = time()
-            r = requests.post(url, data=data, timeout=5,
-                headers=headers, proxies=no_proxy)
-
+            r = requests.post(url, data=data, timeout=5, headers=headers)
             r.raise_for_status()
 
             if r.status_code >= 200 and r.status_code < 205:
