@@ -22,13 +22,10 @@ class PHPFPMCheck(AgentCheck):
         'total processes': 'php_fpm.processes.total',
     }
 
-    RATES = {
-        'max children reached': 'php_fpm.processes.max_reached'
-    }
-
-    COUNTERS = {
+    MONOTONIC_COUNTS = {
         'accepted conn': 'php_fpm.requests.accepted',
-        'slow requests': 'php_fpm.requests.slow'
+        'max children reached': 'php_fpm.processes.max_reached',
+        'slow requests': 'php_fpm.requests.slow',
     }
 
     def check(self, instance):
@@ -86,17 +83,11 @@ class PHPFPMCheck(AgentCheck):
                 continue
             self.gauge(mname, int(data[key]), tags=metric_tags)
 
-        for key, mname in self.RATES.iteritems():
-            if key not in data:
-                self.log.warn("Rate metric {0} is missing from FPM status".format(key))
-                continue
-            self.rate(mname, int(data[key]), tags=metric_tags)
-
-        for key, mname in self.COUNTERS.iteritems():
+        for key, mname in self.MONOTONIC_COUNTS.iteritems():
             if key not in data:
                 self.log.warn("Counter metric {0} is missing from FPM status".format(key))
                 continue
-            self.increment(mname, int(data[key]), tags=metric_tags)
+            self.monotonic_count(mname, int(data[key]), tags=metric_tags)
 
         # return pool, to tag the service check with it if we have one
         return pool_name

@@ -62,7 +62,7 @@ class PHPFPMCheckTest(AgentCheckTest):
             'tags': ['cluster:forums']
         }
 
-        self.run_check({'instances': [instance]})
+        self.run_check_twice({'instances': [instance]})
 
         metrics = [
             'php_fpm.listen_queue.size',
@@ -83,8 +83,5 @@ class PHPFPMCheckTest(AgentCheckTest):
 
         self.assertServiceCheck('php_fpm.can_ping', status=AgentCheck.OK,
                                 count=1)
-        time.sleep(1)
 
-        # Run check second time to get the rate
-        self.run_check({'instances': [instance]})
         self.assertMetric('php_fpm.processes.max_reached', count=1)
