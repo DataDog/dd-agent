@@ -28,7 +28,7 @@ JAVA_LOGGING_LEVEL = {
     logging.WARNING: "WARN",
 }
 
-JMX_FETCH_JAR_NAME = "jmxfetch-0.5.1-jar-with-dependencies.jar"
+JMX_FETCH_JAR_NAME = "jmxfetch-0.5.2-jar-with-dependencies.jar"
 _JVM_DEFAULT_MAX_MEMORY_ALLOCATION = " -Xmx200m"
 _JVM_DEFAULT_INITIAL_MEMORY_ALLOCATION = " -Xms50m"
 JMXFETCH_MAIN_CLASS = "org.datadog.jmxfetch.App"
