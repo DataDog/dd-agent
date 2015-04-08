@@ -13,6 +13,7 @@ from time import strftime
 from checks.check_status import CollectorStatus, DogstatsdStatus, ForwarderStatus
 from config import (
     check_yaml,
+    format_proxy_settings,
     get_confd_path,
     get_config,
     get_config_path,
@@ -81,6 +82,7 @@ class Flare(object):
         )
         self._hostname = get_hostname(config)
         self._prefix = "datadog-{0}".format(self._hostname)
+        self._proxy = format_proxy_settings(config)
 
     # On Unix system, check that the user is root (to call supervisorctl & status)
     # Otherwise emit a warning, and ask for confirmation
@@ -136,7 +138,8 @@ class Flare(object):
             'hostname': self._hostname,
             'email': email
         }
-        self._resp = requests.post(url, files=files, data=data, timeout=self.TIMEOUT)
+        self._resp = requests.post(url, files=files, data=data,
+                                   timeout=self.TIMEOUT, proxies=self._proxy)
         self._analyse_result()
 
     # Start by creating the tar file which will contain everything
