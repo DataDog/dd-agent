@@ -2,7 +2,6 @@ import logging
 from time import time
 
 from checks.metric_types import MetricTypes
-from config import get_histogram_aggregates, get_histogram_percentiles
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +54,6 @@ class Gauge(Metric):
         self.last_sample_time = time()
         self.timestamp = timestamp
 
-
     def flush(self, timestamp, interval):
         if self.value is not None:
             res = [self.formatter(
@@ -72,6 +70,7 @@ class Gauge(Metric):
             return res
 
         return []
+
 
 class BucketGauge(Gauge):
     """ A metric that tracks a value at particular points in time.
@@ -131,6 +130,7 @@ class Count(Metric):
             )]
         finally:
             self.value = None
+
 
 class MonotonicCount(Metric):
 
@@ -213,6 +213,7 @@ class Counter(Metric):
 
 DEFAULT_HISTOGRAM_AGGREGATES = ['max', 'median', 'avg', 'count']
 DEFAULT_HISTOGRAM_PERCENTILES = [0.95]
+
 
 class Histogram(Metric):
     """ A metric to track the distribution of a set of values. """
@@ -381,6 +382,7 @@ class Rate(Metric):
             )]
         finally:
             self.samples = self.samples[-1:]
+
 
 class Aggregator(object):
     """
@@ -602,7 +604,6 @@ class Aggregator(object):
                     self.submit_metric(name, value, mtype, tags=tags, hostname=hostname,
                         device_name=device_name, sample_rate=sample_rate)
 
-
     def _extract_magic_tags(self, tags):
         """Magic tags (host, device) override metric hostname and device_name attributes"""
         hostname = None
@@ -703,6 +704,7 @@ class Aggregator(object):
 
     def send_packet_count(self, metric_name):
         self.submit_metric(metric_name, self.count, 'g')
+
 
 class MetricsBucketAggregator(Aggregator):
     """
@@ -852,7 +854,7 @@ class MetricsAggregator(Aggregator):
     def __init__(self, hostname, interval=1.0, expiry_seconds=300,
             formatter=None, recent_point_threshold=None,
             histogram_aggregates=None, histogram_percentiles=None,
-            utf8_decoding=False):
+            utf8_decoding=False, governor=None):
         super(MetricsAggregator, self).__init__(
             hostname,
             interval,
@@ -875,8 +877,13 @@ class MetricsAggregator(Aggregator):
             '_dd-r': Rate,
         }
 
+        # Link governor to submit_metric method
+        if governor:
+            governor.set(self.submit_metric)
+            self.submit_metric = governor
+
     def submit_metric(self, name, value, mtype, tags=None, hostname=None,
-                                device_name=None, timestamp=None, sample_rate=1):
+                      device_name=None, timestamp=None, sample_rate=1):
         # Avoid calling extra functions to dedupe tags if there are none
 
         # Keep hostname with empty string to unset it

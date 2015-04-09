@@ -6,19 +6,18 @@ The Check class is being deprecated so don't write new checks with it.
 
 import logging
 import re
-import socket
 import time
 import types
 import os
-import sys
 import traceback
 import copy
 from pprint import pprint
 from collections import defaultdict
 
-from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
 from config import get_confd_path
 from checks import check_status
+from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
+from utils.governor import CheckGovernor
 
 # 3rd party
 import yaml
@@ -265,6 +264,7 @@ class Check(object):
                 pass
         return metrics
 
+
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
@@ -294,7 +294,7 @@ class AgentCheck(object):
             formatter=agent_formatter,
             recent_point_threshold=agentConfig.get('recent_point_threshold', None),
             histogram_aggregates=agentConfig.get('histogram_aggregates'),
-            histogram_percentiles=agentConfig.get('histogram_percentiles')
+            histogram_percentiles=agentConfig.get('histogram_percentiles'),
         )
 
         self.events = []
@@ -303,6 +303,11 @@ class AgentCheck(object):
         self.warnings = []
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
+
+        # Instantiate a CheckGovernor when required
+        self.governor = None
+        if CheckGovernor.get_check_limiters():
+            self.governor = CheckGovernor()
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -473,7 +478,10 @@ class AgentCheck(object):
         @return the list of samples
         @rtype [(metric_name, timestamp, value, {"tags": ["tag1", "tag2"]}), ...]
         """
-        return self.aggregator.flush()
+        metrics = self.aggregator.flush()
+        if self.governor:
+            self.governor.process(metrics)
+        return metrics
 
     def get_events(self):
         """
@@ -530,6 +538,13 @@ class AgentCheck(object):
         warnings = self.warnings
         self.warnings = []
         return warnings
+
+    def get_governor_status(self):
+        """
+        Return governor status and flush
+        """
+        status = self.governor.get_status(flush=True) if self.governor else []
+        return status
 
     def run(self):
         """ Run all instances. """

@@ -11,15 +11,14 @@ import pickle
 import platform
 import sys
 import tempfile
-import traceback
 import time
 from collections import defaultdict
 import os.path
 
 # project
 import config
-from config import _windows_commondata_path, get_config
-from util import get_os, plural, Platform
+from config import _windows_commondata_path, get_config, _is_affirmative
+from util import plural, Platform
 
 # 3rd party
 import ntplib
@@ -276,7 +275,7 @@ class CheckStatus(object):
     def __init__(self, check_name, instance_statuses, metric_count=None,
                  event_count=None, service_check_count=None,
                  init_failed_error=None, init_failed_traceback=None,
-                 library_versions=None, source_type_name=None):
+                 library_versions=None, source_type_name=None, governor_status=[]):
         self.name = check_name
         self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
@@ -286,6 +285,7 @@ class CheckStatus(object):
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
+        self.governor_status = governor_status
 
     @property
     def status(self):
@@ -323,11 +323,13 @@ class CollectorStatus(AgentStatus):
 
     NAME = 'Collector'
 
-    def __init__(self, check_statuses=None, emitter_statuses=None, metadata=None):
+    def __init__(self, check_statuses=None, emitter_statuses=None,
+                 metadata=None, governor_status=None):
         AgentStatus.__init__(self)
         self.check_statuses = check_statuses or []
         self.emitter_statuses = emitter_statuses or []
         self.metadata = metadata or []
+        self.governor_status = governor_status or []
 
     @property
     def status(self):
@@ -339,6 +341,29 @@ class CollectorStatus(AgentStatus):
     def has_error(self):
         return self.status != STATUS_OK
 
+    @staticmethod
+    def draw_limiter(limiter):
+        limiter_lines = []
+        limiter_def = limiter['definition']
+        limiter_trace = limiter['trace']
+
+        # Limiter definition & status
+        status = style("OK", 'green') if not limiter_trace['overflow_metrics'] \
+            else style("OVERFLOW", 'red')
+        limiter_lines.append(
+            "  " * 4 + "- [" + status + "] Limit " +
+            str(limiter_def['selection']) + " by " + str(limiter_def["scope"]))
+
+        # Limiter trace
+        if limiter_trace['overflow_metrics']:
+            limiter_lines.append(
+                "  " * 6 + str(limiter_trace['overflow_metrics']) +
+                " metrics overflow.")
+
+        limiter_lines.append("")
+
+        return limiter_lines
+
     def body_lines(self):
         # Metadata whitelist
         metadata_whitelist = [
@@ -347,7 +372,6 @@ class CollectorStatus(AgentStatus):
             'ipv4',
             'instance-id'
         ]
-
 
         lines = [
             'Clocks',
@@ -471,9 +495,55 @@ class CollectorStatus(AgentStatus):
 
                 lines += check_lines
 
+        # Governor Status
+        governor_enabled = _is_affirmative(get_config().get('use_governor', True))
+
+        checks_governor = self.check_statuses and self.check_statuses[0].governor_status
+        agent_governor = self.governor_status
+
+        display_governor = governor_enabled and (checks_governor or agent_governor)
+
+        if display_governor:
+            lines += [
+                "Governor",
+                "========",
+                ""
+            ]
+
+            #  Checks Governor
+            if checks_governor:
+                lines += [
+                    "  Checks",
+                    "  ------",
+                    ""
+                ]
+
+                for cs in self.check_statuses:
+                    check_lines = [
+                        '    ' + cs.name,
+                        '    ' + '-' * len(cs.name)
+                    ]
+
+                    for limiter in cs.governor_status:
+                        limiter_lines = self.draw_limiter(limiter)
+                        check_lines.extend(limiter_lines)
+
+                    lines += check_lines
+
+            # Agent Governor
+            if agent_governor:
+                lines += [
+                    "  Collector",
+                    "  ---------",
+                    ""
+                ]
+
+                for limiter in self.governor_status:
+                    limiter_lines = self.draw_limiter(limiter)
+                    lines += limiter_lines
+
         # Emitter status
         lines += [
-            "",
             "Emitters",
             "========",
             ""

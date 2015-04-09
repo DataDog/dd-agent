@@ -28,6 +28,7 @@ from checks.check_status import CollectorStatus
 from config import (
     get_confd_path,
     get_config,
+    get_governor_config,
     get_logging_config,
     get_parsed_args,
     get_system_stats,
@@ -44,6 +45,7 @@ from util import (
     Watchdog,
 )
 from utils.flare import configcheck, Flare
+from utils.governor import Governor
 
 # Constants
 PID_NAME = "dd-agent"
@@ -104,10 +106,12 @@ class Agent(Daemon):
         hostname = get_hostname(agentConfig)
         systemStats = get_system_stats()
         emitters = self._get_emitters(agentConfig)
+
+        # Instantiate collector
+        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
+
         # Load the checks.d checks
         checksd = load_check_directory(agentConfig, hostname)
-
-        self.collector = Collector(agentConfig, emitters, systemStats, hostname)
 
         # Configure the watchdog.
         check_frequency = int(agentConfig['check_freq'])
@@ -288,14 +292,21 @@ def main():
             # Try the old-style check first
             print getattr(checks.collector, check_name)(log).check(agentConfig)
         except Exception:
+
+            # Init Governor
+            governor_config = get_governor_config()
+            Governor.init(governor_config, agentConfig, hostname)
+
             # If not an old-style check, try checks.d
             checks = load_check_directory(agentConfig, hostname)
+
             for check in checks['initialized_checks']:
                 if check.name == check_name:
                     check.run()
                     print check.get_metrics()
                     print check.get_events()
                     print check.get_service_checks()
+                    print check.get_governor_status()
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
@@ -303,6 +314,7 @@ def main():
                         print check.get_metrics()
                         print check.get_events()
                         print check.get_service_checks()
+                        print check.get_governor_status()
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:

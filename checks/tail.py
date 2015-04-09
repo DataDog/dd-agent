@@ -7,17 +7,6 @@ SEEK_END = 2
 from stat import *
 import binascii
 
-def median(vals):
-    vals = sorted(vals)
-    if not vals:
-        raise ValueError(vals)
-    elif len(vals) % 2 == 0:
-        i1 = int(len(vals) / 2)
-        i2 = i1 - 1
-        return float(vals[i1] + vals[i2]) / 2.
-    else:
-        return vals[int(len(vals) / 2)]
-
 
 class TailFile(object):
 
@@ -31,7 +20,7 @@ class TailFile(object):
         self._crc = None
         self._log = logger
         self._callback = callback
-   
+
     def _open_file(self, move_end=False, pos=False):
 
         already_open = False
