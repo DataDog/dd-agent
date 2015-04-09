@@ -235,23 +235,66 @@ class TestRedis(AgentCheckTest):
             'port': port
         }
 
-
         db = redis.Redis(port=port, db=14)  # Datadog's test db
+        
+        # Tweaking Redis's config to have the test run faster
+        old_sl_thresh = db.config_get('slowlog-log-slower-than')['slowlog-log-slower-than']
+        db.config_set('slowlog-log-slower-than', 0)
+
         db.flushdb()
 
         # Generate some slow commands
-        for i in range(100000):
+        for i in range(100):
             db.lpush(test_key, random.random())
 
         db.sort(test_key)
 
         self.assertTrue(db.slowlog_len() > 0)
+        
+        db.config_set('slowlog-log-slower-than', old_sl_thresh)
 
         self.run_check({"init_config": {}, "instances": [instance]})
 
         assert self.metrics, "No metrics returned"
         self.assertMetric("redis.slowlog.micros.max", tags=["command:SORT",
             "redis_host:localhost", "redis_port:{0}".format(port)])
+
+
+    def test_custom_slowlog(self):
+        port = NOAUTH_PORT
+        test_key = "testkey"
+        instance = {
+            'host': 'localhost',
+            'port': port,
+            'slowlog-max-len': 1
+        }
+
+        db = redis.Redis(port=port, db=14)  # Datadog's test db
+
+        # Tweaking Redis's config to have the test run faster
+        old_sl_thresh = db.config_get('slowlog-log-slower-than')['slowlog-log-slower-than']
+        db.config_set('slowlog-log-slower-than', 0)
+
+        db.flushdb()
+
+        # Generate some slow commands
+        for i in range(100):
+            db.lpush(test_key, random.random())
+
+        db.sort(test_key)
+
+        db.config_set('slowlog-log-slower-than', old_sl_thresh)
+
+        self.assertTrue(db.slowlog_len() > 0)
+
+        self.run_check({"init_config": {}, "instances": [instance]})
+        
+        assert self.metrics, "No metrics returned"
+
+        # Let's check that we didn't put more than one slowlog entry in the 
+        # payload, as specified in the above agent configuration
+        self.assertMetric("redis.slowlog.micros.count", tags=["command:SORT",
+            "redis_host:localhost", "redis_port:{0}".format(port)], value=1.0)
 
 
     def _sort_metrics(self, metrics):
