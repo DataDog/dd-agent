@@ -288,7 +288,7 @@ class Redis(AgentCheck):
                     .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
                 max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
         else:
-            max_slow_entries = int(instance.get(max_slow_entries))
+            max_slow_entries = int(instance.get(MAX_SLOW_ENTRIES_KEY))
 
 
         # Generate a unique id for this instance to be persisted across runs
