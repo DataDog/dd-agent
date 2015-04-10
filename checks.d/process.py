@@ -1,9 +1,10 @@
-# project
-from checks import AgentCheck
-from util import Platform
-
 # 3rd party
 import psutil
+
+# project
+from checks import AgentCheck
+from config import _is_affirmative
+from util import Platform
 
 
 class ProcessCheck(AgentCheck):
@@ -162,9 +163,9 @@ class ProcessCheck(AgentCheck):
     def check(self, instance):
         name = instance.get('name', None)
         tags = instance.get('tags', [])
-        exact_match = instance.get('exact_match', True)
+        exact_match = _is_affirmative(instance.get('exact_match', True))
         search_string = instance.get('search_string', None)
-        ignore_denied_access = instance.get('ignore_denied_access', True)
+        ignore_denied_access = _is_affirmative(instance.get('ignore_denied_access', True))
         cpu_check_interval = instance.get('cpu_check_interval', 0.1)
 
         if not isinstance(search_string, list):
