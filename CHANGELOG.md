@@ -7,40 +7,59 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...master
 
 ### New integrations
 * PGBouncer: See [#1391][]
-* Supervisor. See [#1165][]
 * PHP-FPM: See [#1441][] (Thanks [@arosenhagen][])
+* Supervisor. See [#1165][], [#1511][] & [#1512][]
 
 ### Updated integrations
+* Cassandra
+* ElasticSearch
+* Gearman
+* HTTP Check
+* Jenkins
+* JMXFetch
+* Kafka
+* Marathon
+* Memcache
+* nginx
+* PostgreSQL
+* Redis
+* SNMP
+* Varnish
+* WMI
+* ZooKeeper
 
 ### Changes
 * [FEATURE] Add support of Debian Jessie
-* [FEATURE] Add a "flare" feature to contact our support team. See [#1422][]
+* [FEATURE] Add a "flare" feature to contact our support team. See [#1422][] & [#1509][]
 * [FEATURE] nginx: Add a metric to track dropped connections
-* [FEATURE] Redis: Add replication metrics and status. See [#1350][] and [#1447][] (Thanks [@pbitty][]).
-* [FEATURE] Redis: Collect slow log metrics. See [#1400][] 
+* [FEATURE] Redis: Add replication metrics and status. See [#1350][] and [#1447][] (Thanks [@pbitty][])
+* [FEATURE] Redis: Collect slow log metrics. See [#1400][]
 * [FEATURE] WMI: Extend tagging options: tag metrics with a target class property, or a set of fixed values. See [#1388][]
-* [FEATURE] PostgreSQL: Add support for custom queries, StatIO metrics, and database size metric. See [#1395][] and [#1415][]. Thanks to [@ipolishchuk][] and [@adriandoolittle][]
+* [FEATURE] PostgreSQL: Add support for custom queries, StatIO metrics, and database size metric. See [#1395][] and [#1415][] (Thanks [@ipolishchuk][] and [@adriandoolittle][])
 * [FEATURE] Kafka: Add support of kafka >= 0.8.2. See [#1438][] (Thanks [@patrickbcullen][])
 * [FEATURE] Cassandra: Add more storage proxy metrics to default config. See [#1393][]
-* [FEATURE] SNMP: Add support of SNMPv1. See [#1408][]. Thanks [@slushpupie][]
+* [FEATURE] SNMP: Add support of SNMPv1. See [#1408][] (Thanks [@slushpupie][])
 * [FEATURE] Jenkins: Add support of version >= 1.598. See [#1442][]
 * [FEATURE] JMX Checks: Add service checks
 * [FEATURE] JMX Checks: Add support of list of filters. See http://docs.datadoghq.com/integrations/java/
 * [FEATURE] Varnish: Add support of Varnish 4.x. See [#1459][] and [#1461][]
-* [FEATURE] HTTP Check: Add the possibility to test for the content of the response. See [#1297][], [#1326][] and [#1390][]. Thanks to [@chrissnel][] and [@handigarde][]
+* [FEATURE] HTTP Check: Add the possibility to test for the content of the response. See [#1297][], [#1326][] and [#1390][] (Thanks [@chrissnel][] and [@handigarde][])
 * [IMPROVEMENT] JMXFetch: Move JMXFetch to its own entry in the supervisor
 * [IMPROVEMENT] Switch http library used in checks to requests. See [#1399][]
 * [IMPROVEMENT] NTP Check: Enable by default
+* [IMPROVEMENT] EC2 tags: require only DescribeTags permission. See [#1503][] (Thanks [@oremj][])
 * [BUGFIX] JMXFetch: Add default min and max heap size
 * [BUGFIX] PostgreSQL: Fix "Metric has an interval of 0 bug". See [#1211][] and [#1396][]
 * [BUGFIX] Marathon: Fix bad url construction. See [#1278][] and [#1401][]
 * [BUGFIX] Zookeeper: Fix misleading metric name. See [#1443][] and [#1383][]
 * [BUGFIX] Proxy settings: Cast proxy port to an integer. See [#1414][] and [#1416][]
 * [BUGFIX] Support EC2 tag discovery in all regions. See [#1332][]
-* [BUGFIX] Source installation: Fix "error: no such option: --use_simple_http_client" See [#1454][]
+* [BUGFIX] Source installation: Fix "error: no such option: --use_simple_http_client". See [#1454][]
 * [BUGFIX] Memcache: Fix bad support of multi instances. See [#1490][]
 * [BUGFIX] Gearman: Fix bad support of multi instances. See [#1476][]
 * [BUGFIX] HTTP Check: Fix for servers using SNI
+* [BUGFIX] ElasticSearch: Fix bad support of multi instances. See [#1487][]
+* [BUGFIX] Core: Do not use proxy for local connection. See [#1518][]
 
 
 
@@ -1533,7 +1552,13 @@ If you use ganglia, you want this version.
 [#1459]: https://github.com/DataDog/dd-agent/issues/1459
 [#1461]: https://github.com/DataDog/dd-agent/issues/1461
 [#1476]: https://github.com/DataDog/dd-agent/issues/1476
+[#1487]: https://github.com/DataDog/dd-agent/issues/1487
 [#1490]: https://github.com/DataDog/dd-agent/issues/1490
+[#1503]: https://github.com/DataDog/dd-agent/issues/1503
+[#1509]: https://github.com/DataDog/dd-agent/issues/1509
+[#1511]: https://github.com/DataDog/dd-agent/issues/1511
+[#1512]: https://github.com/DataDog/dd-agent/issues/1512
+[#1518]: https://github.com/DataDog/dd-agent/issues/1518
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
@@ -1576,6 +1601,7 @@ If you use ganglia, you want this version.
 [@mutemule]: https://github.com/mutemule
 [@nambrosch]: https://github.com/nambrosch
 [@ordenull]: https://github.com/ordenull
+[@oremj]: https://github.com/oremj
 [@patrickbcullen]: https://github.com/patrickbcullen
 [@pbitty]: https://github.com/pbitty
 [@rl-0x0]: https://github.com/rl-0x0
