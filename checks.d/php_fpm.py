@@ -56,8 +56,9 @@ class PHPFPMCheck(AgentCheck):
         if ping_url is not None:
             self._process_ping(ping_url, auth, tags, pool)
 
+        # pylint doesn't understand that we are raising this only if it's here
         if status_exception is not None:
-            raise status_exception
+            raise status_exception  # pylint: disable=E0702
 
     def _process_status(self, status_url, auth, tags):
         data = {}

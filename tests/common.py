@@ -163,8 +163,9 @@ class AgentCheckTest(unittest.TestCase):
         self.service_checks = self.check.get_service_checks()
         self.warnings = self.check.get_warnings()
 
+        # pylint doesn't understand that we are raising this only if it's here
         if error is not None:
-            raise error
+            raise error  # pylint: disable=E0702
 
     def print_current_state(self):
         log.debug("""++++++++ CURRENT STATE ++++++++

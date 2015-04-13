@@ -68,7 +68,8 @@ class JMXInitTest(AgentCheckTest):
         }
 
     def assertJavaRunsWith(self, yaml_conf, include=[], exclude=[]):
-        subprocess_args = self._get_jmxfetch_subprocess_args(yaml_conf)
+        # pylint doesn't get that the arg is the mock
+        subprocess_args = self._get_jmxfetch_subprocess_args(yaml_conf)  # pylint: disable=E1120
         for i in include:
             self.assertIn(i, subprocess_args)
         for e in exclude:
@@ -130,7 +131,3 @@ class JMXTestCase(unittest.TestCase):
         self.assertEquals(len([t for t in metrics if t['metric'] == "my.metric.buf" and "instance:jmx_instance1" in t['tags']]), 2, metrics)
         self.assertTrue(len([t for t in metrics if 'type:ThreadPool' in t['tags'] and "instance:jmx_instance1" in t['tags'] and "jmx.catalina" in t['metric']]) > 8, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and "instance:jmx_instance1" in t['tags']]) == 13, metrics)
-
-
-if __name__ == "__main__":
-    unittest.main()
