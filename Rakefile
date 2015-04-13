@@ -82,14 +82,12 @@ namespace :test do
   end
 end
 
-desc "Lint the code through pylint"
-task "lint" do
-  sh %{find . -name '*.py' -type f -not -path '*venv*' -not -path '*embedded*' -exec pylint --rcfile=./.pylintrc {} \\;}
-end
+desc 'Lint the code through pylint'
+task 'lint' => 'ci:default:lint'
 
-desc "Run the Agent locally"
-task "run" do
-  sh("supervisord -n -c supervisord.dev.conf")
+desc 'Run the Agent locally'
+task 'run' do
+  sh('supervisord -n -c supervisord.dev.conf')
 end
 
 namespace :ci do

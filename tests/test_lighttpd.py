@@ -46,6 +46,3 @@ class TestLighttpd(AgentCheckTest):
                                 status=AgentCheck.CRITICAL,
                                 tags=['host:localhost', 'port:1337'],
                                 count=1)
-
-if __name__ == "__main__":
-    unittest.main()
