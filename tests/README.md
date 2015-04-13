@@ -40,7 +40,7 @@ Each flavor is defined in `ci/flavor.rb`, and we set different steps for running
 * **script** runs nosetests with a filter (see how to write tests)
 * **cleanup** stops the software and remove unnecessary data (not running on Travis, because the buildboxes are disposable)
 * **before_cache** is run on Travis to delete logs files, configuration files, ... before caching
-* **cache*** tars and uploads the cache to S3
+* **cache** tars and uploads the cache to S3
 
 Your test cases must be written in `tests/test_flavor.py` and they must use the nose `attr` decorator to be filtered by the flavors.
 

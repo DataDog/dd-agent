@@ -13,11 +13,11 @@ This document aims to provide some basic guidelines to contribute to this reposi
 
 ## Pull Requests
 
-You wrote some code/add a new check and want to share it? Thanks a lot for your interest!
+You wrote some code/added a new check and want to share it? Thanks a lot for your interest!
 
-In order to ease/speed our review, here are some items you can check/improve when submitting your PR:
+In order to ease/speed up our review, here are some items you can check/improve when submitting your PR:
 
-- [ ] have a [proper commit history](#commits-messages) (we advise you to rebase if needed).
+- [ ] have a [proper commit history](#commits) (we advise you to rebase if needed).
 - [ ] write [tests](tests/README.md) for the code you wrote.
 - [ ] preferably make sure that all [tests pass locally](tests/README.md).
 - [ ] summarize your PR with a [good title](#commits-titles) and a message describing your changes, cross-referencing any related bugs/PRs.
@@ -26,7 +26,7 @@ In order to ease/speed our review, here are some items you can check/improve whe
 _If you are adding a dependency (python module, library, ...), please check the [corresponding section](#add-dependencies)._
 
 
-## Commits messages
+## Commits
 
 ### Keep it small, focused
 
@@ -41,27 +41,27 @@ An **example** of something which breaks bisectability:
 * commit 2: _forgot column_
 * commit 3: _fix typo_
 
-To avoid that, please rebase your changes and create valid commits. It keeps history cleaner and it's easier to revert things and it makes developers happier too.
+To avoid that, please rebase your changes and create valid commits. It keeps history cleaner, it's easier to revert things, and it makes developers happier too.
 
 
 ### Messages
 
-Never use `git commit -m "Fixed stuff"`, it usually means that you will just write the very first thing that comes to mind without much thought.
+Please don't use `git commit -m "Fixed stuff"`, it usually means that you just wrote the very first thing that came to your mind without much thought. Also it makes navigating through the code history harder.
 
 Instead, the commit shortlog should focus on describing the change in a sane way (see [commits titles](#commits-titles)) and be **short** (72 columns is best).
 
-The commit message should describe the reason for the change and extra details that will allow someone later on to understand in 5 seconds the same thing you've been working on for a day.
+The commit message should describe the reason for the change and give extra details that will allow someone later on to understand in 5 seconds the thing you've been working on for a day.
 
 If your commit is only shipping documentation changes or example files, and is a complete no-op for the test suite, please add **[skip ci]** in the commit message body to skip the build and let you build slot to someone else _in need :wink:_
 
 Examples, see:
   * https://github.com/DataDog/dd-agent/commit/44bc927aaaf2925ef081768b5888bbb20a5bb3bd
   * https://github.com/DataDog/dd-agent/commit/677417fe12b1914e4322ac2c1fd1645cb0f1de31
-  * and if you like extremism, [this is for you](https://github.com/torvalds/linux/pull/17#issuecomment-5659933)
+  * and for more general guidance, [this should help](http://chris.beams.io/posts/git-commit/)
 
 ### Commits titles
 
-Every commit title, PR or issue should be name like the following example:
+Every commit title, PR or issue should be named like the following example:
 ```
 [category] short description of the matter
 ```
@@ -73,7 +73,7 @@ Every commit title, PR or issue should be name like the following example:
 * _dev_: related to development or tooling
 * _check_name_: specific to one check
 
-For descriptions, keep it short keep it meaningful. Here are few example to illustrate.
+For descriptions, keep it short keep it meaningful. Here are a few examples to illustrate.
 
 #### Bad descriptions
 
@@ -145,7 +145,7 @@ And it's over! Don't forget to submit your two PRs (and to cross-reference them)
 
 ### Python module with external dependency
 
-Your python module needs also an external lib? That's not a problem with Omnibus, it just needs a little more work.
+Your python module also needs an external lib? That's not a problem with Omnibus, it just needs a little more work.
 
 #### omnibus-software
 
@@ -155,7 +155,7 @@ Let's keep it simple, and suppose that you want to add a python module `my_modul
 
 Create a `my_lib.rb` file in `config/software/`.
 
-Then add instructions to compile it from source and install it in the right (this is the for instance the `libsqlite3.rb`):
+Then add instructions to compile it from source and install it at the right place (this is for instance `libsqlite3.rb`):
 ```ruby
 name "my_lib"
 default_version "9.9.9"
@@ -180,7 +180,7 @@ build do
 end
 ```
 
-_You will probably have to adapt the build instructions, dependending on your lib._
+_You will probably have to adapt the build instructions, depending on your lib._
 
 Then create the `my_module.rb` file and copy/paste these instructions:
 ```ruby
@@ -197,9 +197,9 @@ build do
 end
 ```
 
-And replace, `my_module` with your module name, `default_version` by the version you want, then provide a URL to the module license (replacing `"https://url.to.my/LICENSE.txt"`).
+And replace, `my_module` with your module name, `default_version` with the version you want, `my_lib` with the name of the required lib, then provide a URL to the module license (replacing `"https://url.to.my/LICENSE.txt"`).
 
-If you need to install it with `python setup.py install`, take a look at this [example](https://github.com/DataDog/omnibus-software/blob/macos-clean/config/software/guidata.rb). (which shows also the use of a patch)
+If you need to install it with `python setup.py install`, take a look at this [example](https://github.com/DataDog/omnibus-software/blob/macos-clean/config/software/guidata.rb). (which also demonstrate the use of a patch).
 
 And it's done for `omnibus-software`!
 
