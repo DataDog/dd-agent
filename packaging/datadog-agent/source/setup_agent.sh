@@ -406,7 +406,12 @@ else
     if [ "$(uname)" = "SunOS" ]; then
         $SED_CMD -i "s/# log_to_syslog: yes/log_to_syslog: no/" "$DD_HOME/agent/datadog.conf"
     fi
-    echo "disable_file_logging: True" >> "$DD_HOME/agent/datadog.conf"
+    # Setting up logging
+    # Needed to avoid "unknown var $prog_log_file"
+    log_suffix="_log_file"
+    for prog in collector forwarder dogstatsd jmxfetch; do
+      echo "$prog$log_suffix: $DD_HOME/logs/$prog.log" >> "$DD_HOME/agent/datadog.conf"
+    done
     chmod 640 "$DD_HOME/agent/datadog.conf"
 fi
 print_done
@@ -414,28 +419,18 @@ print_done
 print_console "* Setting up init scripts"
 mkdir -p "$DD_HOME/bin"
 cp "$DD_HOME/agent/packaging/datadog-agent/source/agent" "$DD_HOME/bin/agent"
-cp "$DD_HOME/agent/packaging/datadog-agent/source/info" "$DD_HOME/bin/info"
 chmod +x "$DD_HOME/bin/agent"
-chmod +x "$DD_HOME/bin/info"
 if [ "$(uname)" = "SunOS" ]; then
     cp "$DD_HOME/agent/packaging/datadog-agent/smartos/dd-agent" "$DD_HOME/bin/dd-agent"
     chmod +x "$DD_HOME/bin/dd-agent"
 fi
 print_done
 
-print_console "* Setting up supervisord (or launchd on OSX)"
-if [ "$(uname)" = "Darwin" ]; then
-    mkdir -p "$DD_HOME/launchd/logs"
-    touch "$DD_HOME/launchd/logs/launchd.log"
-    $SED_CMD "s|AGENT_BASE|$DD_HOME|; s|USER_NAME|$(whoami)|" "$DD_HOME/agent/packaging/datadog-agent/osx/com.datadoghq.Agent.plist.example" > "$DD_HOME/launchd/com.datadoghq.Agent.plist"
-    ln -s "$DD_HOME/launchd/logs" "$DD_HOME/logs"
-else
-    mkdir -p "$DD_HOME/supervisord/logs"
-    $VENV_PIP_CMD install "supervisor==$SUPERVISOR_VERSION"
-    cp "$DD_HOME/agent/packaging/datadog-agent/source/supervisord.conf" "$DD_HOME/supervisord/supervisord.conf"
-    ln -s "$DD_HOME/supervisord/logs" "$DD_HOME/logs"
-    mkdir -p "$DD_HOME/run"
-fi
+print_console "* Setting up supervisord"
+mkdir -p "$DD_HOME/logs"
+$VENV_PIP_CMD install "supervisor==$SUPERVISOR_VERSION"
+cp "$DD_HOME/agent/packaging/datadog-agent/source/supervisor.conf" "$DD_HOME/agent/supervisor.conf"
+mkdir -p "$DD_HOME/run"
 print_done
 
 print_console "* Starting the agent"
@@ -464,7 +459,7 @@ fi
 
 # supervisord.conf uses relative paths so need to chdir
 cd "$DD_HOME"
-supervisord -c supervisord/supervisord.conf &
+supervisord -c agent/supervisor.conf &
 cd -
 AGENT_PID=$!
 sleep 1

@@ -6,7 +6,7 @@ PATH=$BASEDIR/../venv/bin:$PATH
 EMBEDDED_BIN_PATH="/opt/datadog-agent/embedded/bin"
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
-SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
+SUPERVISOR_CONF_FILE='agent/supervisor.conf'
 SOCK_FILE='run/agent-supervisor.sock'
 PID_FILE='run/supervisord.pid'
 COLLECTOR_PIDFILE='run/dd-agent.pid'
