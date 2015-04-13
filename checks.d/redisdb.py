@@ -140,12 +140,15 @@ class Redis(AgentCheck):
         tags = set(custom_tags or [])
 
         if 'unix_socket_path' in instance:
-            tags_to_add = ["unix_socket_path:%s" % instance.get("unix_socket_path")]
+            tags_to_add = [
+                "redis_host:%s" % instance.get("unix_socket_path"),
+                "redis_port:unix_socket",
+            ]
         else:
-            tags_to_add = ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
-
-        if instance.get('db') is not None:
-            tags_to_add.append("db:%s" % instance.get('db'))
+            tags_to_add = [
+                "redis_host:%s" % instance.get('host'),
+                "redis_port:%s" % instance.get('port')
+            ]
 
         tags = sorted(tags.union(tags_to_add))
 
@@ -278,7 +281,7 @@ class Redis(AgentCheck):
         
         conn = self._get_conn(instance)
 
-        tags, tags_to_add = self._get_tags(custom_tags, instance)
+        tags, _ = self._get_tags(custom_tags, instance)
 
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
             max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])

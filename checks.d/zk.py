@@ -50,6 +50,7 @@ class ZookeeperCheck(AgentCheck):
         expected_mode = (instance.get('expected_mode') or '').strip()
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
+        sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
 
         # Send a service check based on the `ruok` response.
         try:
@@ -67,7 +68,8 @@ class ZookeeperCheck(AgentCheck):
             else:
                 status = AgentCheck.WARNING
             message = u'Response from the server: %s' % ruok
-        self.service_check('zookeeper.ruok', status, message=message)
+        self.service_check('zookeeper.ruok', status, message=message,
+                           tags=sc_tags)
 
         # Read metrics from the `stat` output.
         try:
@@ -91,7 +93,8 @@ class ZookeeperCheck(AgentCheck):
                     status = AgentCheck.CRITICAL
                     message = u"Server is in %s mode but check expects %s mode"\
                               % (mode, expected_mode)
-                self.service_check('zookeeper.mode', status, message=message)
+                self.service_check('zookeeper.mode', status, message=message,
+                                   tags=sc_tags)
 
     def _send_command(self, command, host, port, timeout):
         sock = socket.socket()

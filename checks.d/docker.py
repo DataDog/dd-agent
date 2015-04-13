@@ -166,9 +166,9 @@ class Docker(AgentCheck):
             all_containers = self._get_containers(instance, get_all=True)
         except (socket.timeout, urllib2.URLError), e:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
-                message="Unable to list Docker containers: {0}".format(e), tags=tags)
+                message="Unable to list Docker containers: {0}".format(e))
             raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
-        self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+        self.service_check(service_check_name, AgentCheck.OK)
 
         running_containers_ids = set([container['Id'] for container in running_containers])
 

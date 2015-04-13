@@ -101,6 +101,10 @@ class MySql(AgentCheck):
                     user=user,
                     passwd=password
                 )
+                service_check_tags = [
+                    'host:%s' % mysql_sock,
+                    'port:unix_socket'
+                ]
             elif port:
                 db = pymysql.connect(
                     host=host,

@@ -49,7 +49,7 @@ class PHPFPMCheckTest(AgentCheckTest):
         self.assertServiceCheck(
             'php_fpm.can_ping',
             status=AgentCheck.CRITICAL,
-            tags=['expectedbroken'],
+            tags=['ping_url:http://localhost:9001/status'],
             count=1
         )
 
@@ -82,6 +82,7 @@ class PHPFPMCheckTest(AgentCheckTest):
         self.assertMetric('php_fpm.processes.total', count=1, value=2)
 
         self.assertServiceCheck('php_fpm.can_ping', status=AgentCheck.OK,
-                                count=1)
+                                count=1,
+                                tags=['ping_url:http://localhost:42424/ping'])
 
         self.assertMetric('php_fpm.processes.max_reached', count=1)

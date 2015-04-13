@@ -91,7 +91,8 @@ class Etcd(AgentCheck):
                     self.log.warn("Missing key {0} in stats.".format(key))
 
         if self_response is not None and store_response is not None:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=instance_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                               tags=["url:{0}".format(url)])
 
     def get_self_metrics(self, url, timeout):
         return self.get_json(url + "/v2/stats/self", timeout)

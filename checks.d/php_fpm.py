@@ -93,9 +93,7 @@ class PHPFPMCheck(AgentCheck):
         return pool_name
 
     def _process_ping(self, ping_url, auth, tags, pool_name):
-        sc_tags = tags[:]
-        if pool_name is not None:
-            sc_tags.append("pool:{0}".format(pool_name))
+        sc_tags = ["ping_url:{0}".format(ping_url)]
 
         try:
             # TODO: adding the 'full' parameter gets you per-process detailed
