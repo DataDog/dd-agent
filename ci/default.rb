@@ -8,8 +8,11 @@ namespace :ci do
 
     task :before_script => ['ci:common:before_script']
 
-    task :script => ['ci:common:script'] do
-      sh %(find . -name '*.py' -not -path '*venv*' -not -path '*embedded*' -exec pylint --rcfile=./.pylintrc {} \\;)
+    task :lint do
+      sh %(find . -name '*.py' -not \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' \\) | xargs -n 1 pylint --rcfile=./.pylintrc)
+    end
+
+    task :script => ['ci:common:script', :lint] do
       Rake::Task['ci:common:run_tests'].invoke('default')
     end
 
