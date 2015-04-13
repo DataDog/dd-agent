@@ -292,7 +292,7 @@ class Flare(object):
 
     # Find the supervisor conf (package or source)
     def _get_path_supervisor_conf(self):
-        supervisor_conf = '/etc/init.d/datadog-agent'
+        supervisor_conf = '/etc/dd-agent/supervisor.conf'
         if not os.path.isfile(supervisor_conf):
             supervisor_conf = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
