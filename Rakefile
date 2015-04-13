@@ -31,6 +31,7 @@ require './ci/supervisord'
 require './ci/sysstat'
 require './ci/tokumx'
 require './ci/tomcat'
+require './ci/varnish'
 require './ci/zookeeper'
 
 CLOBBER.include '**/*.pyc'
