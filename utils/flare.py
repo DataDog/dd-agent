@@ -282,7 +282,7 @@ class Flare(object):
         if not os.path.isfile(supervisor_conf):
             supervisor_conf = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
-                '../../supervisord/supervisord.conf'
+                '../../agent/supervisor.conf'
             )
         return supervisor_conf
 
