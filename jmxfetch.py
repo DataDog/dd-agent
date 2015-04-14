@@ -164,7 +164,7 @@ class JMXFetch(object):
                         if tools_jar_path is None and check_tools_jar_path is not None:
                             tools_jar_path = check_tools_jar_path
                 except InvalidJMXConfiguration, e:
-                    log.error("%s check is not a valid jmx configuration: %s" % (check_name, e))
+                    log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
                     invalid_checks[check_name] = e
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
