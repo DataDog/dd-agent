@@ -200,7 +200,8 @@ class Flare(object):
                 os.path.join(self._prefix, 'etc', 'supervisor.conf')
             )
 
-        for file_path in glob.glob(os.path.join(get_confd_path(), '*.yaml')):
+        for file_path in glob.glob(os.path.join(get_confd_path(), '*.yaml')) +\
+                glob.glob(os.path.join(get_confd_path(), '*.yaml.default')):
             self._add_clean_confd(file_path)
 
     # Return path to a temp file without comment
