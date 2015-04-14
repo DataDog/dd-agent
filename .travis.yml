@@ -74,6 +74,8 @@ env:
 # hugepages are enabled
 #    - TRAVIS_FLAVOR=tokumx
     - TRAVIS_FLAVOR=tomcat # JMX testing machine / need the other ones before
+    - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=3.0.7
+    - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=4.0.3
     - TRAVIS_FLAVOR=zookeeper
 
 # Override travis defaults with empty jobs

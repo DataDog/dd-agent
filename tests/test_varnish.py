@@ -1,64 +1,127 @@
+# stdlib
 import os
-import time
-import unittest
 
-from tests.common import get_check
+# 3p
+from nose.plugins.attrib import attr
+
+# project
+from tests.common import AgentCheckTest
+from utils.shell import which
 
 
-class VarnishTestCase(unittest.TestCase):
-    def setUp(self):
-        varnish_dump_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'varnish')
-        self.v_dump = open(os.path.join(varnish_dump_dir, 'v_dump'), 'r').read()
+VARNISH_DATA_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'varnish')
 
-        self.xml_dump = open(os.path.join(varnish_dump_dir, 'dump.xml'), 'r').read()
 
-        self.varnishadm_dump = open(os.path.join(varnish_dump_dir, 'varnishadm_dump'), 'r').read()
+def mocked_varnishstatoutput(cmd):
+    return open(os.path.join(VARNISH_DATA_DIR, 'dump.xml'), 'r').read()
 
-        self.config = """
-instances:
-    -   varnishstat: /usr/bin/varnishstat
-"""
 
-    def test_parsing(self):
-        v, instances = get_check('varnish', self.config)
-        v._parse_varnishstat(self.v_dump, False)
-        metrics = v.get_metrics()
-        self.assertEquals([m[2] for m in metrics
-                          if m[0] == "varnish.n_waitinglist"][0], 980)
-        assert "varnish.fetch_length" not in [m[0] for m in metrics]
+COMMON_METRICS = [
+    'varnish.SMA.Transient.g_alloc',
+    'varnish.SMA.Transient.g_bytes',
+    'varnish.SMA.Transient.g_space',
+    'varnish.VBE.default_127.0.0.1_4242.vcls',
+    'varnish.n_backend',
+    'varnish.n_expired',
+    'varnish.n_lru_moved',
+    'varnish.n_lru_nuked',
+    'varnish.n_object',
+    'varnish.n_objectcore',
+    'varnish.n_objecthead',
+    'varnish.n_vampireobject',
+    'varnish.n_waitinglist',
+    'varnish.sms_balloc',
+    'varnish.sms_bfree',
+    'varnish.sms_nbytes',
+    'varnish.sms_nobj',
+    'varnish.vmods',
+]
 
-        # XML parsing
-        v._parse_varnishstat(self.xml_dump, True)
-        metrics = v.get_metrics()
-        self.assertEquals([m[2] for m in metrics
-                          if m[0] == "varnish.SMA.s0.g_space"][0], 120606)
-        assert "varnish.SMA.transient.c_bytes" not in [m[0] for m in metrics]
+METRICS_4_X = [
+    'varnish.MEMPOOL.busyobj.live',
+    'varnish.MEMPOOL.busyobj.pool',
+    'varnish.MEMPOOL.busyobj.sz_needed',
+    'varnish.MEMPOOL.busyobj.sz_wanted',
+    'varnish.MEMPOOL.req0.live',
+    'varnish.MEMPOOL.req0.pool',
+    'varnish.MEMPOOL.req0.sz_needed',
+    'varnish.MEMPOOL.req0.sz_wanted',
+    'varnish.MEMPOOL.req1.live',
+    'varnish.MEMPOOL.req1.pool',
+    'varnish.MEMPOOL.req1.sz_needed',
+    'varnish.MEMPOOL.req1.sz_wanted',
+    'varnish.MEMPOOL.sess0.live',
+    'varnish.MEMPOOL.sess0.pool',
+    'varnish.MEMPOOL.sess0.sz_needed',
+    'varnish.MEMPOOL.sess0.sz_wanted',
+    'varnish.MEMPOOL.sess1.live',
+    'varnish.MEMPOOL.sess1.pool',
+    'varnish.MEMPOOL.sess1.sz_needed',
+    'varnish.MEMPOOL.sess1.sz_wanted',
+    'varnish.MEMPOOL.vbc.live',
+    'varnish.MEMPOOL.vbc.pool',
+    'varnish.MEMPOOL.vbc.sz_needed',
+    'varnish.MEMPOOL.vbc.sz_wanted',
+    'varnish.SMA.s0.g_alloc',
+    'varnish.SMA.s0.g_bytes',
+    'varnish.SMA.s0.g_space',
+    'varnish.bans',
+    'varnish.bans_completed',
+    'varnish.bans_obj',
+    'varnish.bans_persisted_bytes',
+    'varnish.bans_persisted_fragmentation',
+    'varnish.bans_req',
+    'varnish.n_obj_purged',
+    'varnish.n_purges',
+    'varnish.pools',
+    'varnish.thread_queue_len',
+    'varnish.threads',
+    'varnish.vsm_cooling',
+    'varnish.vsm_free',
+    'varnish.vsm_overflow',
+    'varnish.vsm_used'
+]
 
+METRICS_3_X = [
+    'varnish.n_ban',
+    'varnish.n_ban_gone',
+    'varnish.n_sess',
+    'varnish.n_sess_mem',
+    'varnish.n_vbc',
+    'varnish.n_wrk',
+    'varnish.SMF.s0.g_smf',
+    'varnish.SMF.s0.g_bytes',
+    'varnish.SMF.s0.g_space',
+    'varnish.SMF.s0.g_smf_large',
+    'varnish.SMF.s0.g_alloc',
+    'varnish.SMF.s0.g_smf_frag',
+]
+
+class VarnishCheckTest(AgentCheckTest):
+    CHECK_NAME = 'varnish'
+
+    @attr(requires='varnish')
     def test_check(self):
-        v, instances = get_check('varnish', self.config)
-        import pprint
-        try:
-            for i in range(3):
-                v.check({"varnishstat": os.popen("which varnishstat").read()[:-1]})
-                pprint.pprint(v.get_metrics())
-                time.sleep(1)
-        except Exception:
-            pass
+        varnishstat_path = which('varnishstat')
+        self.assertTrue(varnishstat_path is not None, "Flavored testing should be run with a real varnish")
 
-    def test_service_check(self):
+        config = {
+            'instances': [{
+                'varnishstat': varnishstat_path,
+                'tags': 'cluster:webs'
+            }]
+        }
 
-        v, instances = get_check('varnish', self.config)
-        v._parse_varnishadm(self.varnishadm_dump)
-        service_checks = v.get_service_checks()
-        self.assertEquals(len(service_checks), 2)
+        self.run_check(config)
+        version, _ = self.check._get_version_info(varnishstat_path)
 
-        b0_check = service_checks[0]
-        self.assertEquals(b0_check['check'], v.SERVICE_CHECK_NAME)
-        self.assertEquals(b0_check['tags'], ['backend:b0'])
+        to_check = COMMON_METRICS
+        if version == 3:
+            to_check.extend(METRICS_3_X)
+        elif version == 4:
+            to_check.extend(METRICS_4_X)
 
-        b1_check = service_checks[1]
-        self.assertEquals(b1_check['check'], v.SERVICE_CHECK_NAME)
-        self.assertEquals(b1_check['tags'], ['backend:b1'])
+        for mname in to_check:
+            self.assertMetric(mname, count=1)
 
-if __name__ == '__main__':
-    unittest.main()
+        self.coverage_report()
