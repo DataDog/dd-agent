@@ -5,7 +5,7 @@ cd "$BASEDIR/.."
 PATH=$BASEDIR/../venv/bin:$PATH
 
 SUPERVISOR_NOT_RUNNING="Supervisor is not running"
-SUPERVISOR_CONF_FILE='supervisord/supervisord.conf'
+SUPERVISOR_CONF_FILE='agent/supervisor.conf'
 SOCK_FILE='supervisord/agent-supervisor.sock'
 PID_FILE='supervisord/supervisord.pid'
 action=$1
