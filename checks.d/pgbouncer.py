@@ -117,7 +117,6 @@ class PgBouncer(AgentCheck):
 
         elif host != "" and user != "":
             try:
-
                 if host == 'localhost' and password == '':
                     # Use ident method
                     connection = pg.connect("user=%s dbname=%s" % (user, self.DB_NAME))
@@ -137,7 +136,7 @@ class PgBouncer(AgentCheck):
                                    tags=self._get_service_checks_tags(host, port),
                                    message=message)
                 self.log.debug('pgbouncer status: %s' % AgentCheck.CRITICAL)
-                pass
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a PgBouncer host to connect to.")
