@@ -10,6 +10,7 @@ import subprocess
 import sys
 import glob
 import inspect
+import tempfile
 import traceback
 import re
 import imp
@@ -922,6 +923,7 @@ def load_check_directory(agentConfig, hostname):
 def get_log_date_format():
     return "%Y-%m-%d %H:%M:%S %Z"
 
+
 def get_log_format(logger_name):
     if get_os() != 'windows':
         return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
@@ -930,6 +932,14 @@ def get_log_format(logger_name):
 
 def get_syslog_format(logger_name):
     return 'dd.%s[%%(process)d]: %%(levelname)s (%%(filename)s:%%(lineno)s): %%(message)s' % logger_name
+
+
+def get_jmx_status_path():
+    if Platform.is_win32():
+        path = os.path.join(_windows_commondata_path(), 'Datadog')
+    else:
+        path = tempfile.gettempdir()
+    return path
 
 
 def get_logging_config(cfg_path=None):

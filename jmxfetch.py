@@ -3,14 +3,13 @@ import os
 import logging
 import glob
 import subprocess
-import tempfile
 import time
 import sys
 import signal
 
 # datadog
 from util import get_os, yLoader, yDumper
-from config import get_config, get_confd_path, get_logging_config, \
+from config import get_config, get_confd_path, get_jmx_status_path, get_logging_config, \
     PathNotFound, DEFAULT_CHECK_FREQUENCY
 
 # 3rd party
@@ -165,6 +164,8 @@ class JMXFetch(object):
                             tools_jar_path = check_tools_jar_path
                 except InvalidJMXConfiguration, e:
                     log.error("%s check does not have a valid JMX configuration: %s" % (check_name, e))
+                    # Make sure check_name is a string - Fix issues with Windows
+                    check_name = check_name.encode('ascii', 'ignore')
                     invalid_checks[check_name] = str(e)
 
         return (jmx_checks, invalid_checks, java_bin_path, java_options, tools_jar_path)
@@ -180,7 +181,7 @@ class JMXFetch(object):
             path_to_java = path_to_java or "java"
             java_run_opts = java_run_opts or ""
             path_to_jmxfetch = self._get_path_to_jmxfetch()
-            path_to_status_file = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+            path_to_status_file = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
 
             if tools_jar_path is None:
                 classpath = path_to_jmxfetch
@@ -234,7 +235,7 @@ class JMXFetch(object):
             'timestamp': time.time(),
             'invalid_checks': invalid_checks
         }
-        stream = file(os.path.join(tempfile.gettempdir(), PYTHON_JMX_STATUS_FILE), 'w')
+        stream = file(os.path.join(get_jmx_status_path(), PYTHON_JMX_STATUS_FILE), 'w')
         yaml.dump(data, stream, Dumper=yDumper)
         stream.close()
 
