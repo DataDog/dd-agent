@@ -178,15 +178,17 @@ class Zfs(AgentCheck):
             stats[current_vdev] = {}
             total = properties[1]
             free = properties[2]
-            used = int(total) - int(free)
-            percent_used = int((used / int(total)) * 100)
-            if percent_used < 1:
-                percent_used = 1
 
             if re.match('^\d+[K,M,G,T]', free) or re.match('^\d+\.\d+[K,M,G,T]', free):
                 free = self._convert_human_to_bytes(free)
             if re.match('^\d+[K,M,G,T]', total) or re.match('^\d+\.\d+[K,M,G,T]', total):
                 total = self._convert_human_to_bytes(total)
+
+            used = int(total) - int(free)
+            percent_used = int((used / int(total)) * 100)
+            if percent_used < 1:
+                percent_used = 1
+                
             stats[current_vdev]['total'] = total
             stats[current_vdev]['free'] = free
             stats[current_vdev]['percent_used'] = percent_used
