@@ -1,5 +1,8 @@
 require 'colorize'
+require 'httparty'
+require 'socket'
 require 'time'
+require 'timeout'
 
 require './ci/resources/cache'
 
@@ -15,17 +18,84 @@ def section(name)
   puts ''
 end
 
+class Wait
+  DEFAULT_TIMEOUT = 5
+
+  def self.check_port(port)
+    begin
+      Timeout.timeout(0.5) do
+        begin
+          s = TCPSocket.new('localhost', port)
+          s.close
+          return true
+        rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+          return false
+        end
+      end
+    rescue Timeout::Error
+      return false
+    end
+  end
+
+  def self.check_url(url)
+    begin
+      Timeout.timeout(0.5) do
+        begin
+          r = HTTParty.get(url)
+          return (200...300).include? r.code
+        rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+          return false
+        end
+      end
+    rescue Timeout::Error
+      return false
+    end
+  end
+
+  def self.check_file(file_path)
+    File.exist?(file_path)
+  end
+
+  def self.check(smth)
+    if smth.is_a? Integer
+      check_port smth
+    elsif smth.include? 'http'
+      check_url smth
+    else
+      check_file smth
+    end
+  end
+
+  def self.for(smth, max_timeout = DEFAULT_TIMEOUT)
+    start_time = Time.now
+    status = false
+    n = 1
+    puts "Trying #{smth}"
+    loop do
+      puts n.to_s
+      status = check(smth)
+      break if status || Time.now > start_time + max_timeout
+      n += 1
+      sleep 0.25
+    end
+    if status
+      puts 'Found!'
+    else
+      fail "Still not up after #{max_timeout}s"
+    end
+    status
+  end
+end
+
 # Initialize cache if in travis and in our repository
 # (no cache for external contributors)
 if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
-  cache = Cache.new({
-    debug: ENV['DEBUG_CACHE'],
-    s3: {
-      bucket: 'dd-agent-travis-cache',
-      access_key_id: ENV['AWS_ACCESS_KEY_ID'],
-      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
-    }
-  })
+  cache = Cache.new(debug: ENV['DEBUG_CACHE'],
+                    s3: {
+                      bucket: 'dd-agent-travis-cache',
+                      access_key_id: ENV['AWS_ACCESS_KEY_ID'],
+                      secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+                    })
 end
 
 namespace :ci do
@@ -72,7 +142,7 @@ namespace :ci do
       t.reenable
     end
 
-    task :cache do |t|
+    task :cache do |_t|
       section('CACHE')
       cache.push
     end
@@ -97,6 +167,6 @@ namespace :ci do
       t.reenable
     end
 
-    task :execute => [:before_install, :install, :before_script, :script]
+    task execute: [:before_install, :install, :before_script, :script]
   end
 end

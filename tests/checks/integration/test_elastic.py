@@ -142,7 +142,7 @@ CLUSTER_HEALTH_METRICS = {
 def get_es_version():
     version = os.environ.get("FLAVOR_VERSION")
     if version is None:
-        return [1, 4, 2]
+        return [1, 4, 4]
     return [int(k) for k in version.split(".")]
 
 

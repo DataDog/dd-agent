@@ -36,7 +36,14 @@ namespace :ci do
 
     task :before_script => ['ci:common:before_script'] do
       sh %(cd $VOLATILE_DIR && #{etcd_rootdir}/etcd >/dev/null &)
-      sleep_for 10
+      # Waiting for etcd to start
+      Wait.for 'http://localhost:4001/v2/stats/self'
+      Wait.for 'http://localhost:4001/v2/stats/store'
+      10.times do
+        sh %(curl -s http://127.0.0.1:2379/v2/keys/message\
+             -XPUT -d value="Hello world" >/dev/null)
+        sh %(curl -s http://127.0.0.1:2379/v2/keys/message > /dev/null)
+      end
     end
 
     task :script => ['ci:common:script'] do

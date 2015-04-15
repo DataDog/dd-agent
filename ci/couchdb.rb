@@ -74,7 +74,7 @@ namespace :ci do
     task :before_script => ['ci:common:before_script'] do
       sh %(#{couchdb_rootdir}/bin/couchdb -b)
       # Couch takes some time to start
-      sleep_for 2
+      Wait.for 5984
     end
 
     task :script => ['ci:common:script'] do

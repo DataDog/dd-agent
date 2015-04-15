@@ -10,7 +10,7 @@ namespace :ci do
       pid = spawn %(go run $TRAVIS_BUILD_DIR/ci/resources/go_expvar/test_expvar.go)
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/go_expvar.pid)
-      sleep_for 2
+      Wait.for 8079
       2.times do
         sh %(curl -s http://localhost:8079?user=123456)
       end

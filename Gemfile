@@ -1,5 +1,6 @@
 source "https://rubygems.org"
 
-gem 'colorize'
-gem 'rake'
 gem 'addressable'
+gem 'colorize'
+gem 'httparty'
+gem 'rake'

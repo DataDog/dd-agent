@@ -28,11 +28,11 @@ namespace :ci do
 
     task :before_script => ['ci:common:before_script'] do
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/cassandra/cassandra_#{cass_version.split('.')[0..1].join('.')}.yaml #{cass_rootdir}/conf/cassandra.yaml)
-      sh %(#{cass_rootdir}/bin/cassandra -p $VOLATILE_DIR/cass.pid)
+      sh %(#{cass_rootdir}/bin/cassandra -p $VOLATILE_DIR/cass.pid > /dev/null)
       # Create temp cassandra workdir
       sh %(mkdir -p $VOLATILE_DIR/cassandra)
       # Wait for cassandra to init
-      sleep_for 10
+      Wait.for 7000, 10
     end
 
     task :script => ['ci:common:script'] do
