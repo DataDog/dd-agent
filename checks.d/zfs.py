@@ -20,12 +20,14 @@ class Zfs(AgentCheck):
     ZFS_COMPRESSRATIO = 'compressratio'
 
     ZPOOL_NAMESPACE = 'zpool.'
+    ZPOOL_VDEV_NAMESPACE = 'zpool.vdev.'
     ZPOOL_CAPACITY = 'capacity'
     ZPOOL_SIZE = 'size'
     ZPOOL_DEDUPRATIO = 'dedupratio'
     ZPOOL_FREE = 'free'
     ZPOOL_ALLOCATED = 'allocated'
     ZPOOL_HEALTH = 'health'
+    ZPOOL_TOTAL = 'total'
 
     zfs_metrics = [
         ZFS_AVAILABLE,
@@ -65,9 +67,10 @@ class Zfs(AgentCheck):
             self.log.debug('Reporting on zpool {}'.format(zpool))
             stats = self._get_zpool_stats(zpool)
             checks = self._get_zpool_checks(zpool)
+            vdev_stats = self._get_zpool_iostat(zpool)
             self._process_zpool(zpool, stats, checks)
 
-    def _process_zpool(self, zpool, zpool_metrics, zpool_checks):
+    def _process_zpool(self, zpool, zpool_metrics, zpool_checks, zpool_vdev_stats):
         """
         Process zpool usage
 
@@ -94,6 +97,10 @@ class Zfs(AgentCheck):
                 else:
                     check_status = AgentCheck.CRITICAL
                 self.service_check(Zfs.ZPOOL_NAMESPACE + check, check_status, tags=tags, message=health_status)
+
+        for vdev in zpool_vdev_stats:
+            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + vdev + '.total', vdevs[vdev]['total'], tags=tags)
+            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + vdev + '.free', vdevs[vdev]['free'], tags=tags)
 
     def _get_zpools(self):
         """
@@ -132,6 +139,47 @@ class Zfs(AgentCheck):
             if re.match('^\d+[K,M,G,T]', result) or re.match('^\d+\.\d+[K,M,G,T]', result):
                 result = self._convert_human_to_bytes(result)
             stats[properties[1]] = re.sub('[^0-9,\.]', "", str(result))
+        return stats
+
+    def _get_zpool_iostat(self, zpool):
+        """
+        Retrieve vdev-specific stats using iostat -v.  Parses out all non-digits
+
+        :param zpool:
+        :return:
+        """
+        p = subprocess.Popen(
+            'sudo zpool iostat -v {name}'.format(
+                name=zpool
+            ).split(),
+            stdout=subprocess.PIPE
+            )
+        zpool_iostat_output, err = p.communicate()
+        stats = {}
+        vdev_count = 0
+        vdev_name = "VDEV_"
+        zpool_iostat_output = filter(None, zpool_iostat_output.split('\n'))[4:-1]
+
+        # For each line from zpool iostat -v, find the vdevs and get their total and free space
+        for line in zpool_iostat_output:
+            properties = line.split()
+
+            # We only care about parsing vdevs here for total and free space.  Lines from iostat
+            # which are disk-only don't have total capacity, just '-', so we don't want to send
+            # any information
+            if properties[1][0] == '-':
+                continue
+            current_vdev = vdev_name + str(vdev_count)
+            stats[current_vdev] = {}
+            total = properties[1]
+            free = properties[2]
+            if re.match('^\d+[K,M,G,T]', free) or re.match('^\d+\.\d+[K,M,G,T]', free):
+                free = self._convert_human_to_bytes(free)
+            if re.match('^\d+[K,M,G,T]', total) or re.match('^\d+\.\d+[K,M,G,T]', total):
+                total = self._convert_human_to_bytes(total)
+            stats[current_vdev]['total'] = total
+            stats[current_vdev]['free'] = free
+            vdev_count += 1
         return stats
 
     def _get_zpool_checks(self, zpool):
