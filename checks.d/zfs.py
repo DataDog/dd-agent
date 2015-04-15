@@ -68,7 +68,7 @@ class Zfs(AgentCheck):
             stats = self._get_zpool_stats(zpool)
             checks = self._get_zpool_checks(zpool)
             vdev_stats = self._get_zpool_iostat(zpool)
-            self._process_zpool(zpool, stats, checks)
+            self._process_zpool(zpool, stats, checks, vdev_stats)
 
     def _process_zpool(self, zpool, zpool_metrics, zpool_checks, zpool_vdev_stats):
         """
@@ -99,8 +99,12 @@ class Zfs(AgentCheck):
                 self.service_check(Zfs.ZPOOL_NAMESPACE + check, check_status, tags=tags, message=health_status)
 
         for vdev in zpool_vdev_stats:
-            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + vdev + '.total', vdevs[vdev]['total'], tags=tags)
-            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + vdev + '.free', vdevs[vdev]['free'], tags=tags)
+            tags = [
+                'zpool_name:{}'.format(zpool),
+                'vdev_name:{}'.format(vdev)
+            ]
+            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + 'total', zpool_vdev_stats[vdev]['total'], tags=tags)
+            self.gauge(Zfs.ZPOOL_VDEV_NAMESPACE + 'free', zpool_vdev_stats[vdev]['free'], tags=tags)
 
     def _get_zpools(self):
         """
