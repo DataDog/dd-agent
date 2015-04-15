@@ -5,7 +5,7 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
-if [ $(which curl) ]; then
+if [ $(command -v curl) ]; then
     dl_cmd="curl -f"
 else
     dl_cmd="wget --quiet"
@@ -144,7 +144,11 @@ else
 fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
-$sudo_cmd /etc/init.d/datadog-agent restart
+if command -v invoke-rc.d >/dev/null 2>&1; then
+    $sudo_cmd invoke-rc.d datadog-agent restart
+else
+    $sudo_cmd /etc/init.d/datadog-agent restart
+fi
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
