@@ -29,7 +29,6 @@ https://github.com/DataDog/dd-agent/compare/5.2.2...master
 * ZooKeeper
 
 ### Changes
-* [FEATURE] Add support of Debian Jessie
 * [FEATURE] Add a "flare" feature to contact our support team. See [#1422][] & [#1509][]
 * [FEATURE] nginx: Add a metric to track dropped connections
 * [FEATURE] Redis: Add replication metrics and status. See [#1350][] and [#1447][] (Thanks [@pbitty][])
