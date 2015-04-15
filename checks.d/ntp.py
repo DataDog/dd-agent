@@ -15,7 +15,7 @@ DEFAULT_PORT = "ntp"
 
 class NtpCheck(AgentCheck):
 
-    DEFAULT_MIN_COLLECTION_INTERVAL = 20 # in seconds
+    DEFAULT_MIN_COLLECTION_INTERVAL = 900 # in seconds
 
     def check(self, instance):
         service_check_msg = None
@@ -33,7 +33,7 @@ class NtpCheck(AgentCheck):
         try:
             ntp_stats = ntplib.NTPClient().request(**req_args)
         except ntplib.NTPException:
-            self.log.warning("Could not connect to NTP Server")
+            self.log.debug("Could not connect to NTP Server {0}".format(req_args['host']))
             status  = AgentCheck.UNKNOWN
             ntp_ts = None
         else:
