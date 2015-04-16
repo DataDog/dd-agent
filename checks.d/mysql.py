@@ -7,7 +7,7 @@ import traceback
 
 # project
 from checks import AgentCheck
-from util import Platform
+from utils.platform import Platform
 
 # 3rd party
 import pymysql

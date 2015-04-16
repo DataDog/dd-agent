@@ -16,7 +16,7 @@ from aggregator import MetricsAggregator
 from dogstatsd import Server
 from jmxfetch import JMXFetch
 from tests.checks.common import AgentCheckTest
-from util import PidFile
+from utils.pidfile import PidFile
 
 STATSD_PORT = 8129
 

@@ -43,7 +43,6 @@ class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
-        pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
 
         self.t1 = threading.Thread(target=self.server.start)

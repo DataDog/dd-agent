@@ -33,7 +33,8 @@ from aggregator import MetricsBucketAggregator, get_formatter
 from checks.check_status import DogstatsdStatus
 from config import get_config, get_version
 from daemon import Daemon, AgentSupervisor
-from util import PidFile, get_hostname, plural, get_uuid, chunks
+from util import get_hostname, plural, get_uuid, chunks
+from utils.pidfile import PidFile
 
 # 3rd party
 import requests

@@ -38,9 +38,9 @@ from util import (
     EC2,
     get_hostname,
     get_os,
-    PidFile,
     Watchdog,
 )
+from utils.pidfile import PidFile
 from utils.flare import configcheck, Flare
 
 # Constants
