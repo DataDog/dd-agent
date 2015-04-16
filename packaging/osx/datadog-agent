@@ -13,9 +13,9 @@ AGENTPATH="agent"
 FORWARDERPATH="ddagent"
 DOGSTATSDPATH="dogstatsd"
 AGENTCONF="$DIR/../Resources/datadog.conf"
-SUPERVISOR_PIDFILE="/tmp/datadog-supervisord.pid"
+SUPERVISOR_PIDFILE="$DIR/../Resources/run/datadog-supervisord.pid"
 SUPERVISOR_CONF_FILE="../Resources/supervisor.conf"
-SUPERVISOR_SOCK="/tmp/datadog-supervisor.sock"
+SUPERVISOR_SOCK="$DIR/../Resources/run/datadog-supervisor.sock"
 SUPERVISORCTL_PATH="supervisorctl"
 SUPERVISORD_PATH="supervisord"
 
@@ -27,7 +27,7 @@ PYTHONHOME="$DIR"/../Resources
 
 check_status() {
     # If the socket exists, we can use supervisorctl
-    if [ -e $SUPERVISOR_SOCK ]; then
+    if [ -e "$SUPERVISOR_SOCK" ]; then
         # If we're using supervisor, check the number of datadog processes
         # supervisor is currently controlling, and make sure that it's the
         # same as the number of programs specified in the supervisor config
@@ -44,7 +44,7 @@ check_status() {
         if [ "$datadog_supervisor_processes" -ne "$supervisor_config_programs" ]; then
             echo "$supervisor_processes"
             echo "$DESC (supervisor) is NOT running all child processes"
-            return q
+            return 1
         else
             echo "$DESC (supervisor) is running all child processes"
             return 0
@@ -83,7 +83,6 @@ case $1 in
         check_status > /dev/null
         if [ $? -ne 2 ]; then
             $SUPERVISORCTL_PATH -c $SUPERVISOR_CONF_FILE shutdown
-            kill -TERM $(cat $SUPERVISOR_PIDFILE)
         else
             echo "$DESC (supervisor) is not running"
         fi
