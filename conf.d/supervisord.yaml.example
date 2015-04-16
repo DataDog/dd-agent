@@ -20,7 +20,7 @@
 #       file=/var/run/supervisor.sock
 #       chmod=777
 #
-#  Reload supervsior, specify the inet or unix socket server information
+#  Reload supervisor, specify the inet or unix socket server information
 #  in this yaml file along with an optional list of the processes you want
 #  to monitor per instance, and you're good to go!
 #
