@@ -20,12 +20,6 @@ dd_url: https://app.datadoghq.com
 # https://app.datadoghq.com/account/settings
 api_key:
 
-# Force the hostname to whatever you want.
-#hostname: mymachine.mydomain
-
-# Set the host's tags
-#tags: mytag0, mytag1
-
 # Collect AWS EC2 custom tags as agent tags
 # collect_ec2_tags: no
 
@@ -83,38 +77,6 @@ use_mount: no
 # DogStatsd configuration                                                    #
 # ========================================================================== #
 
-# If you don't want to enable the DogStatsd server, set this option to no
-# use_dogstatsd: yes
-
-# DogStatsd is a small server that aggregates your custom app metrics. For
-# usage information, check out http://api.datadoghq.com
-
-#  Make sure your client is sending to the same port.
-# dogstatsd_port : 8125
-
-# By default dogstatsd will post aggregate metrics to the Agent (which handles
-# errors/timeouts/retries/etc). To send directly to the datadog api, set this
-# to https://app.datadoghq.com.
-# dogstatsd_target : http://localhost:17123
-
-# If you want to forward every packet received by the dogstatsd server
-# to another statsd server, uncomment these lines.
-# WARNING: Make sure that forwarded packets are regular statsd packets and not "dogstatsd" packets,
-# as your other statsd server might not be able to handle them.
-# statsd_forward_host: address_of_own_statsd_server
-# statsd_forward_port: 8125
-
-# you may want all statsd metrics coming from this host to be namespaced
-# in some way; if so, configure your namespace here. a metric that looks
-# like `metric.name` will instead become `namespace.metric.name`
-# statsd_metric_namespace:
-
-# By default, dogstatsd supports only plain ASCII packets. However, most
-# (dog)statsd client support UTF8 by encoding packets before sending them
-# this option enables UTF8 decoding in case you need it.
-# However, it comes with a performance overhead of ~10% in the dogstatsd
-# server. This will be taken care of properly in the new gen agent core.
-# utf8_decoding: false
 
 # ========================================================================== #
 # Service-specific configuration                                             #

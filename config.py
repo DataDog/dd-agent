@@ -117,26 +117,6 @@ def skip_leading_wsp(f):
     return StringIO("\n".join(map(string.strip, f.readlines())))
 
 
-def _windows_commondata_path():
-    """Return the common appdata path, using ctypes
-    From http://stackoverflow.com/questions/626796/\
-    how-do-i-find-the-windows-common-application-data-folder-using-python
-    """
-    import ctypes
-    from ctypes import wintypes, windll
-
-    CSIDL_COMMON_APPDATA = 35
-
-    _SHGetFolderPath = windll.shell32.SHGetFolderPathW
-    _SHGetFolderPath.argtypes = [wintypes.HWND,
-                                ctypes.c_int,
-                                wintypes.HANDLE,
-                                wintypes.DWORD, wintypes.LPCWSTR]
-
-    path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-    result = _SHGetFolderPath(0, CSIDL_COMMON_APPDATA, 0, 0, path_buf)
-    return path_buf.value
-
 
 def _windows_config_path():
     common_data = _windows_commondata_path()
@@ -243,64 +223,12 @@ def get_default_bind_host():
         return '127.0.0.1'
     return 'localhost'
 
-
-def get_histogram_aggregates(configstr=None):
-    if configstr is None:
-        return None
-
-    try:
-        vals = configstr.split(',')
-        valid_values = ['min', 'max', 'median', 'avg', 'count']
-        result = []
-
-        for val in vals:
-            val = val.strip()
-            if val not in valid_values:
-                log.warning("Ignored histogram aggregate {0}, invalid".format(val))
-                continue
-            else:
-                result.append(val)
-    except Exception:
-        log.exception("Error when parsing histogram aggregates, skipping")
-        return None
-
-    return result
-
-def get_histogram_percentiles(configstr=None):
-    if configstr is None:
-        return None
-
-    result = []
-    try:
-        vals = configstr.split(',')
-        for val in vals:
-            try:
-                val = val.strip()
-                floatval = float(val)
-                if floatval <= 0 or floatval >= 1:
-                    raise ValueError
-                if len(val) > 4:
-                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"\
-                        .format(floatval))
-                result.append(float(val[0:4]))
-            except ValueError:
-                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"\
-                    .format(val))
-    except Exception:
-        log.exception("Error when parsing histogram percentiles, skipping")
-        return None
-
-    return result
-
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
 
     # General config
     agentConfig = {
-        'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'dogstatsd_port': 8125,
-        'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
         'hostname': None,
         'listen_port': None,
@@ -308,10 +236,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
         'watchdog': True,
-        'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
-        'statsd_metric_namespace': None,
-        'utf8_decoding': False
     }
 
     # Config handling
@@ -334,87 +259,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # FIXME unnecessarily complex
 
-        if config.has_option('Main', 'use_dd'):
-            agentConfig['use_dd'] = config.get('Main', 'use_dd').lower() in ("yes", "true")
-        else:
-            agentConfig['use_dd'] = True
 
-        agentConfig['use_forwarder'] = False
-        if options is not None and options.use_forwarder:
-            listen_port = 17123
-            if config.has_option('Main', 'listen_port'):
-                listen_port = int(config.get('Main', 'listen_port'))
-            agentConfig['dd_url'] = "http://" + agentConfig['bind_host'] + ":" + str(listen_port)
-            agentConfig['use_forwarder'] = True
-        elif options is not None and not options.disable_dd and options.dd_url:
-            agentConfig['dd_url'] = options.dd_url
-        else:
-            agentConfig['dd_url'] = config.get('Main', 'dd_url')
-        if agentConfig['dd_url'].endswith('/'):
-            agentConfig['dd_url'] = agentConfig['dd_url'][:-1]
-
-        # Extra checks.d path
-        # the linux directory is set by default
-        if config.has_option('Main', 'additional_checksd'):
-            agentConfig['additional_checksd'] = config.get('Main', 'additional_checksd')
-        elif get_os() == 'windows':
-            # default windows location
-            common_path = _windows_commondata_path()
-            agentConfig['additional_checksd'] = os.path.join(common_path, 'Datadog', 'checks.d')
-
-        if config.has_option('Main', 'use_dogstatsd'):
-            agentConfig['use_dogstatsd'] = config.get('Main', 'use_dogstatsd').lower() in ("yes", "true")
-        else:
-            agentConfig['use_dogstatsd'] = True
-
-        # Concerns only Windows
-        if config.has_option('Main', 'use_web_info_page'):
-            agentConfig['use_web_info_page'] = config.get('Main', 'use_web_info_page').lower() in ("yes", "true")
-        else:
-            agentConfig['use_web_info_page'] = True
-
-        if not agentConfig['use_dd']:
-            sys.stderr.write("Please specify at least one endpoint to send metrics to. This can be done in datadog.conf.")
-            exit(2)
-
-        # Which API key to use
-        agentConfig['api_key'] = config.get('Main', 'api_key')
-
-        # local traffic only? Default to no
-        agentConfig['non_local_traffic'] = False
-        if config.has_option('Main', 'non_local_traffic'):
-            agentConfig['non_local_traffic'] = config.get('Main', 'non_local_traffic').lower() in ("yes", "true")
-
-        # DEPRECATED
-        if config.has_option('Main', 'use_ec2_instance_id'):
-            use_ec2_instance_id = config.get('Main', 'use_ec2_instance_id')
-            # translate yes into True, the rest into False
-            agentConfig['use_ec2_instance_id'] = (use_ec2_instance_id.lower() == 'yes')
-
-        if config.has_option('Main', 'check_freq'):
-            try:
-                agentConfig['check_freq'] = int(config.get('Main', 'check_freq'))
-            except Exception:
-                pass
-
-        # Custom histogram aggregate/percentile metrics
-        if config.has_option('Main', 'histogram_aggregates'):
-            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histogram_aggregates'))
-
-        if config.has_option('Main', 'histogram_percentiles'):
-            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
-
-        # Disable Watchdog (optionally)
-        if config.has_option('Main', 'watchdog'):
-            if config.get('Main', 'watchdog').lower() in ('no', 'false'):
-                agentConfig['watchdog'] = False
-
-        # Optional graphite listener
-        if config.has_option('Main', 'graphite_listen_port'):
-            agentConfig['graphite_listen_port'] = \
-                int(config.get('Main', 'graphite_listen_port'))
-        else:
-            agentConfig['graphite_listen_port'] = None
 
         # Dogstatsd config
         dogstatsd_defaults = {
@@ -427,38 +272,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             else:
                 agentConfig[key] = value
 
-        #Forwarding to external statsd server
-        if config.has_option('Main', 'statsd_forward_host'):
-            agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
-            if config.has_option('Main', 'statsd_forward_port'):
-                agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
 
-        # optionally send dogstatsd data directly to the agent.
-        if config.has_option('Main', 'dogstatsd_use_ddurl'):
-            if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
-                agentConfig['dogstatsd_target'] = agentConfig['dd_url']
-
-        # Optional config
-        # FIXME not the prettiest code ever...
-        if config.has_option('Main', 'use_mount'):
-            agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
-
-        if options is not None and options.autorestart:
-            agentConfig['autorestart'] = True
-        elif config.has_option('Main', 'autorestart'):
-            agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
-
-        if config.has_option('Main', 'check_timings'):
-            agentConfig['check_timings'] = _is_affirmative(config.get('Main', 'check_timings'))
-
-        if config.has_option('Main', 'exclude_process_args'):
-            agentConfig['exclude_process_args'] = _is_affirmative(config.get('Main', 'exclude_process_args'))
-
-        try:
-            filter_device_re = config.get('Main', 'device_blacklist_re')
-            agentConfig['device_blacklist_re'] = re.compile(filter_device_re)
-        except ConfigParser.NoOptionError:
-            pass
 
         if config.has_option('datadog', 'ddforwarder_log'):
             agentConfig['has_datadog'] = True
@@ -505,14 +319,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["proxy_forbid_method_switch"] = False
         if config.has_option("Main", "proxy_forbid_method_switch"):
             agentConfig["proxy_forbid_method_switch"] = _is_affirmative(config.get("Main", "proxy_forbid_method_switch"))
-
-        agentConfig["collect_ec2_tags"] = False
-        if config.has_option("Main", "collect_ec2_tags"):
-            agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
-
-        agentConfig["utf8_decoding"] = False
-        if config.has_option("Main", "utf8_decoding"):
-            agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -942,164 +748,3 @@ def get_jmx_status_path():
     return path
 
 
-def get_logging_config(cfg_path=None):
-    system_os = get_os()
-    if system_os != 'windows':
-        logging_config = {
-            'log_level': None,
-            'collector_log_file': '/var/log/datadog/collector.log',
-            'forwarder_log_file': '/var/log/datadog/forwarder.log',
-            'dogstatsd_log_file': '/var/log/datadog/dogstatsd.log',
-            'jmxfetch_log_file': '/var/log/datadog/jmxfetch.log',
-            'log_to_event_viewer': False,
-            'log_to_syslog': True,
-            'syslog_host': None,
-            'syslog_port': None,
-        }
-    else:
-        collector_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'collector.log')
-        forwarder_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'forwarder.log')
-        dogstatsd_log_location = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'dogstatsd.log')
-        jmxfetch_log_file = os.path.join(_windows_commondata_path(), 'Datadog', 'logs', 'jmxfetch.log')
-        logging_config = {
-            'log_level': None,
-            'windows_collector_log_file': collector_log_location,
-            'windows_forwarder_log_file': forwarder_log_location,
-            'windows_dogstatsd_log_file': dogstatsd_log_location,
-            'jmxfetch_log_file': jmxfetch_log_file,
-            'log_to_event_viewer': False,
-            'log_to_syslog': False,
-            'syslog_host': None,
-            'syslog_port': None,
-        }
-
-    config_path = get_config_path(cfg_path, os_name=system_os)
-    config = ConfigParser.ConfigParser()
-    config.readfp(skip_leading_wsp(open(config_path)))
-
-    if config.has_section('handlers') or config.has_section('loggers') or config.has_section('formatters'):
-        if system_os == 'windows':
-            config_example_file = "https://github.com/DataDog/dd-agent/blob/master/packaging/datadog-agent/win32/install_files/datadog_win32.conf"
-        else:
-            config_example_file = "https://github.com/DataDog/dd-agent/blob/master/datadog.conf.example"
-
-        sys.stderr.write("""Python logging config is no longer supported and will be ignored.
-            To configure logging, update the logging portion of 'datadog.conf' to match:
-             '%s'.
-             """ % config_example_file)
-
-    for option in logging_config:
-        if config.has_option('Main', option):
-            logging_config[option] = config.get('Main', option)
-
-    levels = {
-        'CRITICAL': logging.CRITICAL,
-        'DEBUG': logging.DEBUG,
-        'ERROR': logging.ERROR,
-        'FATAL': logging.FATAL,
-        'INFO': logging.INFO,
-        'WARN': logging.WARN,
-        'WARNING': logging.WARNING,
-    }
-    if config.has_option('Main', 'log_level'):
-        logging_config['log_level'] = levels.get(config.get('Main', 'log_level'))
-
-    if config.has_option('Main', 'log_to_syslog'):
-        logging_config['log_to_syslog'] = config.get('Main', 'log_to_syslog').strip().lower() in ['yes', 'true', 1]
-
-    if config.has_option('Main', 'log_to_event_viewer'):
-        logging_config['log_to_event_viewer'] = config.get('Main', 'log_to_event_viewer').strip().lower() in ['yes', 'true', 1]
-
-    if config.has_option('Main', 'syslog_host'):
-        host = config.get('Main', 'syslog_host').strip()
-        if host:
-            logging_config['syslog_host'] = host
-        else:
-            logging_config['syslog_host'] = None
-
-    if config.has_option('Main', 'syslog_port'):
-        port = config.get('Main', 'syslog_port').strip()
-        try:
-            logging_config['syslog_port'] = int(port)
-        except Exception:
-            logging_config['syslog_port'] = None
-
-    if config.has_option('Main', 'disable_file_logging'):
-        logging_config['disable_file_logging'] = config.get('Main', 'disable_file_logging').strip().lower() in ['yes', 'true', 1]
-    else:
-        logging_config['disable_file_logging'] = False
-
-    return logging_config
-
-
-
-def initialize_logging(logger_name):
-    try:
-        logging_config = get_logging_config()
-
-        logging.basicConfig(
-            format=get_log_format(logger_name),
-            level=logging_config['log_level'] or logging.INFO,
-        )
-
-        log_file = logging_config.get('%s_log_file' % logger_name)
-        if log_file is not None and not logging_config['disable_file_logging']:
-            # make sure the log directory is writeable
-            # NOTE: the entire directory needs to be writable so that rotation works
-            if os.access(os.path.dirname(log_file), os.R_OK | os.W_OK):
-                file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=LOGGING_MAX_BYTES, backupCount=1)
-                formatter = logging.Formatter(get_log_format(logger_name), get_log_date_format())
-                file_handler.setFormatter(formatter)
-
-                root_log = logging.getLogger()
-                root_log.addHandler(file_handler)
-            else:
-                sys.stderr.write("Log file is unwritable: '%s'\n" % log_file)
-
-        # set up syslog
-        if logging_config['log_to_syslog']:
-            try:
-                from logging.handlers import SysLogHandler
-
-                if logging_config['syslog_host'] is not None and logging_config['syslog_port'] is not None:
-                    sys_log_addr = (logging_config['syslog_host'], logging_config['syslog_port'])
-                else:
-                    sys_log_addr = "/dev/log"
-                    # Special-case macs
-                    if sys.platform == 'darwin':
-                        sys_log_addr = "/var/run/syslog"
-
-                handler = SysLogHandler(address=sys_log_addr, facility=SysLogHandler.LOG_DAEMON)
-                handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
-                root_log = logging.getLogger()
-                root_log.addHandler(handler)
-            except Exception, e:
-                sys.stderr.write("Error setting up syslog: '%s'\n" % str(e))
-                traceback.print_exc()
-
-        # Setting up logging in the event viewer for windows
-        if get_os() == 'windows' and logging_config['log_to_event_viewer']:
-            try:
-                from logging.handlers import NTEventLogHandler
-                nt_event_handler = NTEventLogHandler(logger_name,get_win32service_file('windows', 'win32service.pyd'), 'Application')
-                nt_event_handler.setFormatter(logging.Formatter(get_syslog_format(logger_name), get_log_date_format()))
-                nt_event_handler.setLevel(logging.ERROR)
-                app_log = logging.getLogger(logger_name)
-                app_log.addHandler(nt_event_handler)
-            except Exception, e:
-                sys.stderr.write("Error setting up Event viewer logging: '%s'\n" % str(e))
-                traceback.print_exc()
-
-    except Exception, e:
-        sys.stderr.write("Couldn't initialize logging: %s\n" % str(e))
-        traceback.print_exc()
-
-        # if config fails entirely, enable basic stdout logging as a fallback
-        logging.basicConfig(
-            format=get_log_format(logger_name),
-            level=logging.INFO,
-        )
-
-    # re-get the log after logging is initialized
-    global log
-    log = logging.getLogger(__name__)
