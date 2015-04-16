@@ -29,6 +29,10 @@ cp ..\..\..\checks.d\* install_files\checks.d
 mkdir install_files\conf.d
 cp ..\..\..\conf.d\* install_files\conf.d
 
+# Copy the dogstreams.d files into the install_files
+mkdir install_files\dogstreams.d
+cp ..\..\..\dogstreams.d\* install_files\dogstreams.d
+
 # Copy JMX Fetch into the install_files
 cp -R ..\..\..\dist\jmxfetch install_files\files\jmxfetch
 
@@ -50,10 +54,11 @@ cp ..\..\..\win32\status.html install_files\files
     heat dir install_files\files -gg -dr INSTALLDIR -t wix\files.xslt -var var.InstallFilesBins -cg files -o wix\files.wxs
     heat dir install_files\checks.d -gg -dr INSTALLDIR -var var.InstallFilesChecksD -cg checks.d -o wix\checksd.wxs
     heat dir install_files\conf.d -gg -dr APPLIDATIONDATADIRECTORY -t wix\confd.xslt -var var.InstallFilesConfD -cg conf.d -o wix\confd.wxs
+    heat dir install_files\conf.d -gg -dr APPLIDATIONDATADIRECTORY -t wix\confd.xslt -var var.InstallFilesConfD -cg dogstreams.d -o wix\dogstreamsd.wxs
 
-    # Create .wixobj files from agent.wxs, confd.wxs, checksd.wxs
-    $opts = '-dInstallFiles=install_files', '-dWixRoot=wix', '-dInstallFilesChecksD=install_files\checks.d', '-dInstallFilesConfD=install_files\conf.d', '-dInstallFilesBins=install_files\files', "-dAgentVersion=$version"
-    candle $opts wix\agent.wxs wix\checksd.wxs wix\confd.wxs wix\files.wxs -ext WixUIExtension -ext WixUtilExtension
+    # Create .wixobj files from agent.wxs, confd.wxs, checksd.wxs, dogstreamsd.wxs
+    $opts = '-dInstallFiles=install_files', '-dWixRoot=wix', '-dInstallFilesChecksD=install_files\checks.d', '-dInstallFilesConfD=install_files\conf.d', '-dInstallFilesDogstreamsD=install_files\dogstreams.d', '-dInstallFilesBins=install_files\files', "-dAgentVersion=$version"
+    candle $opts wix\agent.wxs wix\checksd.wxs wix\confd.wxs wix\dogstreamsd.wxs wix\files.wxs -ext WixUIExtension -ext WixUtilExtension
 
     # Light to create the msi
     light agent.wixobj checksd.wixobj confd.wixobj files.wixobj -o ..\..\..\build\ddagent.msi -ext WixUIExtension -ext WixUtilExtension
@@ -66,6 +71,7 @@ rm -r install_files\files\gohai
 rm install_files\files\*.*
 rm -r install_files\conf.d
 rm -r install_files\checks.d
+rm -r install_files\dogstreams.d
 rm -r install_files\Microsoft.VC90.CRT
 
 

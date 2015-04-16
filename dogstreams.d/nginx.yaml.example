@@ -1,0 +1,5 @@
+dogstreams:
+  - nginx:
+      conf:
+        path: /var/log/nginx/*
+        parser: /path/to/my/parsers_module.py:custom_parser

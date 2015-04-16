@@ -12,7 +12,10 @@ from itertools import groupby # >= python 2.4
 import modules
 from checks import LaconicFilter
 from checks.utils import TailFile
-from util import windows_friendly_colon_split
+from util import windows_friendly_colon_split, yLoader
+
+# 3rd party
+import yaml
 
 if hasattr('some string', 'partition'):
     def partition(s, sep):
@@ -60,7 +63,8 @@ class Dogstreams(object):
         or
            <log path>:<module>:<parser function>
         """
-        dogstreams = []
+        # Load Dogstream objects from dogstreams.d.
+        dogstreams = cls._load_dogstreams_from_dir(logger, config)
         # Create a Dogstream object for each <dogstream value>
         for config_item in dogstreams_config.split(','):
             try:
@@ -82,6 +86,44 @@ class Dogstreams(object):
                         config=config))
             except Exception:
                 logger.exception("Cannot build dogstream")
+        return dogstreams
+
+    @classmethod
+    def _load_dogstreams_from_dir(cls, logger, config):
+        dogstreamsd_path = config.get('additional_dogstreamsd', None)
+        if not dogstreamsd_path:
+            return []
+
+        dogstreams = []
+        dogstream_yamls = glob.glob(os.path.join(dogstreamsd_path, "*.yaml"))
+        for dogstream_yaml in dogstream_yamls:
+            parsed = yaml.load(open(dogstream_yaml).read(), Loader=yLoader)
+            dogstreams += cls._dogstream_yaml_to_instance(logger, config, parsed)
+        return dogstreams
+
+    @classmethod
+    def _dogstream_yaml_to_instance(cls, logger, config, parsed):
+        if 'dogstreams' not in parsed:
+            return []
+
+        dogstreams = []
+        for stream in parsed['dogstreams']:
+            # There is only one key in a stream, and it is always its name.
+            stream_name = stream.keys()[0]
+            conf = stream[stream_name]['conf']
+            if 'path' not in conf:
+                logger.error('No path section for dogstream: %s' % stream_name)
+                continue
+            stream_path = conf['path']
+            parser_path = conf.get('parser', None)
+            for log_path in cls._get_dogstream_log_paths(stream_path):
+                dogstream = Dogstream.init(
+                    logger,
+                    log_path=log_path,
+                    parser_spec=parser_path,
+                    parser_args=None,
+                    config=config)
+                dogstreams.append(dogstream)
         return dogstreams
 
     @classmethod
