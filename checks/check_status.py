@@ -7,11 +7,10 @@ of checks.
 import datetime
 import logging
 import os
-import pickle
+import cPickle as pickle
 import platform
 import sys
 import tempfile
-import traceback
 import time
 from collections import defaultdict
 import os.path
@@ -19,8 +18,9 @@ import os.path
 # project
 import config
 from config import get_config, get_jmx_status_path, _windows_commondata_path
-from util import get_os, plural, Platform
-
+from util import get_os, plural
+from utils.platform import Platform
+# from utils import Platform
 # 3rd party
 import ntplib
 import yaml
@@ -58,7 +58,6 @@ class Stylizer(object):
     FAIL = '\033[91m'
     RESET = '\033[0m'
 
-
     ENABLED = False
 
     @classmethod
@@ -95,6 +94,7 @@ def logger_info():
         loggers.append("No loggers configured")
     return ', '.join(loggers)
 
+
 def get_ntp_info():
     ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
@@ -103,11 +103,13 @@ def get_ntp_info():
         ntp_styles = []
     return ntp_offset, ntp_styles
 
+
 class AgentStatus(object):
     """
     A small class used to load and save status messages to the filesystem.
     """
 
+    DEFAULT_PICKLE_DIR = '/var/run/dd-agent'
     NAME = None
 
     def __init__(self):
@@ -246,10 +248,12 @@ class AgentStatus(object):
     @classmethod
     def _get_pickle_path(cls):
         if Platform.is_win32():
-            path = os.path.join(_windows_commondata_path(), 'Datadog', cls.__name__ + '.pickle')
+            path = os.path.join(_windows_commondata_path(), 'Datadog')
+        elif os.path.isdir(cls.DEFAULT_PICKLE_DIR):
+            path = cls.DEFAULT_PICKLE_DIR
         else:
-            path = os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
-        return path
+            path = tempfile.gettempdir()
+        return os.path.join(path, cls.__name__ + '.pickle')
 
 
 class InstanceStatus(object):
@@ -270,6 +274,7 @@ class InstanceStatus(object):
 
     def has_warnings(self):
         return self.status == STATUS_WARNING
+
 
 class CheckStatus(object):
 

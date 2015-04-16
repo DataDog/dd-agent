@@ -1,4 +1,4 @@
-## -*- coding: latin-1 -*-
+# -*- coding: latin-1 -*-
 import unittest
 import os
 import os.path
@@ -6,7 +6,10 @@ import tempfile
 
 from config import get_config, load_check_directory, DEFAULT_CHECKS
 
-from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
+from util import is_valid_hostname, windows_friendly_colon_split
+from utils.pidfile import PidFile
+from utils.platform import Platform
+
 
 class TestConfig(unittest.TestCase):
     def testWhiteSpaceConfig(self):

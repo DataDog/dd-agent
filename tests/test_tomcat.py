@@ -4,7 +4,7 @@ import time
 import threading
 from aggregator import MetricsAggregator
 from dogstatsd import Server
-from util import PidFile
+from utils.pidfile import PidFile
 import os
 from jmxfetch import JMXFetch
 

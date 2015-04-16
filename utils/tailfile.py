@@ -1,29 +1,16 @@
-import base64
+import binascii
 import os
+from stat import *
 
 # os.SEEK_END is defined in python 2.5
 SEEK_END = 2
-
-from stat import *
-import binascii
-
-def median(vals):
-    vals = sorted(vals)
-    if not vals:
-        raise ValueError(vals)
-    elif len(vals) % 2 == 0:
-        i1 = int(len(vals) / 2)
-        i2 = i1 - 1
-        return float(vals[i1] + vals[i2]) / 2.
-    else:
-        return vals[int(len(vals) / 2)]
 
 
 class TailFile(object):
 
     CRC_SIZE = 16
 
-    def __init__(self,logger,path,callback):
+    def __init__(self, logger, path, callback):
         self._path = path
         self._f = None
         self._inode = None
@@ -31,11 +18,11 @@ class TailFile(object):
         self._crc = None
         self._log = logger
         self._callback = callback
-   
+
     def _open_file(self, move_end=False, pos=False):
 
         already_open = False
-        #close and reopen to handle logrotate
+        # close and reopen to handle logrotate
         if self._f is not None:
             self._f.close()
             self._f = None
@@ -48,7 +35,7 @@ class TailFile(object):
         # Compute CRC of the beginning of the file
         crc = None
         if size >= self.CRC_SIZE:
-            tmp_file = open(self._path,'r')
+            tmp_file = open(self._path, 'r')
             data = tmp_file.read(self.CRC_SIZE)
             crc = binascii.crc32(data)
 
@@ -76,7 +63,7 @@ class TailFile(object):
         self._size = size
         self._crc = crc
 
-        self._f = open(self._path,'r')
+        self._f = open(self._path, 'r')
         if move_end:
             self._log.debug("Opening file %s" % (self._path))
             self._f.seek(0, SEEK_END)
@@ -97,12 +84,12 @@ class TailFile(object):
                 pos = self._f.tell()
                 line = self._f.readline()
                 if line:
-                    line = line.strip(chr(0)) # a truncate may have create holes in the file
+                    line = line.strip(chr(0))  # a truncate may have create holes in the file
                     if self._callback(line.rstrip("\n")):
                         if line_by_line:
                             yield True
                             pos = self._f.tell()
-                            self._open_file(move_end=False,pos=pos)
+                            self._open_file(move_end=False, pos=pos)
                         else:
                             continue
                     else:

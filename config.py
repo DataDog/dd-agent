@@ -21,7 +21,8 @@ from cStringIO import StringIO
 from urlparse import urlparse
 
 # project
-from util import get_os, Platform, yLoader
+from util import get_os, yLoader
+from utils.platform import Platform
 
 # 3rd party
 import yaml

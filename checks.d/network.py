@@ -9,7 +9,7 @@ import re
 
 # project
 from checks import AgentCheck
-from util import Platform
+from utils.platform import Platform
 
 BSD_TCP_METRICS = [
         (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
