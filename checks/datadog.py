@@ -1,4 +1,5 @@
 # stdlib
+import glob
 import os
 import sys
 import traceback
@@ -36,33 +37,10 @@ class Dogstreams(object):
     @classmethod
     def init(cls, logger, config):
         dogstreams_config = config.get('dogstreams', None)
-        dogstreams = []
         if dogstreams_config:
-            # Expecting dogstreams config value to look like:
-            #   <dogstream value>, <dog stream value>, ...
-            # Where <dogstream value> looks like:
-            #   <log path>
-            # or
-            #   <log path>:<module>:<parser function>
-
-            # Create a Dogstream object for each <dogstream value>
-            for config_item in dogstreams_config.split(','):
-                try:
-                    config_item = config_item.strip()
-                    parts = windows_friendly_colon_split(config_item)
-                    if len(parts) == 1:
-                        dogstreams.append(Dogstream.init(logger, log_path=parts[0]))
-                    elif len(parts) == 2:
-                        logger.warn("Invalid dogstream: %s" % ':'.join(parts))
-                    elif len(parts) >= 3:
-                        dogstreams.append(Dogstream.init(
-                            logger,
-                            log_path=parts[0],
-                            parser_spec=':'.join(parts[1:3]),
-                            parser_args=parts[3:],
-                            config=config))
-                except Exception:
-                    logger.exception("Cannot build dogstream")
+            dogstreams = cls._instantiate_dogstreams(logger, config, dogstreams_config)
+        else:
+            dogstreams = []
 
         logger.info("Dogstream parsers: %s" % repr(dogstreams))
 
@@ -71,6 +49,49 @@ class Dogstreams(object):
     def __init__(self, logger, dogstreams):
         self.logger = logger
         self.dogstreams = dogstreams
+
+    @classmethod
+    def _instantiate_dogstreams(cls, logger, config, dogstreams_config):
+        """
+        Expecting dogstreams config value to look like:
+           <dogstream value>, <dog stream value>, ...
+        Where <dogstream value> looks like:
+           <log path>
+        or
+           <log path>:<module>:<parser function>
+        """
+        dogstreams = []
+        # Create a Dogstream object for each <dogstream value>
+        for config_item in dogstreams_config.split(','):
+            try:
+                config_item = config_item.strip()
+                parts = windows_friendly_colon_split(config_item)
+                if len(parts) == 1:
+                    # If the dogstream includes a wildcard, we'll add every
+                    # matching path.
+                    for path in cls._get_dogstream_log_paths(parts[0]):
+                        dogstreams.append(Dogstream.init(logger, log_path=path))
+                elif len(parts) == 2:
+                    logger.warn("Invalid dogstream: %s" % ':'.join(parts))
+                elif len(parts) >= 3:
+                    dogstreams.append(Dogstream.init(
+                        logger,
+                        log_path=parts[0],
+                        parser_spec=':'.join(parts[1:3]),
+                        parser_args=parts[3:],
+                        config=config))
+            except Exception:
+                logger.exception("Cannot build dogstream")
+        return dogstreams
+
+    @classmethod
+    def _get_dogstream_log_paths(cls, path):
+        """
+        Paths may include wildcard *'s and ?'s.
+        """
+        if '*' not in path:
+            return [path]
+        return glob.glob(path)
 
     def check(self, agentConfig, move_end=True):
         if not self.dogstreams:
