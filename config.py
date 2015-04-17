@@ -73,8 +73,6 @@ def get_parsed_args():
                         dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
                         dest='dd_url')
-    parser.add_option('-c', '--clean', action='store_true', default=False,
-                        dest='clean')
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
                         default=False, dest='use_forwarder')
     parser.add_option('-n', '--disable-dd', action='store_true', default=False,
@@ -89,7 +87,6 @@ def get_parsed_args():
         # Ignore parse errors
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
-                                'clean': False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
     return options, args
