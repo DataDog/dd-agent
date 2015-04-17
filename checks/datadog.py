@@ -10,7 +10,7 @@ from itertools import groupby # >= python 2.4
 # project
 import modules
 from checks import LaconicFilter
-from checks.utils import TailFile
+from utils.tailfile import TailFile
 from util import windows_friendly_colon_split
 
 if hasattr('some string', 'partition'):

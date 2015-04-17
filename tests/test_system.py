@@ -7,7 +7,7 @@ import sys
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
-from util import Platform
+from utils.platform import Platform
 from checks.system.unix import *
 from common import get_check
 from config import get_system_stats
@@ -52,7 +52,7 @@ map -hosts                                 0         0         0   100%        0
 map auto_home                              0         0         0   100%        0        0  100%   /home
 localhost:/KJDS7Bgpbp1QglL9lBwOe6  487932936 487932936         0   100%        0        0  100%   /Volumes/MobileBackups
 /dev/disk2s1                        62309376   5013120  57296256     9%        0        0  100%   /Volumes/NO name"""
-        
+
     lion_df_k = """Filesystem                        1024-blocks      Used Available Capacity  Mounted onto
 /dev/disk1                          243966468 110040020 133670448    46%    /
 devfs                                     187       187         0   100%    /dev
@@ -139,7 +139,7 @@ none                  985964       1  985963    1% /lib/init/rw
         assert res[3][:4] == ["/data2", 52403200, 40909112, 11494088], res[3]
         assert res[4][:4] == ["/data3", 52403200, 40909112, 11494088], res[4]
         assert res[-1][:4] == ["/var/lib/postgresql/9.1/index05", 31441920, 3519356, 27922564], res[-1]
-        
+
     def test_collecting_disk_metrics(self):
         """Testing disk stats gathering"""
         if Platform.is_unix():
@@ -214,10 +214,10 @@ sda               0.00     0.00  0.00  0.00     0.00     0.00     0.00     0.00 
 
         # iostat -o -d -c 2 -w 1
         # OS X 10.8.3 (internal SSD + USB flash attached)
-        darwin_iostat_output = """          disk0           disk1 
-    KB/t tps  MB/s     KB/t tps  MB/s 
-   21.11  23  0.47    20.01   0  0.00 
-    6.67   3  0.02     0.00   0  0.00 
+        darwin_iostat_output = """          disk0           disk1
+    KB/t tps  MB/s     KB/t tps  MB/s
+   21.11  23  0.47    20.01   0  0.00
+    6.67   3  0.02     0.00   0  0.00
 """
         checker = IO(logger)
         results = checker._parse_darwin(darwin_iostat_output)

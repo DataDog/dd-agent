@@ -21,39 +21,39 @@ class TestTail(unittest.TestCase):
 
     def _trigger_logrotate(self):
         subprocess.check_call([
-            'logrotate', 
+            'logrotate',
             '-v', # Verbose logging
             '-f', # Force the rotation even though the file isn't old
             # Create a state file that you have file permissions for
-            '-s', self.logrotate_state_file.name, 
+            '-s', self.logrotate_state_file.name,
             self.logrotate_config.name
-        ])    
-    
+        ])
+
     def test_logrotate_copytruncate(self):
-        from checks.utils import TailFile
-        
+        from utils.tailfile import TailFile
+
         def line_parser(l):
             self.last_line = l
-        
+
         tail = TailFile(logging.getLogger(), self.log_file.name, line_parser)
         self.assertEquals(tail._size, 0)
-        
+
         # Write some data to the log file
         init_string = "hey there, I am a log\n"
         self.log_file.write(init_string)
         self.log_file.flush()
-        
+
         # Consume from the tail
         gen = tail.tail(line_by_line=False, move_end=True)
         gen.next()
-        
+
         # Verify that the tail consumed the data I wrote
         self.assertEquals(tail._size, len(init_string))
-        
+
         try:
             # Trigger a copytruncate logrotation on the log file
             self._trigger_logrotate()
-            
+
             # Write a new line to the log file
             new_string = "I am shorter\n"
             self.log_file.write(new_string)
@@ -64,7 +64,7 @@ class TestTail(unittest.TestCase):
             self.assertEquals(self.last_line, new_string[:-1], self.last_line)
         except OSError:
             "logrotate is not present"
-        
+
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler())
