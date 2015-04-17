@@ -18,7 +18,7 @@ import os.path
 
 # project
 import config
-from config import get_config, get_jmx_status_path, _windows_commondata_path
+from config import _windows_commondata_path, get_config
 from util import get_os, plural, Platform
 
 # 3rd party
@@ -675,7 +675,6 @@ class ForwarderStatus(AgentStatus):
         })
         return status_info
 
-
 def get_jmx_instance_status(instance_name, status, message, metric_count):
     if status == STATUS_ERROR:
         instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
@@ -720,8 +719,8 @@ def get_jmx_status():
         ###
     """
     check_statuses = []
-    java_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
-    python_status_path = os.path.join(get_jmx_status_path(), "jmx_status_python.yaml")
+    java_status_path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
+    python_status_path = os.path.join(tempfile.gettempdir(), "jmx_status_python.yaml")
     if not os.path.exists(java_status_path) and not os.path.exists(python_status_path):
         log.debug("There is no jmx_status file at: %s or at: %s" % (java_status_path, python_status_path))
         return []
@@ -746,22 +745,28 @@ def get_jmx_status():
                     for info in instances:
                         message = info.get('message', None)
                         metric_count = info.get('metric_count', 0)
+                        service_check_count = info.get('service_check_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
                         check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
+                        check_data[check_name]['service_check_count'].append(service_check_count)
 
                 for check_name, instances in jmx_checks.get('initialized_checks', {}).iteritems():
                     for info in instances:
                         message = info.get('message', None)
                         metric_count = info.get('metric_count', 0)
+                        service_check_count = info.get('service_check_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
                         check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
+                        check_data[check_name]['service_check_count'].append(service_check_count)
 
                 for check_name, data in check_data.iteritems():
-                    check_status = CheckStatus(check_name, data['statuses'], sum(data['metric_count']))
+                    check_status = CheckStatus(check_name, data['statuses'], 
+                                               metric_count=sum(data['metric_count']), 
+                                               service_check_count=sum(data['service_check_count']))
                     check_statuses.append(check_status)
 
         if os.path.exists(python_status_path):
