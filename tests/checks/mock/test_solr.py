@@ -12,7 +12,6 @@ from aggregator import MetricsAggregator
 from dogstatsd import Server
 from jmxfetch import JMXFetch
 from tests.checks.common import Fixtures
-from utils.pidfile import PidFile
 
 STATSD_PORT = 8127
 
@@ -43,7 +42,6 @@ class JMXTestCase(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
-        pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
 
         self.t1 = threading.Thread(target=self.server.start)

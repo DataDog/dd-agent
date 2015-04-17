@@ -51,7 +51,6 @@ class AgentSvc(win32serviceutil.ServiceFramework):
         opts, args = Values({
             'autorestart': False,
             'dd_url': None,
-            'clean': False,
             'use_forwarder': True,
             'disabled_dd': False
         }), []

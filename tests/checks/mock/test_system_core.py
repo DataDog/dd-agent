@@ -1,7 +1,7 @@
 import mock
 import psutil
 
-from tests.common import AgentCheckTest
+from tests.checks.common import AgentCheckTest
 from utils.platform import Platform
 
 if Platform.is_mac():

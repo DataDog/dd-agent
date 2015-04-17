@@ -12,7 +12,6 @@ from nose.plugins.attrib import attr
 from aggregator import MetricsAggregator
 from dogstatsd import Server
 from jmxfetch import JMXFetch
-from utils.pidfile import PidFile
 
 STATSD_PORT = 8126
 
@@ -43,7 +42,6 @@ class TestTomcat(unittest.TestCase):
     def setUp(self):
         aggregator = MetricsAggregator("test_host")
         self.server = Server(aggregator, "localhost", STATSD_PORT)
-        pid_file = PidFile('dogstatsd')
         self.reporter = DummyReporter(aggregator)
 
         self.t1 = threading.Thread(target=self.server.start)
@@ -64,7 +62,7 @@ class TestTomcat(unittest.TestCase):
         while self.reporter.metrics is None:
             time.sleep(1)
             count += 1
-            if count > 25:ga
+            if count > 25:
                 raise Exception("No metrics were received in 25 seconds")
 
         metrics = self.reporter.metrics

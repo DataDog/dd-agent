@@ -247,12 +247,7 @@ def main():
         deprecate_old_command_line_tools()
 
     if command in COMMANDS_AGENT:
-        pid_file = PidFile('dd-agent')
-
-        if options.clean:
-            pid_file.clean()
-
-        agent = Agent(pid_file.get_path(), autorestart)
+        agent = Agent(PidFile('dd-agent').get_path(), autorestart)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
