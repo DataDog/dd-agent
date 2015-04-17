@@ -77,6 +77,7 @@ class Agent(Daemon):
         self._handle_sigterm(signum, frame)
         self._do_restart()
 
+    @classmethod
     def info(self, verbose=None):
         logging.getLogger().setLevel(logging.ERROR)
         return CollectorStatus.print_latest_status(verbose=verbose)
@@ -205,24 +206,30 @@ class Agent(Daemon):
             self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
 
-    COMMANDS = [
+    COMMANDS_AGENT = [
         'start',
         'stop',
         'restart',
-        'foreground',
         'status',
+        'foreground',
+    ]
+
+    COMMANDS_NO_AGENT = [
         'info',
         'check',
         'configcheck',
         'jmx',
         'flare',
     ]
+
+    COMMANDS = COMMANDS_AGENT + COMMANDS_NO_AGENT
 
     if len(args) < 1:
         sys.stderr.write("Usage: %s %s\n" % (sys.argv[0], "|".join(COMMANDS)))
@@ -233,12 +240,13 @@ def main():
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
 
-    pid_file = PidFile('dd-agent')
+    if command in COMMANDS_AGENT:
+        pid_file = PidFile('dd-agent')
 
-    if options.clean:
-        pid_file.clean()
+        if options.clean:
+            pid_file.clean()
 
-    agent = Agent(pid_file.get_path(), autorestart)
+        agent = Agent(pid_file.get_path(), autorestart)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -259,7 +267,7 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        return agent.info(verbose=options.verbose)
+        return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')

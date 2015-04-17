@@ -352,6 +352,7 @@ class Dogstatsd(Daemon):
             if self.autorestart:
                 sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+    @classmethod
     def info(self):
         logging.getLogger().setLevel(logging.ERROR)
         return DogstatsdStatus.print_latest_status()
@@ -419,15 +420,23 @@ def init(config_path=None, use_watchdog=False, use_forwarder=False, args=None):
 
 def main(config_path=None):
     """ The main entry point for the unix version of dogstatsd. """
+    COMMANDS_START_DOGSTATSD = [
+        'start',
+        'stop',
+        'restart',
+        'status'
+    ]
+
     parser = optparse.OptionParser("%prog [start|stop|restart|status]")
     parser.add_option('-u', '--use-local-forwarder', action='store_true',
-                        dest="use_forwarder", default=False)
+                      dest="use_forwarder", default=False)
     opts, args = parser.parse_args()
 
-    reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
-    pid_file = PidFile('dogstatsd')
-    daemon = Dogstatsd(pid_file.get_path(), server, reporter,
-            cnf.get('autorestart', False))
+    if not args or args[0] in COMMANDS_START_DOGSTATSD:
+        reporter, server, cnf = init(config_path, use_watchdog=True, use_forwarder=opts.use_forwarder, args=args)
+        pid_file = PidFile('dogstatsd')
+        daemon = Dogstatsd(pid_file.get_path(), server, reporter,
+                           cnf.get('autorestart', False))
 
     # If no args were passed in, run the server in the foreground.
     if not args:
@@ -447,7 +456,7 @@ def main(config_path=None):
         elif command == 'status':
             daemon.status()
         elif command == 'info':
-            return daemon.info()
+            return Dogstatsd.info()
         else:
             sys.stderr.write("Unknown command: %s\n\n" % command)
             parser.print_help()

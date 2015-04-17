@@ -227,7 +227,7 @@ class Daemon(object):
         """
         raise NotImplementedError
 
-
+    @classmethod
     def info(self):
         """
         You should override this method when you subclass Daemon. It will be
