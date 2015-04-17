@@ -57,8 +57,8 @@ task 'setup_env' do
    `venv/bin/python venv/ez_setup.py`
    `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
    `venv/bin/python venv/get-pip.py`
-   `venv/bin/pip install -r source-requirements.txt`
-   `venv/bin/pip install -r source-optional-requirements.txt`
+   `venv/bin/pip install -r requirements.txt`
+   `venv/bin/pip install -r requirements-opt.txt`
 end
 
 namespace :test do

@@ -18,12 +18,10 @@ except ImportError:
 extra_args = {}
 
 # Prereqs of the build. Won't get installed when deploying the egg.
-setup_requires = [
-]
+setup_requires = []
 
 # Prereqs of the install. Will install when deploying the egg.
-install_requires=[
-]
+install_requires=[]
 
 if sys.platform == 'win32':
     from glob import glob
@@ -31,26 +29,23 @@ if sys.platform == 'win32':
     import pysnmp_mibs
     import pyVim
     import pyVmomi
-    install_requires.extend([
-        'adodbapi==2.6.0.7',
-        'elementtree==1.2.7.20070827-preview',
-        'httplib2==0.9',
-        'pg8000==1.10.1',
-        'psutil==2.1.3',
-        'pycurl==7.19.5',
-        'pymongo==2.7.2',
-        'pymysql==0.6.2',
-        'pysnmp-mibs==0.1.4',
-        'pysnmp==4.2.5',
-        'python-memcached==1.53',
-        'pyvmomi==5.5.0.2014.1.1',
-        'pywin32==217',
-        'redis==2.10.3',
-        'requests==2.4.3',
-        'simplejson==3.6.4',
-        'tornado==3.2.2',
-        'wmi==1.4.9',
-    ])
+
+    # That's just a copy/paste of requirements.txt
+    for reqfile in ('requirements.txt', 'requirements-opt.txt'):
+        with open(reqfile) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue
+                # we skip psycopg2 now because don't want to install PG
+                # on windows
+                if 'psycopg2' in line:
+                    continue
+                install_requires.append(line)
+
+    # windows-specific deps
+    install_requires.append('pywin32==217')
+    install_requires.append('wmi==1.4.9')
 
     # Modules to force-include in the exe
     include_modules = [
@@ -60,7 +55,6 @@ if sys.platform == 'win32':
         'win32event',
         'simplejson',
         'adodbapi',
-        'elementtree.ElementTree',
         'pycurl',
         'tornado.curl_httpclient',
         'pymongo',
@@ -133,7 +127,7 @@ setup(
     url='http://www.datadoghq.com',
     install_requires=install_requires,
     setup_requires=setup_requires,
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_packages(),
     include_package_data=True,
     test_suite='nose.collector',
     zip_safe=False,

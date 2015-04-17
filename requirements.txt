@@ -1,23 +1,59 @@
-boto
-gearman
-httplib2
-kafka-python==0.9.0-9bed11db98387c0d9e456528130b330631dc50af
-ntplib
-paramiko
-pg8000
-psutil
-psycopg2
-pycurl
-pylint
-pymongo==2.8
-pymysql
-pysnmp
-pysnmp-mibs
-python-memcached
-pyvmomi==5.5.0
-pyyaml
-redis
-requests
-simplejson
+###########################################################
+# These modules are the deps needed by the
+# agent core, meaning every module that is 
+# not a check
+# They're installed in the CI and when doing
+# a source install
+# If their installation fails the agent installation
+# fails, so they shouldn't have too many deps
+###########################################################
+
+boto==2.36.0
+ntplib==0.3.2
+# the libyaml bindings are optional
+pyyaml==3.11
+# note: requests is also used in many checks
+# upgrade with caution
+requests==2.6.0
+# note: simplejson is used in many checks to inteface APIs
+simplejson==3.6.5
 supervisor==3.1.3
 tornado==3.2.2
+
+###########################################################
+# These modules are for checks. But they are
+# installable just fine anywhere. So we install
+# them all. They're usually pure python and don't
+# need any external deps.
+###########################################################
+
+# checks.d/sqlserver.py
+adodbapi==2.6.0.7
+pyro4==4.35 # required by adodbapi
+
+# checks.d/riak.py
+httplib2==0.9
+
+# checks.d/kafka_consumer.py
+kafka-python==0.9.3
+
+# checks.d/postgres.py
+pg8000==1.10.1
+
+# checks.d/mysql.py
+pymysql==0.6.6
+
+# checks.d/gearman.py
+gearman==2.0.2
+
+# checks.d/mcache.py
+python-memcached==1.53
+
+# checks.d/redis.py
+redis==2.10.3
+
+# checks.d/vsphere.py
+pyvmomi==5.5.0.2014.1.1
+
+# checks.d/hdfs.py
+snakebite==1.3.11
