@@ -105,6 +105,13 @@ class JMXFetch(object):
             log.exception("Error while initiating JMXFetch")
             raise
 
+    def should_run(self):
+        """
+        Windows Service purpose: should JMXFetch run ?
+        """
+        jmx_checks, _, _, _, _ = self._should_run(None)
+        return len(jmx_checks) > 0
+
     def _should_run(self, checks_list):
         """
         Return a tuple (jmx_checks, invalid_checks, java_bin_path, java_options)

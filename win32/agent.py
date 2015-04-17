@@ -34,7 +34,8 @@ from util import get_hostname, get_os
 log = logging.getLogger(__name__)
 
 SERVICE_SLEEP_INTERVAL = 1
-MAX_FAILED_HEARTBEATS = 8 # runs of collector
+MAX_FAILED_HEARTBEATS = 8  # runs of collector
+
 
 class AgentSvc(win32serviceutil.ServiceFramework):
     _svc_name_ = "DatadogAgent"
@@ -136,6 +137,7 @@ class AgentSvc(win32serviceutil.ServiceFramework):
 
         new_proc.start()
         self.procs[proc_name] = new_proc
+
 
 class DDAgent(multiprocessing.Process):
     def __init__(self, agentConfig, hostname, heartbeat=None):
@@ -240,21 +242,20 @@ class JMXFetchProcess(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
         multiprocessing.Process.__init__(self, name='jmxfetch')
         self.config = agentConfig
-        self.is_enabled = True
         self.hostname = hostname
-
         osname = get_os()
         try:
             confd_path = get_confd_path(osname)
         except PathNotFound, e:
             log.error("No conf.d folder found at '%s' or in the directory where"
                       "the Agent is currently deployed.\n" % e.args[0])
-
         self.jmx_daemon = JMXFetch(confd_path, agentConfig)
+        self.is_enabled = self.jmx_daemon.should_run()
 
     def run(self):
         log.debug("Windows Service - Starting JMXFetch")
-        self.jmx_daemon.run()
+        if self.is_enabled:
+            self.jmx_daemon.run()
 
     def stop(self):
         log.debug("Windows Service - Stopping JMXFetch")
