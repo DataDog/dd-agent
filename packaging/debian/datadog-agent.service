@@ -1,0 +1,13 @@
+[Unit]
+Description="Datadog Agent"
+After=network.target
+
+[Service]
+Type=forking
+Environment=SYSTEM_PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH
+ExecStart=/bin/bash -c "PATH=${SYSTEM_PATH} /opt/datadog-agent/bin/supervisord -c /etc/dd-agent/supervisor.conf --pidfile /var/run/datadog-supervisord.pid"
+ExecReload=/opt/datadog-agent/bin/supervisorctl reload
+ExecStop=/opt/datadog-agent/bin/supervisorctl shutdown
+
+[Install]
+WantedBy=multi-user.target
