@@ -52,7 +52,8 @@ class AgentSvc(win32serviceutil.ServiceFramework):
             'autorestart': False,
             'dd_url': None,
             'use_forwarder': True,
-            'disabled_dd': False
+            'disabled_dd': False,
+            'profile': False
         }), []
         agentConfig = get_config(parse_args=False, options=opts)
         self.hostname = get_hostname(agentConfig)

@@ -7,6 +7,7 @@ import socket
 import logging
 import datetime
 import subprocess
+import pprint
 
 import modules
 
@@ -16,8 +17,7 @@ from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
 import jmxfetch
 import checks.system.unix as u
 import checks.system.win32 as w32
-from checks import create_service_check, AgentCheck
-from checks.agent_metrics import CollectorMetrics
+from checks import create_service_check, AgentCheck, AGENT_METRICS_CHECK_NAME
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
@@ -99,8 +99,8 @@ class Collector(object):
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
-        # Agent Metrics
-        self._agent_metrics = CollectorMetrics(log)
+        # Agent performance metrics check
+        self._agent_metrics = None
 
         self._metrics_checks = []
 
@@ -133,6 +133,10 @@ class Collector(object):
         for check in self.initialized_checks_d:
             check.stop()
 
+    @staticmethod
+    def _stats_for_display(raw_stats):
+        return pprint.pformat(raw_stats, indent=4)
+
     def run(self, checksd=None, start_event=True):
         """
         Collect data from each check and submit their data.
@@ -146,6 +150,15 @@ class Collector(object):
         if checksd:
             self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
+
+            # Find the AgentMetrics check and pop it out
+            # This check must run at the end of the loop to collect info on agent performance
+            if not self._agent_metrics:
+                for check in self.initialized_checks_d:
+                    if check.name == AGENT_METRICS_CHECK_NAME:
+                        self._agent_metrics = check
+                        self.initialized_checks_d.remove(check)
+                        break
 
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
@@ -271,6 +284,8 @@ class Collector(object):
             event_count = 0
             service_check_count = 0
             check_start_time = time.time()
+            check_stats = None
+
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -278,6 +293,7 @@ class Collector(object):
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
+                check_stats = check._get_internal_profiling_stats()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -290,12 +306,17 @@ class Collector(object):
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
+
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
+            check_status = CheckStatus(
+                check.name, instance_statuses, metric_count,
+                event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name,
+                check_stats=check_stats
+            )
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]
@@ -370,11 +391,30 @@ class Collector(object):
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
-                collect_duration, self.emit_duration, time.clock() - cpu_clock))
+            if self._agent_metrics is not None:
+                self._agent_metrics.set_metric_context(payload, {
+                        'collection_time': collect_duration,
+                        'emit_time': self.emit_duration,
+                        'cpu_time': time.clock() - cpu_clock
+                    })
+                self._agent_metrics.run()
+                agent_stats = self._agent_metrics.get_metrics()
+                payload['metrics'].extend(agent_stats)
+                # Dump the metrics to log when in developer mode
+                if self.agentConfig.get('developer_mode', False):
+                    log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
         else:
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
-                collect_duration, self.emit_duration))
+            if self._agent_metrics is not None:
+                self._agent_metrics.set_metric_context(payload, {
+                        'collection_time': collect_duration,
+                        'emit_time': self.emit_duration,
+                    })
+                self._agent_metrics.run()
+                agent_stats = self._agent_metrics.get_metrics()
+                payload['metrics'].extend(agent_stats)
+                # Dump the metrics to log when in developer mode
+                if self.agentConfig.get('developer_mode', False):
+                    log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
 
         # Let's send our payload
         emitter_statuses = self._emit(payload)
@@ -397,6 +437,49 @@ class Collector(object):
                     (self.run_count, round(collect_duration, 2), round(self.emit_duration, 2)))
 
         return payload
+
+    @staticmethod
+    def run_single_check(check, verbose=True):
+        log.info("Running check %s" % check.name)
+        instance_statuses = []
+        metric_count = 0
+        event_count = 0
+        service_check_count = 0
+        check_start_time = time.time()
+        check_stats = None
+
+        try:
+            # Run the check.
+            instance_statuses = check.run()
+
+            # Collect the metrics and events.
+            current_check_metrics = check.get_metrics()
+            current_check_events = check.get_events()
+            current_service_checks = check.get_service_checks()
+
+            check_stats = check._get_internal_profiling_stats()
+
+            # Save the status of the check.
+            metric_count = len(current_check_metrics)
+            event_count = len(current_check_events)
+            service_check_count = len(current_service_checks)
+
+            print "Metrics: \n{0}".format(pprint.pformat(current_check_metrics))
+            print "Events: \n{0}".format(pprint.pformat(current_check_events))
+            print "Service Checks: \n{0}".format(pprint.pformat(current_service_checks))
+
+        except Exception:
+            log.exception("Error running check %s" % check.name)
+
+        check_status = CheckStatus(
+            check.name, instance_statuses, metric_count,
+            event_count, service_check_count,
+            library_versions=check.get_library_info(),
+            source_type_name=check.SOURCE_TYPE_NAME or check.name,
+            check_stats=check_stats
+        )
+
+        return check_status
 
     def _emit(self, payload):
         """ Send the payload via the emitters. """

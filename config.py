@@ -57,11 +57,11 @@ NAGIOS_OLD_CONF_KEYS = [
     'nagios_perf_cfg'
 ]
 
-DEFAULT_CHECKS = ("network", "ntp")
 LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
 ]
+
 
 class PathNotFound(Exception):
     pass
@@ -80,6 +80,8 @@ def get_parsed_args():
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
+    parser.add_option('-p', '--profile', action='store_true', default=False,
+                        dest='profile', help='Enable Developer Mode')
 
     try:
         options, args = parser.parse_args()
@@ -88,7 +90,8 @@ def get_parsed_args():
         options, args = Values({'autorestart': False,
                                 'dd_url': None,
                                 'disable_dd':False,
-                                'use_forwarder': False}), []
+                                'use_forwarder': False,
+                                'profile': False}), []
     return options, args
 
 
@@ -325,6 +328,15 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # bulk import
         for option in config.options('Main'):
             agentConfig[option] = config.get('Main', option)
+
+        # Store developer mode setting in the agentConfig
+        in_developer_mode = None
+        if config.has_option('Main', 'developer_mode'):
+            agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
+
+        # Allow an override with the --profile option
+        if options is not None and options.profile:
+            agentConfig['developer_mode'] = True
 
         #
         # Core config
@@ -757,7 +769,7 @@ def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
     file in conf.d will be returned. '''
-    from checks import AgentCheck
+    from checks import AgentCheck, AGENT_METRICS_CHECK_NAME
 
     initialized_checks = {}
     init_failed_checks = {}
@@ -799,22 +811,17 @@ def load_check_directory(agentConfig, hostname):
 
         # Let's see if there is a conf.d for this check
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-
-        # Default checks are checks that are enabled by default
-        # They read their config from the "[CHECKNAME].yaml.default" file
-        if check_name in DEFAULT_CHECKS:
-            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
-        else:
-            default_conf_path = None
-
         conf_exists = False
 
         if os.path.exists(conf_path):
             conf_exists = True
+        else:
+            log.debug("No configuration file for %s. Looking for defaults" % check_name)
 
-        elif not conf_exists and default_conf_path is not None:
+            # Default checks read their config from the "[CHECKNAME].yaml.default" file
+            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
             if not os.path.exists(default_conf_path):
-                log.error("Default configuration file {0} is missing".format(default_conf_path))
+                log.debug("Default configuration file {0} is missing. Skipping check".format(default_conf_path))
                 continue
             conf_path = default_conf_path
             conf_exists = True
@@ -912,7 +919,7 @@ def load_check_directory(agentConfig, hostname):
         log.debug('Loaded check.d/%s.py' % check_name)
 
     init_failed_checks.update(deprecated_checks)
-    log.info('initialized checks.d checks: %s' % initialized_checks.keys())
+    log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k != AGENT_METRICS_CHECK_NAME])
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
             'init_failed_checks':init_failed_checks,
