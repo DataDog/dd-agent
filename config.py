@@ -81,6 +81,8 @@ def get_parsed_args():
     parser.add_option('-v', '--verbose', action='store_true', default=False,
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
+    parser.add_option('-p', '--profile', action='store_true', default=False,
+                        dest='profile')
 
     try:
         options, args = parser.parse_args()

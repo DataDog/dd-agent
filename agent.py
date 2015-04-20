@@ -299,6 +299,10 @@ def main():
             checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
+                    if options.profile:
+                        from utils.profile import wrap_profiling
+                        check.run = wrap_profiling(check.run)
+
                     check.run()
                     print check.get_metrics()
                     print check.get_events()
