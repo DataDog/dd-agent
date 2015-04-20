@@ -68,6 +68,7 @@ class JMXFetch(object):
         self.check_frequency = DEFAULT_CHECK_FREQUENCY
 
         self.jmx_process = None
+        self._is_running = True
 
     def terminate(self):
         self.jmx_process.terminate()
@@ -76,6 +77,12 @@ class JMXFetch(object):
         # Terminate jmx process on SIGTERM signal
         log.debug("Caught sigterm. Stopping subprocess.")
         self.jmx_process.terminate()
+
+    def is_running(self):
+        """
+        Used by Windows Service to know if JMXFetch should run
+        """
+        return self._is_running
 
     def initialize(self):
         # Gracefully exit on sigterm.
@@ -101,6 +108,8 @@ class JMXFetch(object):
                 self._start(
                     java_bin_path, java_options, jmx_checks, command, reporter, tools_jar_path)
                 return True
+            else:
+                self._is_running = False
         except Exception:
             log.exception("Error while initiating JMXFetch")
             raise
