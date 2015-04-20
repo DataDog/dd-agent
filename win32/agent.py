@@ -240,7 +240,7 @@ class JMXFetchProcess(multiprocessing.Process):
     def __init__(self, agentConfig, hostname):
         multiprocessing.Process.__init__(self, name='jmxfetch')
         self.config = agentConfig
-        self.is_enabled = True
+        self._is_running = multiprocessing.Value("b", True)
         self.hostname = hostname
 
         osname = get_os()
@@ -252,13 +252,23 @@ class JMXFetchProcess(multiprocessing.Process):
 
         self.jmx_daemon = JMXFetch(confd_path, agentConfig)
 
+    @property
+    def is_enabled(self):
+        return self._is_running.value
+
+    @is_enabled.setter
+    def is_enabled(self, value):
+        self._is_running.value = value
+
     def run(self):
         log.debug("Windows Service - Starting JMXFetch")
         self.jmx_daemon.run()
+        self.is_enabled = self.jmx_daemon.is_running()
 
     def stop(self):
-        log.debug("Windows Service - Stopping JMXFetch")
-        self.jmx_daemon.terminate()
+        if self.is_enabled:
+            log.debug("Windows Service - Stopping JMXFetch")
+            self.jmx_daemon.terminate()
 
 
 if __name__ == '__main__':
