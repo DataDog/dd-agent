@@ -6,11 +6,13 @@ import tempfile
 import unittest
 
 # project
-from config import get_config, load_check_directory, DEFAULT_CHECKS
+from config import get_config, load_check_directory
 from util import is_valid_hostname, windows_friendly_colon_split
 from utils.pidfile import PidFile
 from utils.platform import Platform
 
+# No more hardcoded default checks
+DEFAULT_CHECKS = []
 
 class TestConfig(unittest.TestCase):
     def testWhiteSpaceConfig(self):
