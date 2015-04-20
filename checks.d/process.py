@@ -11,6 +11,8 @@ class ProcessCheck(AgentCheck):
 
     SOURCE_TYPE_NAME = 'system'
 
+    CACHE_REFRESHING_FREQ = 20
+
     PROCESS_GAUGE = (
         'system.processes.threads',
         'system.processes.cpu.pct',
@@ -25,6 +27,11 @@ class ProcessCheck(AgentCheck):
         'system.processes.voluntary_ctx_switches',
         'system.processes.involuntary_ctx_switches',
         )
+
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.iteration = 0
+        self.catched_access_denied = []
 
     def find_pids(self, search_string, exact_match, ignore_denied_access):
         """
@@ -42,9 +49,11 @@ class ProcessCheck(AgentCheck):
                     except psutil.NoSuchProcess:
                         self.log.warning('Process disappeared while scanning')
                     except psutil.AccessDenied, e:
-                        self.log.error('Access denied to %s process' % string)
-                        self.log.error('Error: %s' % e)
-                        if not ignore_denied_access:
+                        if not ignore_denied_access and proc.pid not in catched_access_denied:
+                            self.log.error('Access denied to %s process' % string)
+                            self.log.error('Error: %s' % e)
+                            # allows to raise only once for each failing process
+                            self.catched_access_denied.append(proc.pid)
                             raise
                 else:
                     if not found:
@@ -186,9 +195,13 @@ class ProcessCheck(AgentCheck):
             self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
             cpu_check_interval = 0.1
 
-        pids = self.find_pids(search_string,
-                              exact_match,
-                              ignore_denied_access)
+        if self.iteration == 0:
+            self.pid_cache = self.find_pids(search_string,
+                                            exact_match,
+                                            ignore_denied_access)
+        pids = self.pid_cache
+        self.iteration = (self.iteration + 1) % CACHE_REFRESHING_FREQ
+
         tags.extend(['process_name:%s' % name, name])
 
         self.log.debug('ProcessCheck: process %s analysed' % name)
