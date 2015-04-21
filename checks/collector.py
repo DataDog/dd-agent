@@ -17,7 +17,7 @@ import jmxfetch
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks import create_service_check, AgentCheck
-from checks.agent_metrics import CollectorMetrics
+from checks.agent_metrics import CollectorMetrics, AgentMetrics
 from checks.ganglia import Ganglia
 from checks.datadog import Dogstreams, DdForwarder
 from checks.check_status import CheckStatus, CollectorStatus, EmitterStatus, STATUS_OK, STATUS_ERROR
@@ -100,7 +100,10 @@ class Collector(object):
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
         # Agent Metrics
-        self._agent_metrics = CollectorMetrics(log)
+        self._agent_metrics = AgentMetrics('agent_metrics',
+                                           init_config={},
+                                           agentConfig=agentConfig,
+                                           instances={})
 
         self._metrics_checks = []
 
@@ -370,11 +373,21 @@ class Collector(object):
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
-                collect_duration, self.emit_duration, time.clock() - cpu_clock))
+            self._agent_metrics.set_metric_context(payload, {
+                    'collection_time': collect_duration,
+                    'emit_time': self.emit_duration,
+                    'cpu_time': time.clock() - cpu_clock
+                })
+
+            self._agent_metrics.check(None)
+            payload['metrics'].extend(self._agent_metrics.get_metrics())
         else:
-            payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
-                collect_duration, self.emit_duration))
+            self._agent_metrics.set_metric_context(payload, {
+                    'collection_time': collect_duration,
+                    'emit_time': self.emit_duration,
+                })
+            self._agent_metrics.check(None)
+            payload['metrics'].extend(self._agent_metrics.get_metrics())
 
         # Let's send our payload 
         emitter_statuses = self._emit(payload)
