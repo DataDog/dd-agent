@@ -62,15 +62,15 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         #check needs payload, collection_time, emit_time and cpu_used_pct
         payload, context = self.get_metric_context()
-        collection_time = context['collection_time']
-        emit_time = context['emit_time']
+        collection_time = context.get('collection_time', None)
+        emit_time = context.get('emit_time', None)
         cpu_time = context.get('cpu_time', None)
 
         if threading.activeCount() > MAX_THREADS_COUNT:
             self.gauge('datadog.agent.collector.threads.count', threading.activeCount())
             self.log.info("Thread count is high: %d" % threading.activeCount())
 
-        if collection_time > MAX_COLLECTION_TIME:
+        if collection_time is not None and collection_time > MAX_COLLECTION_TIME:
             self.gauge('datadog.agent.collector.collection.time', collection_time)
             self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d"
                                 % (collection_time, len(payload['metrics']), len(payload['events'])))
