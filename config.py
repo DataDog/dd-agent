@@ -426,8 +426,12 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
+        
+        # Create app:xxx tags based on monitored apps
+        agentConfig['create_dd_check_tags'] = config.has_option('Main', 'create_dd_check_tags')\
+                and _is_affirmative(config.get('Main', 'create_dd_check_tags'))
 
-        #Forwarding to external statsd server
+        # Forwarding to external statsd server
         if config.has_option('Main', 'statsd_forward_host'):
             agentConfig['statsd_forward_host'] = config.get('Main', 'statsd_forward_host')
             if config.has_option('Main', 'statsd_forward_port'):

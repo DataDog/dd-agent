@@ -1,18 +1,19 @@
 # Core modules
 import os
 import re
-import logging
-import subprocess
 import sys
 import time
-import datetime
 import socket
+import logging
+import datetime
+import subprocess
 
 import modules
 
+from config import get_version, get_system_stats, get_config
 from util import get_os, get_uuid, md5, Timer, get_hostname, EC2, GCE
-from config import get_version, get_system_stats
 
+import jmxfetch
 import checks.system.unix as u
 import checks.system.win32 as w32
 from checks import create_service_check, AgentCheck
@@ -28,6 +29,7 @@ log = logging.getLogger(__name__)
 
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
+DD_CHECK_TAG = 'dd_check:{0}'
 
 class Collector(object):
     """
@@ -58,7 +60,11 @@ class Collector(object):
             'agent_checks': {
                 'start': time.time(),
                 'interval': int(agentConfig.get('agent_checks_interval', 10 * 60))
-            }
+            },
+            'dd_check_tags': {
+                'start': time.time(),
+                'interval': int(agentConfig.get('dd_check_tags_interval', 10 * 60))
+            },
         }
         socket.setdefaulttimeout(15)
         self.run_count = 0
@@ -137,13 +143,15 @@ class Collector(object):
         self.run_count += 1
         log.debug("Starting collection run #%s" % self.run_count)
 
+        if checksd:
+            self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances 
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
+        
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
         service_checks = payload['service_checks']
-        if checksd:
-            self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
-            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
+        
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -368,7 +376,7 @@ class Collector(object):
             payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
-
+        # Let's send our payload 
         emitter_statuses = self._emit(payload)
         self.emit_duration = timer.step()
 
@@ -501,6 +509,17 @@ class Collector(object):
         if external_host_tags:
             payload['external_host_tags'] = external_host_tags
 
+        # If required by the user, let's create the dd_check:xxx host tags
+        if self.agentConfig['create_dd_check_tags'] and \
+                self._should_send_additional_data('dd_check_tags'):
+            app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
+            app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname in jmxfetch._get_jmx_appnames()])
+            
+            if 'system' not in payload['host-tags']:
+                payload['host-tags']['system'] = [] 
+
+            payload['host-tags']['system'].extend(app_tags_list)
+
         return payload
 
     def _get_metadata(self):
@@ -536,5 +555,3 @@ class Collector(object):
             return True
 
         return False
-
-

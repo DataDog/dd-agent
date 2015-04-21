@@ -150,13 +150,13 @@ class TestCore(unittest.TestCase):
                 }], val)
         self.assertEquals(len(check.service_checks), 0, check.service_checks)
 
-    @attr(requires='sysstat')
     def test_collector(self):
         agentConfig = {
             'api_key': 'test_apikey',
             'check_timings': True,
             'collect_ec2_tags': True,
             'collect_instance_metadata': False,
+            'create_dd_check_tags': False,
             'version': 'test',
             'tags': '',
         }
@@ -184,6 +184,35 @@ class TestCore(unittest.TestCase):
         for check in checks:
             tag = "check:%s" % check.name
             assert tag in all_tags, all_tags
+
+    def test_apptags(self):
+        '''
+        Tests that the app tags are sent if specified so 
+        '''
+        agentConfig = {
+            'api_key': 'test_apikey',
+            'collect_ec2_tags': False,
+            'collect_instance_metadata': False,
+            'create_dd_check_tags': True,
+            'version': 'test',
+            'tags': '',
+        }
+
+        # Run a single checks.d check as part of the collector.
+        redis_config = {
+            "init_config": {},
+            "instances": [{"host": "localhost", "port": 6379}]
+        }
+        checks = [load_check('redisdb', redis_config, agentConfig)]
+
+        c = Collector(agentConfig, [], {}, get_hostname(agentConfig))
+        payload = c.run({
+            'initialized_checks': checks,
+            'init_failed_checks': {}
+        })
+
+        # We check that the redis DD_CHECK_TAG is sent in the payload
+        self.assertTrue('dd_check:redisdb' in payload['host-tags']['system'])
 
     def test_no_proxy(self):
         """ Starting with Agent 5.0.0, there should always be a local forwarder
@@ -221,7 +250,6 @@ class TestCore(unittest.TestCase):
         del env["HTTP_PROXY"]
         del env["HTTPS_PROXY"]
 
-    @attr(requires='core_integration')
     def test_min_collection_interval(self):
         if os.environ.get('TRAVIS', False):
             raise SkipTest('ntp server times out too often on Travis')
