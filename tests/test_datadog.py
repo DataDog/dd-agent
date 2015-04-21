@@ -1,10 +1,13 @@
 import logging
 import unittest
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir, mkdtemp
 import re
 import os
 
-from checks.datadog import Dogstreams, EventDefaults, point_sorter
+from checks.datadog import Dogstreams, EventDefaults
+from util import yLoader
+
+import yaml
 
 log = logging.getLogger('datadog.test')
 
@@ -55,7 +58,7 @@ alert_types = {
     "RECOVERY": "success"
 }
 def parse_events(logger, line):
-    """ Expecting lines like this: 
+    """ Expecting lines like this:
         2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)
     """
     match = log_event_pattern.match(line)
@@ -78,7 +81,7 @@ class TailTestCase(unittest.TestCase):
     def setUp(self):
         self.log_file = NamedTemporaryFile()
         self.logger = logging.getLogger('test.dogstream')
-    
+
     def _write_log(self, log_data):
         for data in log_data:
             print >> self.log_file, data
@@ -101,7 +104,7 @@ class TestDogstream(TailTestCase):
         log.info("Test config: %s" % self.config)
         self.dogstream = Dogstreams.init(self.logger, self.config)
         self.maxDiff = None
-    
+
     def test_dogstream_gauge(self):
         log_data = [
             # bucket 0
@@ -116,21 +119,21 @@ class TestDogstream(TailTestCase):
             ('test.metric.a', '1000000006', '7', 'metric_type=gauge'),
             ('test.metric.a', '1000000007', '8', 'metric_type=gauge'),
         ]
-        
+
         expected_output = {
             "dogstream": [
                 ('test.metric.a', 1000000000, 5.0, self.gauge),
                 ('test.metric.a', 1000000005, 8.0, self.gauge),
             ]
         }
-        
+
         self._write_log((' '.join(data) for data in log_data))
 
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
         for metric, timestamp, val, attr in expected_output['dogstream']:
             assert isinstance(val, float)
-    
+
     def test_dogstream_counter(self):
         log_data = [
             # bucket 0
@@ -145,14 +148,14 @@ class TestDogstream(TailTestCase):
             ('test.metric.a', '1000000006', '7', 'metric_type=counter'),
             ('test.metric.a', '1000000007', '8', 'metric_type=counter'),
         ]
-        
+
         expected_output = {
             "dogstream": [
                 ('test.metric.a', 1000000000, 42, self.counter),
                 ('test.metric.a', 1000000005, 27, self.counter),
             ]
         }
-        
+
         self._write_log((' '.join(data) for data in log_data))
 
         actual_output = self.dogstream.check(self.config, move_end=False)
@@ -170,9 +173,9 @@ class TestDogstream(TailTestCase):
         expected_output = {"dogstream":
             [('test_metric.e', 1000000000, 10, self.gauge)]
         }
-        
+
         self._write_log(log_data)
-        
+
         actual_output = self.dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
 
@@ -437,6 +440,87 @@ class TestDogstream(TailTestCase):
         dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:dogstream.supervisord_log:parse_supervisord' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
+
+
+class TestDogstreamLoading(TailTestCase):
+
+    def setUp(self):
+        TailTestCase.setUp(self)
+
+        self.dogstreamd_dir = mkdtemp()
+        self.config = {
+            'dogstreams': self.log_file.name,
+            'additional_dogstreamsd': self.dogstreamd_dir,
+        }
+
+        self.fictional_log = NamedTemporaryFile(
+            dir=self.dogstreamd_dir, suffix='.log', delete=False)
+        example_parser = NamedTemporaryFile(
+            dir=self.dogstreamd_dir, suffix='.py', delete=False)
+        example_parser.write(self._get_sample_dogstreamd_parser())
+        example_parser.close()
+        self.example_parser = example_parser
+
+        example_stream = NamedTemporaryFile(
+            dir=self.dogstreamd_dir, suffix='.yaml', delete=False)
+        example_stream.write(
+            self._get_sample_dogstreamd_yaml_string(example_parser.name))
+        example_stream.close()
+        self.example_stream = example_stream
+
+    def _get_sample_dogstreamd_parser(self):
+        return "def example_parser(logger, line): return 'Yay'"
+
+    def _get_sample_dogstreamd_yaml_string(self, parser_module_path):
+        return (
+            """
+            dogstreams:
+              - nginx:
+                  conf:
+                    path: {fake_log_path}
+                    parser: {fake_parser_module}:example_parser
+            """.format(
+                fake_log_path=os.path.join(self.dogstreamd_dir, "*.log"),
+                fake_parser_module=parser_module_path,
+            ))
+
+    def test_dogstream_log_path_globbing(self):
+        """Make sure that globbed dogstream logfile matching works."""
+        # Create a tmpfile to serve as a prefix for the other temporary
+        # files we'll be globbing.
+        first_tmpfile = NamedTemporaryFile()
+        tmp_fprefix = os.path.basename(first_tmpfile.name)
+        all_tmp_filenames = set([first_tmpfile.name])
+        # We stick the file objects in here to avoid garbage collection (and
+        # tmpfile deletion). Not sure why this was happening, but it's working
+        # with this hack in.
+        avoid_gc = []
+        for i in range(3):
+            new_tmpfile = NamedTemporaryFile(prefix=tmp_fprefix)
+            all_tmp_filenames.add(new_tmpfile.name)
+            avoid_gc.append(new_tmpfile)
+        dogstream_glob = os.path.join(gettempdir(), tmp_fprefix + '*')
+        paths = Dogstreams._get_dogstream_log_paths(dogstream_glob)
+        self.assertEqual(set(paths), all_tmp_filenames)
+
+    def test_dogstream_dir_loading(self):
+        """Tests loading a directory full of YAML dogstreams."""
+        dogstreams = Dogstreams._load_dogstreams_from_dir(self.logger, self.config)
+        self.assertEqual(len(dogstreams), 1)
+
+    def test_dogstream_yaml_to_instance(self):
+        """Tests the parsing of a dogstream YAML to a Dogstream instance."""
+        # Generate a test dogstream YAML config.
+        example_yaml = self._get_sample_dogstreamd_yaml_string(self.example_parser.name)
+        parsed = yaml.load(example_yaml, Loader=yLoader)
+        dogstreams = Dogstreams._dogstream_yaml_to_instance(
+            self.logger, self.config, parsed)
+        # Our example config was nginx.
+        nginx_s = dogstreams[0]
+        self.assertEqual(len(dogstreams), 1)
+        self.assertEqual(nginx_s.log_path, self.fictional_log.name)
+        self.assertEqual(nginx_s.parse_func.__name__, 'example_parser')
+
 
 if __name__ == '__main__':
     logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")

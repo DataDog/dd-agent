@@ -1,6 +1,15 @@
 Changes
 =======
 
+# 5.4.0 / Unreleased
+### Details
+https://github.com/DataDog/dd-agent/compare/5.3.0...5.4.0
+
+### Changes
+* [FEATURE] dogstreams config directive now supports wildcards in paths. [#753][] & [#1550][].
+* [FEATURE] Add a dogstreams.d directory which may contain YAML files. Makes
+  dynamically configuring dogstreams easier.
+
 # 5.3.0 / 04-16-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0

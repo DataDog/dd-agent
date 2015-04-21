@@ -27,7 +27,7 @@ from util import get_os, Platform, yLoader
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.3.0"
+AGENT_VERSION = "5.4.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -309,6 +309,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'version': get_version(),
         'watchdog': True,
         'additional_checksd': '/etc/dd-agent/checks.d/',
+        'additional_dogstreamsd': '/etc/dd-agent/dogstreams.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
         'utf8_decoding': False
