@@ -1,6 +1,16 @@
 Changes
 =======
 
+# 5.3.1 / 04-21-2015
+**Windows only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.3.0...5.3.1
+
+### Changes
+* [BUGFIX] JMXFetch: Fix bootloop issue when no JMX integration is set. See [#1561][]
+
+
 # 5.3.0 / 04-16-2015
 ### Details
 https://github.com/DataDog/dd-agent/compare/5.2.2...5.3.0
@@ -1558,6 +1568,7 @@ If you use ganglia, you want this version.
 [#1511]: https://github.com/DataDog/dd-agent/issues/1511
 [#1512]: https://github.com/DataDog/dd-agent/issues/1512
 [#1518]: https://github.com/DataDog/dd-agent/issues/1518
+[#1561]: https://github.com/DataDog/dd-agent/issues/1561
 [@AirbornePorcine]: https://github.com/AirbornePorcine
 [@CaptTofu]: https://github.com/CaptTofu
 [@Osterjour]: https://github.com/Osterjour
