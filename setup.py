@@ -46,7 +46,7 @@ if sys.platform == 'win32':
         'pyvmomi==5.5.0.2014.1.1',
         'pywin32==217',
         'redis==2.10.3',
-        'requests==2.4.3',
+        'requests==2.6.0',
         'simplejson==3.6.4',
         'tornado==3.2.2',
         'wmi==1.4.9',
