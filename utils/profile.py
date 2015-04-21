@@ -13,8 +13,10 @@ def wrap_profiling(func):
         except Exception:
             log.warn("Cannot enable profiler")
 
-        func(*args, **kwargs)
+        # Catch any return value before disabling profiler
+        ret_val = func(*args, **kwargs)
 
+        # disable profiler and printout stats to stdout
         try:
             profiler.disable()
             import pstats
@@ -25,5 +27,7 @@ def wrap_profiling(func):
             log.info(s.getvalue())
         except Exception:
             log.warn("Cannot disable profiler")
+
+        return ret_val
 
     return wrapped_func

@@ -59,11 +59,12 @@ class Agent(Daemon):
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile, autorestart, start_event=True):
+    def __init__(self, pidfile, autorestart, start_event=True, profiled=False):
         Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
         self.start_event = start_event
+        self.profiled = profiled
 
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
@@ -117,36 +118,15 @@ class Agent(Daemon):
         self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
+        # Setup profiling if necessary
+        if self.profiled:
+            from utils.profile import wrap_profiling
+            self.collector.run = wrap_profiling(self.collector.run)
+
         # Run the main loop.
         while self.run_forever:
-
-            # enable profiler if needed
-            profiled = False
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
-                try:
-                    import cProfile
-                    profiler = cProfile.Profile()
-                    profiled = True
-                    profiler.enable()
-                    log.debug("Agent profiling is enabled")
-                except Exception:
-                    log.warn("Cannot enable profiler")
-
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
-
-            # disable profiler and printout stats to stdout
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes' and profiled:
-                try:
-                    profiler.disable()
-                    import pstats
-                    from cStringIO import StringIO
-                    s = StringIO()
-                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-                    ps.print_stats()
-                    log.debug(s.getvalue())
-                except Exception:
-                    log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -211,6 +191,9 @@ def main():
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
+    profiled = (
+        agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes'
+    ) or options.profile
 
     COMMANDS = [
         'start',
@@ -245,7 +228,7 @@ def main():
     if options.clean:
         pid_file.clean()
 
-    agent = Agent(pid_file.get_path(), autorestart)
+    agent = Agent(pid_file.get_path(), autorestart, profiled=profiled)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -299,14 +282,19 @@ def main():
             checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
-                    if options.profile:
+                    if profiled:
                         from utils.profile import wrap_profiling
                         check.run = wrap_profiling(check.run)
+                        check.run()
+                        print 'Stats: ', check.get_stats()
+                    else:
+                        check.run()
 
-                    check.run()
-                    print check.get_metrics()
-                    print check.get_events()
-                    print check.get_service_checks()
+                    print 'Metrics: ', check.get_metrics()
+                    print 'Events: ', check.get_events()
+                    print 'Service Checks: ', check.get_service_checks()
+
+
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
