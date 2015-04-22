@@ -59,12 +59,12 @@ class Agent(Daemon):
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile, autorestart, start_event=True, profiled=False):
+    def __init__(self, pidfile, autorestart, start_event=True, in_developer_mode=False):
         Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
         self.start_event = start_event
-        self.profiled = profiled
+        self.in_developer_mode = in_developer_mode
 
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
@@ -119,7 +119,7 @@ class Agent(Daemon):
         self.agent_start = time.time()
 
         # Setup profiling if necessary
-        if self.profiled:
+        if self.in_developer_mode:
             from utils.profile import wrap_profiling
             self.collector.run = wrap_profiling(self.collector.run)
 
@@ -191,7 +191,7 @@ def main():
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
-    profiled = agentConfig.get('developer_mode')
+    in_developer_mode = agentConfig.get('developer_mode')
     COMMANDS = [
         'start',
         'stop',
@@ -225,7 +225,7 @@ def main():
     if options.clean:
         pid_file.clean()
 
-    agent = Agent(pid_file.get_path(), autorestart, profiled=profiled)
+    agent = Agent(pid_file.get_path(), autorestart, in_developer_mode=in_developer_mode)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -279,7 +279,7 @@ def main():
             checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
-                    if profiled:
+                    if in_developer_mode:
                         from utils.profile import wrap_profiling
                         check.run = wrap_profiling(check.run)
                         check.run()
