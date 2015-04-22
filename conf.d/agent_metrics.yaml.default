@@ -1,0 +1,14 @@
+init_config:
+    process:
+        get_memory_info: yes
+        get_io_counters: yes
+        get_num_threads: yes
+        get_open_files: yes
+        get_connections: no
+    general:
+        foo: bar
+
+instances:
+  # No configuration is needed for this check.
+  # A single instance needs to be defined with any value.
+  - foo: bar

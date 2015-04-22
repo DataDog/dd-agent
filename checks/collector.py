@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 FLUSH_LOGGING_PERIOD = 10
 FLUSH_LOGGING_INITIAL = 5
 DD_CHECK_TAG = 'dd_check:{0}'
+AGENT_METRICS_CHECK = 'agent_metrics'
 
 class Collector(object):
     """
@@ -99,12 +100,6 @@ class Collector(object):
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
-        # Agent Metrics
-        self._agent_metrics = AgentMetrics('agent_metrics',
-                                           init_config={},
-                                           agentConfig=agentConfig,
-                                           instances=[])
-
         self._metrics_checks = []
 
         # Custom metric checks
@@ -147,14 +142,23 @@ class Collector(object):
         log.debug("Starting collection run #%s" % self.run_count)
 
         if checksd:
-            self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances 
+            self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
-        
+
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
         service_checks = payload['service_checks']
-        
+        if checksd:
+            self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
+            self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
+            for ch in self.initialized_checks_d:
+                if ch.name == AGENT_METRICS_CHECK:
+                    self._agent_metrics = ch
+                    break
+            else:
+                self._agent_metrics = None
+
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -373,23 +377,25 @@ class Collector(object):
         collect_duration = timer.step()
 
         if self.os != 'windows':
-            self._agent_metrics.set_metric_context(payload, {
-                    'collection_time': collect_duration,
-                    'emit_time': self.emit_duration,
-                    'cpu_time': time.clock() - cpu_clock
-                })
+            if self._agent_metrics is not None:
+                self._agent_metrics.set_metric_context(payload, {
+                        'collection_time': collect_duration,
+                        'emit_time': self.emit_duration,
+                        'cpu_time': time.clock() - cpu_clock
+                    })
 
-            self._agent_metrics.check(None)
-            payload['metrics'].extend(self._agent_metrics.get_metrics())
+                self._agent_metrics.check(None)
+                payload['metrics'].extend(self._agent_metrics.get_metrics())
         else:
-            self._agent_metrics.set_metric_context(payload, {
-                    'collection_time': collect_duration,
-                    'emit_time': self.emit_duration,
-                })
-            self._agent_metrics.check(None)
-            payload['metrics'].extend(self._agent_metrics.get_metrics())
+            if self._agent_metrics is not None:
+                self._agent_metrics.set_metric_context(payload, {
+                        'collection_time': collect_duration,
+                        'emit_time': self.emit_duration,
+                    })
+                self._agent_metrics.check(None)
+                payload['metrics'].extend(self._agent_metrics.get_metrics())
 
-        # Let's send our payload 
+        # Let's send our payload
         emitter_statuses = self._emit(payload)
         self.emit_duration = timer.step()
 
@@ -527,9 +533,9 @@ class Collector(object):
                 self._should_send_additional_data('dd_check_tags'):
             app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
             app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname in jmxfetch._get_jmx_appnames()])
-            
+
             if 'system' not in payload['host-tags']:
-                payload['host-tags']['system'] = [] 
+                payload['host-tags']['system'] = []
 
             payload['host-tags']['system'].extend(app_tags_list)
 
