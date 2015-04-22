@@ -1,9 +1,14 @@
+#3p
+import psutil
+
+import os
 import logging
+from config import _is_affirmative
+
 log = logging.getLogger('collector')
 
 def wrap_profiling(func):
     def wrapped_func(*args, **kwargs):
-
         try:
             import cProfile
             profiler = cProfile.Profile()
@@ -31,3 +36,22 @@ def wrap_profiling(func):
         return ret_val
 
     return wrapped_func
+
+def _psutil_config_to_stats(init_config):
+    process_config = init_config.get('process', None)
+    assert process_config
+
+    current_process = psutil.Process(os.getpid())
+    filtered_methods = [k for k,v in process_config.items() if _is_affirmative(v) and\
+                            hasattr(current_process, k)]
+    stats = {}
+
+    if filtered_methods:
+        for method in filtered_methods:
+            method_key = method[4:] if method.startswith('get_') else method
+            try:
+                stats[method_key] = getattr(current_process, method)()
+            except psutil.AccessDenied:
+                log.warn("Cannot call psutil method {} : Access Denied".format(method))
+
+    return stats

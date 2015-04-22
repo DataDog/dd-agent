@@ -60,7 +60,11 @@ class AgentMetrics(AgentCheck):
         return self._collector_payload, self._metric_context
 
     def check(self, instance):
-        #check needs payload, collection_time, emit_time and cpu_used_pct
+        in_developer_mode = self.agentConfig['developer_mode']
+        if in_developer_mode:
+            from utils.profile import _psutil_config_to_stats
+            self.stats = _psutil_config_to_stats(self.init_config)
+
         payload, context = self.get_metric_context()
         collection_time = context.get('collection_time', None)
         emit_time = context.get('emit_time', None)
@@ -70,12 +74,15 @@ class AgentMetrics(AgentCheck):
             self.gauge('datadog.agent.collector.threads.count', threading.activeCount())
             self.log.info("Thread count is high: %d" % threading.activeCount())
 
-        if collection_time is not None and collection_time > MAX_COLLECTION_TIME:
+        if collection_time is not None and \
+                (collection_time > MAX_COLLECTION_TIME or in_developer_mode):
+
             self.gauge('datadog.agent.collector.collection.time', collection_time)
             self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d"
                                 % (collection_time, len(payload['metrics']), len(payload['events'])))
 
-        if emit_time is not None and emit_time > MAX_EMIT_TIME:
+        if emit_time is not None and \
+                (emit_time > MAX_EMIT_TIME or in_developer_mode):
             self.gauge('datadog.agent.emitter.emit.time', emit_time)
             self.log.info("Emit time (s) is high: %.1f, metrics count: %d, events count: %d"
                                 % (emit_time, len(payload['metrics']), len(payload['events'])))
