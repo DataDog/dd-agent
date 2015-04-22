@@ -330,6 +330,14 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         for option in config.options('Main'):
             agentConfig[option] = config.get('Main', option)
 
+        # Store developer mode setting in the agentConfig
+        in_developer_mode = None
+        if config.has_option('Main', 'profile'):
+            in_developer_mode = _is_affirmative(config.get('Main', 'profile'))
+
+        # Allow an override with the --profile option
+        agentConfig['developer_mode'] = options.profile or in_developer_mode
+
         #
         # Core config
         #
@@ -533,9 +541,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     # Storing proxy settings in the agentConfig
     agentConfig['proxy_settings'] = get_proxy(agentConfig)
-
-    # Store developer mode setting in the agentConfig
-    agentConfig['developer_mode'] = options.profile or _is_affirmative(config.get('Main', 'profile'))
 
     if agentConfig.get('ca_certs', None) is None:
         agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
