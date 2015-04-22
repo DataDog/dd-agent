@@ -32,7 +32,7 @@ Required:
 # Clone the repository
 git clone git@github.com:DataDog/dd-agent.git
 
-# Crete a virtual environment and install the dependencies:
+# Create a virtual environment and install the dependencies:
 cd dd-agent
 bundle install
 rake setup_env
