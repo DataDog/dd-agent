@@ -49,11 +49,11 @@ rake ci:run[apache]
 
 ## Test suite
 
-More about how to write tests and run them [here](https://github.com/DataDog/dd-agent/blob/master/tests/README.md)
+More about how to write tests and run them [here](tests/README.md)
 
 # How to configure the Agent
 
-If you are using packages on linux, the main configuration file lives 
+If you are using packages on linux, the main configuration file lives
 in `/etc/dd-agent/datadog.conf`. Per-check configuration files are in
 `/etc/dd-agent/conf.d`. We provide an example in the same directory
 that you can use as a template.
