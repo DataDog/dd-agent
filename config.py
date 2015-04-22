@@ -56,7 +56,6 @@ NAGIOS_OLD_CONF_KEYS = [
     'nagios_perf_cfg'
     ]
 
-DEFAULT_CHECKS = ("network", "ntp")
 LEGACY_DATADOG_URLS = [
     "app.datadoghq.com",
     "app.datad0g.com",
@@ -812,22 +811,17 @@ def load_check_directory(agentConfig, hostname):
 
         # Let's see if there is a conf.d for this check
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
-
-        # Default checks are checks that are enabled by default
-        # They read their config from the "[CHECKNAME].yaml.default" file
-        if check_name in DEFAULT_CHECKS:
-            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
-        else:
-            default_conf_path = None
-
         conf_exists = False
 
         if os.path.exists(conf_path):
             conf_exists = True
+        else:
+            log.debug("No configuration file for %s. Looking for defaults" % check_name)
 
-        elif not conf_exists and default_conf_path is not None:
+            # Default checks read their config from the "[CHECKNAME].yaml.default" file
+            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
             if not os.path.exists(default_conf_path):
-                log.error("Default configuration file {0} is missing".format(default_conf_path))
+                log.debug("Default configuration file {0} is missing. Skipping check".format(default_conf_path))
                 continue
             conf_path = default_conf_path
             conf_exists = True
