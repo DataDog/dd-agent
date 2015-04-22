@@ -49,7 +49,7 @@ unless ENV['TRAVIS']
 end
 
 desc 'Setup a development environment for the Agent'
-task "setup_env" do
+task 'setup_env' do
    `mkdir -p venv`
    `wget -O venv/virtualenv.py https://raw.github.com/pypa/virtualenv/1.11.6/virtualenv.py`
    `python venv/virtualenv.py  --no-site-packages --no-pip --no-setuptools venv/`
@@ -64,17 +64,17 @@ end
 namespace :test do
   desc 'Run dogstatsd tests'
   task 'dogstatsd' do
-    sh 'nosetests tests/test_dogstatsd.py'
+    sh 'nosetests tests/core/test_dogstatsd.py'
   end
 
   desc 'Run performance tests'
   task 'performance' do
-    sh 'nosetests --with-xunit --xunit-file=nosetests-performance.xml tests/performance/benchmark*.py'
+    sh 'nosetests --with-xunit --xunit-file=nosetests-performance.xml tests/core/benchmark*.py'
   end
 
   desc 'cProfile unit tests (requires \'nose-cprof\')'
   task 'profile' do
-    sh 'nosetests --with-cprofile tests/performance/benchmark*.py'
+    sh 'nosetests --with-cprofile tests/core/benchmark*.py'
   end
 
   desc 'cProfile tests, then run pstats'
