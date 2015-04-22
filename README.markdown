@@ -26,7 +26,10 @@ pull request.
 
 Required:
 - python 2.6 or 2.7
-- bundler
+- `bundler`
+- `pylint`
+- To install the optional requirements that are installed by default via `rake
+  setup_env` you'll need the headers for `libpq` and `python`: `libpq-dev`, `python-dev`
 
 ```
 # Clone the repository
@@ -35,16 +38,16 @@ git clone git@github.com:DataDog/dd-agent.git
 # Create a virtual environment and install the dependencies:
 cd dd-agent
 bundle install
-rake setup_env
+bundle exec rake setup_env
 
 # Activate the virtual environment
 source venv/bin/activate
 
 # Lint
-rake lint
+bundle exec rake lint
 
 # Run a flavored test
-rake ci:run[apache]
+bundle exec rake ci:run[apache]
 ```
 
 ## Test suite
