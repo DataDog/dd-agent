@@ -1,6 +1,6 @@
 import logging
 import unittest
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir
 import re
 import os
 
@@ -190,6 +190,25 @@ class TestDogstream(TailTestCase):
         self._write_log(log_data)
         plugdog = Dogstreams.init(self.logger, {'dogstreams': '%s:tests.test_datadog:parse_ancient_function_plugin' % self.log_file.name})
         actual_output = plugdog.check(self.config, move_end=False)
+
+    def test_dogstream_log_path_globbing(self):
+        """Make sure that globbed dogstream logfile matching works."""
+        # Create a tmpfile to serve as a prefix for the other temporary 
+        # files we'll be globbing.
+        first_tmpfile = NamedTemporaryFile()
+        tmp_fprefix = os.path.basename(first_tmpfile.name)
+        all_tmp_filenames = set([first_tmpfile.name])
+        # We stick the file objects in here to avoid garbage collection (and
+        # tmpfile deletion). Not sure why this was happening, but it's working
+        # with this hack in.
+        avoid_gc = []
+        for i in range(3):
+            new_tmpfile = NamedTemporaryFile(prefix=tmp_fprefix)
+            all_tmp_filenames.add(new_tmpfile.name)
+            avoid_gc.append(new_tmpfile)
+        dogstream_glob = os.path.join(gettempdir(), tmp_fprefix + '*')
+        paths = Dogstreams._get_dogstream_log_paths(dogstream_glob)
+        self.assertEqual(set(paths), all_tmp_filenames)
 
     def test_dogstream_function_plugin(self):
         """Ensure that non-class-based stateful plugins work"""
