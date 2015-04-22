@@ -191,10 +191,7 @@ def main():
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
-    profiled = (
-        agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes'
-    ) or options.profile
-
+    profiled = agentConfig.get('developer_mode')
     COMMANDS = [
         'start',
         'stop',
