@@ -99,6 +99,9 @@ class Collector(object):
         self._dogstream = Dogstreams.init(log, self.agentConfig)
         self._ddforwarder = DdForwarder(log, self.agentConfig)
 
+        # Agent performance metrics check
+        self._agent_metrics = None
+
         self._metrics_checks = []
 
         # Custom metric checks
@@ -153,15 +156,13 @@ class Collector(object):
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
 
             # Find the AgentMetrics check and pop it out
-            # This must run at the end to collect info on agent performance
-            if not hasattr(self, '_agent_metrics') or not self._agent_metrics:
+            # This check must run at the end of the loop to collect info on agent performance
+            if not self._agent_metrics:
                 for check in self.initialized_checks_d[:]:
                     if check.name == AGENT_METRICS_CHECK:
                         self._agent_metrics = ch
                         self.initialized_checks_d.remove(ch)
                         break
-                else:
-                    self._agent_metrics = None
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
