@@ -1,5 +1,6 @@
 import threading
 from checks import Check, AgentCheck
+from utils.profile import _psutil_config_to_stats
 
 MAX_THREADS_COUNT = 50
 MAX_COLLECTION_TIME = 30
@@ -62,7 +63,6 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         in_developer_mode = self.agentConfig['developer_mode']
         if in_developer_mode:
-            from utils.profile import _psutil_config_to_stats
             self.stats = _psutil_config_to_stats(self.init_config)
 
         payload, context = self.get_metric_context()
@@ -74,18 +74,22 @@ class AgentMetrics(AgentCheck):
             self.gauge('datadog.agent.collector.threads.count', threading.activeCount())
             self.log.info("Thread count is high: %d" % threading.activeCount())
 
+        collect_time_exceeds_threshold = collection_time  > MAX_COLLECTION_TIME
         if collection_time is not None and \
-                (collection_time > MAX_COLLECTION_TIME or in_developer_mode):
+                (collect_time_exceeds_threshold or in_developer_mode):
 
             self.gauge('datadog.agent.collector.collection.time', collection_time)
-            self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d"
-                                % (collection_time, len(payload['metrics']), len(payload['events'])))
+            if collect_time_exceeds_threshold:
+                self.log.info("Collection time (s) is high: %.1f, metrics count: %d, events count: %d"
+                                    % (collection_time, len(payload['metrics']), len(payload['events'])))
 
+        emit_time_exceeds_threshold = emit_time > MAX_EMIT_TIME
         if emit_time is not None and \
-                (emit_time > MAX_EMIT_TIME or in_developer_mode):
+                (emit_time_exceeds_threshold or in_developer_mode):
             self.gauge('datadog.agent.emitter.emit.time', emit_time)
-            self.log.info("Emit time (s) is high: %.1f, metrics count: %d, events count: %d"
-                                % (emit_time, len(payload['metrics']), len(payload['events'])))
+            if emit_time_exceeds_threshold:
+                self.log.info("Emit time (s) is high: %.1f, metrics count: %d, events count: %d"
+                                    % (emit_time, len(payload['metrics']), len(payload['events'])))
 
         if cpu_time is not None:
             try:

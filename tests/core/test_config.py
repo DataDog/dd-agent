@@ -9,6 +9,8 @@ import unittest
 from config import get_config, load_check_directory
 from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
+# No more hardcoded default checks
+DEFAULT_CHECKS = []
 
 class TestConfig(unittest.TestCase):
     def testWhiteSpaceConfig(self):
@@ -99,7 +101,6 @@ class TestConfig(unittest.TestCase):
             # cleanup
             Platform.is_win32 = staticmethod(func)
 
-    @unittest.skip('No more hardcoded DEFAULT_CHECKS')
     def testDefaultChecks(self):
         checks = load_check_directory({"additional_checksd": "/etc/dd-agent/checks.d/"}, "foo")
         init_checks_names = [c.name for c in checks['initialized_checks']]
