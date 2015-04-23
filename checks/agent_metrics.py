@@ -1,6 +1,8 @@
+import psutil
+import os
 import threading
 from checks import Check, AgentCheck
-from utils.profile import _psutil_config_to_stats
+from config import _is_affirmative
 
 MAX_THREADS_COUNT = 50
 MAX_COLLECTION_TIME = 30
@@ -53,6 +55,61 @@ class AgentMetrics(AgentCheck):
         self._collector_payload = {}
         self._metric_context = {}
 
+    def _psutil_config_to_stats(self):
+        process_config = self.init_config.get('process', None)
+        assert process_config
+
+        current_process = psutil.Process(os.getpid())
+        filtered_methods = [k for k,v in process_config.items() if _is_affirmative(v) and\
+                                hasattr(current_process, k)]
+        stats = {}
+
+        if filtered_methods:
+            for method in filtered_methods:
+                method_key = method[4:] if method.startswith('get_') else method
+                try:
+                    raw_stats = getattr(current_process, method)()
+                    try:
+                        stats[method_key] = raw_stats._asdict()
+                    except AttributeError:
+                        if isinstance(raw_stats, int):
+                            stats[method_key] = raw_stats
+                        else:
+                            self.log.warn("Could not serialize output of {} to dict".format(method))
+
+                except psutil.AccessDenied:
+                    self.log.warn("Cannot call psutil method {} : Access Denied".format(method))
+
+        return stats
+
+    def _register_psutil_metrics(self):
+        '''
+        Saves sample metrics from psutil
+
+        self.stats looks like:
+        {
+         'memory_info': OrderedDict([('rss', 24395776), ('vms', 144666624)]),
+         'io_counters': OrderedDict([('read_count', 4536),
+                                    ('write_count', 100),
+                                    ('read_bytes', 0),
+                                    ('write_bytes', 61440)])
+         ...
+         }
+
+         This creates a metric like `datadog.agent.{key_1}.{key_2}` where key_1 is a top-level
+         key in self.stats, and key_2 is a nested key.
+         E.g. datadog.agent.memory_info.rss
+        '''
+
+        base_metric = 'datadog.agent.{0}.{1}'
+        for k, v in self.stats.items():
+            if isinstance(v, dict):
+                for _k, _v in v.items():
+                    full_metric_name = base_metric.format(k, _k)
+                    self.gauge(full_metric_name, _v)
+            else:
+                self.gauge('datadog.agent.{0}'.format(k), v)
+
     def set_metric_context(self, payload, context):
         self._collector_payload = payload
         self._metric_context = context
@@ -63,7 +120,8 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         in_developer_mode = self.agentConfig['developer_mode']
         if in_developer_mode:
-            self.stats = _psutil_config_to_stats(self.init_config)
+            self.stats = self._psutil_config_to_stats()
+            self._register_psutil_metrics()
 
         payload, context = self.get_metric_context()
         collection_time = context.get('collection_time', None)
