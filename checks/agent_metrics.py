@@ -59,18 +59,20 @@ class AgentMetrics(AgentCheck):
         self._collector_payload = {}
         self._metric_context = {}
 
-    def _psutil_config_to_stats(self):
+    def _psutil_config_to_stats(self, instance):
         """
         Reads `init_config` for `psutil` methods to call on the current process
         Calls those methods and stores the raw output
 
         :returns a dictionary of statistic_name: value
         """
-        process_config = self.init_config.get('process', None)
-        assert process_config
+        process_metrics = instance.get('process_metrics', self.init_config.get('process', None))
+        if not process_metrics:
+            self.log.error('No metrics configured for AgentMetrics check!')
+            return
 
         current_process = psutil.Process(os.getpid())
-        filtered_methods = [k for k,v in process_config.items() if _is_affirmative(v) and\
+        filtered_methods = [k for k,v in process_metrics.items() if _is_affirmative(v) and\
                                 hasattr(current_process, k)]
         stats = {}
 
@@ -133,7 +135,7 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         in_developer_mode = self.agentConfig['developer_mode']
         if in_developer_mode:
-            stats = self._psutil_config_to_stats()
+            stats = self._psutil_config_to_stats(instance)
             self._register_psutil_metrics(stats)
 
         payload, context = self.get_metric_context()
