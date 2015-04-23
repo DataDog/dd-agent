@@ -6,6 +6,7 @@ import logging
 from config import _is_affirmative
 
 log = logging.getLogger('collector')
+PSTATS_LIMIT = 20
 
 def wrap_profiling(func):
     def wrapped_func(*args, **kwargs):
@@ -28,7 +29,7 @@ def wrap_profiling(func):
             from cStringIO import StringIO
             s = StringIO()
             ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-            ps.print_stats()
+            ps.print_stats(PSTATS_LIMIT)
             log.info(s.getvalue())
         except Exception:
             log.warn("Cannot disable profiler")
