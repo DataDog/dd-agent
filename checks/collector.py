@@ -152,12 +152,17 @@ class Collector(object):
         if checksd:
             self.initialized_checks_d = checksd['initialized_checks'] # is of type {check_name: check}
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
-            for ch in self.initialized_checks_d:
-                if ch.name == AGENT_METRICS_CHECK:
-                    self._agent_metrics = ch
-                    break
-            else:
-                self._agent_metrics = None
+
+            # Find the AgentMetrics check and pop it out
+            # This must run at the end to collect info on agent performance
+            if not hasattr(self, '_agent_metrics') or not self._agent_metrics:
+                for check in self.initialized_checks_d[:]:
+                    if check.name == AGENT_METRICS_CHECK:
+                        self._agent_metrics = ch
+                        self.initialized_checks_d.remove(ch)
+                        break
+                else:
+                    self._agent_metrics = None
 
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
@@ -383,8 +388,7 @@ class Collector(object):
                         'emit_time': self.emit_duration,
                         'cpu_time': time.clock() - cpu_clock
                     })
-
-                self._agent_metrics.check(None)
+                self._agent_metrics.run()
                 payload['metrics'].extend(self._agent_metrics.get_metrics())
         else:
             if self._agent_metrics is not None:
@@ -392,7 +396,7 @@ class Collector(object):
                         'collection_time': collect_duration,
                         'emit_time': self.emit_duration,
                     })
-                self._agent_metrics.check(None)
+                self._agent_metrics.run()
                 payload['metrics'].extend(self._agent_metrics.get_metrics())
 
         # Let's send our payload
