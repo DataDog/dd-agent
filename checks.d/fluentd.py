@@ -29,6 +29,7 @@ class Fluentd(AgentCheck):
         try:
             url = instance.get('monitor_agent_url')
             plugin_ids = instance.get('plugin_ids', [])
+            tag_by = instance.get('tag_by', 'plugin_id')
 
             parsed_url = urlparse.urlparse(url)
             monitor_agent_host = parsed_url.hostname
@@ -40,11 +41,13 @@ class Fluentd(AgentCheck):
             status = r.json()
 
             for p in status['plugins']:
+                tag = "%s:%s" % (tag_by, p.get(tag_by))
                 for m in self.GAUGES:
                     if p.get(m) is None:
                         continue
-                    if p.get('plugin_id') in plugin_ids:
-                        self.gauge('fluentd.%s' % (m), p.get(m), ["plugin_id:%s" % p.get('plugin_id')])
+                    # Filter unspecified plugins to keep backward compatibility.
+                    if tag_by == 'type' or len(plugin_ids) == 0 or p.get('plugin_id') in plugin_ids:
+                        self.gauge('fluentd.%s' % (m), p.get(m), [tag])
         except Exception, e:
             msg = "No stats could be retrieved from %s : %s" % (url, str(e))
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, tags=service_check_tags, message=msg)
