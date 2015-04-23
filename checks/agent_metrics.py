@@ -49,6 +49,10 @@ class CollectorMetrics(Check):
         return self.get_metrics()
 
 class AgentMetrics(AgentCheck):
+    """
+    New-style version of `CollectorMetrics`
+    Gets information about agent performance on every collector loop
+    """
 
     def __init__(self, *args, **kwargs):
         AgentCheck.__init__(self, *args, **kwargs)
@@ -56,6 +60,12 @@ class AgentMetrics(AgentCheck):
         self._metric_context = {}
 
     def _psutil_config_to_stats(self):
+        """
+        Reads `init_config` for `psutil` methods to call on the current process
+        Calls those methods and stores the raw output
+
+        :returns a dictionary of statistic_name: value
+        """
         process_config = self.init_config.get('process', None)
         assert process_config
 
@@ -66,6 +76,7 @@ class AgentMetrics(AgentCheck):
 
         if filtered_methods:
             for method in filtered_methods:
+                # Go from `get_memory_info` -> `memory_info`
                 method_key = method[4:] if method.startswith('get_') else method
                 try:
                     raw_stats = getattr(current_process, method)()
@@ -82,11 +93,11 @@ class AgentMetrics(AgentCheck):
 
         return stats
 
-    def _register_psutil_metrics(self):
-        '''
+    def _register_psutil_metrics(self, stats):
+        """
         Saves sample metrics from psutil
 
-        self.stats looks like:
+        :param stats: a dictionary that looks like:
         {
          'memory_info': OrderedDict([('rss', 24395776), ('vms', 144666624)]),
          'io_counters': OrderedDict([('read_count', 4536),
@@ -97,17 +108,19 @@ class AgentMetrics(AgentCheck):
          }
 
          This creates a metric like `datadog.agent.{key_1}.{key_2}` where key_1 is a top-level
-         key in self.stats, and key_2 is a nested key.
+         key in `stats`, and key_2 is a nested key.
          E.g. datadog.agent.memory_info.rss
-        '''
+        """
 
         base_metric = 'datadog.agent.{0}.{1}'
-        for k, v in self.stats.items():
+        #TODO: May have to call self.normalize(metric_name) to get a compliant name
+        for k, v in stats.items():
             if isinstance(v, dict):
                 for _k, _v in v.items():
                     full_metric_name = base_metric.format(k, _k)
                     self.gauge(full_metric_name, _v)
             else:
+                #TODO: How to decide between `gauge` or `rate` here?
                 self.gauge('datadog.agent.{0}'.format(k), v)
 
     def set_metric_context(self, payload, context):
@@ -120,8 +133,8 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         in_developer_mode = self.agentConfig['developer_mode']
         if in_developer_mode:
-            self.stats = self._psutil_config_to_stats()
-            self._register_psutil_metrics()
+            stats = self._psutil_config_to_stats()
+            self._register_psutil_metrics(stats)
 
         payload, context = self.get_metric_context()
         collection_time = context.get('collection_time', None)

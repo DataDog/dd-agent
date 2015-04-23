@@ -540,7 +540,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
     # Storing proxy settings in the agentConfig
     agentConfig['proxy_settings'] = get_proxy(agentConfig)
-
     if agentConfig.get('ca_certs', None) is None:
         agentConfig['ssl_certificate'] = get_ssl_certificate(get_os(), 'datadog-cert.pem')
     else:

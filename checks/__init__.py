@@ -304,9 +304,6 @@ class AgentCheck(object):
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
 
-        # Holds psutil statistics
-        self.stats = {}
-
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
         return len(self.instances)
@@ -500,16 +497,6 @@ class AgentCheck(object):
         service_checks = self.service_checks
         self.service_checks = []
         return service_checks
-
-    def get_stats(self):
-        """
-        Return a dictionary of `pustil` statistics
-
-        @return the statistics on memory and disk usagecollected during the check's run
-        @rtype dictionary
-        """
-        return self.stats
-
 
     def has_warnings(self):
         """

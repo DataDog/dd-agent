@@ -9,6 +9,11 @@ log = logging.getLogger('collector')
 PSTATS_LIMIT = 20
 
 def wrap_profiling(func):
+    """
+    Wraps the function call in a cProfile run, processing and logging the output with pstats.Stats
+
+    :param func: The function to profile
+    """
     def wrapped_func(*args, **kwargs):
         try:
             import cProfile

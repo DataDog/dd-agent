@@ -282,23 +282,20 @@ def main():
                     if in_developer_mode:
                         from utils.profile import wrap_profiling
                         check.run = wrap_profiling(check.run)
-                        check.run()
-                        print 'Stats: ', check.get_stats()
-                    else:
-                        check.run()
+
+                    check.run()
 
                     print 'Metrics: ', check.get_metrics()
                     print 'Events: ', check.get_events()
                     print 'Service Checks: ', check.get_service_checks()
 
-
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
-                        print check.get_metrics()
-                        print check.get_events()
-                        print check.get_service_checks()
+                        print 'Metrics: ', check.get_metrics()
+                        print 'Events: ', check.get_events()
+                        print 'Service Checks: ', check.get_service_checks()
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
