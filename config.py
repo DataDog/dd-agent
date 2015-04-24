@@ -81,7 +81,7 @@ def get_parsed_args():
                         dest='verbose',
                       help='Print out stacktraces for errors in checks')
     parser.add_option('-p', '--profile', action='store_true', default=False,
-                        dest='profile')
+                        dest='profile', help='Enable Developer Mode')
 
     try:
         options, args = parser.parse_args()
@@ -91,7 +91,8 @@ def get_parsed_args():
                                 'dd_url': None,
                                 'clean': False,
                                 'disable_dd':False,
-                                'use_forwarder': False}), []
+                                'use_forwarder': False,
+                                'profile': False}), []
     return options, args
 
 
@@ -331,8 +332,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
 
         # Store developer mode setting in the agentConfig
         in_developer_mode = None
-        if config.has_option('Main', 'profile'):
-            in_developer_mode = _is_affirmative(config.get('Main', 'profile'))
+        if config.has_option('Main', 'developer_mode'):
+            in_developer_mode = _is_affirmative(config.get('Main', 'developer_mode'))
 
         # Allow an override with the --profile option
         agentConfig['developer_mode'] = options.profile or in_developer_mode
