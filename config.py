@@ -333,10 +333,11 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         # Store developer mode setting in the agentConfig
         in_developer_mode = None
         if config.has_option('Main', 'developer_mode'):
-            in_developer_mode = _is_affirmative(config.get('Main', 'developer_mode'))
+            agentConfig['developer_mode'] = _is_affirmative(config.get('Main', 'developer_mode'))
 
         # Allow an override with the --profile option
-        agentConfig['developer_mode'] = options.profile or in_developer_mode
+        if options is not None and options.profile:
+            agentConfig['developer_mode'] = True
 
         #
         # Core config
