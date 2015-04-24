@@ -71,12 +71,12 @@ class AgentMetrics(AgentCheck):
          ...
          }
 
-         This creates a metric like `datadog.agent.{key_1}.{key_2}` where key_1 is a top-level
+         This creates a metric like `datadog.agent.collector.{key_1}.{key_2}` where key_1 is a top-level
          key in `stats`, and key_2 is a nested key.
          E.g. datadog.agent.memory_info.rss
         """
 
-        base_metric = 'datadog.agent.{0}.{1}'
+        base_metric = 'datadog.agent.collector.{0}.{1}'
         #TODO: May have to call self.normalize(metric_name) to get a compliant name
         for k, v in stats.items():
             if isinstance(v, dict):
@@ -85,7 +85,7 @@ class AgentMetrics(AgentCheck):
                     self.gauge(full_metric_name, _v)
             else:
                 #TODO: How to decide between `gauge` or `rate` here?
-                self.gauge('datadog.agent.{0}'.format(k), v)
+                self.gauge('datadog.agent.collector.{0}'.format(k), v)
 
     def set_metric_context(self, payload, context):
         self._collector_payload = payload
