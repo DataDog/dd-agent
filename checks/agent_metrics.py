@@ -1,6 +1,7 @@
 import threading
 from checks import Check
 
+
 MAX_THREADS_COUNT = 50
 MAX_COLLECTION_TIME = 30
 MAX_EMIT_TIME = 5
