@@ -1,6 +1,5 @@
 import mock
 from tests.common import AgentCheckTest, load_check
-from collections import OrderedDict
 
 MOCK_CONFIG = {
         'instances': [
@@ -28,8 +27,8 @@ AGENT_CONFIG_DEV_MODE = {
 AGENT_CONFIG_DEFAULT_MODE = {}
 
 MOCK_STATS = {
-    'memory_info': OrderedDict([('rss', 16814080), ('vms', 74522624)]),
-    'io_counters': OrderedDict([('read_count', 2563708),
+    'memory_info': dict([('rss', 16814080), ('vms', 74522624)]),
+    'io_counters': dict([('read_count', 2563708),
         ('write_count', 54282),
         ('read_bytes', 4096),
         ('write_bytes', 0)])
