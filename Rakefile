@@ -58,7 +58,9 @@ task 'setup_env' do
    `wget -O venv/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py`
    `venv/bin/python venv/get-pip.py`
    `venv/bin/pip install -r requirements.txt`
-   `venv/bin/pip install -r requirements-opt.txt`
+   # These deps are not really needed, so we ignore failures
+   ENV['PIP_COMMAND'] = 'venv/bin/pip'
+   `./utils/pip-allow-failures.sh requirements-opt.txt`
 end
 
 namespace :test do
