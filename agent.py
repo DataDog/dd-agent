@@ -17,7 +17,6 @@ import os; os.umask(022)
 
 # Core modules
 import logging
-import os.path
 import signal
 import sys
 import time
@@ -28,7 +27,6 @@ from checks.check_status import CollectorStatus
 from config import (
     get_confd_path,
     get_config,
-    get_logging_config,
     get_parsed_args,
     get_system_stats,
     load_check_directory,
@@ -48,11 +46,13 @@ from utils.flare import configcheck, Flare
 # Constants
 PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
-RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
+RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
+DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
 # Globals
 log = logging.getLogger('collector')
+
 
 class Agent(Daemon):
     """
@@ -177,7 +177,7 @@ class Agent(Daemon):
         watchdog = None
         if agentConfig.get("watchdog", True):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+                                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -204,6 +204,7 @@ class Agent(Daemon):
         if self.collector:
             self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
+
 
 def main():
     options, args = get_parsed_args()
@@ -232,6 +233,12 @@ def main():
     if command not in COMMANDS:
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
+
+    # Deprecation notice
+    if command not in DD_AGENT_COMMANDS:
+        # Will become an error message and exit after deprecation period
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
 
     pid_file = PidFile('dd-agent')
 

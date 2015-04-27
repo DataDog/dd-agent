@@ -17,29 +17,29 @@ from config import get_logging_config
 import os; os.umask(022)
 
 # Standard imports
+from datetime import timedelta
 import logging
-import os
+from Queue import Full, Queue
+from socket import gaierror, error as socket_error
 import sys
 import threading
 import zlib
-from Queue import Queue, Full
-from subprocess import Popen
-from hashlib import md5
-from datetime import datetime, timedelta
-from socket import gaierror, error as socket_error
 
 # Tornado
+from tornado.escape import json_decode
 import tornado.httpserver
 import tornado.ioloop
-import tornado.web
-from tornado.escape import json_decode
 from tornado.options import define, parse_command_line, options
+import tornado.web
 
 # agent import
-from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
-from emitter import http_emitter
-from config import get_config, get_url_endpoint, get_version
 from checks.check_status import ForwarderStatus
+from config import (
+    get_config,
+    get_url_endpoint,
+    get_version
+)
+from util import Watchdog, get_uuid, get_hostname, json, get_tornado_ioloop
 from transaction import Transaction, TransactionManager
 import modules
 
@@ -53,10 +53,10 @@ except ImportError:
 log = logging.getLogger('forwarder')
 log.setLevel(get_logging_config()['log_level'] or logging.INFO)
 
-DD_ENDPOINT  = "dd_url"
+DD_ENDPOINT = "dd_url"
 
-TRANSACTION_FLUSH_INTERVAL = 5000 # Every 5 seconds
-WATCHDOG_INTERVAL_MULTIPLIER = 10 # 10x flush interval
+TRANSACTION_FLUSH_INTERVAL = 5000  # Every 5 seconds
+WATCHDOG_INTERVAL_MULTIPLIER = 10  # 10x flush interval
 HEADERS_TO_REMOVE = [
     'Host',
     'Content-Length',
@@ -67,9 +67,10 @@ HEADERS_TO_REMOVE = [
 MAX_WAIT_FOR_REPLAY = timedelta(seconds=90)
 
 # Maximum queue size in bytes (when this is reached, old messages are dropped)
-MAX_QUEUE_SIZE = 30 * 1024 * 1024 # 30MB
+MAX_QUEUE_SIZE = 30 * 1024 * 1024  # 30MB
 
-THROTTLING_DELAY = timedelta(microseconds=1000000/2) # 2 msg/second
+THROTTLING_DELAY = timedelta(microseconds=1000000/2)  # 2 msg/second
+
 
 class EmitterThread(threading.Thread):
 
@@ -98,6 +99,7 @@ class EmitterThread(threading.Thread):
         except Full:
             self.__logger.warn('Dropping packet for %r due to backlog', self.__name)
 
+
 class EmitterManager(object):
     """Track custom emitters"""
 
@@ -105,7 +107,8 @@ class EmitterManager(object):
         self.agentConfig = config
         self.emitterThreads = []
         for emitter_spec in [s.strip() for s in self.agentConfig.get('custom_emitters', '').split(',')]:
-            if len(emitter_spec) == 0: continue
+            if len(emitter_spec) == 0:
+                continue
             logging.info('Setting up custom emitter %r', emitter_spec)
             try:
                 thread = EmitterThread(
@@ -116,13 +119,13 @@ class EmitterManager(object):
                 )
                 thread.start()
                 self.emitterThreads.append(thread)
-            except Exception, e:
+            except Exception:
                 logging.error('Unable to start thread for emitter: %r', emitter_spec, exc_info=True)
         logging.info('Done with custom emitters')
 
     def send(self, data, headers=None):
         if not self.emitterThreads:
-            return # bypass decompression/decoding
+            return  # bypass decompression/decoding
         if headers and headers.get('Content-Encoding') == 'deflate':
             data = zlib.decompress(data)
         data = json_decode(data)
@@ -217,7 +220,7 @@ class AgentTransaction(Transaction):
                 force_use_curl = True
                 if pycurl is not None:
                     log.debug("Configuring tornado to use proxy settings: %s:****@%s:%s" % (proxy_settings['user'],
-                        proxy_settings['host'], proxy_settings['port']))
+                              proxy_settings['host'], proxy_settings['port']))
                     tornado_client_params['proxy_host'] = proxy_settings['host']
                     tornado_client_params['proxy_port'] = proxy_settings['port']
                     tornado_client_params['proxy_username'] = proxy_settings['user']
@@ -363,14 +366,15 @@ class ApiCheckRunHandler(tornado.web.RequestHandler):
 
 class Application(tornado.web.Application):
 
-    def __init__(self, port, agentConfig, watchdog=True, skip_ssl_validation=False, use_simple_http_client=False):
+    def __init__(self, port, agentConfig, watchdog=True,
+                 skip_ssl_validation=False, use_simple_http_client=False):
         self._port = int(port)
         self._agentConfig = agentConfig
         self._metrics = {}
         AgentTransaction.set_application(self)
         AgentTransaction.set_endpoints()
         self._tr_manager = TransactionManager(MAX_WAIT_FOR_REPLAY,
-            MAX_QUEUE_SIZE, THROTTLING_DELAY)
+                                              MAX_QUEUE_SIZE, THROTTLING_DELAY)
         AgentTransaction.set_tr_manager(self._tr_manager)
 
         self._watchdog = None
@@ -382,7 +386,7 @@ class Application(tornado.web.Application):
         if watchdog:
             watchdog_timeout = TRANSACTION_FLUSH_INTERVAL * WATCHDOG_INTERVAL_MULTIPLIER
             self._watchdog = Watchdog(watchdog_timeout,
-                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+                                      max_mem_mb=agentConfig.get('limit_memory_consumption', None))
 
     def log_request(self, handler):
         """ Override the tornado logging method.
@@ -400,13 +404,13 @@ class Application(tornado.web.Application):
 
     def appendMetric(self, prefix, name, host, device, ts, value):
 
-        if self._metrics.has_key(prefix):
+        if prefix in self._metrics:
             metrics = self._metrics[prefix]
         else:
             metrics = {}
             self._metrics[prefix] = metrics
 
-        if metrics.has_key(name):
+        if name in metrics:
             metrics[name].append([host, device, ts, value])
         else:
             metrics[name] = [[host, device, ts, value]]
@@ -418,7 +422,7 @@ class Application(tornado.web.Application):
             self._metrics['internalHostname'] = get_hostname(self._agentConfig)
             self._metrics['apiKey'] = self._agentConfig['api_key']
             MetricTransaction(json.dumps(self._metrics),
-                headers={'Content-Type': 'application/json'})
+                              headers={'Content-Type': 'application/json'})
             self._metrics = {}
 
     def run(self):
@@ -448,14 +452,14 @@ class Application(tornado.web.Application):
             else:
                 # localhost in lieu of 127.0.0.1 to support IPv6
                 try:
-                    http_server.listen(self._port, address = self._agentConfig['bind_host'])
+                    http_server.listen(self._port, address=self._agentConfig['bind_host'])
                 except gaierror:
                     log.warning("localhost seems undefined in your host file, using 127.0.0.1 instead")
-                    http_server.listen(self._port, address = "127.0.0.1")
+                    http_server.listen(self._port, address="127.0.0.1")
                 except socket_error, e:
                     if "Errno 99" in str(e):
                         log.warning("IPv6 doesn't seem to be fully supported. Falling back to IPv4")
-                        http_server.listen(self._port, address = "127.0.0.1")
+                        http_server.listen(self._port, address="127.0.0.1")
                     else:
                         raise
         except socket_error, e:
@@ -478,8 +482,8 @@ class Application(tornado.web.Application):
             self._postMetrics()
             self._tr_manager.flush()
 
-        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs,TRANSACTION_FLUSH_INTERVAL,
-            io_loop = self.mloop)
+        tr_sched = tornado.ioloop.PeriodicCallback(flush_trs, TRANSACTION_FLUSH_INTERVAL,
+                                                   io_loop=self.mloop)
 
         # Register optional Graphite listener
         gport = self._agentConfig.get("graphite_listen_port", None)
@@ -490,7 +494,7 @@ class Application(tornado.web.Application):
             if non_local_traffic is True:
                 gs.listen(gport)
             else:
-                gs.listen(gport, address = "localhost")
+                gs.listen(gport, address="localhost")
 
         # Start everything
         if self._watchdog:
@@ -503,8 +507,9 @@ class Application(tornado.web.Application):
     def stop(self):
         self.mloop.stop()
 
+
 def init(skip_ssl_validation=False, use_simple_http_client=False):
-    agentConfig = get_config(parse_args = False)
+    agentConfig = get_config(parse_args=False)
 
     port = agentConfig.get('listen_port', 17123)
     if port is None:
@@ -524,7 +529,12 @@ def init(skip_ssl_validation=False, use_simple_http_client=False):
 
     return app
 
+
 def main():
+    # Deprecation notice
+    from utils.deprecations import deprecate_old_command_line_tools
+    deprecate_old_command_line_tools()
+
     define("sslcheck", default=1, help="Verify SSL hostname, on by default")
     define("use_simple_http_client", default=0, help="Use Tornado SimpleHTTPClient instead of CurlAsyncHTTPClient")
     args = parse_command_line()
@@ -549,8 +559,7 @@ def main():
             ForwarderStatus.remove_latest_status()
 
     else:
-        usage = "%s [help|info]. Run with no commands to start the server" % (
-                                        sys.argv[0])
+        usage = "%s [help|info]. Run with no commands to start the server" % (sys.argv[0])
         command = args[0]
         if command == 'info':
             logging.getLogger().setLevel(logging.ERROR)
