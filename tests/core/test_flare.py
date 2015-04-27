@@ -18,7 +18,7 @@ def get_mocked_version():
 def get_mocked_temp():
     return os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
-        'resources',
+        'fixtures',
         'flare'
     )
 

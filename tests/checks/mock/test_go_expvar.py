@@ -3,7 +3,7 @@ import copy
 import simplejson as json
 import time
 
-from tests.checks.common import AgentCheckTest, Resources
+from tests.checks.common import AgentCheckTest, Fixtures
 
 
 def _get_data_mock(url):
@@ -53,7 +53,7 @@ class TestGoExpVar(AgentCheckTest):
 
     def __init__(self, *args, **kwargs):
         AgentCheckTest.__init__(self, *args, **kwargs)
-        self._expvar_url = Resources.file('expvar_output')
+        self._expvar_url = Fixtures.file('expvar_output')
         self.mock_config = {
             "instances": [{
                 "expvar_url": self._expvar_url,

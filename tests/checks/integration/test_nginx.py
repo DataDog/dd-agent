@@ -1,7 +1,7 @@
 import unittest
 from nose.plugins.attrib import attr
 
-from tests.checks.common import load_check, Resources
+from tests.checks.common import load_check, Fixtures
 
 
 @attr(requires='nginx')
@@ -45,8 +45,8 @@ class TestNginx(unittest.TestCase):
             self.assertEquals(set(can_connect[i]['tags']), set(['host:localhost', 'port:44441']), service_checks)
 
     def test_nginx_plus(self):
-        test_data = Resources.read_file('nginx_plus_in.json')
-        expected = eval(Resources.read_file('nginx_plus_out.python'))
+        test_data = Fixtures.read_file('nginx_plus_in.json')
+        expected = eval(Fixtures.read_file('nginx_plus_out.python'))
         nginx = load_check('nginx', self.config, self.agent_config)
         parsed = nginx.parse_json(test_data)
         parsed.sort()

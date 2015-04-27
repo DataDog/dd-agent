@@ -12,13 +12,13 @@ import xml.etree.ElementTree as tree
 from cStringIO import StringIO
 
 from checks.ganglia import Ganglia
-from tests.checks.common import Resources
+from tests.checks.common import Fixtures
 
 
 class TestGanglia(unittest.TestCase):
     def testSpeed(self):
         # Pretend to be gmetad and serve a large piece of content
-        original_file = Resources.file('ganglia.txt')
+        original_file = Fixtures.file('ganglia.txt')
         server = subprocess.Popen("nc -l 8651 < %s" % original_file, shell=True)
         # Wait for 1 second
         time.sleep(1)
@@ -30,7 +30,7 @@ class TestGanglia(unittest.TestCase):
         # p = pstats.Stats(pfile.name)
         # p.sort_stats('time').print_stats()
         parsed = StringIO(g.check({'ganglia_host': 'localhost', 'ganglia_port': 8651}))
-        original = Resources.file('ganglia.txt')
+        original = Fixtures.file('ganglia.txt')
         x1 = tree.parse(parsed)
         x2 = tree.parse(original)
         # Cursory test

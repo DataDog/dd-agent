@@ -7,7 +7,7 @@ import modules
 
 log = logging.getLogger('datadog.test')
 
-TARGET_MODULE = 'tests.core.resources.target_module'
+TARGET_MODULE = 'tests.core.fixtures.target_module'
 default_target = 'DEFAULT'
 specified_target = 'SPECIFIED'
 has_been_mutated = False

@@ -1,4 +1,4 @@
-from tests.checks.common import get_check, Resources
+from tests.checks.common import get_check, Fixtures
 
 import unittest
 import os
@@ -15,7 +15,7 @@ instances:
         mysql_user: root
         rrd_path:   /tmp/cacti_test/rrds
         rrd_whitelist: %s
-""" % Resources.file('whitelist.txt')
+""" % Fixtures.file('whitelist.txt')
 
 
 class TestCacti(unittest.TestCase):

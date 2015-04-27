@@ -3,14 +3,14 @@ import tempfile
 import time
 
 # project
-from tests.checks.common import AgentCheckTest, Resources
+from tests.checks.common import AgentCheckTest, Fixtures
 
 
 class NagiosTestCase(AgentCheckTest):
     CHECK_NAME = 'nagios'
-    NAGIOS_TEST_LOG = Resources.file('nagios.log')
-    NAGIOS_TEST_HOST = Resources.file('host-perfdata')
-    NAGIOS_TEST_SVC = Resources.file('service-perfdata')
+    NAGIOS_TEST_LOG = Fixtures.file('nagios.log')
+    NAGIOS_TEST_HOST = Fixtures.file('host-perfdata')
+    NAGIOS_TEST_SVC = Fixtures.file('service-perfdata')
     NAGIOS_TEST_HOST_TEMPLATE = "[HOSTPERFDATA]\t$TIMET$\t$HOSTNAME$\t$HOSTEXECUTIONTIME$\t$HOSTOUTPUT$\t$HOSTPERFDATA$"
     NAGIOS_TEST_SVC_TEMPLATE = "[SERVICEPERFDATA]\t$TIMET$\t$HOSTNAME$\t$SERVICEDESC$\t$SERVICEEXECUTIONTIME$\t$SERVICELATENCY$\t$SERVICEOUTPUT$\t$SERVICEPERFDATA$"
 

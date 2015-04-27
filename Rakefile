@@ -81,6 +81,9 @@ namespace :test do
   task 'profile:pstats' => ['test:profile'] do
     sh 'python -m pstats stats.dat'
   end
+
+  desc 'Display test coverage for checks'
+  task 'coverage' => 'ci:default:coverage'
 end
 
 desc 'Lint the code through pylint'

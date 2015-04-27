@@ -1,5 +1,5 @@
 import unittest
-from tests.checks.common import load_check, Resources, AgentCheckTest
+from tests.checks.common import load_check, Fixtures, AgentCheckTest
 from mock import Mock
 from socket import error
 from checks import AgentCheck
@@ -17,16 +17,16 @@ class RiakCSTest(AgentCheckTest):
             self.check = load_check(self.CHECK_NAME, self.config, {})
             self.check._connect = Mock(return_value=(None, None, ["aggregation_key:localhost:8080"]))
             self.check._get_stats = Mock(return_value=self.check.load_json(
-                Resources.read_file('riakcs_in.json')))
+                Fixtures.read_file('riakcs_in.json')))
 
         def test_parser(self):
-            input_json = Resources.read_file('riakcs_in.json')
-            output_python = Resources.read_file('riakcs_out.python')
+            input_json = Fixtures.read_file('riakcs_in.json')
+            output_python = Fixtures.read_file('riakcs_out.python')
             self.assertEquals(self.check.load_json(input_json), eval(output_python))
 
         def test_metrics(self):
             self.run_check(self.config)
-            expected = eval(Resources.read_file('riakcs_metrics.python'))
+            expected = eval(Fixtures.read_file('riakcs_metrics.python'))
             for m in expected:
                 self.assertMetric(m[0], m[2], m[3].get('tags', []))
 

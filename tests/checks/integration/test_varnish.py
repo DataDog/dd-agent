@@ -2,12 +2,12 @@
 from nose.plugins.attrib import attr
 
 # project
-from tests.checks.common import AgentCheckTest, Resources
+from tests.checks.common import AgentCheckTest, Fixtures
 from utils.shell import which
 
 
 def mocked_varnishstatoutput(cmd):
-    return Resources.read_file('dump.xml')
+    return Fixtures.read_file('dump.xml')
 
 
 COMMON_METRICS = [

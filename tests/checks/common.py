@@ -109,7 +109,7 @@ def get_check(name, config_str):
                                  agentConfig=agentConfig)
 
 
-class Resources(object):
+class Fixtures(object):
 
     @staticmethod
     def integration_name():
@@ -124,16 +124,16 @@ class Resources(object):
 
     @staticmethod
     def directory():
-        return os.path.join(os.path.dirname(__file__), 'resources',
-                            Resources.integration_name())
+        return os.path.join(os.path.dirname(__file__), 'fixtures',
+                            Fixtures.integration_name())
 
     @staticmethod
     def file(file_name):
-        return os.path.join(Resources.directory(), file_name)
+        return os.path.join(Fixtures.directory(), file_name)
 
     @staticmethod
     def read_file(file_name):
-        return open(Resources.file(file_name)).read()
+        return open(Fixtures.file(file_name)).read()
 
 
 class AgentCheckTest(unittest.TestCase):

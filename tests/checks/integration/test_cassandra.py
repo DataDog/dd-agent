@@ -6,7 +6,7 @@ from aggregator import MetricsAggregator
 from dogstatsd import Server
 from util import PidFile
 from jmxfetch import JMXFetch
-from tests.checks.common import Resources
+from tests.checks.common import Fixtures
 STATSD_PORT = 8121
 
 
@@ -42,7 +42,7 @@ class JMXTestCase(unittest.TestCase):
         self.t1 = threading.Thread(target=self.server.start)
         self.t1.start()
 
-        confd_path = Resources.directory()
+        confd_path = Fixtures.directory()
 
         self.jmx_daemon = JMXFetch(confd_path, {'dogstatsd_port': STATSD_PORT})
         self.t2 = threading.Thread(target=self.jmx_daemon.run)
