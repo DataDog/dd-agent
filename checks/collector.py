@@ -283,6 +283,8 @@ class Collector(object):
             event_count = 0
             service_check_count = 0
             check_start_time = time.time()
+            check_stats = None
+
             try:
                 # Run the check.
                 instance_statuses = check.run()
@@ -290,6 +292,7 @@ class Collector(object):
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
+                check_stats = check.get_stats()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -302,12 +305,15 @@ class Collector(object):
                 # Save the status of the check.
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
+
+
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
             check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
                 library_versions=check.get_library_info(),
-                source_type_name=check.SOURCE_TYPE_NAME or check.name)
+                source_type_name=check.SOURCE_TYPE_NAME or check.name,
+                check_stats=check_stats)
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]

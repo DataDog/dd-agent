@@ -265,6 +265,12 @@ class Check(object):
                 pass
         return metrics
 
+    def get_stats(self):
+        """
+        If in developer mode, return a dictionary of statistics about the check run
+        """
+        return {}
+
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
@@ -286,6 +292,9 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
+        self.in_developer_mode = agentConfig.get('developer_mode')
+        self.stats = {}
+
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
@@ -531,8 +540,42 @@ class AgentCheck(object):
         self.warnings = []
         return warnings
 
+    @staticmethod
+    def _collect_stats():
+        import psutil
+        process = psutil.Process(os.getpid())
+        mem_info = process.get_memory_info()._asdict()
+        io_info = process.get_io_counters()._asdict()
+        cpu_percent = process.get_cpu_percent()
+
+        return {
+            'mem_info': mem_info,
+            'io_info': io_info,
+            'cpu_percent': cpu_percent
+        }
+
+    def set_stats(self, before, after):
+        log.info("BEFORE {0}: {1}".format(self,before))
+        log.info("AFTER {0}: {1}".format(self,after))
+        self.stats = {'before': before, 'after': after}
+
+    def get_stats(self):
+        """
+        If in developer mode, return a dictionary of statistics about the check run
+        """
+        return self.stats
+
     def run(self):
         """ Run all instances. """
+
+        # Store run statistics if needed
+        before, after = None, None
+        if self.in_developer_mode:
+            try:
+                before = AgentCheck._collect_stats()
+            except Exception: # It's fine if we can't collect stats for the run
+                pass
+
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
@@ -544,7 +587,9 @@ class AgentCheck(object):
                     continue
 
                 self.last_collection_time[i] = now
+
                 self.check(copy.deepcopy(instance))
+
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,
@@ -560,6 +605,14 @@ class AgentCheck(object):
                     tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
+
+        if self.in_developer_mode:
+            try:
+                after = AgentCheck._collect_stats()
+                self.set_stats(before, after)
+            except Exception: # It's fine if we can't collect stats for the run
+                pass
+
         return instance_statuses
 
     def check(self, instance):
