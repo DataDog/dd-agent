@@ -100,9 +100,9 @@ def use_setuptools(
     try:
         import pkg_resources
     except ImportError:
-        return do_download()       
+        return do_download()
     try:
-        pkg_resources.require("setuptools>="+version); return
+        pkg_resources.require("setuptools>="+version); return  #pylint: disable=E1102
     except pkg_resources.VersionConflict, e:
         if was_imported:
             print >>sys.stderr, (
@@ -225,7 +225,7 @@ def main(argv, version=DEFAULT_VERSION):
     req = "setuptools>="+version
     import pkg_resources
     try:
-        pkg_resources.require(req)
+        pkg_resources.require(req) #pylint: disable=E1102
     except pkg_resources.VersionConflict:
         try:
             from setuptools.command.easy_install import main

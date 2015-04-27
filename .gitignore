@@ -11,6 +11,7 @@ node_modules/*
 venv/*
 *.swp
 *.log
+!nagios.log
 *.pid
 *.deb
 *.rpm
