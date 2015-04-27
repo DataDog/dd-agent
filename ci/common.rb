@@ -113,9 +113,7 @@ namespace :ci do
            -r requirements.txt\
            --cache-dir $PIP_CACHE\
            2>&1 >> $VOLATILE_DIR/ci.log)
-      sh %(pip install\
-           -r requirements-opt.txt\
-           --cache-dir $PIP_CACHE\
+      sh %(PIP_OPTIONS="--cache-dir $PIP_CACHE" ./utils/pip-allow-failures.sh requirements-opt.txt\
            2>&1 >> $VOLATILE_DIR/ci.log)
       sh %(pip install\
            -r requirements-test.txt\
