@@ -22,7 +22,13 @@ from checks import check_status
 
 # 3rd party
 import yaml
-import psutil
+
+try:
+    import psutil
+    PSUTIL_PRESENT = True
+except ImportError:
+    psutil = None
+    PSUTIL_PRESENT = False
 
 log = logging.getLogger(__name__)
 
@@ -293,7 +299,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.in_developer_mode = agentConfig.get('developer_mode')
+        self.in_developer_mode = agentConfig.get('developer_mode') and PSUTIL_PRESENT
         self.stats = {}
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
@@ -560,7 +566,7 @@ class AgentCheck(object):
                     if isinstance(raw_stats, int):
                         stats[method_key] = raw_stats
                     else:
-                        self.log.warn("Could not serialize output of {} to dict".format(method))
+                        self.log.warn("Could not serialize output of {0} to dict".format(method))
 
             except psutil.AccessDenied:
                 self.log.warn("Cannot call psutil method {} : Access Denied".format(method))

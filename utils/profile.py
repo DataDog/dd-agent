@@ -1,9 +1,5 @@
-#3p
-import psutil
-
 import os
 import logging
-from config import _is_affirmative
 
 log = logging.getLogger('collector')
 PSTATS_LIMIT = 20

@@ -399,7 +399,7 @@ class Collector(object):
                 payload['metrics'].extend(agent_stats)
                 # Dump the metrics to log when in developer mode
                 if self.agentConfig.get('developer_mode', False):
-                    log.info("AGENT STATS: \n {}".format(agent_stats))
+                    log.info("AGENT STATS: \n {0}".format(agent_stats))
         else:
             if self._agent_metrics is not None:
                 self._agent_metrics.set_metric_context(payload, {
@@ -411,7 +411,7 @@ class Collector(object):
                 payload['metrics'].extend(agent_stats)
                 # Dump the metrics to log when in developer mode
                 if self.agentConfig.get('developer_mode', False):
-                    log.info("AGENT STATS: \n {}".format(agent_stats))
+                    log.info("AGENT STATS: \n {0}".format(agent_stats))
 
         emitter_statuses = self._emit(payload)
         self.emit_duration = timer.step()

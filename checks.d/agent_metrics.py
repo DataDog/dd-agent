@@ -1,6 +1,16 @@
-import psutil
 import os
 import threading
+
+# 3p
+try:
+    import psutil
+    PSUTIL_PRESENT = True
+except ImportError:
+    psutil = None
+    PSUTIL_PRESENT = False
+
+
+# project
 from checks import AgentCheck
 from config import _is_affirmative
 
@@ -77,7 +87,7 @@ class AgentMetrics(AgentCheck):
 
     def check(self, instance):
         in_developer_mode = self.agentConfig.get('developer_mode', False)
-        if in_developer_mode:
+        if in_developer_mode and PSUTIL_PRESENT:
             stats = self._psutil_config_to_stats(instance)
             self._register_psutil_metrics(stats)
 
