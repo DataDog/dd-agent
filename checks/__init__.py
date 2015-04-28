@@ -585,7 +585,7 @@ class AgentCheck(object):
 
         # Store run statistics if needed
         before, after = None, None
-        if self.in_developer_mode:
+        if self.in_developer_mode and self.name != 'agent_metrics':
             try:
                 before = AgentCheck._collect_stats()
             except Exception: # It's fine if we can't collect stats for the run
@@ -621,7 +621,7 @@ class AgentCheck(object):
                 )
             instance_statuses.append(instance_status)
 
-        if self.in_developer_mode:
+        if self.in_developer_mode and self.name != 'agent_metrics':
             try:
                 after = AgentCheck._collect_stats()
                 self.set_stats(before, after)
