@@ -1,5 +1,5 @@
 import mock
-from tests.common import AgentCheckTest, load_check
+from tests.checks.common import AgentCheckTest, load_check
 
 MOCK_CONFIG = {
         'instances': [

@@ -22,6 +22,7 @@ from checks import check_status
 
 # 3rd party
 import yaml
+import psutil
 
 log = logging.getLogger(__name__)
 
@@ -542,7 +543,6 @@ class AgentCheck(object):
 
     @staticmethod
     def _collect_stats():
-        import psutil
         process = psutil.Process(os.getpid())
         mem_info = process.get_memory_info()._asdict()
         io_info = process.get_io_counters()._asdict()
@@ -563,7 +563,9 @@ class AgentCheck(object):
         """
         If in developer mode, return a dictionary of statistics about the check run
         """
-        return self.stats
+        stats = self.stats
+        self.stats = []
+        return stats
 
     def run(self):
         """ Run all instances. """
