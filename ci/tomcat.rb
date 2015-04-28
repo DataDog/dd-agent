@@ -31,7 +31,7 @@ namespace :ci do
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/tomcat.yaml $VOLATILE_DIR/jmx_yaml/)
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/jmx.yaml $VOLATILE_DIR/jmx_yaml/)
       sh %(#{tomcat_rootdir}/bin/startup.sh)
-      sleep_for 5
+      Wait.for 'http://localhost:8080'
     end
 
     task :script => ['ci:common:script'] do

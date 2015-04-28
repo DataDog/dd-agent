@@ -42,9 +42,9 @@ env:
     - TRAVIS_FLAVOR=etcd
     - TRAVIS_FLAVOR=fluentd
     - TRAVIS_FLAVOR=go_expvar
-    # FIXME: cannot enable gearman on Travis right now
-    # because it needs boost
-    # - TRAVIS_FLAVOR=gearman
+# FIXME: cannot enable gearman on Travis right now
+# because it needs boost
+#   - TRAVIS_FLAVOR=gearman
     - TRAVIS_FLAVOR=haproxy
     - TRAVIS_FLAVOR=lighttpd
     - TRAVIS_FLAVOR=memcache
@@ -64,8 +64,8 @@ env:
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.4.18
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.6.17
     - TRAVIS_FLAVOR=redis FLAVOR_VERSION=2.8.19
-    # Compilation takes too much time on Travis
-    # - TRAVIS_FLAVOR=riak
+# Compilation takes too much time on Travis
+#   - TRAVIS_FLAVOR=riak
     - TRAVIS_FLAVOR=snmpd
     - TRAVIS_FLAVOR=ssh
     - TRAVIS_FLAVOR=supervisord

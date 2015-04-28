@@ -1,7 +1,7 @@
 require './ci/common'
 
 def es_version
-  ENV['FLAVOR_VERSION'] || '1.4.2'
+  ENV['FLAVOR_VERSION'] || '1.4.4'
 end
 
 def es_rootdir
@@ -29,7 +29,8 @@ namespace :ci do
       pid = spawn %(#{es_rootdir}/bin/elasticsearch)
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/elasticsearch.pid)
-      sleep_for 10
+      # Waiting for elaticsearch to start
+      Wait.for 'http://localhost:9200', 10
     end
 
     task :script => ['ci:common:script'] do

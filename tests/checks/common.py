@@ -309,7 +309,7 @@ WARNINGS
             for cmtuple in candidates:
                 if mtuple == cmtuple:
                     mtuple[3]['tested'] = True
-        log.debug("FOUND !")
+        log.debug("{0} FOUND !".format(metric_name))
 
     def assertMetricTagPrefix(self, metric_name, tag_prefix, count=None, at_least=1):
         log.debug("Looking for a tag starting with `{0}:` on metric {1}"
@@ -339,7 +339,7 @@ WARNINGS
             for cmtuple in candidates:
                 if mtuple == cmtuple:
                     mtuple[3]['tested'] = True
-        log.debug("FOUND !")
+        log.debug("{0} FOUND !".format(metric_name))
 
     def assertMetricTag(self, metric_name, tag, count=None, at_least=1):
         log.debug("Looking for tag {0} on metric {1}".format(tag, metric_name))
@@ -368,7 +368,7 @@ WARNINGS
             for cmtuple in candidates:
                 if mtuple == cmtuple:
                     mtuple[3]['tested'] = True
-        log.debug("FOUND !")
+        log.debug("{0} FOUND !".format(metric_name))
 
     def assertServiceCheck(self, service_check_name, status=None, tags=None,
         count=None, at_least=1):
@@ -403,7 +403,7 @@ WARNINGS
             for csc in candidates:
                 if sc == csc:
                     sc['tested'] = True
-        log.debug("FOUND !")
+        log.debug("{0} FOUND !".format(service_check_name))
 
     def assertServiceCheckOK(self, service_check_name, tags=None, count=None, at_least=1):
         self.assertServiceCheck(service_check_name,

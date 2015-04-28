@@ -48,7 +48,8 @@ namespace :ci do
           --noprealloc --rest --fork)
 
       # Set up the replica set + print some debug info
-      sleep_for 15
+      Wait.for 37017, 10
+      Wait.for 37018
       sh %(#{mongo_rootdir}/bin/mongo\
            --eval "printjson(db.serverStatus())" 'localhost:37017'\
            >> $VOLATILE_DIR/mongo.log)

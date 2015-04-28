@@ -28,7 +28,7 @@ namespace :ci do
 
     task :before_script => ['ci:common:before_script'] do
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-server -detached)
-      sleep_for 5
+      Wait.for 5672, 10
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-plugins enable rabbitmq_management)
       sh %(#{rabbitmq_rootdir}/sbin/rabbitmq-plugins enable rabbitmq_management)
       %w(test1 test5 tralala).each do |q|

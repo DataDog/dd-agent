@@ -43,7 +43,7 @@ namespace :ci do
            -l $VOLATILE_DIR/postgres.log\
            -o "-p 15432"\
            start)
-      sleep_for 5
+      Wait.for 15432
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U $USER\
            postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
