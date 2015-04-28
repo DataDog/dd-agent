@@ -59,6 +59,10 @@ class HAProxy(AgentCheck):
         "hrsp_4xx": ("rate", "response.4xx"),
         "hrsp_5xx": ("rate", "response.5xx"),
         "hrsp_other": ("rate", "response.other"),
+        "qtime": ("gauge", "queue.time"),  # HA Proxy 1.5 and higher
+        "ctime": ("gauge", "connect.time"),  # HA Proxy 1.5 and higher
+        "rtime": ("gauge", "response.time"),  # HA Proxy 1.5 and higher
+        "ttime": ("gauge", "session.time"),  # HA Proxy 1.5 and higher
     }
 
     SERVICE_CHECK_NAME = 'haproxy.backend_up'
