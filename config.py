@@ -27,7 +27,7 @@ from util import get_os, Platform, yLoader
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.3.1"
+AGENT_VERSION = "5.3.2"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
