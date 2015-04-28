@@ -10,6 +10,7 @@ import subprocess
 import sys
 import glob
 import inspect
+import tempfile
 import traceback
 import re
 import imp
@@ -17,18 +18,16 @@ import socket
 from socket import gaierror
 from optparse import OptionParser, Values
 from cStringIO import StringIO
+from urlparse import urlparse
 
 # project
-
 from util import get_os, Platform, yLoader
-from jmxfetch import JMXFetch, JMX_COLLECT_COMMAND
-from migration import migrate_old_style_configuration
 
 # 3rd party
 import yaml
 
 # CONSTANTS
-AGENT_VERSION = "5.1.1"
+AGENT_VERSION = "5.4.0"
 DATADOG_CONF = "datadog.conf"
 DEFAULT_CHECK_FREQUENCY = 15   # seconds
 LOGGING_MAX_BYTES = 5 * 1024 * 1024
@@ -57,12 +56,20 @@ NAGIOS_OLD_CONF_KEYS = [
     'nagios_perf_cfg'
     ]
 
+DEFAULT_CHECKS = ("network", "ntp")
+LEGACY_DATADOG_URLS = [
+    "app.datadoghq.com",
+    "app.datad0g.com",
+]
+
 class PathNotFound(Exception):
     pass
 
 
 def get_parsed_args():
     parser = OptionParser()
+    parser.add_option('-A', '--autorestart', action='store_true', default=False,
+                        dest='autorestart')
     parser.add_option('-d', '--dd_url', action='store', default=None,
                         dest='dd_url')
     parser.add_option('-c', '--clean', action='store_true', default=False,
@@ -79,7 +86,8 @@ def get_parsed_args():
         options, args = parser.parse_args()
     except SystemExit:
         # Ignore parse errors
-        options, args = Values({'dd_url': None,
+        options, args = Values({'autorestart': False,
+                                'dd_url': None,
                                 'clean': False,
                                 'disable_dd':False,
                                 'use_forwarder': False}), []
@@ -88,6 +96,21 @@ def get_parsed_args():
 
 def get_version():
     return AGENT_VERSION
+
+
+# Return url endpoint, here because needs access to version number
+def get_url_endpoint(default_url, endpoint_type='app'):
+    parsed_url = urlparse(default_url)
+    if parsed_url.netloc not in LEGACY_DATADOG_URLS:
+        return default_url
+
+    subdomain = parsed_url.netloc.split(".")[0]
+
+    # Replace https://app.datadoghq.com in https://5-2-0-app.agent.datadoghq.com
+    return default_url.replace(subdomain,
+        "{0}-{1}.agent".format(
+            get_version().replace(".", "-"),
+            endpoint_type))
 
 def skip_leading_wsp(f):
     "Works on a file, returns a file-like object"
@@ -172,6 +195,10 @@ def _unix_checksd_path():
 
 
 def _is_affirmative(s):
+    # int or real bool
+    if isinstance(s, int):
+        return bool(s)
+    # try string cast
     return s.lower() in ('yes', 'true', '1')
 
 
@@ -216,6 +243,55 @@ def get_default_bind_host():
         return '127.0.0.1'
     return 'localhost'
 
+
+def get_histogram_aggregates(configstr=None):
+    if configstr is None:
+        return None
+
+    try:
+        vals = configstr.split(',')
+        valid_values = ['min', 'max', 'median', 'avg', 'count']
+        result = []
+
+        for val in vals:
+            val = val.strip()
+            if val not in valid_values:
+                log.warning("Ignored histogram aggregate {0}, invalid".format(val))
+                continue
+            else:
+                result.append(val)
+    except Exception:
+        log.exception("Error when parsing histogram aggregates, skipping")
+        return None
+
+    return result
+
+def get_histogram_percentiles(configstr=None):
+    if configstr is None:
+        return None
+
+    result = []
+    try:
+        vals = configstr.split(',')
+        for val in vals:
+            try:
+                val = val.strip()
+                floatval = float(val)
+                if floatval <= 0 or floatval >= 1:
+                    raise ValueError
+                if len(val) > 4:
+                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"\
+                        .format(floatval))
+                result.append(float(val[0:4]))
+            except ValueError:
+                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"\
+                    .format(val))
+    except Exception:
+        log.exception("Error when parsing histogram percentiles, skipping")
+        return None
+
+    return result
+
 def get_config(parse_args=True, cfg_path=None, options=None):
     if parse_args:
         options, _ = get_parsed_args()
@@ -223,7 +299,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
     # General config
     agentConfig = {
         'check_freq': DEFAULT_CHECK_FREQUENCY,
-        'dogstatsd_normalize': 'yes',
         'dogstatsd_port': 8125,
         'dogstatsd_target': 'http://localhost:17123',
         'graphite_listen_port': None,
@@ -236,6 +311,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
+        'utf8_decoding': False
     }
 
     # Config handling
@@ -321,6 +397,13 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             except Exception:
                 pass
 
+        # Custom histogram aggregate/percentile metrics
+        if config.has_option('Main', 'histogram_aggregates'):
+            agentConfig['histogram_aggregates'] = get_histogram_aggregates(config.get('Main', 'histogram_aggregates'))
+
+        if config.has_option('Main', 'histogram_percentiles'):
+            agentConfig['histogram_percentiles'] = get_histogram_percentiles(config.get('Main', 'histogram_percentiles'))
+
         # Disable Watchdog (optionally)
         if config.has_option('Main', 'watchdog'):
             if config.get('Main', 'watchdog').lower() in ('no', 'false'):
@@ -337,7 +420,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         dogstatsd_defaults = {
             'dogstatsd_port': 8125,
             'dogstatsd_target': 'http://' + agentConfig['bind_host'] + ':17123',
-            'dogstatsd_normalize': 'yes',
         }
         for key, value in dogstatsd_defaults.iteritems():
             if config.has_option('Main', key):
@@ -351,9 +433,6 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             if config.has_option('Main', 'statsd_forward_port'):
                 agentConfig['statsd_forward_port'] = int(config.get('Main', 'statsd_forward_port'))
 
-        # normalize 'yes'/'no' to boolean
-        dogstatsd_defaults['dogstatsd_normalize'] = _is_affirmative(dogstatsd_defaults['dogstatsd_normalize'])
-
         # optionally send dogstatsd data directly to the agent.
         if config.has_option('Main', 'dogstatsd_use_ddurl'):
             if  _is_affirmative(config.get('Main', 'dogstatsd_use_ddurl')):
@@ -364,7 +443,9 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         if config.has_option('Main', 'use_mount'):
             agentConfig['use_mount'] = _is_affirmative(config.get('Main', 'use_mount'))
 
-        if config.has_option('Main', 'autorestart'):
+        if options is not None and options.autorestart:
+            agentConfig['autorestart'] = True
+        elif config.has_option('Main', 'autorestart'):
             agentConfig['autorestart'] = _is_affirmative(config.get('Main', 'autorestart'))
 
         if config.has_option('Main', 'check_timings'):
@@ -428,6 +509,10 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         agentConfig["collect_ec2_tags"] = False
         if config.has_option("Main", "collect_ec2_tags"):
             agentConfig["collect_ec2_tags"] = _is_affirmative(config.get("Main", "collect_ec2_tags"))
+
+        agentConfig["utf8_decoding"] = False
+        if config.has_option("Main", "utf8_decoding"):
+            agentConfig["utf8_decoding"] = _is_affirmative(config.get("Main", "utf8_decoding"))
 
     except ConfigParser.NoSectionError, e:
         sys.stderr.write('Config file not found or incorrectly formatted.\n')
@@ -540,7 +625,7 @@ def get_proxy(agentConfig, use_system_settings=False):
                 pass
             px = proxy.split(':')
             proxy_settings['host'] = px[0]
-            proxy_settings['port'] = px[1]
+            proxy_settings['port'] = int(px[1])
             proxy_settings['user'] = None
             proxy_settings['password'] = None
             proxy_settings['system_settings'] = True
@@ -561,7 +646,9 @@ def get_proxy(agentConfig, use_system_settings=False):
     return None
 
 
-def get_confd_path(osname):
+def get_confd_path(osname=None):
+    if not osname:
+        osname = get_os()
     bad_path = ''
     if osname == 'windows':
         try:
@@ -585,7 +672,9 @@ def get_confd_path(osname):
     raise PathNotFound(bad_path)
 
 
-def get_checksd_path(osname):
+def get_checksd_path(osname=None):
+    if not osname:
+        osname = get_os()
     if osname == 'windows':
         return _windows_checksd_path()
     else:
@@ -695,14 +784,6 @@ def load_check_directory(agentConfig, hostname):
         log.error("No conf.d folder found at '%s' or in the directory where the Agent is currently deployed.\n" % e.args[0])
         sys.exit(3)
 
-    # Migrate datadog.conf integration configurations that are not supported anymore
-    migrate_old_style_configuration(agentConfig, confd_path, get_config_path(None, os_name=get_os()))
-
-    # Start JMXFetch if needed
-    JMXFetch.init(confd_path, agentConfig, get_logging_config(), DEFAULT_CHECK_FREQUENCY, JMX_COLLECT_COMMAND)
-
-
-
     # We don't support old style configs anymore
     # So we iterate over the files in the checks.d directory
     # If there is a matching configuration file in the conf.d directory
@@ -716,14 +797,34 @@ def load_check_directory(agentConfig, hostname):
 
         # Let's see if there is a conf.d for this check
         conf_path = os.path.join(confd_path, '%s.yaml' % check_name)
+
+        # Default checks are checks that are enabled by default
+        # They read their config from the "[CHECKNAME].yaml.default" file
+        if check_name in DEFAULT_CHECKS:
+            default_conf_path = os.path.join(confd_path, '%s.yaml.default' % check_name)
+        else:
+            default_conf_path = None
+
+        conf_exists = False
+
         if os.path.exists(conf_path):
+            conf_exists = True
+
+        elif not conf_exists and default_conf_path is not None:
+            if not os.path.exists(default_conf_path):
+                log.error("Default configuration file {0} is missing".format(default_conf_path))
+                continue
+            conf_path = default_conf_path
+            conf_exists = True
+
+        if conf_exists:
             f = open(conf_path)
             try:
                 check_config = check_yaml(conf_path)
             except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':e, 'traceback':traceback_message}
+                init_failed_checks[check_name] = {'error':str(e), 'traceback':traceback_message}
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured
@@ -822,6 +923,7 @@ def load_check_directory(agentConfig, hostname):
 def get_log_date_format():
     return "%Y-%m-%d %H:%M:%S %Z"
 
+
 def get_log_format(logger_name):
     if get_os() != 'windows':
         return '%%(asctime)s | %%(levelname)s | dd.%s | %%(name)s(%%(filename)s:%%(lineno)s) | %%(message)s' % logger_name
@@ -830,6 +932,14 @@ def get_log_format(logger_name):
 
 def get_syslog_format(logger_name):
     return 'dd.%s[%%(process)d]: %%(levelname)s (%%(filename)s:%%(lineno)s): %%(message)s' % logger_name
+
+
+def get_jmx_status_path():
+    if Platform.is_win32():
+        path = os.path.join(_windows_commondata_path(), 'Datadog')
+    else:
+        path = tempfile.gettempdir()
+    return path
 
 
 def get_logging_config(cfg_path=None):

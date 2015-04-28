@@ -32,12 +32,13 @@ from StringIO import StringIO
 # project
 from checks import AgentCheck
 
+
 class ZKConnectionFailure(Exception):
     """ Raised when we are unable to connect or get the output of a command. """
     pass
 
 
-class Zookeeper(AgentCheck):
+class ZookeeperCheck(AgentCheck):
     version_pattern = re.compile(r'Zookeeper version: ([^.]+)\.([^.]+)\.([^-]+)', flags=re.I)
 
     SOURCE_TYPE_NAME = 'zookeeper'
@@ -49,6 +50,7 @@ class Zookeeper(AgentCheck):
         expected_mode = (instance.get('expected_mode') or '').strip()
         tags = instance.get('tags', [])
         cx_args = (host, port, timeout)
+        sc_tags = ["host:{0}".format(host), "port:{0}".format(port)]
 
         # Send a service check based on the `ruok` response.
         try:
@@ -66,13 +68,15 @@ class Zookeeper(AgentCheck):
             else:
                 status = AgentCheck.WARNING
             message = u'Response from the server: %s' % ruok
-        self.service_check('zookeeper.ruok', status, message=message)
+        self.service_check('zookeeper.ruok', status, message=message,
+                           tags=sc_tags)
 
         # Read metrics from the `stat` output.
         try:
             stat_out = self._send_command('stat', *cx_args)
         except ZKConnectionFailure:
             self.increment('zookeeper.timeouts')
+            raise
         else:
             # Parse the response
             metrics, new_tags, mode = self.parse_stat(stat_out)
@@ -87,8 +91,10 @@ class Zookeeper(AgentCheck):
                     message = u"Server is in %s mode" % mode
                 else:
                     status = AgentCheck.CRITICAL
-                    message = u"Server is in %s mode but check expects %s mode" % (expected_mode, mode)
-                self.service_check('zookeeper.mode', status, message=message)
+                    message = u"Server is in %s mode but check expects %s mode"\
+                              % (mode, expected_mode)
+                self.service_check('zookeeper.mode', status, message=message,
+                                   tags=sc_tags)
 
     def _send_command(self, command, host, port, timeout):
         sock = socket.socket()
@@ -100,7 +106,7 @@ class Zookeeper(AgentCheck):
             try:
                 # Connect to the zk client port and send the stat command
                 sock.connect((host, port))
-                sock.sendall('stat')
+                sock.sendall(command)
 
                 # Read the response into a StringIO buffer
                 chunk = sock.recv(chunk_size)
@@ -110,7 +116,8 @@ class Zookeeper(AgentCheck):
                 while chunk:
                     if num_reads > max_reads:
                         # Safeguard against an infinite loop
-                        raise Exception("Read %s bytes before exceeding max reads of %s. " % (buf.tell(), max_reads))
+                        raise Exception("Read %s bytes before exceeding max reads of %s. "
+                                        % (buf.tell(), max_reads))
                     chunk = sock.recv(chunk_size)
                     buf.write(chunk)
                     num_reads += 1
@@ -175,7 +182,10 @@ class Zookeeper(AgentCheck):
 
         # Outstanding: 0
         _, value = buf.readline().split(':')
+        # Fixme: This metric name is wrong. It should be removed in a major version of the agent
+        # See https://github.com/DataDog/dd-agent/issues/1383
         metrics.append(('zookeeper.bytes_outstanding', long(value.strip())))
+        metrics.append(('zookeeper.outstanding_requests', long(value.strip())))
 
         # Zxid: 0x1034799c7
         _, value = buf.readline().split(':')

@@ -289,9 +289,13 @@ class AgentCheck(object):
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
-        self.aggregator = MetricsAggregator(self.hostname,
+        self.aggregator = MetricsAggregator(
+            self.hostname,
             formatter=agent_formatter,
-            recent_point_threshold=agentConfig.get('recent_point_threshold', None))
+            recent_point_threshold=agentConfig.get('recent_point_threshold', None),
+            histogram_aggregates=agentConfig.get('histogram_aggregates'),
+            histogram_percentiles=agentConfig.get('histogram_percentiles')
+        )
 
         self.events = []
         self.service_checks = []
@@ -504,7 +508,7 @@ class AgentCheck(object):
         """ Add a warning message that will be printed in the info page
         :param warning_message: String. Warning message to be displayed
         """
-        self.warnings.append(warning_message)
+        self.warnings.append(str(warning_message))
 
     def get_library_info(self):
         if self.library_versions is not None:
@@ -552,7 +556,7 @@ class AgentCheck(object):
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(i,
                     check_status.STATUS_ERROR,
-                    error=e,
+                    error=str(e),
                     tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
@@ -677,32 +681,6 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
         return (metric, int(timestamp), value, attributes)
     return (metric, int(timestamp), value)
 
-
-def run_check(name, path=None):
-    from tests.common import get_check
-
-    # Read the config file
-    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
-
-    try:
-        f = open(confd_path)
-    except IOError:
-        raise Exception('Unable to open configuration at %s' % confd_path)
-
-    config_str = f.read()
-    f.close()
-
-    # Run the check
-    check, instances = get_check(name, config_str)
-    if not instances:
-        raise Exception('YAML configuration returned no instances.')
-    for instance in instances:
-        check.check(instance)
-        if check.has_events():
-            print "Events:\n"
-            pprint(check.get_events(), indent=4)
-        print "Metrics:\n"
-        pprint(check.get_metrics(), indent=4)
 
 def create_service_check(check_name, status, tags=None, timestamp=None,
                   hostname=None, check_run_id=None, message=None):

@@ -10,7 +10,7 @@ import sys
 # project
 from util import windows_friendly_colon_split
 
-WINDOWS_PATH = re.compile('[A-Z]:.*')
+WINDOWS_PATH = re.compile('[A-Z]:.*', re.IGNORECASE)
 
 def imp_type_for_filename(filename):
     """Given the name of a Python module, return a type description suitable to

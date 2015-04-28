@@ -49,7 +49,7 @@ class Varnish(AgentCheck):
 
             # reset for next stat element
             self._reset()
-        elif name in ("type", "ident", "name"):
+        elif name in ("ident", "name") or (name == "type" and self._current_str != "MAIN"):
             self._current_metric += "." + self._current_str
 
     def _char_data(self, data):
@@ -87,23 +87,28 @@ class Varnish(AgentCheck):
             tags += [u'varnish_name:%s' % name]
         else:
             tags += [u'varnish_name:default']
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-        output, error = proc.communicate()
-        if error and len(error) > 0:
-            self.log.error(error)
-        self._parse_varnishstat(varnishstat_path, use_xml, tags)
+
+        output = self._get_varnishstat_output(cmd)
+
+        self._parse_varnishstat(output, use_xml, tags)
 
         # Parse service checks from varnishadm.
         varnishadm_path = instance.get('varnishadm')
         if varnishadm_path:
             secretfile_path = instance.get('secretfile', '/etc/varnish/secret')
-            varnishadm_path = 'sudo %s' % varnishadm_path
-            cmd = [varnishadm_path, '-S', secretfile_path, 'debug.health']
+            cmd = ['sudo', varnishadm_path, '-S', secretfile_path, 'debug.health']
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output, _ = proc.communicate()
             if output:
                 self._parse_varnishadm(output)
+
+    def _get_varnishstat_output(self, cmd):
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+        output, error = proc.communicate()
+        if error and len(error) > 0:
+            self.log.error(error)
+        return output
 
     def _get_version_info(self, varnishstat_path):
         # Get the varnish version from varnishstat
@@ -172,6 +177,8 @@ class Varnish(AgentCheck):
         </varnishstat>
         """
         tags = tags or []
+        # FIXME: this check is processing an unbounded amount of data
+        # we should explicitly list the metrics we want to get from the check
         if use_xml:
             p = xml.parsers.expat.ParserCreate()
             p.StartElementHandler = self._start_element

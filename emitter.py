@@ -1,6 +1,7 @@
 # stdlib
 from hashlib import md5
 import logging
+import os
 import re
 import sys
 import zlib
@@ -8,6 +9,15 @@ import zlib
 # 3rd party
 import requests
 import simplejson as json
+
+# project
+from config import get_version
+
+# Starting with Agent 5.0.0, there should always be a local forwarder
+# running and all payloads should go through it. So we should make sure
+# that we pass the no_proxy environment variable that will be used by requests
+# See: https://github.com/kennethreitz/requests/pull/945
+os.environ['no_proxy'] = '127.0.0.1,localhost'
 
 # urllib3 logs a bunch of stuff at the info level
 requests_log = logging.getLogger("requests.packages.urllib3")
@@ -45,8 +55,8 @@ def http_emitter(message, log, agentConfig):
     url = "{0}/intake?api_key={1}".format(url, apiKey)
 
     try:
-        r = requests.post(url, data=zipped, timeout=10,
-            headers=post_headers(agentConfig, zipped))
+        headers = post_headers(agentConfig, zipped)
+        r = requests.post(url, data=zipped, timeout=5, headers=headers)
 
         r.raise_for_status()
 
@@ -67,6 +77,7 @@ def post_headers(agentConfig, payload):
         'Content-Type': 'application/json',
         'Content-Encoding': 'deflate',
         'Accept': 'text/html, */*',
-        'Content-MD5': md5(payload).hexdigest()
+        'Content-MD5': md5(payload).hexdigest(),
+        'DD-Collector-Version': get_version()
     }
     

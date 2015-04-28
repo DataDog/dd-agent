@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.1.1"
+tag="5.3.0"
 
-PIP_VERSION="1.5.6"
+PIP_VERSION="6.0.6"
 
 #######################
 # Define some helpers #

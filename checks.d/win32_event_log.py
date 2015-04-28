@@ -180,8 +180,12 @@ class LogEvent(object):
         '''
         year, month, day, hour, minute, second, microsecond, tz = \
                                                             wmi.to_time(wmi_ts)
+        tz_delta = timedelta(minutes=int(tz))
+        if '+' in wmi_ts:
+            tz_delta = - tz_delta
+
         dt = datetime(year=year, month=month, day=day, hour=hour, minute=minute,
-            second=second, microsecond=microsecond)
+            second=second, microsecond=microsecond) + tz_delta
         return int(calendar.timegm(dt.timetuple()))
 
     def _msg_title(self, event):

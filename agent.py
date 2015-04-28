@@ -17,30 +17,42 @@ import os; os.umask(022)
 
 # Core modules
 import logging
-import os.path
 import signal
 import sys
 import time
-import glob
 
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
-from config import get_config, get_system_stats, get_parsed_args, load_check_directory, get_confd_path, check_yaml, get_logging_config
-from daemon import Daemon, AgentSupervisor
+from config import (
+    get_confd_path,
+    get_config,
+    get_parsed_args,
+    get_system_stats,
+    load_check_directory,
+)
+from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from util import Watchdog, PidFile, EC2, get_os, get_hostname
 from jmxfetch import JMXFetch
-
+from util import (
+    EC2,
+    get_hostname,
+    get_os,
+    PidFile,
+    Watchdog,
+)
+from utils.flare import configcheck, Flare
 
 # Constants
 PID_NAME = "dd-agent"
 WATCHDOG_MULTIPLIER = 10
-RESTART_INTERVAL = 4 * 24 * 60 * 60 # Defaults to 4 days
+RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
+DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
 # Globals
 log = logging.getLogger('collector')
+
 
 class Agent(Daemon):
     """
@@ -56,9 +68,6 @@ class Agent(Daemon):
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
         self.run_forever = False
-
-        if JMXFetch.is_running():
-            JMXFetch.stop()
 
         if self.collector:
             self.collector.stop()
@@ -168,7 +177,7 @@ class Agent(Daemon):
         watchdog = None
         if agentConfig.get("watchdog", True):
             watchdog = Watchdog(check_freq * WATCHDOG_MULTIPLIER,
-                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
+                                max_mem_mb=agentConfig.get('limit_memory_consumption', None))
             watchdog.reset()
         return watchdog
 
@@ -196,6 +205,7 @@ class Agent(Daemon):
             self.collector.stop()
         sys.exit(AgentSupervisor.RESTART_EXIT_STATUS)
 
+
 def main():
     options, args = get_parsed_args()
     agentConfig = get_config(options=options)
@@ -212,6 +222,7 @@ def main():
         'check',
         'configcheck',
         'jmx',
+        'flare',
     ]
 
     if len(args) < 1:
@@ -222,6 +233,12 @@ def main():
     if command not in COMMANDS:
         sys.stderr.write("Unknown command: %s\n" % command)
         return 3
+
+    # Deprecation notice
+    if command not in DD_AGENT_COMMANDS:
+        # Will become an error message and exit after deprecation period
+        from utils.deprecations import deprecate_old_command_line_tools
+        deprecate_old_command_line_tools()
 
     pid_file = PidFile('dd-agent')
 
@@ -256,12 +273,12 @@ def main():
         if autorestart:
             # Set-up the supervisor callbacks and fork it.
             logging.info('Running Agent with auto-restart ON')
-            def child_func(): agent.run()
+            def child_func(): agent.start(foreground=True)
             def parent_func(): agent.start_event = False
             AgentSupervisor.start(parent_func, child_func)
         else:
             # Run in the standard foreground.
-            agent.run(config=agentConfig)
+            agent.start(foreground=True)
 
     elif 'check' == command:
         if len(args) < 2:
@@ -285,34 +302,18 @@ def main():
                     check.run()
                     print check.get_metrics()
                     print check.get_events()
+                    print check.get_service_checks()
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
                         check.run()
                         print check.get_metrics()
                         print check.get_events()
+                        print check.get_service_checks()
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
-        osname = get_os()
-        all_valid = True
-        for conf_path in glob.glob(os.path.join(get_confd_path(osname), "*.yaml")):
-            basename = os.path.basename(conf_path)
-            try:
-                check_yaml(conf_path)
-            except Exception, e:
-                all_valid = False
-                print "%s contains errors:\n    %s" % (basename, e)
-            else:
-                print "%s is valid" % basename
-        if all_valid:
-            print "All yaml files passed. You can now run the Datadog agent."
-            return 0
-        else:
-            print("Fix the invalid yaml files above in order to start the Datadog agent. "
-                    "A useful external tool for yaml parsing can be found at "
-                    "http://yaml-online-parser.appspot.com/")
-            return 1
+        configcheck()
 
     elif 'jmx' == command:
         from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
@@ -333,12 +334,23 @@ def main():
             jmx_command = args[1]
             checks_list = args[2:]
             confd_directory = get_confd_path(get_os())
-            should_run  = JMXFetch.init(confd_directory, agentConfig, get_logging_config(), 15, jmx_command, checks_list, reporter="console")
+
+            jmx_process = JMXFetch(confd_directory, agentConfig)
+            should_run = jmx_process.run(jmx_command, checks_list, reporter="console")
             if not should_run:
                 print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
                 print "Have you enabled any JMX check ?"
                 print "If you think it's not normal please get in touch with Datadog Support"
 
+    elif 'flare' == command:
+        Flare.check_user_rights()
+        case_id = int(args[1]) if len(args) > 1 else None
+        f = Flare(True, case_id)
+        f.collect()
+        try:
+            f.upload()
+        except Exception, e:
+            print 'The upload failed:\n{0}'.format(str(e))
 
     return 0
 

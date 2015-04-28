@@ -135,6 +135,14 @@ case $action in
         exit $?
         ;;
 
+
+    flare)
+        shift
+        python agent/agent.py flare $@
+        exit $?
+        ;;
+
+
     *)
         echo "Usage: $0 {start|stop|restart|info|status|configcheck|check|jmx}"
         exit 2
