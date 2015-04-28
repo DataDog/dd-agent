@@ -542,17 +542,30 @@ class AgentCheck(object):
         return warnings
 
     @staticmethod
-    def _collect_stats():
-        process = psutil.Process(os.getpid())
-        mem_info = process.get_memory_info()._asdict()
-        io_info = process.get_io_counters()._asdict()
-        cpu_percent = process.get_cpu_percent()
+    def _collect_stats(methods=None):
+        current_process = psutil.Process(os.getpid())
+        methods = methods or ['get_memory_info', 'get_io_counters', 'get_cpu_times']
+        filtered_methods = [m for m in methods if hasattr(current_process, m)]
 
-        return {
-            'mem_info': mem_info,
-            'io_info': io_info,
-            'cpu_percent': cpu_percent
-        }
+        stats = {}
+
+        for method in filtered_methods:
+            # Go from `get_memory_info` -> `memory_info`
+            method_key = method[4:] if method.startswith('get_') else method
+            try:
+                raw_stats = getattr(current_process, method)()
+                try:
+                    stats[method_key] = raw_stats._asdict()
+                except AttributeError:
+                    if isinstance(raw_stats, int):
+                        stats[method_key] = raw_stats
+                    else:
+                        self.log.warn("Could not serialize output of {} to dict".format(method))
+
+            except psutil.AccessDenied:
+                self.log.warn("Cannot call psutil method {} : Access Denied".format(method))
+
+        return stats
 
     def set_stats(self, before, after):
         log.info("BEFORE {0}: {1}".format(self,before))

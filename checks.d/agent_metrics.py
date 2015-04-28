@@ -33,27 +33,8 @@ class AgentMetrics(AgentCheck):
             self.log.error('No metrics configured for AgentMetrics check!')
             return {}
 
-        current_process = psutil.Process(os.getpid())
-        filtered_methods = [k for k,v in process_metrics.items() if _is_affirmative(v) and\
-                                hasattr(current_process, k)]
-        stats = {}
-
-        if filtered_methods:
-            for method in filtered_methods:
-                # Go from `get_memory_info` -> `memory_info`
-                method_key = method[4:] if method.startswith('get_') else method
-                try:
-                    raw_stats = getattr(current_process, method)()
-                    try:
-                        stats[method_key] = raw_stats._asdict()
-                    except AttributeError:
-                        if isinstance(raw_stats, int):
-                            stats[method_key] = raw_stats
-                        else:
-                            self.log.warn("Could not serialize output of {} to dict".format(method))
-
-                except psutil.AccessDenied:
-                    self.log.warn("Cannot call psutil method {} : Access Denied".format(method))
+        methods = [k for k,v in process_metrics.items() if _is_affirmative(v)]
+        stats = AgentCheck._collect_stats(methods)
 
         return stats
 
