@@ -5,7 +5,7 @@ MOCK_CONFIG = {
         'instances': [
             {'process_metrics': {
                 'get_memory_info': True,
-                'get_io_counters': True
+                'get_cpu_times': True
             }}],
         'init_config': {}
 }
@@ -28,10 +28,7 @@ AGENT_CONFIG_DEFAULT_MODE = {}
 
 MOCK_STATS = {
     'memory_info': dict([('rss', 16814080), ('vms', 74522624)]),
-    'io_counters': dict([('read_count', 2563708),
-        ('write_count', 54282),
-        ('read_bytes', 4096),
-        ('write_bytes', 0)])
+    'cpu_times': dict([('user', 0.041733968), ('system', 0.022306718)])
     }
 
 
@@ -49,15 +46,15 @@ class AgentMetricsTestCase(AgentCheckTest):
 
         stats = check._psutil_config_to_stats(instance)
         self.assertIn('memory_info', stats)
-        self.assertIn('io_counters', stats)
+        self.assertIn('cpu_times', stats)
 
     def test_register_psutil_metrics(self):
         check = load_check(self.CHECK_NAME, MOCK_CONFIG, AGENT_CONFIG_DEV_MODE)
         check._register_psutil_metrics(MOCK_STATS)
         self.metrics = check.get_metrics()
 
-        self.assertMetric('datadog.agent.memory_info.rss', value=16814080)
-        self.assertMetric('datadog.agent.memory_info.vms', value=74522624)
+        self.assertMetric('datadog.agent.collector.memory_info.rss', value=16814080)
+        self.assertMetric('datadog.agent.collector.memory_info.vms', value=74522624)
 
     def test_bad_process_metric_check(self):
         ''' Tests that a bad configuration option for `process_metrics` gets ignored '''
