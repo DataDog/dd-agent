@@ -13,6 +13,7 @@ import os
 import sys
 import traceback
 import copy
+import timeit
 from pprint import pprint
 from collections import defaultdict
 
@@ -276,7 +277,7 @@ class Check(object):
         """
         If in developer mode, return a dictionary of statistics about the check run
         """
-        return {}
+        raise NotImplementedError
 
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
@@ -550,7 +551,7 @@ class AgentCheck(object):
     @staticmethod
     def _collect_stats(methods=None):
         current_process = psutil.Process(os.getpid())
-        methods = methods or ['get_memory_info', 'get_io_counters', 'get_cpu_times']
+        methods = methods or ['get_memory_info']
         filtered_methods = [m for m in methods if hasattr(current_process, m)]
 
         stats = {}
@@ -583,7 +584,7 @@ class AgentCheck(object):
         If in developer mode, return a dictionary of statistics about the check run
         """
         stats = self.stats
-        self.stats = []
+        self.stats = {}
         return stats
 
     def run(self):
@@ -609,15 +610,27 @@ class AgentCheck(object):
 
                 self.last_collection_time[i] = now
 
+                check_start_time = None
+                if self.in_developer_mode:
+                   check_start_time = timeit.default_timer()
                 self.check(copy.deepcopy(instance))
+
+                instance_check_stats = None
+                if check_start_time is not None:
+                    instance_check_stats = {'run_time': timeit.default_timer() - check_start_time}
 
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,
-                        warnings=self.get_warnings()
+                        warnings=self.get_warnings(),
+                        instance_check_stats=instance_check_stats
                     )
                 else:
-                    instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+                    instance_status = check_status.InstanceStatus(
+                        i,
+                        check_status.STATUS_OK,
+                        instance_check_stats=instance_check_stats
+                    )
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(i,

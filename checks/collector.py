@@ -306,14 +306,16 @@ class Collector(object):
                 metric_count = len(current_check_metrics)
                 event_count = len(current_check_events)
 
-
             except Exception:
                 log.exception("Error running check %s" % check.name)
 
-            check_status = CheckStatus(check.name, instance_statuses, metric_count, event_count, service_check_count,
+            check_status = CheckStatus(
+                check.name, instance_statuses, metric_count,
+                event_count, service_check_count,
                 library_versions=check.get_library_info(),
                 source_type_name=check.SOURCE_TYPE_NAME or check.name,
-                check_stats=check_stats)
+                check_stats=check_stats
+            )
 
             # Service check for Agent checks failures
             service_check_tags = ["check:%s" % check.name]
