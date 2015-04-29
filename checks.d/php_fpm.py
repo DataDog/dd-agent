@@ -31,6 +31,7 @@ class PHPFPMCheck(AgentCheck):
     def check(self, instance):
         status_url = instance.get('status_url')
         ping_url = instance.get('ping_url')
+        ping_reply = instance.get('ping_reply')
 
         auth = None
         user = instance.get('user')
@@ -54,7 +55,7 @@ class PHPFPMCheck(AgentCheck):
                 pass
 
         if ping_url is not None:
-            self._process_ping(ping_url, auth, tags, pool)
+            self._process_ping(ping_url, ping_reply, auth, tags, pool)
 
         # pylint doesn't understand that we are raising this only if it's here
         if status_exception is not None:
@@ -93,7 +94,10 @@ class PHPFPMCheck(AgentCheck):
         # return pool, to tag the service check with it if we have one
         return pool_name
 
-    def _process_ping(self, ping_url, auth, tags, pool_name):
+    def _process_ping(self, ping_url, ping_reply, auth, tags, pool_name):
+        if ping_reply is None:
+            ping_reply = 'pong'
+
         sc_tags = ["ping_url:{0}".format(ping_url)]
 
         try:
@@ -103,7 +107,7 @@ class PHPFPMCheck(AgentCheck):
                                 headers=headers(self.agentConfig))
             resp.raise_for_status()
 
-            if 'pong' not in resp.text:
+            if ping_reply not in resp.text:
                 raise Exception("Received unexpected reply to ping {0}".format(resp.text))
 
         except Exception as e:
