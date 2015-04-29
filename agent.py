@@ -24,6 +24,7 @@ import time
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
+from checks.utils import pretty_statistics
 from config import (
     get_confd_path,
     get_config,
@@ -42,6 +43,7 @@ from util import (
     Watchdog,
 )
 from utils.flare import configcheck, Flare
+from utils.profile import wrap_profiling
 
 # Constants
 PID_NAME = "dd-agent"
@@ -120,7 +122,6 @@ class Agent(Daemon):
 
         # Setup profiling if necessary
         if self.in_developer_mode:
-            from utils.profile import wrap_profiling
             self.collector.run = wrap_profiling(self.collector.run)
 
         # Run the main loop.
@@ -280,7 +281,6 @@ def main():
             for check in checks['initialized_checks']:
                 if check.name == check_name:
                     if in_developer_mode:
-                        from utils.profile import wrap_profiling
                         check.run = wrap_profiling(check.run)
 
                     check.run()
@@ -288,6 +288,8 @@ def main():
                     print 'Metrics: ', check.get_metrics()
                     print 'Events: ', check.get_events()
                     print 'Service Checks: ', check.get_service_checks()
+                    if check.stats:
+                        print 'Stats: ', pretty_statistics(check.get_stats())
 
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
@@ -296,6 +298,9 @@ def main():
                         print 'Metrics: ', check.get_metrics()
                         print 'Events: ', check.get_events()
                         print 'Service Checks: ', check.get_service_checks()
+                        if check.stats:
+                            print 'Stats: ', pretty_statistics(check.get_stats())
+
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:

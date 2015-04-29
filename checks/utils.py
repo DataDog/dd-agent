@@ -31,7 +31,7 @@ class TailFile(object):
         self._crc = None
         self._log = logger
         self._callback = callback
-   
+
     def _open_file(self, move_end=False, pos=False):
 
         already_open = False
@@ -116,3 +116,24 @@ class TailFile(object):
             # log but survive
             self._log.exception(e)
             raise StopIteration(e)
+
+def pretty_statistics(stats):
+    #FIXME: This should really be clever enough to handle more varied statistics
+    # Right now memory_info is the only one that we will predictably have 'before' and 'after'
+    # details about
+
+    before = stats.get('before')
+    after = stats.get('after')
+
+    mem_before = before.get('memory_info')
+    mem_after = after.get('memory_info')
+
+    if mem_before and mem_after:
+        return """
+            Memory Before (RSS): {0}
+            Memory After (RSS): {1}
+            Memory Before (VMS): {2}
+            Memory After (VMS): {3}
+            """.format(mem_before['rss'], mem_after['rss'], mem_before['vms'], mem_after['vms'])
+    else:
+        return ""

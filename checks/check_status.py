@@ -20,6 +20,7 @@ import os.path
 import config
 from config import get_config, get_jmx_status_path, _windows_commondata_path
 from util import get_os, plural, Platform
+from checks.utils import pretty_statistics
 
 # 3rd party
 import ntplib
@@ -300,28 +301,6 @@ class CheckStatus(object):
                 return STATUS_ERROR
         return STATUS_OK
 
-    @property
-    def pretty_statistics(self):
-        #FIXME: This should really be clever enough to handle more varied statistics
-        # Right now memory_info is the only one that we will predictably have 'before' and 'after'
-        # details about
-
-        before = self.check_stats.get('before')
-        after = self.check_stats.get('after')
-
-        mem_before = before.get('memory_info')
-        mem_after = after.get('memory_info')
-
-        if mem_before and mem_after:
-            return """
-                Memory Before (RSS): {0}
-                Memory After (RSS): {1}
-                Memory Before (VMS): {2}
-                Memory After (VMS): {3}
-                """.format(mem_before['rss'], mem_after['rss'], mem_before['vms'], mem_after['vms'])
-        else:
-            return ""
-
     def has_error(self):
         return self.status == STATUS_ERROR
 
@@ -490,7 +469,7 @@ class CollectorStatus(AgentStatus):
 
                     if cs.check_stats is not None:
                         check_lines += [
-                            "    - Stats: %s" % cs.pretty_statistics
+                            "    - Stats: %s" % pretty_statistics(cs.check_stats)
                         ]
 
                     if cs.library_versions is not None:

@@ -581,8 +581,6 @@ class AgentCheck(object):
         return stats
 
     def set_stats(self, before, after):
-        log.info("BEFORE {0}: {1}".format(self,before))
-        log.info("AFTER {0}: {1}".format(self,after))
         self.stats = {'before': before, 'after': after}
 
     def get_stats(self):
