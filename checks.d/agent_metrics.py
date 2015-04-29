@@ -54,7 +54,8 @@ class AgentMetrics(AgentCheck):
             return {}
 
         methods, metric_types = zip(
-            *[(p['name'], p['type']) for p in process_metrics if _is_affirmative(p['active'])]
+            *[(p['name'], p.get('type', 'gauge'))\
+                for p in process_metrics if _is_affirmative(p.get('active'))]
         )
 
         names_to_metric_types = {}
