@@ -1,16 +1,23 @@
-import unittest
-import subprocess
+# stdlib
 import os
-import sys
 from random import random, randrange
-import urllib as url
+import subprocess
+import sys
 import time
+import psutil
+# 3p
+from nose.plugins.attrib import attr
+import unittest
+import urllib as url
+
+# project
+# needed because of the subprocess calls
 sys.path.append(os.getcwd())
 from ddagent import Application
-
 from util import Watchdog
 
 
+@attr(requires='core_integration')
 class TestWatchdog(unittest.TestCase):
     """Test watchdog in various conditions
     """
@@ -63,14 +70,6 @@ class TestWatchdog(unittest.TestCase):
         duration = int(time.time() - start)
         self.assertTrue(duration < self.JITTER_FACTOR * 4)
 
-        # Too much memory used, killed by Watchdog
-        start = time.time()
-        p = subprocess.Popen(["python", __file__, "memory"])
-        p.wait()
-        duration = int(time.time() - start)
-        # process should be killed well before the restart interval of 30.
-        assert duration < 20
-
 
 class MockTxManager(object):
     def flush(self):
@@ -80,10 +79,14 @@ class MockTxManager(object):
 
 
 class MemoryHogTxManager(object):
+    def __init__(self, watchdog):
+        self._watchdog = watchdog
+
     def flush(self):
         rand_data = []
         while True:
             rand_data.append('%030x' % randrange(256**15))
+            self._watchdog.reset()
 
 
 class PseudoAgent(object):
@@ -121,14 +124,6 @@ class PseudoAgent(object):
         a._tr_manager = MockTxManager()
         a.run()
 
-    def use_lots_of_memory(self):
-        # Skip this step on travis
-        if os.environ.get('TRAVIS', False):
-            return
-        a = Application(12345, {"bind_host": "localhost"})
-        a._watchdog = Watchdog(30, 50)
-        a._tr_manager = MemoryHogTxManager()
-        a.run()
 
 if __name__ == "__main__":
     if sys.argv[1] == "busy":

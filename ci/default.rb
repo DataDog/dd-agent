@@ -44,7 +44,7 @@ namespace :ci do
     end
 
     task script: ['ci:common:script', :coverage, :lint] do
-      Rake::Task['ci:common:run_tests'].invoke('default')
+      Rake::Task['ci:common:run_tests'].invoke(['default'])
     end
 
     task before_cache: ['ci:common:before_cache']

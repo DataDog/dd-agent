@@ -1,11 +1,16 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
+# stdlib
 import random
 import time
 
+# 3p
 import unittest
+from nose.plugins.attrib import attr
 import nose.tools as nt
 
+# project
 from aggregator import MetricsAggregator, get_formatter, DEFAULT_HISTOGRAM_AGGREGATES
+
 
 class TestUnitDogStatsd(unittest.TestCase):
 
@@ -33,21 +38,21 @@ class TestUnitDogStatsd(unittest.TestCase):
         assert abs(i - j) <= e, "%s %s %s" % (i, j, e)
 
     def test_formatter(self):
-        stats = MetricsAggregator('myhost', interval=10, 
+        stats = MetricsAggregator('myhost', interval=10,
             formatter = get_formatter({"statsd_metric_namespace": "datadog"}))
         stats.submit_packets('gauge:16|c|#tag3,tag4')
         metrics = self.sort_metrics(stats.flush())
         self.assertTrue(len(metrics) == 1)
         self.assertTrue(metrics[0]['metric'] == "datadog.gauge")
 
-        stats = MetricsAggregator('myhost', interval=10, 
+        stats = MetricsAggregator('myhost', interval=10,
             formatter = get_formatter({"statsd_metric_namespace": "datadoge."}))
         stats.submit_packets('gauge:16|c|#tag3,tag4')
         metrics = self.sort_metrics(stats.flush())
         self.assertTrue(len(metrics) == 1)
         self.assertTrue(metrics[0]['metric'] == "datadoge.gauge")
 
-        stats = MetricsAggregator('myhost', interval=10, 
+        stats = MetricsAggregator('myhost', interval=10,
         formatter = get_formatter({"statsd_metric_namespace": None}))
         stats.submit_packets('gauge:16|c|#tag3,tag4')
         metrics = self.sort_metrics(stats.flush())
@@ -199,7 +204,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(third['metric'], 'my.third.counter')
         nt.assert_equals(third['points'][0][1], 0)
 
-
     def test_sampled_counter(self):
 
         # Submit a sampled counter.
@@ -284,6 +288,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Assert there are no more sets
         assert not stats.flush()
 
+    @attr(requires='core_integration')
     def test_rate(self):
         stats = MetricsAggregator('myhost')
         stats.submit_packets('my.rate:10|_dd-r')
@@ -301,6 +306,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         # Assert that no more rates are given
         assert not stats.flush()
 
+    @attr(requires='core_integration')
     def test_rate_errors(self):
         stats = MetricsAggregator('myhost')
         stats.submit_packets('my.rate:10|_dd-r')
@@ -318,7 +324,6 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         metrics = stats.flush()
         nt.assert_equal(len(metrics), 0)
-
 
     def test_gauge_sample_rate(self):
         stats = MetricsAggregator('myhost')
@@ -447,7 +452,6 @@ class TestUnitDogStatsd(unittest.TestCase):
             nt.assert_equal(metrics[i]['points'][0][1], metrics_ref[i]['points'][0][1])
             nt.assert_equal(metrics[i]['tags'], metrics_ref[i]['tags'])
 
-
     def test_monokey_batching_withtags_with_sampling(self):
         # The min is not enabled by default
         stats = MetricsAggregator('host',
@@ -500,6 +504,7 @@ class TestUnitDogStatsd(unittest.TestCase):
             else:
                 assert False, 'invalid : %s' % packet
 
+    @attr(requires='core_integration')
     def test_metrics_expiry(self):
         # Ensure metrics eventually expire and stop submitting.
         ag_interval = 1
@@ -552,7 +557,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(metrics[0]['metric'], 'test.counter')
         nt.assert_equal(metrics[0]['points'][0][1], 123)
 
-
     def test_diagnostic_stats(self):
         stats = MetricsAggregator('myhost')
         for i in xrange(10):
@@ -565,6 +569,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equal(first['metric'], 'datadog.dogstatsd.packet.count')
         nt.assert_equal(first['points'][0][1], 10)
 
+    @attr(requires='core_integration')
     def test_histogram_counter(self):
         # Test whether histogram.count == increment
         # same deal with a sample rate
@@ -820,7 +825,6 @@ class TestUnitDogStatsd(unittest.TestCase):
         nt.assert_equals(third['metric'], 'line_ending.windows')
         nt.assert_equals(third['points'][0][1], 300)
 
-
     def test_no_proxy(self):
         """ Starting with Agent 5.0.0, there should always be a local forwarder
         running and all payloads should go through it. So we should make sure
@@ -830,7 +834,7 @@ class TestUnitDogStatsd(unittest.TestCase):
         from requests.utils import get_environ_proxies
         import dogstatsd
         from os import environ as env
-        
+
         env["http_proxy"] = "http://localhost:3128"
         env["https_proxy"] = env["http_proxy"]
         env["HTTP_PROXY"] = env["http_proxy"]
@@ -856,7 +860,3 @@ class TestUnitDogStatsd(unittest.TestCase):
         del env["https_proxy"]
         del env["HTTP_PROXY"]
         del env["HTTPS_PROXY"]
-
-
-if __name__ == "__main__":
-    unittest.main()

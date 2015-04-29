@@ -120,9 +120,10 @@ class TestCore(unittest.TestCase):
 
     def test_metadata(self):
         c = Collector({"collect_instance_metadata": True}, None, {}, "foo")
-        assert "hostname" in c._get_metadata()
-        assert "socket-fqdn" in c._get_metadata()
-        assert "socket-hostname" in c._get_metadata()
+        metadata = c._get_metadata()
+        assert "hostname" in metadata
+        assert "socket-fqdn" in metadata
+        assert "socket-hostname" in metadata
 
     def test_service_check(self):
         check_name = 'test.service_check'
@@ -220,7 +221,7 @@ class TestCore(unittest.TestCase):
         del env["HTTP_PROXY"]
         del env["HTTPS_PROXY"]
 
-
+    @attr(requires='core_integration')
     def test_min_collection_interval(self):
         if os.environ.get('TRAVIS', False):
             raise SkipTest('ntp server times out too often on Travis')
@@ -231,8 +232,9 @@ class TestCore(unittest.TestCase):
             'api_key': 'toto'
         }
 
-        # default min collection interval for that check is 20sec
+        # default min collection interval for that check was 20sec
         check = load_check('ntp', config, agentConfig)
+        check.DEFAULT_MIN_COLLECTION_INTERVAL = 20
 
         check.run()
         metrics = check.get_metrics()
@@ -288,8 +290,6 @@ class TestCore(unittest.TestCase):
         self.assertTrue(len(metrics) > 0, metrics)
 
 
-
-
 class TestAggregator(unittest.TestCase):
     def setUp(self):
         self.aggr = MetricsAggregator('test-aggr')
@@ -300,6 +300,3 @@ class TestAggregator(unittest.TestCase):
         self.assertEquals(len(self.aggr.metrics), 1, self.aggr.metrics)
         metric = self.aggr.metrics.values()[0]
         self.assertEquals(metric.value, 2)
-
-if __name__ == '__main__':
-    unittest.main()

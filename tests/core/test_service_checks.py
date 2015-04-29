@@ -1,12 +1,19 @@
+# stdlib
 from Queue import Empty
 import unittest
 import time
-from tests.checks.common import load_check
+
+# 3p
+from nose.plugins.attrib import attr
 import nose.tools as nt
+
+# project
 from config import AGENT_VERSION
+from tests.checks.common import load_check
 from util import headers as agent_headers
 
 
+@attr(requires='core_integration')
 class ServiceCheckTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -232,6 +239,3 @@ class ServiceCheckTestCase(unittest.TestCase):
     def tearDown(self):
         for check in self.checks:
             check.stop()
-
-if __name__ == "__main__":
-    unittest.main()

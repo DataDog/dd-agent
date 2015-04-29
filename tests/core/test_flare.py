@@ -1,6 +1,10 @@
-import unittest
+# stdlib
 import os.path
 import mock
+from nose.plugins.attrib import attr
+import unittest
+
+# project
 from utils.flare import Flare
 
 
@@ -103,6 +107,7 @@ class FlareTest(unittest.TestCase):
         self.assertEqual(kwargs['data']['email'], 'test@example.com')
         assert kwargs['data']['hostname']
 
+    @attr(requires='core_integration')
     @mock.patch('utils.flare.strftime', side_effect=mocked_strftime)
     @mock.patch('tempfile.gettempdir', side_effect=get_mocked_temp)
     @mock.patch('utils.flare.get_config', side_effect=get_mocked_config)

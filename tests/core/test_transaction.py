@@ -1,22 +1,20 @@
 # stdlib
 import unittest
 from datetime import timedelta, datetime
-import time
 
 # 3rd party
+from nose.plugins.attrib import attr
 from tornado.web import Application
-import tornado.httpclient
 import requests
 import simplejson as json
 
 # project
 from transaction import Transaction, TransactionManager
 from ddagent import (
-    MAX_WAIT_FOR_REPLAY, MAX_QUEUE_SIZE, THROTTLING_DELAY,
+    MAX_QUEUE_SIZE, THROTTLING_DELAY,
     APIMetricTransaction, APIServiceCheckTransaction, MetricTransaction
     )
 from config import get_version
-from util import get_tornado_ioloop
 
 
 class memTransaction(Transaction):
@@ -38,6 +36,7 @@ class memTransaction(Transaction):
         self._trManager.flush_next()
 
 
+@attr(requires='core_integration')
 class TestTransaction(unittest.TestCase):
 
     def setUp(self):
@@ -86,7 +85,6 @@ class TestTransaction(unittest.TestCase):
         trManager.flush()
         self.assertEqual(len(trManager._transactions), 0)
 
-
     def testThrottling(self):
         """Test throttling while flushing"""
 
@@ -106,7 +104,6 @@ class TestTransaction(unittest.TestCase):
         after = datetime.now()
         self.assertTrue( (after-before) > 3 * THROTTLING_DELAY - timedelta(microseconds=100000),
             "before = %s after = %s" % (before, after))
-
 
     def testCustomEndpoint(self):
         MetricTransaction._endpoints = []
@@ -195,7 +192,3 @@ class TestTransaction(unittest.TestCase):
             r = requests.post(url, data=json.dumps({'check': 'test', 'status': 0}),
                               headers={'Content-Type': "application/json"})
             r.raise_for_status()
-
-
-if __name__ == '__main__':
-    unittest.main()

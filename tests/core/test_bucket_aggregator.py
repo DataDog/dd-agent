@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
+# stdlib
 import random
 import time
-
 import unittest
+from nose.plugins.attrib import attr
 import nose.tools as nt
 
+# project
 from aggregator import DEFAULT_HISTOGRAM_AGGREGATES
 from dogstatsd import MetricsBucketAggregator
 
 
+@attr(requires='core_integration')
 class TestUnitMetricsBucketAggregator(unittest.TestCase):
     def setUp(self):
         self.interval = 1
@@ -81,7 +84,6 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
 
-
     def test_tags(self):
         stats = MetricsBucketAggregator('myhost', interval=self.interval)
         stats.submit_packets('gauge:1|c')
@@ -112,7 +114,6 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         nt.assert_equal(third['host'], 'myhost')
 
     def test_tags_gh442(self):
-        import util
         import dogstatsd
         from aggregator import api_formatter
 

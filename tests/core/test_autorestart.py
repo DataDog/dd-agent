@@ -1,11 +1,13 @@
+from nose.plugins.attrib import attr
+import os
+import shlex
+import signal
+import subprocess
 import time
 import unittest
-import subprocess
-import shlex
-import os
-import signal
 
 
+@attr(requires='core_integration')
 class TestAutoRestart(unittest.TestCase):
     """ Test the auto-restart and forking of the agent """
     def setUp(self):

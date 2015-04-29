@@ -2,10 +2,9 @@
 import unittest
 import logging
 import gc
-import sys
 
 # 3p
-#from nose.plugins.attrib import attr
+from nose.plugins.attrib import attr
 
 # project
 import checks.system.win32 as w32
@@ -14,15 +13,12 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__file__)
 
 
-AGENT_CONFIG = {} # None of the windows checks use this.
+AGENT_CONFIG = {}  # None of the windows checks use this.
 
+
+@attr(requires='windows')
 class TestWin32(unittest.TestCase):
     def _checkMemoryLeak(self, func):
-        # FIXME: This should use @attr('windows')instead of checking for the
-        # platform, but just importing nose.plugins.attrib causes all the tests
-        # to fail with uncollected garbage.
-        if sys.platform != 'win32':
-            return
         gc.set_debug(gc.DEBUG_LEAK)
         try:
             start = len(gc.garbage)
