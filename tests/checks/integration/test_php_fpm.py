@@ -55,6 +55,23 @@ class PHPFPMCheckTest(AgentCheckTest):
 
         self.coverage_report()
 
+    def test_bad_ping_reply(self):
+        instance = {
+            'ping_url': 'http://localhost:42424/ping',
+            'ping_reply': 'blah',
+            'tags': ['expectedbroken']
+        }
+
+        self.run_check({'instances': [instance]})
+        self.assertServiceCheck(
+            'php_fpm.can_ping',
+            status=AgentCheck.CRITICAL,
+            tags=['ping_url:http://localhost:42424/ping'],
+            count=1
+        )
+
+        self.coverage_report()
+
     def test_status(self):
         instance = {
             'status_url': 'http://localhost:42424/status',
