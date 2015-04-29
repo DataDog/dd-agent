@@ -33,6 +33,9 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+# Default methods run when collecting info about the agent in developer mode
+DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+
 # Konstants
 class CheckException(Exception): pass
 class Infinity(CheckException): pass
@@ -555,7 +558,8 @@ class AgentCheck(object):
     @staticmethod
     def _collect_stats(methods=None, log=None):
         current_process = psutil.Process(os.getpid())
-        methods = methods or ['get_memory_info']
+
+        methods = methods or DEFAULT_PSUTIL_METHODS
         filtered_methods = [m for m in methods if hasattr(current_process, m)]
 
         stats = {}
