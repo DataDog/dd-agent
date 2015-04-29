@@ -61,6 +61,9 @@ LEGACY_DATADOG_URLS = [
     "app.datad0g.com",
 ]
 
+#Checks whose log output to suppress, unless explicitly asked for
+HIDDEN_CHECKS = ['agent_metrics']
+
 class PathNotFound(Exception):
     pass
 
@@ -920,7 +923,7 @@ def load_check_directory(agentConfig, hostname):
         log.debug('Loaded check.d/%s.py' % check_name)
 
     init_failed_checks.update(deprecated_checks)
-    log.info('initialized checks.d checks: %s' % initialized_checks.keys())
+    log.info('initialized checks.d checks: %s' % [k for k in initialized_checks.keys() if k not in HIDDEN_CHECKS])
     log.info('initialization failed checks.d checks: %s' % init_failed_checks.keys())
     return {'initialized_checks':initialized_checks.values(),
             'init_failed_checks':init_failed_checks,
