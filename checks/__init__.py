@@ -304,7 +304,7 @@ class AgentCheck(object):
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
         self.in_developer_mode = agentConfig.get('developer_mode') and PSUTIL_PRESENT
-        self.stats = {}
+        self.stats = None
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
@@ -592,7 +592,7 @@ class AgentCheck(object):
         If in developer mode, return a dictionary of statistics about the check run
         """
         stats = self.stats
-        self.stats = {}
+        self.stats = None
         return stats
 
     def run(self):
