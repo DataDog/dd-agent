@@ -158,15 +158,17 @@ namespace :ci do
     task :run_tests, :flavor do |t, attr|
       flavor = attr[:flavor]
       filter = ENV['NOSE_FILTER'] || '1'
-      if flavor == 'default'
+      if %w(default checks_mock).include? flavor
         nose = "(not requires) and #{filter}"
       else
         nose = "(requires in #{flavor}) and #{filter}"
       end
+      tests_directory = flavor == 'default' ? 'tests/core' : 'tests/checks'
       # FIXME: make the other filters than param configurable
       # For integrations that cannot be easily installed in a
       # separate dir we symlink stuff in the rootdir
-      sh %(PATH=$INTEGRATIONS_DIR/bin:$PATH nosetests -v -A '#{nose}' tests)
+      sh %(PATH=$INTEGRATIONS_DIR/bin:$PATH nosetests -v -A '#{nose}'\
+           #{tests_directory})
       t.reenable
     end
     task execute: [:before_install, :install, :before_script, :script]
