@@ -20,6 +20,16 @@ MAX_EMIT_TIME = 5
 MAX_CPU_PCT = 10
 
 
+class UnsupportedMetricType(Exception):
+    """
+    Raised by :class:`AgentMetrics` when a metric type outside outside of AgentMetrics.ALLOWED_METRIC_TYPES
+    is requested for measurement of a particular statistic
+    """
+    def __init__(self, metric_name, metric_type):
+        message = 'Unsupported Metric Type for {0} : {1}'.format(metric_name, metric_type)
+        Exception.__init__(self, message)
+    pass
+
 class AgentMetrics(AgentCheck):
     """
     New-style version of `CollectorMetrics`
@@ -43,12 +53,26 @@ class AgentMetrics(AgentCheck):
             self.log.error('No metrics configured for AgentMetrics check!')
             return {}
 
-        methods = [k for k,v in process_metrics.items() if _is_affirmative(v)]
-        stats = AgentCheck._collect_stats(methods)
+        methods, metric_types = zip(
+            *[(p['name'], p['type']) for p in process_metrics if _is_affirmative(p['active'])]
+        )
 
-        return stats
+        names_to_metric_types = {}
+        for i, m in enumerate(methods):
+            names_to_metric_types[AgentCheck._get_statistic_name_from_method(m)] = metric_types[i]
 
-    def _register_psutil_metrics(self, stats):
+        stats = AgentCheck._collect_stats(methods, log=self.log)
+        return stats, names_to_metric_types
+
+    def _send_single_metric(self, metric_name, metric_value, metric_type):
+        if metric_type == 'gauge':
+            self.gauge(metric_name, metric_value)
+        elif metric_type == 'rate':
+            self.rate(metric_name, metric_value)
+        else:
+            raise UnsupportedMetricType(metric_name, metric_type)
+
+    def _register_psutil_metrics(self, stats, names_to_metric_types):
         """
         Saves sample metrics from psutil
 
@@ -64,19 +88,20 @@ class AgentMetrics(AgentCheck):
 
          This creates a metric like `datadog.agent.collector.{key_1}.{key_2}` where key_1 is a top-level
          key in `stats`, and key_2 is a nested key.
-         E.g. datadog.agent.memory_info.rss
+         E.g. datadog.agent.collector.memory_info.rss
         """
 
         base_metric = 'datadog.agent.collector.{0}.{1}'
         #TODO: May have to call self.normalize(metric_name) to get a compliant name
         for k, v in stats.items():
+            metric_type = names_to_metric_types[k]
             if isinstance(v, dict):
                 for _k, _v in v.items():
                     full_metric_name = base_metric.format(k, _k)
-                    self.gauge(full_metric_name, _v)
+                    self._send_single_metric(full_metric_name, _v, metric_type)
             else:
-                #TODO: How to decide between `gauge` or `rate` here?
-                self.gauge('datadog.agent.collector.{0}'.format(k), v)
+                full_metric_name = 'datadog.agent.collector.{0}'.format(k)
+                self._send_single_metric(full_metric_name, v, metric_type)
 
     def set_metric_context(self, payload, context):
         self._collector_payload = payload
@@ -88,8 +113,8 @@ class AgentMetrics(AgentCheck):
     def check(self, instance):
         in_developer_mode = self.agentConfig.get('developer_mode', False)
         if in_developer_mode and PSUTIL_PRESENT:
-            stats = self._psutil_config_to_stats(instance)
-            self._register_psutil_metrics(stats)
+            stats, names_to_metric_types = self._psutil_config_to_stats(instance)
+            self._register_psutil_metrics(stats, names_to_metric_types)
 
         payload, context = self.get_metric_context()
         collection_time = context.get('collection_time', None)

@@ -549,7 +549,11 @@ class AgentCheck(object):
         return warnings
 
     @staticmethod
-    def _collect_stats(methods=None):
+    def _get_statistic_name_from_method(method_name):
+        return method_name[4:] if method_name.startswith('get_') else method_name
+
+    @staticmethod
+    def _collect_stats(methods=None, log=None):
         current_process = psutil.Process(os.getpid())
         methods = methods or ['get_memory_info']
         filtered_methods = [m for m in methods if hasattr(current_process, m)]
@@ -558,19 +562,21 @@ class AgentCheck(object):
 
         for method in filtered_methods:
             # Go from `get_memory_info` -> `memory_info`
-            method_key = method[4:] if method.startswith('get_') else method
+            stat_name = AgentCheck._get_statistic_name_from_method(method)
             try:
                 raw_stats = getattr(current_process, method)()
                 try:
-                    stats[method_key] = raw_stats._asdict()
+                    stats[stat_name] = raw_stats._asdict()
                 except AttributeError:
                     if isinstance(raw_stats, int):
-                        stats[method_key] = raw_stats
+                        stats[stat_name] = raw_stats
                     else:
-                        self.log.warn("Could not serialize output of {0} to dict".format(method))
+                        if log is not None:
+                            log.warn("Could not serialize output of {0} to dict".format(method))
 
             except psutil.AccessDenied:
-                self.log.warn("Cannot call psutil method {} : Access Denied".format(method))
+                if log is not None:
+                    log.warn("Cannot call psutil method {} : Access Denied".format(method))
 
         return stats
 
@@ -594,7 +600,7 @@ class AgentCheck(object):
         before, after = None, None
         if self.in_developer_mode and self.name != 'agent_metrics':
             try:
-                before = AgentCheck._collect_stats()
+                before = AgentCheck._collect_stats(log=self.log)
             except Exception: # It's fine if we can't collect stats for the run
                 pass
 
