@@ -1,6 +1,16 @@
 Changes
 =======
 
+# 5.3.2 / 04-29-2015
+**Debian only**
+
+### Details
+https://github.com/DataDog/dd-agent/compare/5.3.1...5.3.2
+
+### Changes
+* [BUGFIX/FEATURE] Native support of systemd with a new service file
+
+
 # 5.3.1 / 04-22-2015
 **Windows only**
 
