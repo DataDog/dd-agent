@@ -137,14 +137,19 @@ namespace :ci do
     end
 
     task :before_cache do |t|
-      section('BEFORE_CACHE')
-      sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log*' -delete)
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+        section('BEFORE_CACHE')
+        sh %(find $INTEGRATIONS_DIR/ -type f -name '*.log*' -delete)
+      end
       t.reenable
     end
 
-    task :cache do |_t|
-      section('CACHE')
-      cache.push
+    task :cache do |t|
+      if ENV['TRAVIS'] && ENV['AWS_SECRET_ACCESS_KEY']
+        section('CACHE')
+        cache.push
+      end
+      t.reenable
     end
 
     task :cleanup do |t|
@@ -166,7 +171,6 @@ namespace :ci do
       sh %(PATH=$INTEGRATIONS_DIR/bin:$PATH nosetests -v -A '#{nose}' tests)
       t.reenable
     end
-
     task execute: [:before_install, :install, :before_script, :script]
   end
 end
