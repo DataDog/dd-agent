@@ -3,8 +3,6 @@ import logging
 
 log = logging.getLogger('collector')
 PSTATS_LIMIT = 20
-DUMP_TO_FILE = True
-STATS_DUMP_FILE = './collector-stats.dmp'
 
 def wrap_profiling(func):
     """
@@ -32,11 +30,8 @@ def wrap_profiling(func):
             from cStringIO import StringIO
             s = StringIO()
             ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-            ps.dump_stats("some-file.txt")
             ps.print_stats(PSTATS_LIMIT)
-            log.info(s.getvalue())
-            if DUMP_TO_FILE:
-                ps.dump_stats(STATS_DUMP_FILE)
+            log.debug(s.getvalue())
         except Exception:
             log.warn("Cannot disable profiler")
 

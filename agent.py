@@ -52,6 +52,11 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
+PSTATS_LIMIT = 20
+DUMP_TO_FILE = True
+STATS_DUMP_FILE = './collector-stats.dmp'
+COLLECTOR_PROFILE_INTERVAL = 1
+
 # Globals
 log = logging.getLogger('collector')
 
@@ -120,14 +125,40 @@ class Agent(Daemon):
         self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
-        # Setup profiling if necessary
-        if self.in_developer_mode:
-            self.collector.run = wrap_profiling(self.collector.run)
+        profiled = False
+        collector_profiled_runs = 0
 
         # Run the main loop.
         while self.run_forever:
+            # Setup profiling if necessary
+            if self.in_developer_mode and not profiled:
+                try:
+                    import cProfile
+                    profiler = cProfile.Profile()
+                    profiled = True
+                    profiler.enable()
+                    log.debug("Agent profiling is enabled")
+                except Exception:
+                    log.warn("Cannot enable profiler")
+
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
+            if profiled:
+                if collector_profiled_runs >= COLLECTOR_PROFILE_INTERVAL:
+                    try:
+                        profiler.disable()
+                        import pstats
+                        from cStringIO import StringIO
+                        s = StringIO()
+                        ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
+                        ps.print_stats(PSTATS_LIMIT)
+                        log.debug(s.getvalue())
+                        if DUMP_TO_FILE:
+                            ps.dump_stats(STATS_DUMP_FILE)
+                        profiled = False
+                        collector_profiled_runs = 0
+                    except Exception:
+                        log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -138,8 +169,9 @@ class Agent(Daemon):
             if self.run_forever:
                 if watchdog:
                     watchdog.reset()
+                if profiled:
+                    collector_profiled_runs += 1
                 time.sleep(check_frequency)
-
         # Now clean-up.
         try:
             CollectorStatus.remove_latest_status()
