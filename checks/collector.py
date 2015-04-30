@@ -441,6 +441,49 @@ class Collector(object):
 
         return payload
 
+    @staticmethod
+    def run_single_check(check, verbose=True):
+        log.info("Running check %s" % check.name)
+        instance_statuses = []
+        metric_count = 0
+        event_count = 0
+        service_check_count = 0
+        check_start_time = time.time()
+        check_stats = None
+
+        try:
+            # Run the check.
+            instance_statuses = check.run()
+
+            # Collect the metrics and events.
+            current_check_metrics = check.get_metrics()
+            current_check_events = check.get_events()
+            current_service_checks = check.get_service_checks()
+
+            check_stats = check.get_stats()
+
+            print "Metrics: ", current_check_metrics
+            print "Events: ", current_check_events
+            print "Service Checks: ", current_service_checks
+
+            # Save the status of the check.
+            metric_count = len(current_check_metrics)
+            event_count = len(current_check_events)
+            service_check_count = len(current_service_checks)
+
+        except Exception:
+            log.exception("Error running check %s" % check.name)
+
+        check_status = CheckStatus(
+            check.name, instance_statuses, metric_count,
+            event_count, service_check_count,
+            library_versions=check.get_library_info(),
+            source_type_name=check.SOURCE_TYPE_NAME or check.name,
+            check_stats=check_stats
+        )
+
+        return check_status
+
     def _emit(self, payload):
         """ Send the payload via the emitters. """
         statuses = []

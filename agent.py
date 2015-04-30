@@ -283,23 +283,14 @@ def main():
                     if in_developer_mode:
                         check.run = wrap_profiling(check.run)
 
-                    check.run()
-
-                    print 'Metrics: ', check.get_metrics()
-                    print 'Events: ', check.get_events()
-                    print 'Service Checks: ', check.get_service_checks()
-                    if check.stats:
-                        print 'Stats: ', pretty_statistics(check.get_stats())
+                    cs = Collector.run_single_check(check, verbose=True)
+                    print CollectorStatus.render_check_status(cs)
 
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
-                        check.run()
-                        print 'Metrics: ', check.get_metrics()
-                        print 'Events: ', check.get_events()
-                        print 'Service Checks: ', check.get_service_checks()
-                        if check.stats:
-                            print 'Stats: ', pretty_statistics(check.get_stats())
+                        cs = Collector.run_single_check(check, verbose=True)
+                        print CollectorStatus.render_check_status(cs)
 
                     check.stop()
 

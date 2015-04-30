@@ -344,6 +344,79 @@ class CollectorStatus(AgentStatus):
     def has_error(self):
         return self.status != STATUS_OK
 
+    @staticmethod
+    def check_status_lines(cs):
+        check_lines = [
+            '  ' + cs.name,
+            '  ' + '-' * len(cs.name)
+        ]
+        if cs.init_failed_error:
+            check_lines.append("    - initialize check class [%s]: %s" %
+                               (style(STATUS_ERROR, 'red'),
+                               repr(cs.init_failed_error)))
+            if cs.init_failed_traceback:
+                check_lines.extend('      ' + line for line in
+                                   cs.init_failed_traceback.split('\n'))
+        else:
+            for s in cs.instance_statuses:
+                c = 'green'
+                if s.has_warnings():
+                    c = 'yellow'
+                if s.has_error():
+                    c = 'red'
+                line =  "    - instance #%s [%s]" % (
+                         s.instance_id, style(s.status, c))
+                if s.has_error():
+                    line += u": %s" % s.error
+                if s.metric_count is not None:
+                    line += " collected %s metrics" % s.metric_count
+                if s.instance_check_stats is not None:
+                    line += " Last run duration: %s" % s.instance_check_stats.get('run_time')
+
+                check_lines.append(line)
+
+                if s.has_warnings():
+                    for warning in s.warnings:
+                        warn = warning.split('\n')
+                        if not len(warn): continue
+                        check_lines.append(u"        %s: %s" %
+                            (style("Warning", 'yellow'), warn[0]))
+                        check_lines.extend(u"        %s" % l for l in
+                                    warn[1:])
+                if s.traceback is not None:
+                    check_lines.extend('      ' + line for line in
+                                   s.traceback.split('\n'))
+
+            check_lines += [
+                "    - Collected %s metric%s, %s event%s & %s service check%s" % (
+                    cs.metric_count, plural(cs.metric_count),
+                    cs.event_count, plural(cs.event_count),
+                    cs.service_check_count, plural(cs.service_check_count)),
+            ]
+
+            if cs.check_stats is not None:
+                check_lines += [
+                    "    - Stats: %s" % pretty_statistics(cs.check_stats)
+                ]
+
+            if cs.library_versions is not None:
+                check_lines += [
+                    "    - Dependencies:"]
+                for library, version in cs.library_versions.iteritems():
+                    check_lines += [
+                    "        - %s: %s" % (library, version)]
+
+            check_lines += [""]
+            return check_lines
+
+    @staticmethod
+    def render_check_status(cs):
+        indent = "  "
+        lines = [
+            indent + l for l in CollectorStatus.check_status_lines(cs)
+        ] + ["", ""]
+        return "\n".join(lines)
+
     def body_lines(self):
         # Metadata whitelist
         metadata_whitelist = [
