@@ -1,6 +1,6 @@
 require './ci/common'
 
-# FIXME test against different versions of tomcat
+# FIXME: test against different versions of tomcat
 # and JDKs
 
 def tomcat_rootdir
@@ -9,9 +9,9 @@ end
 
 namespace :ci do
   namespace :tomcat do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       # Downloads
       # http://mirror.sdunix.com/apache/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz
       unless Dir.exist? File.expand_path(tomcat_rootdir)
@@ -24,7 +24,7 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/setenv.sh #{tomcat_rootdir}/bin/)
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/tomcat/server.xml #{tomcat_rootdir}/conf/server.xml)
       sh %(mkdir -p $VOLATILE_DIR/jmx_yaml)
@@ -34,22 +34,22 @@ namespace :ci do
       Wait.for 'http://localhost:8080'
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'tomcat'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache'] do
+    task before_cache: ['ci:common:before_cache'] do
       # Regenerated at every run
       sh %(rm -f #{tomcat_rootdir}/bin/setenv.sh)
       sh %(rm -f #{tomcat_rootdir}/conf/server.xml)
     end
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task cleanup: ['ci:common:cleanup'] do
       sh %(#{tomcat_rootdir}/bin/shutdown.sh)
     end
 

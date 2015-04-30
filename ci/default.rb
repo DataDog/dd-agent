@@ -2,7 +2,7 @@ require './ci/common'
 
 namespace :ci do
   namespace :default do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
     task :coverage do
       ci_dir = File.dirname(__FILE__)
@@ -35,23 +35,23 @@ namespace :ci do
       end
     end
 
-    task :install => ['ci:common:install']
+    task install: ['ci:common:install']
 
-    task :before_script => ['ci:common:before_script']
+    task before_script: ['ci:common:before_script']
 
     task :lint do
       sh %(find . -name '*.py' -not \\( -path '*.cache*' -or -path '*embedded*' -or -path '*venv*' \\) | xargs -n 1 pylint --rcfile=./.pylintrc)
     end
 
-    task :script => ['ci:common:script', :coverage, :lint] do
+    task script: ['ci:common:script', :coverage, :lint] do
       Rake::Task['ci:common:run_tests'].invoke('default')
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup']
+    task cleanup: ['ci:common:cleanup']
 
     task :execute do
       exception = nil

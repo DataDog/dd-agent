@@ -10,9 +10,9 @@ end
 
 namespace :ci do
   namespace :gearman do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       unless Dir.exist? File.expand_path(gearman_rootdir)
         # Downloads
         # https://launchpad.net/gearmand/#{gearman_version[0..2]}/#{gearman_version}/+download/gearmand-#{gearman_version}.tar.gz
@@ -30,24 +30,24 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(#{gearman_rootdir}/sbin/gearmand -d -l $VOLATILE_DIR/gearmand.log)
       # FIXME: wait for gearman start
       # Wait.for ??
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'gearman'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup']
+    task cleanup: ['ci:common:cleanup']
     # FIXME: stop gearman
 
     task :execute do

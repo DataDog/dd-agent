@@ -10,9 +10,9 @@ end
 
 namespace :ci do
   namespace :riak do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       unless Dir.exist? File.expand_path(riak_rootdir)
         sh %(curl -o $VOLATILE_DIR/kerl https://raw.githubusercontent.com/spawngrid/kerl/master/kerl)
         sh %(chmod a+x $VOLATILE_DIR/kerl)
@@ -28,7 +28,7 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       %w(dev1 dev2).each do |dev|
         sh %(#{riak_rootdir}/#{dev}/bin/riak start)
       end
@@ -44,20 +44,20 @@ namespace :ci do
       end
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'riak'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache'] do
+    task before_cache: ['ci:common:before_cache'] do
       Rake::Task['ci:riak:cleanup'].invoke
     end
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task cleanup: ['ci:common:cleanup'] do
       %w(dev1 dev2).each do |dev|
         sh %(#{riak_rootdir}/#{dev}/bin/riak stop)
         sh %(rm -rf #{riak_rootdir}/#{dev}/data)
