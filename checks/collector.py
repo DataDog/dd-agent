@@ -462,14 +462,15 @@ class Collector(object):
 
             check_stats = check.get_stats()
 
-            print "Metrics: ", current_check_metrics
-            print "Events: ", current_check_events
-            print "Service Checks: ", current_service_checks
-
             # Save the status of the check.
             metric_count = len(current_check_metrics)
             event_count = len(current_check_events)
             service_check_count = len(current_service_checks)
+
+            import pprint
+            print "Metrics: \n{0}".format(pprint.pformat(current_check_metrics))
+            print "Events: \n{0}".format(pprint.pformat(current_check_events))
+            print "Service Checks: \n{0}".format(pprint.pformat(current_service_checks))
 
         except Exception:
             log.exception("Error running check %s" % check.name)

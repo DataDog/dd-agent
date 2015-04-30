@@ -20,6 +20,7 @@ from collections import defaultdict
 from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
 from config import get_confd_path
 from checks import check_status
+from checks.utils import pretty_statistics
 
 # 3rd party
 import yaml
@@ -652,6 +653,7 @@ class AgentCheck(object):
             try:
                 after = AgentCheck._collect_stats()
                 self.set_stats(before, after)
+                log.info("\n \t %s %s" % (self.name, pretty_statistics(self.stats)))
             except Exception: # It's fine if we can't collect stats for the run
                 pass
 
