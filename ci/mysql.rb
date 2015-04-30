@@ -4,26 +4,26 @@ require './ci/common'
 
 namespace :ci do
   namespace :mysql do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install']
+    task install: ['ci:common:install']
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(mysql -e "create user 'dog'@'localhost' identified by 'dog'" -uroot)
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'mysql'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup']
+    task cleanup: ['ci:common:cleanup']
 
     task :execute do
       exception = nil

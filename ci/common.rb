@@ -22,34 +22,30 @@ class Wait
   DEFAULT_TIMEOUT = 5
 
   def self.check_port(port)
-    begin
-      Timeout.timeout(0.5) do
-        begin
-          s = TCPSocket.new('localhost', port)
-          s.close
-          return true
-        rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
-          return false
-        end
+    Timeout.timeout(0.5) do
+      begin
+        s = TCPSocket.new('localhost', port)
+        s.close
+        return true
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+        return false
       end
-    rescue Timeout::Error
-      return false
     end
+  rescue Timeout::Error
+    return false
   end
 
   def self.check_url(url)
-    begin
-      Timeout.timeout(0.5) do
-        begin
-          r = HTTParty.get(url)
-          return (200...300).include? r.code
-        rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
-          return false
-        end
+    Timeout.timeout(0.5) do
+      begin
+        r = HTTParty.get(url)
+        return (200...300).include? r.code
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+        return false
       end
-    rescue Timeout::Error
-      return false
     end
+  rescue Timeout::Error
+    return false
   end
 
   def self.check_file(file_path)

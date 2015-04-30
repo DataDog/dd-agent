@@ -134,10 +134,10 @@ class Cache
 
   def validate
     VALIDATE.each { |key, msg| msgs << msg unless s3_options[key] }
-    system "echo " + MSGS[:config_missing] % msgs.join(', '), ansi: :red unless msgs.empty?
+    system 'echo ' + MSGS[:config_missing] % msgs.join(', '), ansi: :red unless msgs.empty?
   end
 
-  def run(command, args, options = {})
+  def run(command, args, _options = {})
     puts `rvm #{USE_RUBY} --fuzzy do #{BIN_PATH} #{command} #{Array(args).join(' ')}`
   end
 

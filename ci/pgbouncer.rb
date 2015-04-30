@@ -7,7 +7,7 @@ end
 
 namespace :ci do
   namespace :pgbouncer do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
     task :install do
       Rake::Task['ci:postgres:install'].invoke
@@ -35,7 +35,7 @@ namespace :ci do
            #{pgb_rootdir}/users.txt)
       sh %(#{pgb_rootdir}/pgbouncer -d #{pgb_rootdir}/pgbouncer.ini)
       # Wait for pgbouncer to start
-      Wait.for 15433
+      Wait.for 15_433
       sh %(PGPASSWORD=datadog #{pg_rootdir}/bin/psql\
            -h localhost -p 15433 -U datadog -w\
            -c "SELECT * FROM persons"\
@@ -50,9 +50,9 @@ namespace :ci do
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
     task :cleanup do
       sh %(killall pgbouncer)

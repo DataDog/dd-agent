@@ -10,9 +10,9 @@ end
 
 namespace :ci do
   namespace :lighttpd do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       unless Dir.exist? File.expand_path(lighttpd_rootdir)
         # Downloads
         # http://download.lighttpd.net/lighttpd/releases-#{lighttpd_version[0..2]}.x/lighttpd-#{lighttpd_version}.tar.gz
@@ -30,28 +30,28 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/lighttpd/lighttpd.conf\
            #{lighttpd_rootdir}/lighttpd.conf)
       sh %(sed -i -e "s@%PATH%@$VOLATILE_DIR@" #{lighttpd_rootdir}/lighttpd.conf)
       sh %(#{lighttpd_rootdir}/sbin/lighttpd -f #{lighttpd_rootdir}/lighttpd.conf)
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'lighttpd'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache'] do
+    task before_cache: ['ci:common:before_cache'] do
       # Conf is regenerated at every run
       sh %(rm -f #{lighttpd_rootdir}/lighttpd.conf)
     end
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/lighttpd.pid`)
     end
 

@@ -10,9 +10,9 @@ end
 
 namespace :ci do
   namespace :zookeeper do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       unless Dir.exist? File.expand_path(zk_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/zookeeper-#{zk_version}.tar.gz\
@@ -23,25 +23,25 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(mkdir -p $VOLATILE_DIR/zookeeper)
       sh %(cp $TRAVIS_BUILD_DIR/ci/resources/zookeeper/zoo.cfg\
            #{zk_rootdir}/conf/)
       sh %(#{zk_rootdir}/bin/zkServer.sh start)
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'zookeeper'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task cleanup: ['ci:common:cleanup'] do
       sh %(#{zk_rootdir}/bin/zkServer.sh stop)
     end
 

@@ -12,9 +12,9 @@ end
 
 namespace :ci do
   namespace :sysstat do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       unless Dir.exist? File.expand_path(sysstat_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/sysstat-#{sysstat_version}.tar.xz\
@@ -31,24 +31,24 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(mkdir -p $INTEGRATIONS_DIR/bin)
       sh %(rm -f $INTEGRATIONS_DIR/bin/mpstat)
       sh %(ln -s #{sysstat_rootdir}/bin/mpstat $INTEGRATIONS_DIR/bin/mpstat)
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'sysstat'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup']
+    task cleanup: ['ci:common:cleanup']
 
     task :execute do
       exception = nil

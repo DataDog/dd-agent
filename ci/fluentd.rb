@@ -2,32 +2,32 @@ require './ci/common'
 
 namespace :ci do
   namespace :fluentd do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       sh %(gem install fluentd --no-ri --no-rdoc)
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       pid = spawn %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf)
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/fluentd.pid)
       # Waiting for fluentd to start
-      Wait.for 24220
+      Wait.for 24_220
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'fluentd'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :before_cache => ['ci:common:before_cache']
+    task before_cache: ['ci:common:before_cache']
 
-    task :cache => ['ci:common:cache']
+    task cache: ['ci:common:cache']
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/fluentd.pid`)
     end
 
