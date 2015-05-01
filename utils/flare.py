@@ -264,18 +264,19 @@ class Flare(object):
         if os.path.exists(temp_path):
             os.remove(temp_path)
         backup_out, backup_err = sys.stdout, sys.stderr
+        backup_handlers = logging.root.handlers[:]
         out, err = StringIO.StringIO(), StringIO.StringIO()
         sys.stdout, sys.stderr = out, err
         command()
         sys.stdout, sys.stderr = backup_out, backup_err
+        logging.root.handlers = backup_handlers
         with open(temp_path, 'w') as temp_file:
             temp_file.write(">>>> STDOUT <<<<\n")
             temp_file.write(out.getvalue())
             out.close()
             temp_file.write(">>>> STDERR <<<<\n")
             temp_file.write(err.getvalue())
-            # You shall not close err, pip does something weird with err
-            # and logging, and closing err breaks logging... :fire: pip
+            err.close()
         self._tar.add(temp_path, os.path.join(self._prefix, name))
         os.remove(temp_path)
 
