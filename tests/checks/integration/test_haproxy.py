@@ -1,3 +1,5 @@
+import os
+
 from checks import AgentCheck
 from nose.plugins.attrib import attr
 from tests.checks.common import AgentCheckTest
@@ -13,15 +15,21 @@ class HaproxyTest(AgentCheckTest):
     BACKEND_LIST = ['singleton:8080', 'singleton:8081', 'otherserver']
 
     FRONTEND_CHECK_GAUGES = [
-        'haproxy.frontend.requests.rate',
         'haproxy.frontend.session.current',
         'haproxy.frontend.session.limit',
         'haproxy.frontend.session.pct',
     ]
 
+    FRONTEND_CHECK_GAUGES_POST_1_4 = [
+        'haproxy.frontend.requests.rate',
+    ]
+
     BACKEND_CHECK_GAUGES = [
         'haproxy.backend.queue.current',
         'haproxy.backend.session.current',
+    ]
+
+    BACKEND_CHECK_GAUGES_POST_1_5 = [
         'haproxy.backend.queue.time',
         'haproxy.backend.connect.time',
         'haproxy.backend.response.time',
@@ -34,13 +42,16 @@ class HaproxyTest(AgentCheckTest):
         'haproxy.frontend.denied.req_rate',
         'haproxy.frontend.denied.resp_rate',
         'haproxy.frontend.errors.req_rate',
+        'haproxy.frontend.session.rate',
+    ]
+
+    FRONTEND_CHECK_RATES_POST_1_4 = [
         'haproxy.frontend.response.1xx',
         'haproxy.frontend.response.2xx',
         'haproxy.frontend.response.3xx',
         'haproxy.frontend.response.4xx',
         'haproxy.frontend.response.5xx',
         'haproxy.frontend.response.other',
-        'haproxy.frontend.session.rate',
     ]
 
     BACKEND_CHECK_RATES = [
@@ -49,15 +60,18 @@ class HaproxyTest(AgentCheckTest):
         'haproxy.backend.denied.resp_rate',
         'haproxy.backend.errors.con_rate',
         'haproxy.backend.errors.resp_rate',
+        'haproxy.backend.session.rate',
+        'haproxy.backend.warnings.redis_rate',
+        'haproxy.backend.warnings.retr_rate',
+    ]
+
+    BACKEND_CHECK_RATES_POST_1_4 = [
         'haproxy.backend.response.1xx',
         'haproxy.backend.response.2xx',
         'haproxy.backend.response.3xx',
         'haproxy.backend.response.4xx',
         'haproxy.backend.response.5xx',
         'haproxy.backend.response.other',
-        'haproxy.backend.session.rate',
-        'haproxy.backend.warnings.redis_rate',
-        'haproxy.backend.warnings.retr_rate',
     ]
 
     def __init__(self, *args, **kwargs):
@@ -84,8 +98,16 @@ class HaproxyTest(AgentCheckTest):
         for gauge in self.FRONTEND_CHECK_GAUGES:
             self.assertMetric(gauge, tags=frontend_tags, count=1)
 
+        if os.environ.get('FLAVOR_VERSION', '').split('.')[:2] >= ['1', '4']:
+            for gauge in self.FRONTEND_CHECK_GAUGES_POST_1_4:
+                self.assertMetric(gauge, tags=frontend_tags, count=1)
+
         for rate in self.FRONTEND_CHECK_RATES:
             self.assertMetric(rate, tags=frontend_tags, count=1)
+
+        if os.environ.get('FLAVOR_VERSION', '').split('.')[:2] >= ['1', '4']:
+            for rate in self.FRONTEND_CHECK_RATES_POST_1_4:
+                self.assertMetric(rate, tags=frontend_tags, count=1)
 
     def _test_backend_metrics(self, shared_tag, services=None):
         backend_tags = shared_tag + ['type:BACKEND']
@@ -94,10 +116,20 @@ class HaproxyTest(AgentCheckTest):
         for service in services:
             for backend in self.BACKEND_LIST:
                 tags = backend_tags + ['service:' + service, 'backend:' + backend]
+
                 for gauge in self.BACKEND_CHECK_GAUGES:
                     self.assertMetric(gauge, tags=tags, count=1)
+
+                if os.environ.get('FLAVOR_VERSION', '').split('.')[:2] >= ['1', '5']:
+                    for gauge in self.BACKEND_CHECK_GAUGES_POST_1_5:
+                        self.assertMetric(gauge, tags=tags, count=1)
+
                 for rate in self.BACKEND_CHECK_RATES:
                     self.assertMetric(rate, tags=tags, count=1)
+
+                if os.environ.get('FLAVOR_VERSION', '').split('.')[:2] >= ['1', '4']:
+                    for rate in self.BACKEND_CHECK_RATES_POST_1_4:
+                        self.assertMetric(rate, tags=tags, count=1)
 
     def _test_service_checks(self, services=None):
         if not services:
