@@ -22,6 +22,10 @@ class HaproxyTest(AgentCheckTest):
     BACKEND_CHECK_GAUGES = [
         'haproxy.backend.queue.current',
         'haproxy.backend.session.current',
+        'haproxy.backend.queue.time',
+        'haproxy.backend.connect.time',
+        'haproxy.backend.response.time',
+        'haproxy.backend.session.time',
     ]
 
     FRONTEND_CHECK_RATES = [
