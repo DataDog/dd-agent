@@ -376,7 +376,7 @@ class Rate(Metric):
                 metric=self.name,
                 value=val,
                 timestamp=timestamp,
-                metric_type=MetricTypes.GAUGE,
+                metric_type=MetricTypes.RATE,
                 interval=interval
             )]
         finally:
