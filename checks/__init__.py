@@ -5,6 +5,7 @@ The Check class is being deprecated so don't write new checks with it.
 """
 
 import logging
+import numbers
 import re
 import socket
 import time
@@ -573,7 +574,7 @@ class AgentCheck(object):
                 try:
                     stats[stat_name] = raw_stats._asdict()
                 except AttributeError:
-                    if isinstance(raw_stats, int):
+                    if isinstance(raw_stats, numbers.Number):
                         stats[stat_name] = raw_stats
                     else:
                         if log is not None:
