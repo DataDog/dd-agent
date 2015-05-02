@@ -36,6 +36,7 @@ SELECT datname,
   FROM pg_stat_database
  WHERE datname not ilike 'template%%'
    AND datname not ilike 'postgres'
+   AND datname not ilike 'rdsadmin'
 """,
         'relation': False,
     }
