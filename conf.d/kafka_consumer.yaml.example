@@ -1,4 +1,8 @@
 init_config:
+#  Customize the ZooKeeper connection timeout here
+#  zk_timeout: 5
+#  Customize the Kafka connection timeout here
+#  kafka_timeout: 5
 
 instances:
   # - kafka_connect_str: localhost:19092
