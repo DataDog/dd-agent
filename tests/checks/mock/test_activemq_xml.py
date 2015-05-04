@@ -1,7 +1,10 @@
+# stdlib
 import unittest
 
+# 3p
 import mock
 
+# project
 from tests.checks.common import get_check
 
 
@@ -264,7 +267,3 @@ instances:
 
         for tags, key, value, el_type in self._iter_metrics(metrics):
             self.assertEquals(expected.get(tags, {}).get(key), (value, el_type), (tags, key, metrics))
-
-
-if __name__ == '__main__':
-    unittest.main()

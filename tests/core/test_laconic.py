@@ -1,7 +1,11 @@
+# stdlib
+from cStringIO import StringIO
 import logging
 import unittest
-from cStringIO import StringIO
+
+# project
 from checks import LaconicFilter
+
 
 class TestLaconic(unittest.TestCase):
     """Verify that we only output messages once
@@ -72,6 +76,3 @@ class TestLaconic(unittest.TestCase):
  sodales magna eu fermentum. Integer ultricies odio non metus aliquet
  tristique. Proin ultrices accumsan augue, quis tempor diam rutrum at.""" % i)
         self.assertEquals(len(self.laconic.hashed_messages), 7, self.sio.getvalue())
-
-if __name__ == "__main__":
-    unittest.main()

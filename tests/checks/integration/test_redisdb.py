@@ -1,13 +1,17 @@
-from checks import AgentCheck
+# stdlib
 import logging
-import unittest
-from nose.plugins.attrib import attr
-import time
 import pprint
-import redis
 import random
+import time
 
+# 3p
+from nose.plugins.attrib import attr
+import redis
+
+# project
+from checks import AgentCheck
 from tests.checks.common import load_check, AgentCheckTest
+
 logger = logging.getLogger()
 
 MAX_WAIT = 20
@@ -259,7 +263,6 @@ class TestRedis(AgentCheckTest):
         self.assertMetric("redis.slowlog.micros.max", tags=["command:SORT",
             "redis_host:localhost", "redis_port:{0}".format(port)])
 
-
     def test_custom_slowlog(self):
         port = NOAUTH_PORT
         test_key = "testkey"
@@ -296,11 +299,7 @@ class TestRedis(AgentCheckTest):
         self.assertMetric("redis.slowlog.micros.count", tags=["command:SORT",
             "redis_host:localhost", "redis_port:{0}".format(port)], value=1.0)
 
-
     def _sort_metrics(self, metrics):
         def sort_by(m):
             return m[0], m[1], m[3]
         return sorted(metrics, key=sort_by)
-
-if __name__ == "__main__":
-    unittest.main()

@@ -1,8 +1,10 @@
-import sys
-import os
+# stdlib
 import logging
+import os
+import sys
 import unittest
 
+# project
 import modules
 
 log = logging.getLogger('datadog.test')
@@ -59,6 +61,3 @@ class TestModuleLoad(unittest.TestCase):
         m = modules.load(os.path.join(os.getcwd(),
                                       TARGET_MODULE.replace('.', '/')))
         self.assertEquals(m.__name__, TARGET_MODULE)
-
-if __name__ == '__main__':
-    unittest.main()

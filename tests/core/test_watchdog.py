@@ -4,11 +4,11 @@ from random import random, randrange
 import subprocess
 import sys
 import time
-import psutil
-# 3p
-from nose.plugins.attrib import attr
 import unittest
 import urllib as url
+
+# 3p
+from nose.plugins.attrib import attr
 
 # project
 # needed because of the subprocess calls

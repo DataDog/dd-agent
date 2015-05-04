@@ -1,8 +1,10 @@
 # stdlib
-import os.path
 import mock
-from nose.plugins.attrib import attr
+import os.path
 import unittest
+
+# 3p
+from nose.plugins.attrib import attr
 
 # project
 from utils.flare import Flare

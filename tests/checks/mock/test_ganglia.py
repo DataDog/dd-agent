@@ -1,16 +1,20 @@
+# stdlib
+from cStringIO import StringIO
 import logging
-import unittest
-import subprocess
 try:
     import cProfile as profile
 except ImportError:
     import profile
 import pstats
+import subprocess
 import tempfile
 import time
-import xml.etree.ElementTree as tree
-from cStringIO import StringIO
+import unittest
 
+# 3p
+import xml.etree.ElementTree as tree
+
+# project
 from checks.ganglia import Ganglia
 from tests.checks.common import Fixtures
 
@@ -37,5 +41,3 @@ class TestGanglia(unittest.TestCase):
         self.assertEquals([c.tag for c in x1.getroot()], [c.tag for c in x2.getroot()])
 
 
-if __name__ == '__main__':
-    unittest.main()

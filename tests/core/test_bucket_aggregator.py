@@ -3,6 +3,8 @@
 import random
 import time
 import unittest
+
+# 3p
 from nose.plugins.attrib import attr
 import nose.tools as nt
 
@@ -1031,6 +1033,3 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         stats = MetricsBucketAggregator('myhost', interval=5)
         nt.assert_equal(stats.calculate_bucket_start(13284287), 13284285)
         nt.assert_equal(stats.calculate_bucket_start(13284280), 13284280)
-
-if __name__ == "__main__":
-    unittest.main()

@@ -1,16 +1,20 @@
-from tests.checks.common import get_check
-from random import shuffle, sample
-
-import unittest
-import os
+# stdlib
 import binascii
-import re
 import logging
-import subprocess
+import os
+from random import shuffle, sample
+import re
 import shutil
+import unittest
+
+# 3p
 from nose.plugins.skip import SkipTest
 
+# project
+from tests.checks.common import get_check
+
 log = logging.getLogger()
+
 
 class TestPostfix(unittest.TestCase):
     #
@@ -35,11 +39,11 @@ class TestPostfix(unittest.TestCase):
 
         # create test queues
         for queue in self.queues:
-          try:
-              os.makedirs(os.path.join(self.queue_root, queue))
-              self.in_count[queue] = [0, 0]
-          except Exception:
-              pass
+            try:
+                os.makedirs(os.path.join(self.queue_root, queue))
+                self.in_count[queue] = [0, 0]
+            except Exception:
+                pass
 
     def tearDown(self):
         # clean up test queues
@@ -95,8 +99,4 @@ class TestPostfix(unittest.TestCase):
         #
         # uncomment this to see the raw dd-agent metric output
         #
-        #print out_count
-
-if __name__ == '__main__':
-    unittest.main()
-
+        # print out_count

@@ -1,11 +1,12 @@
 # -*- coding: latin-1 -*-
-import unittest
+# stdlib
 import os
 import os.path
 import tempfile
+import unittest
 
+# project
 from config import get_config, load_check_directory, DEFAULT_CHECKS
-
 from util import PidFile, is_valid_hostname, Platform, windows_friendly_colon_split
 
 
@@ -104,8 +105,3 @@ class TestConfig(unittest.TestCase):
 
         for c in DEFAULT_CHECKS:
             self.assertTrue(c in init_checks_names)
-
-
-if __name__ == '__main__':
-    unittest.main()
-

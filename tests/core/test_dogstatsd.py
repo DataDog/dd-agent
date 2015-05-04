@@ -1,10 +1,10 @@
- # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # stdlib
 import random
 import time
+import unittest
 
 # 3p
-import unittest
 from nose.plugins.attrib import attr
 import nose.tools as nt
 

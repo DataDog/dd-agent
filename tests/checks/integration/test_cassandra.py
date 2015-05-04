@@ -1,12 +1,18 @@
-import unittest
-import time
-from nose.plugins.attrib import attr
+# stdlib
 import threading
+import time
+import unittest
+
+# 3p
+from nose.plugins.attrib import attr
+
+# project
 from aggregator import MetricsAggregator
 from dogstatsd import Server
-from util import PidFile
 from jmxfetch import JMXFetch
 from tests.checks.common import Fixtures
+from util import PidFile
+
 STATSD_PORT = 8121
 
 
@@ -66,6 +72,3 @@ class JMXTestCase(unittest.TestCase):
         self.assertTrue(type(metrics) == type([]))
         self.assertTrue(len(metrics) > 0)
         self.assertTrue(len([t for t in metrics if "cassandra.db." in t['metric'] and "instance:cassandra_instance" in t['tags']]) > 40, metrics)
-
-if __name__ == "__main__":
-    unittest.main()

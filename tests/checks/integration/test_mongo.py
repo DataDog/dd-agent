@@ -1,14 +1,17 @@
-import unittest
-from nose.plugins.attrib import attr
+# stdlib
 import time
+import unittest
 
-import pymongo
+# 3p
+from nose.plugins.attrib import attr
 
+# project
 from tests.checks.common import load_check
 
 PORT1 = 37017
 PORT2 = 37018
 MAX_WAIT = 150
+
 
 @attr(requires='mongo')
 class TestMongo(unittest.TestCase):
@@ -142,5 +145,3 @@ class TestMongo(unittest.TestCase):
             if metric_name in metric_val_checks:
                 self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
 
-if __name__ == '__main__':
-    unittest.main()

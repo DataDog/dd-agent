@@ -1,10 +1,13 @@
-from nose.plugins.attrib import attr
+# stdlib
 import os
 import shlex
 import signal
 import subprocess
 import time
 import unittest
+
+# 3p
+from nose.plugins.attrib import attr
 
 
 @attr(requires='core_integration')
@@ -35,7 +38,7 @@ class TestAutoRestart(unittest.TestCase):
     def _get_child_parent_pids(self, grep_str):
         args = shlex.split('pgrep -f "%s"' % grep_str)
         pgrep = subprocess.Popen(args, stdout=subprocess.PIPE,
-            close_fds=True).communicate()[0]
+                                 close_fds=True).communicate()[0]
         pids = pgrep.strip().split('\n')
         assert len(pids) == 2, pgrep
 
@@ -93,6 +96,3 @@ class TestAutoRestart(unittest.TestCase):
         # Kill the daemon process.
         os.kill(parent_pid, signal.SIGTERM)
         self.agent_daemon = None
-
-if __name__ == '__main__':
-    unittest.main()

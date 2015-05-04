@@ -1,7 +1,11 @@
-import unittest
+# stdlib
 import logging
+import unittest
+
+# 3p
 from nose.plugins.attrib import attr
 
+# project
 from tests.checks.common import get_check
 
 logging.basicConfig()
@@ -39,6 +43,7 @@ instances:
         password: 340$Uuxwp7Mcxo7Khy
 """
 
+
 class SQLServerTestCase(unittest.TestCase):
     @attr('windows')
     def testSqlServer(self):
@@ -73,7 +78,3 @@ class SQLServerTestCase(unittest.TestCase):
         # Assert that all service checks have the proper tags: host and port
         self.assertEquals(len([sc for sc in service_checks if "host:127.0.0.1,1433" in sc['tags']]), service_checks_count, service_checks)
         self.assertEquals(len([sc for sc in service_checks if "db:master" in sc['tags']]), service_checks_count, service_checks)
-
-
-if __name__ == "__main__":
-    unittest.main()

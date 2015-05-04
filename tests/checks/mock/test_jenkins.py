@@ -1,12 +1,16 @@
-import unittest
-import os
+# stdlib
 from collections import defaultdict
 import datetime
-import tempfile
-import shutil
 import logging
+import os
+import shutil
+import tempfile
+import unittest
+
+# 3p
 import xml.etree.ElementTree as ET
 
+# project
 from tests.checks.common import get_check
 
 logger = logging.getLogger(__file__)
@@ -26,6 +30,7 @@ instances:
         jenkins_home: <JENKINS_HOME>
 """
 
+
 def dict_to_xml(metadata_dict):
     """ Convert a dict to xml for use in a build.xml file """
     build = ET.Element('build')
@@ -35,9 +40,11 @@ def dict_to_xml(metadata_dict):
 
     return ET.tostring(build)
 
+
 def write_file(file_name, log_data):
     with open(file_name, 'w') as log_file:
         log_file.write(log_data)
+
 
 class TestJenkins(unittest.TestCase):
 
@@ -120,7 +127,6 @@ class TestJenkins(unittest.TestCase):
             assert 'result:SUCCESS' in tag.get('tags')
             assert 'build_number:99' in tag.get('tags')
 
-
     def testCheckUnsuccessfulEvent(self):
         """
         Test that an unsuccessful build will create the correct metrics.
@@ -148,7 +154,6 @@ class TestJenkins(unittest.TestCase):
             assert 'result:ABORTED' in tag.get('tags')
             assert 'build_number:99' in tag.get('tags')
 
-
     def testCheckWithRunningBuild(self):
         """
         Test under the conditions of a jenkins build still running.
@@ -167,6 +172,3 @@ class TestJenkins(unittest.TestCase):
         # The check method does not return anything, so this testcase passes
         # if the high_watermark was NOT updated and no exceptions were raised.
         assert self.check.high_watermarks[self.instance['name']]['foo'] == 0
-
-if __name__ == '__main__':
-    unittest.main()

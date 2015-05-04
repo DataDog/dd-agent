@@ -1,7 +1,7 @@
 # stdlib
-import unittest
-import logging
 import gc
+import logging
+import unittest
 
 # 3p
 from nose.plugins.attrib import attr
@@ -51,7 +51,3 @@ class TestWin32(unittest.TestCase):
     def testCPU(self):
         cpu = w32.Cpu(log)
         self._checkMemoryLeak(lambda: cpu.check(AGENT_CONFIG))
-
-
-if __name__ == "__main__":
-    unittest.main()

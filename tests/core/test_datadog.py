@@ -1,16 +1,20 @@
+# stdlib
 import logging
-import unittest
-from tempfile import NamedTemporaryFile
 import re
+from tempfile import NamedTemporaryFile
+import unittest
 
+# project
 from checks.datadog import Dogstreams, EventDefaults
 
 log = logging.getLogger('datadog.test')
+
 
 def parse_ancient_function_plugin(logger, line):
     """Ancient stateless parser"""
     res = line.split()
     res[3] = {'metric_type': 'gauge'}
+
 
 def parse_function_plugin(logger, line, state):
     """Simple stateful parser"""
@@ -23,6 +27,7 @@ def parse_function_plugin(logger, line, state):
     res[2] = acc
     res[3] = {'metric_type': 'counter'}
     return tuple(res)
+
 
 class ParseClassPlugin(object):
     """Class-based stateful parser"""
@@ -53,6 +58,8 @@ alert_types = {
     "ERROR": "error",
     "RECOVERY": "success"
 }
+
+
 def parse_events(logger, line):
     """ Expecting lines like this:
         2012-05-14 12:46:01 [ERROR] - host0 is down (broke its collarbone)
@@ -70,8 +77,10 @@ def parse_events(logger, line):
     else:
         return None
 
+
 def repr_event_parser(logger, line):
     return eval(line)
+
 
 class TailTestCase(unittest.TestCase):
     def setUp(self):
@@ -85,6 +94,7 @@ class TailTestCase(unittest.TestCase):
 
     def tearDown(self):
         self.log_file.close()
+
 
 class TestDogstream(TailTestCase):
     gauge = {'metric_type': 'gauge'}
@@ -435,7 +445,3 @@ class TestDogstream(TailTestCase):
         dogstream = Dogstreams.init(self.logger, {'dogstreams': '%s:dogstream.supervisord_log:parse_supervisord' % self.log_file.name})
         actual_output = dogstream.check(self.config, move_end=False)
         self.assertEquals(expected_output, actual_output)
-
-if __name__ == '__main__':
-    logging.basicConfig(format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s")
-    unittest.main()

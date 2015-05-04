@@ -1,9 +1,11 @@
-from tests.checks.common import get_check, Fixtures
-
-import unittest
-import os
+# stdlib
 import logging
+import os
 import shutil
+import unittest
+
+# project
+from tests.checks.common import get_check, Fixtures
 
 log = logging.getLogger()
 
@@ -107,6 +109,3 @@ class TestCacti(unittest.TestCase):
         # Make sure no None values are picked up
         none_metrics = [m[2] for m in results1 if m[2] is None]
         self.assertEquals(len(none_metrics), 0)
-
-    if __name__ == '__main__':
-        unittest.main()

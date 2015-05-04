@@ -1,9 +1,11 @@
+# stdlib
 import unittest
-import os
 import types
 import time
 
+# project
 from util import EC2
+
 
 class TestEC2(unittest.TestCase):
 
@@ -20,6 +22,3 @@ class TestEC2(unittest.TestCase):
         if "instance-id" in d:
             assert d["instance-id"].startswith("i-"), d
         assert end - start <= 1.1, "It took %s seconds to get ec2 metadata" % (end-start)
-
-if __name__ == "__main__":
-    unittest.main()

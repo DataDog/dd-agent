@@ -1,14 +1,21 @@
-import unittest
-from nose.plugins.attrib import attr
-import time
+# stdlib
+import os
 import threading
+import time
+import unittest
+
+# 3p
+from nose.plugins.attrib import attr
+
+# project
 from aggregator import MetricsAggregator
 from dogstatsd import Server
-from util import PidFile
-import os
 from jmxfetch import JMXFetch
+from util import PidFile
 
 STATSD_PORT = 8126
+
+
 class DummyReporter(threading.Thread):
     def __init__(self, metrics_aggregator):
         threading.Thread.__init__(self)
@@ -18,7 +25,6 @@ class DummyReporter(threading.Thread):
         self.metrics = None
         self.finished = False
         self.start()
-
 
     def run(self):
         while not self.finished:
@@ -67,7 +73,3 @@ class TestTomcat(unittest.TestCase):
         self.assertEquals(len([t for t in metrics if t['metric'] == "tomcat.threads.busy" and "instance:tomcat_instance" in t['tags']]), 2, metrics)
         self.assertEquals(len([t for t in metrics if t['metric'] == "tomcat.bytes_sent" and "instance:tomcat_instance" in t['tags']]), 0, metrics)
         self.assertTrue(len([t for t in metrics if "jvm." in t['metric'] and "instance:tomcat_instance" in t['tags']]) > 4, metrics)
-
-
-if __name__ == "__main__":
-    unittest.main()

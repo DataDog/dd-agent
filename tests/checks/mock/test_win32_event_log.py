@@ -1,7 +1,11 @@
-import unittest
+# stdlib
 import logging
+import unittest
+
+# 3p
 from nose.plugins.attrib import attr
 
+# project
 from tests.checks.common import get_check
 
 logging.basicConfig()
@@ -37,6 +41,7 @@ instances:
             - Information
 """
 
+
 class WinEventLogTest(unittest.TestCase):
     def setUp(self):
         import win32evtlog
@@ -68,7 +73,7 @@ class WinEventLogTest(unittest.TestCase):
         data = "Application\0Data".encode("ascii")
 
         win32evtlogutil.ReportEvent(applicationName, eventID, eventCategory=category,
-            eventType=myType, strings=descr, data=data, sid=my_sid)
+                                    eventType=myType, strings=descr, data=data, sid=my_sid)
 
     @attr('windows')
     def test_windows_event_log(self):
@@ -116,7 +121,3 @@ class WinEventLogTest(unittest.TestCase):
             assert 'EVENTLOGTESTBAD' not in ev['msg_title']
             # Make sure the tags match up
             assert ev['tags'] == inst1['tags']
-
-
-if __name__ == "__main__":
-    unittest.main()

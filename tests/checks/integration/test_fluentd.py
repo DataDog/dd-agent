@@ -5,6 +5,7 @@ logger = logging.getLogger(__file__)
 
 from tests.checks.common import load_check
 
+
 @attr(requires='fluentd')
 class TestFluentd(unittest.TestCase):
 
@@ -68,6 +69,3 @@ class TestFluentd(unittest.TestCase):
 
         check = load_check('fluentd', config, agentConfig)
         self.assertRaises(Exception, check.run())
-
-if __name__ == '__main__':
-    unittest.main()
