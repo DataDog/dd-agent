@@ -367,23 +367,6 @@ $VENV_PIP_CMD install -r "$DD_HOME/requirements.txt"
 rm -f "$DD_HOME/requirements.txt"
 print_done
 
-print_console "* Trying to install optional requirements"
-$DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
-OPTIONAL_FAILED="0"
-while read DEPENDENCY; do
-    if $VENV_PIP_CMD install "$DEPENDENCY"; then
-        print_console "   - $DEPENDENCY installed"
-    else
-        print_console "   - Couldn't install $DEPENDENCY"
-        OPTIONAL_FAILED="1"
-    fi
-done < "$DD_HOME/requirements-opt.txt"
-if [ "$OPTIONAL_FAILED" = "1" ]; then
-    print_console "Some optional requirements couldn't be installed (but you may not need them).
-Usually this can be fixed easily by installing the python-dev package and/or compiling tools"
-fi
-print_done
-
 print_console "* Downloading agent version $AGENT_VERSION from GitHub (~5 MB)"
 mkdir -p "$DD_HOME/agent"
 $DOWNLOADER "$DD_HOME/agent.tar.gz" "https://github.com/DataDog/dd-agent/tarball/$AGENT_VERSION"
@@ -392,6 +375,11 @@ print_done
 print_console "* Uncompressing tarball"
 tar -xz -C "$DD_HOME/agent" --strip-components 1 -f "$DD_HOME/agent.tar.gz"
 rm -f "$DD_HOME/agent.tar.gz"
+print_done
+
+print_console "* Trying to install optional requirements"
+$DOWNLOADER "$DD_HOME/requirements-opt.txt" "$BASE_GITHUB_URL/requirements-opt.txt"
+"$DD_HOME/agent/utils/pip-allow-failures.sh" "$DD_HOME/requirements-opt.txt"
 print_done
 
 print_console "* Setting up a datadog.conf generic configuration file"
