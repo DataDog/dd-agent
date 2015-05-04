@@ -137,9 +137,9 @@ class RabbitMQ(AgentCheck):
         base_url, max_detailed, specified, auth = self._get_config(instance)
 
         # Generate metrics from the status API.
-        self.get_stats(instance, base_url, QUEUE_TYPE, max_detailed[
+        self._get_stats(instance, base_url, QUEUE_TYPE, max_detailed[
                        QUEUE_TYPE], specified[QUEUE_TYPE], auth=auth)
-        self.get_stats(instance, base_url, NODE_TYPE, max_detailed[
+        self._get_stats(instance, base_url, NODE_TYPE, max_detailed[
                        NODE_TYPE], specified[NODE_TYPE], auth=auth)
 
         # Generate a service check from the aliveness API.
@@ -159,7 +159,7 @@ class RabbitMQ(AgentCheck):
                 'Cannot parse JSON response from API url: %s %s' % (url, str(e)))
         return data
 
-    def get_stats(self, instance, base_url, object_type, max_detailed, filters, auth=None):
+    def _get_stats(self, instance, base_url, object_type, max_detailed, filters, auth=None):
         """
         instance: the check instance
         base_url: the url of the rabbitmq management api (e.g. http://localhost:15672/api)
