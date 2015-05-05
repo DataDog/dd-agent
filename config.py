@@ -765,6 +765,7 @@ def check_yaml(conf_path):
     finally:
         f.close()
 
+
 def load_check_directory(agentConfig, hostname):
     ''' Return the initialized checks from checks.d, and a mapping of checks that failed to
     initialize. Only checks that have a configuration
@@ -827,18 +828,17 @@ def load_check_directory(agentConfig, hostname):
             conf_exists = True
 
         if conf_exists:
-            f = open(conf_path)
             try:
                 check_config = check_yaml(conf_path)
             except Exception, e:
                 log.exception("Unable to parse yaml config in %s" % conf_path)
                 traceback_message = traceback.format_exc()
-                init_failed_checks[check_name] = {'error':str(e), 'traceback':traceback_message}
+                init_failed_checks[check_name] = {'error': str(e), 'traceback': traceback_message}
                 continue
         else:
             # Compatibility code for the Nagios checks if it's still configured
             # in datadog.conf
-            # fixme: Should be removed in ulterior major version
+            # FIXME: 6.x, should be removed
             if check_name == 'nagios':
                 if any([nagios_key in agentConfig for nagios_key in NAGIOS_OLD_CONF_KEYS]):
                     log.warning("Configuring Nagios in datadog.conf is deprecated "

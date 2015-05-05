@@ -6,17 +6,16 @@ Unix system checks.
 import operator
 import platform
 import re
-import socket
-import string
 import subprocess as sp
 import sys
 import tempfile
 import time
 
 # project
-from checks import Check, UnknownValue
+from checks import Check
 from util import get_hostname
 from utils.platform import Platform
+from utils.subprocess_output import get_subprocess_output
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
@@ -33,7 +32,7 @@ class Disk(Check):
         platform_name = sys.platform
 
         try:
-            dfk_out = _get_subprocess_output(['df', '-k'], self.logger)
+            dfk_out = get_subprocess_output(['df', '-k'], self.logger)
             disks = self.parse_df_output(
                 dfk_out,
                 platform_name,
@@ -42,7 +41,7 @@ class Disk(Check):
             )
 
             # Collect inode metrics.
-            dfi_out = _get_subprocess_output(['df', '-i'], self.logger)
+            dfi_out = get_subprocess_output(['df', '-i'], self.logger)
             inodes = self.parse_df_output(
                 dfi_out,
                 platform_name,
@@ -78,30 +77,29 @@ class Disk(Check):
                         # Filesystem 512-blocks Used Available Capacity iused ifree %iused  Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
                         # Total
-                        parts[1] = int(parts[5]) + int(parts[6]) # Total
-                        parts[2] = int(parts[5]) # Used
-                        parts[3] = int(parts[6]) # Available
+                        parts[1] = int(parts[5]) + int(parts[6])  # Total
+                        parts[2] = int(parts[5])  # Used
+                        parts[3] = int(parts[6])  # Available
                     elif Platform.is_freebsd(platform_name):
                         # Filesystem 1K-blocks Used Avail Capacity iused ifree %iused Mounted
                         # Inodes are in position 5, 6 and we need to compute the total
-                        parts[1] = int(parts[5]) + int(parts[6]) # Total
-                        parts[2] = int(parts[5]) # Used
-                        parts[3] = int(parts[6]) # Available
+                        parts[1] = int(parts[5]) + int(parts[6])  # Total
+                        parts[2] = int(parts[5])  # Used
+                        parts[3] = int(parts[6])  # Available
                     else:
-                        parts[1] = int(parts[1]) # Total
-                        parts[2] = int(parts[2]) # Used
-                        parts[3] = int(parts[3]) # Available
+                        parts[1] = int(parts[1])  # Total
+                        parts[2] = int(parts[2])  # Used
+                        parts[3] = int(parts[3])  # Available
                 else:
-                    parts[1] = int(parts[1]) # Total
-                    parts[2] = int(parts[2]) # Used
-                    parts[3] = int(parts[3]) # Available
+                    parts[1] = int(parts[1])  # Total
+                    parts[2] = int(parts[2])  # Used
+                    parts[3] = int(parts[3])  # Available
             except IndexError:
                 self.logger.exception("Cannot parse %s" % (parts,))
 
             usage_data.append(parts)
 
         return usage_data
-
 
     @staticmethod
     def _is_number(a_string):
@@ -907,27 +905,9 @@ class Cpu(Check):
             return False
 
 
-def _get_subprocess_output(command, log):
-    """
-    Run the given subprocess command and return it's output. Raise an Exception
-    if an error occurs.
-    """
-    with tempfile.TemporaryFile('rw') as stdout_f:
-        proc = sp.Popen(command, close_fds=True, stdout=stdout_f, stderr=sp.PIPE)
-        proc.wait()
-        err = proc.stderr.read()
-        if err:
-            log.debug("Error while running %s : %s" % (" ".join(command), err))
-
-        stdout_f.seek(0)
-        output = stdout_f.read()
-    return output
-
-
 if __name__ == '__main__':
     # 1s loop with results
     import logging
-    import pprint
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
     log = logging.getLogger()
@@ -938,7 +918,7 @@ if __name__ == '__main__':
     mem = Memory(log)
     proc = Processes(log)
 
-    config = {"api_key": "666", "device_blacklist_re":re.compile('.*disk0.*')}
+    config = {"api_key": "666", "device_blacklist_re": re.compile('.*disk0.*')}
     while True:
         print("=" * 10)
         print("--- IO ---")
@@ -952,6 +932,6 @@ if __name__ == '__main__':
         print("--- Memory ---")
         print(mem.check(config))
         print("\n\n\n")
-        #print("--- Processes ---")
-        #print(proc.check(config))
+        # print("--- Processes ---")
+        # print(proc.check(config))
         time.sleep(1)

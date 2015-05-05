@@ -181,10 +181,10 @@ class Collector(object):
             # Unix system checks
             sys_checks = self._unix_system_checks
 
-            diskUsage = sys_checks['disk'].check(self.agentConfig)
-            if diskUsage and len(diskUsage) == 2:
-                payload["diskUsage"] = diskUsage[0]
-                payload["inodes"] = diskUsage[1]
+            # diskUsage = sys_checks['disk'].check(self.agentConfig)
+            # if diskUsage and len(diskUsage) == 2:
+            #     payload["diskUsage"] = diskUsage[0]
+            #     payload["inodes"] = diskUsage[1]
 
             load = sys_checks['load'].check(self.agentConfig)
             payload.update(load)

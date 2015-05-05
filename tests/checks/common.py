@@ -110,7 +110,6 @@ def get_check(name, config_str):
 
 
 class Fixtures(object):
-
     @staticmethod
     def integration_name():
         for stack in inspect.stack():
@@ -153,6 +152,10 @@ class AgentCheckTest(unittest.TestCase):
     def is_travis(self):
         return "TRAVIS" in os.environ
 
+    def load_check(self, config, agent_config=None):
+        agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
+        self.check = load_check(self.CHECK_NAME, config, agent_config)
+
     # Helper function when testing rates
     def run_check_twice(self, config, agent_config=None, mocks=None,
                         force_reload=False):
@@ -161,12 +164,9 @@ class AgentCheckTest(unittest.TestCase):
         self.run_check(config, agent_config, mocks)
 
     def run_check(self, config, agent_config=None, mocks=None, force_reload=False):
-        agent_config = agent_config or self.DEFAULT_AGENT_CONFIG
-
         # If not loaded already, do it!
         if self.check is None or force_reload:
-            self.check = load_check(self.CHECK_NAME, config, agent_config)
-
+            self.load_check(config, agent_config=agent_config)
         if mocks is not None:
             for func_name, mock in mocks.iteritems():
                 if not hasattr(self.check, func_name):

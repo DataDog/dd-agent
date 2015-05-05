@@ -1,0 +1,6 @@
+Filesystem                              Type     1K-blocks      Used Available Use% Mounted on
+/dev/sda1                               ext4      		 5   	   4  		 1  80% /
+udev                                    devtmpfs   2020720         8   2020712   1% /dev
+tmpfs                                   tmpfs       404968       328    404640   1% /run
+none                                    tmpfs         5120         0      5120   0% /run/lock
+none                                    tmpfs      2024828         0   2024828   0% /run/shm
