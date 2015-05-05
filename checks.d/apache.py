@@ -8,6 +8,7 @@ from checks import AgentCheck
 # 3rd party
 import requests
 
+
 class Apache(AgentCheck):
     """Tracks basic connection/requests/workers metrics
 
