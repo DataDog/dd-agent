@@ -98,7 +98,7 @@ def get_checks():
 
         agent_check = AgentCheck(filename, ext, conf_d_directory)
         if (agent_check.enabled or agent_check.module_name not in checks or
-            (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
+           (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
             checks[agent_check.module_name] = agent_check
 
     checks_list = checks.values()

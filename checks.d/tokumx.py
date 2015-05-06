@@ -258,7 +258,7 @@ class TokuMX(AgentCheck):
         # de-dupe tags to avoid a memory leak
         tags = list(set(tags))
 
-         # Configuration a URL, mongodb://user:pass@server/db
+        # Configuration a URL, mongodb://user:pass@server/db
         parsed = uri_parser.parse_uri(server)
         username = parsed.get('username')
         password = parsed.get('password')
@@ -349,7 +349,7 @@ class TokuMX(AgentCheck):
                 raise e
 
     def submit_idx_rate(self, metric_name, value, tags, key):
-        if not key in self.idx_rates:
+        if key not in self.idx_rates:
             local_rate = LocalRate(self, metric_name, tags)
             self.idx_rates[key] = local_rate
         else:
