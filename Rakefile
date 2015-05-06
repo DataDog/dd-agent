@@ -93,9 +93,6 @@ end
 desc 'Lint the code through pylint'
 task 'lint' => 'ci:default:lint'
 
-desc 'Lint the chnaged code through pylint'
-task 'lint:changed' => 'ci:default:lint:changed'
-
 desc 'Run the Agent locally'
 task 'run' do
   sh('supervisord -n -c supervisord.dev.conf')
