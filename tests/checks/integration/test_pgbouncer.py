@@ -1,11 +1,16 @@
+# stdlib
 import time
 from types import ListType
 
-import psycopg2 as pg
+# 3p
 from nose.plugins.attrib import attr
+try:
+    import psycopg2 as pg
+except ImportError:
+    pg = None
 
+# project
 from tests.checks.common import AgentCheckTest
-from checks import AgentCheck
 
 
 @attr(requires='pgbouncer')
@@ -64,8 +69,7 @@ class TestPgbouncer(AgentCheckTest):
         service_checks_count = len(self.service_checks)
         self.assertTrue(isinstance(self.service_checks, ListType))
         self.assertTrue(service_checks_count > 0)
-        self.assertServiceCheck(
+        self.assertServiceCheckOK(
             'pgbouncer.can_connect',
-            status=AgentCheck.OK,
             tags=['host:localhost', 'port:15433', 'db:pgbouncer'],
             count=service_checks_count)
