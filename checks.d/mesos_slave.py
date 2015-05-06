@@ -6,11 +6,11 @@ Collects metrics from mesos slave node.
 from hashlib import md5
 import time
 
-# project
-from checks import AgentCheck
-
 # 3rd party
 import requests
+
+# project
+from checks import AgentCheck, CheckException
 
 
 class MesosSlave(AgentCheck):
@@ -37,14 +37,13 @@ class MesosSlave(AgentCheck):
     }
 
     SLAVE_TASKS_METRICS = {
-        'failed_tasks'                      : ('mesos.slave.failed_tasks', GAUGE),
-        'finished_tasks'                    : ('mesos.slave.finished_tasks', GAUGE),
-        'killed_tasks'                      : ('mesos.slave.killed_tasks', GAUGE),
-        'lost_tasks'                        : ('mesos.slave.lost_tasks', GAUGE),
-        'staged_tasks'                      : ('mesos.slave.staged_tasks', GAUGE),
-        'started_tasks'                     : ('mesos.slave.started_tasks', GAUGE),
-        'launched_tasks_gauge'              : ('mesos.slave.launched_tasks_gauge', GAUGE),
-        'queued_tasks_gauge'                : ('mesos.slave.queued_tasks_gauge', GAUGE),
+        'slave/tasks_failed'                : ('mesos.slave.tasks_failed', GAUGE),
+        'slave/tasks_finished'              : ('mesos.slave.tasks_finished', GAUGE),
+        'slave/tasks_killed'                : ('mesos.slave.tasks_killed', GAUGE),
+        'slave/tasks_lost'                  : ('mesos.slave.tasks_lost', GAUGE),
+        'slave/tasks_running'               : ('mesos.slave.tasks_running', GAUGE),
+        'slave/tasks_staging'               : ('mesos.slave.tasks_staging', GAUGE),
+        'slave/tasks_starting'              : ('mesos.slave.tasks_starting', GAUGE),
     }
 
     SYSTEM_METRICS = {
@@ -78,7 +77,6 @@ class MesosSlave(AgentCheck):
     }
 
     STATS_METRICS = {
-        'total_frameworks'                  : ('mesos.slave.total_frameworks', GAUGE),
         'slave/frameworks_active'           : ('mesos.slave.frameworks_active', GAUGE),
         'slave/invalid_framework_messages'  : ('mesos.slave.invalid_framework_messages', GAUGE),
         'slave/invalid_status_updates'      : ('mesos.slave.invalid_status_updates', GAUGE),
@@ -87,25 +85,9 @@ class MesosSlave(AgentCheck):
         'slave/valid_status_updates'        : ('mesos.slave.valid_status_updates', GAUGE),
     }
 
-    cluster_name = None
-
-    def _timeout_event(self, url, timeout, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'http_check',
-            'msg_title': 'URL timeout',
-            'msg_text': '%s timed out after %s seconds.' % (url, timeout),
-            'aggregation_key': aggregation_key
-        })
-
-    def _status_code_event(self, url, r, aggregation_key):
-        self.event({
-            'timestamp': int(time.time()),
-            'event_type': 'http_check',
-            'msg_title': 'Invalid reponse code for %s' % url,
-            'msg_text': '%s returned a status of %s' % (url, r.status_code),
-            'aggregation_key': aggregation_key
-        })
+    def __init__(self, name, init_config, agentConfig, instances=None):
+        AgentCheck.__init__(self, name, init_config, agentConfig, instances)
+        self.cluster_name = None
 
     def _get_json(self, url, timeout):
         # Use a hash of the URL as an aggregation key
@@ -116,7 +98,6 @@ class MesosSlave(AgentCheck):
         try:
             r = requests.get(url, timeout=timeout)
             if r.status_code != 200:
-                self._status_code_event(url, r, aggregation_key)
                 status = AgentCheck.CRITICAL
                 msg = "Got %s when hitting %s" % (r.status_code, url)
             else:
@@ -124,19 +105,17 @@ class MesosSlave(AgentCheck):
                 msg = "Mesos master instance detected at %s " % url
         except requests.exceptions.Timeout as e:
             # If there's a timeout
-            self._timeout_event(url, timeout, aggregation_key)
             msg = "%s seconds timeout when hitting %s" % (timeout, url)
             status = AgentCheck.CRITICAL
         except Exception as e:
-            msg = e.message
+            msg = str(e)
             status = AgentCheck.CRITICAL
         finally:
             if self.SERVICE_CHECK_NEEDED:
                 self.service_check(self.SERVICE_CHECK_NAME, status, tags=tags, message=msg)
                 self.SERVICE_CHECK_NEEDED = False
             if status is AgentCheck.CRITICAL:
-                self.warning(msg)
-                return None
+                raise CheckException("Cannot connect to mesos, please check your configuration.")
 
         return r.json()
 
@@ -144,18 +123,23 @@ class MesosSlave(AgentCheck):
         return self._get_json(url + '/state.json', timeout)
 
     def _get_stats(self, url, timeout):
-        return self._get_json(url + '/stats.json', timeout)
+        if self.version >= [0, 22, 0]:
+            endpoint = '/metrics/snapshot'
+        else:
+            endpoint = '/stats.json'
+        return self._get_json(url + endpoint, timeout)
 
     def _get_constant_attributes(self, url, timeout):
-        json = None
+        state_metrics = None
         if self.cluster_name is None:
-            json = self._get_state(url, timeout)
-            if json is not None:
-                master_state = self._get_state('http://' + json['master_hostname'] + ':5050', timeout)
+            state_metrics = self._get_state(url, timeout)
+            if state_metrics is not None:
+                self.version = map(int, state_metrics['version'].split('.'))
+                master_state = self._get_state('http://' + state_metrics['master_hostname'] + ':5050', timeout)
                 if master_state is not None:
                     self.cluster_name = master_state['cluster']
 
-        return json
+        return state_metrics
 
     def check(self, instance):
         if 'url' not in instance:
@@ -167,30 +151,36 @@ class MesosSlave(AgentCheck):
         default_timeout = self.init_config.get('default_timeout', 5)
         timeout = float(instance.get('timeout', default_timeout))
 
-        json = self._get_constant_attributes(url, timeout)
+        state_metrics = self._get_constant_attributes(url, timeout)
         tags = None
 
-        if json is None:
-            json = self._get_state(url, timeout)
-        if json:
-            tags = ['mesos_cluster:' + self.cluster_name, 'mesos_id:' + json['id'], 'mesos_pid:' + json['pid'], 'mesos_node:slave'] + instance_tags
+        if state_metrics is None:
+            state_metrics = self._get_state(url, timeout)
+        if state_metrics:
+            tags = [
+                'mesos_cluster:{0}'.format(self.cluster_name),
+                'mesos_pid:{0}'.format(state_metrics['pid']),
+                'mesos_node:slave'
+            ]
+            tags += instance_tags
 
             for task in tasks:
-                for framework in json['frameworks']:
+                for framework in state_metrics['frameworks']:
                     for executor in framework['executors']:
                         for t in executor['tasks']:
-                            if task.lower() in t['name'].lower() and t['slave_id'] == json['id']:
-                                task_tags = ['framework_id:' + t['framework_id'], 'executor_id:' + t['executor_id'], 'task_name:' + t['name']] + tags
+                            if task.lower() in t['name'].lower() and t['slave_id'] == state_metrics['id']:
+                                task_tags = ['task_name:' + t['name']] + tags
                                 self.service_check(t['name'] + '.ok', self.TASK_STATUS[t['state']], tags=task_tags)
-                                [v[1](self, v[0], t['resources'][k], tags=task_tags) for k, v in self.TASK_METRICS.iteritems()]
+                                for key_name, (metric_name, metric_func) in self.TASK_METRICS.iteritems():
+                                    metric_func(self, metric_name, t['resources'][key_name], tags=task_tags)
 
-        json = self._get_stats(url, timeout)
-        if json:
+        stats_metrics = self._get_stats(url, timeout)
+        if stats_metrics:
             tags = tags if tags else instance_tags
-            metrics = {}
-            for d in (self.SLAVE_TASKS_METRICS, self.SYSTEM_METRICS, self.SLAVE_RESOURCE_METRICS,
-                      self.SLAVE_EXECUTORS_METRICS, self.STATS_METRICS):
-                metrics.update(d)
-            [v[1](self, v[0], json[k], tags=tags) for k, v in metrics.iteritems()]
+            metrics = [self.SLAVE_TASKS_METRICS, self.SYSTEM_METRICS, self.SLAVE_RESOURCE_METRICS,
+                      self.SLAVE_EXECUTORS_METRICS, self.STATS_METRICS]
+            for m in metrics:
+                for key_name, (metric_name, metric_func) in m.iteritems():
+                    metric_func(self, metric_name, stats_metrics[key_name], tags=tags)
 
         self.SERVICE_CHECK_NEEDED = True

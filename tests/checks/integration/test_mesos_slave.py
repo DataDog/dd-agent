@@ -1,4 +1,4 @@
-from tests.common import AgentCheckTest, get_check_class
+from tests.checks.common import AgentCheckTest, get_check_class
 
 from nose.plugins.attrib import attr
 from mock import patch
@@ -213,6 +213,4 @@ class TestMesosSlave(AgentCheckTest):
                     metrics.update(d)
                 [self.assertMetric(v[0]) for k, v in check.TASK_METRICS.iteritems()]
                 [self.assertMetric(v[0]) for k, v in metrics.iteritems()]
-                self.assertServiceCheck('hello.ok',
-                    count=1, status=AgentCheck.OK
-                )
+                self.assertServiceCheck('hello.ok', count=1, status=AgentCheck.OK)

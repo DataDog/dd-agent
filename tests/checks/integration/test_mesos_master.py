@@ -1,4 +1,4 @@
-from tests.common import AgentCheckTest, get_check_class
+from tests.checks.common import AgentCheckTest, get_check_class
 
 from nose.plugins.attrib import attr
 from mock import patch
@@ -305,5 +305,5 @@ class TestMesosMaster(AgentCheckTest):
                     [self.assertMetric(v[0]) for k, v in check.ROLE_RESOURCES_METRICS.iteritems()]
                     self.assertMetric('mesos.cluster.total_frameworks')
                     self.assertMetric('mesos.framework.total_tasks')
-                    self.assertMetric('mesos.role.frameworks')
+                    self.assertMetric('mesos.role.frameworks.count')
                     self.assertMetric('mesos.role.weight')
