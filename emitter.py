@@ -80,4 +80,3 @@ def post_headers(agentConfig, payload):
         'Content-MD5': md5(payload).hexdigest(),
         'DD-Collector-Version': get_version()
     }
-    
