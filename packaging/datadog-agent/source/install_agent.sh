@@ -5,6 +5,15 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
+no_start=false
+while getopts "n" opt; do
+	case $opt in
+		n)
+			no_start=true
+			;;
+	esac
+done
+
 if [ $(command -v curl) ]; then
     dl_cmd="curl -f"
 else
@@ -141,6 +150,11 @@ if [ -e /etc/dd-agent/datadog.conf ]; then
 else
     printf "\033[34m\n* Adding your API key to the Agent configuration: /etc/dd-agent/datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
+fi
+
+if $no_start; then
+	printf "\033[34m* No start option selected ... exiting\n\033[0m\n"
+	exit
 fi
 
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
