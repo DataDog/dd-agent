@@ -656,7 +656,7 @@ class Memory(Check):
             except Exception:
                 self.logger.exception('Cannot compute stats from swapinfo')
 
-            return memData;
+            return memData
         elif sys.platform == 'sunos5':
             try:
                 memData = {}
@@ -796,7 +796,7 @@ class Cpu(Check):
                     cpu_metrics = {
                         "%usr":None, "%user":None, "%nice":None,
                         "%iowait":None, "%idle":None, "%sys":None,
-                         "%irq":None, "%soft":None, "%steal":None,
+                        "%irq":None, "%soft":None, "%steal":None,
                     }
 
                     for cpu_m in cpu_metrics:
@@ -857,7 +857,7 @@ class Cpu(Check):
                     cpu_wait = 0
                     cpu_idle = get_value(headers, data, "id")
                     cpu_stol = 0
-                    return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
+                    return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol)
 
                 else:
                     self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))

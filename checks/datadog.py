@@ -331,7 +331,7 @@ class DdForwarder(object):
 
     def _add_metric(self, name, value, ts):
 
-        if self.metrics.has_key(name):
+        if name in self.metrics:
             self.metrics[name].append((ts, value))
         else:
             self.metrics[name] = [(ts, value)]
