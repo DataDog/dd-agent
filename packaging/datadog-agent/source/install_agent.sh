@@ -40,6 +40,12 @@ if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
 fi
 
+if [ -n "$DD_INSTALL_ONLY" ]; then
+    no_start=true
+else
+    no_start=false
+fi
+
 if [ ! $apikey ]; then
     printf "\033[31mAPI key not available in DD_API_KEY environment variable.\033[0m\n"
     exit 1;
@@ -143,12 +149,25 @@ else
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 fi
 
-printf "\033[34m* Starting the Agent...\n\033[0m\n"
+restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart" 
 if command -v invoke-rc.d >/dev/null 2>&1; then
-    $sudo_cmd invoke-rc.d datadog-agent restart
-else
-    $sudo_cmd /etc/init.d/datadog-agent restart
+    restart_cmd="$sudo_cmd invoke-rc.d datadog-agent restart"
 fi
+
+if $no_start; then
+    printf "\033[34m 
+* DD_INSTALL_ONLY environment variable set: the newly installed version of the agent
+will not start by itself. You will have to do it manually using the following 
+command: 
+
+    $restart_cmd
+
+\033[0m\n"
+    exit
+fi
+
+printf "\033[34m* Starting the Agent...\n\033[0m\n"
+eval $restart_cmd
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
