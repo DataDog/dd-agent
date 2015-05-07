@@ -136,10 +136,10 @@ class TestTransaction(unittest.TestCase):
         Also tests that these endpoints actually exist.
         """
         MetricTransaction._endpoints = []
-
+        api_key = "a" * 32
         config = {
             "dd_url": "https://app.datadoghq.com",
-            "api_key": "foo",
+            "api_key": api_key,
             "use_dd": True
         }
 
@@ -156,8 +156,8 @@ class TestTransaction(unittest.TestCase):
 
         transaction = MetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key=foo'.format(
-            get_version().replace(".", "-"))]
+        expected = ['https://{0}-app.agent.datadoghq.com/intake?api_key={1}'.format(
+            get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
@@ -168,8 +168,8 @@ class TestTransaction(unittest.TestCase):
         # API Metric Transaction
         transaction = APIMetricTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key=foo'.format(
-            get_version().replace(".", "-"))]
+        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key={1}'.format(
+            get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
@@ -184,8 +184,8 @@ class TestTransaction(unittest.TestCase):
 
         transaction = APIServiceCheckTransaction(None, {})
         endpoints = [transaction.get_url(e) for e in transaction._endpoints]
-        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/check_run/?api_key=foo'.format(
-            get_version().replace(".", "-"))]
+        expected = ['https://{0}-app.agent.datadoghq.com/api/v1/check_run/?api_key={1}'.format(
+            get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
 
         for url in endpoints:
