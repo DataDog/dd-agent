@@ -19,7 +19,7 @@ def section(name)
 end
 
 class Wait
-  DEFAULT_TIMEOUT = 5
+  DEFAULT_TIMEOUT = 10
 
   def self.check_port(port)
     Timeout.timeout(0.5) do

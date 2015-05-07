@@ -30,7 +30,7 @@ namespace :ci do
       Process.detach(pid)
       sh %(echo #{pid} > $VOLATILE_DIR/elasticsearch.pid)
       # Waiting for elaticsearch to start
-      Wait.for 'http://localhost:9200', 10
+      Wait.for 'http://localhost:9200', 15
     end
 
     task script: ['ci:common:script'] do

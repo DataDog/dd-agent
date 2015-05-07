@@ -37,6 +37,9 @@ namespace :ci do
       sh %(#{supervisor_rootdir}/bin/supervisord\
            -c $VOLATILE_DIR/supervisor/supervisord.conf)
       3.times { |i| Wait.for "#{ENV['VOLATILE_DIR']}/supervisor/started_#{i}" }
+      # And we still have to sleep a little, because sometimes supervisor
+      # doesn't immediately realize that its processes are running
+      sleep_for 1
     end
 
     task script: ['ci:common:script'] do
