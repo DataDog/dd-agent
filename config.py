@@ -307,7 +307,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
         'tags': None,
         'use_ec2_instance_id': False,  # DEPRECATED
         'version': get_version(),
-        'watchdog': True,
+        'watchdog': False,
         'additional_checksd': '/etc/dd-agent/checks.d/',
         'bind_host': get_default_bind_host(),
         'statsd_metric_namespace': None,
