@@ -132,8 +132,11 @@ def pretty_statistics(stats):
         return """
             Memory Before (RSS): {0}
             Memory After (RSS): {1}
-            Memory Before (VMS): {2}
-            Memory After (VMS): {3}
-            """.format(mem_before['rss'], mem_after['rss'], mem_before['vms'], mem_after['vms'])
+            Difference (RSS): {2}
+            Memory Before (VMS): {3}
+            Memory After (VMS): {4}
+            Difference (VMS): {5}
+            """.format(mem_before['rss'], mem_after['rss'], mem_after['rss'] - mem_before['rss'],
+                       mem_before['vms'], mem_after['vms'], mem_after['vms'] - mem_before['vms'])
     else:
         return ""

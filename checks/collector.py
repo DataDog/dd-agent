@@ -467,7 +467,6 @@ class Collector(object):
             event_count = len(current_check_events)
             service_check_count = len(current_service_checks)
 
-            import pprint
             print "Metrics: \n{0}".format(pprint.pformat(current_check_metrics))
             print "Events: \n{0}".format(pprint.pformat(current_check_events))
             print "Service Checks: \n{0}".format(pprint.pformat(current_service_checks))

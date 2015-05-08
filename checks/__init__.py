@@ -28,15 +28,15 @@ import yaml
 
 try:
     import psutil
-    PSUTIL_PRESENT = True
 except ImportError:
     psutil = None
-    PSUTIL_PRESENT = False
 
 log = logging.getLogger(__name__)
 
 # Default methods run when collecting info about the agent in developer mode
 DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+
+AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
 # Konstants
 class CheckException(Exception): pass
@@ -278,11 +278,6 @@ class Check(object):
                 pass
         return metrics
 
-    def get_stats(self):
-        """
-        If in developer mode, return a dictionary of statistics about the check run
-        """
-        raise NotImplementedError
 
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
@@ -305,7 +300,7 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
-        self.in_developer_mode = agentConfig.get('developer_mode') and PSUTIL_PRESENT
+        self.in_developer_mode = agentConfig.get('developer_mode') and psutil is not None
         self.stats = None
 
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
@@ -602,11 +597,11 @@ class AgentCheck(object):
 
         # Store run statistics if needed
         before, after = None, None
-        if self.in_developer_mode and self.name != 'agent_metrics':
+        if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:
             try:
                 before = AgentCheck._collect_stats(log=self.log)
-            except Exception: # It's fine if we can't collect stats for the run
-                pass
+            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+                self.log.debug("Failed to collect Agent Stats before check {0}".format(self.name))
 
         instance_statuses = []
         for i, instance in enumerate(self.instances):
@@ -655,8 +650,8 @@ class AgentCheck(object):
                 after = AgentCheck._collect_stats()
                 self.set_stats(before, after)
                 log.info("\n \t %s %s" % (self.name, pretty_statistics(self.stats)))
-            except Exception: # It's fine if we can't collect stats for the run
-                pass
+            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+                self.log.debug("Failed to collect Agent Stats after check {0}".format(self.name))
 
         return instance_statuses
 
