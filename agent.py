@@ -336,8 +336,12 @@ def main():
             confd_directory = get_confd_path(get_os())
 
             jmx_process = JMXFetch(confd_directory, agentConfig)
-            should_run = jmx_process.run(jmx_command, checks_list, reporter="console")
-            if not should_run:
+            jmx_process.configure()
+            should_run = jmx_process.should_run()
+
+            if should_run:
+                jmx_process.run(jmx_command, checks_list, reporter="console")
+            else:
                 print "Couldn't find any valid JMX configuration in your conf.d directory: %s" % confd_directory
                 print "Have you enabled any JMX check ?"
                 print "If you think it's not normal please get in touch with Datadog Support"
