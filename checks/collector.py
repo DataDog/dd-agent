@@ -297,7 +297,7 @@ class Collector(object):
                 # Collect the metrics and events.
                 current_check_metrics = check.get_metrics()
                 current_check_events = check.get_events()
-                check_stats = check.get_stats()
+                check_stats = check._get_internal_profiling_stats()
 
                 # Save them for the payload.
                 metrics.extend(current_check_metrics)
@@ -460,7 +460,7 @@ class Collector(object):
             current_check_events = check.get_events()
             current_service_checks = check.get_service_checks()
 
-            check_stats = check.get_stats()
+            check_stats = check._get_internal_profiling_stats()
 
             # Save the status of the check.
             metric_count = len(current_check_metrics)

@@ -584,7 +584,7 @@ class AgentCheck(object):
     def set_stats(self, before, after):
         self.stats = {'before': before, 'after': after}
 
-    def get_stats(self):
+    def _get_internal_profiling_stats(self):
         """
         If in developer mode, return a dictionary of statistics about the check run
         """
