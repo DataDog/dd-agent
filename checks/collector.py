@@ -165,8 +165,8 @@ class Collector(object):
             if not self._agent_metrics:
                 for check in self.initialized_checks_d[:]:
                     if check.name == AGENT_METRICS_CHECK:
-                        self._agent_metrics = ch
-                        self.initialized_checks_d.remove(ch)
+                        self._agent_metrics = check
+                        self.initialized_checks_d.remove(check)
                         break
 
         # Run the system checks. Checks will depend on the OS
