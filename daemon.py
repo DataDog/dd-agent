@@ -163,11 +163,11 @@ class Daemon(object):
         if pid:
             # Check if the pid in the pidfile corresponds to a running process
             if pid_exists(pid):
-                log.error("Not starting, another instance is already running"\
+                log.error("Not starting, another instance is already running"
                           " (using pidfile {0})".format(self.pidfile))
                 sys.exit(1)
             else:
-                log.warn('pidfile contains the pid of a stopped process.'\
+                log.warn('pidfile contains the pid of a stopped process.'
                          ' Starting normally')
 
         log.info("Pidfile: %s" % self.pidfile)

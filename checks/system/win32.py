@@ -21,7 +21,7 @@ KB2MB = B2KB = float(1024)
 
 def should_ignore_disk(name, blacklist_re):
     # blacklist_re is a compiled regex, compilation done at config loading time
-    return name =='_total' or blacklist_re is not None and blacklist_re.match(name)
+    return name == '_total' or blacklist_re is not None and blacklist_re.match(name)
 
 class Processes(Check):
     def __init__(self, logger):
@@ -33,14 +33,14 @@ class Processes(Check):
         try:
             os = w.Win32_PerfFormattedData_PerfOS_System()[0]
         except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.' \
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_System WMI class.'
                              ' No process metrics will be returned.')
             return
 
         try:
             cpu = w.Win32_PerfFormattedData_PerfOS_Processor(name="_Total")[0]
         except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.'
                              ' No process metrics will be returned.')
             return
         if os.ProcessorQueueLength is not None:
@@ -126,7 +126,7 @@ class Cpu(Check):
         try:
             cpu = w.Win32_PerfFormattedData_PerfOS_Processor()
         except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.' \
+            self.logger.info('Missing Win32_PerfFormattedData_PerfOS_Processor WMI class.'
                              ' No CPU metrics will be returned.')
             return
 
@@ -138,7 +138,7 @@ class Cpu(Check):
 
         self.save_sample('system.cpu.user', 100 * cpu_percent.user / psutil.NUM_CPUS)
         self.save_sample('system.cpu.idle', 100 * cpu_percent.idle / psutil.NUM_CPUS)
-        self.save_sample('system.cpu.system', 100 * cpu_percent.system/ psutil.NUM_CPUS)
+        self.save_sample('system.cpu.system', 100 * cpu_percent.system / psutil.NUM_CPUS)
 
         return self.get_metrics()
 
@@ -174,7 +174,7 @@ class Network(Check):
         try:
             net = w.Win32_PerfFormattedData_Tcpip_NetworkInterface()
         except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class.' \
+            self.logger.info('Missing Win32_PerfFormattedData_Tcpip_NetworkInterface WMI class.'
                              ' No network metrics will be returned')
             return
 
@@ -203,7 +203,7 @@ class Disk(Check):
         try:
             disk = w.Win32_LogicalDisk()
         except AttributeError:
-            self.logger.info('Missing Win32_LogicalDisk WMI class.'  \
+            self.logger.info('Missing Win32_LogicalDisk WMI class.'
                              ' No disk metrics will be returned.')
             return
 
@@ -254,7 +254,7 @@ class IO(Check):
         try:
             disk = w.Win32_PerfFormattedData_PerfDisk_LogicalDisk()
         except AttributeError:
-            self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.' \
+            self.logger.info('Missing Win32_PerfFormattedData_PerfDisk_LogicalDiskUnable WMI class.'
                              ' No I/O metrics will be returned.')
             return
         blacklist_re = agentConfig.get('device_blacklist_re', None)

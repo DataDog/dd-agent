@@ -525,8 +525,7 @@ SELECT relname,
         for m in custom_metrics:
             for param in required_parameters:
                 if param not in m:
-                    raise CheckException("Missing {0} parameter in custom metric"\
-                        .format(param))
+                    raise CheckException("Missing {0} parameter in custom metric".format(param))
 
             self.log.debug("Metric: {0}".format(m))
 

@@ -270,11 +270,13 @@ WARNINGS
     def _candidates_size_assert(self, candidates, count=None, at_least=1):
         try:
             if count is not None:
-                self.assertEquals(len(candidates), count,
+                self.assertEquals(
+                    len(candidates), count,
                     "Needed exactly %d candidates, got %d" % (count, len(candidates))
                 )
             else:
-                self.assertTrue(len(candidates) >= at_least,
+                self.assertTrue(
+                    len(candidates) >= at_least,
                     "Needed at least %d candidates, got %d" % (at_least, len(candidates))
                 )
         except AssertionError:
@@ -331,8 +333,10 @@ WARNINGS
             self._candidates_size_assert(candidates, count=count)
         except AssertionError:
             log.error("Candidates size assertion for {0} (tag_prefix: {1}, "
-                "count: {2}, at_least: {3}) failed"\
-                .format(metric_name, tag_prefix, count, at_least))
+                      "count: {2}, at_least: {3}) failed".format(metric_name,
+                                                                 tag_prefix,
+                                                                 count,
+                                                                 at_least))
             raise
 
         for mtuple in self.metrics:
@@ -360,8 +364,7 @@ WARNINGS
             self._candidates_size_assert(candidates, count=count)
         except AssertionError:
             log.error("Candidates size assertion for {0} (tag: {1}, count={2},"
-                " at_least={3}) failed"\
-                .format(metric_name, tag, count, at_least))
+                      " at_least={3}) failed".format(metric_name, tag, count, at_least))
             raise
 
         for mtuple in self.metrics:
@@ -395,8 +398,11 @@ WARNINGS
             self._candidates_size_assert(candidates, count=count, at_least=at_least)
         except AssertionError:
             log.error("Candidates size assertion for {0} (status: {1}, "
-                "tags: {2}, count: {3}, at_least: {4}) failed"\
-                .format(service_check_name, status, tags, count, at_least))
+                      "tags: {2}, count: {3}, at_least: {4}) failed".format(service_check_name,
+                                                                            status,
+                                                                            tags,
+                                                                            count,
+                                                                            at_least))
             raise
 
         for sc in self.service_checks:

@@ -16,8 +16,7 @@ class SshTestCase(unittest.TestCase):
                 'sftp_check': False,
                 'private_key_file': '',
                 'add_missing_keys': True
-            },
-            {
+            }, {
                 'host': 'localhost',
                 'port': 22,
                 'username': 'test',
@@ -25,8 +24,7 @@ class SshTestCase(unittest.TestCase):
                 'sftp_check': False,
                 'private_key_file': '',
                 'add_missing_keys': True
-            },
-            {
+            }, {
                 'host': 'wronghost',
                 'port': 22,
                 'username': 'datadog01',

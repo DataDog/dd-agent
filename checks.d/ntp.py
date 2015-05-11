@@ -38,7 +38,7 @@ class NtpCheck(AgentCheck):
             ntp_ts = None
         else:
             ntp_offset = ntp_stats.offset
-            
+
             # Use the ntp server's timestamp for the time of the result in
             # case the agent host's clock is messed up.
             ntp_ts = ntp_stats.recv_time

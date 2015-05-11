@@ -1,9 +1,12 @@
+from types import ListType
 import unittest
-from tests.checks.common import load_check
-from checks import AgentCheck
+from types import ListType
 
 from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
+
+from checks import AgentCheck
+from tests.checks.common import load_check
 
 @attr('couchbase')
 class CouchbaseTestCase(unittest.TestCase):
@@ -48,11 +51,12 @@ class CouchbaseTestCase(unittest.TestCase):
 
         metrics = self.check.get_metrics()
 
-        camel_cased_metrics = [u'couchbase.hdd.used_by_data',
+        camel_cased_metrics = [
+            u'couchbase.hdd.used_by_data',
             u'couchbase.ram.used_by_data',
             u'couchbase.ram.quota_total',
             u'couchbase.ram.quota_used',
-            ]
+        ]
 
         found_metrics = [k[0] for k in metrics if k[0] in camel_cased_metrics]
         self.assertEqual(found_metrics.sort(), camel_cased_metrics.sort())
@@ -63,7 +67,7 @@ class CouchbaseTestCase(unittest.TestCase):
 
         metrics = self.check.get_metrics()
 
-        self.assertTrue(type(metrics) == type([]), metrics)
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 3)
         self.assertTrue(len([k for k in metrics if "instance:http://localhost:8091" in k[3]['tags']]) > 3)
 

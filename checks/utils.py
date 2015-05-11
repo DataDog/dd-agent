@@ -4,7 +4,7 @@ import os
 # os.SEEK_END is defined in python 2.5
 SEEK_END = 2
 
-from stat import *
+from stat import ST_INO, ST_SIZE
 import binascii
 
 def median(vals):
@@ -31,7 +31,7 @@ class TailFile(object):
         self._crc = None
         self._log = logger
         self._callback = callback
-   
+
     def _open_file(self, move_end=False, pos=False):
 
         already_open = False

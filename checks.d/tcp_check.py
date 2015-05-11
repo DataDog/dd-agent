@@ -159,7 +159,7 @@ class TCPCheck(NetworkCheck):
         port = instance.get('port', None)
 
         if status == Status.UP:
-            msg=None
+            msg = None
 
         self.service_check(service_check_name,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],

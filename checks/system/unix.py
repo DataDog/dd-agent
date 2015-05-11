@@ -731,9 +731,9 @@ class Processes(Check):
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
 
-        return { 'processes':   processes,
-                 'apiKey':      agentConfig['api_key'],
-                 'host':        get_hostname(agentConfig) }
+        return {'processes':   processes,
+                'apiKey':      agentConfig['api_key'],
+                'host':        get_hostname(agentConfig)}
 
 class Cpu(Check):
 
@@ -742,7 +742,7 @@ class Cpu(Check):
         When figures are not available, False is sent back.
         """
         def format_results(us, sy, wa, idle, st):
-            data = { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
+            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st}
             for key in data.keys():
                 if data[key] is None:
                     del data[key]
@@ -916,7 +916,7 @@ def _get_subprocess_output(command, log):
         proc.wait()
         err = proc.stderr.read()
         if err:
-            log.debug("Error while running %s : %s" %(" ".join(command), err))
+            log.debug("Error while running %s : %s" % (" ".join(command), err))
 
         stdout_f.seek(0)
         output = stdout_f.read()

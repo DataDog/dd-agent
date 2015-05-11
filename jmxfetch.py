@@ -247,7 +247,7 @@ class JMXFetch(object):
             log.info("Running %s" % " ".join(subprocess_args))
             jmx_process = subprocess.Popen(subprocess_args, close_fds=True)
             self.jmx_process = jmx_process
-            
+
             # Register SIGINT and SIGTERM signal handlers
             self.register_signal_handlers()
 
@@ -385,8 +385,8 @@ class JMXFetch(object):
 
 
 def _get_jmx_appnames():
-    """ 
-    Retrieves the running JMX checks based on the {tmp}/jmx_status.yaml file 
+    """
+    Retrieves the running JMX checks based on the {tmp}/jmx_status.yaml file
     updated by JMXFetch (and the only communication channel between JMXFetch
     and the collector since JMXFetch).
     """
@@ -396,7 +396,7 @@ def _get_jmx_appnames():
         jmx_checks = yaml.load(file(jmx_status_path)).get('checks', {})
         check_names = [name for name in jmx_checks.get('initialized_checks', {}).iterkeys()]
     return check_names
-        
+
 
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)

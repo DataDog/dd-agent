@@ -114,7 +114,7 @@ class Memcache(AgentCheck):
 
             assert len(raw_stats) == 1 and len(raw_stats[0]) == 2,\
                 "Malformed response: %s" % raw_stats
-            
+
 
             # Access the dict
             stats = raw_stats[0][1]

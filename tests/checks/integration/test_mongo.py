@@ -1,5 +1,6 @@
 # stdlib
 import time
+from types import ListType
 import unittest
 
 # 3p
@@ -24,8 +25,7 @@ class TestMongo(unittest.TestCase):
         self.config = {
             'instances': [{
                 'server': "mongodb://localhost:%s/test" % PORT1
-            },
-            {
+            }, {
                 'server': "mongodb://localhost:%s/test" % PORT2
             }]
         }
@@ -43,7 +43,7 @@ class TestMongo(unittest.TestCase):
         # Metric assertions
         metrics = self.check.get_metrics()
         assert metrics
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
 
         metric_val_checks = {
@@ -57,7 +57,7 @@ class TestMongo(unittest.TestCase):
         for m in metrics:
             metric_name = m[0]
             if metric_name in metric_val_checks:
-                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
+                self.assertTrue(metric_val_checks[metric_name](m[2]))
 
         # Run the check against our running server
         self.check.check(self.config['instances'][1])
@@ -70,7 +70,7 @@ class TestMongo(unittest.TestCase):
         service_checks = self.check.get_service_checks()
         print service_checks
         service_checks_count = len(service_checks)
-        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(isinstance(service_checks, ListType))
         self.assertTrue(service_checks_count > 0)
         self.assertEquals(len([sc for sc in service_checks if sc['check'] == self.check.SERVICE_CHECK_NAME]), 4, service_checks)
         # Assert that all service checks have the proper tags: host and port
@@ -81,13 +81,13 @@ class TestMongo(unittest.TestCase):
         # Metric assertions
         metrics = self.check.get_metrics()
         assert metrics
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
 
         for m in metrics:
             metric_name = m[0]
             if metric_name in metric_val_checks:
-                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
+                self.assertTrue(metric_val_checks[metric_name](m[2]))
 
     def testMongoOldConfig(self):
         conf = {
@@ -111,7 +111,7 @@ class TestMongo(unittest.TestCase):
         # Metric assertions
         metrics = self.check.get_metrics()
         assert metrics
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
 
         metric_val_checks = {
@@ -125,7 +125,7 @@ class TestMongo(unittest.TestCase):
         for m in metrics:
             metric_name = m[0]
             if metric_name in metric_val_checks:
-                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
+                self.assertTrue(metric_val_checks[metric_name](m[2]))
 
         # Run the check against our running server
         self.check.check(conf['instances'][1])
@@ -137,11 +137,10 @@ class TestMongo(unittest.TestCase):
         # Metric assertions
         metrics = self.check.get_metrics()
         assert metrics
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
 
         for m in metrics:
             metric_name = m[0]
             if metric_name in metric_val_checks:
-                self.assertTrue( metric_val_checks[metric_name]( m[2] ) )
-
+                self.assertTrue(metric_val_checks[metric_name](m[2]))

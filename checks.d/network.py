@@ -114,7 +114,7 @@ class Network(AgentCheck):
                 return 0
 
     def _submit_regexed_values(self, output, regex_list):
-        lines=output.split("\n")
+        lines = output.split("\n")
         for line in lines:
             for regex, metric in regex_list:
                 value = re.match(regex, line)
@@ -210,7 +210,7 @@ class Network(AgentCheck):
             tcp_metrics = dict(zip(column_names,values))
 
             # line start indicating what kind of metrics we're looking at
-            assert(tcp_metrics['Tcp:']=='Tcp:')
+            assert(tcp_metrics['Tcp:'] == 'Tcp:')
 
             tcp_metrics_name = {
                 'RetransSegs': 'system.net.tcp.retrans_segs',

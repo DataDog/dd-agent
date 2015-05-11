@@ -367,7 +367,7 @@ class DdForwarder(object):
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
 
-            return { 'ddforwarder': self.metrics }
+            return {'ddforwarder': self.metrics}
         else:
             self.logger.debug("Can't tail datadog forwarder log file: %s" % self.log_path)
             return {}

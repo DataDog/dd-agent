@@ -300,7 +300,7 @@ class TestCore(unittest.TestCase):
         metrics = check.get_metrics()
         self.assertTrue(len(metrics) > 0, metrics)
 
-        config = {'instances': [{'host': '0.amazon.pool.ntp.org', 'timeout': 1, 'min_collection_interval': 12}], 'init_config': { 'min_collection_interval':3}}
+        config = {'instances': [{'host': '0.amazon.pool.ntp.org', 'timeout': 1, 'min_collection_interval': 12}], 'init_config': {'min_collection_interval':3}}
         check = load_check('ntp', config, agentConfig)
         check.run()
         metrics = check.get_metrics()

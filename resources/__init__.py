@@ -1,6 +1,7 @@
 
 from datetime import datetime, timedelta
 import time
+from types import DictType, ListType, StringTypes
 
 from collections import namedtuple
 
@@ -18,7 +19,7 @@ class agg(object):
     def append(args):
         l = []
         for arg in args:
-            if type(arg) == type("") or type(arg) == type(u""):
+            if isinstance(arg, StringTypes):
                 l.extend(arg.split(","))
             else:
                 l.append(str(arg))
@@ -78,7 +79,7 @@ class ResourcePlugin(object):
         if keys is None:
             return lines
 
-        if type(keys) != type([]):
+        if not isinstance(keys, ListType):
             keys = [keys]
 
         group = {}
@@ -130,7 +131,7 @@ class ResourcePlugin(object):
         if group_by is not None:
             groups = self._group_by(group_by,lines)
         else:
-            groups = { 'foo': lines}
+            groups = {'foo': lines}
 
         #Aggregate each terminal group
         dlist = []
@@ -138,7 +139,7 @@ class ResourcePlugin(object):
         def _aggregate_groups(groups):
             for group in groups:
                 rows = groups[group]
-                if type(rows) == type({}):
+                if isinstance(rows, DictType):
                     _aggregate_groups(rows)
                 else:
                     dlist.append(self._aggregate_lines(rows, temporal = temporal))
@@ -219,15 +220,16 @@ class ResourcePlugin(object):
                 if field.server_temporal_aggregator is not None:
                     f_serv_tagg_name = field.server_temporal_aggregator.__name__
 
-                ret.append([field.version,
-                            field.name,
-                            field.type,
-                            f_agg_name,
-                            f_tagg_name,
-                            f_serv_agg_name,
-                            f_serv_tagg_name,
-                            field.group_on,
-                            field.temporal_group_on,
+                ret.append([
+                    field.version,
+                    field.name,
+                    field.type,
+                    f_agg_name,
+                    f_tagg_name,
+                    f_serv_agg_name,
+                    f_serv_tagg_name,
+                    field.group_on,
+                    field.temporal_group_on,
                 ])
             return ret
 

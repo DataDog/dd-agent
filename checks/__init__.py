@@ -8,7 +8,7 @@ import logging
 import re
 import socket
 import time
-import types
+from types import ListType, TupleType
 import os
 import sys
 import traceback
@@ -185,7 +185,7 @@ class Check(object):
         "Get (timestamp-epoch-style, value)"
 
         # Get the proper tags
-        if tags is not None and type(tags) == type([]):
+        if tags is not None and isinstance(tags, ListType):
             tags.sort()
             tags = tuple(tags)
         key = (tags, device_name)
@@ -213,7 +213,7 @@ class Check(object):
     def get_sample(self, metric, tags=None, device_name=None, expire=True):
         "Return the last value for that metric"
         x = self.get_sample_with_timestamp(metric, tags, device_name, expire)
-        assert type(x) == types.TupleType and len(x) == 4, x
+        assert isinstance(x, TupleType) and len(x) == 4, x
         return x[1]
 
     def get_samples_with_timestamps(self, expire=True):

@@ -1,21 +1,22 @@
 # stdlib
-import unittest
-import time
-import threading
 import os
 import tempfile
-from nose.plugins.attrib import attr
+import threading
+import time
+from types import ListType
+import unittest
+
+# 3rd party
 from mock import patch
+from nose.plugins.attrib import attr
+import yaml
 
 # datadog
 from aggregator import MetricsAggregator
 from dogstatsd import Server
-from util import PidFile
 from jmxfetch import JMXFetch
 from tests.checks.common import AgentCheckTest
-
-# 3rd party
-import yaml
+from util import PidFile
 
 STATSD_PORT = 8129
 
@@ -126,7 +127,7 @@ class JMXTestCase(unittest.TestCase):
 
         metrics = self.reporter.metrics
 
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
         self.assertEquals(len([t for t in metrics if t['metric'] == "my.metric.buf" and "instance:jmx_instance1" in t['tags']]), 2, metrics)
         self.assertTrue(len([t for t in metrics if 'type:ThreadPool' in t['tags'] and "instance:jmx_instance1" in t['tags'] and "jmx.catalina" in t['metric']]) > 8, metrics)

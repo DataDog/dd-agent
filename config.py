@@ -280,11 +280,11 @@ def get_histogram_percentiles(configstr=None):
                 if floatval <= 0 or floatval >= 1:
                     raise ValueError
                 if len(val) > 4:
-                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"\
+                    log.warning("Histogram percentiles are rounded to 2 digits: {0} rounded"
                         .format(floatval))
                 result.append(float(val[0:4]))
             except ValueError:
-                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"\
+                log.warning("Bad histogram percentile value {0}, must be float in ]0;1[, skipping"
                     .format(val))
     except Exception:
         log.exception("Error when parsing histogram percentiles, skipping")
@@ -426,7 +426,7 @@ def get_config(parse_args=True, cfg_path=None, options=None):
                 agentConfig[key] = config.get('Main', key)
             else:
                 agentConfig[key] = value
-        
+
         # Create app:xxx tags based on monitored apps
         agentConfig['create_dd_check_tags'] = config.has_option('Main', 'create_dd_check_tags')\
                 and _is_affirmative(config.get('Main', 'create_dd_check_tags'))

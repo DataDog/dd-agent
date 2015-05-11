@@ -85,7 +85,8 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_histogram_normalization(self):
         # The min is not enabled by default
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             interval=10,
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
@@ -95,8 +96,7 @@ class TestUnitDogStatsd(unittest.TestCase):
             stats.submit_packets('h2:1|h')
 
         metrics = self.sort_metrics(stats.flush())
-        _, _, h1count, _, _, _, \
-        _, _, h2count, _, _, _ = metrics
+        _, _, h1count, _, _, _, _, _, h2count, _, _, _ = metrics
 
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
@@ -340,7 +340,8 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_histogram(self):
         # The min is not enabled by default
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
 
@@ -375,7 +376,8 @@ class TestUnitDogStatsd(unittest.TestCase):
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
         # The min is not enabled by default
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         stats.submit_packets('sampled.hist:5|h|@0.5')
@@ -408,12 +410,14 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_monokey_batching_notags(self):
         # The min is not enabled by default
-        stats = MetricsAggregator('host',
+        stats = MetricsAggregator(
+            'host',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         stats.submit_packets('test_hist:0.3|ms:2.5|ms|@0.5:3|ms')
 
-        stats_ref = MetricsAggregator('host',
+        stats_ref = MetricsAggregator(
+            'host',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         packets = [
@@ -437,9 +441,9 @@ class TestUnitDogStatsd(unittest.TestCase):
 
         stats_ref = MetricsAggregator('host')
         packets = [
-                'test_gauge:1.5|g|#tag1:one,tag2:two',
-                'test_gauge:2.3|g|#tag3:three',
-                'test_gauge:3|g'
+            'test_gauge:1.5|g|#tag1:one,tag2:two',
+            'test_gauge:2.3|g|#tag3:three',
+            'test_gauge:3|g'
         ]
         stats_ref.submit_packets("\n".join(packets))
 
@@ -454,20 +458,21 @@ class TestUnitDogStatsd(unittest.TestCase):
 
     def test_monokey_batching_withtags_with_sampling(self):
         # The min is not enabled by default
-        stats = MetricsAggregator('host',
+        stats = MetricsAggregator(
+            'host',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         stats.submit_packets('test_metric:1.5|c|#tag1:one,tag2:two:2.3|g|#tag3:three:3|g:42|h|#tag1:12,tag42:42|@0.22')
 
-        stats_ref = MetricsAggregator('host',
+        stats_ref = MetricsAggregator(
+            'host',
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
         packets = [
-                'test_metric:1.5|c|#tag1:one,tag2:two',
-                'test_metric:2.3|g|#tag3:three',
-                'test_metric:3|g',
-                'test_metric:42|h|#tag1:12,tag42:42|@0.22'
-
+            'test_metric:1.5|c|#tag1:one,tag2:two',
+            'test_metric:2.3|g|#tag3:three',
+            'test_metric:3|g',
+            'test_metric:42|h|#tag1:12,tag42:42|@0.22'
         ]
         stats_ref.submit_packets("\n".join(packets))
 
@@ -510,7 +515,8 @@ class TestUnitDogStatsd(unittest.TestCase):
         ag_interval = 1
         expiry = ag_interval * 4 + 2
         # The min is not enabled by default
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             interval=ag_interval,
             expiry_seconds=expiry,
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
@@ -751,7 +757,8 @@ class TestUnitDogStatsd(unittest.TestCase):
     def test_recent_point_threshold(self):
         threshold = 100
         # The min is not enabled by default
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             recent_point_threshold=threshold,
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )

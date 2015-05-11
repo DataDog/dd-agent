@@ -1,6 +1,7 @@
 import unittest
 import logging
 from nose.plugins.attrib import attr
+from types import ListType
 logger = logging.getLogger(__file__)
 
 from tests.checks.common import load_check
@@ -16,7 +17,7 @@ class TestFluentd(unittest.TestCase):
             "instances": [
                 {
                     "monitor_agent_url": "http://localhost:24220/api/plugins.json",
-                    "plugin_ids": [ "plg1" ],
+                    "plugin_ids": ["plg1"],
                 }
             ]
         }
@@ -43,7 +44,7 @@ class TestFluentd(unittest.TestCase):
 
         service_checks = check.get_service_checks()
         service_checks_count = len(service_checks)
-        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(isinstance(service_checks, ListType))
         self.assertTrue(service_checks_count > 0)
 
         is_ok = [sc for sc in service_checks if sc['check'] == check.SERVICE_CHECK_NAME]
@@ -57,7 +58,7 @@ class TestFluentd(unittest.TestCase):
             "instances": [
                 {
                     "monitor_agent_url": "http://localhost:24222/api/plugins.json",
-                    "plugin_ids": [ "plg2" ],
+                    "plugin_ids": ["plg2"],
                 }
             ]
         }

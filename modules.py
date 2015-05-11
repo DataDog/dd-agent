@@ -42,14 +42,14 @@ def load_qualified_module(full_module_name, path=None):
 
 def module_name_for_filename(filename):
     """Given the name of a Python file, find an appropropriate module name.
-    
+
     This involves determining whether the file is within a package, and
     determining the name of same."""
     all_segments = filename.split(os.sep)
     path_elements = all_segments[:-1]
     module_elements = [all_segments[-1].rsplit('.', 1)[0]]
     while True:
-        init_path = os.path.join(*(path_elements +['__init__.py']))
+        init_path = os.path.join(*(path_elements + ['__init__.py']))
         if path_elements[0] is "":
             # os.path.join will not put the leading '/'
             # it will return a/b/c for os.path.join("","a","b","c")
@@ -65,7 +65,7 @@ def module_name_for_filename(filename):
 def get_module(name):
     """Given either an absolute path to a Python file or a module name, load
     and return a Python module.
-    
+
     If the module is already loaded, takes no action."""
     if name.startswith('/') or WINDOWS_PATH.match(name):
         basename, modulename = module_name_for_filename(name)
@@ -82,7 +82,7 @@ def load(config_string, default_name=None):
     return said object.
     """
     split = windows_friendly_colon_split(config_string)
-    if len(split)> 1:
+    if len(split) > 1:
         module_name, object_name = ":".join(split[:-1]), split[-1]
     else:
         module_name, object_name = config_string, default_name

@@ -18,8 +18,10 @@ class TestHistogram(unittest.TestCase):
         for k in metrics:
             value_by_type[k['metric'][len('myhistogram')+1:]] = k['points'][0][1]
 
-        self.assertEquals(sorted(value_by_type.keys()),
-                ['95percentile', 'avg', 'count', 'max', 'median'], value_by_type)
+        self.assertEquals(
+            sorted(value_by_type.keys()),
+            ['95percentile', 'avg', 'count', 'max', 'median'], value_by_type
+        )
 
         self.assertEquals(value_by_type['max'], 19, value_by_type)
         self.assertEquals(value_by_type['median'], 9, value_by_type)
@@ -29,7 +31,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_single_percentile(self):
         configstr = '0.40'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_percentiles=get_histogram_percentiles(configstr)
         )
 
@@ -54,7 +57,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_multiple_percentile(self):
         configstr = '0.4, 0.65, 0.999'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_percentiles=get_histogram_percentiles(configstr)
         )
 
@@ -81,7 +85,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_invalid_percentile(self):
         configstr = '1.2342'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_percentiles=get_histogram_percentiles(configstr)
         )
 
@@ -93,7 +98,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_invalid_percentile2(self):
         configstr = 'aoeuoeu'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_percentiles=get_histogram_percentiles(configstr)
         )
 
@@ -105,7 +111,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_invalid_percentile3skip(self):
         configstr = 'aoeuoeu, 2.23, 0.8, 23'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_percentiles=get_histogram_percentiles(configstr)
         )
 
@@ -117,7 +124,8 @@ class TestHistogram(unittest.TestCase):
 
     def test_custom_aggregate(self):
         configstr = 'median, max'
-        stats = MetricsAggregator('myhost',
+        stats = MetricsAggregator(
+            'myhost',
             histogram_aggregates=get_histogram_aggregates(configstr)
         )
 

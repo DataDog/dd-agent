@@ -1,6 +1,7 @@
 # stdlib
 import threading
 import time
+from types import ListType
 import unittest
 
 # 3p
@@ -69,6 +70,6 @@ class JMXTestCase(unittest.TestCase):
 
         metrics = self.reporter.metrics
 
-        self.assertTrue(type(metrics) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(len(metrics) > 0)
         self.assertTrue(len([t for t in metrics if "cassandra.db." in t['metric'] and "instance:cassandra_instance" in t['tags']]) > 40, metrics)

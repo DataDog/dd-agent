@@ -50,7 +50,7 @@ class GUnicornCheck(AgentCheck):
         msg = "%s working and %s idle workers for %s" % (working, idle, proc_name)
         status = AgentCheck.CRITICAL if working == 0 and idle == 0 else AgentCheck.OK
 
-        self.service_check(self.SVC_NAME, status, tags=['app:'+ proc_name], message=msg)
+        self.service_check(self.SVC_NAME, status, tags=['app:' + proc_name], message=msg)
 
         # Submit the data.
         self.log.debug("instance %s procs - working:%s idle:%s" % (proc_name, working, idle))
@@ -102,7 +102,7 @@ class GUnicornCheck(AgentCheck):
         master_procs = [p for p in psutil.process_iter() if p.cmdline() and p.cmdline()[0] == master_name]
         if len(master_procs) == 0:
             # process not found, it's dead.
-            self.service_check(self.SVC_NAME, AgentCheck.CRITICAL, tags=['app:'+ name],
+            self.service_check(self.SVC_NAME, AgentCheck.CRITICAL, tags=['app:' + name],
                                 message="No gunicorn process with name %s found" % name)
             raise GUnicornCheckError("Found no master process with name: %s" % master_name)
         elif len(master_procs) > 1:

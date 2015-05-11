@@ -76,10 +76,11 @@ class Couchbase(AgentCheck):
 
     def get_data(self, server, instance):
         # The dictionary to be returned.
-        couchbase = {'stats': None,
-                'buckets': {},
-                'nodes': {}
-                }
+        couchbase = {
+            'stats': None,
+            'buckets': {},
+            'nodes': {}
+        }
 
         # build couchbase stats entry point
         url = '%s%s' % (server, COUCHBASE_STATS_PATH)

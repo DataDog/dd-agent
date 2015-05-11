@@ -21,7 +21,7 @@ extra_args = {}
 setup_requires = []
 
 # Prereqs of the install. Will install when deploying the egg.
-install_requires=[]
+install_requires = []
 
 if sys.platform == 'win32':
     from glob import glob
@@ -100,7 +100,7 @@ if sys.platform == 'win32':
                 'compressed': True,
                 'bundle_files': 3,
                 'excludes': ['numpy'],
-                'dll_excludes': [ "IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
+                'dll_excludes': ["IPHLPAPI.DLL", "NSI.dll",  "WINNSI.DLL",  "WTSAPI32.dll"],
                 'ascii':False,
             },
         },

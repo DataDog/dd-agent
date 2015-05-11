@@ -89,8 +89,7 @@ class SQLServer(AgentCheck):
             for row in init_config.get('custom_metrics', []):
                 user_type = row.get('type')
                 if user_type is not None and user_type not in VALID_METRIC_TYPES:
-                    self.log.error('%s has an invalid metric type: %s' \
-                                    % (row['name'], user_type))
+                    self.log.error('%s has an invalid metric type: %s' % (row['name'], user_type))
                 sql_type = None
                 try:
                     if user_type is None:
@@ -190,16 +189,15 @@ class SQLServer(AgentCheck):
             except Exception:
                 cx = "%s - %s" % (host, database)
                 message = "Unable to connect to SQL Server for instance %s." % cx
-                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL, 
+                self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                     tags=service_check_tags, message=message)
-                
+
                 password = instance.get('password')
                 tracebk = traceback.format_exc()
                 if password is not None:
                     tracebk = tracebk.replace(password, "*" * 6)
-                    
-                raise Exception("%s \n %s" \
-                    % (message, tracebk))
+
+                raise Exception("%s \n %s" % (message, tracebk))
 
         conn = self.connections[conn_key]
         cursor = conn.cursor()
@@ -223,10 +221,10 @@ class SQLServer(AgentCheck):
             # and PERF_AVERAGE_BULK), we need two metrics: the metrics specified and
             # a base metrics to get the ratio. There is no unique schema so we generate
             # the possible candidates and we look at which ones exist in the db.
-            candidates = ( counter_name + " base",
-                           counter_name.replace("(ms)", "base"),
-                           counter_name.replace("Avg ", "") + " base"
-                           )
+            candidates = (counter_name + " base",
+                          counter_name.replace("(ms)", "base"),
+                          counter_name.replace("Avg ", "") + " base"
+                          )
             try:
                 cursor.execute(BASE_NAME_QUERY, candidates)
                 base_name = cursor.fetchone().counter_name.strip()

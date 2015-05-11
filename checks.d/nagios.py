@@ -222,7 +222,7 @@ class NagiosTailer(object):
             regex = re.sub(r'\$([^\$]*)\$', r'(?P<\1>[^\$]*)', regex)
             self.line_pattern = re.compile(regex)
         except Exception, e:
-            raise InvalidDataTemplate("%s (%s)"% (file_template, e))
+            raise InvalidDataTemplate("%s (%s)" % (file_template, e))
 
 
 class NagiosEventLogTailer(NagiosTailer):

@@ -144,14 +144,14 @@ class Collector(object):
         log.debug("Starting collection run #%s" % self.run_count)
 
         if checksd:
-            self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances 
+            self.initialized_checks_d = checksd['initialized_checks'] # is a list of AgentCheck instances
             self.init_failed_checks_d = checksd['init_failed_checks'] # is of type {check_name: {error, traceback}}
-        
+
         payload = self._build_payload(start_event=start_event)
         metrics = payload['metrics']
         events = payload['events']
         service_checks = payload['service_checks']
-        
+
         # Run the system checks. Checks will depend on the OS
         if self.os == 'windows':
             # Win32 system checks
@@ -241,8 +241,8 @@ class Collector(object):
                 snaps = resources_check.pop_snapshots()
                 if snaps:
                     has_resource = True
-                    res_value = { 'snaps': snaps,
-                                  'format_version': resources_check.get_format_version() }
+                    res_value = {'snaps': snaps,
+                                 'format_version': resources_check.get_format_version() }
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format
@@ -376,7 +376,7 @@ class Collector(object):
             payload['metrics'].extend(self._agent_metrics.check(payload, self.agentConfig,
                 collect_duration, self.emit_duration))
 
-        # Let's send our payload 
+        # Let's send our payload
         emitter_statuses = self._emit(payload)
         self.emit_duration = timer.step()
 
@@ -443,12 +443,13 @@ class Collector(object):
         if start_event and self._is_first_run():
             payload['systemStats'] = self.agentConfig.get('system_stats', {})
             # Also post an event in the newsfeed
-            payload['events']['System'] = [{'api_key': self.agentConfig['api_key'],
-                                 'host': payload['internalHostname'],
-                                 'timestamp': now,
-                                 'event_type':'Agent Startup',
-                                 'msg_text': 'Version %s' % get_version()
-                                 }]
+            payload['events']['System'] = [{
+                'api_key': self.agentConfig['api_key'],
+                'host': payload['internalHostname'],
+                'timestamp': now,
+                'event_type':'Agent Startup',
+                'msg_text': 'Version %s' % get_version()
+            }]
 
         # Periodically send the host metadata.
         if self._should_send_additional_data('metadata'):
@@ -516,9 +517,9 @@ class Collector(object):
                 self._should_send_additional_data('dd_check_tags'):
             app_tags_list = [DD_CHECK_TAG.format(c.name) for c in self.initialized_checks_d]
             app_tags_list.extend([DD_CHECK_TAG.format(cname) for cname in jmxfetch._get_jmx_appnames()])
-            
+
             if 'system' not in payload['host-tags']:
-                payload['host-tags']['system'] = [] 
+                payload['host-tags']['system'] = []
 
             payload['host-tags']['system'].extend(app_tags_list)
 

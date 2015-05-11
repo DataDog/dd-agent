@@ -275,7 +275,7 @@ class VSphereEvent(object):
         self.payload["msg_title"] = u"VM {0} configuration has been changed".format(self.raw_event.vm.name)
         self.payload["msg_text"] = u"{user} saved the new configuration:\n@@@\n".format(user=self.raw_event.userName)
         # Add lines for configuration change don't show unset, that's hacky...
-        config_change_lines = [ line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line ]
+        config_change_lines = [line for line in self.raw_event.configSpec.__repr__().splitlines() if 'unset' not in line]
         self.payload["msg_text"] += u"\n".join(config_change_lines)
         self.payload["msg_text"] += u"\n@@@"
         self.payload['host'] = self.raw_event.vm.name
@@ -593,8 +593,11 @@ class VSphereCheck(AgentCheck):
         i_key = self._instance_key(instance)
         self.log.debug("Caching the morlist for vcenter instance %s" % i_key)
         if i_key in self.morlist_raw and len(self.morlist_raw[i_key]) > 0:
-            self.log.debug("Skipping morlist collection now, RAW results processing not over (latest refresh was {0}s ago)"\
-                .format(time.time() - self.cache_times[i_key][MORLIST][LAST]))
+            self.log.debug(
+                "Skipping morlist collection now, RAW results "
+                "processing not over (latest refresh was {0}s ago)".format(
+                    time.time() - self.cache_times[i_key][MORLIST][LAST])
+            )
             return
         self.morlist_raw[i_key] = []
 
@@ -624,8 +627,10 @@ class VSphereCheck(AgentCheck):
         server_instance = self._get_server_instance(instance)
         perfManager = server_instance.content.perfManager
 
-        self.log.debug("job_atomic: Querying available metrics for MOR {0} (type={1})"\
-            .format(mor['mor'], mor['mor_type']))
+        self.log.debug(
+            "job_atomic: Querying available metrics"
+            " for MOR {0} (type={1})".format(mor['mor'], mor['mor_type'])
+        )
 
         available_metrics = perfManager.QueryAvailablePerfMetric(
             mor['mor'], intervalId=REAL_TIME_INTERVAL)
@@ -744,10 +749,11 @@ class VSphereCheck(AgentCheck):
                     continue
                 instance_name = result.id.instance or "none"
                 value = self._transform_value(instance, result.id.counterId, result.value[0])
-                self.gauge("vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
-                            value,
-                            hostname=mor['hostname'],
-                            tags=['instance:%s' % instance_name]
+                self.gauge(
+                    "vsphere.%s" % self.metrics_metadata[i_key][result.id.counterId]['name'],
+                    value,
+                    hostname=mor['hostname'],
+                    tags=['instance:%s' % instance_name]
                 )
 
         ### <TEST-INSTRUMENTATION>

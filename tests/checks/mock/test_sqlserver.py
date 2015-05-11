@@ -1,5 +1,6 @@
 # stdlib
 import logging
+from types import ListType
 import unittest
 
 # 3p
@@ -72,7 +73,7 @@ class SQLServerTestCase(unittest.TestCase):
         # Service checks
         service_checks = check.get_service_checks()
         service_checks_count = len(service_checks)
-        self.assertTrue(type(service_checks) == type([]))
+        self.assertTrue(isinstance(metrics, ListType))
         self.assertTrue(service_checks_count > 0)
         self.assertEquals(len([sc for sc in service_checks if sc['check'] == check.SERVICE_CHECK_NAME]), 1, service_checks)
         # Assert that all service checks have the proper tags: host and port

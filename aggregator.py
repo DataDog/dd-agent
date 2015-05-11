@@ -826,7 +826,7 @@ class MetricsBucketAggregator(Aggregator):
             # Even if there are no metrics in this flush, there may be some non-expired counters
             #  We should only create these non-expired metrics if we've passed an interval since the last flush
             if flush_cutoff_time >= self.last_flush_cutoff_time + self.interval:
-                self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp, \
+                self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp,
                                                 flush_cutoff_time-self.interval, metrics)
 
         # Log a warning regarding metrics with old timestamps being submitted

@@ -1,12 +1,19 @@
 import unittest
 import logging
+import re
 import sys
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
 from util import Platform
-from checks.system.unix import *
+from checks.system.unix import (
+    Disk,
+    IO,
+    Load,
+    Memory,
+    System,
+)
 from tests.checks.common import get_check
 from config import get_system_stats
 

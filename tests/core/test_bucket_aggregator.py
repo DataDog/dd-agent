@@ -80,8 +80,7 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
 
         self.sleep_for_interval_length(ag_interval)
         metrics = self.sort_metrics(stats.flush())
-        _, _, h1count, _, _, _, \
-        _, _, h2count, _, _, _ = metrics
+        _, _, h1count, _, _, _, _, _, h2count, _, _, _ = metrics
 
         nt.assert_equal(h1count['points'][0][1], 0.5)
         nt.assert_equal(h2count['points'][0][1], 2)
@@ -581,7 +580,8 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
     def test_sampled_histogram(self):
         # Submit a sampled histogram.
         # The min is not enabled by default
-        stats = MetricsBucketAggregator('myhost',
+        stats = MetricsBucketAggregator(
+            'myhost',
             interval=self.interval,
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']
         )
@@ -962,7 +962,8 @@ class TestUnitMetricsBucketAggregator(unittest.TestCase):
         ag_interval = 1
         threshold = 100
         # The min is not enabled by default
-        stats = MetricsBucketAggregator('myhost',
+        stats = MetricsBucketAggregator(
+            'myhost',
             recent_point_threshold=threshold,
             interval=ag_interval,
             histogram_aggregates=DEFAULT_HISTOGRAM_AGGREGATES+['min']

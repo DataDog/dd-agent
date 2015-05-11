@@ -595,9 +595,10 @@ class Platform(object):
     def is_unix(name=None):
         """ Return true if the platform is a unix, False otherwise. """
         name = name or sys.platform
-        return (Platform.is_darwin()
-                or Platform.is_linux()
-                or Platform.is_freebsd()
+        return (
+            Platform.is_darwin()
+            or Platform.is_linux()
+            or Platform.is_freebsd()
         )
 
     @staticmethod

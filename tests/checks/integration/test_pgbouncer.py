@@ -1,8 +1,10 @@
-from tests.checks.common import AgentCheckTest
-
 import time
+from types import ListType
+
 import psycopg2 as pg
 from nose.plugins.attrib import attr
+
+from tests.checks.common import AgentCheckTest
 from checks import AgentCheck
 
 
@@ -60,7 +62,7 @@ class TestPgbouncer(AgentCheckTest):
 
         # Service checks
         service_checks_count = len(self.service_checks)
-        self.assertTrue(type(self.service_checks) == type([]))
+        self.assertTrue(isinstance(self.service_checks, ListType))
         self.assertTrue(service_checks_count > 0)
         self.assertServiceCheck(
             'pgbouncer.can_connect',

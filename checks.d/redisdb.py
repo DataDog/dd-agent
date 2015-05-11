@@ -23,7 +23,7 @@ class Redis(AgentCheck):
     slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
 
-    
+
 
     SOURCE_TYPE_NAME = 'redis'
 
@@ -158,7 +158,7 @@ class Redis(AgentCheck):
         conn = self._get_conn(instance)
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
-        
+
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
@@ -278,7 +278,7 @@ class Redis(AgentCheck):
 
         """
 
-        
+
         conn = self._get_conn(instance)
 
         tags, _ = self._get_tags(custom_tags, instance)
@@ -286,8 +286,8 @@ class Redis(AgentCheck):
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
             max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
             if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
-                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."\
-                    "If you need a higher value, please set {0} in your check config"\
+                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."
+                    "If you need a higher value, please set {0} in your check config"
                     .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
                 max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
         else:
@@ -298,7 +298,7 @@ class Redis(AgentCheck):
         ts_key = self._generate_instance_key(instance)
 
         # Get all slowlog entries
-        
+
         slowlogs = conn.slowlog_get(max_slow_entries)
 
         # Find slowlog entries between last timestamp and now using start_time

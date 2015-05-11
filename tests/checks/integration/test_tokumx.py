@@ -7,14 +7,14 @@ from tests.checks.common import AgentCheckTest
 
 
 GAUGES = [
-# FIXME: For some reason these metrics are not always available
-#    'tokumx.indexCounters.btree.missRatio',
-#    'tokumx.globalLock.ratio',
-#    'tokumx.mem.mapped',
-#    'tokumx.replSet.health',
-#    'tokumx.replSet.state',
-#    'tokumx.replSet.replicationLag',
-#    'tokumx.metrics.repl.buffer.maxSizeBytes',
+    # FIXME: For some reason these metrics are not always available
+    #    'tokumx.indexCounters.btree.missRatio',
+    #    'tokumx.globalLock.ratio',
+    #    'tokumx.mem.mapped',
+    #    'tokumx.replSet.health',
+    #    'tokumx.replSet.state',
+    #    'tokumx.replSet.replicationLag',
+    #    'tokumx.metrics.repl.buffer.maxSizeBytes',
     'tokumx.connections.available',
     'tokumx.connections.current',
     'tokumx.cursors.timedOut',
@@ -44,13 +44,13 @@ GAUGES = [
 
 
 RATES = [
-# FIXME: For some reason these metrics are not available
-#    'tokumx.indexCounters.btree.missRatio',
-#    'tokumx.indexCounters.btree.accessesps',
-#    'tokumx.indexCounters.btree.hitsps',
-#    'tokumx.indexCounters.btree.missesps',
-#    'tokumx.metrics.operation.fastmodps',
-#    'tokumx.metrics.record.movesps',
+    # FIXME: For some reason these metrics are not available
+    #    'tokumx.indexCounters.btree.missRatio',
+    #    'tokumx.indexCounters.btree.accessesps',
+    #    'tokumx.indexCounters.btree.hitsps',
+    #    'tokumx.indexCounters.btree.missesps',
+    #    'tokumx.metrics.operation.fastmodps',
+    #    'tokumx.metrics.record.movesps',
     'tokumx.asserts.msgps',
     'tokumx.asserts.regularps',
     'tokumx.asserts.rolloversps',

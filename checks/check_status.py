@@ -465,7 +465,7 @@ class CollectorStatus(AgentStatus):
                             "    - Dependencies:"]
                         for library, version in cs.library_versions.iteritems():
                             check_lines += [
-                            "        - %s: %s" % (library, version)]
+                                "        - %s: %s" % (library, version)]
 
                     check_lines += [""]
 

@@ -73,9 +73,11 @@ class ActiveMQXML(AgentCheck):
 
         if count > max_elements:
             if not detailed_elements:
-                self.warning("""Number of {0} is too high ({1} > {2}).
-                    Please use the detailed_{0}s parameter to list the {0} you want to monitor."""\
-                    .format(el_type, count, max_elements))
+                self.warning("Number of {0} is too high ({1} > {2}). "
+                             "Please use the detailed_{0}s parameter"
+                             " to list the {0} you want to monitor.".format(el_type,
+                                                                            count,
+                                                                            max_elements))
             else:
                 elements = [e for e in elements if e in detailed_elements]
 
@@ -101,9 +103,10 @@ class ActiveMQXML(AgentCheck):
         count = len(subscribers)
         if count > max_subscribers:
             if not detailed_subscribers:
-                self.warning("""Number of subscribers is too high ({0} > {1}).
-                    Please use the detailed_subscribers parameter to list the {0} you want to monitor."""\
-                    .format(count, max_subscribers))
+                self.warning("Number of subscribers is too high ({0} > {1})."
+                             "Please use the detailed_subscribers parameter "
+                             "to list the {0} you want to monitor.".format(count,
+                                                                           max_subscribers))
             else:
                 subscribers = [s for s in subscribers if s in detailed_subscribers]
 
