@@ -183,9 +183,11 @@ class AgentStatus(object):
     def to_dict(self):
         return {
             'pid': self.created_by_pid,
-            'status_date': "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()),
-            }
+            'status_date': "%s (%ss ago)" % (
+                                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                self.created_seconds_ago()
+                            ),
+        }
 
     @classmethod
     def _not_running_message(cls):
@@ -543,7 +545,7 @@ class CollectorStatus(AgentStatus):
                 'name': es.name,
                 'status': es.status,
                 'has_error': es.has_error(),
-                }
+            }
             if es.has_error():
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
@@ -736,13 +738,16 @@ def get_jmx_status():
             jmx_checks = java_jmx_stats.get('checks', {})
 
             if status_age > 60:
-                check_statuses.append(CheckStatus("jmx", [InstanceStatus(
-                                                    0,
-                                                    STATUS_ERROR,
-                                                    error="JMXfetch didn't return any metrics during the last minute"
-                                                    )]))
+                check_statuses.append(
+                    CheckStatus("jmx", [
+                        InstanceStatus(
+                            0,
+                            STATUS_ERROR,
+                            error="JMXfetch didn't return any metrics during the last minute"
+                        )
+                    ])
+                )
             else:
-
                 for check_name, instances in jmx_checks.get('failed_checks', {}).iteritems():
                     for info in instances:
                         message = info.get('message', None)

@@ -53,7 +53,7 @@ class Nginx(AgentCheck):
 
         auth = None
         if 'user' in instance and 'password' in instance:
-           auth = (instance['user'], instance['password'])
+            auth = (instance['user'], instance['password'])
 
         # Submit a service check for status page availability.
         parsed_url = urlparse.urlparse(url)

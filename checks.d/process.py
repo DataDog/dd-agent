@@ -24,7 +24,7 @@ class ProcessCheck(AgentCheck):
         'system.processes.iowrite_bytes',
         'system.processes.voluntary_ctx_switches',
         'system.processes.involuntary_ctx_switches',
-        )
+    )
 
     def find_pids(self, search_string, exact_match, ignore_denied_access):
         """

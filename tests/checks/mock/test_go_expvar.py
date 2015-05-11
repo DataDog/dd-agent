@@ -74,8 +74,8 @@ class TestGoExpVar(AgentCheckTest):
                         "type": "gauge",
                         "tags": ["metric_tag1:metric_value1", "metric_tag2:metric_value2"]
                     }
-                    ]
-                }]
+                ]
+            }]
         }
         self.mocks = {
             '_get_data': _get_data_mock,

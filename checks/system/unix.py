@@ -241,7 +241,7 @@ class IO(Check):
                 "kr/s": "rkB/s",
                 "kw/s": "wkB/s",
                 "actv": "avgqu-sz",
-                }
+            }
         elif os_name == "freebsd":
             names = {
                 "svc_t": "await",
@@ -249,7 +249,7 @@ class IO(Check):
                 "kr/s": "rkB/s",
                 "kw/s": "wkB/s",
                 "wait": "avgqu-sz",
-                }
+            }
         # translate if possible
         return names.get(metric_name, metric_name)
 

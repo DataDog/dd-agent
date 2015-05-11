@@ -12,16 +12,16 @@ from checks import AgentCheck
 from util import Platform
 
 BSD_TCP_METRICS = [
-        (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
-        (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
-        (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
-        ]
+    (re.compile("^\s*(\d+) data packets \(\d+ bytes\) retransmitted\s*$"), 'system.net.tcp.retrans_packs'),
+    (re.compile("^\s*(\d+) packets sent\s*$"), 'system.net.tcp.sent_packs'),
+    (re.compile("^\s*(\d+) packets received\s*$"), 'system.net.tcp.rcv_packs')
+]
 
 SOLARIS_TCP_METRICS = [
-        (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
-        (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
-        (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
-        ]
+    (re.compile("\s*tcpRetransSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.retrans_segs'),
+    (re.compile("\s*tcpOutDataSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.in_segs'),
+    (re.compile("\s*tcpInSegs\s*=\s*(\d+)\s*"), 'system.net.tcp.out_segs')
+]
 
 class Network(AgentCheck):
 
@@ -216,7 +216,7 @@ class Network(AgentCheck):
                 'RetransSegs': 'system.net.tcp.retrans_segs',
                 'InSegs'     : 'system.net.tcp.in_segs',
                 'OutSegs'    : 'system.net.tcp.out_segs'
-                }
+            }
 
             for key, metric in tcp_metrics_name.iteritems():
                 self.rate(metric, self._parse_value(tcp_metrics[key]))

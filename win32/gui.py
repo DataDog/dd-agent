@@ -47,11 +47,23 @@ import tornado.template as template
 log = logging.getLogger(__name__)
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'btrfs', 'cacti', 'directory', 'docker', 'gearmand',
-    'hdfs', 'kafka_consumer', 'marathon', 'mcache',
-    'mesos', 'network', 'postfix', 'process',
-    'gunicorn', 'zk', 'ssh_check'
-    ]
+    'btrfs',
+    'cacti',
+    'directory',
+    'docker',
+    'gearmand',
+    'gunicorn',
+    'hdfs',
+    'kafka_consumer',
+    'marathon',
+    'mcache',
+    'mesos',
+    'network',
+    'postfix',
+    'process',
+    'ssh_check',
+    'zk',
+]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
@@ -331,7 +343,7 @@ class HTMLWindow(QTextEdit):
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
                 collector=collector_status.to_dict(),
-                )
+            )
             return generated_template
         except Exception:
             return ("Unable to fetch latest status")

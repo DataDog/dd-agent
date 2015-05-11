@@ -54,7 +54,7 @@ OLD_STYLE_PARAMETERS = [
 NAGIOS_OLD_CONF_KEYS = [
     'nagios_log',
     'nagios_perf_cfg'
-    ]
+]
 
 DEFAULT_CHECKS = ("network", "ntp")
 LEGACY_DATADOG_URLS = [

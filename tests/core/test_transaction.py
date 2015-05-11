@@ -13,7 +13,7 @@ from transaction import Transaction, TransactionManager
 from ddagent import (
     MAX_QUEUE_SIZE, THROTTLING_DELAY,
     APIMetricTransaction, APIServiceCheckTransaction, MetricTransaction
-    )
+)
 from config import get_version
 
 

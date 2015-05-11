@@ -71,7 +71,7 @@ def parse_events(logger, line):
             'alert_type': alert_types.get(groups['alert_type'], ''),
             'timestamp':  calendar.timegm(datetime.strptime(groups['timestamp'], '%Y-%m-%d %H:%M:%S').timetuple()),
             'msg_text': line
-            })
+        })
 
         return groups
     else:
