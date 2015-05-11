@@ -14,6 +14,9 @@ instances:
   # site name. If you don't define any sites, the check will pull the
   # aggregate values across all sites.
   #
+  # The `tag_all_sites` parameter allows you to read metrics for every site
+  # and will tag them with the site name.  Defaults to False.
+  #
   # Here's an example of configuration that would check the current machine
   # and a remote machine called MYREMOTESERVER. For the remote host we are
   # only pulling metrics from the default site.
@@ -25,6 +28,7 @@ instances:
   #     - myapp1
   #   sites:
   #     - Default Web Site
+  #   tag_all_sites: True
   #
   # - host: MYREMOTESERVER
   #   username: MYREMOTESERVER\fred

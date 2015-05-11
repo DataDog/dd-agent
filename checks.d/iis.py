@@ -61,6 +61,7 @@ class IIS(AgentCheck):
         password = instance.get('password', None)
         instance_tags = instance.get('tags', [])
         sites = instance.get('sites', ['_Total'])
+        tag_all_sites = instance.get('tag_all_sites', False)
         w = self._get_wmi_conn(host, user, password)
 
         try:
@@ -75,7 +76,8 @@ class IIS(AgentCheck):
         # Iterate over every IIS site
         for iis_site in wmi_cls:
             # Skip any sites we don't specifically want.
-            if iis_site.Name not in sites:
+            # Do not skip any sites if tag_all_sites is true
+            if iis_site.Name not in sites and not tag_all_sites:
                 continue
 
             # Tag with the site name if we're not using the aggregate
