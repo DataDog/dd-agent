@@ -43,7 +43,7 @@ from util import (
     Watchdog,
 )
 from utils.flare import configcheck, Flare
-from utils.profile import wrap_profiling
+from utils.profile import AgentProfiler
 
 # Constants
 PID_NAME = "dd-agent"
@@ -52,9 +52,7 @@ RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
 
-PSTATS_LIMIT = 20
-DUMP_TO_FILE = True
-STATS_DUMP_FILE = './collector-stats.dmp'
+# How many runs to profile before dumping pstats
 COLLECTOR_PROFILE_INTERVAL = 1
 
 # Globals
@@ -132,29 +130,16 @@ class Agent(Daemon):
         while self.run_forever:
             # Setup profiling if necessary
             if self.in_developer_mode and not profiled:
-                try:
-                    import cProfile
-                    profiler = cProfile.Profile()
-                    profiled = True
-                    profiler.enable()
-                    log.debug("Agent profiling is enabled")
-                except Exception:
-                    log.warn("Cannot enable profiler")
+                profiler = AgentProfiler()
+                profiler.enable_profiling()
+                profiled = True
 
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
             if profiled:
                 if collector_profiled_runs >= COLLECTOR_PROFILE_INTERVAL:
                     try:
-                        profiler.disable()
-                        import pstats
-                        from cStringIO import StringIO
-                        s = StringIO()
-                        ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-                        ps.print_stats(PSTATS_LIMIT)
-                        log.debug(s.getvalue())
-                        if DUMP_TO_FILE:
-                            ps.dump_stats(STATS_DUMP_FILE)
+                        profiler.disable_profiling()
                         profiled = False
                         collector_profiled_runs = 0
                     except Exception:
@@ -313,7 +298,7 @@ def main():
             for check in checks['initialized_checks']:
                 if check.name == check_name:
                     if in_developer_mode:
-                        check.run = wrap_profiling(check.run)
+                        check.run = AgentProfiler.wrap_profiling(check.run)
 
                     cs = Collector.run_single_check(check, verbose=True)
                     print CollectorStatus.render_check_status(cs)
