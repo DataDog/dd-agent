@@ -81,7 +81,7 @@ class IIS(AgentCheck):
                 continue
 
             # Tag with the site name if we're not using the aggregate
-            if iis_site.Name != '_Total':
+            if iis_site.Name != '_Total' or tag_all_sites:
                 tags = instance_tags + ['site:%s' % iis_site.Name]
                 self.log.debug("Collecting site: %s" % iis_site.Name)
             else:
