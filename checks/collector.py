@@ -458,10 +458,12 @@ class Collector(object):
                     command = "gohai"
                 else:
                     command = "gohai\gohai.exe"
-                gohai_metadata = subprocess.Popen(
-                    [command], stdout=subprocess.PIPE
-                ).communicate()[0]
+                gohai_metadata, gohai_log = subprocess.Popen(
+                    [command], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                ).communicate()
                 payload['gohai'] = gohai_metadata
+                if gohai_log:
+                    log.warning("GOHAI LOG | {0}".format(gohai_log))
             except OSError as e:
                 if e.errno == 2:  # file not found, expected when install from source
                     log.info("gohai file not found")
