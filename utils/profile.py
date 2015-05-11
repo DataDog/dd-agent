@@ -51,6 +51,7 @@ class AgentProfiler(object):
     def wrap_profiling(func):
         """
         Wraps the function call in a cProfile run, processing and logging the output with pstats.Stats
+        Useful for profiling individual checks.
 
         :param func: The function to profile
         """
@@ -75,7 +76,7 @@ class AgentProfiler(object):
                 s = StringIO()
                 ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
                 ps.print_stats(AgentProfiler.PSTATS_LIMIT)
-                log.debug(s.getvalue())
+                log.info(s.getvalue())
             except Exception:
                 log.warn("Cannot disable profiler")
 
