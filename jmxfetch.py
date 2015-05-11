@@ -384,6 +384,20 @@ class JMXFetch(object):
                                 "jmxfetch", JMX_FETCH_JAR_NAME))
 
 
+def _get_jmx_appnames():
+    """ 
+    Retrieves the running JMX checks based on the {tmp}/jmx_status.yaml file 
+    updated by JMXFetch (and the only communication channel between JMXFetch
+    and the collector since JMXFetch).
+    """
+    check_names = []
+    jmx_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
+    if os.path.exists(jmx_status_path):
+        jmx_checks = yaml.load(file(jmx_status_path)).get('checks', {})
+        check_names = [name for name in jmx_checks.get('initialized_checks', {}).iterkeys()]
+    return check_names
+        
+
 def init(config_path=None):
     agentConfig = get_config(parse_args=False, cfg_path=config_path)
     osname = get_os()
