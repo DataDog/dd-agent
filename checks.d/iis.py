@@ -78,7 +78,6 @@ class IIS(AgentCheck):
             # Skip any sites we don't specifically want.
             # Do not skip any sites if tag_all_sites is true
             if iis_site.Name not in sites and not tag_all_sites:
-                self.log.debug('Did not tag all sites')
                 continue
 
             # Tag with the site name if we're not using the aggregate
@@ -90,7 +89,10 @@ class IIS(AgentCheck):
 
             status = AgentCheck.CRITICAL if iis_site.ServiceUptime == 0 else AgentCheck.OK
             self.service_check("iis.site_up", status, tags=['site:%s' % iis_site.Name])
-            expected_sites.remove(iis_site.Name)
+
+            #Don't try to remove iis_site if tagging all sites by default
+            if not tag_all_sites:
+                expected_sites.remove(iis_site.Name)
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
@@ -112,7 +114,8 @@ class IIS(AgentCheck):
                 value = float(getattr(iis_site, wmi_val))
                 metric_func = getattr(self, mtype)
                 metric_func(metric, value, tags=tags)
-
-        for remaining_site in expected_sites:
-            self.service_check("iis.site_up", AgentCheck.CRITICAL,
-                               tags=['site:%s' % remaining_site])
+        #Only look for remaining sites if tag_all_sites is false
+        if not tag_all_sites:
+            for remaining_site in expected_sites:
+                self.service_check("iis.site_up", AgentCheck.CRITICAL,
+                                    tags=['site:%s' % remaining_site])
