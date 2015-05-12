@@ -2,7 +2,7 @@ import mock
 import psutil
 
 from tests.checks.common import AgentCheckTest
-from util import Platform
+from utils.platform import Platform
 
 if Platform.is_mac():
     CHECK_RATES = [

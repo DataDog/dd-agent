@@ -6,7 +6,6 @@ import sys
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
 
-from util import Platform
 from checks.system.unix import (
     Disk,
     IO,
@@ -14,8 +13,9 @@ from checks.system.unix import (
     Memory,
     System,
 )
-from tests.checks.common import get_check
 from config import get_system_stats
+from tests.checks.common import get_check
+from utils.platform import Platform
 
 
 class TestSystem(unittest.TestCase):

@@ -38,9 +38,9 @@ from util import (
     EC2,
     get_hostname,
     get_os,
-    PidFile,
     Watchdog,
 )
+from utils.pidfile import PidFile
 from utils.flare import configcheck, Flare
 
 # Constants
@@ -77,7 +77,8 @@ class Agent(Daemon):
         self._handle_sigterm(signum, frame)
         self._do_restart()
 
-    def info(self, verbose=None):
+    @classmethod
+    def info(cls, verbose=None):
         logging.getLogger().setLevel(logging.ERROR)
         return CollectorStatus.print_latest_status(verbose=verbose)
 
@@ -212,18 +213,23 @@ def main():
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
 
-    COMMANDS = [
+    COMMANDS_AGENT = [
         'start',
         'stop',
         'restart',
-        'foreground',
         'status',
+        'foreground',
+    ]
+
+    COMMANDS_NO_AGENT = [
         'info',
         'check',
         'configcheck',
         'jmx',
         'flare',
     ]
+
+    COMMANDS = COMMANDS_AGENT + COMMANDS_NO_AGENT
 
     if len(args) < 1:
         sys.stderr.write("Usage: %s %s\n" % (sys.argv[0], "|".join(COMMANDS)))
@@ -240,12 +246,8 @@ def main():
         from utils.deprecations import deprecate_old_command_line_tools
         deprecate_old_command_line_tools()
 
-    pid_file = PidFile('dd-agent')
-
-    if options.clean:
-        pid_file.clean()
-
-    agent = Agent(pid_file.get_path(), autorestart)
+    if command in COMMANDS_AGENT:
+        agent = Agent(PidFile('dd-agent').get_path(), autorestart)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -266,7 +268,7 @@ def main():
         agent.status()
 
     elif 'info' == command:
-        return agent.info(verbose=options.verbose)
+        return Agent.info(verbose=options.verbose)
 
     elif 'foreground' == command:
         logging.info('Running in foreground')

@@ -3,7 +3,7 @@ import re
 from collections import namedtuple
 
 # project
-from checks.utils import TailFile
+from utils.tailfile import TailFile
 from checks import AgentCheck
 
 # fields order for each event type, as named tuples

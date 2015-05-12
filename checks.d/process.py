@@ -4,7 +4,7 @@ import psutil
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from util import Platform
+from utils.platform import Platform
 
 
 class ProcessCheck(AgentCheck):

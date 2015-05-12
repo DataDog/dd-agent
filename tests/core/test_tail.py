@@ -30,7 +30,7 @@ class TestTail(unittest.TestCase):
         ])
 
     def test_logrotate_copytruncate(self):
-        from checks.utils import TailFile
+        from utils.tailfile import TailFile
 
         def line_parser(l):
             self.last_line = l

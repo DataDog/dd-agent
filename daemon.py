@@ -227,8 +227,8 @@ class Daemon(object):
         """
         raise NotImplementedError
 
-
-    def info(self):
+    @classmethod
+    def info(cls):
         """
         You should override this method when you subclass Daemon. It will be
         called to provide information about the status of the process

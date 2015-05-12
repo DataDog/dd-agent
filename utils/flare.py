@@ -20,10 +20,8 @@ from config import (
     get_logging_config,
     get_url_endpoint,
 )
-from util import (
-    get_hostname,
-    Platform,
-)
+from util import get_hostname
+from utils.platform import Platform
 
 # 3p
 import requests

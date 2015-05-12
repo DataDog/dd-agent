@@ -1,19 +1,19 @@
+# stdlib
+from hashlib import md5
+import logging
+import math
 import os
 import platform
+import re
 import signal
+import simplejson as json
 import socket
 import subprocess
 import sys
-import math
 import time
 import types
 import urllib2
 import uuid
-import tempfile
-import re
-import simplejson as json
-import logging
-from hashlib import md5
 
 # Tornado
 from tornado import ioloop
@@ -28,6 +28,12 @@ except ImportError:
     from yaml import Loader as yLoader
     from yaml import Dumper as yDumper
 
+# These classes are now in utils/, they are just here for compatibility reasons,
+# if a user actually uses them in a custom check
+# If you're this user, please use utils.pidfile or utils.platform instead
+# FIXME: remove them at a point (6.x)
+from utils.pidfile import PidFile
+from utils.platform import Platform
 
 
 VALID_HOSTNAME_RFC_1123_PATTERN = re.compile(r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$")
@@ -38,13 +44,16 @@ log = logging.getLogger(__name__)
 
 NumericTypes = (float, int, long)
 
+
 def plural(count):
     if count == 1:
         return ""
     return "s"
 
+
 def get_tornado_ioloop():
         return ioloop.IOLoop.current()
+
 
 def get_uuid():
     # Generate a unique name that will stay constant between
@@ -446,66 +455,6 @@ class Watchdog(object):
         signal.alarm(self._duration)
 
 
-class PidFile(object):
-    """ A small helper class for pidfiles. """
-
-    PID_DIR = '/var/run/dd-agent'
-
-
-    def __init__(self, program, pid_dir=None):
-        self.pid_file = "%s.pid" % program
-        self.pid_dir = pid_dir or self.get_default_pid_dir()
-        self.pid_path = os.path.join(self.pid_dir, self.pid_file)
-
-    def get_default_pid_dir(self):
-        if get_os() != 'windows':
-            return PidFile.PID_DIR
-
-        return tempfile.gettempdir()
-
-    def get_path(self):
-        # Can we write to the directory
-        try:
-            if os.access(self.pid_dir, os.W_OK):
-                log.info("Pid file is: %s" % self.pid_path)
-                return self.pid_path
-        except Exception:
-            log.warn("Cannot locate pid file, trying to use: %s" % tempfile.gettempdir())
-
-        # if all else fails
-        if os.access(tempfile.gettempdir(), os.W_OK):
-            tmp_path = os.path.join(tempfile.gettempdir(), self.pid_file)
-            log.debug("Using temporary pid file: %s" % tmp_path)
-            return tmp_path
-        else:
-            # Can't save pid file, bail out
-            log.error("Cannot save pid file anywhere")
-            raise Exception("Cannot save pid file anywhere")
-
-
-    def clean(self):
-        try:
-            path = self.get_path()
-            log.debug("Cleaning up pid file %s" % path)
-            os.remove(path)
-            return True
-        except Exception:
-            log.warn("Could not clean up pid file")
-            return False
-
-
-    def get_pid(self):
-        "Retrieve the actual pid"
-        try:
-            pf = open(self.get_path())
-            pid_s = pf.read()
-            pf.close()
-
-            return int(pid_s.strip())
-        except Exception:
-            return None
-
-
 class LaconicFilter(logging.Filter):
     """
     Filters messages, only print them once while keeping memory under control
@@ -555,60 +504,6 @@ class Timer(object):
 
     def total(self, as_sec=True):
         return self._now() - self.started
-
-
-class Platform(object):
-    """
-    Return information about the given platform.
-    """
-    @staticmethod
-    def is_darwin(name=None):
-        name = name or sys.platform
-        return 'darwin' in name
-
-    @staticmethod
-    def is_mac(name=None):
-        return Platform.is_darwin(name)
-
-    @staticmethod
-    def is_freebsd(name=None):
-        name = name or sys.platform
-        return name.startswith("freebsd")
-
-    @staticmethod
-    def is_linux(name=None):
-        name = name or sys.platform
-        return 'linux' in name
-
-    @staticmethod
-    def is_bsd(name=None):
-        """ Return true if this is a BSD like operating system. """
-        name = name or sys.platform
-        return Platform.is_darwin(name) or Platform.is_freebsd(name)
-
-    @staticmethod
-    def is_solaris(name=None):
-        name = name or sys.platform
-        return name == "sunos5"
-
-    @staticmethod
-    def is_unix(name=None):
-        """ Return true if the platform is a unix, False otherwise. """
-        name = name or sys.platform
-        return (
-            Platform.is_darwin()
-            or Platform.is_linux()
-            or Platform.is_freebsd()
-        )
-
-    @staticmethod
-    def is_win32(name=None):
-        name = name or sys.platform
-        return name == "win32"
-
-    @staticmethod
-    def is_windows(name=None):
-        return Platform.is_win32(name)
 
 """
 Iterable Recipes
