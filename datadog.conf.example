@@ -29,6 +29,10 @@ api_key:
 # Collect AWS EC2 custom tags as agent tags
 # collect_ec2_tags: no
 
+# Enable Agent Developer Mode
+# Agent Developer Mode collects and sends more fine-grained metrics about agent and check performance
+# developer_mode: no
+
 # Collect instance metadata
 # The Agent will try to collect instance metadata for EC2 and GCE instances by
 # trying to connect to the local endpoint: http://169.254.169.254

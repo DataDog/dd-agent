@@ -20,6 +20,7 @@ import os.path
 import config
 from config import get_config, get_jmx_status_path, _windows_commondata_path
 from util import get_os, plural, Platform
+from checks.utils import pretty_statistics
 
 # 3rd party
 import ntplib
@@ -254,7 +255,8 @@ class AgentStatus(object):
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None,
+                 instance_check_stats=None):
         self.instance_id = instance_id
         self.status = status
         if error is not None:
@@ -264,6 +266,7 @@ class InstanceStatus(object):
         self.traceback = tb
         self.warnings = warnings
         self.metric_count = metric_count
+        self.instance_check_stats = instance_check_stats
 
     def has_error(self):
         return self.status == STATUS_ERROR
@@ -276,7 +279,8 @@ class CheckStatus(object):
     def __init__(self, check_name, instance_statuses, metric_count=None,
                  event_count=None, service_check_count=None,
                  init_failed_error=None, init_failed_traceback=None,
-                 library_versions=None, source_type_name=None):
+                 library_versions=None, source_type_name=None,
+                 check_stats=None):
         self.name = check_name
         self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
@@ -286,6 +290,7 @@ class CheckStatus(object):
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
+        self.check_stats = check_stats
 
     @property
     def status(self):
@@ -338,6 +343,79 @@ class CollectorStatus(AgentStatus):
 
     def has_error(self):
         return self.status != STATUS_OK
+
+    @staticmethod
+    def check_status_lines(cs):
+        check_lines = [
+            '  ' + cs.name,
+            '  ' + '-' * len(cs.name)
+        ]
+        if cs.init_failed_error:
+            check_lines.append("    - initialize check class [%s]: %s" %
+                               (style(STATUS_ERROR, 'red'),
+                               repr(cs.init_failed_error)))
+            if cs.init_failed_traceback:
+                check_lines.extend('      ' + line for line in
+                                   cs.init_failed_traceback.split('\n'))
+        else:
+            for s in cs.instance_statuses:
+                c = 'green'
+                if s.has_warnings():
+                    c = 'yellow'
+                if s.has_error():
+                    c = 'red'
+                line =  "    - instance #%s [%s]" % (
+                         s.instance_id, style(s.status, c))
+                if s.has_error():
+                    line += u": %s" % s.error
+                if s.metric_count is not None:
+                    line += " collected %s metrics" % s.metric_count
+                if s.instance_check_stats is not None:
+                    line += " Last run duration: %s" % s.instance_check_stats.get('run_time')
+
+                check_lines.append(line)
+
+                if s.has_warnings():
+                    for warning in s.warnings:
+                        warn = warning.split('\n')
+                        if not len(warn): continue
+                        check_lines.append(u"        %s: %s" %
+                            (style("Warning", 'yellow'), warn[0]))
+                        check_lines.extend(u"        %s" % l for l in
+                                    warn[1:])
+                if s.traceback is not None:
+                    check_lines.extend('      ' + line for line in
+                                   s.traceback.split('\n'))
+
+            check_lines += [
+                "    - Collected %s metric%s, %s event%s & %s service check%s" % (
+                    cs.metric_count, plural(cs.metric_count),
+                    cs.event_count, plural(cs.event_count),
+                    cs.service_check_count, plural(cs.service_check_count)),
+            ]
+
+            if cs.check_stats is not None:
+                check_lines += [
+                    "    - Stats: %s" % pretty_statistics(cs.check_stats)
+                ]
+
+            if cs.library_versions is not None:
+                check_lines += [
+                    "    - Dependencies:"]
+                for library, version in cs.library_versions.iteritems():
+                    check_lines += [
+                    "        - %s: %s" % (library, version)]
+
+            check_lines += [""]
+            return check_lines
+
+    @staticmethod
+    def render_check_status(cs):
+        indent = "  "
+        lines = [
+            indent + l for l in CollectorStatus.check_status_lines(cs)
+        ] + ["", ""]
+        return "\n".join(lines)
 
     def body_lines(self):
         # Metadata whitelist
@@ -438,6 +516,8 @@ class CollectorStatus(AgentStatus):
                             line += u": %s" % s.error
                         if s.metric_count is not None:
                             line += " collected %s metrics" % s.metric_count
+                        if s.instance_check_stats is not None:
+                            line += " Last run duration: %s" % s.instance_check_stats.get('run_time')
 
                         check_lines.append(line)
 
@@ -459,6 +539,11 @@ class CollectorStatus(AgentStatus):
                             cs.event_count, plural(cs.event_count),
                             cs.service_check_count, plural(cs.service_check_count)),
                     ]
+
+                    if cs.check_stats is not None:
+                        check_lines += [
+                            "    - Stats: %s" % pretty_statistics(cs.check_stats)
+                        ]
 
                     if cs.library_versions is not None:
                         check_lines += [

@@ -24,6 +24,7 @@ import time
 # Custom modules
 from checks.collector import Collector
 from checks.check_status import CollectorStatus
+from checks.utils import pretty_statistics
 from config import (
     get_confd_path,
     get_config,
@@ -42,6 +43,7 @@ from util import (
     Watchdog,
 )
 from utils.flare import configcheck, Flare
+from utils.profile import AgentProfiler
 
 # Constants
 PID_NAME = "dd-agent"
@@ -49,6 +51,9 @@ WATCHDOG_MULTIPLIER = 10
 RESTART_INTERVAL = 4 * 24 * 60 * 60  # Defaults to 4 days
 START_COMMANDS = ['start', 'restart', 'foreground']
 DD_AGENT_COMMANDS = ['check', 'flare', 'jmx']
+
+# How many runs to profile before dumping pstats
+COLLECTOR_PROFILE_INTERVAL = 1
 
 # Globals
 log = logging.getLogger('collector')
@@ -59,11 +64,12 @@ class Agent(Daemon):
     The agent class is a daemon that runs the collector in a background process.
     """
 
-    def __init__(self, pidfile, autorestart, start_event=True):
+    def __init__(self, pidfile, autorestart, start_event=True, in_developer_mode=False):
         Daemon.__init__(self, pidfile, autorestart=autorestart)
         self.run_forever = True
         self.collector = None
         self.start_event = start_event
+        self.in_developer_mode = in_developer_mode
 
     def _handle_sigterm(self, signum, frame):
         log.debug("Caught sigterm. Stopping run loop.")
@@ -117,36 +123,27 @@ class Agent(Daemon):
         self.restart_interval = int(agentConfig.get('restart_interval', RESTART_INTERVAL))
         self.agent_start = time.time()
 
+        profiled = False
+        collector_profiled_runs = 0
+
         # Run the main loop.
         while self.run_forever:
-
-            # enable profiler if needed
-            profiled = False
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes':
-                try:
-                    import cProfile
-                    profiler = cProfile.Profile()
-                    profiled = True
-                    profiler.enable()
-                    log.debug("Agent profiling is enabled")
-                except Exception:
-                    log.warn("Cannot enable profiler")
+            # Setup profiling if necessary
+            if self.in_developer_mode and not profiled:
+                profiler = AgentProfiler()
+                profiler.enable_profiling()
+                profiled = True
 
             # Do the work.
             self.collector.run(checksd=checksd, start_event=self.start_event)
-
-            # disable profiler and printout stats to stdout
-            if agentConfig.get('profile', False) and agentConfig.get('profile').lower() == 'yes' and profiled:
-                try:
-                    profiler.disable()
-                    import pstats
-                    from cStringIO import StringIO
-                    s = StringIO()
-                    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
-                    ps.print_stats()
-                    log.debug(s.getvalue())
-                except Exception:
-                    log.warn("Cannot disable profiler")
+            if profiled:
+                if collector_profiled_runs >= COLLECTOR_PROFILE_INTERVAL:
+                    try:
+                        profiler.disable_profiling()
+                        profiled = False
+                        collector_profiled_runs = 0
+                    except Exception:
+                        log.warn("Cannot disable profiler")
 
             # Check if we should restart.
             if self.autorestart and self._should_restart():
@@ -157,8 +154,9 @@ class Agent(Daemon):
             if self.run_forever:
                 if watchdog:
                     watchdog.reset()
+                if profiled:
+                    collector_profiled_runs += 1
                 time.sleep(check_frequency)
-
         # Now clean-up.
         try:
             CollectorStatus.remove_latest_status()
@@ -211,7 +209,7 @@ def main():
     agentConfig = get_config(options=options)
     autorestart = agentConfig.get('autorestart', False)
     hostname = get_hostname(agentConfig)
-
+    in_developer_mode = agentConfig.get('developer_mode')
     COMMANDS = [
         'start',
         'stop',
@@ -245,7 +243,7 @@ def main():
     if options.clean:
         pid_file.clean()
 
-    agent = Agent(pid_file.get_path(), autorestart)
+    agent = Agent(pid_file.get_path(), autorestart, in_developer_mode=in_developer_mode)
 
     if command in START_COMMANDS:
         log.info('Agent version %s' % get_version())
@@ -299,17 +297,18 @@ def main():
             checks = load_check_directory(agentConfig, hostname)
             for check in checks['initialized_checks']:
                 if check.name == check_name:
-                    check.run()
-                    print check.get_metrics()
-                    print check.get_events()
-                    print check.get_service_checks()
+                    if in_developer_mode:
+                        check.run = AgentProfiler.wrap_profiling(check.run)
+
+                    cs = Collector.run_single_check(check, verbose=True)
+                    print CollectorStatus.render_check_status(cs)
+
                     if len(args) == 3 and args[2] == 'check_rate':
                         print "Running 2nd iteration to capture rate metrics"
                         time.sleep(1)
-                        check.run()
-                        print check.get_metrics()
-                        print check.get_events()
-                        print check.get_service_checks()
+                        cs = Collector.run_single_check(check, verbose=True)
+                        print CollectorStatus.render_check_status(cs)
+
                     check.stop()
 
     elif 'configcheck' == command or 'configtest' == command:
