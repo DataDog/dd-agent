@@ -167,6 +167,14 @@ while [ "$c" -lt "30" ]; do
     c=$(($c+1))
 done
 
+# Reuse the same counter
+c=0
+
+# The command to check the status of the forwarder might fail at first, this is expected
+# so we remove the trap and we set +e
+set +e
+trap - ERR
+
 $dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
 success=$?
 while [ "$success" -gt "0" ]; do
@@ -174,6 +182,14 @@ while [ "$success" -gt "0" ]; do
     echo -n "."
     $dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
     success=$?
+    c=$(($c+1))
+
+    if [ "$c" -gt "15" -o "$success" -eq "0" ]; then
+        # After 15 tries, we give up, we restore the trap and set -e
+        # Also restore the trap on success
+        set -e
+        trap on_error ERR
+    fi
 done
 
 # Metrics are submitted, echo some instructions and exit
