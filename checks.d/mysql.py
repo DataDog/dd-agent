@@ -21,6 +21,7 @@ STATUS_VARS = {
     'Open_files': ('mysql.performance.open_files', GAUGE),
     'Table_locks_waited': ('mysql.performance.table_locks_waited', GAUGE),
     'Threads_connected': ('mysql.performance.threads_connected', GAUGE),
+    'Threads_running': ('mysql.performance.threads_running', GAUGE),
     'Innodb_data_reads': ('mysql.innodb.data_reads', RATE),
     'Innodb_data_writes': ('mysql.innodb.data_writes', RATE),
     'Innodb_os_log_fsyncs': ('mysql.innodb.os_log_fsyncs', RATE),
