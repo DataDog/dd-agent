@@ -54,6 +54,7 @@ class TestMySql(AgentCheckTest):
         'mysql.performance.open_files',
         'mysql.performance.table_locks_waited',
         'mysql.performance.threads_connected',
+        'mysql.performance.threads_running',
         # 'mysql.innodb.current_row_locks',  MariaDB status
         'mysql.performance.open_tables',
     ]
