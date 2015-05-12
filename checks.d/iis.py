@@ -78,7 +78,7 @@ class IIS(AgentCheck):
             # Skip any sites we don't specifically want.
             # Do not skip any sites if tag_all_sites is true
             if iis_site.Name not in sites and not tag_all_sites:
-                sef.log.debug('Did not tag all sites')
+                self.log.debug('Did not tag all sites')
                 continue
 
             # Tag with the site name if we're not using the aggregate
