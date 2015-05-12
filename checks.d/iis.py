@@ -77,11 +77,11 @@ class IIS(AgentCheck):
         for iis_site in wmi_cls:
             # Skip any sites we don't specifically want.
             # Do not skip any sites if tag_all_sites is true
-            if iis_site.Name not in sites and not tag_all_sites:
-                continue
+            #if iis_site.Name not in sites and not tag_all_sites:
+            #    continue
 
             # Tag with the site name if we're not using the aggregate
-            if iis_site.Name != '_Total' or tag_all_sites:
+            if iis_site.Name != '_Total':
                 tags = instance_tags + ['site:%s' % iis_site.Name]
                 self.log.debug("Collecting site: %s" % iis_site.Name)
             else:
