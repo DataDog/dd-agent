@@ -359,7 +359,7 @@ class AgentCheck(object):
         self.aggregator.submit_count(metric, value, tags, hostname, device_name)
 
     def monotonic_count(self, metric, value=0, tags=None,
-                      hostname=None, device_name=None):
+                        hostname=None, device_name=None):
         """
         Submits a raw count with optional tags, hostname and device name
         based on increasing counter values. E.g. 1, 3, 5, 7 will submit
@@ -454,8 +454,12 @@ class AgentCheck(object):
         """
         if hostname is None:
             hostname = self.hostname
-        self.service_checks.append(create_service_check(check_name, status,
-            tags, timestamp, hostname, check_run_id, message))
+        if message is not None:
+            message = str(message)
+        self.service_checks.append(
+            create_service_check(check_name, status, tags, timestamp,
+                                 hostname, check_run_id, message)
+        )
 
     def has_events(self):
         """
@@ -635,7 +639,6 @@ class AgentCheck(object):
     METRIC_REPLACEMENT = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
     DOT_UNDERSCORE_CLEANUP = re.compile(r'_*\._*')
 
-
     def convert_to_underscore_separated(self, name):
         """
         Convert from CamelCase to camel_case
@@ -657,6 +660,7 @@ class AgentCheck(object):
             return val
         else:
             return cast(val)
+
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
                                                 metric_type=None, interval=None):
@@ -683,7 +687,7 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
 
 
 def create_service_check(check_name, status, tags=None, timestamp=None,
-                  hostname=None, check_run_id=None, message=None):
+                         hostname=None, check_run_id=None, message=None):
     """ Create a service_check dict. See AgentCheck.service_check() for
         docs on the parameters.
     """
