@@ -15,15 +15,17 @@ import time
 from collections import defaultdict
 import os.path
 
+# 3rd party
+import ntplib
+import yaml
+
 # project
 import config
 from config import get_config, get_jmx_status_path, _windows_commondata_path
 from util import get_os, plural
+from utils.ntp import get_ntp_datadog_host
 from utils.platform import Platform
 from utils.pidfile import PidFile
-# 3rd party
-import ntplib
-import yaml
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -96,7 +98,8 @@ def logger_info():
 
 
 def get_ntp_info():
-    ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
+    ntp_host = get_ntp_datadog_host()
+    ntp_offset = ntplib.NTPClient().request(ntp_host, version=3).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
         ntp_styles = ['red', 'bold']
     else:

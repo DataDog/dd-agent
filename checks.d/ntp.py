@@ -3,6 +3,7 @@ import time
 
 # project
 from checks import AgentCheck
+from utils.ntp import get_ntp_datadog_host
 
 # 3rd party
 import ntplib
@@ -10,7 +11,6 @@ import ntplib
 DEFAULT_OFFSET_THRESHOLD = 60 # in seconds
 DEFAULT_NTP_VERSION = 3
 DEFAULT_TIMEOUT = 1 # in seconds
-DEFAULT_HOST = "pool.ntp.org"
 DEFAULT_PORT = "ntp"
 
 class NtpCheck(AgentCheck):
@@ -24,8 +24,11 @@ class NtpCheck(AgentCheck):
             offset_threshold = int(offset_threshold)
         except (TypeError, ValueError):
             raise Exception('Must specify an integer value for offset_threshold. Configured value is %s' % repr(offset_threshold))
+
+        host = instance.get('host') or get_ntp_datadog_host()
+        self.log.debug("Using ntp host: {0}".format(host))
         req_args = {
-            'host':    instance.get('host', DEFAULT_HOST),
+            'host':    host,
             'port':    instance.get('port', DEFAULT_PORT),
             'version': int(instance.get('version', DEFAULT_NTP_VERSION)),
             'timeout': float(instance.get('timeout', DEFAULT_TIMEOUT)),
