@@ -201,7 +201,7 @@ class ProcessCheckTest(AgentCheckTest):
         self.check.last_ad_cache_ts = 0
         self.assertRaises(Exception, lambda: self.run_check, config)
 
-    def mock_find_pids(self, search_string, exact_match=True, ignore_ad=True,
+    def mock_find_pids(self, name, search_string, exact_match=True, ignore_ad=True,
                        refresh_ad_cache=True):
         idx = search_string[0].split('_')[1]
         # Use a real PID to get real metrics!

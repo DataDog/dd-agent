@@ -12,6 +12,7 @@ from utils.platform import Platform
 
 
 DEFAULT_AD_CACHE_DURATION = 120
+DEFAULT_PID_CACHE_DURATION = 120
 
 
 ATTR_TO_METRIC = {
@@ -37,9 +38,9 @@ class ProcessCheck(AgentCheck):
         # ad stands for access denied
         # We cache the PIDs getting this error and don't iterate on them
         # more often than `access_denied_cache_duration`
+        # This cache is for all PIDs so it's global
         self.last_ad_cache_ts = 0
         self.ad_cache = set()
-
         self.access_denied_cache_duration = int(
             init_config.get(
                 'access_denied_cache_duration',
@@ -47,16 +48,41 @@ class ProcessCheck(AgentCheck):
             )
         )
 
+        # By default cache the PID list for a while
+        # Sometimes it's not wanted b/c it can mess with no-data monitoring
+        # This cache is indexed per instance
+        self.last_pid_cache_ts = {}
+        self.pid_cache = {}
+        self.pid_cache_duration = int(
+            init_config.get(
+                'pid_cache_duration',
+                DEFAULT_PID_CACHE_DURATION
+            )
+        )
+
     def should_refresh_ad_cache(self):
         now = time.time()
         return now - self.last_ad_cache_ts > self.access_denied_cache_duration
 
-    def find_pids(self, search_string, exact_match, ignore_ad=True,
+    def should_refresh_pid_cache(self, name):
+        now = time.time()
+        return now - self.last_pid_cache_ts.get(name, 0) > self.pid_cache_duration
+
+    def find_pids(self, name, search_string, exact_match, ignore_ad=True,
                   refresh_ad_cache=True):
         """
         Create a set of pids of selected processes.
         Search for search_string
         """
+        if not self.should_refresh_pid_cache(name):
+            return self.pid_cache[name]
+
+        ad_error_logger = self.log.debug
+        if not ignore_ad:
+            ad_error_logger = self.log.error
+
+        refresh_ad_cache = self.should_refresh_ad_cache()
+
         matching_pids = set()
 
         for proc in psutil.process_iter():
@@ -67,20 +93,21 @@ class ProcessCheck(AgentCheck):
             found = False
             for string in search_string:
                 try:
+                    # FIXME 6.x: All has been deprecated from the doc, should be removed
+                    if string == 'All':
+                        found = True
                     if exact_match:
                         if proc.name() == string:
                             found = True
-                            break
                     else:
                         cmdline = proc.cmdline()
                         if string in ' '.join(cmdline):
                             found = True
-                            break
                 except psutil.NoSuchProcess:
                     self.log.warning('Process disappeared while scanning')
                 except psutil.AccessDenied, e:
-                    self.log.error('Access denied to %s process' % string)
-                    self.log.error('Error: %s' % e)
+                    ad_error_logger('Access denied to process with PID %s', proc.pid)
+                    ad_error_logger('Error: %s', e)
                     if refresh_ad_cache:
                         self.ad_cache.add(proc.pid)
                     if not ignore_ad:
@@ -88,10 +115,12 @@ class ProcessCheck(AgentCheck):
                 else:
                     if refresh_ad_cache:
                         self.ad_cache.discard(proc.pid)
+                    if found:
+                        matching_pids.add(proc.pid)
+                        break
 
-            if found or string == 'All':
-                matching_pids.add(proc.pid)
-
+        self.pid_cache[name] = matching_pids
+        self.last_pid_cache_ts[name] = time.time()
         return matching_pids
 
     def psutil_wrapper(self, process, method, accessors, *args, **kwargs):
@@ -124,17 +153,18 @@ class ProcessCheck(AgentCheck):
                     try:
                         result[acc] = getattr(res, acc)
                     except AttributeError:
-                        self.log.debug("psutil.{0}().{1} attribute does not exist".format(method, acc))
+                        self.log.debug("psutil.%s().%s attribute does not exist", method, acc)
         except (NotImplementedError, AttributeError):
-            self.log.debug("psutil method {0} not implemented".format(method))
+            self.log.debug("psutil method %s not implemented", method)
         except psutil.AccessDenied:
-            self.log.debug("psutil was denied acccess for method {0}".format(method))
+            self.log.debug("psutil was denied acccess for method %s", method)
         except psutil.NoSuchProcess:
-            self.warning("Process {0} disappeared while scanning" % process.pid)
+            self.warning("Process {0} disappeared while scanning".format(process.pid))
 
         return result
 
-    def get_process_state(self, pids, cpu_check_interval, ignore_ad=True):
+
+    def get_process_state(self, name, pids, cpu_check_interval):
         st = defaultdict(list)
 
         for pid in pids:
@@ -145,6 +175,8 @@ class ProcessCheck(AgentCheck):
             # Skip processes dead in the meantime
             except psutil.NoSuchProcess:
                 self.warning('Process %s disappeared while scanning' % pid)
+                # reset the PID cache now, something chaned
+                self.last_pid_cache_ts[name] = 0
 
             meminfo = self.psutil_wrapper(p, 'memory_info', ['rss', 'vms'])
             st['rss'].append(meminfo.get('rss'))
@@ -201,21 +233,19 @@ class ProcessCheck(AgentCheck):
             self.warning("cpu_check_interval must be a number. Defaulting to 0.1")
             cpu_check_interval = 0.1
 
-        refresh_ad_cache = self.should_refresh_ad_cache()
-
         pids = self.find_pids(
+            name,
             search_string,
             exact_match,
-            ignore_ad=ignore_ad,
-            refresh_ad_cache=refresh_ad_cache
+            ignore_ad=ignore_ad
         )
 
-        proc_state = self.get_process_state(pids, cpu_check_interval)
+        proc_state = self.get_process_state(name, pids, cpu_check_interval)
 
         # FIXME 6.x remove the `name` tag
         tags.extend(['process_name:%s' % name, name])
 
-        self.log.debug('ProcessCheck: process %s analysed' % name)
+        self.log.debug('ProcessCheck: process %s analysed', name)
         self.gauge('system.processes.number', len(pids), tags=tags)
 
         for attr, mname in ATTR_TO_METRIC.iteritems():
