@@ -25,7 +25,7 @@ instances:
   # only pulling metrics from the default site.
   #
   # "." means the current host
-  - host: .
+  # - host: .
   #   tags:
   #     - myapp1
   #   sites:
