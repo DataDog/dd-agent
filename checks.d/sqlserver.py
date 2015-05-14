@@ -17,9 +17,9 @@ ALL_INSTANCES = 'ALL'
 VALID_METRIC_TYPES = ('gauge', 'rate', 'histogram')
 
 # Constant for SQLServer cntr_type
-PERF_LARGE_RAW_BASE =    1073939712
+PERF_LARGE_RAW_BASE = 1073939712
 PERF_RAW_LARGE_FRACTION = 537003264
-PERF_AVERAGE_BULK =      1073874176
+PERF_AVERAGE_BULK = 1073874176
 PERF_COUNTER_BULK_COUNT = 272696576
 PERF_COUNTER_LARGE_RAWCOUNT = 65792
 
@@ -43,25 +43,26 @@ VALUE_AND_BASE_QUERY = '''select cntr_value
                           and instance_name=?
                           order by cntr_type;'''
 
+
 class SQLServer(AgentCheck):
 
     SOURCE_TYPE_NAME = 'sql server'
     SERVICE_CHECK_NAME = 'sqlserver.can_connect'
 
     METRICS = [
-        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''), # RAW_LARGE_FRACTION
-        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', ''), # LARGE_RAWCOUNT
-        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.connections', 'User Connections', ''), # LARGE_RAWCOUNT
-        ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'), # BULK_COUNT
-        ('sqlserver.access.page_splits', 'Page Splits/sec', ''), # BULK_COUNT
-        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''), # LARGE_RAWCOUNT
-        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '') #BULK_COUNT
+        ('sqlserver.buffer.cache_hit_ratio', 'Buffer cache hit ratio', ''),  # RAW_LARGE_FRACTION
+        ('sqlserver.buffer.page_life_expectancy', 'Page life expectancy', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.stats.batch_requests', 'Batch Requests/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.sql_compilations', 'SQL Compilations/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.sql_recompilations', 'SQL Re-Compilations/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.connections', 'User Connections', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.stats.lock_waits', 'Lock Waits/sec', '_Total'),  # BULK_COUNT
+        ('sqlserver.access.page_splits', 'Page Splits/sec', ''),  # BULK_COUNT
+        ('sqlserver.stats.procs_blocked', 'Processes blocked', ''),  # LARGE_RAWCOUNT
+        ('sqlserver.buffer.checkpoint_pages', 'Checkpoint pages/sec', '')  # BULK_COUNT
     ]
 
-    def __init__(self, name, init_config, agentConfig, instances = None):
+    def __init__(self, name, init_config, agentConfig, instances=None):
         AgentCheck.__init__(self, name, init_config, agentConfig, instances)
 
         # Cache connections
@@ -71,7 +72,7 @@ class SQLServer(AgentCheck):
         for instance in instances:
 
             metrics_to_collect = []
-            for name, counter_name, instance_name  in self.METRICS:
+            for name, counter_name, instance_name in self.METRICS:
                 try:
                     sql_type, base_name = self.get_sql_type(instance, counter_name)
                     metrics_to_collect.append(self.typed_metric(name,
@@ -98,7 +99,6 @@ class SQLServer(AgentCheck):
                     self.log.warning("Can't load the metric %s, ignoring", name, exc_info=True)
                     continue
 
-
                 metrics_to_collect.append(self.typed_metric(row['name'],
                                                             row['counter_name'],
                                                             base_name,
@@ -106,7 +106,6 @@ class SQLServer(AgentCheck):
                                                             sql_type,
                                                             row.get('instance_name', ''),
                                                             row.get('tag_by', None)))
-
 
             instance_key = self._conn_key(instance)
             self.instances_metrics[instance_key] = metrics_to_collect
@@ -121,12 +120,12 @@ class SQLServer(AgentCheck):
         '''
 
         metric_type_mapping = {
-                PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
-                PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
-                PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
-                PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
-                PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
-            }
+            PERF_COUNTER_BULK_COUNT: (self.rate, SqlSimpleMetric),
+            PERF_COUNTER_LARGE_RAWCOUNT: (self.gauge, SqlSimpleMetric),
+            PERF_LARGE_RAW_BASE: (self.gauge, SqlSimpleMetric),
+            PERF_RAW_LARGE_FRACTION: (self.gauge, SqlFractionMetric),
+            PERF_AVERAGE_BULK: (self.gauge, SqlIncrFractionMetric)
+        }
         if user_type is not None:
             # user type overrides any other value
             metric_type = getattr(self, user_type)
@@ -158,7 +157,7 @@ class SQLServer(AgentCheck):
         '''
         host, username, password, database = self._get_access_info(instance)
         conn_str = 'Provider=SQLOLEDB;Data Source=%s;Initial Catalog=%s;' \
-                        % (host, database)
+            % (host, database)
         if username:
             conn_str += 'User ID=%s;' % (username)
         if password:
@@ -214,7 +213,8 @@ class SQLServer(AgentCheck):
         cursor.execute(COUNTER_TYPE_QUERY, (counter_name,))
         (sql_type,) = cursor.fetchone()
         if sql_type == PERF_LARGE_RAW_BASE:
-            self.log.warning("Metric %s is of type Base and shouldn't be reported this way", counter_name)
+            self.log.warning("Metric %s is of type Base and shouldn't be reported this way",
+                             counter_name)
         base_name = None
         if sql_type in [PERF_AVERAGE_BULK, PERF_RAW_LARGE_FRACTION]:
             # This is an ugly hack. For certains type of metric (PERF_RAW_LARGE_FRACTION
@@ -230,7 +230,7 @@ class SQLServer(AgentCheck):
                 base_name = cursor.fetchone().counter_name.strip()
                 self.log.debug("Got base metric: %s for metric: %s", base_name, counter_name)
             except Exception, e:
-                self.log.warning("Could not get counter_name of base for metric: %s",e)
+                self.log.warning("Could not get counter_name of base for metric: %s", e)
 
         return sql_type, base_name
 
@@ -248,13 +248,13 @@ class SQLServer(AgentCheck):
             except Exception, e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
 
+
 class SqlServerMetric(object):
     '''General class for common methods, should never be instantiated directly
     '''
 
     def __init__(self, datadog_name, sql_name, base_name,
-                       report_function, instance, tag_by,
-                       logger):
+                 report_function, instance, tag_by, logger):
         self.datadog_name = datadog_name
         self.sql_name = sql_name
         self.base_name = base_name
@@ -267,6 +267,7 @@ class SqlServerMetric(object):
 
     def fetch_metrics(self, cursor, tags):
         raise NotImplementedError
+
 
 class SqlSimpleMetric(SqlServerMetric):
 
@@ -291,6 +292,7 @@ class SqlSimpleMetric(SqlServerMetric):
                 metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance_name.strip())]
             self.report_function(self.datadog_name, cntr_value,
                                  tags=metric_tags)
+
 
 class SqlFractionMetric(SqlServerMetric):
 
@@ -319,6 +321,7 @@ class SqlFractionMetric(SqlServerMetric):
                 continue
             value = rows[0, "cntr_value"]
             base = rows[1, "cntr_value"]
+
             metric_tags = tags
             if self.instance == ALL_INSTANCES:
                 metric_tags = metric_tags + ['%s:%s' % (self.tag_by, instance.strip())]
@@ -326,11 +329,12 @@ class SqlFractionMetric(SqlServerMetric):
 
     def report_fraction(self, value, base, metric_tags):
         try:
-            result = value/base
+            result = value / float(base)
             self.report_function(self.datadog_name, result, tags=metric_tags)
         except ZeroDivisionError:
             self.log.debug("Base value is 0, won't report metric %s for tags %s",
-                                                  self.datadog_name, metric_tags)
+                           self.datadog_name, metric_tags)
+
 
 class SqlIncrFractionMetric(SqlFractionMetric):
 
@@ -341,9 +345,9 @@ class SqlIncrFractionMetric(SqlFractionMetric):
             diff_value = value - old_value
             diff_base = base - old_base
             try:
-                result = diff_value/diff_base
+                result = diff_value / float(diff_base)
                 self.report_function(self.datadog_name, result, tags=metric_tags)
             except ZeroDivisionError:
                 self.log.debug("Base value is 0, won't report metric %s for tags %s",
-                                                      self.datadog_name, metric_tags)
+                               self.datadog_name, metric_tags)
         self.past_values[key] = (value, base)
