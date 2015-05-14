@@ -1,5 +1,5 @@
 # stdlib
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import socket
 import subprocess
 import time
@@ -11,11 +11,13 @@ import requests
 # project
 from checks import AgentCheck
 from config import _is_affirmative
-from util import headers, Platform
+from utils.platform import Platform
+from util import headers
 
 
 class NodeNotFound(Exception):
     pass
+
 
 ESInstanceConfig = namedtuple(
     'ESInstanceConfig', [
@@ -226,7 +228,7 @@ class ESCheck(AgentCheck):
         # Load stats data.
         stats_url = urlparse.urljoin(config.url, stats_url)
         stats_data = self._get_data(stats_url, config)
-        self._process_stats_data(stats_data, stats_metrics, config)
+        self._process_stats_data(nodes_url, stats_data, stats_metrics, config)
 
         # Load the health data.
         health_url = urlparse.urljoin(config.url, health_url)
@@ -334,28 +336,15 @@ class ESCheck(AgentCheck):
         return resp.json()
 
     def _process_pending_tasks_data(self, data, config):
-        try:
-            pending_tasks_total = len(data['tasks'])
-        except Exception:
-            pending_tasks = None
-            pending_tasks_priority_high = None
-            pending_tasks_priority_urgent = None
+        p_tasks = defaultdict(int)
 
-        else:
-            try:
-                pending_tasks_priority_high = sum([1 for task in data['tasks'] if task['priority'] == 'high'])
-            except Exception:
-                pending_tasks_priority_high = None
-
-            try:
-                pending_tasks_priority_urgent = sum([1 for task in data['tasks'] if task['priority'] == 'urgent'])
-            except Exception:
-                pending_tasks_priority_urgent = None
+        for task in data.get('tasks', []):
+            p_tasks[task.get('priority')] += 1
 
         node_data = {
-            'pending_task_total': pending_tasks_total,
-            'pending_tasks_priority_high': pending_tasks_priority_high,
-            'pending_tasks_priority_urgent': pending_tasks_priority_urgent
+            'pending_task_total':               sum(p_tasks.values()),
+            'pending_tasks_priority_high':      p_tasks['high'],
+            'pending_tasks_priority_urgent':    p_tasks['urgent'],
         }
 
         for metric in self.CLUSTER_PENDING_TASKS:
@@ -363,7 +352,7 @@ class ESCheck(AgentCheck):
             desc = self.CLUSTER_PENDING_TASKS[metric]
             self._process_metric(node_data, metric, *desc, tags=config.tags)
 
-    def _process_stats_data(self, data, stats_metrics, config):
+    def _process_stats_data(self, nodes_url, data, stats_metrics, config):
         is_external = config.is_external
         for node_name in data['nodes']:
             node_data = data['nodes'][node_name]
@@ -372,7 +361,7 @@ class ESCheck(AgentCheck):
                 'hostname', node_data.get('host', None))
             should_process = (
                 is_external or self.should_process_node(
-                    node_name, node_hostname, config))
+                    nodes_url, node_name, node_hostname, config))
 
             # Override the metric hostname if we're hitting an external cluster
             metric_hostname = node_hostname if is_external else None
@@ -384,7 +373,7 @@ class ESCheck(AgentCheck):
                         node_data, metric, *desc, tags=config.tags,
                         hostname=metric_hostname)
 
-    def should_process_node(self, node_name, node_hostname, config):
+    def should_process_node(self, nodes_url, node_name, node_hostname, config):
         """ The node stats API will return stats for every node so we
             want to filter out nodes that we don't care about.
         """
@@ -398,11 +387,12 @@ class ESCheck(AgentCheck):
             if node_hostname.decode('utf-8') in hostnames:
                 return True
         else:
+            # FIXME 6.x : deprecate this code, it's EOL'd
             # ES < 0.19
             # Fetch interface address from ifconfig or ip addr and check
             # against the primary IP from ES
             try:
-                nodes_url = urlparse.urljoin(config.url, self.NODES_URL)
+                nodes_url = urlparse.urljoin(config.url, nodes_url)
                 primary_addr = self._get_primary_addr(
                     nodes_url, node_name, config)
             except NodeNotFound:
