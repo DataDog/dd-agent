@@ -119,6 +119,3 @@ class TestFluentd(unittest.TestCase):
         for m in metrics:
             self.assertEquals(len(m[3]['tags']), 1)
             self.assertTrue(p.match(m[3]['tags'][0]))
-
-if __name__ == '__main__':
-    unittest.main()

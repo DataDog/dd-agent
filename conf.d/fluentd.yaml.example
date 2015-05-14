@@ -1,16 +1,13 @@
 init_config:
 
 instances:
-    # For every instance, you have an `monitor_agent_url` 
-    # Use fluend 'plugin_id' as a tag. 
-    # You need to specify plugin id in fluentd configuration file.
-    -  monitor_agent_url: http://example.com:24220/api/plugins.json
-       tag_by: plugin_id
-    # Use fluend plugin 'type' as a tag. 
-    -  monitor_agent_url: http://example.org:24220/api/plugins.json
-       tag_by: type
-    # For backward compatibilty, you can specify plugin_ids that are used as tags.
+    # Every instance requires a `monitor_agent_url`
+    # Optional, set `plugin_ids` to monitor a specific scope of plugins.
     -  monitor_agent_url: http://example.com:24220/api/plugins.json
        plugin_ids:
          - plg1
          - plg2
+    # Optional, set 'tag_by' to specify how to tag metrics. By default, metrics are tagged with `plugin_id`
+    -  monitor_agent_url: http://example.com:24220/api/plugins.json
+       tag_by: type
+
