@@ -10,7 +10,9 @@ namespace :ci do
       tests_checks_dir = File.join(ci_dir, '..', 'tests', 'checks')
       mock_dir = File.join(tests_checks_dir, 'mock')
       integration_dir = File.join(tests_checks_dir, 'integration')
-      untested, mocked, perfects = [], [], []
+      untested = []
+      mocked = []
+      perfects = []
       Dir.glob(File.join(checks_dir, '*.py')).each do |check|
         check_name = /((\w|_)+).py$/.match(check)[1]
         if File.exist?(File.join(integration_dir, "test_#{check_name}.py"))

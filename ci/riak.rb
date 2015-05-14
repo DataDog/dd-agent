@@ -1,7 +1,7 @@
 require './ci/common'
 
 def riak_version
-  ENV['COUCHDB_VERSION']  || '2.0.5'
+  ENV['COUCHDB_VERSION'] || '2.0.5'
 end
 
 def riak_rootdir

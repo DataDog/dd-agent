@@ -55,7 +55,8 @@ namespace :ci do
       conf_files = ["#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/redis/auth.conf",
                     "#{ENV['TRAVIS_BUILD_DIR']}/ci/resources/redis/noauth.conf"]
       conf_files.each do |f|
-        pass, port = nil, nil
+        pass = nil
+        port = nil
         File.readlines(f).each do |line|
           param = line.split(' ')
           if param[0] == 'port'
