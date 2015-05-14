@@ -61,6 +61,7 @@ class IIS(AgentCheck):
         password = instance.get('password', None)
         instance_tags = instance.get('tags', [])
         sites = instance.get('sites', ['_Total'])
+        tag_all_sites = instance.get('tag_all_sites', False)
         w = self._get_wmi_conn(host, user, password)
 
         try:
@@ -71,11 +72,13 @@ class IIS(AgentCheck):
             self.log.exception('Unable to fetch Win32_PerfFormattedData_W3SVC_WebService class')
             return
 
-        expected_sites = set(sites)
+        expected_sites = set(sites)         
         # Iterate over every IIS site
         for iis_site in wmi_cls:
+            
             # Skip any sites we don't specifically want.
-            if iis_site.Name not in sites:
+            # Do not skip any sites if tag_all_sites is true
+            if iis_site.Name not in sites and not tag_all_sites:
                 continue
 
             # Tag with the site name if we're not using the aggregate
@@ -86,7 +89,10 @@ class IIS(AgentCheck):
 
             status = AgentCheck.CRITICAL if iis_site.ServiceUptime == 0 else AgentCheck.OK
             self.service_check("iis.site_up", status, tags=['site:%s' % iis_site.Name])
-            expected_sites.remove(iis_site.Name)
+
+            #Only remove yaml specified sites from expected sites set
+            if iis_site.Name in sites:
+                expected_sites.remove(iis_site.Name)
 
             for metric, mtype, wmi_val in self.METRICS:
                 if not hasattr(iis_site, wmi_val):
@@ -111,4 +117,4 @@ class IIS(AgentCheck):
 
         for remaining_site in expected_sites:
             self.service_check("iis.site_up", AgentCheck.CRITICAL,
-                               tags=['site:%s' % remaining_site])
+                                tags=['site:%s' % remaining_site])
