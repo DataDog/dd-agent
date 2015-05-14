@@ -9,12 +9,19 @@ class Ganglia(Check):
 
     def __init__(self, logger):
         Check.__init__(self, logger)
+        self.deprecation_shown = False
 
     def check(self, agentConfig):
         self.logger.debug('Ganglia status: start')
         if 'ganglia_host' not in agentConfig or agentConfig['ganglia_host'] == '':
             self.logger.debug('ganglia_host configuration not set, skipping ganglia')
             return False
+
+        if not self.deprecation_shown:
+            # Just display the deprecation messsage once
+            self.logger.warning("The Ganglia integration is deprecated and will "
+                "be removed in a future version of the Datadog Agent")
+            self.deprecation_shown = True
 
         try:
             host = agentConfig['ganglia_host']
