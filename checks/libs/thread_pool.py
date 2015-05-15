@@ -20,10 +20,13 @@
 # The methods of a Pool object use all these concepts and expose
 # them to their caller in a very simple way.
 
-import sys, threading, Queue, traceback
+import sys
+import threading
+import Queue
+import traceback
 
 
-## Item pushed on the work queue to tell the worker threads to terminate
+# Item pushed on the work queue to tell the worker threads to terminate
 SENTINEL = "QUIT"
 def is_sentinel(obj):
     """Predicate to determine whether an item from the queue is the
@@ -130,7 +133,7 @@ class Pool(object):
         collector = UnorderedResultCollector()
         self._create_sequences(func, iterable, chunksize, collector)
         return iter(collector)
-    
+
     def apply_async(self, func, args=(), kwds=dict(), callback=None):
         """A variant of the apply() method which returns an
         ApplyResult object.
@@ -409,7 +412,7 @@ class AbstractResultCollector(object):
         results we're waiting for become available. Can be None.
         """
         self._to_notify = to_notify
-        
+
     def register_result(self, apply_result):
         """Used to identify which results we're waiting for. Will
         always be called BEFORE the Jobs get submitted to the work
@@ -544,17 +547,17 @@ class UnorderedResultCollector(AbstractResultCollector):
             self._cond.notifyAll()
         finally:
             self._cond.release()
-            
+
         if first_item and self._to_notify is not None:
             self._to_notify._set_value(iter(self))
-    
+
 
 class OrderedResultCollector(AbstractResultCollector):
     """An AbstractResultCollector implementation that collects the
     values of the ApplyResult objects in the order they have been
     submitted. The CollectorIterator object returned by __iter__()
     will iterate over them in the order they have been submitted"""
-    
+
     def __init__(self, to_notify = None, as_iterator = True):
         """
         \param to_notify ApplyResult object to notify when all the
@@ -625,11 +628,12 @@ class OrderedResultCollector(AbstractResultCollector):
 
 def _test():
     """Some tests"""
-    import thread, time
+    import thread
+    import time
 
     def f(x):
         return x*x
-    
+
     def work(seconds):
         print "[%d] Start to work for %fs..." % (thread.get_ident(), seconds)
         time.sleep(seconds)

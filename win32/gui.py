@@ -47,11 +47,23 @@ import tornado.template as template
 log = logging.getLogger(__name__)
 
 EXCLUDED_WINDOWS_CHECKS = [
-    'btrfs', 'cacti', 'directory', 'docker', 'gearmand',
-    'hdfs', 'kafka_consumer', 'marathon', 'mcache',
-    'mesos', 'network', 'postfix', 'process',
-    'gunicorn', 'zk', 'ssh_check'
-    ]
+    'btrfs',
+    'cacti',
+    'directory',
+    'docker',
+    'gearmand',
+    'gunicorn',
+    'hdfs',
+    'kafka_consumer',
+    'marathon',
+    'mcache',
+    'mesos',
+    'network',
+    'postfix',
+    'process',
+    'ssh_check',
+    'zk',
+]
 
 MAIN_WINDOW_TITLE = "Datadog Agent Manager"
 
@@ -98,7 +110,7 @@ def get_checks():
 
         agent_check = AgentCheck(filename, ext, conf_d_directory)
         if (agent_check.enabled or agent_check.module_name not in checks or
-            (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
+           (not agent_check.is_example and not checks[agent_check.module_name].enabled)):
             checks[agent_check.module_name] = agent_check
 
     checks_list = checks.values()
@@ -331,7 +343,7 @@ class HTMLWindow(QTextEdit):
                 dogstatsd=dogstatsd_status.to_dict(),
                 forwarder=forwarder_status.to_dict(),
                 collector=collector_status.to_dict(),
-                )
+            )
             return generated_template
         except Exception:
             return ("Unable to fetch latest status")

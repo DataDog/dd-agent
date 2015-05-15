@@ -29,3 +29,18 @@ instances:
     # check to tag the service check status by host on top of other tags.
     # The default case will only tag by backend and service.
     # tag_service_check_by_host: False
+    #
+    # optional, filter metrics by services
+    # How it works: if a tag matches an exclude rule, it won't be included
+    # unless it also matches an include rule.
+    # e.g. include ONLY these two services
+    # services_include:
+    #   - "backend"
+    #   - "test"
+    # services_exclude:
+    #   - ".*"
+    #
+    # OR include all EXCEPT this service
+    # services_include: []
+    # services_exclude:
+    #   - "thisone"

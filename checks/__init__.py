@@ -5,25 +5,38 @@ The Check class is being deprecated so don't write new checks with it.
 """
 
 import logging
+import numbers
 import re
 import socket
 import time
-import types
+from types import ListType, TupleType
 import os
 import sys
 import traceback
 import copy
+import timeit
 from pprint import pprint
 from collections import defaultdict
 
 from util import LaconicFilter, get_os, get_hostname, get_next_id, yLoader
 from config import get_confd_path
 from checks import check_status
+from utils.profile import pretty_statistics
 
 # 3rd party
 import yaml
 
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 log = logging.getLogger(__name__)
+
+# Default methods run when collecting info about the agent in developer mode
+DEFAULT_PSUTIL_METHODS = ['get_memory_info', 'get_io_counters']
+
+AGENT_METRICS_CHECK_NAME = 'agent_metrics'
 
 # Konstants
 class CheckException(Exception): pass
@@ -185,7 +198,7 @@ class Check(object):
         "Get (timestamp-epoch-style, value)"
 
         # Get the proper tags
-        if tags is not None and type(tags) == type([]):
+        if tags is not None and isinstance(tags, ListType):
             tags.sort()
             tags = tuple(tags)
         key = (tags, device_name)
@@ -213,7 +226,7 @@ class Check(object):
     def get_sample(self, metric, tags=None, device_name=None, expire=True):
         "Return the last value for that metric"
         x = self.get_sample_with_timestamp(metric, tags, device_name, expire)
-        assert type(x) == types.TupleType and len(x) == 4, x
+        assert isinstance(x, TupleType) and len(x) == 4, x
         return x[1]
 
     def get_samples_with_timestamps(self, expire=True):
@@ -265,6 +278,7 @@ class Check(object):
                 pass
         return metrics
 
+
 class AgentCheck(object):
     OK, WARNING, CRITICAL, UNKNOWN = (0, 1, 2, 3)
 
@@ -286,6 +300,9 @@ class AgentCheck(object):
         self.name = name
         self.init_config = init_config or {}
         self.agentConfig = agentConfig
+        self.in_developer_mode = agentConfig.get('developer_mode') and psutil is not None
+        self._internal_profiling_stats = None
+
         self.hostname = agentConfig.get('checksd_hostname') or get_hostname(agentConfig)
         self.log = logging.getLogger('%s.%s' % (__name__, name))
 
@@ -359,7 +376,7 @@ class AgentCheck(object):
         self.aggregator.submit_count(metric, value, tags, hostname, device_name)
 
     def monotonic_count(self, metric, value=0, tags=None,
-                      hostname=None, device_name=None):
+                        hostname=None, device_name=None):
         """
         Submits a raw count with optional tags, hostname and device name
         based on increasing counter values. E.g. 1, 3, 5, 7 will submit
@@ -454,8 +471,12 @@ class AgentCheck(object):
         """
         if hostname is None:
             hostname = self.hostname
-        self.service_checks.append(create_service_check(check_name, status,
-            tags, timestamp, hostname, check_run_id, message))
+        if message is not None:
+            message = str(message)
+        self.service_checks.append(
+            create_service_check(check_name, status, tags, timestamp,
+                                 hostname, check_run_id, message)
+        )
 
     def has_events(self):
         """
@@ -508,7 +529,7 @@ class AgentCheck(object):
         """ Add a warning message that will be printed in the info page
         :param warning_message: String. Warning message to be displayed
         """
-        self.warnings.append(warning_message)
+        self.warnings.append(str(warning_message))
 
     def get_library_info(self):
         if self.library_versions is not None:
@@ -531,8 +552,59 @@ class AgentCheck(object):
         self.warnings = []
         return warnings
 
+    @staticmethod
+    def _get_statistic_name_from_method(method_name):
+        return method_name[4:] if method_name.startswith('get_') else method_name
+
+    @staticmethod
+    def _collect_internal_stats(methods=None):
+        current_process = psutil.Process(os.getpid())
+
+        methods = methods or DEFAULT_PSUTIL_METHODS
+        filtered_methods = [m for m in methods if hasattr(current_process, m)]
+
+        stats = {}
+
+        for method in filtered_methods:
+            # Go from `get_memory_info` -> `memory_info`
+            stat_name = AgentCheck._get_statistic_name_from_method(method)
+            try:
+                raw_stats = getattr(current_process, method)()
+                try:
+                    stats[stat_name] = raw_stats._asdict()
+                except AttributeError:
+                    if isinstance(raw_stats, numbers.Number):
+                        stats[stat_name] = raw_stats
+                    else:
+                        log.warn("Could not serialize output of {0} to dict".format(method))
+
+            except psutil.AccessDenied:
+                log.warn("Cannot call psutil method {} : Access Denied".format(method))
+
+        return stats
+
+    def _set_internal_profiling_stats(self, before, after):
+        self._internal_profiling_stats = {'before': before, 'after': after}
+
+    def _get_internal_profiling_stats(self):
+        """
+        If in developer mode, return a dictionary of statistics about the check run
+        """
+        stats = self._internal_profiling_stats
+        self._internal_profiling_stats = None
+        return stats
+
     def run(self):
         """ Run all instances. """
+
+        # Store run statistics if needed
+        before, after = None, None
+        if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:
+            try:
+                before = AgentCheck._collect_internal_stats()
+            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+                self.log.debug("Failed to collect Agent Stats before check {0}".format(self.name))
+
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
@@ -544,22 +616,45 @@ class AgentCheck(object):
                     continue
 
                 self.last_collection_time[i] = now
+
+                check_start_time = None
+                if self.in_developer_mode:
+                    check_start_time = timeit.default_timer()
                 self.check(copy.deepcopy(instance))
+
+                instance_check_stats = None
+                if check_start_time is not None:
+                    instance_check_stats = {'run_time': timeit.default_timer() - check_start_time}
+
                 if self.has_warnings():
                     instance_status = check_status.InstanceStatus(i,
                         check_status.STATUS_WARNING,
-                        warnings=self.get_warnings()
+                        warnings=self.get_warnings(),
+                        instance_check_stats=instance_check_stats
                     )
                 else:
-                    instance_status = check_status.InstanceStatus(i, check_status.STATUS_OK)
+                    instance_status = check_status.InstanceStatus(
+                        i,
+                        check_status.STATUS_OK,
+                        instance_check_stats=instance_check_stats
+                    )
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(i,
                     check_status.STATUS_ERROR,
-                    error=e,
+                    error=str(e),
                     tb=traceback.format_exc()
                 )
             instance_statuses.append(instance_status)
+
+        if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:
+            try:
+                after = AgentCheck._collect_internal_stats()
+                self._set_internal_profiling_stats(before, after)
+                log.info("\n \t %s %s" % (self.name, pretty_statistics(self._internal_profiling_stats)))
+            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+                self.log.debug("Failed to collect Agent Stats after check {0}".format(self.name))
+
         return instance_statuses
 
     def check(self, instance):
@@ -635,7 +730,6 @@ class AgentCheck(object):
     METRIC_REPLACEMENT = re.compile(r'([^a-zA-Z0-9_.]+)|(^[^a-zA-Z]+)')
     DOT_UNDERSCORE_CLEANUP = re.compile(r'_*\._*')
 
-
     def convert_to_underscore_separated(self, name):
         """
         Convert from CamelCase to camel_case
@@ -657,6 +751,7 @@ class AgentCheck(object):
             return val
         else:
             return cast(val)
+
 
 def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
                                                 metric_type=None, interval=None):
@@ -682,34 +777,8 @@ def agent_formatter(metric, value, timestamp, tags, hostname, device_name=None,
     return (metric, int(timestamp), value)
 
 
-def run_check(name, path=None):
-    from tests.common import get_check
-
-    # Read the config file
-    confd_path = path or os.path.join(get_confd_path(get_os()), '%s.yaml' % name)
-
-    try:
-        f = open(confd_path)
-    except IOError:
-        raise Exception('Unable to open configuration at %s' % confd_path)
-
-    config_str = f.read()
-    f.close()
-
-    # Run the check
-    check, instances = get_check(name, config_str)
-    if not instances:
-        raise Exception('YAML configuration returned no instances.')
-    for instance in instances:
-        check.check(instance)
-        if check.has_events():
-            print "Events:\n"
-            pprint(check.get_events(), indent=4)
-        print "Metrics:\n"
-        pprint(check.get_metrics(), indent=4)
-
 def create_service_check(check_name, status, tags=None, timestamp=None,
-                  hostname=None, check_run_id=None, message=None):
+                         hostname=None, check_run_id=None, message=None):
     """ Create a service_check dict. See AgentCheck.service_check() for
         docs on the parameters.
     """

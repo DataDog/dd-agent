@@ -376,7 +376,7 @@ class Rate(Metric):
                 metric=self.name,
                 value=val,
                 timestamp=timestamp,
-                metric_type=MetricTypes.GAUGE,
+                metric_type=MetricTypes.RATE,
                 interval=interval
             )]
         finally:
@@ -826,7 +826,7 @@ class MetricsBucketAggregator(Aggregator):
             # Even if there are no metrics in this flush, there may be some non-expired counters
             #  We should only create these non-expired metrics if we've passed an interval since the last flush
             if flush_cutoff_time >= self.last_flush_cutoff_time + self.interval:
-                self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp, \
+                self.create_empty_metrics(self.last_sample_time_by_context.copy(), expiry_timestamp,
                                                 flush_cutoff_time-self.interval, metrics)
 
         # Log a warning regarding metrics with old timestamps being submitted
@@ -949,20 +949,23 @@ class MetricsAggregator(Aggregator):
         return metrics
 
 def get_formatter(config):
-  formatter = api_formatter
+    formatter = api_formatter
 
-  if config['statsd_metric_namespace']:
-    def metric_namespace_formatter_wrapper(metric, value, timestamp, tags,
-        hostname=None, device_name=None, metric_type=None, interval=None):
-      metric_prefix = config['statsd_metric_namespace']
-      if metric_prefix[-1] != '.':
-        metric_prefix += '.'
+    if config['statsd_metric_namespace']:
+        def metric_namespace_formatter_wrapper(metric, value, timestamp, tags,
+                                               hostname=None, device_name=None,
+                                               metric_type=None, interval=None):
 
-      return api_formatter(metric_prefix + metric, value, timestamp, tags, hostname,
-        device_name, metric_type, interval)
+            metric_prefix = config['statsd_metric_namespace']
+            if metric_prefix[-1] != '.':
+                metric_prefix += '.'
 
-    formatter = metric_namespace_formatter_wrapper
-  return formatter
+            return api_formatter(metric_prefix + metric, value, timestamp, tags, hostname,
+                                 device_name, metric_type, interval)
+
+        formatter = metric_namespace_formatter_wrapper
+
+    return formatter
 
 
 def api_formatter(metric, value, timestamp, tags, hostname=None, device_name=None,

@@ -5,6 +5,7 @@ from util import headers
 # 3rd party
 import requests
 
+
 class Etcd(AgentCheck):
 
     DEFAULT_TIMEOUT = 5
@@ -45,6 +46,21 @@ class Etcd(AgentCheck):
         'sendAppendRequestCnt': 'etcd.self.send.appendrequest.count'
     }
 
+    LEADER_COUNTS = {
+        # Rates
+        'fail': 'etcd.leader.counts.fail',
+        'success': 'etcd.leader.counts.success',
+    }
+
+    LEADER_LATENCY = {
+        # Gauges
+        'current': 'etcd.leader.latency.current',
+        'average': 'etcd.leader.latency.avg',
+        'minimum': 'etcd.leader.latency.min',
+        'maximum': 'etcd.leader.latency.max',
+        'standardDeviation': 'etcd.leader.latency.stddev',
+    }
+
     def check(self, instance):
         if 'url' not in instance:
             raise Exception('etcd instance missing "url" value.')
@@ -56,10 +72,13 @@ class Etcd(AgentCheck):
         # way they can tell the difference!
         instance_tags.append("url:{0}".format(url))
         timeout = float(instance.get('timeout', self.DEFAULT_TIMEOUT))
+        is_leader = False
 
-        self_response = self.get_self_metrics(url, timeout)
+        # Gather self metrics
+        self_response = self._get_self_metrics(url, timeout)
         if self_response is not None:
             if self_response['state'] == 'StateLeader':
+                is_leader = True
                 instance_tags.append('etcd_state:leader')
             else:
                 instance_tags.append('etcd_state:follower')
@@ -76,7 +95,8 @@ class Etcd(AgentCheck):
                 else:
                     self.log.warn("Missing key {0} in stats.".format(key))
 
-        store_response = self.get_store_metrics(url, timeout)
+        # Gather store metrics
+        store_response = self._get_store_metrics(url, timeout)
         if store_response is not None:
             for key in self.STORE_RATES:
                 if key in store_response:
@@ -90,29 +110,52 @@ class Etcd(AgentCheck):
                 else:
                     self.log.warn("Missing key {0} in stats.".format(key))
 
+        # Gather leader metrics
+        leader_response = self._get_leader_metrics(url, timeout)
+        if leader_response is not None and is_leader \
+                and len(leader_response.get("followers", {})) > 0:
+            # Get the followers
+            followers = leader_response.get("followers")
+            for fol in followers:
+                # counts
+                for key in self.LEADER_COUNTS:
+                    self.rate(self.LEADER_COUNTS[key],
+                              followers[fol].get("counts").get(key),
+                              tags=instance_tags + ['follower:{0}'.format(fol)])
+                # latency
+                for key in self.LEADER_LATENCY:
+                    self.gauge(self.LEADER_LATENCY[key],
+                               followers[fol].get("latency").get(key),
+                               tags=instance_tags + ['follower:{0}'.format(fol)])
+
+        # Service check
         if self_response is not None and store_response is not None:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK, tags=instance_tags)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                               tags=["url:{0}".format(url)])
 
-    def get_self_metrics(self, url, timeout):
-        return self.get_json(url + "/v2/stats/self", timeout)
+    def _get_self_metrics(self, url, timeout):
+        return self._get_json(url + "/v2/stats/self", timeout)
 
-    def get_store_metrics(self, url, timeout):
-        return self.get_json(url + "/v2/stats/store", timeout)
+    def _get_store_metrics(self, url, timeout):
+        return self._get_json(url + "/v2/stats/store", timeout)
 
-    def get_json(self, url, timeout):
+    def _get_leader_metrics(self, url, timeout):
+        return self._get_json(url + "/v2/stats/leader", timeout)
+
+    def _get_json(self, url, timeout):
         try:
             r = requests.get(url, timeout=timeout, headers=headers(self.agentConfig))
-        except requests.exceptions.Timeout as e:
+        except requests.exceptions.Timeout:
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message="Timeout when hitting %s" % url,
-                tags = ["url:{0}".format(url)])
+                               message="Timeout when hitting %s" % url,
+                               tags=["url:{0}".format(url)])
             raise
 
         if r.status_code != 200:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                message="Got %s when hitting %s" % (r.status_code, url),
-                tags = ["url:{0}".format(url)])
+                               message="Got %s when hitting %s" % (r.status_code, url),
+                               tags=["url:{0}".format(url)])
             raise Exception("Http status code {0} on url {1}".format(r.status_code, url))
 
         return r.json()

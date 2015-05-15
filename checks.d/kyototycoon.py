@@ -76,7 +76,8 @@ class KyotoTycoonCheck(AgentCheck):
                 tags=service_check_tags, message=str(e))
             raise
         else:
-            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK)
+            self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
+                tags=service_check_tags)
 
         body = r.content
 

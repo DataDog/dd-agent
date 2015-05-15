@@ -69,9 +69,8 @@ class SnmpCheck(AgentCheck):
         if mibs_path is not None:
             mib_builder = cls.cmd_generator.snmpEngine.msgAndPduDsp.\
                           mibInstrumController.mibBuilder
-            mib_sources = mib_builder.getMibSources() + (
-                    builder.DirMibSource(mibs_path),
-                    )
+            mib_sources = mib_builder.getMibSources()\
+                            + (builder.DirMibSource(mibs_path), )
             mib_builder.setMibSources(*mib_sources)
 
     @classmethod

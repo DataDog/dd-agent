@@ -53,7 +53,7 @@ class Nginx(AgentCheck):
 
         auth = None
         if 'user' in instance and 'password' in instance:
-           auth = (instance['user'], instance['password'])
+            auth = (instance['user'], instance['password'])
 
         # Submit a service check for status page availability.
         parsed_url = urlparse.urlparse(url)
@@ -93,7 +93,7 @@ class Nginx(AgentCheck):
             handled = int(parsed.group(2))
             requests = int(parsed.group(3))
             output.extend([('nginx.net.conn_opened_per_s', conn, tags, 'rate'),
-                           ('nginx.net.conn_handled_per_s', conn, tags, 'rate'),
+                           ('nginx.net.conn_dropped_per_s', conn - handled, tags, 'rate'),
                            ('nginx.net.request_per_s', requests, tags, 'rate')])
 
         # Connection states, reading, writing or waiting for clients

@@ -35,7 +35,7 @@ LOG_PATTERN = re.compile(r"".join([
     r"\s*(?P<priority>%s)\s+" % "|".join("(%s)" % p for p in LOG4J_PRIORITY),
     r"(\[CompactionExecutor:\d*\]\s+)?", # optional thread name and number
     r"((?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d*)|",
-        r"(?P<time>\d{2}:\d{2}:\d{2},\d*))\s+",
+    r"(?P<time>\d{2}:\d{2}:\d{2},\d*))\s+",
     r"(\w+\.java \(line \d+\)\s+)?", # optional source file and line
     r"(?P<msg>Compact(ed|ing) .*)\s*",
 ]))

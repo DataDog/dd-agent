@@ -7,23 +7,28 @@ of checks.
 import datetime
 import logging
 import os
-import pickle
+import cPickle as pickle
 import platform
 import sys
 import tempfile
-import traceback
 import time
 from collections import defaultdict
 import os.path
 
-# project
-import config
-from config import _windows_commondata_path, get_config
-from util import get_os, plural, Platform
-
 # 3rd party
 import ntplib
 import yaml
+
+# project
+import config
+from config import get_config, get_jmx_status_path, _windows_commondata_path
+
+from util import get_os, plural
+from utils.ntp import get_ntp_datadog_host
+from utils.platform import Platform
+from utils.pidfile import PidFile
+from utils.profile import pretty_statistics
+
 
 STATUS_OK = 'OK'
 STATUS_ERROR = 'ERROR'
@@ -57,7 +62,6 @@ class Stylizer(object):
     WARNING = '\033[93m'
     FAIL = '\033[91m'
     RESET = '\033[0m'
-
 
     ENABLED = False
 
@@ -95,13 +99,16 @@ def logger_info():
         loggers.append("No loggers configured")
     return ', '.join(loggers)
 
+
 def get_ntp_info():
-    ntp_offset = ntplib.NTPClient().request('pool.ntp.org', version=3).offset
+    ntp_host = get_ntp_datadog_host()
+    ntp_offset = ntplib.NTPClient().request(ntp_host, version=3).offset
     if abs(ntp_offset) > NTP_OFFSET_THRESHOLD:
         ntp_styles = ['red', 'bold']
     else:
         ntp_styles = []
     return ntp_offset, ntp_styles
+
 
 class AgentStatus(object):
     """
@@ -183,9 +190,11 @@ class AgentStatus(object):
     def to_dict(self):
         return {
             'pid': self.created_by_pid,
-            'status_date': "%s (%ss ago)" % (self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                                        self.created_seconds_ago()),
-            }
+            'status_date': "%s (%ss ago)" % (
+                                self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                self.created_seconds_ago()
+                            ),
+        }
 
     @classmethod
     def _not_running_message(cls):
@@ -246,15 +255,18 @@ class AgentStatus(object):
     @classmethod
     def _get_pickle_path(cls):
         if Platform.is_win32():
-            path = os.path.join(_windows_commondata_path(), 'Datadog', cls.__name__ + '.pickle')
+            path = os.path.join(_windows_commondata_path(), 'Datadog')
+        elif os.path.isdir(PidFile.get_dir()):
+            path = PidFile.get_dir()
         else:
-            path = os.path.join(tempfile.gettempdir(), cls.__name__ + '.pickle')
-        return path
+            path = tempfile.gettempdir()
+        return os.path.join(path, cls.__name__ + '.pickle')
 
 
 class InstanceStatus(object):
 
-    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None):
+    def __init__(self, instance_id, status, error=None, tb=None, warnings=None, metric_count=None,
+                 instance_check_stats=None):
         self.instance_id = instance_id
         self.status = status
         if error is not None:
@@ -264,6 +276,7 @@ class InstanceStatus(object):
         self.traceback = tb
         self.warnings = warnings
         self.metric_count = metric_count
+        self.instance_check_stats = instance_check_stats
 
     def has_error(self):
         return self.status == STATUS_ERROR
@@ -271,12 +284,14 @@ class InstanceStatus(object):
     def has_warnings(self):
         return self.status == STATUS_WARNING
 
+
 class CheckStatus(object):
 
     def __init__(self, check_name, instance_statuses, metric_count=None,
                  event_count=None, service_check_count=None,
                  init_failed_error=None, init_failed_traceback=None,
-                 library_versions=None, source_type_name=None):
+                 library_versions=None, source_type_name=None,
+                 check_stats=None):
         self.name = check_name
         self.source_type_name = source_type_name
         self.instance_statuses = instance_statuses
@@ -286,6 +301,7 @@ class CheckStatus(object):
         self.init_failed_error = init_failed_error
         self.init_failed_traceback = init_failed_traceback
         self.library_versions = library_versions
+        self.check_stats = check_stats
 
     @property
     def status(self):
@@ -338,6 +354,78 @@ class CollectorStatus(AgentStatus):
 
     def has_error(self):
         return self.status != STATUS_OK
+
+    @staticmethod
+    def check_status_lines(cs):
+        check_lines = [
+            '  ' + cs.name,
+            '  ' + '-' * len(cs.name)
+        ]
+        if cs.init_failed_error:
+            check_lines.append("    - initialize check class [%s]: %s" %
+                               (style(STATUS_ERROR, 'red'),
+                               repr(cs.init_failed_error)))
+            if cs.init_failed_traceback:
+                check_lines.extend('      ' + line for line in
+                                   cs.init_failed_traceback.split('\n'))
+        else:
+            for s in cs.instance_statuses:
+                c = 'green'
+                if s.has_warnings():
+                    c = 'yellow'
+                if s.has_error():
+                    c = 'red'
+                line =  "    - instance #%s [%s]" % (
+                         s.instance_id, style(s.status, c))
+                if s.has_error():
+                    line += u": %s" % s.error
+                if s.metric_count is not None:
+                    line += " collected %s metrics" % s.metric_count
+                if s.instance_check_stats is not None:
+                    line += " Last run duration: %s" % s.instance_check_stats.get('run_time')
+
+                check_lines.append(line)
+
+                if s.has_warnings():
+                    for warning in s.warnings:
+                        warn = warning.split('\n')
+                        if not len(warn): continue
+                        check_lines.append(u"        %s: %s" %
+                            (style("Warning", 'yellow'), warn[0]))
+                        check_lines.extend(u"        %s" % l for l in
+                                    warn[1:])
+                if s.traceback is not None:
+                    check_lines.extend('      ' + line for line in
+                                   s.traceback.split('\n'))
+
+            check_lines += [
+                "    - Collected %s metric%s, %s event%s & %s service check%s" % (
+                    cs.metric_count, plural(cs.metric_count),
+                    cs.event_count, plural(cs.event_count),
+                    cs.service_check_count, plural(cs.service_check_count)),
+            ]
+
+            if cs.check_stats is not None:
+                check_lines += [
+                    "    - Stats: %s" % pretty_statistics(cs.check_stats)
+                ]
+
+            if cs.library_versions is not None:
+                check_lines += [
+                    "    - Dependencies:"]
+                for library, version in cs.library_versions.iteritems():
+                    check_lines += ["        - %s: %s" % (library, version)]
+
+            check_lines += [""]
+            return check_lines
+
+    @staticmethod
+    def render_check_status(cs):
+        indent = "  "
+        lines = [
+            indent + l for l in CollectorStatus.check_status_lines(cs)
+        ] + ["", ""]
+        return "\n".join(lines)
 
     def body_lines(self):
         # Metadata whitelist
@@ -438,6 +526,8 @@ class CollectorStatus(AgentStatus):
                             line += u": %s" % s.error
                         if s.metric_count is not None:
                             line += " collected %s metrics" % s.metric_count
+                        if s.instance_check_stats is not None:
+                            line += " Last run duration: %s" % s.instance_check_stats.get('run_time')
 
                         check_lines.append(line)
 
@@ -460,12 +550,17 @@ class CollectorStatus(AgentStatus):
                             cs.service_check_count, plural(cs.service_check_count)),
                     ]
 
+                    if cs.check_stats is not None:
+                        check_lines += [
+                            "    - Stats: %s" % pretty_statistics(cs.check_stats)
+                        ]
+
                     if cs.library_versions is not None:
                         check_lines += [
                             "    - Dependencies:"]
                         for library, version in cs.library_versions.iteritems():
                             check_lines += [
-                            "        - %s: %s" % (library, version)]
+                                "        - %s: %s" % (library, version)]
 
                     check_lines += [""]
 
@@ -517,7 +612,8 @@ class CollectorStatus(AgentStatus):
             status_info['checks'][cs.name] = {'instances': {}}
             if cs.init_failed_error:
                 status_info['checks'][cs.name]['init_failed'] = True
-                status_info['checks'][cs.name]['traceback'] = cs.init_failed_traceback
+                status_info['checks'][cs.name]['traceback'] = \
+                    cs.init_failed_traceback or cs.init_failed_error
             else:
                 status_info['checks'][cs.name] = {'instances': {}}
                 status_info['checks'][cs.name]['init_failed'] = False
@@ -542,7 +638,7 @@ class CollectorStatus(AgentStatus):
                 'name': es.name,
                 'status': es.status,
                 'has_error': es.has_error(),
-                }
+            }
             if es.has_error():
                 check_status['error'] = es.error
             status_info['emitter'].append(check_status)
@@ -624,7 +720,7 @@ class ForwarderStatus(AgentStatus):
         self.flush_count = flush_count
         self.transactions_received = transactions_received
         self.transactions_flushed = transactions_flushed
-        self.proxy_data = get_config().get('proxy_settings')
+        self.proxy_data = get_config(parse_args=False).get('proxy_settings')
         self.hidden_username = None
         self.hidden_password = None
         if self.proxy_data and self.proxy_data.get('user'):
@@ -675,6 +771,7 @@ class ForwarderStatus(AgentStatus):
         })
         return status_info
 
+
 def get_jmx_instance_status(instance_name, status, message, metric_count):
     if status == STATUS_ERROR:
         instance_status = InstanceStatus(instance_name, STATUS_ERROR, error=message, metric_count=metric_count)
@@ -719,8 +816,8 @@ def get_jmx_status():
         ###
     """
     check_statuses = []
-    java_status_path = os.path.join(tempfile.gettempdir(), "jmx_status.yaml")
-    python_status_path = os.path.join(tempfile.gettempdir(), "jmx_status_python.yaml")
+    java_status_path = os.path.join(get_jmx_status_path(), "jmx_status.yaml")
+    python_status_path = os.path.join(get_jmx_status_path(), "jmx_status_python.yaml")
     if not os.path.exists(java_status_path) and not os.path.exists(python_status_path):
         log.debug("There is no jmx_status file at: %s or at: %s" % (java_status_path, python_status_path))
         return []
@@ -734,33 +831,42 @@ def get_jmx_status():
             jmx_checks = java_jmx_stats.get('checks', {})
 
             if status_age > 60:
-                check_statuses.append(CheckStatus("jmx", [InstanceStatus(
-                                                    0,
-                                                    STATUS_ERROR,
-                                                    error="JMXfetch didn't return any metrics during the last minute"
-                                                    )]))
+                check_statuses.append(
+                    CheckStatus("jmx", [
+                        InstanceStatus(
+                            0,
+                            STATUS_ERROR,
+                            error="JMXfetch didn't return any metrics during the last minute"
+                        )
+                    ])
+                )
             else:
-
                 for check_name, instances in jmx_checks.get('failed_checks', {}).iteritems():
                     for info in instances:
                         message = info.get('message', None)
                         metric_count = info.get('metric_count', 0)
+                        service_check_count = info.get('service_check_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
                         check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
+                        check_data[check_name]['service_check_count'].append(service_check_count)
 
                 for check_name, instances in jmx_checks.get('initialized_checks', {}).iteritems():
                     for info in instances:
                         message = info.get('message', None)
                         metric_count = info.get('metric_count', 0)
+                        service_check_count = info.get('service_check_count', 0)
                         status = info.get('status')
                         instance_name = info.get('instance_name', None)
                         check_data[check_name]['statuses'].append(get_jmx_instance_status(instance_name, status, message, metric_count))
                         check_data[check_name]['metric_count'].append(metric_count)
+                        check_data[check_name]['service_check_count'].append(service_check_count)
 
                 for check_name, data in check_data.iteritems():
-                    check_status = CheckStatus(check_name, data['statuses'], sum(data['metric_count']))
+                    check_status = CheckStatus(check_name, data['statuses'], 
+                                               metric_count=sum(data['metric_count']), 
+                                               service_check_count=sum(data['service_check_count']))
                     check_statuses.append(check_status)
 
         if os.path.exists(python_status_path):

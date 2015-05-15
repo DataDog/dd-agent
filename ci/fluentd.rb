@@ -2,31 +2,40 @@ require './ci/common'
 
 namespace :ci do
   namespace :fluentd do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
       sh %(gem install fluentd --no-ri --no-rdoc)
     end
 
-    task :before_script => ['ci:common:before_script'] do
-      sh %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf &)
-      sleep_for 10
+    task before_script: ['ci:common:before_script'] do
+      pid = spawn %(fluentd -c $TRAVIS_BUILD_DIR/ci/resources/fluentd/td-agent.conf)
+      Process.detach(pid)
+      sh %(echo #{pid} > $VOLATILE_DIR/fluentd.pid)
+      # Waiting for fluentd to start
+      Wait.for 24_220
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'fluentd'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup']
-    # FIXME: stop fluentd
+    task before_cache: ['ci:common:before_cache']
+
+    task cache: ['ci:common:cache']
+
+    task cleanup: ['ci:common:cleanup'] do
+      sh %(kill `cat $VOLATILE_DIR/fluentd.pid`)
+    end
 
     task :execute do
       exception = nil
       begin
-        %w(before_install install before_script script).each do |t|
+        %w(before_install install before_script
+           script before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

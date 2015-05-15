@@ -251,8 +251,10 @@ class MongoDb(AgentCheck):
                     if hasattr(lag,'total_seconds'):
                         data['replicationLag'] = lag.total_seconds()
                     else:
-                        data['replicationLag'] = (lag.microseconds + \
-            (lag.seconds + lag.days * 24 * 3600) * 10**6) / 10.0**6
+                        data['replicationLag'] = (
+                            lag.microseconds +
+                            (lag.seconds + lag.days * 24 * 3600) * 10**6
+                        ) / 10.0**6
 
                 if current is not None:
                     data['health'] = current['health']

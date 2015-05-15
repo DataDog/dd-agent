@@ -24,7 +24,7 @@ instances:
 # Uncomment them if you want to use them as is, or use as an example for creating your own custom metrics. 
 # The format for describing custome metrics is identical with the one used for common metrics in postgres.py
 # Be extra careful with ensuring proper custom metrics description format. If your custom metric does not work 
-# after an agent restart, look for errors in the otput of "/etc/init.d/datadog-agent info" command, as well as 
+# after an agent restart, look for errors in the output of "/etc/init.d/datadog-agent info" command, as well as 
 # /var/log/datadog/collector.log file. 
 #
 #    custom_metrics:

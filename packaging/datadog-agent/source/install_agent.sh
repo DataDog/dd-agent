@@ -5,7 +5,7 @@ logfile="ddagent-install.log"
 gist_request=/tmp/agent-gist-request.tmp
 gist_response=/tmp/agent-gist-response.tmp
 
-if [ $(which curl) ]; then
+if [ $(command -v curl) ]; then
     dl_cmd="curl -f"
 else
     dl_cmd="wget --quiet"
@@ -38,6 +38,12 @@ trap on_error ERR
 
 if [ -n "$DD_API_KEY" ]; then
     apikey=$DD_API_KEY
+fi
+
+if [ -n "$DD_INSTALL_ONLY" ]; then
+    no_start=true
+else
+    no_start=false
 fi
 
 if [ ! $apikey ]; then
@@ -143,8 +149,25 @@ else
     $sudo_cmd sh -c "sed 's/api_key:.*/api_key: $apikey/' /etc/dd-agent/datadog.conf.example > /etc/dd-agent/datadog.conf"
 fi
 
+restart_cmd="$sudo_cmd /etc/init.d/datadog-agent restart" 
+if command -v invoke-rc.d >/dev/null 2>&1; then
+    restart_cmd="$sudo_cmd invoke-rc.d datadog-agent restart"
+fi
+
+if $no_start; then
+    printf "\033[34m 
+* DD_INSTALL_ONLY environment variable set: the newly installed version of the agent
+will not start by itself. You will have to do it manually using the following 
+command: 
+
+    $restart_cmd
+
+\033[0m\n"
+    exit
+fi
+
 printf "\033[34m* Starting the Agent...\n\033[0m\n"
-$sudo_cmd /etc/init.d/datadog-agent restart
+eval $restart_cmd
 
 # Wait for metrics to be submitted by the forwarder
 printf "\033[32m
@@ -163,6 +186,14 @@ while [ "$c" -lt "30" ]; do
     c=$(($c+1))
 done
 
+# Reuse the same counter
+c=0
+
+# The command to check the status of the forwarder might fail at first, this is expected
+# so we remove the trap and we set +e
+set +e
+trap - ERR
+
 $dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
 success=$?
 while [ "$success" -gt "0" ]; do
@@ -170,6 +201,14 @@ while [ "$success" -gt "0" ]; do
     echo -n "."
     $dl_cmd http://127.0.0.1:17123/status?threshold=0 > /dev/null 2>&1
     success=$?
+    c=$(($c+1))
+
+    if [ "$c" -gt "15" -o "$success" -eq "0" ]; then
+        # After 15 tries, we give up, we restore the trap and set -e
+        # Also restore the trap on success
+        set -e
+        trap on_error ERR
+    fi
 done
 
 # Metrics are submitted, echo some instructions and exit

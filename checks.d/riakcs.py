@@ -36,7 +36,7 @@ class RiakCs(AgentCheck):
 
         self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
           tags=["aggregation_key:{0}".format(aggregation_key)])
-        
+
         self.process_stats(stats, tags)
 
     def process_stats(self, stats, tags):

@@ -27,11 +27,11 @@ AGENTCONF="/etc/dd-agent/datadog.conf"
 DOGSTATSDPATH="/opt/datadog-agent/agent/dogstatsd.py"
 AGENTUSER="dd-agent"
 PIDPATH="/var/run/dd-agent/"
-FORWARDERPATH="/usr/bin/dd-forwarder"
+FORWARDERPATH="/opt/datadog-agent/agent/ddagent.py"
 SUPERVISORD_PATH="PATH=/opt/datadog-agent/embedded/bin:/opt/datadog-agent/bin:$PATH /opt/datadog-agent/bin/supervisord"
 SUPERVISORCTL_PATH="/opt/datadog-agent/bin/supervisorctl"
 SUPERVISOR_CONF="/etc/dd-agent/supervisor.conf"
-SUPERVISOR_SOCK="/var/tmp/datadog-supervisor.sock"
+SUPERVISOR_SOCK="/opt/datadog-agent/run/datadog-supervisor.sock"
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -49,11 +49,11 @@ check_status() {
 
         s=`$SUPERVISORCTL_PATH -c $SUPERVISOR_CONF status`
 
-        # number of RUNNING supervisord programs (ignoring pup and dogstatsd)
-	p=`echo "$s" | grep -v dogstatsd | grep -c RUNNING`
+        # number of RUNNING supervisord programs (ignoring dogstatsd and jmxfetch)
+	p=`echo "$s" | grep -Ev 'dogstatsd|jmxfetch' | grep -c RUNNING`
 
-        # number of expected running supervisord programs (ignoring pup and dogstatsd)
-	c=`grep -v dogstatsd $SUPERVISOR_CONF | grep -c '\[program:'`
+        # number of expected running supervisord programs (ignoring dogstatsd and jmxfetch)
+	c=`grep -Ev 'dogstatsd|jmxfetch' $SUPERVISOR_CONF | grep -c '\[program:'`
         if [ "$p" -ne "$c" ]; then
             echo "$s"
             echo -n "Datadog Agent (supervisor) is NOT running all child processes"; failure; echo
@@ -186,6 +186,13 @@ case "$1" in
         su $AGENTUSER -c "$AGENTPATH jmx $@"
         exit $?
         ;;
+
+    flare)
+        shift
+        $AGENTPATH flare $@
+        exit $?
+        ;;
+
     *)
         echo "Usage: $0 {start|stop|restart|info|status|configcheck|configtest|jmx}"
         exit 2

@@ -3,19 +3,19 @@ import time
 
 # project
 from checks import AgentCheck
+from utils.ntp import get_ntp_datadog_host
 
 # 3rd party
 import ntplib
 
-DEFAULT_OFFSET_THRESHOLD = 600 # in seconds
+DEFAULT_OFFSET_THRESHOLD = 60 # in seconds
 DEFAULT_NTP_VERSION = 3
 DEFAULT_TIMEOUT = 1 # in seconds
-DEFAULT_HOST = "pool.ntp.org"
 DEFAULT_PORT = "ntp"
 
 class NtpCheck(AgentCheck):
 
-    DEFAULT_MIN_COLLECTION_INTERVAL = 20 # in seconds
+    DEFAULT_MIN_COLLECTION_INTERVAL = 900 # in seconds
 
     def check(self, instance):
         service_check_msg = None
@@ -24,8 +24,11 @@ class NtpCheck(AgentCheck):
             offset_threshold = int(offset_threshold)
         except (TypeError, ValueError):
             raise Exception('Must specify an integer value for offset_threshold. Configured value is %s' % repr(offset_threshold))
+
+        host = instance.get('host') or get_ntp_datadog_host()
+        self.log.debug("Using ntp host: {0}".format(host))
         req_args = {
-            'host':    instance.get('host', DEFAULT_HOST),
+            'host':    host,
             'port':    instance.get('port', DEFAULT_PORT),
             'version': int(instance.get('version', DEFAULT_NTP_VERSION)),
             'timeout': float(instance.get('timeout', DEFAULT_TIMEOUT)),
@@ -33,12 +36,12 @@ class NtpCheck(AgentCheck):
         try:
             ntp_stats = ntplib.NTPClient().request(**req_args)
         except ntplib.NTPException:
-            self.log.warning("Could not connect to NTP Server")
+            self.log.debug("Could not connect to NTP Server {0}".format(req_args['host']))
             status  = AgentCheck.UNKNOWN
             ntp_ts = None
         else:
             ntp_offset = ntp_stats.offset
-            
+
             # Use the ntp server's timestamp for the time of the result in
             # case the agent host's clock is messed up.
             ntp_ts = ntp_stats.recv_time

@@ -7,7 +7,8 @@ from checks import AgentCheck, CheckException
 import psycopg2 as pg
 
 
-class ShouldRestartException(Exception): pass
+class ShouldRestartException(Exception):
+    pass
 
 
 class PgBouncer(AgentCheck):
@@ -116,17 +117,15 @@ class PgBouncer(AgentCheck):
 
         elif host != "" and user != "":
             try:
-
-
                 if host == 'localhost' and password == '':
                     # Use ident method
                     connection = pg.connect("user=%s dbname=%s" % (user, self.DB_NAME))
                 elif port != '':
                     connection = pg.connect(host=host, port=port, user=user,
-                        password=password, database=self.DB_NAME)
+                                            password=password, database=self.DB_NAME)
                 else:
                     connection = pg.connect(host=host, user=user, password=password,
-                        database=self.DB_NAME)
+                                            database=self.DB_NAME)
 
                 connection.set_isolation_level(pg.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
                 self.log.debug('pgbouncer status: %s' % AgentCheck.OK)
@@ -134,15 +133,15 @@ class PgBouncer(AgentCheck):
             except Exception:
                 message = u'Cannot establish connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
                 self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                    tags=self._get_service_checks_tags(host, port), message=message)
+                                   tags=self._get_service_checks_tags(host, port),
+                                   message=message)
                 self.log.debug('pgbouncer status: %s' % AgentCheck.CRITICAL)
-                pass
+                raise
         else:
             if not host:
                 raise CheckException("Please specify a PgBouncer host to connect to.")
             elif not user:
                 raise CheckException("Please specify a user to connect to PgBouncer as.")
-
 
         self.dbs[key] = connection
         return connection
@@ -171,5 +170,6 @@ class PgBouncer(AgentCheck):
 
         message = u'Established connection to pgbouncer://%s:%s/%s' % (host, port, self.DB_NAME)
         self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-            tags=self._get_service_checks_tags(host, port), message=message)
+                           tags=self._get_service_checks_tags(host, port),
+                           message=message)
         self.log.debug('pgbouncer status: %s' % AgentCheck.OK)

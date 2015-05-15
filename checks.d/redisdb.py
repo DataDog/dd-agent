@@ -15,10 +15,15 @@ import redis
 DEFAULT_MAX_SLOW_ENTRIES = 128
 MAX_SLOW_ENTRIES_KEY = "slowlog-max-len"
 
+REPL_KEY = 'master_link_status'
+LINK_DOWN_KEY = 'master_link_down_since_seconds'
+
 class Redis(AgentCheck):
     db_key_pattern = re.compile(r'^db\d+')
     slave_key_pattern = re.compile(r'^slave\d+')
     subkeys = ['keys', 'expires']
+
+
 
     SOURCE_TYPE_NAME = 'redis'
 
@@ -135,12 +140,15 @@ class Redis(AgentCheck):
         tags = set(custom_tags or [])
 
         if 'unix_socket_path' in instance:
-            tags_to_add = ["unix_socket_path:%s" % instance.get("unix_socket_path")]
+            tags_to_add = [
+                "redis_host:%s" % instance.get("unix_socket_path"),
+                "redis_port:unix_socket",
+            ]
         else:
-            tags_to_add = ["redis_host:%s" % instance.get('host'), "redis_port:%s" % instance.get('port')]
-
-        if instance.get('db') is not None:
-            tags_to_add.append("db:%s" % instance.get('db'))
+            tags_to_add = [
+                "redis_host:%s" % instance.get('host'),
+                "redis_port:%s" % instance.get('port')
+            ]
 
         tags = sorted(tags.union(tags_to_add))
 
@@ -150,7 +158,7 @@ class Redis(AgentCheck):
         conn = self._get_conn(instance)
 
         tags, tags_to_add = self._get_tags(custom_tags, instance)
-        
+
 
         # Ping the database for info, and track the latency.
         # Process the service check: the check passes if we can connect to Redis
@@ -230,6 +238,11 @@ class Redis(AgentCheck):
                             self.warning("{0} key not found in redis".format(key))
                         self.gauge('redis.key.length', 0, tags=key_tags)
 
+
+        self._check_replication(info, tags)
+
+    def _check_replication(self, info, tags):
+
         # Save the replication delay for each slave
         for key in info:
             if self.slave_key_pattern.match(key) and isinstance(info[key], dict):
@@ -244,7 +257,18 @@ class Redis(AgentCheck):
                             slave_tags.append('slave_{0}:{1}'.format(slave_tag, info[key][slave_tag]))
                     slave_tags.append('slave_id:%s' % key.lstrip('slave'))
                     self.gauge('redis.replication.delay', delay, tags=slave_tags)
-    
+
+        if REPL_KEY in info:
+            if info[REPL_KEY] == 'up':
+                status = AgentCheck.OK
+                down_seconds = 0
+            else:
+                status = AgentCheck.CRITICAL
+                down_seconds = info[LINK_DOWN_KEY]
+
+            self.service_check('redis.replication.master_link_status', status, tags=tags)
+            self.gauge('redis.replication.master_link_down_since_seconds', down_seconds, tags=tags)
+
 
     def _check_slowlog(self, instance, custom_tags):
         """Retrieve length and entries from Redis' SLOWLOG
@@ -254,27 +278,27 @@ class Redis(AgentCheck):
 
         """
 
-        
+
         conn = self._get_conn(instance)
 
-        tags, tags_to_add = self._get_tags(custom_tags, instance)
+        tags, _ = self._get_tags(custom_tags, instance)
 
         if not instance.get(MAX_SLOW_ENTRIES_KEY):
             max_slow_entries = int(conn.config_get(MAX_SLOW_ENTRIES_KEY)[MAX_SLOW_ENTRIES_KEY])
             if max_slow_entries > DEFAULT_MAX_SLOW_ENTRIES:
-                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."\
-                    "If you need a higher value, please set {0} in your check config"\
+                self.warning("Redis {0} is higher than {1}. Defaulting to {1}."
+                    "If you need a higher value, please set {0} in your check config"
                     .format(MAX_SLOW_ENTRIES_KEY, DEFAULT_MAX_SLOW_ENTRIES))
                 max_slow_entries = DEFAULT_MAX_SLOW_ENTRIES
         else:
-            max_slow_entries = int(instance.get(max_slow_entries))
+            max_slow_entries = int(instance.get(MAX_SLOW_ENTRIES_KEY))
 
 
         # Generate a unique id for this instance to be persisted across runs
         ts_key = self._generate_instance_key(instance)
 
         # Get all slowlog entries
-        
+
         slowlogs = conn.slowlog_get(max_slow_entries)
 
         # Find slowlog entries between last timestamp and now using start_time

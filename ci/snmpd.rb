@@ -6,13 +6,15 @@ end
 
 namespace :ci do
   namespace :snmpd do |flavor|
-    task :before_install => ['ci:common:before_install']
+    task before_install: ['ci:common:before_install']
 
-    task :install => ['ci:common:install'] do
+    task install: ['ci:common:install'] do
+      # Downloads
+      # http://sourceforge.net/projects/net-snmp/files/net-snmp/5.7.3/net-snmp-5.7.3.tar.gz/download
       unless Dir.exist? File.expand_path(snmpd_rootdir)
         sh %(curl -s -L\
              -o $VOLATILE_DIR/snmpd.tar.gz\
-             http://sourceforge.net/projects/net-snmp/files/net-snmp/5.7.3/net-snmp-5.7.3.tar.gz/download)
+             https://s3.amazonaws.com/dd-agent-tarball-mirror/net-snmp-5.7.3.tar.gz)
         sh %(mkdir -p $VOLATILE_DIR/snmpd)
         sh %(mkdir -p #{snmpd_rootdir})
         sh %(tar zxf $VOLATILE_DIR/snmpd.tar.gz\
@@ -24,28 +26,33 @@ namespace :ci do
       end
     end
 
-    task :before_script => ['ci:common:before_script'] do
+    task before_script: ['ci:common:before_script'] do
       sh %(#{snmpd_rootdir}/sbin/snmpd -Ln\
           -c $TRAVIS_BUILD_DIR/ci/resources/snmpd/snmpd.conf\
           -x TCP:11111 UDP:11111\
           -p $VOLATILE_DIR/snmpd.pid)
     end
 
-    task :script => ['ci:common:script'] do
+    task script: ['ci:common:script'] do
       this_provides = [
         'snmpd'
       ]
       Rake::Task['ci:common:run_tests'].invoke(this_provides)
     end
 
-    task :cleanup => ['ci:common:cleanup'] do
+    task before_cache: ['ci:common:before_cache']
+
+    task cache: ['ci:common:cache']
+
+    task cleanup: ['ci:common:cleanup'] do
       sh %(kill `cat $VOLATILE_DIR/snmpd.pid`)
     end
 
     task :execute do
       exception = nil
       begin
-        %w(before_install install before_script script).each do |t|
+        %w(before_install install before_script
+           script before_cache cache).each do |t|
           Rake::Task["#{flavor.scope.path}:#{t}"].invoke
         end
       rescue => e

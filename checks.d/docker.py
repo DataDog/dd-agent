@@ -166,9 +166,9 @@ class Docker(AgentCheck):
             all_containers = self._get_containers(instance, get_all=True)
         except (socket.timeout, urllib2.URLError), e:
             self.service_check(service_check_name, AgentCheck.CRITICAL,
-                message="Unable to list Docker containers: {0}".format(e), tags=tags)
+                message="Unable to list Docker containers: {0}".format(e))
             raise Exception("Failed to collect the list of containers. Exception: {0}".format(e))
-        self.service_check(service_check_name, AgentCheck.OK, tags=tags)
+        self.service_check(service_check_name, AgentCheck.OK)
 
         running_containers_ids = set([container['Id'] for container in running_containers])
 
@@ -186,9 +186,15 @@ class Docker(AgentCheck):
         # The index of the names is used to generate and format events
         ids_to_names = {}
         for container in all_containers:
-            ids_to_names[container['Id']] = container['Names'][0].lstrip("/")
+            ids_to_names[container['Id']] = self._get_container_name(container)
 
         return running_containers, ids_to_names
+
+    def _get_container_name(self, container):
+        # Use either the first container name or the container ID to name the container in our events
+        if container.get('Names', []):
+            return container['Names'][0].lstrip("/")
+        return container['Id'][:11]
 
     def _prepare_filters(self, instance):
         # The reasoning is to check exclude first, so we can skip if there is no exclude

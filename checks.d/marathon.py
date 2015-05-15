@@ -63,18 +63,18 @@ class Marathon(AgentCheck):
             # If there's a timeout
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message='%s timed out after %s seconds.' % (url, timeout),
-                tags = ["url:{}".format(url)])
+                tags = ["url:{0}".format(url)])
             raise Exception("Timeout when hitting %s" % url)
 
         except requests.exceptions.HTTPError:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
                 message='%s returned a status of %s' % (url, r.status_code),
-                tags = ["url:{}".format(url)])
+                tags = ["url:{0}".format(url)])
             raise Exception("Got %s when hitting %s" % (r.status_code, url))
 
         else:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.OK,
-                tags = ["url:{}".format(url)]
+                tags = ["url:{0}".format(url)]
             )
 
         return r.json()

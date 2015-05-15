@@ -23,7 +23,7 @@ RAID10 = "raid10"
 DUP = "dup"
 UNKNOWN = "unknown"
 
-FLAGS_MAPPER =defaultdict(lambda:  (SINGLE, UNKNOWN),{
+FLAGS_MAPPER = defaultdict(lambda:  (SINGLE, UNKNOWN),{
     1: (SINGLE, DATA),
     2: (SINGLE, SYSTEM),
     4: (SINGLE, METADATA),
@@ -50,7 +50,7 @@ FLAGS_MAPPER =defaultdict(lambda:  (SINGLE, UNKNOWN),{
 BTRFS_IOC_SPACE_INFO = 0xc0109414
 
 TWO_LONGS_STRUCT = struct.Struct("=2Q") # 2 Longs
-THREE_LONGS_STRUCT= struct.Struct("=3Q") # 3 Longs
+THREE_LONGS_STRUCT = struct.Struct("=3Q") # 3 Longs
 
 def sized_array(count):
     return array.array("B", itertools.repeat(0, count))
@@ -93,7 +93,7 @@ class BTRFS(AgentCheck):
             # Allocate it
             buffer_size = (TWO_LONGS_STRUCT.size
                         + total_spaces * THREE_LONGS_STRUCT.size)
-            
+
             data = sized_array(buffer_size)
             TWO_LONGS_STRUCT.pack_into(data, 0, total_spaces, 0)
             fcntl.ioctl(fd, BTRFS_IOC_SPACE_INFO, data)

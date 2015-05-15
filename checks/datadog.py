@@ -10,7 +10,7 @@ from itertools import groupby # >= python 2.4
 # project
 import modules
 from checks import LaconicFilter
-from checks.utils import TailFile
+from utils.tailfile import TailFile
 from util import windows_friendly_colon_split
 
 if hasattr('some string', 'partition'):
@@ -331,7 +331,7 @@ class DdForwarder(object):
 
     def _add_metric(self, name, value, ts):
 
-        if self.metrics.has_key(name):
+        if name in self.metrics:
             self.metrics[name].append((ts, value))
         else:
             self.metrics[name] = [(ts, value)]
@@ -367,7 +367,7 @@ class DdForwarder(object):
                 self.logger.exception(e)
                 self.logger.warn("Can't tail %s file" % self.log_path)
 
-            return { 'ddforwarder': self.metrics }
+            return {'ddforwarder': self.metrics}
         else:
             self.logger.debug("Can't tail datadog forwarder log file: %s" % self.log_path)
             return {}

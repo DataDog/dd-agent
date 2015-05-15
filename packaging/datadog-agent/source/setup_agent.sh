@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # figure out where to pull from
-tag="5.2.1"
+tag="5.3.0"
 
 PIP_VERSION="6.0.6"
 
@@ -291,6 +291,7 @@ printf "Setting up supervisor....." | tee -a $logfile
 mkdir -p $dd_base/supervisord/logs >> $logfile 2>&1
 $dd_base/venv/bin/pip install supervisor==3.0b2 >> $logfile 2>&1
 cp $dd_base/agent/packaging/datadog-agent/source/supervisord.conf $dd_base/supervisord/supervisord.conf >> $logfile 2>&1
+mkdir -p $dd_base/run
 print_done
 
 if [ "$unamestr" = "Darwin" ]; then

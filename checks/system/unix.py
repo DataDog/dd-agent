@@ -15,7 +15,8 @@ import time
 
 # project
 from checks import Check, UnknownValue
-from util import get_hostname, Platform
+from util import get_hostname
+from utils.platform import Platform
 
 # locale-resilient float converter
 to_float = lambda s: float(s.replace(",", "."))
@@ -241,7 +242,7 @@ class IO(Check):
                 "kr/s": "rkB/s",
                 "kw/s": "wkB/s",
                 "actv": "avgqu-sz",
-                }
+            }
         elif os_name == "freebsd":
             names = {
                 "svc_t": "await",
@@ -249,7 +250,7 @@ class IO(Check):
                 "kr/s": "rkB/s",
                 "kw/s": "wkB/s",
                 "wait": "avgqu-sz",
-                }
+            }
         # translate if possible
         return names.get(metric_name, metric_name)
 
@@ -656,7 +657,7 @@ class Memory(Check):
             except Exception:
                 self.logger.exception('Cannot compute stats from swapinfo')
 
-            return memData;
+            return memData
         elif sys.platform == 'sunos5':
             try:
                 memData = {}
@@ -731,9 +732,9 @@ class Processes(Check):
             line = line.split(None, 10)
             processes.append(map(lambda s: s.strip(), line))
 
-        return { 'processes':   processes,
-                 'apiKey':      agentConfig['api_key'],
-                 'host':        get_hostname(agentConfig) }
+        return {'processes':   processes,
+                'apiKey':      agentConfig['api_key'],
+                'host':        get_hostname(agentConfig)}
 
 class Cpu(Check):
 
@@ -742,7 +743,7 @@ class Cpu(Check):
         When figures are not available, False is sent back.
         """
         def format_results(us, sy, wa, idle, st):
-            data = { 'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st }
+            data = {'cpuUser': us, 'cpuSystem': sy, 'cpuWait': wa, 'cpuIdle': idle, 'cpuStolen': st}
             for key in data.keys():
                 if data[key] is None:
                     del data[key]
@@ -796,7 +797,7 @@ class Cpu(Check):
                     cpu_metrics = {
                         "%usr":None, "%user":None, "%nice":None,
                         "%iowait":None, "%idle":None, "%sys":None,
-                         "%irq":None, "%soft":None, "%steal":None,
+                        "%irq":None, "%soft":None, "%steal":None,
                     }
 
                     for cpu_m in cpu_metrics:
@@ -857,7 +858,7 @@ class Cpu(Check):
                     cpu_wait = 0
                     cpu_idle = get_value(headers, data, "id")
                     cpu_stol = 0
-                    return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol);
+                    return format_results(cpu_user + cpu_nice, cpu_sys + cpu_intr, cpu_wait, cpu_idle, cpu_stol)
 
                 else:
                     self.logger.warn("Expected to get at least 4 lines of data from iostat instead of just " + str(iostats[:max(80, len(iostats))]))
@@ -916,7 +917,7 @@ def _get_subprocess_output(command, log):
         proc.wait()
         err = proc.stderr.read()
         if err:
-            log.debug("Error while running %s : %s" %(" ".join(command), err))
+            log.debug("Error while running %s : %s" % (" ".join(command), err))
 
         stdout_f.seek(0)
         output = stdout_f.read()

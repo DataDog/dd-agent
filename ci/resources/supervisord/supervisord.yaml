@@ -1,0 +1,6 @@
+init_config:
+
+instances:
+   - name: travis
+     socket: unix://VOLATILE_DIR//supervisor.sock
+     host: http://127.0.0.1

@@ -1,6 +1,7 @@
 
 from datetime import datetime, timedelta
 import time
+from types import DictType, ListType, StringTypes
 
 from collections import namedtuple
 
@@ -18,7 +19,7 @@ class agg(object):
     def append(args):
         l = []
         for arg in args:
-            if type(arg) == type("") or type(arg) == type(u""):
+            if isinstance(arg, StringTypes):
                 l.extend(arg.split(","))
             else:
                 l.append(str(arg))
@@ -78,7 +79,7 @@ class ResourcePlugin(object):
         if keys is None:
             return lines
 
-        if type(keys) != type([]):
+        if not isinstance(keys, ListType):
             keys = [keys]
 
         group = {}
@@ -86,7 +87,7 @@ class ResourcePlugin(object):
 
         for line in lines:
             k = key(line)
-            if group.has_key(k):
+            if k in group:
                 group[k].append(line)
             else:
                 group[k] = [line]
@@ -130,7 +131,7 @@ class ResourcePlugin(object):
         if group_by is not None:
             groups = self._group_by(group_by,lines)
         else:
-            groups = { 'foo': lines}
+            groups = {'foo': lines}
 
         #Aggregate each terminal group
         dlist = []
@@ -138,7 +139,7 @@ class ResourcePlugin(object):
         def _aggregate_groups(groups):
             for group in groups:
                 rows = groups[group]
-                if type(rows) == type({}):
+                if isinstance(rows, DictType):
                     _aggregate_groups(rows)
                 else:
                     dlist.append(self._aggregate_lines(rows, temporal = temporal))
@@ -153,10 +154,10 @@ class ResourcePlugin(object):
 
         return dlist2
 
-    def _flush_snapshots(self,snapshot_group = None, group_by = None, filter_by = None, 
+    def _flush_snapshots(self,snapshot_group = None, group_by = None, filter_by = None,
                               temporal = True):
         #Aggregate (temporally) all snaphots into last_snapshots
-        
+
         new_snap = (int(time.mktime(snapshot_group.timetuple())),
                                self._aggregate(self._snapshots,
                                               group_by = group_by,
@@ -181,7 +182,7 @@ class ResourcePlugin(object):
                 self.flush_snapshots(g1)
         if self._current_snapshot is None:
             self.start_snapshot()
-        
+
     def _flush_if_needed(self,now):
         """Check the older snapshot in the stack, and flush
             them all if needed"""
@@ -212,25 +213,26 @@ class ResourcePlugin(object):
 
                 if field.temporal_aggregator is not None:
                     f_tagg_name = field.temporal_aggregator.__name__
-           
+
                 if field.server_aggregator is not None:
                     f_serv_agg_name = field.server_aggregator.__name__
 
                 if field.server_temporal_aggregator is not None:
                     f_serv_tagg_name = field.server_temporal_aggregator.__name__
 
-                ret.append([field.version,
-                            field.name,
-                            field.type,
-                            f_agg_name,
-                            f_tagg_name,
-                            f_serv_agg_name,
-                            f_serv_tagg_name,
-                            field.group_on,
-                            field.temporal_group_on,
+                ret.append([
+                    field.version,
+                    field.name,
+                    field.type,
+                    f_agg_name,
+                    f_tagg_name,
+                    f_serv_agg_name,
+                    f_serv_tagg_name,
+                    field.group_on,
+                    field.temporal_group_on,
                 ])
             return ret
-            
+
     def describe_snapshot(self):
         """Register the snapshot details for this plugin:
            - What a line is made of
@@ -275,7 +277,7 @@ class ResourcePlugin(object):
             self._current_ts = now
         if group_by is not None or filter_by is not None:
             self._snapshots.extend(
-                self._aggregate(self._current_snapshot, 
+                self._aggregate(self._current_snapshot,
                                 group_by = group_by,
                                 filter_by = filter_by,
                                 temporal = False))
