@@ -18,7 +18,8 @@ namespace :ci do
         sh %(chmod a+x $VOLATILE_DIR/kerl)
         sh %($VOLATILE_DIR/kerl build git git://github.com/basho/otp.git OTP_R16B02 R16B02)
         sh %($VOLATILE_DIR/kerl install R16B02 $VOLATILE_DIR/erlang/R16B02)
-        sh %(curl -o $VOLATILE_DIR/riak.tar.gz http://s3.amazonaws.com/downloads.basho.com/riak/#{riak_version[0..2]}/#{riak_version}/riak-#{riak_version}.tar.gz)
+        sh %(curl -o $VOLATILE_DIR/riak.tar.gz\
+             http://s3.amazonaws.com/downloads.basho.com/riak/#{riak_version[0..2]}/#{riak_version}/riak-#{riak_version}.tar.gz)
         sh %(mkdir -p $VOLATILE_DIR/riak)
         sh %(tar zxvf $VOLATILE_DIR/riak.tar.gz  -C $VOLATILE_DIR/riak --strip-components=1)
         sh %(cd $VOLATILE_DIR/riak\

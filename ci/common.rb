@@ -18,6 +18,7 @@ def section(name)
   puts ''
 end
 
+# helper class to wait for TCP/HTTP services to boot
 class Wait
   DEFAULT_TIMEOUT = 10
 
@@ -158,12 +159,12 @@ namespace :ci do
     task :run_tests, :flavor do |t, attr|
       flavors = attr[:flavor]
       filter = ENV['NOSE_FILTER'] || '1'
-      if flavors.include? 'default' || flavors.include? 'checks_mock'
+      if flavors.include?('default') || flavors.include?('checks_mock')
         nose = "(not requires) and #{filter}"
       else
         nose = "(requires in #{flavors}) and #{filter}"
       end
-      if flavors.include? 'default' || flavors.include? 'core_integration'
+      if flavors.include?('default') || flavors.include?('core_integration')
         tests_directory = 'tests/core'
       else
         tests_directory = 'tests/checks'

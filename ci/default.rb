@@ -41,7 +41,7 @@ namespace :ci do
 
     task before_script: ['ci:common:before_script']
 
-    task :lint do
+    task lint: ['rubocop'] do
       sh %(flake8)
     end
 

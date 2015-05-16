@@ -124,7 +124,7 @@ class Cache
 
   def fold(message = nil)
     @fold_count ||= 0
-    @fold_count  += 1
+    @fold_count += 1
 
     puts `echo #{message}` if message
     yield

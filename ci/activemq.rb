@@ -9,7 +9,7 @@ def activemq_rootdir
 end
 
 namespace :ci do
-  namespace :my_new_flavor do |flavor|
+  namespace :activemq do |flavor|
     task before_install: ['ci:common:before_install']
 
     task install: ['ci:common:install'] do

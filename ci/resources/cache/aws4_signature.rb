@@ -109,7 +109,7 @@ class Cache
     end
 
     def recursive_hmac(*args)
-      args.reduce { |key, data| OpenSSL::HMAC.digest('sha256', key, data) }
+      args.reduce { |k, d| OpenSSL::HMAC.digest('sha256', k, d) }
     end
   end
 end

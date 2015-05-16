@@ -25,7 +25,8 @@ namespace :ci do
         sh %(tar Jxf $VOLATILE_DIR/sysstat-#{sysstat_version}.tar.xz\
              -C $VOLATILE_DIR/sysstat --strip-components=1)
         sh %(cd $VOLATILE_DIR/sysstat\
-             && conf_dir=#{sysstat_rootdir}/etc/sysconfig sa_dir=#{sysstat_rootdir}/var/log/sa ./configure --prefix=#{sysstat_rootdir} --disable-man-group\
+             && conf_dir=#{sysstat_rootdir}/etc/sysconfig sa_dir=#{sysstat_rootdir}/var/log/sa\
+                ./configure --prefix=#{sysstat_rootdir} --disable-man-group\
              && make\
              && make install)
       end
