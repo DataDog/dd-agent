@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+    - url: http://localhost:8500
+      catalog_checks: yes
+      new_leader_checks: yes
+      service_whitelist:
+        - zookeeper
+        - consul
+        - master-db
