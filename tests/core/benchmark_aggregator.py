@@ -57,7 +57,7 @@ class TestAggregatorPerf(object):
                 text_len=len(text),
                 title=title,
                 text=text
-            )
+        )
         return p
 
 

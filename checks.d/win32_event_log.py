@@ -51,7 +51,7 @@ class Win32EventLog(AgentCheck):
                 event_id=instance.get('event_id'),
                 message_filters=instance.get('message_filters', []),
                 start_ts=last_ts
-            )
+        )
         wql = q.to_wql()
         self.log.debug("Querying for Event Log events: %s" % wql)
         events = w.query(wql)

@@ -6,14 +6,14 @@ MOCK_CONFIG = {
         'instances': [
             {'process_metrics': [
                 {
-                  'name': 'get_memory_info',
-                  'type': 'gauge',
-                  'active': 'yes'
+                    'name': 'get_memory_info',
+                    'type': 'gauge',
+                    'active': 'yes'
                 },
                 {
-                  'name': 'get_cpu_times',
-                  'type': 'rate',
-                  'active': 'yes'
+                    'name': 'get_cpu_times',
+                    'type': 'rate',
+                    'active': 'yes'
                 },
             ]}],
         'init_config': {}
@@ -23,14 +23,14 @@ MOCK_CONFIG_2 = {
         'instances': [
             {'process_metrics': [
                 {
-                  'name': 'get_memory_info',
-                  'type': 'gauge',
-                  'active': 'yes'
+                    'name': 'get_memory_info',
+                    'type': 'gauge',
+                    'active': 'yes'
                 },
                 {
-                  'name': 'get_non_existent_stat',
-                  'type': 'gauge',
-                  'active': 'yes'
+                    'name': 'get_non_existent_stat',
+                    'type': 'gauge',
+                    'active': 'yes'
                 },
             ]}],
         'init_config': {}

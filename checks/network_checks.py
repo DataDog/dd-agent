@@ -34,7 +34,7 @@ class NetworkCheck(AgentCheck):
             Status.UP  : AgentCheck.OK,
             Status.WARNING : AgentCheck.WARNING,
             Status.DOWN : AgentCheck.CRITICAL
-        }
+    }
 
     """
     Services checks inherits from this class.

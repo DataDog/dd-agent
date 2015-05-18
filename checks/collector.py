@@ -392,7 +392,8 @@ class Collector(object):
 
         if self.os != 'windows':
             if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload, {
+                self._agent_metrics.set_metric_context(payload,
+                    {
                         'collection_time': collect_duration,
                         'emit_time': self.emit_duration,
                         'cpu_time': time.clock() - cpu_clock
@@ -405,7 +406,8 @@ class Collector(object):
                     log.info("\n AGENT STATS: \n {0}".format(Collector._stats_for_display(agent_stats)))
         else:
             if self._agent_metrics is not None:
-                self._agent_metrics.set_metric_context(payload, {
+                self._agent_metrics.set_metric_context(payload,
+                    {
                         'collection_time': collect_duration,
                         'emit_time': self.emit_duration,
                     })
