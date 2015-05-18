@@ -48,7 +48,7 @@ class CheckSSH(AgentCheck):
         tags = ["instance:{0}-{1}".format(conf.host, conf.port)] 
 
         try:
-            private_key = paramiko.RSAKey.from_private_key_file (conf.private_key_file)
+            private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)
         except Exception:
             self.warning("Private key could not be found")
             private_key = None
@@ -74,7 +74,7 @@ class CheckSSH(AgentCheck):
             if conf.sftp_check:
                 self.service_check('sftp.can_connect', status, tags=tags,
                     message=exception_message)
-            raise Exception (e)
+            raise
 
         #Service Availability to check status of SFTP
         if conf.sftp_check:
