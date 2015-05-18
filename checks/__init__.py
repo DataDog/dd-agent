@@ -49,6 +49,8 @@ class UnknownValue(CheckException): pass
 # and not this class. This class will be removed in a future version
 # of the agent.
 #==============================================================================
+
+
 class Check(object):
     """
     (Abstract) class for all checks with the ability to:
@@ -57,8 +59,6 @@ class Check(object):
     * only log error messages once (instead of each time they occur)
 
     """
-
-
     def __init__(self, logger):
         # where to store samples, indexed by metric_name
         # metric_name: {("sorted", "tags"): [(ts, value), (ts, value)],
@@ -66,7 +66,7 @@ class Check(object):
         #               None: [(ts, value), (ts, value)]}
         #                 untagged values are indexed by None
         self._sample_store = {}
-        self._counters = {} # metric_name: bool
+        self._counters = {}  # metric_name: bool
         self.logger = logger
         try:
             self.logger.addFilter(LaconicFilter())
@@ -316,7 +316,8 @@ class AgentCheck(object):
         self.warnings = []
         self.library_versions = None
         self.last_collection_time = defaultdict(int)
-        self.service_metadata = []
+        self._instance_metadata = []
+        self.svc_metadata = []
 
     def instance_count(self):
         """ Return the number of instances that are configured for this check. """
@@ -475,13 +476,17 @@ class AgentCheck(object):
                                  hostname, check_run_id, message)
         )
 
-    def svc_metadata(self, metadata):
+    def service_metadata(self, meta_name, value):
         """
         Save metadata.
 
-        :param metadata: The service metadata dictionary
+        :param meta_name: metadata key name
+        :type meta_name: string
+
+        :param value: metadata value
+        :type value: string
         """
-        self.service_metadata.append(metadata)
+        self._instance_metadata.append((meta_name, str(value)))
 
     def has_events(self):
         """
@@ -524,6 +529,13 @@ class AgentCheck(object):
         self.service_checks = []
         return service_checks
 
+    def _roll_up_instance_metadata(self):
+        """
+        Concatenate and flush instance metadata.
+        """
+        self.svc_metadata.append(dict((k, v) for (k, v) in self._instance_metadata))
+        self._instance_metadata = []
+
     def get_service_metadata(self):
         """
         Return a list of the metadata dictionaries saved by the check -if any-
@@ -532,8 +544,10 @@ class AgentCheck(object):
         @return the list of metadata saved by this check
         @rtype list of metadata dicts
         """
-        service_metadata = self.service_metadata
-        self.service_metadata = []
+        if self._instance_metadata:
+            self._roll_up_instance_metadata()
+        service_metadata = self.svc_metadata
+        self.svc_metadata = []
         return service_metadata
 
     def has_warnings(self):
@@ -619,14 +633,18 @@ class AgentCheck(object):
         if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:
             try:
                 before = AgentCheck._collect_internal_stats()
-            except Exception: # It's fine if we can't collect stats for the run, just log and proceed
+            except Exception:  # It's fine if we can't collect stats for the run, just log and proceed
                 self.log.debug("Failed to collect Agent Stats before check {0}".format(self.name))
 
         instance_statuses = []
         for i, instance in enumerate(self.instances):
             try:
-                min_collection_interval = instance.get('min_collection_interval',
-                    self.init_config.get('min_collection_interval', self.DEFAULT_MIN_COLLECTION_INTERVAL))
+                min_collection_interval = instance.get(
+                    'min_collection_interval', self.init_config.get(
+                        'min_collection_interval',
+                        self.DEFAULT_MIN_COLLECTION_INTERVAL
+                    )
+                )
                 now = time.time()
                 if now - self.last_collection_time[i] < min_collection_interval:
                     self.log.debug("Not running instance #{0} of check {1} as it ran less than {2}s ago".format(i, self.name, min_collection_interval))
@@ -644,24 +662,24 @@ class AgentCheck(object):
                     instance_check_stats = {'run_time': timeit.default_timer() - check_start_time}
 
                 if self.has_warnings():
-                    instance_status = check_status.InstanceStatus(i,
-                        check_status.STATUS_WARNING,
-                        warnings=self.get_warnings(),
-                        instance_check_stats=instance_check_stats
+                    instance_status = check_status.InstanceStatus(
+                        i, check_status.STATUS_WARNING,
+                        warnings=self.get_warnings(), instance_check_stats=instance_check_stats
                     )
                 else:
                     instance_status = check_status.InstanceStatus(
-                        i,
-                        check_status.STATUS_OK,
+                        i, check_status.STATUS_OK,
                         instance_check_stats=instance_check_stats
                     )
             except Exception, e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
-                instance_status = check_status.InstanceStatus(i,
-                    check_status.STATUS_ERROR,
-                    error=str(e),
-                    tb=traceback.format_exc()
+                instance_status = check_status.InstanceStatus(
+                    i, check_status.STATUS_ERROR,
+                    error=str(e), tb=traceback.format_exc()
                 )
+            finally:
+                self._roll_up_instance_metadata()
+
             instance_statuses.append(instance_status)
 
         if self.in_developer_mode and self.name != AGENT_METRICS_CHECK_NAME:

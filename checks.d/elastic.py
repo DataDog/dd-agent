@@ -225,9 +225,6 @@ class ESCheck(AgentCheck):
         health_url, nodes_url, stats_url, pending_tasks_url, stats_metrics\
             = self._define_params(version, config.is_external)
 
-        # Collect metadata
-        self._collect_metadata(version)
-
         # Load stats data.
         stats_url = urlparse.urljoin(config.url, stats_url)
         stats_data = self._get_data(stats_url, config)
@@ -264,6 +261,7 @@ class ESCheck(AgentCheck):
             )
             version = [1, 0, 0]
 
+        self.service_metadata('version', version)
         self.log.debug("Elasticsearch version is %s" % version)
         return version
 
@@ -544,7 +542,3 @@ class ESCheck(AgentCheck):
             'event_object': hostname,
             'tags': tags
         }
-
-    def _collect_metadata(self, version):
-        metadata_dict = {'version': version}
-        self.svc_metadata(metadata_dict)

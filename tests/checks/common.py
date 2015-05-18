@@ -181,6 +181,8 @@ class AgentCheckTest(unittest.TestCase):
                 # ie the check edits the tags of the instance, problematic if
                 # run twice
                 self.check.check(copy.deepcopy(instance))
+                # FIXME: This should be called within the `run` method only
+                self.check._roll_up_instance_metadata()
             except Exception, e:
                 # Catch error before re-raising it to be able to get service_checks
                 print "Exception {0} during check".format(e)

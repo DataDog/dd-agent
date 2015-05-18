@@ -320,7 +320,7 @@ class StatusHandler(tornado.web.RequestHandler):
 
 
 class AgentInputHandler(tornado.web.RequestHandler):
-    _MSG_TYPE = None
+    _MSG_TYPE = ""
 
     def post(self):
         """Read the message and forward it to the intake"""

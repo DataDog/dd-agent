@@ -334,7 +334,5 @@ class Redis(AgentCheck):
         self._check_slowlog(instance, custom_tags)
 
     def _collect_metadata(self, info):
-        metadata_dict = {}
         if info and 'redis_version' in info:
-            metadata_dict['version'] = info['redis_version']
-        self.svc_metadata(metadata_dict)
+            self.service_metadata('version', info['redis_version'])

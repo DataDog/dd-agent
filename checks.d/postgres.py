@@ -266,6 +266,7 @@ SELECT relname,
                 version = result[0]
             self.versions[key] = version
 
+        self.service_metadata('version', self.versions[key])
         return self.versions[key]
 
     def _is_above(self, key, db, version_to_compare):
@@ -350,11 +351,6 @@ SELECT relname,
                 self.replication_metrics[key].update(self.REPLICATION_METRICS_9_2)
             metrics = self.replication_metrics.get(key)
         return metrics
-
-    def _collect_metadata(self, key, db):
-        metadata_dict = {}
-        metadata_dict['version'] = self._get_version(key, db)
-        self.svc_metadata(metadata_dict)
 
     def _collect_stats(self, key, db, instance_tags, relations, custom_metrics):
         """Query pg_stat_* for various metrics
@@ -591,12 +587,10 @@ SELECT relname,
             version = self._get_version(key, db)
             self.log.debug("Running check against version %s" % version)
             self._collect_stats(key, db, tags, relations, custom_metrics)
-            self._collect_metadata(key, db)
         except ShouldRestartException:
             self.log.info("Resetting the connection")
             db = self.get_connection(key, host, port, user, password, dbname, use_cached=False)
             self._collect_stats(key, db, tags, relations, custom_metrics)
-            self._collect_metadata(key, db)
 
         if db is not None:
             service_check_tags = self._get_service_check_tags(host, port, dbname)
