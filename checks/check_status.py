@@ -675,7 +675,7 @@ class DogstatsdStatus(AgentStatus):
     NAME = 'Dogstatsd'
 
     def __init__(self, flush_count=0, packet_count=0, packets_per_second=0,
-        metric_count=0, event_count=0):
+            metric_count=0, event_count=0):
         AgentStatus.__init__(self)
         self.flush_count = flush_count
         self.packet_count = packet_count

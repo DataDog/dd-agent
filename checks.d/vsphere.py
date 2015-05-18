@@ -470,8 +470,8 @@ class VSphereCheck(AgentCheck):
         # Get only the basic metrics
         for metric in available_metrics:
             # No cache yet, skip it for now
-            if i_key not in self.metrics_metadata\
-                or metric.counterId not in self.metrics_metadata[i_key]:
+            if (i_key not in self.metrics_metadata
+                    or metric.counterId not in self.metrics_metadata[i_key]):
                 continue
             if self.metrics_metadata[i_key][metric.counterId]['name'] in BASIC_METRICS:
                 wanted_metrics.append(metric)

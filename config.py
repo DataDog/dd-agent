@@ -503,8 +503,8 @@ def get_config(parse_args=True, cfg_path=None, options=None):
             for key, value in config.items('WMI'):
                 agentConfig['WMI'][key] = value
 
-        if config.has_option("Main", "limit_memory_consumption") and \
-            config.get("Main", "limit_memory_consumption") is not None:
+        if (config.has_option("Main", "limit_memory_consumption") and
+                config.get("Main", "limit_memory_consumption") is not None):
             agentConfig["limit_memory_consumption"] = int(config.get("Main", "limit_memory_consumption"))
         else:
             agentConfig["limit_memory_consumption"] = None

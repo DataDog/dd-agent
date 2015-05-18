@@ -81,7 +81,7 @@ class Win32EventLog(AgentCheck):
 
 class EventLogQuery(object):
     def __init__(self, ltype=None, user=None, source_name=None, log_file=None,
-        event_id=None, start_ts=None, message_filters=None):
+                    event_id=None, start_ts=None, message_filters=None):
 
         self.filters = [
             ('Type', self._convert_event_types(ltype)),
