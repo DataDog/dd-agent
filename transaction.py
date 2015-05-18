@@ -97,7 +97,7 @@ class TransactionManager(object):
             (time.time(), self._total_count, (self._total_size/1024)))
 
     def get_tr_id(self):
-        self._counter =  self._counter + 1
+        self._counter = self._counter + 1
         return self._counter
 
     def append(self,tr):
@@ -123,7 +123,7 @@ class TransactionManager(object):
 
         # Done
         self._transactions.append(tr)
-        self._total_count +=  1
+        self._total_count += 1
         self._transactions_received += 1
         self._total_size = self._total_size + tr_size
 
@@ -215,9 +215,7 @@ class TransactionManager(object):
     def tr_success(self,tr):
         log.debug("Transaction %d completed" % tr.get_id())
         self._transactions.remove(tr)
-        self._total_count +=  -1
-        self._total_size += - tr.get_size()
+        self._total_count -= 1
+        self._total_size -= tr.get_size()
         self._transactions_flushed += 1
         self.print_queue_stats()
-
-

@@ -39,5 +39,3 @@ class TestGanglia(unittest.TestCase):
         x2 = tree.parse(original)
         # Cursory test
         self.assertEquals([c.tag for c in x1.getroot()], [c.tag for c in x2.getroot()])
-
-

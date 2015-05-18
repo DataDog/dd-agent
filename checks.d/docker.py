@@ -356,7 +356,7 @@ class Docker(AgentCheck):
         """Get the list of events """
         now = int(time.time())
         result = self._get_json(
-            "%s/events" % instance["url"], 
+            "%s/events" % instance["url"],
             params={
                     "until": now,
                     "since": self._last_event_collection_ts[instance["url"]] or now - 60,

@@ -255,7 +255,7 @@ class Collector(object):
                 if snaps:
                     has_resource = True
                     res_value = {'snaps': snaps,
-                                 'format_version': resources_check.get_format_version() }
+                                 'format_version': resources_check.get_format_version()}
                     res_format = resources_check.describe_format_if_needed()
                     if res_format is not None:
                         res_value['format_description'] = res_format

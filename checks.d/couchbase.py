@@ -154,4 +154,3 @@ class Couchbase(AgentCheck):
         converted_variable = re.sub('^_|_$', '', converted_variable)
 
         return converted_variable
-

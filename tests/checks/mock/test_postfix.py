@@ -66,7 +66,7 @@ class TestPostfix(unittest.TestCase):
                   - incoming
                   - active
                   - deferred
-        """ % (self.queue_root) )
+        """ % (self.queue_root))
 
         # stuff 10K msgs in random queues
         for _ in xrange(1, 10000):

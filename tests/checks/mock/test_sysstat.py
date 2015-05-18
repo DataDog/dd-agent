@@ -258,4 +258,3 @@ instances:
             assert 'system.net.tcp.retrans_packs' in metric_names
             assert 'system.net.tcp.sent_packs' in metric_names
             assert 'system.net.tcp.rcv_packs' in metric_names
-

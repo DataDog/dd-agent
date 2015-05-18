@@ -251,4 +251,3 @@ class Varnish(AgentCheck):
                 tags = ['backend:%s' % backend]
                 self.service_check(self.SERVICE_CHECK_NAME, check_status,
                                    tags=tags, message=message)
-

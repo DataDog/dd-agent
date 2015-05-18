@@ -498,7 +498,7 @@ class Timer(object):
 
     def step(self):
         now = self._now()
-        step =  now - self.last
+        step = now - self.last
         self.last = now
         return step
 

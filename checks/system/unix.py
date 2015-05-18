@@ -536,7 +536,7 @@ class Memory(Check):
                 memData['swapTotal'] = int(meminfo.get('SwapTotal', 0)) / 1024
                 memData['swapFree']  = int(meminfo.get('SwapFree', 0)) / 1024
 
-                memData['swapUsed'] =  memData['swapTotal'] - memData['swapFree']
+                memData['swapUsed'] = memData['swapTotal'] - memData['swapFree']
 
                 if memData['swapTotal'] > 0:
                     memData['swapPctFree'] = float(memData['swapFree']) / float(memData['swapTotal'])
@@ -786,10 +786,10 @@ class Cpu(Check):
                 #
                 lines = mpstat.split("\n")
                 legend = [l for l in lines if "%usr" in l or "%user" in l]
-                avg =    [l for l in lines if "Average" in l]
+                avg = [l for l in lines if "Average" in l]
                 if len(legend) == 1 and len(avg) == 1:
                     headers = [h for h in legend[0].split() if h not in ("AM", "PM")]
-                    data    = avg[0].split()
+                    data = avg[0].split()
 
                     # Userland
                     # Debian lenny says %user so we look for both
@@ -955,5 +955,3 @@ if __name__ == '__main__':
         #print("--- Processes ---")
         #print(proc.check(config))
         time.sleep(1)
-
-

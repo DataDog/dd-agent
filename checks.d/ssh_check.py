@@ -45,7 +45,7 @@ class CheckSSH(AgentCheck):
 
     def check(self, instance):
         conf = self._load_conf(instance)
-        tags = ["instance:{0}-{1}".format(conf.host, conf.port)] 
+        tags = ["instance:{0}-{1}".format(conf.host, conf.port)]
 
         try:
             private_key = paramiko.RSAKey.from_private_key_file(conf.private_key_file)

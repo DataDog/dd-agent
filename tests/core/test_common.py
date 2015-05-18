@@ -191,7 +191,7 @@ class TestCore(unittest.TestCase):
 
     def test_apptags(self):
         '''
-        Tests that the app tags are sent if specified so 
+        Tests that the app tags are sent if specified so
         '''
         agentConfig = {
             'api_key': 'test_apikey',
