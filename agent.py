@@ -34,7 +34,7 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import JMXFetch
+from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
 from util import (
     EC2,
     get_hostname,
@@ -323,8 +323,6 @@ def main():
         configcheck()
 
     elif 'jmx' == command:
-        from jmxfetch import JMX_LIST_COMMANDS, JMXFetch
-
         if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
             print "#" * 80
             print "JMX tool to be used to help configuring your JMX checks."

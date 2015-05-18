@@ -927,9 +927,7 @@ def _get_subprocess_output(command, log):
 if __name__ == '__main__':
     # 1s loop with results
     import logging
-    import time
     import pprint
-    import re
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s %(message)s')
     log = logging.getLogger()

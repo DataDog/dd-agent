@@ -581,17 +581,17 @@ def get_service_status():
         return "Unknown"
 
 def is_service_running(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status == win32service.SERVICE_RUNNING
 
 def is_service_pending(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status in [win32service.SERVICE_STOP_PENDING, win32service.SERVICE_START_PENDING]
 
 def is_service_stopped(status = None):
-    if status == None:
+    if status is None:
         status = get_service_status()
     return status == win32service.SERVICE_STOPPED
 
