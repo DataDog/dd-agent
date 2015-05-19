@@ -37,6 +37,8 @@ instances:
   - host: HOST,PORT
     username: my_username
     password: my_password
+    # Optional, timeout in seconds for the connection and each command run
+    # command_timeout: 30
     # database: my_database # Optional, defaults to "master"
     tags:
       - optional_tag
