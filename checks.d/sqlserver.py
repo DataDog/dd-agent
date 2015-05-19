@@ -237,6 +237,8 @@ class SQLServer(AgentCheck):
             except Exception, e:
                 self.log.warning("Could not get counter_name of base for metric: %s", e)
 
+        self.close_cursor(cursor)
+
         return sql_type, base_name
 
     def check(self, instance):
@@ -246,12 +248,24 @@ class SQLServer(AgentCheck):
         custom_tags = instance.get('tags', [])
         instance_key = self._conn_key(instance)
         metrics_to_collect = self.instances_metrics[instance_key]
-        cursor = self.get_cursor(instance)
         for metric in metrics_to_collect:
             try:
                 metric.fetch_metric(cursor, custom_tags)
             except Exception, e:
                 self.log.warning("Could not fetch metric %s: %s" % (metric.datadog_name, e))
+
+        self.close_cursor(cursor)
+
+    def close_cursor(self, cursor):
+        """
+        We close the cursor explicitly b/c we had proven memory leaks
+        We handle any exception from closing, although according to the doc:
+        "in adodbapi, it is NOT an error to re-close a closed cursor"
+        """
+        try:
+            cursor.close()
+        except Exception as e:
+            self.log.warning("Could not close adodbapi cursor\n{0}".format(e))
 
 
 class SqlServerMetric(object):
