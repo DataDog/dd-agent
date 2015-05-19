@@ -235,8 +235,8 @@ class ProcessCheckTest(AgentCheckTest):
                 #  - if io_counters() is not available skip the metrics
                 #  - if memory_info_ex() is not available skip the metrics
                 if (mocked_processes == 0 and mname != 'system.processes.number')\
-                    or (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
-                    or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
+                        or (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
+                        or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
                     continue
 
                 if mname == 'system.processes.number':
@@ -282,7 +282,7 @@ class ProcessCheckTest(AgentCheckTest):
         for mname in self.PROCESS_METRIC:
             # See same tests comment in the function `test_check`
             if (not _PSUTIL_IO_COUNTERS and '.io' in mname)\
-                or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
+                    or (not _PSUTIL_MEM_SHARED and 'mem.real' in mname):
                 continue
             self.assertMetric(mname, at_least=1, tags=expected_tags)
 
