@@ -424,9 +424,9 @@ SELECT relname,
                     continue
 
                 if scope in custom_metrics and len(results) > MAX_CUSTOM_RESULTS:
-                    self.warning(
-                        "Query: {0} returned more than {1} results ({2}). Truncating").format(
-                        query, MAX_CUSTOM_RESULTS, len(results))
+                    log_func(
+                        "Query: {0} returned more than {1} results ({2}). Truncating".format(
+                            query, MAX_CUSTOM_RESULTS, len(results)))
                     results = results[:MAX_CUSTOM_RESULTS]
 
                 # FIXME this cramps my style
