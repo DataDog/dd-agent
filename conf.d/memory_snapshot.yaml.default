@@ -1,0 +1,7 @@
+init_config:
+
+instances:
+    - trigger_threshold: 90.0
+      max_cmd_line_args: 5
+      memory_per_process_threshold: 100
+      max_process_count: 10
