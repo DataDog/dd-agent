@@ -44,6 +44,8 @@ namespace :ci do
            -o "-p 15432"\
            start)
       Wait.for 15_432
+      # Wait a tiny bit more, for PG to accept connections
+      sleep_for 2
       sh %(#{pg_rootdir}/bin/psql\
            -p 15432 -U $USER\
            postgres < $TRAVIS_BUILD_DIR/ci/resources/postgres/postgres.sql)
