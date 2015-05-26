@@ -35,8 +35,8 @@ def get_ca_certs_path():
 
 class HTTPCheck(NetworkCheck):
     SOURCE_TYPE_NAME = 'system'
-    SC_STATUS = 'http_check'
-    SC_SSL_CERT = 'http_check.ssl_cert'
+    SC_STATUS = 'http.can_connect'
+    SC_SSL_CERT = 'http.ssl_cert'
 
     def __init__(self, name, init_config, agentConfig, instances):
         self.ca_certs = init_config.get('ca_certs', get_ca_certs_path())
@@ -250,9 +250,10 @@ class HTTPCheck(NetworkCheck):
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):
         instance_name = instance['name']
-        service_check_name = self.normalize(instance_name, sc_name)
         url = instance.get('url', None)
-        sc_tags = ['url:%s' % url]
+        sc_tags = ['url:{0}'.format(url), "instance:{0}".format(instance_name)]
+        custom_tags = instance.get('tags', [])
+        tags = sc_tags + custom_tags
 
         if sc_name == self.SC_STATUS:
             # format the HTTP response body into the event
@@ -266,9 +267,9 @@ class HTTPCheck(NetworkCheck):
                 msg = "%d %s\n\n%s" % (code, reason, content)
                 msg = msg.rstrip()
 
-        self.service_check(service_check_name,
+        self.service_check(sc_name,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags=sc_tags,
+                           tags=tags,
                            message=msg
                            )
 

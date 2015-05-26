@@ -10,7 +10,7 @@ class BadConfException(Exception): pass
 class TCPCheck(NetworkCheck):
 
     SOURCE_TYPE_NAME = 'system'
-    SERVICE_CHECK_PREFIX = 'tcp_check'
+    SERVICE_CHECK_NAME = 'tcp.can_connect'
 
     def _load_conf(self, instance):
         # Fetches the conf
@@ -154,16 +154,19 @@ class TCPCheck(NetworkCheck):
 
     def report_as_service_check(self, sc_name, status, instance, msg=None):
         instance_name = instance['name']
-        service_check_name = self.normalize(instance_name, self.SERVICE_CHECK_PREFIX)
         host = instance.get('host', None)
         port = instance.get('port', None)
+        custom_tags = instance.get('tags', [])
 
         if status == Status.UP:
             msg = None
 
-        self.service_check(service_check_name,
+        tags = custom_tags + ['target_host:{0}'.format(host),
+                              'port:{0}'.format(port),
+                              'instance:{0}'.format(instance_name)]
+
+        self.service_check(self.SERVICE_CHECK_NAME,
                            NetworkCheck.STATUS_TO_SERVICE_CHECK[status],
-                           tags= ['target_host:%s' % host,
-                                  'port:%s' % port],
+                           tags=tags,
                            message=msg
                            )
